@@ -1,13 +1,14 @@
 "use client";
 
+import { PolicyAcceptanceGate } from "@/components/PolicyAcceptanceGate";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { getApiUrl } from "@/lib/apiBase";
 import {
     createUserProfile,
-    getAllowedUser,
     getUserProfile,
-    logGuestLogin,
+    updateUserProfile,
 } from "@/lib/database";
 
 type RoleType = "primary" | "event";
@@ -48,7 +49,6 @@ interface AuthContextType {
     signup: (email: string, password: string, name: string) => Promise<{success: boolean, error?: string, needsEmailVerification?: boolean}>;
     loginWithGoogle: () => Promise<boolean>;
     resetPassword: (email: string) => Promise<boolean>;
-    loginWithPhoneSimple: (name: string, phone: string) => Promise<boolean>;
     authWithPhone: (name: string, phone: string, password: string) => Promise<{success: boolean, error?: string}>;
     authWithEmail: (name: string, email: string, password: string) => Promise<{success: boolean, error?: string}>;
     logout: () => void;
@@ -190,6 +190,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!profile) {
             await createUserProfile(uid, fallbackName, email || "", options?.phone || "", options?.role || "user");
             profile = await getUserProfile(uid);
+        } else {
+            // Update last login and properly check for Supabase API errors
+            Promise.resolve(
+                supabase.from('profiles')
+                    .update({ last_login: new Date().toISOString() })
+                    .eq('id', uid)
+            ).then(({ error }) => {
+                if (error) {
+                    console.error("[Auth] Supabase rejected lastLogin update:", error.message, error.details);
+                }
+            }).catch(e => console.error("[Auth] Network error updating lastLogin:", e));
         }
         if (options?.shouldSync && !options.shouldSync()) return;
         syncUserSession(buildUserData(uid, email, fallbackName, profile));
@@ -382,14 +393,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signup = async (email: string, password: string, name: string): Promise<{success: boolean, error?: string, needsEmailVerification?: boolean}> => {
         try {
+            const normalizedEmail = email.trim().toLowerCase();
+            const existingAccountMessage = "An account with this email already exists. Please sign in, continue with Google, or use Forgot Password.";
+            const check = await fetch(getApiUrl("/api/v1/signup/check-email"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: normalizedEmail }),
+                signal: AbortSignal.timeout(15000),
+            });
+            const result = await check.json();
+            if (!check.ok || typeof result.exists !== "boolean") {
+                return { success: false, error: result.error || "Unable to check your email right now. Please try again later." };
+            }
+            if (result.exists) return { success: false, error: existingAccountMessage };
             const { data, error } = await supabase.auth.signUp({
-                email,
+                email: normalizedEmail,
                 password,
                 options: {
                     data: { name },
+                    emailRedirectTo: `${window.location.origin}/profile`,
                 },
             });
             if (error) throw error;
+            // Handle an account created between the check and signup as well.
+            if (data.user?.identities?.length === 0) {
+                return { success: false, error: existingAccountMessage };
+            }
             if (data.user && data.session === null) {
                 await supabase.auth.signOut();
                 return { success: true, needsEmailVerification: true };
@@ -431,42 +460,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return true;
         } catch (error) {
             console.error("Supabase reset password error:", error);
-            return false;
-        }
-    };
-
-    const loginWithPhoneSimple = async (name: string, phone: string) => {
-        try {
-            const phoneUid = `phone_${phone.replace(/\D/g, "")}`;
-            const isMasterAdmin = phone === "8535029872";
-            const allowedUser = await getAllowedUser(phone);
-
-            if (!isMasterAdmin && !allowedUser) {
-                return false;
-            }
-
-            const assignedRole = isMasterAdmin ? "admin" : (allowedUser?.role || "user");
-            await createUserProfile(phoneUid, name || allowedUser?.name || "Guest", "", phone, assignedRole);
-
-            const profile = await getUserProfile(phoneUid);
-            const userData: AppUser = {
-                uid: phoneUid,
-                name: profile?.name || name || allowedUser?.name || "Guest",
-                phone: profile?.phone || phone,
-                role: profile?.role || assignedRole,
-                roleType: profile?.roleType || (profile?.delegatedBy ? "event" : "primary"),
-                assignedEvents: profile?.assignedEvents || [],
-                profileImage: profile?.profileImage,
-                email: null,
-                delegatedBy: profile?.delegatedBy,
-                username: profile?.username,
-            };
-
-            syncUserSession(userData);
-            await logGuestLogin(userData.name, phone);
-            return true;
-        } catch (error) {
-            console.error("Simple phone login error:", error);
             return false;
         }
     };
@@ -544,8 +537,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, signup, loginWithGoogle, resetPassword, loginWithPhoneSimple, authWithPhone, authWithEmail, logout, loading }}>
-            {children}
+        <AuthContext.Provider value={{ user, login, signup, loginWithGoogle, resetPassword, authWithPhone, authWithEmail, logout, loading }}>
+            <PolicyAcceptanceGate userId={user?.uid} onSignOut={logout}>{children}</PolicyAcceptanceGate>
         </AuthContext.Provider>
     );
 }

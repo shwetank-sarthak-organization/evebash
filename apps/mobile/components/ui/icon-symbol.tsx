@@ -93,6 +93,15 @@ const MAPPING = {
   'minus': 'remove',
   'heart.circle.fill': 'favorite',
   'mappin.and.ellipse': 'location-on',
+  // EB Vault
+  'doc.fill': 'description',
+  'arrow.uturn.backward': 'restore',
+  'folder.badge.plus': 'create-new-folder',
+  'arrow.up.doc.fill': 'upload-file',
+  'externaldrive.fill': 'storage',
+  'folder.fill': 'folder',
+  'arrow.right.square': 'drive-file-move',
+  'square.and.arrow.down': 'save-alt',
   'mappin.fill': 'location-on',
   'location.fill': 'my-location',
   'calendar.badge.plus': 'event',
@@ -110,6 +119,9 @@ const MAPPING = {
   'forward.end.fill': 'skip-next',
   'backward.fill': 'fast-rewind',
   'forward.fill': 'fast-forward',
+  'arrow.up.and.down': 'swap-vert',
+  'building.2': 'business',
+  'line.3.horizontal.decrease.circle': 'filter-list',
 } as const;
 
 export type IconSymbolName = keyof typeof MAPPING;

@@ -430,7 +430,7 @@ export default function BusinessLandingScreen() {
       </ScrollView>
 
       {/* ── QUOTA MODAL ── */}
-      <Modal visible={showQuotaModal} transparent animationType="fade" statusBarTranslucent>
+      <Modal visible={showQuotaModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setShowQuotaModal(false)}>
         <TouchableOpacity
           style={styles.quotaOverlay}
           activeOpacity={1}

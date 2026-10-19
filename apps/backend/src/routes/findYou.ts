@@ -1,11 +1,29 @@
 import { Buffer } from "node:buffer";
 import { Router } from "express";
 import sharp from "sharp";
-import { verifySupabaseUser } from "../auth.js";
+import { getBearerToken, getInternalJobSecret, verifySupabaseUser } from "../auth.js";
+import { getSupabaseUserClient } from "../supabase.js";
 
 export const findYouRouter = Router();
 
 const MAX_SELFIE_BYTES = 8 * 1024 * 1024;
+const MAX_FIND_YOU_EVENTS = 25;
+
+// Returns open_gallery's access for one gallery reference, as the signed-in user
+export type OpenGalleryAccess = (eventRef: string) => Promise<string | null>;
+
+// Find You is for people who can see the gallery: its owner, a guest admin, or an approved member
+// (open_gallery joins public galleries, as opening the link does).
+export async function checkFindYouAccess(eventIds: string[], openGallery: OpenGalleryAccess) {
+  const unique = [...new Set(eventIds.map((id) => id.trim()).filter(Boolean))];
+  const accesses = await Promise.all(unique.map((id) => openGallery(id)));
+  const deniedIndex = accesses.findIndex((access) => access !== "manage" && access !== "member");
+  return deniedIndex === -1 ? { ok: true as const } : { ok: false as const, eventId: unique[deniedIndex] };
+}
+
+function isFindYouAccessRequired() {
+  return process.env.FIND_YOU_REQUIRE_ACCESS?.trim().toLowerCase() === "true";
+}
 
 type ModalMatch = {
   id?: string;
@@ -99,6 +117,31 @@ findYouRouter.post("/", async (request, response) => {
       return;
     }
 
+    const requireAccess = isFindYouAccessRequired();
+    let accessCheckedUserId: string | undefined;
+    if (requireAccess) {
+      if (eventIds.length > MAX_FIND_YOU_EVENTS) {
+        response.status(400).json({ error: `Search at most ${MAX_FIND_YOU_EVENTS} galleries at a time.` });
+        return;
+      }
+      const verifiedUser = await verifySupabaseUser(request).catch(() => null);
+      if (!verifiedUser) {
+        response.status(401).json({ error: "Log in to use Find You." });
+        return;
+      }
+      const userClient = getSupabaseUserClient(getBearerToken(request));
+      const access = await checkFindYouAccess(eventIds, async (eventRef) => {
+        const { data, error } = await userClient.rpc("open_gallery", { p_ref: eventRef });
+        if (error) throw error;
+        return (data as { access?: string } | null)?.access ?? null;
+      });
+      if (!access.ok) {
+        response.status(403).json({ error: "You don't have access to this gallery." });
+        return;
+      }
+      accessCheckedUserId = verifiedUser.user.id;
+    }
+
     let selfieBuffer: Buffer;
     if (selfieSource.startsWith("data:") || !selfieSource.startsWith("http")) {
       const base64Data = selfieSource.includes("base64,")
@@ -133,17 +176,25 @@ findYouRouter.post("/", async (request, response) => {
       .png()
       .toBuffer();
 
-    const verified = await verifySupabaseUser(request).catch(() => null);
-    const userId = verified?.user?.id || (typeof body.userId === "string" ? body.userId : undefined);
+    const verified = accessCheckedUserId ? null : await verifySupabaseUser(request).catch(() => null);
+    // With access checks on, the search is attributed to the verified user only (never a body-supplied id)
+    const userId = accessCheckedUserId
+      || verified?.user?.id
+      || (requireAccess ? undefined : (typeof body.userId === "string" ? body.userId : undefined));
 
     const targetUrl = (
       process.env.MODAL_FIND_YOU_URL ||
       "https://shwetank-sarthak--wedding-media-engine-find-matching-photos.modal.run"
     ).trim();
 
+    // Lets the Modal endpoint reject callers other than this backend
+    const internalSecret = getInternalJobSecret();
     const modalResponse = await fetch(targetUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(internalSecret ? { "X-EveBash-Secret": internalSecret } : {}),
+      },
       body: JSON.stringify({
         selfie_base64: optimizedSelfie.toString("base64"),
         event_ids: eventIds,

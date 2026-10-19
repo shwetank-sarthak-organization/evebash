@@ -1,0 +1,913 @@
+EVEBASH ACTIVE ISSUES
+=====================
+
+How to use this file (people and Claude sessions alike):
+- Read this file before starting work, and check whether your change fixes or touches any issue here.
+- New issue: add it at the end of ACTIVE ISSUES with the "Next issue number" below, then increase that number by 1.
+- Numbers are never reused. If #1 is fixed and removed, the next new issue still takes the next number.
+- Starting work on an issue: set Status to "In progress" and Owner to your name.
+- Fixed (merged to staging): move the whole entry to RECENTLY FIXED, set Status to "Fixed", and add
+  "Fixed in: <commit> (YYYY-MM-DD)". Delete entries from RECENTLY FIXED once they are older than 7 days.
+- Dates are YYYY-MM-DD.
+
+Field values:
+- Platform:   App | Website | Both | Analytics dashboard   (backend, Modal or database work is noted in the issue text)
+- Priority:   Critical | High | Medium | Low
+- Status:     Open | In progress | Blocked | Fixed
+- Owner:      a name, or Unassigned
+- Blocked by: what it waits on (a decision, another issue, a person), or "-"
+- Found in:   where it was spotted (an audit, a tester report, a chat)
+
+Next issue number: 76
+
+=====================================================================
+ACTIVE ISSUES
+=====================================================================
+
+#6
+Listed: 2026-10-09
+Platform: Both
+Priority: High
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Turning on EVENT_UPLOAD_LIMITS=true on Railway after testing (test_yourself #40)
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: Storage and plan limits only apply on the website. The app and backend don't block uploads over the plan's storage, and the app's storage totals ignore overhead_size. Ideally enforced in the backend so both platforms follow it.
+How to reproduce: With a free account near its 1 GB limit, upload past the limit from the website (blocked) and from the app (allowed). Compare the storage used shown on each.
+Update 2026-10-10: events and EB Vault now share one plan storage pool. Website/app totals include Vault usage, and Vault uploads are checked on the backend. Event uploads are still only checked on the website and app, so this stays open.
+Update 2026-10-10 (8acf63a): the gallery OWNER pays (decided by Sarthak): vault_event_storage_bytes counts media in galleries the owner owns, whoever uploaded it (migration 20261010030000 applied). The server checks the owner's plan (events + Vault, videos x1.35, paused while a paid plan is expired) before handing out upload links, behind EVENT_UPLOAD_LIMITS (off by default). Website and app read storage from GET /api/v1/media/storage-usage. Move to fixed once the switch is on and test #40 passes.
+
+#9
+Listed: 2026-10-09
+Platform: Analytics dashboard
+Priority: Low
+Status: Blocked
+Owner: Unassigned
+Blocked by: #21 (lockdown part 2: the save function only allows platform admins after it)
+Found in: Visibility switch work (2026-10-09)
+Issue: No public/private switch for galleries in the admin dashboard. Platform admins can't change visibility of galleries they don't own anywhere on the website.
+How to reproduce: Open a gallery in the admin dashboard Events grid: there is no visibility control.
+
+#18
+Listed: 2026-10-09
+Platform: App
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Store launch review (2026-10-03)
+Issue: Google sign-in will fail (DEVELOPER_ERROR) on Play and EAS-signed Android builds: Firebase only has the debug-keystore SHA-1. Add the Play app-signing and EAS upload-key SHA-1s before store release.
+How to reproduce: Install an EAS-signed or Play build and tap "Continue with Google": DEVELOPER_ERROR.
+Update 2026-10-11: for the new package com.evebash.app (#41) the debug and EAS upload-key SHA-1s are in Firebase, and their Android OAuth clients exist in Google Cloud (made by hand; Firebase did not create them). Only the Play app-signing SHA-1 is left: add it to the Firebase app com.evebash.app and as a Google Cloud Android OAuth client after the first Play upload.
+
+#19
+Listed: 2026-10-09
+Platform: App
+Priority: Medium
+Status: Blocked
+Owner: Sarthak (decision)
+Blocked by: Decision on the production backend (staging API or a separate one); deferred by Sarthak 2026-10-10
+Found in: Access-request push work (2026-10-09)
+Issue: The EAS production build profile doesn't set EXPO_PUBLIC_API_BASE_URL (development and staging do). Uploads and the access-request push need it; confirm it's set in EAS environment settings before the first store build.
+How to reproduce: Check build.production.env in apps/mobile/eas.json and the EAS project's environment variables.
+
+#20
+Listed: 2026-10-09
+Platform: Both
+Priority: Medium
+Status: Blocked
+Owner: Unassigned
+Blocked by: Phase 2 (business features)
+Found in: Lockdown access re-scan (2026-10-09)
+Issue: Phase 2 business features will break once RLS lockdown part 2 is on: enquiry and vendor-chat pushes read other users' push tokens, business view counts edit someone else's row, and logged-out visitors can't browse vendors (EB Network, Explore).
+How to reproduce: After part 2: send an enquiry or chat message (no push to the other person), open a vendor page (view count doesn't change), open EB Network logged out (empty).
+
+#21
+Listed: 2026-10-09
+Platform: Both
+Priority: Critical
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Testers on a new app build from staging; an agreed quiet window
+Found in: Supabase access check (2026-10-06)
+Issue: Supabase RLS lockdown part 2 is not applied yet: most tables can still be read and changed with the public app key (launch blocker). Everything is ready: run sheet https://claude.ai/artifact/WQCggv3QSkj6MSdewUKpTZ, draft docs/security/rls-lockdown-draft.sql, tested rollback docs/security/rls-lockdown-part2-rollback.sql.
+Before applying: re-scan which tables the website, app and backend read/write directly, and re-run both dry runs (docs/security/rls-lockdown-tests.sql and rls-lockdown-part1-tests.sql) on current staging, since a lot of code changed after the 2026-10-09 runs. If tables were added since then (EB Vault etc.), re-check the anon grant list at the top of the part 2 rollback. To undo, use ONLY rls-lockdown-part2-rollback.sql; never docs/security/rls-lockdown-rollback.sql, which also drops open_gallery, profile_cards and eb_private and breaks every gallery.
+How to reproduce: With only the public anon key, request /rest/v1/profiles?select=id,role: every profile comes back.
+
+#25
+Listed: 2026-10-10
+Platform: Both
+Priority: High
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: Ossciv Private Limited incorporation, for the entity block and Grievance Officer only
+Found in: Privacy policy review for Google Play setup (2026-10-10)
+Issue: Privacy policy (shared/legal/policies.json) has gaps for the Google Play submission: no minimum age, no clear notice that faces in every photo of a Find You gallery are turned into embeddings, no mention of Expo, Google or Apple as providers, no EB Vault section, no marketing-notification opt-out, and a broken list ending in section 17. Find You shows no face-data consent before the selfie. No Grievance Officer is named (required under the IT Rules 2021; left out for now by decision).
+How to reproduce: Read the Privacy Policy screen in the app, or shared/legal/policies.json under "privacy-policy".
+Update 2026-10-11: "Who We Are" added to the privacy policy and Terms (operated by Shwetank and Sarthak Chauhan, Dehradun 248001, support@evebash.com). At incorporation, swap it for Ossciv Private Limited (CIN, registered office) and add the Grievance Officer. Find You consent screen: decided, being built. Minimum age: under discussion.
+
+#28
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: Real gallery photos with permission (Sarthak)
+Found in: Website UI re-check (2026-10-11)
+Issue: The new homepage phone mockup and the Find You visual use coloured gradient squares instead of real photos, which looks unfinished for a photo product. src/components/home/GalleryPreview.tsx and FindYouFeature.tsx.
+How to reproduce: Open the homepage: the "gallery" grid in the hero is plain gradients.
+
+#29
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: On phones the homepage headline (the LCP element) appears at 4.3 s; Lighthouse puts 81% of it in render delay. Likely cause: three self-hosted font families with italic styles (Inter, Playfair Display, Akaya Kanadaka in src/app/fonts.ts), with the headline waiting on Playfair. Lighthouse phone performance is 80.
+How to reproduce: npx -y lighthouse@12 https://staging.evebash.com/ --only-categories=performance and check largest-contentful-paint-element.
+
+#32
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: Real sample galleries (Sarthak)
+Found in: Website UI re-check (2026-10-11)
+Issue: Sample galleries still show test data: one sample ("Wedding") whose albums are named "Rec 1", "REc 10", "Rec 2"..., listed in text order (Rec 10 before Rec 2, localeCompare without numeric in src/lib/database.ts getSubEvents), and the "Rec 5" cover image is broken.
+How to reproduce: Open /sample-galleries/wedding-fdd8 and look at the album cards.
+
+#33
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: Real numbers and host quotes (Sarthak)
+Found in: Website UI re-check (2026-10-11)
+Issue: The homepage has no proof: no event or photo counts, host quotes or studio logos. This is now the lowest-scoring factor in the UI rating (3/10).
+How to reproduce: Scroll the homepage: no testimonials or numbers section.
+
+#43
+Listed: 2026-10-11
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: #17 bundle ID work (2026-10-11)
+Issue: The repo root still has an old tracked Android project (android/, 37 files) and a stub app.json, both using the package com.anonymous.weddingapp. The real app is apps/mobile, and EAS builds from there. The leftovers are confusing and show up in ID searches. Confirm nothing uses them, then delete them.
+How to reproduce: git ls-files android app.json
+
+#45
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Sarthak testing the Join Event sheet on the Android emulator (2026-10-12)
+Issue: On Android, tapping the Join ID box in the Join Event sheet makes the sheet flicker non-stop. The shared BottomSheet (apps/mobile/components/ui/BottomSheet.tsx) used KeyboardAvoidingView with behavior "height" on Android. With a floating keyboard (Gboard's small toolbar when a hardware keyboard is attached, as on the emulator), the keyboard events made it shrink the sheet, the toolbar hid and re-showed, and the sheet snapped back, forever. The New Event sheet (Host) has text boxes in the same sheet, so it was affected too; the other sheets have no text boxes. Fix (da340bd, needs a new app build): on Android the sheet now pads by the keyboard height from the IME insets (0 for a floating keyboard) instead; iOS unchanged. Device check: test_yourself #54.
+How to reproduce: Android emulator with the hardware keyboard on: Dashboard > Join Event > tap the Join ID box. The sheet jumps up and down, and the dashboard tab bar shows through under it.
+
+#48
+Listed: 2026-10-12
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Testing the #51 push on the Android emulator (2026-10-12)
+Issue: New access requests only show in the app after the host leaves and reopens the event or pulls to refresh: the Permissions tab and Gallery > Requests load once when the screen opens, and Supabase Realtime is off (and the app has no listener on guests anyway). Fix without Realtime, app only: (1) when a "New access request" push arrives while the app is open, reload the request list; tapping the push opens that event's Permissions tab; (2) reload the current screen when the app comes back to the foreground. Pull-to-refresh stays.
+How to reproduce: Keep the event's Permissions tab open in the app, send a request from the website: it doesn't appear until you reopen the screen.
+
+#49
+Listed: 2026-10-12
+Platform: Both
+Priority: Low
+Status: Blocked
+Owner: Unassigned
+Blocked by: #21 (RLS lockdown part 2)
+Found in: Discussing live updates while testing #51 (2026-10-12)
+Issue: Supabase Realtime is off (the supabase_realtime publication has no tables since 2026-09-30, the user's choice). Decision 2026-10-12: keep it off for the v1 launch and turn it on later per table, only where a feature needs it (first candidate: Phase 2 vendor chat, messages and chat_rooms; then maybe comments and likes; guests only if #48 isn't enough). Before turning any table on: (1) #21 must be applied, or Realtime sends row changes to anyone listening; (2) add tables one at a time, not all; (3) review the existing listeners first: the app subscribes to photos, events, profiles, likes, comments, chat, businesses (all dormant now), and the Gallery and Usage tabs create a new randomly named channel each time they open (apps/mobile/app/(tabs)/gallery.tsx, usage.tsx), so check they unsubscribe; (4) check the Supabase plan's limits on live connections and messages.
+How to reproduce: In Supabase, Database > Publications > supabase_realtime: no tables.
+
+#55
+Listed: 2026-10-12
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: #52 scan for whole-table loads (2026-10-12)
+Issue: Unused website functions in src/lib/database.ts still load whole tables and filter on the device: getEvents() (every gallery), and getUserPendingVisits / getPendingSharedEventsForUser (every pending guests row, matched on the device like getUserVisits before #52). Nothing calls them, so nothing is affected now, but reusing them would bring the problem back. Fix: delete them (or, if a "pending requests I sent" list is wanted, filter on the server the way getUserVisits does now).
+How to reproduce: grep src for getEvents( / getUserPendingVisits( / getPendingSharedEventsForUser(: only the definitions.
+
+#56
+Listed: 2026-10-12
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: #52 browser check (2026-10-12)
+Issue: The website sets user.phone to the text "No Phone" when the profile has no phone (src/context/AuthContext.tsx), and Dashboard, Profile, the host page and others pass user.phone as one of the user's identifiers. So "no phone" is matched against guests rows (phone, old id prefix, user_id) by getApprovedSharedEventsForUser, and against events.created_by / photos.user_id by getUserEvents and the storage totals. No row holds "No Phone" today (checked 2026-10-12: 0 guests, 0 events, 0 photos), but if one ever did, every website user without a phone would see that gallery or have its storage counted. The app leaves user.phone empty instead. Fix: keep user.phone empty (show "Not provided" in the UI only), or drop the placeholder from identifier lists.
+How to reproduce: Website, log in with an account without a phone, open the Dashboard: the guests request's or= filter contains "no phone".
+
+#58
+Listed: 2026-10-12
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: A decision: add the profiles.notification_preferences column (database change), and whether upload pushes should start for every host
+Found in: #47 investigation (2026-10-12)
+Issue: profiles has no notification_preferences column (checked 2026-10-12), but several places use it. (1) Host upload pushes never send: apps/backend/src/uploadNotifications.ts asks for push_token, notification_preferences, the lookup fails and it returns quietly, so "New photo(s) uploaded" and "New video uploaded" (including VIDEO_READY_PUSH=true from Modal's callback) never reach the host. test_yourself #51 step 5 uses the video push, so it will fail until this is fixed (use a join request instead). (2) The app's Settings > Notifications switches don't save: updateUserProfile (apps/mobile/lib/database.ts) drops columns the profile doesn't have and still reports success, so the switch flips back on the next login and nobody can turn pushes off. (3) Client-side pushes fail the same way: the app's sendPushNotificationDirectly (enquiries and vendor chat, Phase 2, see #20) and the website's sendPushNotification (old approval path). #47 fixed only the access-request, approval and deny pushes in apps/backend/src/routes/notifications.ts (select "*"). Fix options: add the column (jsonb, nullable) so settings save and count, and for (1) read the profile the way notifications.ts does; the photo-upload push has no kill switch, so put it behind a flag first, because fixing it starts a push to every host on every upload.
+How to reproduce: Upload a photo or video to someone else's gallery: the owner's phone gets nothing, and Railway logs show nothing. In the app, turn off Event invites in Settings, log out and in: it's on again.
+
+#59
+Listed: 2026-10-12
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Modal theme fix for #38 (2026-10-12)
+Issue: Some page content (not modals) is still off the dark-gold theme. The profile page uses bright yellow (yellow-300/400) for icons, the @username, the Edit and Upgrade buttons instead of #CA9C68 (the privacy switch was removed 2026-10-13) (src/app/(main)/profile/page.tsx). On the host page the "Your Events"/"Galleries" subtitle, the "Managing memories for" line and the action-card descriptions use text-slate-700, which is almost invisible on the dark background (src/app/(main)/host/page.tsx).
+How to reproduce: Open /profile and /host while logged in and look at the yellow accents and the dark-grey subtitle text.
+Update 2026-10-12: the host gallery page redesign (top bar with "< Galleries" and the gallery name) removed the "Managing memories for" line. The other items are still open.
+Update 2026-10-13: the profile page part is fixed (yellow/amber accents and the navy page background replaced with the site gold #CA9C68 and #13191F). Only the host page text-slate-700 subtitles are still open.
+
+#60
+Listed: 2026-10-12
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Event Design tab redesign (2026-10-12)
+Issue: The Midnight Hero guest page (the default template, used by every gallery without a template) ends with the footer "Delivered by Wed Album — Cinematic Editions", the old brand name (src/components/TemplateHero.tsx, footer near the end). No other template or website page has "Wed Album". Fix: change the footer text to EveBash.
+How to reproduce: Open a gallery that uses Midnight Hero (or has no template) on the website and scroll to the bottom.
+
+#61
+Listed: 2026-10-12
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Test #13 on the new staging app build, Pixel 8 (2026-10-12)
+Issue: Sign-up doesn't save a username. A new account (Google sign-up in the app) has no username: the app's Profile shows "not set". Neither the app (apps/mobile/context/AuthContext.tsx, the profiles insert) nor the website saves one when the profile is created. The website hides it: src/context/AuthContext.tsx shows normalizeUsername(name) when profile.username is empty (e.g. "sarthak_chauhan") but never stores it, so two people with the same name show the same username, and the app and website disagree for the same account. Users can only get one by setting it in Profile > Edit (checked with is_username_available). Fix: pick a free username at sign-up (from the name, with a suffix if taken, via is_username_available) and save it, the same on both platforms; decide whether to backfill existing accounts without one (not counted yet: the database read was blocked).
+How to reproduce: Create a new account with "Continue with Google" in the app, then open Profile: Username "not set". Open the same account's profile on the website: a username is shown, but profiles.username is empty.
+
+#63
+Listed: 2026-10-12
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Test #51 push check on the Pixel 8 (2026-10-12)
+Issue: The app's notification switches can't turn off upload pushes. Settings (Profile > gear icon, apps/mobile/app/settings.tsx) has four switches saved in profiles.notification_preferences: likesAndComments, eventInvites, businessMatches, marketing. The backend's "new photos" / "new video uploaded" push to the gallery owner (apps/backend/src/uploadNotifications.ts) instead checks preferences.push and preferences.event_activity, which no screen sets, so hosts can't stop those pushes. (The access-request push checks push and eventInvites, so "Event invites" does work for it.) Fix: decide which switch covers upload activity (a new "Uploads to my galleries" switch, or reuse an existing one), make the backend read that key, and keep the old keys working. Sarthak also hadn't found the switches, so consider showing them more clearly (e.g. a "Notifications" row on Profile).
+How to reproduce: In the app, Settings: turn every notification switch off. Have another account upload a video to your gallery: the "New video uploaded" push still arrives.
+
+#64
+Listed: 2026-10-13
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat with Sarthak about choosing an event cover (2026-10-13)
+Issue: When a host picks a cover photo, they can't see how it will look on the guest page in their chosen theme, on a phone or on a computer. (1) The Fit/Fill and Position (move/zoom) settings only change the host's own view: the website host page (src/app/(main)/host/page.tsx), the dashboard and the app's host view (apps/mobile/app/events/[id].tsx) use coverMode/coverOffset/coverOffsetX/coverScale. In the app the guest view of the same screen also applies them for the Classic theme and the default hero (other app themes draw their own hero), but no website guest theme reads them (src/components/Template*.tsx, guest page under src/app/(public)/events/[slug]/). Each website theme does its own thing: TemplateCinematic, for example, uses object-contain (fit) on phones and a centred, slowly panning background-cover on computers. (2) Only one setting is saved per cover, but a tall phone frame and a wide computer frame need different crops. (3) The offsets are saved as pixels measured on the host's preview box (host page), while the web dashboard reads them as percentages (50 + offset), so the same values put the image in different places. (4) The website's phone-and-computer theme preview (src/components/EventDesignPreview.tsx) always draws the cover centred with object-cover and ignores the host's settings, so it doesn't match the real guest page either. Fix: decide per theme how the cover is framed; save the position in a size-independent form (a focal point in % plus zoom), possibly one for phone and one for computer; have every theme and preview use it; and show a live phone + computer preview while the host positions the cover.
+How to reproduce: On the website host page, open an event, Change Cover to a tall photo, set Fill and use Position to move it to the top. Open the website guest page on a computer and on a phone: the crop ignores your position (and on a phone with the Cinematic theme the image is fitted, not filled).
+
+#65
+Listed: 2026-10-13
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Hiding the 19 themes without a website design (2026-10-13)
+Issue: The theme contrast check src/lib/galleryTheme.test.ts fails before reaching its later checks: the website lightbox colours for "blush" (src/lib/webTemplateTheme.ts, built from src/lib/galleryPresets.ts) have text on background at 1.08:1 (needs 4.5:1). So the test currently guards nothing after that point. Blush is hidden from the pickers now, but events already on it still use these colours.
+How to reproduce: Run `npx tsx src/lib/galleryTheme.test.ts` from the repo root.
+
+#66
+Listed: 2026-10-13
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: A website design for each theme
+Found in: Hiding the 19 themes without a website design (2026-10-13)
+Issue: 19 event themes are hidden from the website and app theme pickers because the website has no design of their own for them (src/components/templateRegistry.tsx draws them with makeUniversalTemplate): ethereal, pastel, golden_years, vintage, rose, minimal_love, diamond, blush, garden, midnight_glam, modern_lounge, elegant_night, vibrant, zen, tech_sleek, executive, retro_arcade, academic_editorial, neon_carnival. Events already on one keep it. Anniversary has no visible theme of its own, so it shows the Wedding themes (royal, classic, hero) and defaults to royal. To bring a theme back: give it a website design, then remove it from HIDDEN_TEMPLATE_IDS in BOTH src/app/(main)/host/page.tsx and apps/mobile/constants/templates.ts (src/lib/hiddenTemplates.test.ts checks they match; update its expected lists). The business portfolio pickers (Phase 2) were left unchanged and still list every theme.
+How to reproduce: Create an event of each type on the website or app and open Choose Style.
+
+#67
+Listed: 2026-10-13
+Platform: Both
+Priority: Medium
+Status: Blocked
+Owner: Sarthak (with Claude)
+Blocked by: App launch (Sarthak, 2026-10-13: park App Links / Universal Links until the app launches). Use the EAS key's and Google Play app-signing key's SHA-256 then, never the debug key (see #68)
+Found in: Chat with Sarthak about "Open in app" banners (2026-10-13)
+Issue: Phone visitors on the website are never sent to the app. There's no "Open in app" banner, no Android App Links (no public/.well-known/assetlinks.json) and no iOS Universal Links (no apple-app-site-association, no associatedDomains in apps/mobile/app.json). The app only has the custom scheme evebash:// (app.json "scheme"), and nothing in the app routes an incoming link to an event. Event links on the website are /events/<ref>, where ref is an event id, join code or legacy id resolved by the open_gallery RPC; the app already has openGallery(ref) (apps/mobile/lib/database.ts), so a link can pass the ref straight through. Can be done before store launch: the phone-only banner (open evebash://, stay on the website quietly if the app doesn't open), Android App Links, and in-app routing of /events/<ref> and evebash://events/<ref> (and find-you). Must wait for store launch: a "Get the app" fallback to the store pages, the iPhone Smart App Banner (needs the App Store ID), and adding Google Play's app-signing SHA-256 fingerprint to assetlinks.json (Play re-signs the app). Package/bundle id is com.evebash.app; if the store launch checklist changes it, the link files must change too.
+How to reproduce: On an Android phone with the EveBash app installed, open an event link (https://<site>/events/<id>) from WhatsApp: it opens in the browser, with no banner offering the app.
+Update 2026-10-13 (built, not in an app build or deploy yet):
+- App (JS only, no native change): app/+native-intent.tsx with lib/deepLinks.ts sends https://<www|staging|any>.evebash.com/events/<ref>, /events/<ref>/find-you, /events/<ref>/event-partners and evebash://events/<ref> (also evebash:///events/<ref>) to /events/<ref>, keeping the query string (?shared=true). find-you adds findYou=1 and the event screen (app/events/[id].tsx) then opens its Find You tab. The ref is passed through and the event screen resolves it with openGallery as before (join codes and legacy ids redirect to the event id, keeping findYou). Other EveBash links open the start screen. Other apps' links are ignored while the app is open, and a normal launch link passes through unchanged. Signed-out users land on the event screen: a public gallery shows with Log in, a private one shows the gate, and its Log in returns to the event (existing returnTo flow). Checks: npx tsx apps/mobile/lib/deepLinks.test.ts. Being JS, it can reach phones by over-the-air update to builds that include expo-updates (5732e36 or later); older installs need a new build. Not run on a device yet: device test #73.
+- Website: src/components/OpenInAppBanner.tsx, shown from the event layout (EventRouteShell). It appears on event pages only, on Android phones only (user agent Android + Mobile; not iPhone, tablets or computers). It can be dismissed, which is remembered in localStorage (read and write in try/catch). Open is a plain link to evebash://events/<ref>[/find-you]?<query>: if the app isn't installed, Chrome does nothing and the visitor stays on the page with no error and no store link. It hides while the lightbox is open. Behind NEXT_PUBLIC_OPEN_IN_APP_BANNER=true, which is off by default and read at build time, so redeploy after setting it. With the flag off, nothing renders. Device test #72.
+TODO, Android App Links (waiting for the SHA-256): (1) Add public/.well-known/assetlinks.json: [{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"android_app","package_name":"com.evebash.app","sha256_cert_fingerprints":["<SHA-256 of the EAS keystore: expo.dev > elnino_009/evebash > Credentials > Android, or eas credentials -p android>"]}}]. Never the public React Native debug key (CN=Android Debug), which signs local release builds such as the one on the Pixel 8 emulator. Next serves files in public/.well-known as application/json with a 200 and no redirect (checked on the dev server 2026-10-13). (2) Add apps/mobile/app.json android.intentFilters: action VIEW, autoVerify true, categories BROWSABLE + DEFAULT, data scheme https, hosts www.evebash.com and staging.evebash.com, pathPrefix /events. Leave out evebash.com: it 308-redirects to www, a redirect fails verification, and on Android 11 and older one failed host blocks all of them. (3) The intentFilters are a native change, so they need a NEW APP BUILD (an over-the-air update can't add them). (4) www.evebash.com only serves the file after staging is merged to main. Check with curl -I https://www.evebash.com/.well-known/assetlinks.json (expect 200 + application/json), then adb shell pm get-app-links com.evebash.app (expect verified).
+TODO, iOS Universal Links (no Apple decision yet): this needs the Team ID. Serve /.well-known/apple-app-site-association (application/json, no redirect) with appIDs ["<TeamID>.com.evebash.app"] and components for /events/*. Add app.json ios.associatedDomains ["applinks:www.evebash.com","applinks:staging.evebash.com"]. Turn on Associated Domains for the App ID, then make a new iOS build. Even then the website bar stays Android-only: in Safari a same-site link can't open the app, and evebash:// shows an "address is invalid" error when the app isn't installed. Universal Links cover links tapped in WhatsApp, Messages and Mail.
+Must wait for store launch: a "Get the app" fallback to the store pages (the bar has no store link yet); the iPhone Smart App Banner (apple-itunes-app meta tag, needs the App Store ID); adding Google Play's app-signing SHA-256 to assetlinks.json after the first upload (Play re-signs the app).
+
+#68
+Listed: 2026-10-13
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Checking signing fingerprints for #67 (2026-10-13)
+Issue: The locally built Android APKs in the repo root (app-release-v1.apk, app-release-v1.2.4.apk) are signed with the Android debug key (apps/mobile/android/app/debug.keystore, "CN=Android Debug", SHA-1 5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25, SHA-256 FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C), even though they are named "release". EAS builds use the EAS Android keystore (SHA-1 29:40:B3:BD:EB:22:B7:1F:A2:E5:E6:8C:B0:92:52:2B:D2:08:30:47; Firebase also lists SHA-256 b5:2b:a8:a5:85:66:3d:5f:1d:d4:10:37:f7:ff:67:02:1d:49:7d:f1:2c:8c:11:8b:ac:09:fd:41:a9:39:1e:13, probably the same key). Impact: testers can't install an EAS build over a local APK (or the other way round) without uninstalling, because the signatures differ; and the debug key is public, so it must never go into the live assetlinks.json (#67). Fix: make store and tester builds only through EAS, and list only the EAS key's and Google Play's app-signing key's SHA-256 in assetlinks.json and Firebase (#18).
+How to reproduce: ~/Library/Android/sdk/build-tools/36.1.0/apksigner verify --print-certs app-release-v1.2.4.apk shows "CN=Android Debug".
+
+#70
+Listed: 2026-10-13
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Navbar font comparison (2026-10-13)
+Issue: On phones, the signed-in navbar menu cuts off its bottom part, so Logout can't be seen or tapped. src/components/Navbar.tsx caps the open menu at max-h-96 (384px) with overflow-hidden, but the signed-in menu (4 links, profile card, Profile, Logout) is 487px tall (measured at 375x812). Profile is half cut off and Logout is fully hidden. The signed-out menu is shorter and fits. Fix idea: raise the cap (for example max-h-[calc(100vh-5rem)]) and let the menu scroll (overflow-y-auto), keeping the open/close animation.
+How to reproduce: Sign in on the website on a phone (or a 375px-wide window), tap the menu button at the top right: the menu ends at "Profile" and there is no Logout.
+
+#71
+Listed: 2026-10-13
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website Settings page work (2026-10-13)
+Issue: Several items in the app's Settings (apps/mobile/app/settings.tsx) look like they work but do nothing. (1) Report a Bug / Send Feedback: submitFeedback (apps/mobile/lib/database.ts) only writes to the phone's console and returns true, so the app says "Feedback Sent" and the message is lost. (2) Upload Quality (Speed / High-Res) is saved on the phone (@high_quality_uploads) but no upload code reads it. (3) Clear Media Cache runs a fake progress bar and always says "cleared 24.2 MB"; nothing is cleared. (4) Discoverable Profile saves profiles.discoverable, which nothing reads (there is no Explore feed). (5) The FAQ answers are out of date: "250 photos per event", "Register Business" (Phase 2), "5-character event code". The notification switches are #58 and #63. These were left out of the new website Settings page. Fix: send app feedback to the backend's /api/v1/contact-messages (what the website's Contact Us uses), and hide or remove the others until they work.
+How to reproduce: In the app, Settings > Report a Bug: send a message, then look for it anywhere the team reads (contact messages, email): it isn't there. Tap Clear Media Cache twice: "24.2 MB" both times.
+
+#72
+Listed: 2026-10-13
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Removing the public/private profile switch (2026-10-13)
+Issue: The public/private profile switch was removed from the website profile and the app Settings (2026-10-13), but profiles.is_private is still read by the public profile view (src/app/(main)/profile/[id]/page.tsx, apps/mobile/app/profile/[id].tsx). Anyone who turned it on before stays "This profile is private." with no way to turn it off. Today that view is only linked from Phase 2 business pages, so nobody sees it at launch. How many profiles have is_private = true wasn't checked (database read blocked). Fix before Phase 2: stop reading is_private in the public view, or set it back to false for everyone.
+How to reproduce: With an account that had Private on before the switch was removed, open its /profile/<id> page: "This profile is private." and no switch on the profile or in Settings.
+
+#73
+Listed: 2026-10-13
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Footer review vs Samaro (2026-10-13)
+Issue: The website footer (src/components/Footer.tsx) leaves out key pages and wastes space on phones. (1) No link to Find You or Host / create an event, the product's main features. (2) No page on the site links to /delete-account (only the privacy policy text names it). (3) The YouTube channel listed in the site's structured data (src/app/(main)/layout.tsx, sameAs @EveBashApp) has no footer link. (4) On a 375 px phone the footer is 1110 px tall (taller than the screen) for 12 links, because every column stacks one under another. Samaro fits 36 links in 1257 px with two columns. (5) On phones the copyright line is centred while everything above it is left-aligned. (6) The right side of the bottom bar only says "Designed with ♥".
+How to reproduce: Open www.evebash.com on a phone (or 375 px wide) and scroll to the bottom. Look for Find You, Host, Delete account and YouTube links: none.
+
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
+#75
+Listed: 2026-10-13
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #21 pre-apply re-scan (2026-10-13)
+Issue: Shared galleries would show "Unknown owner" after RLS lockdown part 2. The app's Gallery > Shared cards ("Owner username") and the website host page's shared gallery cards ("Owner: <email>" / username) read the owner's full profile with getUserById, and only your own profile is readable once part 2 is on.
+How to reproduce: After part 2, as a guest admin open Gallery > Shared in the app, or the Shared list on the website host page.
+Fixed in: d342b02 (2026-10-13). New getProfileCard (website and app database.ts) reads name and photo from profile_cards; both places now show "Owner: <name>". The owner's email and username are no longer shown to guests (decided by Sarthak). Old galleries whose owner is stored as an email still show that email. App part needs a new app build. Device check: test_yourself #86.
+
+#74
+Listed: 2026-10-13
+Platform: Website
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Testing an event admin account on the host page (2026-10-13)
+Issue: On the website host page, an event admin who doesn't own the event got the primary gallery (its cover, title and photos) whichever sub-gallery they opened. The page reads the event and gallery from the link (?eventId=&galleryId=) but only used galleryId when the event was in the user's own events (src/app/(main)/host/page.tsx, the URL effect); events shared with you as an admin aren't in that list, so it fell back to the event id. Fix: galleryId is used for shared events too, and the link is also read before your events have loaded.
+How to reproduce: As an admin of someone else's event, Host -> Shared Events -> the event -> Galleries -> open a sub-gallery: the primary gallery's cover and title show.
+Fixed in: 580a5c4 (2026-10-13). Device check: test_yourself #82.
+
+#69
+Listed: 2026-10-13
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Chat with Sarthak about the dashboard "Your memories" card (2026-10-13)
+Issue: On the website dashboard, the "Your memories" / Explore All card in the events grid doesn't open anything. In the app it opens the full events list (apps/mobile/app/(tabs)/your-events.tsx, titled "Gallery"). On the website (src/app/(main)/dashboard/page.tsx) it only toggles between the first 3 events of the current tab and all of them, so with 3 or fewer events nothing changes except the label ("Show Less"), and with more the extra cards appear above the card, easy to miss. The website has no page listing all your events. Fix: add a website page with every event (All / Attended / Hosted tabs, search, sort and type filter like the app) and have the card open it.
+How to reproduce: On the website, log in with an account that has 3 or fewer events, open /dashboard and click Explore All on the "Your memories" card: nothing opens.
+Update 2026-10-13 : new page /dashboard/events (src/app/(main)/dashboard/events/page.tsx) lists every event with the All / Attended / Hosted tabs (kept in ?tab=), search, sort and an event-type filter, using the app's sort rules (src/lib/eventSort.ts, checks: npx tsx src/lib/eventSort.test.ts). The dashboard card is now a link to it, opening on the dashboard's current tab; the dashboard still shows 3 cards per tab and the Show Less toggle is gone. The event card, tabs and event loading moved to src/components/dashboard/DashboardEvents.tsx, shared by both pages, with no change to how the dashboard looks. Device check: test_yourself #75 (#74 step 3 updated).
+Fixed in: 5275fc9 (2026-10-13). Device check: test_yourself #75.
+
+#62
+Listed: 2026-10-12
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Test #51 on the new staging app build, Pixel 8 (2026-10-12)
+Issue: After logging out, "Continue with Google" signs straight back in to the last Google account without showing the account picker, so a user can't switch Google accounts. The app's logout (apps/mobile/context/AuthContext.tsx, logout) only calls supabase.auth.signOut() and never GoogleSignin.signOut(), so the Google library keeps the last account and GoogleSignin.signIn() reuses it. Fix: also call GoogleSignin.signOut() on logout (best effort, skipped when the native module isn't there, never blocking logout). Needs a new app build. The website uses Google's web sign-in and isn't affected.
+How to reproduce: In the app, sign in with Google account A, log out, tap "Continue with Google": you are signed in as A again with no account picker. Workaround: Settings > Apps > EveBash > Storage > Clear storage.
+Fixed in: 96bc72b (2026-10-12). Logout now also calls GoogleSignin.signOut() after the Supabase sign-out, not awaited and errors only logged, so logout never waits on or fails because of Google. Email/phone/Apple logins unchanged. Needs a new app build. Device check: test_yourself #66.
+
+#38
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website modal theme audit (2026-10-11)
+Issue: Several host-dashboard modals don't use the dark-gold theme. The Delete event/gallery confirm, the "deleted successfully" popup and the date picker are white boxes with teal or black buttons (src/app/(main)/host/page.tsx). The Choose Style subtitle is near-invisible (text-slate-700 on dark). Create Event uses a sky-blue top stripe and sky focus rings; Rename uses sky focus rings and its Save button is dark grey instead of gold; New Sub-Gallery uses an olive button (#806316) and light green/red message boxes; Join Event uses bright amber-400 instead of #CA9C68. Seven actions still use the browser's own alert/confirm (make event public, remove guest, remove profile photo, delete comment, zip download errors, access-request error, "Link copied").
+How to reproduce: On /host, delete a gallery, then open a date picker; on /profile, remove the profile photo; on a public event, share a template link.
+Fixed in: 5a5e1d7 (2026-10-12). Shared kit src/components/ui/Modal.tsx; every modal has an X at the top right except the policy-acceptance gate (must accept or sign out). Device check: test_yourself #64. Leftover page text: #59.
+
+#47
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Testing the #51 push on the Android emulator (2026-10-12)
+Issue: The "New access request" push doesn't reach the host. A normal account joined the private gallery "Check push" with Join with Code (CHEC-DPNUU) on staging.evebash.com and got "Request sent"; the request shows in the host's app (account b7ab6182..., Permissions and Gallery > Requests), but no push arrived on the emulator. A direct Expo test push to the same token arrives (after the FCM key fix, see #51), so delivery works. The backend route /api/v1/notifications/gallery-request (apps/backend/src/routes/notifications.ts) skips silently when the request isn't pending, the owner is the requester, a push for the same request went out in the last 10 minutes, the owner's profile has no push_token, or Event invites is off. Cause not found yet: next step is the website's gallery-request response in DevTools (sent true/false, 404, 401 or CORS), or a read-only look at the owner's profile push_token and notification_preferences.
+How to reproduce: Host on the app (com.evebash.app); another account (not a platform admin, not a member) uses Join with Code on staging.evebash.com for the host's private gallery. Expect "New access request" on the host's device.
+Cause (2026-10-12): profiles has no notification_preferences column, and the backend's owner lookup asked for it: PostgREST answers 400 "column profiles.notification_preferences does not exist", the code ignored the error and saw no push token, so it returned sent:false without a log. The same lookup dropped the approval and deny pushes (test_yourself #37, #57). The website's call, URL and CORS were fine. Fix: the backend reads the profile with "*" (settings count when the column exists, otherwise they're on, the apps' default) and logs every reason a push isn't sent, and Expo's refusals. Upload pushes have the same problem: #58.
+Fixed in: e5b7518 (2026-10-12). Backend only, no app build needed. Verified on staging after the Railway deploy: account "New" used Join with Code CHEC-DPNUU on staging.evebash.com, Railway logged "[notifications] gallery-request push sent", and the host's Android emulator (com.evebash.app) showed "New access request 🔔 / New is asking to join "Check push"." Device check: test_yourself #62; the same fix covers the approval and deny pushes (#37, #57).
+
+#57
+Listed: 2026-10-12
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: user report with screenshot (2026-10-12)
+Issue: In the host console's event cover header, underscores in the event title are cut off: "event_check_" shows as "event  check". The title (src/app/(main)/host/page.tsx) uses line-clamp-2, which hides overflow, with leading-none, so the line box ends above Playfair Display's underscore and clips it. Fix: leading-[1.15] (checked in a browser with Playfair Display at 72px: underscores show in full, long titles still clamp to two lines). The app's hero titles have enough line height and are not affected.
+How to reproduce: Website, Host console, open an event whose title contains "_" (e.g. "event_check_"): the underscores are missing from the big title on the cover.
+Fixed in: 7b839a5 (2026-10-12)
+
+#53
+Listed: 2026-10-12
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #52 scan for whole-table loads (2026-10-12)
+Issue: The host's guest panel loads the whole profiles table (every user's email, phone, plan and push token) to find the profile of an old guests row and matches it on the phone: getGuestProfile -> getUsers() in apps/mobile/lib/database.ts. Only rows without user_id take this path (4 old rows today; new rows look up profile_cards by user_id). The website's getGuestProfile (src/lib/database.ts) asks the server for the one profile instead, but its .or() is unquoted and case-sensitive, while the app matches emails case-insensitively and phones by digits only. While profiles RLS is off (#21) every host's phone downloads all profiles; after lockdown part 2 (profiles_select: own row or platform admin) the lookup finds nothing for other users on both platforms, and platform admins still download the whole table. Fix: look up the one profile on the server (quoted values, same matching on both platforms), or drop the old-row lookup once the old guests have re-requested access.
+How to reproduce: Host, in the app: open a gallery whose guests include an old row without user_id and open that guest's panel; the network log shows a profiles request with no filter.
+Fixed in: af711b8 (2026-10-12). App and website now ask the server for that one profile, using the app's old rules: the row's email (its phone when it has no email) equal ignoring case and surrounding spaces, or the same phone digits, newest profile first. Values are regex-escaped and quoted for PostgREST (match / imatch, where "*" is not a wildcard), only the panel's columns are read, and the result is checked again on the device. The website no longer matches profiles.id or compares case-sensitively. Rows with user_id still read profile_cards (unchanged). Read-only check on live data (2026-10-12): the 4 old rows get the same profile as the old app code on both platforms (1 found, 3 none; the old website code agreed); 68 more lookups (case, padding, phone formatting, odd characters) and 51 filter probes through PostgREST: 0 mismatches. After lockdown part 2: hosts keep SELECT on profiles but RLS returns only their own row, so the lookup returns nothing (no error) and the panel shows the guest row's own name and phone; platform admins get only the matching profile. profile_cards (id, name, photo) is the right source for rows with user_id, but it has no email or phone, so an old row can't be matched to a profile by a host after part 2 (the lockdown plan has the old guests ask again). 3 of the 4 old rows belong to deleted galleries (event_id null), so hosts won't see them after part 2 anyway. The old-row lookup can be deleted once no such rows are left. Device check: test_yourself #59.
+
+#54
+Listed: 2026-10-12
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #52 scan for whole-table loads (2026-10-12)
+Issue: The hidden Social tab (apps/mobile/app/(tabs)/social.tsx, href: null, nothing links to it) loads the whole profiles table (getUsers) and the whole events table, private galleries included (getSocialFeed ignores the following list it is given), and shows every gallery in the feed. Nobody can reach it today, so it does no harm yet; if the tab is brought back it would list every gallery to every user. It also reads the top 100 businesses (Phase 2). Fix: delete the screen and these two functions, or filter on the server by the people followed before showing it again.
+How to reproduce: Read getUsers and getSocialFeed in apps/mobile/lib/database.ts and their use in social.tsx.
+Fixed in: af711b8 (2026-10-12). Deleted social.tsx, its hidden tab entry, and the app functions only it used: getUsers (unused after #53), getSocialFeed and the follow / post-like / post-comment stubs. Checked first that nothing else imports them (the website and backend have their own code). The Phase 2 business functions it also used are left as they are (getBusinessActivities is a stub; getTopRatedBusinesses and toggleShortlistBusiness are used by the business screens). Device check: test_yourself #60.
+
+#52
+Listed: 2026-10-12
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #46 fix (2026-10-12)
+Issue: The lists of galleries a user has joined load every approved row of the guests table (all hosts, all galleries) and keep the user's own rows on the device: getUserVisits in apps/mobile/lib/database.ts and src/lib/database.ts, called once per identifier (uid, email, phone) by getApprovedSharedEventsForUser. Supabase returns at most 1,000 rows, newest login_at first, so once the table has more than 1,000 approved rows, guests stop seeing older galleries they joined (app: Dashboard, Gallery > Shared, Profile, Your Events; website: Dashboard, Profile) and guest admins lose galleries from the host page / Gallery tab admin list. It also sends other people's guest names and phone numbers to every device while guests RLS is off (#21). After lockdown part 2 most users only get back rows they may read, but platform admins still get the whole table. Fix: filter by the user on the server (user_id, phone, email, and old "<phone or email>_<gallery id>" row ids) instead of on the device.
+How to reproduce: Read getUserVisits in apps/mobile/lib/database.ts; compare the number of approved guests rows with 1,000.
+Fixed in: 4c510f1 (2026-10-12). getApprovedSharedEventsForUser (and getUserVisits) now run one query for all of the user's identifiers, filtered on the server with the same rules as before: case-insensitive phone, user_id and the old id prefix (guests has no email column; getGuestLogEmail reads the email from that prefix), values quoted for PostgREST and LIKE-escaped. The few returned rows are then split per identifier with the old check, so rows, order and mapping are unchanged and callers didn't change. Website and app copies are identical. Read-only check on live data (2026-10-12): 28 identifier sets (all 7 profiles as uid+email+phone and uid+email, every old phone/email row id, also upper-case and padded, users with nothing, odd characters) gave the same row ids in the same order, 0 mismatches; an independent SQL count agreed (3 of 7 profiles have joined galleries). Website checked in the browser as a guest admin: Dashboard, Profile (1 joined) and Host > Shared show event_check_ as expected. Works with lockdown part 2 (guests_select: own row or can_manage_event; the filter only narrows what RLS allows). The app part needs a new staging build. Device check: test_yourself #56. Found during the fix: #53, #54, #55, #56.
+
+#46
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Testing the #51 approval push (2026-10-12)
+Issue: The app's event Permissions screen loads every row of the guests table (all hosts, all events) and then keeps this event's rows in the app (apps/mobile/app/events/[id].tsx -> getEventLogs -> getGuestLogs() with no filter, apps/mobile/lib/database.ts). Supabase returns at most 1,000 rows per query, ordered by login_at descending (rows without a login time come first). Once the table has more than 1,000 rows in total, hosts will see guests and pending requests missing, and guest admins can lose their admin controls (hasSharedAdminAccess uses the same list). It also downloads other hosts' guest names and phone numbers to every phone while guests RLS is off (#21). Fix: query only this event's rows (event_id / parent_event_id = the event) on the server. The Gallery tab's Requests list filters by owner and is only affected past 1,000 guests for one host.
+How to reproduce: Read getEventLogs in apps/mobile/lib/database.ts; compare the guests row count with 1,000.
+Fixed in: 31fa359 (2026-10-12). getEventLogs now asks the server for rows with event_id or parent_event_id = the gallery (same query as the website); same rows, order and admin detection, so nothing else changed. Legacy ids aren't needed: request_gallery_access/open_gallery write the gallery's own id, and the only old writer that could store a legacy id (the app's private-gallery request before 982237b) also wrote parent_event_id = the gallery's id, which the filter matches. Confirmed by a database check: 0 guests rows store a legacy id instead of a real gallery id (2026-10-12). Works with lockdown part 2 (guests_select: own row or can_manage_event). Gallery > Requests is unchanged. Needs a new app build. Device check: test_yourself #55. Related: #52 (joined-gallery lists also load the whole guests table).
+
+#50
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: First iOS Simulator build after the #17 bundle ID change (2026-10-12); first seen 2026-10-03
+Issue: Every iOS build fails at pod install: the Swift pod AppCheckCore (pulled in by Google sign-in) depends on GoogleUtilities and RecaptchaInterop, which don't define modules, so they can't be built as static libraries. This blocks local iOS builds and EAS iOS builds (#52). Fix: expo-build-properties plugin in apps/mobile/app.json with ios.extraPods GoogleUtilities and RecaptchaInterop set to modular_headers: true (replaces the old local workaround of hand-editing ios/Podfile, which prebuild --clean and EAS throw away). iOS only; Android and the website are unchanged.
+How to reproduce: cd apps/mobile && npx expo prebuild --platform ios --clean && npx expo run:ios
+Fixed in: 8612a19 (2026-10-12). expo-build-properties ~55.0.18 added; app.json ios.extraPods GoogleUtilities and RecaptchaInterop with modular_headers. pod install and a Release iOS Simulator build succeed.
+
+#51
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: iOS Simulator test of #42 (2026-10-12)
+Issue: Google sign-in on iOS fails with "Passed nonce and nonce in id_token should either both exist or not." The Google iOS SDK puts a nonce in the ID token, but @react-native-google-signin/google-signin 16.1.2 (free edition) can't pass a nonce, so apps/mobile/context/AuthContext.tsx calls supabase.auth.signInWithIdToken without one and Supabase refuses it. Android tokens have no nonce, and website Google sign-in uses the OAuth redirect flow, so neither is affected. Fix chosen for launch: Supabase's Skip nonce checks (what Supabase's guide recommends for native iOS). Trade-off: a stolen, unexpired Google ID token issued to our client IDs could be replayed; revisit later with the library's paid edition or another flow that supports a nonce.
+How to reproduce: iOS build of com.evebash.app > Continue with Google > pick an account.
+Fixed in: Supabase setting, no code change (2026-10-12). Skip nonce checks turned on for the Google provider; Google sign-in on the iOS Simulator then worked. Trade-off as above; revisit with a nonce-capable sign-in later.
+
+#44
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #17 bundle ID work, before the first EAS build (2026-10-12)
+Issue: EAS cloud builds would ship without Supabase settings. The project has never had an EAS build (staging apps so far were built locally, reading apps/mobile/.env). EAS has no EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY, and .env isn't uploaded (it is git-ignored). lib/supabase.ts only warns when they're missing, so the app opens but login and galleries don't work. Fix: add both to EAS (development, preview, production) with the same values as .env, then build. Related: #19 (production profile has no EXPO_PUBLIC_API_BASE_URL).
+How to reproduce: eas env:list --environment preview (from apps/mobile): only EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID is set.
+Fixed in: EAS project settings, no code change (2026-10-12). EXPO_PUBLIC_SUPABASE_URL (plaintext) and EXPO_PUBLIC_SUPABASE_ANON_KEY (sensitive) added to the development, preview and production EAS environments with the values from apps/mobile/.env. Check on the first EAS build that login works. A production EAS build still has no EXPO_PUBLIC_API_BASE_URL (#19).
+
+#17
+Listed: 2026-10-09
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Store launch review (2026-10-03)
+Issue: iOS bundle ID is still the placeholder com.anonymous.wed-albummobile (apps/mobile/app.json). It becomes permanent at the first App Store upload.
+How to reproduce: Check ios.bundleIdentifier in apps/mobile/app.json.
+Fixed in: 7f99f53 (2026-10-11). Decision: com.evebash.app for both apps. App ID registered in Apple Developer (Team AM5NCNB29X) with Sign in with Apple + Push; added to Supabase Apple Client IDs (old ID kept until testers move). iOS EAS credentials and APNs key get set up on the first iOS build. New builds install as a separate app. Device check: test_yourself #52.
+
+#41
+Listed: 2026-10-11
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Preparing the #17 bundle ID work (2026-10-11)
+Issue: The Android package is still the placeholder com.anonymous.evebash (apps/mobile/app.json android.package, and apps/mobile/google-services.json). It becomes permanent at the first Play Store upload. Changing it needs a new Firebase Android app (new google-services.json), Google OAuth Android client and SHA-1s (see #18).
+How to reproduce: Check android.package in apps/mobile/app.json.
+Fixed in: 7f99f53 (2026-10-11). Package com.evebash.app: new Firebase Android app with debug + EAS SHA-1/SHA-256, Google Cloud Android OAuth clients (debug, EAS), new EAS keystore and FCM V1 key. Old Firebase app and OAuth client kept for current testers. Play signing SHA-1 still to add (#18). Device check: test_yourself #51.
+
+#42
+Listed: 2026-10-11
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #17 bundle ID work (2026-10-11)
+Issue: Google sign-in can't work on iOS builds. The @react-native-google-signin/google-signin plugin in apps/mobile/app.json has no iosUrlScheme (the reversed iOS client ID), so the sign-in redirect URL scheme is never registered, and AuthContext.tsx falls back to iosClientId 'YOUR_IOS_CLIENT_ID_HERE' when EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID is not set. Fix: create the iOS OAuth client for com.evebash.app, set the plugin's iosUrlScheme to com.googleusercontent.apps.<id>, and set EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID in EAS for all build profiles.
+How to reproduce: Build for iOS and tap "Continue with Google".
+Fixed in: 7f99f53 (2026-10-11). iOS OAuth client for com.evebash.app; iosUrlScheme set in app.json; EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID set in EAS (development, preview, production); iOS client added to Supabase Google Client IDs. Device check: test_yourself #52 step 3.
+
+#30
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: Find You now needs a login, but the homepage (FindYouFeature.tsx) and FAQ (HomeFaq.tsx) say a guest just uploads one selfie and never mention an account.
+How to reproduce: Open an event's /find-you page logged out: "Log in to use Find You". Compare with the homepage Find You section and FAQ.
+Fixed in: 780ee6a (2026-10-11)
+
+#31
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: The homepage and FAQ say EveBash works "in the EveBash app for Android and iOS", but the app is not in the stores yet. HomeFaq.tsx, FindYouFeature.tsx, GuestFeatures.tsx. Reword until the store listings are live, or add store links when they are.
+How to reproduce: Read the FAQ answer "Is there a mobile app?" on the homepage.
+Fixed in: 780ee6a (2026-10-11)
+
+#35
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: staging.evebash.com is open to search engines: robots.txt allows everything and no noindex header is sent. Canonical links point to www.evebash.com, which limits the risk. Serve Disallow: / (or X-Robots-Tag: noindex) on non-production hosts.
+How to reproduce: curl https://staging.evebash.com/robots.txt
+Fixed in: 780ee6a (2026-10-11)
+
+#36
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: Below-the-fold homepage sections (ScrollReveal) and the login card (motion.div in the login page) start at opacity 0 and only appear after their animation runs, so they stay blank if scripts are slow or the tab is in the background.
+How to reproduce: Load the homepage with JavaScript throttled, or in a background tab, and scroll: sections appear late.
+Fixed in: 780ee6a (2026-10-11)
+
+#37
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: The sample-gallery album page (/sample-galleries/[client]) uses the generic title "Sample galleries · EveBash" instead of the album name.
+How to reproduce: Open /sample-galleries/wedding-fdd8 and check the browser tab title.
+Fixed in: 780ee6a (2026-10-11)
+
+#39
+Listed: 2026-10-11
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Test #38 (2026-10-11)
+Issue: The guest switches "Allow Photo Uploads" and "Allow Comments" do nothing for normal guests. Comments: every approved member can comment; no screen or database rule reads can_comment yet (the database rule comes with lockdown part 2, which would then block members whose switch is off while the comment box still shows). Uploads: normal guests have no upload button in the app or on the website (only the owner, guest admins and platform admins), and the backend never reads can_upload.
+How to reproduce: As an approved guest with Allow Comments off, open a photo: the comment box is there and posting works.
+Fixed in: 9f364c6, 6a1782f, 162279f (2026-10-11). Sarthak's decisions: new members start with uploads and comments off; everyone who can view reads comments, only managers and guests with Allow Comments on can write (comment box hidden otherwise; database rule can_comment_on_photo, enforced on the comments table by lockdown part 2); guests with Allow Photo Uploads on get an Add photos button (website gallery, app member view and sub-gallery screen). App parts need a new build. Device checks: test_yourself #46, #47, #48.
+
+#40
+Listed: 2026-10-11
+Platform: Backend
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Checking guest upload rights for #39 (2026-10-11)
+Issue: The backend hands out photo upload links for any gallery to anyone who knows its ID, even when not logged in (apps/backend/src/routes/media.ts: get-upload-url and mobile/get-upload-url only check that the gallery exists; logged-in callers aren't checked for membership). Gallery IDs are readable slugs (e.g. 11-october-2026-c3b9), so a stranger could add photos to any gallery and use the owner's storage. Only videos are restricted (owner and admins).
+How to reproduce: POST /api/media/get-upload-url with {"eventId": "<any gallery id>", "fileName": "x.jpg"} and no login: a signed upload URL comes back.
+Fixed in: 6a1782f (2026-10-11). Gallery photo uploads need the owner, a platform admin, a delegated host, an event or guest admin, or an approved guest with Allow Photo Uploads on; logged-out uploads get 401. Profile pictures and Phase 2 business portfolios unchanged. Kill switch: PHOTO_UPLOADS_REQUIRE_PERMISSION=false on Railway. Device check: test_yourself #47.
+
+#27
+Listed: 2026-10-11
+Platform: Website
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: The Dashboard shows a floating chat bubble (off-brand amber) that opens "EveBash Messages" with made-up conversations ("Arjun & Priya's Wedding", "Rohan (Photographer)"). Typed messages only go into page state and reach nobody. Every logged-in user sees it. Hide it or remove it until real chat exists. src/app/(main)/dashboard/page.tsx (mock conversations ~line 80, button ~line 731).
+How to reproduce: Log in on the website, open /dashboard and click the round chat button at the bottom right.
+Fixed in: 252568e (2026-10-11). Chat state, mock conversations and the bubble removed; nothing else on the Dashboard changed. Device check: test_yourself #42.
+
+#34
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: Navbar links use the decorative brand font (Akaya Kanadaka) at body text size, which is harder to read than Inter. src/components/Navbar.tsx (desktop links and mobile menu).
+How to reproduce: Open any marketing page and read the navbar links.
+Fixed in: 252568e (2026-10-11). Desktop links, "Log in" and phone-menu links use Inter; the EveBash wordmark keeps Akaya Kanadaka. Device check: test_yourself #42.
+
+#26
+Listed: 2026-10-11
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Tenant-auth route removal (c776f01)
+Issue: Leftovers from the old tenant section are still in the database: function is_phone_allowed and tables allowed_users and pending_requests. No code uses them any more (tenantAuth routes removed in c776f01). Drop them in a migration once the OK is given; check nothing else references them first.
+How to reproduce: In the Supabase SQL editor, select * from allowed_users and from pending_requests; \df is_phone_allowed.
+Fixed in: 9814f12 (2026-10-11). Migration 20261011000000 applied after a rolled-back dry run (lockdown suites 145/145 and 99/99); lockdown draft/tests/rollbacks updated. A copy of the 4 rows was kept outside the repo.
+
+#11
+Listed: 2026-10-09
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: SEO audit (2026-10-04)
+Issue: SEO gaps: every page shares one title and description, no Open Graph/Twitter tags on most pages, no canonical tags, and gallery pages (/events/*) are indexable. Needs a server layout.tsx per route segment for metadata.
+How to reproduce: View source of /pricing, /contact and /sample-galleries: same <title> and description, no og: tags or canonical link.
+Fixed in: 62e70d9 (2026-10-06) per-page titles, descriptions, canonical, OG/Twitter tags and image, robots.txt (disallows /events/) and sitemap; c977c07 + 142be3d (2026-10-09) event link previews (cover only for public galleries) and sitemap RPC. Verified on staging.evebash.com 2026-10-11. Not live until staging is deployed to production (www.evebash.com still serves the 2026-09-27 build).
+
+#10
+Listed: 2026-10-09
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Lockdown access re-scan (2026-10-09)
+Issue: Leftover dead code: the hidden manager screen on the website Host page (/host?view=permissions, updateUserRole), the backend's old tenant routes (apps/backend/src/routes/tenantAuth.ts), and the app's unused events/sub/edit screen, hooks/useEventState.ts and addPhoto.
+How to reproduce: Code check: search for callers of these screens and functions; none are linked from the app or website.
+Fixed in: 341dd49 (tenant routes, also issue #24) + bffbf5e (2026-10-10): manager screen, unused helpers and app code removed. The live per-gallery Permissions tab is unchanged.
+
+#24
+Listed: 2026-10-10
+Platform: Both
+Priority: Critical
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Explaining issue #10 (2026-10-10)
+Issue: The old tenant routes /api/v1/tenant-auth/* (apps/backend/src/routes/tenantAuth.ts) had no login check and used the admin database client. Anyone could list pending access requests with names and phone numbers, approve or deny them, and add phone numbers to allowed_users. The tenant section they served was removed on 2026-10-06 (7050033).
+How to reproduce: GET https://api-staging.evebash.com/api/v1/tenant-auth/pending-requests with no login: returned 200 with a name and phone number.
+Fixed in: c776f01 (2026-10-10). Routes removed; nothing called them.
+
+#7
+Listed: 2026-10-09
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: Scheduled plan changes are only applied when the website loads ("apply-pending" in the website's AuthContext). App-only users never get them. Should move to the backend.
+How to reproduce: Give a test account a pending plan change whose start date has passed. Open only the app: the plan stays the same. Open the website: the change applies.
+Fixed in: 243a20e (2026-10-10). The backend applies due plan changes every hour and a minute after startup (Indian calendar day); kill switch PLAN_CHANGE_SCHEDULER=false. /apply-due had existed but nothing ever called it.
+
+#14
+Listed: 2026-10-09
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Modal cost audit (2026-10-05)
+Issue: Modal cost flags MODAL_COST_TUNING and MODAL_VIDEO_ASYNC must be set in the .env of whoever deploys; a deploy without them silently restores the old, costlier settings. Bake them in and remove the flags (Modal).
+How to reproduce: Code check: modal_engine/main.py reads both flags at deploy time; deploying from a .env without them brings back per-minute crons and synchronous video transcoding.
+Fixed in: 97def26, Modal v117 deployed 2026-10-10 18:52 IST. The flags are gone; their "on" behaviour is permanent. The MODAL_* lines in .env files do nothing now. Rollback: modal app rollback wedding-media-engine v116.
+
+#23
+Listed: 2026-10-10
+Platform: Website
+Priority: Critical
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Fixing issue #8 (2026-10-10)
+Issue: The backend guest routes /api/v1/permissions/update-guest-status, update-guest-permissions and delete-guest trusted a "requester" sent in the request body plus a hard-coded super-admin email list (apps/backend/src/routes/permissions.ts). Anyone, even logged out, could claim to be a super admin and approve themselves into any private gallery, make themselves a gallery admin, or remove guests.
+How to reproduce: POST /api/v1/permissions/update-guest-status with no login and body {"logId":"<id>","status":"approved","requester":{"email":"code4sarthak@gmail.com"}}: returned success (checked on staging with a non-existent id).
+Fixed in: 363c5aa (2026-10-10). The routes verify the Supabase login and ask the database (open_gallery = manage: owner, guest admin or platform admin); the Host page sends the login. Kill switch GUEST_ROUTES_REQUIRE_LOGIN=false (old behaviour). Device check: test_yourself #38.
+
+#8
+Listed: 2026-10-09
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05); push review during the lockdown (2026-10-09)
+Issue: "Your access was approved" push to the guest never arrives: the website calls Expo directly from the browser, which CORS blocks. Should be sent by the backend, like the new access-request push (apps/backend/src/routes/notifications.ts).
+How to reproduce: As a host on the website, approve a guest who has the app installed. The guest gets no push; the browser console shows a CORS error for exp.host.
+Fixed in: f295f29 + 363c5aa (2026-10-10). Backend POST /api/v1/notifications/gallery-decision sends the push; the Host page and the app call it after a decision (the app never sent one before either). Kill switch GALLERY_APPROVAL_PUSH=false. App part needs the next app build (test_yourself #37).
+
+#16
+Listed: 2026-10-09
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI review (2026-10-03); consistency audit (2026-10-05)
+Issue: App share links and QR codes point to wedalbum.app, which opens a different site with a blank page; business share uses wedalbum.com (a domain-for-sale page); the QR scanner only accepts wedalbum.app.
+How to reproduce: In the app, share a gallery and open the link in a browser: blank page on a different site. Scan an evebash.com QR in the app: not accepted.
+Fixed in: 65efa33 (2026-10-10). Decision: links follow the build's backend (staging -> staging.evebash.com, production -> www.evebash.com). App only: next app build (test_yourself #35).
+
+#4
+Listed: 2026-10-09
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Modal cost audit (2026-10-05)
+Issue: Find You compares only the first 1,000 faces of a gallery, so people in big galleries get missed. The faces query in Modal's find_matching_photos isn't paginated (backend/Modal).
+How to reproduce: Use a gallery with more than 1,000 indexed faces (one with 1,751 existed on 2026-10-05). Run Find You for someone who appears only in later-indexed photos: they're not found.
+Fixed in: 4469b92, Modal v115 deployed 2026-10-10 12:51 IST. Live check: REc 8 compares 1,751 faces (was 1,000). Rollback: modal app rollback wedding-media-engine v114.
+
+#15
+Listed: 2026-10-09
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Modal cost audit (2026-10-05)
+Issue: The old upload-processing path (trigger-modal-batch from the mobile upload queue and the website Host page) is still live, and it left 394 duplicate rows in the faces table. Remove the path and clean up the duplicates (backend/Modal/database).
+How to reproduce: Count faces rows that share the same image and descriptor: about 394 duplicates on 2026-10-05. Upload from the app and watch Modal logs: process_media_batch runs alongside the new pipeline.
+Fixed in: 94b406e (2026-10-10) website + app no longer call trigger-modal-batch (backend route kept for installed app builds; Modal v112 already hands those calls to the new pipeline). 37 leftover duplicate faces rows deleted 2026-10-10 (none newer than 2026-09-29).
+
+#22
+Listed: 2026-10-10
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Sarthak's lockdown review (2026-10-10); local test of the fix
+Issue: Moving photos between galleries fails for everyone: move_photos_to_gallery (20261006000000) calls public.can_manage_event_visibility, which is not in the live database (it ships with lockdown part 2), so every move errors with "function does not exist". Testing the fix also found a security bug in the same function: a NULL comparison in its same-event check let an event manager pull photos out of another owner's top-level gallery (not exploitable today only because the function crashes first). Fix: 20261010000000 uses eb_private.can_manage_event (part 1) and closes the NULL gap; covered by supabase/tests/move_photos.sql.
+How to reproduce: As a host, Select photos in a sub-gallery and Move to another gallery of the same event: "Could not move" (Supabase logs: function public.can_manage_event_visibility(text) does not exist).
+Fixed in: 0cd1faf (2026-10-10); migration 20261010000000 applied to Supabase 2026-10-10
+
+#1
+Listed: 2026-10-09
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: Deleting a gallery in the app doesn't delete its sub-galleries (the website does). Mobile deleteEvent in apps/mobile/lib/database.ts doesn't recurse into sub-galleries.
+How to reproduce: In the app, create a gallery with a sub-gallery and a photo in it, then delete the main gallery. The sub-gallery row and its media stay in the database (check events where parent_id = the deleted id).
+Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #29).
+
+#2
+Listed: 2026-10-09
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: App Find You only searches the main gallery, not its sub-galleries (apps/mobile/components/event/FindYouPanel).
+How to reproduce: Upload a photo of yourself to a sub-gallery only. Run Find You from the main gallery in the app: no match. Do the same on the website: the photo is found.
+Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #30).
+
+#3
+Listed: 2026-10-09
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: App sub-gallery covers get a broken double "-preview.webp" URL. The app's image URL helper (apps/mobile/lib/imageUrl) lacks the website's guard for already-resized files.
+How to reproduce: Set a sub-gallery cover in the app, then open the main gallery. The sub-gallery card shows no cover; its image URL ends in "-preview.webp-preview.webp".
+Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #31).
+
+#5
+Listed: 2026-10-09
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Gallery access work, item A1 (2026-10-07)
+Issue: After "Log in to request access" in the app, logging in lands on the dashboard instead of returning to the gallery (apps/mobile/app/login.tsx and the screens that open it).
+How to reproduce: Logged out, open a private gallery link in the app, tap "Log in" and sign in. You land on the dashboard; the gallery has to be opened again from the link.
+Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #32).
+
+#13
+Listed: 2026-10-09
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Unassigned
+Blocked by: -
+Found in: SEO audit (2026-10-04)
+Issue: Slow homepage hero on mobile (LCP about 4.4 s): the hero image sits inside a framer-motion parallax and the hero text starts at opacity 0.
+How to reproduce: Run Lighthouse (mobile) on the homepage: LCP around 4.4 s, LCP element is the hero image.
+Fixed in: 62e70d9 (2026-10-06)
+
+#12
+Listed: 2026-10-09
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Unassigned
+Blocked by: -
+Found in: Website UI review (2026-10-03)
+Issue: Off-brand blue instead of gold on login (button, forgot link, password field), the contact page and the pricing toggle; footer social icons link to "#".
+How to reproduce: Open /login, /contact and /pricing: blue controls. Click a footer social icon: the page jumps to the top.
+Fixed in: 62e70d9 (2026-10-06)

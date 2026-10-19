@@ -74,6 +74,7 @@ export default function App() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'events' | 'plans' | 'pricing' | 'infra' | 'payments' | 'messages' | 'superadmin'>('overview');
   const [usersResetTrigger, setUsersResetTrigger] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const mainScrollRef = useRef<HTMLDivElement>(null);
 
   const handleNavClick = (tab: 'overview' | 'users' | 'events' | 'plans' | 'pricing' | 'infra' | 'payments' | 'messages' | 'superadmin') => {
@@ -592,178 +593,168 @@ export default function App() {
 
   // Admin Dashboard Workspace
   return (
-    <div className="h-screen overflow-hidden flex bg-[#0b0f19] text-slate-200 font-sans">
+    <div className="h-screen overflow-hidden flex bg-[#07091a] text-slate-200 font-sans">
       {/* Sidebar Navigation */}
-      <aside className="h-screen w-64 border-r border-slate-800 bg-[#0f1422] flex flex-col justify-between shrink-0">
-        <div>
-          {/* Logo Brand */}
-          <div className="h-16 border-b border-slate-800 flex items-center px-6">
-            <button
-              type="button"
-              onClick={() => handleNavClick('overview')}
-              className="flex items-center space-x-2.5 cursor-pointer text-left group transition-opacity hover:opacity-90"
-              title="Back to Overview Analytics"
-            >
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-sm group-hover:scale-105 transition-transform">
+      <aside
+        className={`h-screen border-r border-white/5 bg-[#0c1028] flex flex-col justify-between shrink-0 relative overflow-hidden transition-[width] duration-300 ease-in-out ${
+          sidebarCollapsed ? 'w-16' : 'w-64'
+        }`}
+      >
+        <div className="overflow-hidden">
+          {/* Logo Brand + Toggle */}
+          <div className={`h-16 border-b border-white/5 flex items-center shrink-0 ${sidebarCollapsed ? 'justify-center px-0' : 'justify-between px-5'}`}>
+            {!sidebarCollapsed && (
+              <button
+                type="button"
+                onClick={() => handleNavClick('overview')}
+                className="flex items-center space-x-2.5 cursor-pointer text-left group transition-opacity hover:opacity-90 min-w-0"
+                title="Back to Overview Analytics"
+              >
+                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-sm group-hover:scale-105 transition-transform shadow-lg shadow-indigo-600/30 shrink-0">
+                  A
+                </div>
+                <span className="font-bold text-white tracking-wide truncate">Analytics Hub</span>
+              </button>
+            )}
+
+            {sidebarCollapsed && (
+              <div
+                onClick={() => handleNavClick('overview')}
+                className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-sm cursor-pointer hover:scale-105 transition-transform shadow-lg shadow-indigo-600/30"
+                title="Analytics Hub"
+              >
                 A
               </div>
-              <span className="font-bold text-white tracking-wide">Analytics Hub</span>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setSidebarCollapsed(c => !c)}
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              className={`text-slate-500 hover:text-slate-300 transition-all cursor-pointer select-none rounded-lg p-1 hover:bg-white/5 ${
+                sidebarCollapsed ? 'absolute top-4 right-1' : ''
+              }`}
+            >
+              <svg
+                width="16" height="16" viewBox="0 0 16 16" fill="none"
+                className={`transition-transform duration-300 ${sidebarCollapsed ? 'rotate-180' : ''}`}
+              >
+                <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </button>
           </div>
 
           {/* Navigation Links */}
-          <nav className="p-4 space-y-1">
-            <button
-              onClick={() => handleNavClick('overview')}
-              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === 'overview'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4 mr-3" />
-              Overview Stats
-            </button>
-            
-            <button
-              onClick={() => handleNavClick('users')}
-              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === 'users'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-              }`}
-            >
-              <Users className="w-4 h-4 mr-3" />
-              User Accounts
-            </button>
-            
-            <button
-              onClick={() => handleNavClick('events')}
-              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === 'events'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-              }`}
-            >
-              <Folder className="w-4 h-4 mr-3" />
-              Galleries
-            </button>
-
-            <button
-              onClick={() => handleNavClick('plans')}
-              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === 'plans'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-              }`}
-            >
-              <Layers className="w-4 h-4 mr-3" />
-              Plans Info
-            </button>
-
-            <button
-              onClick={() => handleNavClick('pricing')}
-              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === 'pricing'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-              }`}
-            >
-              <Settings2 className="w-4 h-4 mr-3" />
-              Manage Pricing
-            </button>
-
-            <button
-              onClick={() => handleNavClick('infra')}
-              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === 'infra'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-              }`}
-            >
-              <DollarSign className="w-4 h-4 mr-3" />
-              Infra Cost
-            </button>
-
-            <button
-              onClick={() => handleNavClick('payments')}
-              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === 'payments'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-              }`}
-            >
-              <CreditCard className="w-4 h-4 mr-3" />
-              Payments
-            </button>
-
-            <button
-              onClick={() => handleNavClick('messages')}
-              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === 'messages'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-              }`}
-            >
-              <Mail className="w-4 h-4 mr-3" />
-              Contact Messages
-            </button>
-
-            <button
-              onClick={() => handleNavClick('superadmin')}
-              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === 'superadmin'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4 mr-3" />
-              Super Admin
-            </button>
+          <nav className={`p-2 space-y-0.5 mt-1 ${sidebarCollapsed ? 'px-2' : 'px-3'}`}>
+            {[
+              { tab: 'overview'   as const, Icon: BarChart3,   label: 'Overview Stats'    },
+              { tab: 'users'      as const, Icon: Users,        label: 'User Accounts'     },
+              { tab: 'events'     as const, Icon: Folder,       label: 'Galleries'         },
+              { tab: 'plans'      as const, Icon: Layers,       label: 'Plans Info'        },
+              { tab: 'pricing'    as const, Icon: Settings2,    label: 'Manage Pricing'    },
+              { tab: 'infra'      as const, Icon: DollarSign,   label: 'Infra Cost'        },
+              { tab: 'payments'   as const, Icon: CreditCard,   label: 'Payments'          },
+              { tab: 'messages'   as const, Icon: Mail,         label: 'Contact Messages'  },
+              { tab: 'superadmin' as const, Icon: ShieldCheck,  label: 'Super Admin'       },
+            ].map(({ tab, Icon, label }) => (
+              <button
+                key={tab}
+                onClick={() => handleNavClick(tab)}
+                title={sidebarCollapsed ? label : undefined}
+                className={`w-full flex items-center rounded-xl text-sm font-semibold transition-all cursor-pointer group/nav ${
+                  sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'px-4 py-2.5'
+                } ${
+                  activeTab === tab
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                    : 'text-slate-500 hover:bg-white/5 hover:text-slate-200'
+                }`}
+              >
+                <Icon className={`w-4 h-4 shrink-0 ${sidebarCollapsed ? '' : 'mr-3'} ${activeTab === tab ? 'text-white' : 'text-slate-500 group-hover/nav:text-slate-200'}`} />
+                {!sidebarCollapsed && <span className="truncate">{label}</span>}
+              </button>
+            ))}
           </nav>
         </div>
 
-        {/* User Block and Sign Out */}
-        <div className="p-4 border-t border-slate-800/80 bg-slate-950/20">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-indigo-400 uppercase">
-              {profile?.name ? profile.name[0] : 'A'}
-            </div>
-            <div className="truncate">
-              <p className="text-xs font-semibold text-white leading-tight">{profile?.name}</p>
-              <p className="text-[10px] text-slate-500 leading-tight mt-0.5 truncate">{profile?.email}</p>
-            </div>
+        {/* Bottom wave blob + User Block */}
+        <div className="relative overflow-hidden">
+          {/* Wave / blob glow decoration */}
+          <div className="pointer-events-none absolute -bottom-8 -left-10 w-52 h-52 rounded-full bg-indigo-700/25 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-2 left-4 w-36 h-36 rounded-full bg-blue-600/20 blur-2xl" />
+          <div className="pointer-events-none absolute bottom-0 right-0 w-28 h-28 rounded-full bg-violet-700/15 blur-2xl" />
+          <div className="pointer-events-none absolute -bottom-4 left-12 w-20 h-20 rounded-full bg-cyan-600/10 blur-xl" />
+
+          {/* User Block and Sign Out */}
+          <div className={`relative border-t border-white/5 ${sidebarCollapsed ? 'p-2' : 'p-4'}`}>
+            {sidebarCollapsed ? (
+              /* Collapsed: just avatar + logout icon stacked */
+              <div className="flex flex-col items-center gap-2">
+                <div
+                  className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center font-black text-sm text-white uppercase shadow-md shadow-emerald-600/30 cursor-default"
+                  title={profile?.name || 'Admin'}
+                >
+                  {profile?.name ? profile.name[0] : 'A'}
+                </div>
+                <button
+                  onClick={handleLogout}
+                  title="Sign Out"
+                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-white/10 hover:bg-white/5 hover:border-white/15 text-slate-500 hover:text-slate-200 transition-all cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              /* Expanded: full name + email + sign out button */
+              <>
+                <div className="flex items-center space-x-3 mb-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center font-black text-sm text-white uppercase shrink-0 shadow-md shadow-emerald-600/30">
+                    {profile?.name ? profile.name[0] : 'A'}
+                  </div>
+                  <div className="truncate">
+                    <p className="text-sm font-semibold text-white leading-tight truncate">{profile?.name || 'Admin'}</p>
+                    <p className="text-[11px] text-slate-500 leading-tight mt-0.5 truncate">{profile?.email}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 hover:border-white/15 text-slate-400 hover:text-slate-200 font-semibold text-xs transition-all cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Sign Out
+                </button>
+              </>
+            )}
           </div>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center py-2.5 rounded-xl border border-slate-800 hover:bg-slate-900 hover:border-slate-800 text-slate-400 hover:text-slate-200 font-semibold text-xs transition-colors cursor-pointer"
-          >
-            <LogOut className="w-3.5 h-3.5 mr-2" />
-            Sign Out
-          </button>
         </div>
       </aside>
 
+
       {/* Main Panel Area */}
-      <div className="h-screen flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Fixed Header Block (isolated from scrollable content) */}
-        <header className="h-16 border-b border-slate-800 bg-[#0f1422] flex items-center justify-between px-8 shrink-0 select-none">
-          <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-            {activeTab === 'overview' ? 'Overview Analytics' :
-             activeTab === 'users' ? 'User Accounts' :
-             activeTab === 'events' ? 'Galleries Catalog' :
-             activeTab === 'plans' ? 'Subscription Plans Details' :
-             activeTab === 'pricing' ? 'Manage Pricing' :
-             activeTab === 'infra' ? 'Infrastructure Cost Hub' :
-             activeTab === 'payments' ? 'Customer Payments & Ledger' :
-             activeTab === 'messages' ? 'Contact Messages' :
-             'Super Admin Control'}
-          </h2>
-          <div className="flex items-center space-x-3">
-            <span className="text-xs text-slate-500">
+      <div className="h-screen flex-1 flex flex-col min-w-0 overflow-hidden bg-[#07091a]">
+        {/* Fixed Header */}
+        <header className="h-16 border-b border-white/5 bg-[#0c1028]/80 backdrop-blur-sm flex items-center justify-between px-8 shrink-0 select-none">
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-1">
+              <div className="w-5 h-0.5 bg-indigo-500 rounded-full" />
+              <div className="w-3 h-0.5 bg-indigo-400/50 rounded-full" />
+            </div>
+            <h2 className="text-sm font-black text-white uppercase tracking-[0.15em]">
+              {activeTab === 'overview' ? 'Overview Analytics' :
+               activeTab === 'users' ? 'User Accounts' :
+               activeTab === 'events' ? 'Galleries Catalog' :
+               activeTab === 'plans' ? 'Subscription Plans Details' :
+               activeTab === 'pricing' ? 'Manage Pricing' :
+               activeTab === 'infra' ? 'Infrastructure Cost Hub' :
+               activeTab === 'payments' ? 'Customer Payments & Ledger' :
+               activeTab === 'messages' ? 'Contact Messages' :
+               'Super Admin Control'}
+            </h2>
+          </div>
+          <div className="flex items-center space-x-2.5">
+            <span className="text-xs text-slate-500 font-medium">
               Database: <span className="text-emerald-400 font-bold">Online</span>
             </span>
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
           </div>
         </header>
 
@@ -777,7 +768,7 @@ export default function App() {
             </div>
           ) : (
             <>
-              {activeTab === 'overview' && <AnalyticsOverview stats={stats} />}
+              {activeTab === 'overview' && <AnalyticsOverview stats={stats} users={users} guests={guests} />}
               {activeTab === 'users' && (
                 <UserGrid
                   resetTrigger={usersResetTrigger}

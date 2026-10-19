@@ -1,21 +1,88 @@
 "use client";
 
 import React, { useEffect, useState, Suspense } from "react";
+import Link from "next/link";
 import { resolveEventCoverImage } from "@/lib/eventCovers";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
 import LoadingScreen from "@/components/LoadingScreen";
 import { getEvent } from "@/lib/events"; // Static Data
-import { getEventPhotosPaginated, getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event, Photo as DatabasePhoto, getFavouritePhotosForEvents, getEventFavouritePhotos } from "@/lib/database"; // Live Data
+import { getEventPhotosPaginated, getEventById, getSubEvents, Event, Photo as DatabasePhoto, getFavouritePhotosForEvents, getEventFavouritePhotos, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery } from "@/lib/database"; // Live Data
 import { useAuth } from "@/context/AuthContext";
-import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check, Star, Layers3 } from "lucide-react";
+import { promptLogin } from "@/components/ui/LoginPrompt";
+import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check, Star, Layers3, Lock, Clock, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
 import { getWebTemplateComponent } from "@/components/templateRegistry";
 import { getWebLightboxTheme, getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { supabase } from "@/lib/supabase";
+import { uploadEventImage } from "@/lib/storage";
+import { alertDialog } from "@/components/ui/Modal";
+
+const PUBLIC_PAGE_SIZE = 60;
+
+type GateState = "login_required" | "none" | "pending" | "rejected" | "error";
+
+const isGateAccess = (access: GalleryAccess | null): access is Exclude<GateState, "error"> =>
+    access === "login_required" || access === "none" || access === "pending" || access === "rejected";
+
+const GATE_COPY: Record<GateState, { heading: string; body: string }> = {
+    login_required: { heading: "This gallery is private", body: "Log in or create an account to ask the host for access." },
+    none: { heading: "This gallery is private", body: "Ask the host to let you in. You'll see the photos as soon as they approve." },
+    pending: { heading: "Waiting for the host", body: "Your request has been sent. You can open the gallery once the host approves it." },
+    rejected: { heading: "Access not granted", body: "The host hasn't given you access to this gallery. Contact them if you think this is a mistake." },
+    error: { heading: "We couldn't open this gallery", body: "Check your connection and try again." },
+};
+
+function GalleryAccessGate({ gate, title, returnTo, requesting, onRequestAccess, onRetry }: {
+    gate: GateState;
+    title: string;
+    returnTo: string;
+    requesting: boolean;
+    onRequestAccess: () => void;
+    onRetry: () => void;
+}) {
+    const loginHref = `/login?returnTo=${encodeURIComponent(returnTo)}`;
+    const Icon = gate === "pending" ? Clock : gate === "error" ? ImageIcon : Lock;
+    const primaryButton = "px-8 py-3 bg-slate-900 text-white rounded-full font-bold shadow-lg hover:bg-slate-800 transition-all disabled:opacity-50";
+    const secondaryButton = "px-8 py-3 bg-white border border-stone-300 text-slate-900 rounded-full font-bold hover:bg-stone-100 transition-all";
+
+    return (
+        <main className="min-h-screen flex flex-col items-center justify-center bg-stone-50 px-4 text-center">
+            <div className="w-16 h-16 mb-6 rounded-full bg-stone-200/70 text-stone-700 flex items-center justify-center">
+                <Icon className="w-7 h-7" aria-hidden="true" />
+            </div>
+            {title && gate !== "error" && (
+                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-stone-500">{title}</p>
+            )}
+            <h1 className="text-2xl font-bold mb-3 text-slate-900">{GATE_COPY[gate].heading}</h1>
+            <p className="text-stone-700 mb-8 max-w-md">{GATE_COPY[gate].body}</p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+                {gate === "login_required" && (
+                    <>
+                        <Link href={loginHref} className={primaryButton}>Log in</Link>
+                        <Link href={`${loginHref}&mode=signup`} className={secondaryButton}>Create account</Link>
+                    </>
+                )}
+                {gate === "none" && (
+                    <button type="button" onClick={onRequestAccess} disabled={requesting} className={primaryButton}>
+                        {requesting ? "Sending request..." : "Request access"}
+                    </button>
+                )}
+                {(gate === "pending" || gate === "error") && (
+                    <button type="button" onClick={onRetry} className={primaryButton}>
+                        {gate === "pending" ? "Check again" : "Try again"}
+                    </button>
+                )}
+                {gate === "rejected" && (
+                    <Link href="/dashboard" className={secondaryButton}>Back to your galleries</Link>
+                )}
+            </div>
+        </main>
+    );
+}
 
 function EventPageContent() {
     const params = useParams();
@@ -23,7 +90,7 @@ function EventPageContent() {
     const searchParams = useSearchParams();
     const slug = params.slug as string;
     const isShared = searchParams.get("shared") === "true";
-    const { user, loading: authLoading, login, signup, authWithPhone } = useAuth();
+    const { user, loading: authLoading } = useAuth();
 
     const [event, setEvent] = useState<Event | any | null>(null);
     const [subEvents, setSubEvents] = useState<Event[]>([]);
@@ -43,20 +110,17 @@ function EventPageContent() {
     const [hasMorePhotos, setHasMorePhotos] = useState(false);
     const [loadingMorePhotos, setLoadingMorePhotos] = useState(false);
 
-    // Guest Tracking State
-    const [showGuestModal, setShowGuestModal] = useState(false);
-    const [guestStatus, setGuestStatus] = useState<'idle' | 'pending' | 'approved' | 'rejected'>('idle');
-    const [guestName, setGuestName] = useState("");
-    const [guestPhone, setGuestPhone] = useState("");
-    const [isLogging, setIsLogging] = useState(false);
-    const [hasCheckedSession, setHasCheckedSession] = useState(false);
-    const [stableIdentifier, setStableIdentifier] = useState<string | null>(null);
-    const [entryMode, setEntryMode] = useState<'phone' | 'email'>('phone');
-    const [isSignUp, setIsSignUp] = useState(false);
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
-    const [authError, setAuthError] = useState("");
+    // What this viewer may do with the link (open_gallery)
+    const [access, setAccess] = useState<GalleryAccess | null>(null);
+    const [gateTitle, setGateTitle] = useState("");
+    const [requestingAccess, setRequestingAccess] = useState(false);
+    const isPublicView = access === "public_view";
+    const canUseRealtime = access === "manage" || access === "member";
+    // Guests whose host turned on "Allow Photo Uploads" can add photos here (hosts upload from their dashboard)
+    const [canGuestUpload, setCanGuestUpload] = useState(false);
+    const [guestUpload, setGuestUpload] = useState<{ done: number; total: number } | null>(null);
+    const [guestUploadError, setGuestUploadError] = useState("");
+    const guestFileInputRef = useRef<HTMLInputElement | null>(null);
 
 
     // Parallax logic
@@ -68,23 +132,9 @@ function EventPageContent() {
         }
     }, [authLoading, slug]);
 
-    // Initial session check
-    useEffect(() => {
-        if (typeof window !== 'undefined' && !hasCheckedSession) {
-            const saved = sessionStorage.getItem("wedding_guest_details");
-            if (saved) {
-                const details = JSON.parse(saved);
-                setGuestName(details.name);
-                setGuestPhone(details.phone);
-                setStableIdentifier(details.phone);
-            }
-            setHasCheckedSession(true);
-        }
-    }, [hasCheckedSession]);
-
     // Real-time photo grid updates (syncing uploads and background resizing updates)
     useEffect(() => {
-        if (!event?.id) return;
+        if (!event?.id || !canUseRealtime) return;
 
         const eventIds = Array.from(new Set([event.id, ...subEvents.map(s => s.id)].filter(Boolean)));
         const subscriptionSeed = Date.now();
@@ -123,196 +173,18 @@ function EventPageContent() {
         return () => {
             channels.forEach(ch => supabase.removeChannel(ch));
         };
-    }, [event?.id, subEvents, activeGallery]);
+    }, [event?.id, subEvents, activeGallery, canUseRealtime]);
 
     useEffect(() => {
         const ownerEventId = event?.parentId || event?.id;
-        if (!ownerEventId) return;
+        if (!ownerEventId || !canUseRealtime) return;
         const channel = supabase.channel(`event-visibility-${ownerEventId}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events', filter: `id=eq.${ownerEventId}` }, payload => {
                 const isPublic = payload.new.is_public === true;
                 setEvent((previous: Event | null) => previous ? { ...previous, isPublic } : previous);
-                if (!isPublic) setGuestStatus('idle');
             }).subscribe();
         return () => { void supabase.removeChannel(channel); };
-    }, [event?.id, event?.parentId]);
-
-    // Check for guest details or user approval if shared link
-    useEffect(() => {
-        let unsubscribe: (() => void) | undefined;
-
-        if (!event || loading) return;
-        if (event.isPublic) {
-            setGuestStatus('approved');
-            setShowGuestModal(false);
-            return;
-        }
-        if (isShared && !authLoading && hasCheckedSession) {
-            // --- VIP BYPASS CHECK ---
-            const isVIP = user && event && (
-                user.role === 'admin' ||
-                user.uid === event.createdBy ||
-                (user.delegatedBy === event.createdBy && user.roleType === 'primary') ||
-                user.assignedEvents?.includes(event.id) ||
-                (event.parentId && user.assignedEvents?.includes(event.parentId))
-            );
-
-            if (isVIP) {
-                console.log("[EventPage] VIP Access Granted. Bypassing guest logs.");
-                setGuestStatus('approved');
-                setShowGuestModal(false);
-                return;
-            }
-
-            // Priority 1: Logged in user
-            // Priority 2: Stable guest identifier (from session or submission)
-            const ident = user ? (user.email || user.uid) : stableIdentifier;
-            const dispName = user ? (user.name || "Logged User") : (guestName || "Guest");
-
-            if (ident) {
-                const logId = `${ident}_${slug}`;
-                console.log(`[EventPage] Identification found: ${logId}. Starting listener...`);
-
-                // 1. Listen for Current Event Status
-                unsubscribe = onGuestStatusChange(logId, (status: any) => {
-                    const currentStatus = status || 'pending';
-                    console.log(`[EventPage] Listener update for ${logId}: ${currentStatus}`);
-
-                    if (currentStatus === 'approved') {
-                        setGuestStatus('approved');
-                        setShowGuestModal(false);
-                        return;
-                    }
-
-                    // 2. If not approved here, but we have a parent, check parent
-                    if (event?.parentId) {
-                        const parentLogId = `${ident}_${event.parentId}`;
-                        onGuestStatusChange(parentLogId, (parentStatus: any) => {
-                            if (parentStatus === 'approved') {
-                                setGuestStatus('approved');
-                                setShowGuestModal(false);
-                            } else {
-                                setGuestStatus(currentStatus);
-                                setShowGuestModal(currentStatus !== 'approved');
-                            }
-                        });
-                    } else {
-                        setGuestStatus(currentStatus);
-                        setShowGuestModal(currentStatus !== 'approved');
-                    }
-                });
-
-                // Proactively log access for newly logged in users
-                if (user && event && !loading && guestStatus === 'idle') {
-                    logGuestAccess(dispName, ident);
-                }
-            } else if (guestStatus === 'idle') {
-                // No ID found and not logged in - show the entry modal
-                setShowGuestModal(true);
-            }
-        } else if (!isShared && !authLoading) {
-            setGuestStatus('approved');
-            setShowGuestModal(false);
-        }
-
-        return () => {
-            if (unsubscribe) unsubscribe();
-        };
-    }, [isShared, user, authLoading, slug, event?.id, loading, hasCheckedSession, event?.parentId, event?.isPublic, stableIdentifier]);
-
-    const logGuestAccess = async (name: string, identifier: string) => {
-        if (!slug || !event) return;
-        try {
-            await logGuestLogin(
-                name,
-                identifier,
-                slug,
-                event.parentId || event.id, // Pass self as parent if main event
-                event.title || "Shared Event",
-                event.createdBy // Pass the owner ID
-            );
-        } catch (error) {
-            console.error("Failed to log guest access:", error);
-        }
-    };
-
-    const getPhoneLoginEmail = (phoneNumber: string) => `${phoneNumber.replace(/\D/g, "")}@phone-login.local`;
-
-    const handleGuestAuthSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setAuthError("");
-
-        const isPhoneMode = entryMode === 'phone';
-        const identifier = isPhoneMode ? guestPhone.trim() : email.trim();
-
-        if (!identifier || !password.trim()) {
-            setAuthError(isPhoneMode ? "Please enter phone number and password." : "Please enter email and password.");
-            return;
-        }
-
-        if (password.length < 6) {
-            setAuthError("Password should be at least 6 characters.");
-            return;
-        }
-
-        if (isSignUp) {
-            if (!guestName.trim()) {
-                setAuthError("Please enter your name.");
-                return;
-            }
-
-            if (password !== confirmPassword) {
-                setAuthError("Passwords do not match.");
-                return;
-            }
-        }
-
-        setIsLogging(true);
-        try {
-            let success = false;
-            let stableId = identifier;
-
-            if (isSignUp) {
-                if (isPhoneMode) {
-                    const result = await authWithPhone(guestName, guestPhone, password);
-                    success = result.success;
-                    if (!success && result.error) setAuthError(result.error);
-                } else {
-                    const result = await signup(email, password, guestName);
-                    if (result.needsEmailVerification) {
-                        setAuthError(`A confirmation link has been sent to ${email.trim()}. Please confirm your email before signing in.`);
-                        return;
-                    }
-                    success = result.success;
-                    if (!success && result.error) setAuthError(result.error);
-                }
-            } else {
-                const loginId = isPhoneMode ? getPhoneLoginEmail(guestPhone) : email;
-                stableId = loginId;
-                const result = await login(loginId, password);
-                success = result.success;
-                if (!success && result.error) setAuthError(result.error);
-            }
-
-            if (success) {
-                const sessionDetails = {
-                    name: guestName || email || guestPhone,
-                    phone: stableId
-                };
-
-                sessionStorage.setItem("wedding_guest_details", JSON.stringify(sessionDetails));
-                setStableIdentifier(stableId);
-                setShowGuestModal(false);
-            } else {
-                setAuthError(isSignUp ? "Failed to create account. Please check your details." : "Invalid login details.");
-            }
-        } catch (err) {
-            console.error("Guest auth failed:", err);
-            setAuthError("Something went wrong. Please try again.");
-        } finally {
-            setIsLogging(false);
-        }
-    };
+    }, [event?.id, event?.parentId, canUseRealtime]);
 
     const transformPhotos = (databasePhotos: DatabasePhoto[]) => databasePhotos.map(p => ({
         id: p.id,
@@ -367,19 +239,83 @@ function EventPageContent() {
         setHasMorePhotos(hasMore);
     };
 
+    // Logged out, public gallery: previews and video streams only, never originals
+    const loadPublicPhotos = async (gallery: Event, page = 0, append = false) => {
+        const media = await getPublicGalleryMedia(gallery.id, PUBLIC_PAGE_SIZE, page * PUBLIC_PAGE_SIZE);
+        const transformedPhotos = transformPhotos(media);
+
+        setPhotos(prev => append ? [...prev, ...transformedPhotos] : transformedPhotos);
+        // Totals aren't known up front, so the counts follow what has loaded
+        setMediaTotals({ photos: 0, videos: 0 });
+        setPhotoPage(page);
+        setHasMorePhotos(media.length === PUBLIC_PAGE_SIZE);
+    };
+
+    const showPublicGallery = async (opened: OpenedGallery) => {
+        const eventData = { ...opened.event!, coverImage: resolveEventCoverImage(opened.event!.coverImage, 'preview', opened.event!.category) };
+        setEvent(eventData);
+        setSubEvents(opened.subEvents.map(sub => ({
+            ...sub,
+            coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail', sub.category || eventData.category)
+        })));
+        setActiveGallery(eventData.parentId ? eventData : null);
+        setGalleryMediaTab("photos");
+        setFavouriteMediaIds(new Set());
+        await loadPublicPhotos(eventData, 0, false);
+    };
+
     const loadEventData = async () => {
         setLoading(true);
-        console.log(`[EventPage] Loading event for slug: ${slug}, isShared: ${isShared}`);
+        setError(null);
+        console.log(`[EventPage] Loading event for slug: ${slug}`);
+        let redirecting = false;
 
         try {
-            // 1. Get Event Details
-            let eventData: Event | null = null;
+            // 0. What this viewer may do with the link. Logged-in viewers of a public gallery join it here.
+            let opened: OpenedGallery;
             try {
-                eventData = await getEventById(slug, true);
-            } catch (e: any) {
-                console.error("[EventPage] Error fetching from Supabase database:", e);
-                if (e.message?.includes("permissions")) {
-                    setError("permissions");
+                opened = await openGallery(slug);
+            } catch (e) {
+                console.error("[EventPage] Could not open gallery link:", e);
+                setAccess(null);
+                setEvent(null);
+                setError("open_failed");
+                return;
+            }
+
+            // Join codes and legacy ids continue on the gallery's own URL, which the rest of the page relies on
+            if (opened.eventId && opened.eventId !== decodeURIComponent(slug)) {
+                redirecting = true;
+                const query = searchParams.toString();
+                router.replace(`/events/${encodeURIComponent(opened.eventId)}${query ? `?${query}` : ""}`);
+                return;
+            }
+
+            setAccess(opened.access);
+            setGateTitle(opened.title || "");
+            setCanGuestUpload(opened.access === "member" && opened.canUpload);
+
+            if (opened.access === "public_view" && opened.event) {
+                await showPublicGallery(opened);
+                return;
+            }
+
+            // Private gallery the viewer can't see yet: nothing of it is loaded, the gate screen explains why
+            if (opened.access !== "manage" && opened.access !== "member" && opened.access !== "not_found") {
+                setEvent(null);
+                return;
+            }
+
+            // 1. Get Event Details (members and managers; unknown links can only be the built-in demo galleries)
+            let eventData: Event | null = null;
+            if (opened.access !== "not_found") {
+                try {
+                    eventData = await getEventById(slug, true);
+                } catch (e: any) {
+                    console.error("[EventPage] Error fetching from Supabase database:", e);
+                    if (e.message?.includes("permissions")) {
+                        setError("permissions");
+                    }
                 }
             }
 
@@ -396,13 +332,16 @@ function EventPageContent() {
             }
 
             // Sub-gallery links inherit the parent event's current visibility.
+            let parentCategory: string | undefined;
             if (eventData.parentId) {
                 const parentEvent = await getEventById(eventData.parentId, true);
                 eventData.isPublic = !!parentEvent?.isPublic;
+                parentCategory = parentEvent?.category;
             }
 
             // Resolve event cover image to preview format
-            eventData.coverImage = resolveEventCoverImage(eventData.coverImage, 'preview');
+            const eventCategory = eventData.category || parentCategory;
+            eventData.coverImage = resolveEventCoverImage(eventData.coverImage, 'preview', eventCategory);
 
             setEvent(eventData);
 
@@ -413,7 +352,7 @@ function EventPageContent() {
                 const data = await getSubEvents(eventData.id, eventData.legacyId);
                 const resolvedSubEvents = data.map(sub => ({
                     ...sub,
-                    coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail')
+                    coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail', sub.category || eventCategory)
                 }));
                 setSubEvents(resolvedSubEvents);
                 setActiveGallery(null);
@@ -428,11 +367,11 @@ function EventPageContent() {
                     try {
                         const pEvent = await getEventById(eventData.parentId);
                         if (pEvent) {
-                            pEvent.coverImage = resolveEventCoverImage(pEvent.coverImage, 'preview');
+                            pEvent.coverImage = resolveEventCoverImage(pEvent.coverImage, 'preview', pEvent.category);
                             const siblings = await getSubEvents(pEvent.id, pEvent.legacyId);
                             const resolvedSiblings = siblings.map(sub => ({
                                 ...sub,
-                                coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail')
+                                coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail', sub.category || pEvent.category)
                             }));
                             setSubEvents(resolvedSiblings);
                         }
@@ -449,7 +388,46 @@ function EventPageContent() {
             console.error("[EventPage] Critical error:", err);
             setError(err.message || "An unexpected error occurred");
         } finally {
-            setLoading(false);
+            if (!redirecting) setLoading(false);
+        }
+    };
+
+    const handleRequestAccess = async () => {
+        if (requestingAccess) return;
+        setRequestingAccess(true);
+        try {
+            const status = await requestGalleryAccess(slug);
+            if (status === "pending") {
+                setAccess("pending");
+            } else {
+                await loadEventData();
+            }
+        } catch (err) {
+            console.error("[EventPage] Access request failed:", err);
+            void alertDialog({ title: "Request not sent", message: "We couldn't send your request. Please try again." });
+        } finally {
+            setRequestingAccess(false);
+        }
+    };
+
+    const handleGuestUpload = async (files: FileList | null) => {
+        const target = activeGallery || event;
+        if (!files?.length || !target || !user) return;
+        const images = Array.from(files).filter(file => file.type.startsWith("image/"));
+        setGuestUploadError(images.length < files.length ? "Only photos can be added here. Videos are added by the host." : "");
+        if (!images.length) return;
+        setGuestUpload({ done: 0, total: images.length });
+        try {
+            for (const [index, file] of images.entries()) {
+                await uploadEventImage(file, target.id, user.uid);
+                setGuestUpload({ done: index + 1, total: images.length });
+            }
+            await loadGalleryPhotos(target, 0, false);
+        } catch (err) {
+            setGuestUploadError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+        } finally {
+            setGuestUpload(null);
+            if (guestFileInputRef.current) guestFileInputRef.current.value = "";
         }
     };
 
@@ -460,7 +438,11 @@ function EventPageContent() {
         setLoadingMorePhotos(true);
         try {
             const nextPage = photoPage + 1;
-            await loadGalleryPhotos(currentGallery, nextPage, true);
+            if (isPublicView) {
+                await loadPublicPhotos(currentGallery, nextPage, true);
+            } else {
+                await loadGalleryPhotos(currentGallery, nextPage, true);
+            }
         } catch (error) {
             console.error("Error loading more photos:", error);
         } finally {
@@ -479,27 +461,24 @@ function EventPageContent() {
         return <LoadingScreen message="Loading your gallery" />;
     }
 
+    const gate: GateState | null = error === "open_failed" ? "error" : isGateAccess(access) ? access : null;
+    if (gate) {
+        return (
+            <GalleryAccessGate
+                gate={gate}
+                title={gateTitle}
+                returnTo={`/events/${slug}`}
+                requesting={requestingAccess}
+                onRequestAccess={handleRequestAccess}
+                onRetry={loadEventData}
+            />
+        );
+    }
+
     if (!event) {
         return (
             <main className="relative" ref={containerRef}>
                 {notFound()}
-            </main>
-        );
-    }
-
-    if (error === "permissions" && !user && !isShared) {
-        return (
-            <main className="min-h-screen flex flex-col items-center justify-center bg-stone-50 px-4 text-center relative" ref={containerRef}>
-                <h2 className="text-2xl font-bold mb-4">Access Denied</h2>
-                <p className="text-stone-700 mb-8 max-w-md">
-                    This gallery is private. Please log in to view your memories.
-                </p>
-                <button
-                    onClick={() => window.location.href = "/login"}
-                    className="px-8 py-3 bg-slate-900 text-white rounded-full font-bold shadow-lg hover:bg-slate-800 transition-all"
-                >
-                    Log In
-                </button>
             </main>
         );
     }
@@ -512,7 +491,7 @@ function EventPageContent() {
         .filter((gallery): gallery is Event => !!gallery)
         .map(gallery => ({
             id: gallery.id,
-            label: gallery.id === event.id ? "Main event" : gallery.title,
+            label: gallery.id === event.id ? "Home (Primary Gallery)" : gallery.title,
             legacyId: gallery.legacyId,
             count: selectedMediaItems.filter(photo => photo.eventId === gallery.id || (!!gallery.legacyId && photo.eventId === gallery.legacyId)).length,
         }))
@@ -520,7 +499,7 @@ function EventPageContent() {
     const effectiveSourceGalleryFilter = sourceGalleryOptions.some(option => option.id === sourceGalleryFilter)
         ? sourceGalleryFilter
         : "all";
-    const isFavouriteFilterActive = !isPrimaryGalleryView && showOnlyFavourites;
+    const isFavouriteFilterActive = !isPrimaryGalleryView && !isPublicView && showOnlyFavourites;
     const sourceFilteredMediaItems = isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all"
         ? selectedMediaItems.filter(photo => {
             const source = sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter);
@@ -531,8 +510,10 @@ function EventPageContent() {
         ? sourceFilteredMediaItems.filter(photo => favouriteMediaIds.has(photo.id))
         : sourceFilteredMediaItems;
     const activeFavouriteCount = selectedMediaItems.filter(photo => favouriteMediaIds.has(photo.id)).length;
-    const displayedPhotoCount = mediaTotals.photos || photoItems.length;
-    const displayedVideoCount = mediaTotals.videos || videoItems.length;
+    // Public view pages through media without totals, so show "60+" while more can load
+    const countSuffix = isPublicView && hasMorePhotos ? "+" : "";
+    const displayedPhotoCount = `${mediaTotals.photos || photoItems.length}${countSuffix}`;
+    const displayedVideoCount = `${mediaTotals.videos || videoItems.length}${countSuffix}`;
     const activeGalleryTitle = activeGallery?.title || event.title || "Home";
     const displayEvent = activeGallery
         ? {
@@ -547,12 +528,11 @@ function EventPageContent() {
     const activeGalleryMessage = activeGallery ? activeGallery.description : event.description;
 
     const renderContent = () => (
-        <div className="contents">
+        <div className={cn("contents themed-gallery-content", displayEvent.templateId === "royal" && "royal-gallery-content")}>
             <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <button
                     onClick={() => {
-                        const backUrl = event?.parentId ? `/events/${event.parentId}` : "/gallery";
-                        router.push(`${backUrl}${isShared ? "?shared=true" : ""}`);
+                        router.push(event?.parentId ? `/events/${event.parentId}${isShared ? "?shared=true" : ""}` : "/dashboard");
                     }}
                     className="text-stone-700 hover:text-stone-900 transition-colors text-sm font-bold tracking-widest uppercase flex items-center group"
                 >
@@ -563,6 +543,7 @@ function EventPageContent() {
                 <div className="flex flex-wrap items-center gap-3">
                     <button
                         onClick={handleShare}
+                        data-royal-control="share"
                         className="flex items-center space-x-2 px-6 py-3 bg-white border border-stone-200 text-stone-600 rounded-full text-sm font-bold hover:bg-stone-50 transition-all shadow-sm hover:shadow-md group active:scale-95"
                     >
                         <AnimatePresence mode="wait">
@@ -606,13 +587,41 @@ function EventPageContent() {
                     </p>
                 )}
 
-                <div className="mt-10 inline-flex rounded-2xl border border-stone-200 bg-white p-1 shadow-sm">
+                {canGuestUpload && (activeGallery || subEvents.length === 0 ? (
+                    <div className="mt-6 flex flex-col items-center gap-2">
+                        <input
+                            ref={guestFileInputRef}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => void handleGuestUpload(e.target.files)}
+                        />
+                        <button
+                            type="button"
+                            disabled={!!guestUpload}
+                            onClick={() => guestFileInputRef.current?.click()}
+                            className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800 disabled:opacity-60"
+                        >
+                            {guestUpload ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                            {guestUpload ? `Uploading ${guestUpload.done}/${guestUpload.total}` : "Add photos"}
+                        </button>
+                        {guestUploadError && <p className="max-w-md text-center text-xs font-semibold text-rose-600">{guestUploadError}</p>}
+                    </div>
+                ) : (
+                    <p className="mt-6 text-center text-xs font-semibold text-stone-500">Open an album to add your photos.</p>
+                ))}
+
+                {/* Photos / Videos on the left; the Source gallery filter (or Favourites only) on the right, below on phones */}
+                <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
+                <div data-royal-control="segments" className="inline-flex rounded-2xl border border-stone-200 bg-white p-1 shadow-sm">
                     {([
                         { id: "photos", label: `Photos (${displayedPhotoCount})` },
                         { id: "videos", label: `Videos (${displayedVideoCount})` },
                     ] as const).map((item) => (
                         <button
                             key={item.id}
+                            aria-pressed={galleryMediaTab === item.id}
                             type="button"
                             onClick={() => setGalleryMediaTab(item.id)}
                             className={cn(
@@ -626,47 +635,52 @@ function EventPageContent() {
                         </button>
                     ))}
                 </div>
-                <div className="mt-4">
+                <div className="w-full sm:w-auto">
                     {isPrimaryGalleryView ? (
-                    <label className="flex w-full max-w-md items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 text-left shadow-sm">
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-stone-100 text-stone-700">
-                            <Layers3 className="h-4 w-4" />
+                    <label data-royal-control="source" className="flex h-[50px] w-full items-center gap-2.5 rounded-2xl border border-stone-200 bg-white pl-1.5 pr-1 shadow-sm sm:w-auto">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-stone-100 text-stone-700">
+                            <Layers3 className="h-4 w-4" aria-hidden="true" />
                         </span>
-                        <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-bold text-stone-800">Source gallery</span>
-                            <span className="mt-0.5 block text-xs text-stone-500">Show media selected from</span>
+                        <span className="shrink-0 whitespace-nowrap text-[11px] font-black uppercase tracking-widest text-stone-500">Source</span>
+                        <span className="relative flex min-w-0 flex-1 items-center">
+                            <select
+                                value={effectiveSourceGalleryFilter}
+                                onChange={(event) => setSourceGalleryFilter(event.target.value)}
+                                className="h-10 w-full min-w-0 cursor-pointer appearance-none rounded-xl border-0 bg-transparent pl-2 pr-9 text-sm font-bold text-stone-800 outline-none focus-visible:ring-2 focus-visible:ring-stone-400 sm:min-w-[13rem]"
+                                aria-label="Filter by source gallery"
+                            >
+                                <option value="all">All galleries ({selectedMediaItems.length})</option>
+                                {sourceGalleryOptions.map(option => (
+                                    <option key={option.id} value={option.id}>{option.label} ({option.count})</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-3 h-4 w-4 text-stone-500" aria-hidden="true" />
                         </span>
-                        <select
-                            value={effectiveSourceGalleryFilter}
-                            onChange={(event) => setSourceGalleryFilter(event.target.value)}
-                            className="max-w-[13rem] rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-800 outline-none focus:border-slate-700"
-                            aria-label="Filter by source gallery"
-                        >
-                            <option value="all">All galleries ({selectedMediaItems.length})</option>
-                            {sourceGalleryOptions.map(option => (
-                                <option key={option.id} value={option.id}>{option.label} ({option.count})</option>
-                            ))}
-                        </select>
                     </label>
-                    ) : (
+                    ) : isPublicView ? null : (
                     <button
                         type="button"
                         role="switch"
                         aria-checked={showOnlyFavourites}
                         onClick={() => setShowOnlyFavourites(current => !current)}
                         className={cn(
-                            "flex w-full max-w-md items-center gap-3 rounded-xl border px-4 py-3 text-left shadow-sm transition-colors",
+                            "flex h-[50px] w-full items-center gap-2.5 rounded-2xl border pl-1.5 pr-3 text-left shadow-sm transition-colors sm:w-auto",
                             showOnlyFavourites
                                 ? "border-slate-900 bg-slate-900"
                                 : "border-stone-200 bg-white hover:border-stone-400"
                         )}
                     >
-                        <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", showOnlyFavourites ? "bg-white text-slate-900" : "bg-stone-100 text-stone-600")}>
-                            <Star className={cn("h-4 w-4", showOnlyFavourites && "fill-current")} />
+                        <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl", showOnlyFavourites ? "bg-white text-slate-900" : "bg-stone-100 text-stone-600")}>
+                            <Star className={cn("h-4 w-4", showOnlyFavourites && "fill-current")} aria-hidden="true" />
                         </span>
-                        <span className="min-w-0 flex-1">
-                            <span className={cn("block text-sm font-bold", showOnlyFavourites ? "text-white" : "text-stone-800")}>Favourites only</span>
-                            <span className={cn("mt-0.5 block text-xs", showOnlyFavourites ? "text-slate-300" : "text-stone-500")}>{activeFavouriteCount} in {galleryMediaTab === "videos" ? "Videos" : "Photos"}</span>
+                        <span className={cn("min-w-0 flex-1 whitespace-nowrap text-xs font-black uppercase tracking-widest", showOnlyFavourites ? "text-white" : "text-stone-800")}>
+                            Favourites only
+                        </span>
+                        <span
+                            title={`${activeFavouriteCount} in ${galleryMediaTab === "videos" ? "Videos" : "Photos"}`}
+                            className={cn("min-w-7 rounded-lg px-2 py-0.5 text-center text-xs font-bold", showOnlyFavourites ? "bg-white/20 text-white" : "bg-stone-100 text-stone-600")}
+                        >
+                            {activeFavouriteCount}
                         </span>
                         <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", showOnlyFavourites ? "bg-white/35" : "bg-stone-200")}>
                             <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", showOnlyFavourites ? "translate-x-5" : "translate-x-0.5")} />
@@ -674,13 +688,16 @@ function EventPageContent() {
                     </button>
                     )}
                 </div>
+                </div>
 
                 {activeGalleryItems.length > 0 ? (
                     <div className="mt-8">
                         <MasonryGrid
                             photos={activeGalleryItems}
                             eventSlug={slug}
-                            disableDownload={isShared && !user}
+                            disableDownload={isPublicView || (isShared && !user)}
+                            readOnly={isPublicView}
+                            onRequireLogin={isPublicView && !user ? promptLogin : undefined}
                             lightboxTheme={getWebLightboxTheme((activeGallery || event).templateId || event.templateId)}
                             templateId={(activeGallery || event).templateId || event.templateId}
                         />
@@ -738,6 +755,8 @@ function EventPageContent() {
             ref={containerRef}
             style={{
                 "--event-template-primary": templateChrome.background,
+                "--event-template-panel": templateChrome.panel,
+                "--event-template-on-accent": templateChrome.onAccent,
                 "--event-template-text": templateChrome.text,
                 "--event-template-muted": templateChrome.muted,
                 "--event-template-accent": templateChrome.accent,
@@ -751,8 +770,7 @@ function EventPageContent() {
                 isShared={isShared}
                 user={user}
                 onBack={() => {
-                    const backUrl = event?.parentId ? `/events/${event.parentId}` : "/gallery";
-                    router.push(`${backUrl}${isShared ? "?shared=true" : ""}`);
+                    router.push(event?.parentId ? `/events/${event.parentId}${isShared ? "?shared=true" : ""}` : "/dashboard");
                 }}
                 onShare={handleShare}
                 canManage={false}
@@ -762,190 +780,6 @@ function EventPageContent() {
             >
                 {renderContent()}
             </TemplateComponent>
-            {/* Guest Entry Modal */}
-            <AnimatePresence>
-                {showGuestModal && !event?.isPublic && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4"
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/20"
-                        >
-                            <div className="p-10 text-center">
-                                <div className="w-20 h-20 bg-royal-gold/10 rounded-full flex items-center justify-center mx-auto mb-6 text-royal-gold">
-                                    {guestStatus === 'pending' ? <Loader2 className="w-10 h-10 animate-spin" /> : <ImageIcon size={40} />}
-                                </div>
-
-                                {guestStatus === 'pending' ? (
-                                    <>
-                                        <h2 className="text-3xl font-bold mb-3 font-serif text-slate-800">Hang Tight, {guestName.split(' ')[0]}! ✨</h2>
-                                        <p className="text-slate-700 mb-8 font-sans leading-relaxed">
-                                            We have sent your request to the event admin. You will be admitted as soon as they grant access.
-                                        </p>
-                                        <div className="p-4 bg-stone-50 rounded-2xl border border-stone-100 flex items-center justify-center space-x-3">
-                                            <div className="w-2 h-2 rounded-full bg-royal-gold animate-pulse" />
-                                            <span className="text-xs font-bold uppercase tracking-widest text-stone-600">Waiting for approval</span>
-                                        </div>
-                                    </>
-                                ) : guestStatus === 'rejected' ? (
-                                    <>
-                                        <h2 className="text-3xl font-bold mb-3 font-serif text-slate-800">Access Restricted</h2>
-                                        <p className="text-slate-700 mb-8 font-sans leading-relaxed">
-                                            The admin has declined this access request. Please contact the host for support.
-                                        </p>
-                                        <button
-                                            onClick={() => setGuestStatus('idle')}
-                                            className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold uppercase tracking-widest transition-all active:scale-95 shadow-xl"
-                                        >
-                                            Try Again
-                                        </button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="flex p-1 bg-stone-100 rounded-2xl mb-8">
-                                            <button
-                                                onClick={() => {
-                                                    setEntryMode('phone');
-                                                    setAuthError("");
-                                                }}
-                                                className={cn(
-                                                    "flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all",
-                                                    entryMode === 'phone' ? "bg-white text-slate-800 shadow-sm" : "text-stone-600 hover:text-stone-600"
-                                                )}
-                                            >
-                                                Phone Login
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setEntryMode('email');
-                                                    setAuthError("");
-                                                }}
-                                                className={cn(
-                                                    "flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all",
-                                                    entryMode === 'email' ? "bg-white text-slate-800 shadow-sm" : "text-stone-600 hover:text-stone-600"
-                                                )}
-                                            >
-                                                Email Login
-                                            </button>
-                                        </div>
-
-                                        <h2 className="text-3xl font-bold mb-3 font-serif text-slate-800">
-                                            {isSignUp ? "Create Account" : "Welcome Back"}
-                                        </h2>
-                                        <p className="text-slate-700 mb-8 font-sans leading-relaxed text-sm">
-                                            {isSignUp ? "Sign up to request access to this private event." : "Log in to request access to this private event."}
-                                        </p>
-
-                                        <form onSubmit={handleGuestAuthSubmit} className="space-y-6">
-                                            <div className="space-y-4 text-left">
-                                                {isSignUp && (
-                                                    <div className="relative group">
-                                                        <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1 mb-2 block">Name</label>
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Your Name"
-                                                            required
-                                                            value={guestName}
-                                                            onChange={(e) => setGuestName(e.target.value)}
-                                                            className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold transition-all font-sans"
-                                                        />
-                                                    </div>
-                                                )}
-
-                                                {entryMode === 'phone' ? (
-                                                    <div className="relative group">
-                                                        <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1 mb-2 block">Phone Number</label>
-                                                        <input
-                                                            type="tel"
-                                                            placeholder="10-digit number"
-                                                            required
-                                                            value={guestPhone}
-                                                            onChange={(e) => setGuestPhone(e.target.value)}
-                                                            className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold transition-all font-sans"
-                                                        />
-                                                    </div>
-                                                ) : (
-                                                    <div className="relative group">
-                                                        <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1 mb-2 block">Email Address</label>
-                                                        <input
-                                                            type="email"
-                                                            placeholder="name@email.com"
-                                                            required
-                                                            value={email}
-                                                            onChange={(e) => setEmail(e.target.value)}
-                                                            className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold transition-all font-sans"
-                                                        />
-                                                    </div>
-                                                )}
-
-                                                <div className="relative group">
-                                                    <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1 mb-2 block">Password</label>
-                                                    <input
-                                                        type="password"
-                                                        placeholder="••••••••"
-                                                        required
-                                                        value={password}
-                                                        onChange={(e) => setPassword(e.target.value)}
-                                                        className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold transition-all font-sans"
-                                                    />
-                                                </div>
-
-                                                {isSignUp && (
-                                                    <div className="relative group">
-                                                        <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1 mb-2 block">Confirm Password</label>
-                                                        <input
-                                                            type="password"
-                                                            placeholder="••••••••"
-                                                            required
-                                                            value={confirmPassword}
-                                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                                            className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold transition-all font-sans"
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {authError && (
-                                                <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-2xl border border-red-100">
-                                                    {authError}
-                                                </div>
-                                            )}
-
-                                            <button
-                                                type="submit"
-                                                disabled={isLogging}
-                                                className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 shadow-xl flex items-center justify-center space-x-3"
-                                            >
-                                                {isLogging ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>{isSignUp ? "Sign Up & Access" : "Login & Access"}</span>}
-                                            </button>
-                                        </form>
-
-                                        <div className="mt-8 text-center pt-6 border-t border-stone-100">
-                                            <p className="text-slate-700 text-sm">
-                                                {isSignUp ? "Already have an account?" : "Do not have an account?"}
-                                                <button
-                                                    onClick={() => {
-                                                        setIsSignUp(!isSignUp);
-                                                        setAuthError("");
-                                                    }}
-                                                    className="ml-2 font-bold text-sky-600 hover:text-sky-800 transition-colors underline decoration-2 underline-offset-4"
-                                                >
-                                                    {isSignUp ? "Login here" : "Sign Up"}
-                                                </button>
-                                            </p>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </main>
     );
 }

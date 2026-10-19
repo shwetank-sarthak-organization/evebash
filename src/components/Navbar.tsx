@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X, User as UserIcon } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { EveBashLogo } from "@/components/EveBashLogo";
+import { ProfileIcon } from "@/components/ProfileIcon";
 
 const guestNavLinks = [
     { name: "Sample Galleries", href: "/sample-galleries" },
@@ -49,23 +50,23 @@ export default function Navbar() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-20">
                     {/* Logo & Brand */}
-                    <Link href="/" className="flex items-center space-x-2 group">
-                        <div className="bg-[#CA9C68]/10 border border-[#CA9C68]/35 text-[#CA9C68] p-2 rounded-lg group-hover:bg-[#CA9C68]/20 group-hover:border-[#CA9C68]/65 transition-all duration-300">
-                            <EveBashLogo className="h-6 w-6 text-[#CA9C68]" aria-hidden="true" />
+                    <Link href="/" className="flex items-center gap-3 group">
+                        <div className="bg-[#CA9C68]/10 border border-[#CA9C68]/35 text-[#CA9C68] p-2.5 rounded-xl group-hover:bg-[#CA9C68]/20 group-hover:border-[#CA9C68]/65 transition-all duration-300">
+                            <EveBashLogo className="h-7 w-7 text-[#CA9C68]" aria-hidden="true" />
                         </div>
-                        <span className="font-playfair text-xl font-bold text-[var(--site-text)] group-hover:text-[#CA9C68] transition-colors">
+                        <span className="font-brand text-[1.75rem] font-normal leading-none tracking-wide text-[var(--site-text)] group-hover:text-[#CA9C68] transition-colors sm:text-[2rem]">
                             EveBash
                         </span>
                     </Link>
 
                     {/* Desktop Navigation */}
-                    <div className="hidden md:flex items-center space-x-8">
+                    <div className="hidden lg:flex items-center space-x-7 xl:space-x-9">
                         {(user ? authNavLinks : guestNavLinks).map((link) => (
                             <Link
                                 key={link.name}
                                 href={link.href}
                                 className={cn(
-                                    "inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-[var(--site-text)] pb-1 border-b-2 border-transparent",
+                                    "inline-flex items-center gap-1.5 font-sans text-[15px] font-medium transition-colors hover:text-[var(--site-text)] pb-1 border-b-2 border-transparent",
                                     isActiveLink(link.href)
                                         ? "text-[var(--site-text)] border-[#CA9C68]"
                                         : "text-[var(--site-muted)] hover:border-[#906D4B]"
@@ -91,21 +92,29 @@ export default function Navbar() {
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img src={user.profileImage} alt="" className="h-full w-full rounded-full object-cover" />
                                 ) : (
-                                    <UserIcon className="h-5 w-5" />
+                                    <ProfileIcon className="h-6 w-6" />
                                 )}
                             </Link>
                         ) : (
-                            <Link
-                                href="/login"
-                                className="px-5 py-2 bg-[#CA9C68] text-[#13191F] text-sm font-bold rounded-full hover:bg-[#D7AE7D] transition-colors shadow-sm"
-                            >
-                                Login
-                            </Link>
+                            <div className="flex items-center gap-6">
+                                <Link
+                                    href="/login"
+                                    className="inline-flex items-center pb-1 border-b-2 border-transparent font-sans text-[15px] font-medium text-[var(--site-muted)] transition-colors hover:text-[var(--site-text)] hover:border-[#906D4B]"
+                                >
+                                    Log in
+                                </Link>
+                                <Link
+                                    href="/login?mode=signup"
+                                    className="px-6 py-2.5 bg-[#CA9C68] text-[#13191F] text-[15px] font-bold rounded-full hover:bg-[#D7AE7D] transition-colors shadow-sm"
+                                >
+                                    Create event free
+                                </Link>
+                            </div>
                         )}
                     </div>
 
                     {/* Mobile Menu Button */}
-                    <div className="md:hidden flex items-center gap-2">
+                    <div className="lg:hidden flex items-center gap-2">
                         <button
                             onClick={() => setIsOpen(!isOpen)}
                             className="p-2 text-[var(--site-muted)] hover:text-[var(--site-text)] focus:outline-none transition-colors"
@@ -120,7 +129,7 @@ export default function Navbar() {
             {/* Mobile Menu Dropdown */}
             <div
                 className={cn(
-                    "md:hidden absolute top-20 left-0 w-full bg-[var(--site-surface)] border-b border-[var(--site-border)] shadow-xl transition-all duration-300 ease-in-out origin-top overflow-hidden",
+                    "lg:hidden absolute top-20 left-0 w-full bg-[var(--site-surface)] border-b border-[var(--site-border)] shadow-xl transition-all duration-300 ease-in-out origin-top overflow-hidden",
                     isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0 pointer-events-none"
                 )}
             >
@@ -131,9 +140,9 @@ export default function Navbar() {
                             href={link.href}
                             onClick={() => setIsOpen(false)}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-3 rounded-lg text-lg font-medium transition-colors",
+                                "flex items-center gap-2 px-4 py-3 rounded-lg font-sans text-lg font-medium transition-colors",
                                 isActiveLink(link.href)
-                                    ? "text-[#CA9C68] bg-[#CA9C68]/15 font-semibold"
+                                    ? "text-[#CA9C68] bg-[#CA9C68]/15"
                                     : "text-[var(--site-muted)] hover:bg-[var(--site-card-muted)] hover:text-[var(--site-text)]"
                             )}
                         >
@@ -144,8 +153,13 @@ export default function Navbar() {
                         {user ? (
                             <>
                                 <div className="mb-2 flex items-center space-x-3 rounded-lg bg-[var(--site-card-muted)] px-4 py-2">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--site-border)] bg-white">
-                                        <UserIcon className="w-5 h-5 text-[#0f172a]" />
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--site-border)] bg-white overflow-hidden">
+                                        {user.profileImage ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={user.profileImage} alt="" className="h-full w-full object-cover" />
+                                        ) : (
+                                            <ProfileIcon className="w-6 h-6 text-[#0f172a]" />
+                                        )}
                                     </div>
                                     <div>
                                         <p className="text-sm font-bold text-[var(--site-text)]">{user.name}</p>
@@ -173,13 +187,22 @@ export default function Navbar() {
                                 </button>
                             </>
                         ) : (
-                            <Link
-                                href="/login"
-                                onClick={() => setIsOpen(false)}
-                                className="block w-full text-center px-4 py-3 bg-[#CA9C68] text-[#13191F] rounded-lg text-lg font-medium hover:bg-[#D7AE7D] transition-colors"
-                            >
-                                Login
-                            </Link>
+                            <>
+                                <Link
+                                    href="/login?mode=signup"
+                                    onClick={() => setIsOpen(false)}
+                                    className="block w-full text-center px-4 py-3 bg-[#CA9C68] text-[#13191F] rounded-lg text-lg font-medium hover:bg-[#D7AE7D] transition-colors"
+                                >
+                                    Create event free
+                                </Link>
+                                <Link
+                                    href="/login"
+                                    onClick={() => setIsOpen(false)}
+                                    className="block w-full text-center px-4 py-3 rounded-lg border border-[var(--site-border)] text-lg font-medium text-[var(--site-muted)] hover:bg-[var(--site-card-muted)] hover:text-[var(--site-text)] transition-colors"
+                                >
+                                    Log in
+                                </Link>
+                            </>
                         )}
                     </div>
                 </div>

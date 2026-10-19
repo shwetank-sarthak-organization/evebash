@@ -13,14 +13,49 @@ type PendingProfile = {
   pending_plan_end_date?: string | null;
 };
 
-function isTodayOrPast(value?: string | null) {
-  if (!value) return false;
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return false;
+/** Today's calendar date in India (plan dates are Indian calendar dates, as in the Vault plan rules). */
+export function todayInIndia(now = new Date()) {
+  return new Date(now.getTime() + 330 * 60 * 1000).toISOString().slice(0, 10);
+}
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return date <= today;
+function isTodayOrPast(value?: string | null, now = new Date()) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}/.test(value)) return false;
+  return value.slice(0, 10) <= todayInIndia(now);
+}
+
+type AdminClient = ReturnType<typeof getSupabaseAdminClient>;
+
+/**
+ * Applies every scheduled plan change whose start date has arrived. Runs hourly on the server
+ * (planChangeScheduler) so app-only users get theirs too; the website still applies the caller's own on load.
+ * An update only goes through if the scheduled change is still the one that was read.
+ */
+export async function applyDuePlanChanges(supabaseAdmin: AdminClient = getSupabaseAdminClient(), now = new Date()) {
+  const { data: profiles, error } = await supabaseAdmin
+    .from("profiles")
+    .select("id, pending_plan_role, pending_subscription_duration, pending_plan_start_date, pending_plan_end_date")
+    .not("pending_plan_role", "is", null)
+    .lte("pending_plan_start_date", todayInIndia(now));
+  if (error) throw error;
+
+  const failures: Array<{ id: string; error: string }> = [];
+  let applied = 0;
+  for (const profile of (profiles || []) as PendingProfile[]) {
+    if (!profile.id || !profile.pending_plan_role || !isTodayOrPast(profile.pending_plan_start_date, now)) continue;
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from("profiles")
+      .update(pendingPlanUpdate(profile))
+      .eq("id", profile.id)
+      .eq("pending_plan_role", profile.pending_plan_role)
+      .eq("pending_plan_start_date", profile.pending_plan_start_date as string)
+      .select("id");
+    if (updateError) {
+      failures.push({ id: profile.id, error: updateError.message });
+    } else if ((updated || []).length > 0) {
+      applied += 1;
+    }
+  }
+  return { checked: profiles?.length || 0, applied, failures };
 }
 
 function pendingPlanUpdate(profile: PendingProfile) {
@@ -83,35 +118,10 @@ subscriptionRouter.post("/apply-due", async (request, response) => {
   }
 
   try {
-    const supabaseAdmin = getSupabaseAdminClient();
-    const today = new Date().toISOString().slice(0, 10);
-    const { data: profiles, error } = await supabaseAdmin
-      .from("profiles")
-      .select("id, pending_plan_role, pending_subscription_duration, pending_plan_start_date, pending_plan_end_date")
-      .not("pending_plan_role", "is", null)
-      .lte("pending_plan_start_date", today);
-
-    if (error) throw error;
-
-    const failures: Array<{ id: string; error: string }> = [];
-    let applied = 0;
-    for (const profile of (profiles || []) as PendingProfile[]) {
-      if (!profile.id || !profile.pending_plan_role || !isTodayOrPast(profile.pending_plan_start_date)) continue;
-      const { error: updateError } = await supabaseAdmin
-        .from("profiles")
-        .update(pendingPlanUpdate(profile))
-        .eq("id", profile.id);
-
-      if (updateError) {
-        failures.push({ id: profile.id, error: updateError.message });
-      } else {
-        applied += 1;
-      }
-    }
-
+    const { checked, applied, failures } = await applyDuePlanChanges();
     response.status(failures.length > 0 ? 207 : 200).json({
       success: failures.length === 0,
-      checked: profiles?.length || 0,
+      checked,
       applied,
       failures,
     });

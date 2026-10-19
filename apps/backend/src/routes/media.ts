@@ -1,3 +1,5 @@
+import { canPostEventPhoto, canPostEventVideo, isPhotoUploadPermissionRequired, isVideoUpload } from "../services/eventVideoPermission.js";
+import { saveVideoThumbnail, ThumbnailError } from "../services/videoThumbnail.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
@@ -22,15 +24,26 @@ import {
 } from "../backblaze.js";
 import {
   publishDelayedModalTrigger,
+  publishFastMediaTask,
+  publishFaceIndexTask,
   publishManifestAssemblyTask,
   publishModalBatchTask,
   publishVideoTranscodeTask,
 } from "../qstash.js";
+import {
+  EVENT_NOTIFICATION_DEBOUNCE_MS,
+  flushEventNotificationOutbox,
+  isVideoReadyPushEnabled,
+  sendOwnerUploadNotification,
+} from "../uploadNotifications.js";
 import { runMediaWatchdog } from "../services/watchdog.js";
+import { checkEventUpload, isEventUploadLimitEnabled } from "../services/eventUploadLimits.js";
+import { getStorageContext } from "../vault/access.js";
+import { createSupabaseVaultRepository } from "../vault/repository.js";
 
 export const mediaRouter = Router();
 
-type AsyncRoute = (request: Request, response: Response) => Promise<void>;
+type AsyncRoute = (request: Request, response: Response, next: NextFunction) => Promise<void>;
 
 type PhotoPayload = {
   id: string;
@@ -68,7 +81,7 @@ const VIDEO_EXTENSIONS = new Set(["mp4", "mov", "avi", "mkv", "webm", "m4v", "3g
 
 function asyncRoute(handler: AsyncRoute) {
   return (request: Request, response: Response, next: NextFunction) => {
-    handler(request, response).catch(next);
+    handler(request, response, next).catch(next);
   };
 }
 
@@ -217,6 +230,27 @@ async function validateAnonymousEvent(eventId: string) {
   return !error && !!event;
 }
 
+/**
+ * Refuses a new gallery upload that doesn't fit the gallery owner's plan (EVENT_UPLOAD_LIMITS=true). Replies 403 with
+ * { code: "storage_full" | "plan_expired", error } and returns true when refused. If the check itself fails, the
+ * upload is allowed rather than blocked.
+ */
+async function refuseOverLimitUpload(
+  response: Response,
+  params: { eventId: string; uploaderId: string; bytes: number; isVideo: boolean },
+) {
+  if (!isEventUploadLimitEnabled()) return false;
+  try {
+    const decision = await checkEventUpload(params);
+    if (decision.allowed) return false;
+    response.status(403).json({ success: false, code: decision.code, error: decision.error });
+    return true;
+  } catch (error) {
+    console.warn("[Media] Upload limit check failed; allowing the upload:", error);
+    return false;
+  }
+}
+
 function isVideoResource(resourceType: string | undefined, fileName: string, storageKey?: string) {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
   return resourceType === "video" || VIDEO_EXTENSIONS.has(ext) || !!storageKey?.includes("/videos/");
@@ -309,51 +343,6 @@ function background(label: string, task: () => Promise<unknown>) {
   setTimeout(() => {
     task().catch((error) => console.error(`[${label}] Background task failed:`, error));
   }, 0);
-}
-
-async function sendOwnerUploadNotification(
-  eventId: string,
-  userId: string,
-  title: string,
-  body: string,
-  data: Record<string, unknown>,
-) {
-  if (!eventId || !userId || userId === "anonymous") return;
-
-  const supabaseAdmin = getSupabaseAdminClient();
-  const { data: event, error: eventError } = await supabaseAdmin
-    .from("events")
-    .select("created_by, title")
-    .eq("id", eventId)
-    .maybeSingle();
-
-  if (eventError || !event?.created_by || event.created_by === userId) return;
-
-  const { data: profile, error: profileError } = await supabaseAdmin
-    .from("profiles")
-    .select("push_token, notification_preferences")
-    .eq("id", event.created_by)
-    .maybeSingle();
-
-  if (profileError || !profile?.push_token) return;
-  const preferences = profile.notification_preferences as Record<string, unknown> | null;
-  if (preferences?.push === false || preferences?.event_activity === false) return;
-
-  await fetch("https://exp.host/--/api/v2/push/send", {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Accept-Encoding": "gzip, deflate",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      to: profile.push_token,
-      sound: "default",
-      title,
-      body,
-      data,
-    }),
-  });
 }
 
 async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) {
@@ -560,6 +549,71 @@ mediaRouter.all("/watchdog/run", asyncRoute(async (request, response) => {
   response.json({ success: true, report });
 }));
 
+mediaRouter.get("/video-upload-permission", asyncRoute(async (request, response) => {
+  const verified = await verifyRequestUser(request);
+  if (!verified) return jsonError(response, 401, "Authorization required");
+  const eventId = String(request.query.eventId || "");
+  response.json({ allowed: Boolean(eventId) && await canPostEventVideo(getSupabaseAdminClient(), verified.user, eventId) });
+}));
+
+// Check both issuance and finalization: older clients and resumable uploads must
+// obey the current event role, not a client-supplied user ID or permission flag.
+mediaRouter.use(asyncRoute(async (request, response, next) => {
+  const uploadPaths = ["/get-upload-url", "/upload/chunk/initiate", "/upload/chunk/part-url", "/upload/chunk/complete-part", "/upload/chunk/complete", "/save-photo", "/save-photo-batch", "/mobile/get-upload-url", "/mobile/save-photo-batch"];
+  if (request.method !== "POST" || !uploadPaths.includes(request.path)) return next();
+  const body = request.body || {};
+  const entries = Array.isArray(body.photos) ? body.photos.map((photo: Record<string, unknown>) => ({ ...photo, eventId: photo.eventId || body.eventId })) : [{ ...body }];
+  if (request.path.startsWith("/upload/chunk/") && body.fileId) {
+    const { data, error } = await getSupabaseAdminClient().from("photos").select("event_id,storage_key,media_type,resource_type").eq("b2_file_id", String(body.fileId)).maybeSingle();
+    if (error) throw error;
+    if (!data) return jsonError(response, 403, "Upload session not found. Start the upload again.");
+    entries.push({ eventId: data.event_id, storageKey: data.storage_key, media_type: data.media_type, resource_type: data.resource_type });
+  }
+  if (request.path === "/upload/chunk/initiate" && body.resourceType === undefined) entries[0].resourceType = "video";
+  const galleryOf = (entry: Record<string, unknown>) => String(entry.eventId || String(entry.storageKey || '').match(/^events\/([^/]+)\//)?.[1] || '');
+  const videos = entries.filter(isVideoUpload);
+  // Gallery photos (not profile pictures, and not Phase 2 business portfolios, which use made-up "business-" ids)
+  const photoGalleries = isPhotoUploadPermissionRequired() && body.scope !== "profile"
+    ? new Set<string>(entries.filter((entry: Record<string, unknown>) => !isVideoUpload(entry)).map(galleryOf)
+        .filter((eventId: string) => eventId && !eventId.startsWith("business-")))
+    : new Set<string>();
+  if (!videos.length && !photoGalleries.size) return next();
+  const verified = await verifyRequestUser(request);
+  if (!verified) {
+    return jsonError(response, 401, videos.length
+      ? "Sign in as the event owner or an event admin to upload videos."
+      : "Log in to upload photos to this gallery.");
+  }
+  for (const eventId of new Set<string>(videos.map(galleryOf))) {
+    if (!eventId || !await canPostEventVideo(getSupabaseAdminClient(), verified.user, eventId)) return jsonError(response, 403, "Only the event owner and event admins can upload videos. Your upload permission allows photos only.");
+  }
+  for (const eventId of photoGalleries) {
+    if (!await canPostEventPhoto(getSupabaseAdminClient(), verified.user, eventId)) {
+      response.status(403).json({ success: false, code: "upload_not_allowed", error: "The host hasn't allowed you to upload photos to this gallery." });
+      return;
+    }
+  }
+  next();
+}));
+
+// The signed-in user's plan storage, counted the way uploads are checked: everything in galleries they own (whoever
+// uploaded it, previews and streaming copies included) plus their EB Vault. Works whether or not Vault is switched on.
+mediaRouter.get("/storage-usage", asyncRoute(async (request, response) => {
+  const verified = await verifyRequestUser(request);
+  if (!verified) return jsonError(response, 401, "Authorization required");
+  const { id, email, phone } = verified.user;
+  const context = await getStorageContext(createSupabaseVaultRepository(), { id, email, phone });
+  response.json({
+    success: true,
+    events: context.eventBytes,
+    vault: context.vaultUsedBytes,
+    total: context.eventBytes + context.vaultUsedBytes,
+    limitBytes: context.limitBytes,
+    uploadsBlocked: context.uploadsBlocked,
+    planState: context.lifecycle.state,
+  });
+}));
+
 mediaRouter.post("/get-upload-url", asyncRoute(async (request, response) => {
   const body = request.body || {};
   const scope = body.scope === "profile" ? "profile" : "event";
@@ -573,6 +627,9 @@ mediaRouter.post("/get-upload-url", asyncRoute(async (request, response) => {
   if (userId === "anonymous" && scope === "event" && !(await validateAnonymousEvent(eventId))) {
     return jsonError(response, 401, "Invalid event or unauthorized access");
   }
+  if (scope === "event" && await refuseOverLimitUpload(response, {
+    eventId, uploaderId: userId, bytes: Number(body.fileSize || 0), isVideo: isVideoResource(resourceType, fileName),
+  })) return;
 
   const storageKey = buildStorageKey({ eventId, userId, resourceType, fileName, scope });
   const backblazeAuth = await getCachedBackblazeAuth();
@@ -659,6 +716,10 @@ mediaRouter.post("/upload/chunk/initiate", asyncRoute(async (request, response) 
   }
 
   // ── 2. Fresh session initiation ──────────────────────────────────────────────
+  // (checked only here: a resumed upload is already counted)
+  if (scope === "event" && await refuseOverLimitUpload(response, {
+    eventId, uploaderId: userId, bytes: fileSize, isVideo: isVideoResource(resourceType, fileName),
+  })) return;
   const storageKey = buildStorageKey({ eventId, userId, resourceType, fileName, scope });
   const largeFileData = await startLargeFile(backblazeAuth, storageKey, contentType);
   const photoId = storageKey.replace(/\//g, "_");
@@ -765,7 +826,7 @@ mediaRouter.post("/upload/chunk/complete", asyncRoute(async (request, response) 
     finishResult = await finishLargeFile(backblazeAuth, fileId, partSha1Array);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (!message.includes("No active upload for") && !message.includes("already_finished") && !message.includes("bad_request")) {
+    if (!message.includes("No active upload for") && !message.includes("already_finished")) {
       throw error;
     }
   }
@@ -808,15 +869,18 @@ mediaRouter.post("/upload/chunk/complete", asyncRoute(async (request, response) 
       // and the Stage 3 self-healing watchdog will re-enqueue it automatically!
     }
   }
-  background("CompleteChunkedUploadNotify", () =>
-    sendOwnerUploadNotification(
-      eventId,
-      userId,
-      isVideo ? "🎥 New video uploaded" : "📸 New photo uploaded",
-      `Someone added a ${isVideo ? "video" : "photo"} to your event`,
-      { eventId },
-    ),
-  );
+  // With VIDEO_READY_PUSH, videos are announced once processed (/internal/video-processed)
+  if (!isVideo || !isVideoReadyPushEnabled()) {
+    background("CompleteChunkedUploadNotify", () =>
+      sendOwnerUploadNotification(
+        eventId,
+        userId,
+        isVideo ? "🎥 New video uploaded" : "📸 New photo uploaded",
+        `Someone added a ${isVideo ? "video" : "photo"} to your event`,
+        { eventId },
+      ),
+    );
+  }
 
   response.json({
     success: true,
@@ -858,9 +922,12 @@ mediaRouter.post("/save-photo", asyncRoute(async (request, response) => {
     return jsonError(response, 500, `Failed to save to database: ${dbError.message}`);
   }
 
-  background("SavePhotoNotify", () =>
-    sendOwnerUploadNotification(eventId, userId, isVideo ? "🎥 New video uploaded" : "📸 New photo uploaded", `Someone added a ${isVideo ? "video" : "photo"} to your event`, { eventId }),
-  );
+  // With VIDEO_READY_PUSH, videos are announced once processed (/internal/video-processed)
+  if (!isVideo || !isVideoReadyPushEnabled()) {
+    background("SavePhotoNotify", () =>
+      sendOwnerUploadNotification(eventId, userId, isVideo ? "🎥 New video uploaded" : "📸 New photo uploaded", `Someone added a ${isVideo ? "video" : "photo"} to your event`, { eventId }),
+    );
+  }
 
   if (isVideo) {
     // Await transcode dispatch before responding
@@ -870,7 +937,35 @@ mediaRouter.post("/save-photo", asyncRoute(async (request, response) => {
       console.error(`[SavePhoto] QStash dispatch error for ${photoId}:`, err);
     }
   } else {
-    background("SavePhotoModalTrigger", () => publishModalBatchTask([{ id: photoId, storage_key: storageKey, event_id: eventId, url, user_id: userId, fileSize }]));
+    // Stage 1 Fast Media Path:
+    // Insert outbox entry for job durability & trigger fast media preview worker
+    let assetVersion = 1;
+    try {
+      // ignoreDuplicates: saving the same photo again must not reset a finished job back to 'pending'
+      const { data: outboxData } = await supabaseAdmin.from("processing_outbox").upsert({
+        photo_id: photoId,
+        job_type: "media_preview",
+        asset_version: 1,
+        status: "pending"
+      }, { onConflict: "photo_id,job_type,asset_version", ignoreDuplicates: true }).select().maybeSingle();
+      if (outboxData?.asset_version) {
+        assetVersion = outboxData.asset_version;
+      }
+    } catch (outboxErr) {
+      console.warn(`[SavePhoto] Outbox upsert notice for ${photoId}:`, outboxErr);
+    }
+
+    background("SavePhotoFastMediaTrigger", () =>
+      publishFastMediaTask({
+        id: photoId,
+        storage_key: storageKey,
+        event_id: eventId,
+        url,
+        user_id: userId,
+        fileSize,
+        asset_version: assetVersion,
+      })
+    );
   }
 
   response.json({ success: true, url, photoId });
@@ -917,16 +1012,375 @@ mediaRouter.post("/save-photo-batch", asyncRoute(async (request, response) => {
   }
 
   if (imagePayloads.length > 0) {
-    background("SavePhotoBatchModalTrigger", () => publishModalBatchTask(imagePayloads));
+    // Record outbox rows for all images in batch
+    try {
+      const outboxEntries = imagePayloads.map((img) => ({
+        photo_id: img.id,
+        job_type: "media_preview",
+        asset_version: 1,
+        status: "pending",
+      }));
+      // ignoreDuplicates: saving the same photo again must not reset a finished job back to 'pending'
+      await supabaseAdmin.from("processing_outbox").upsert(outboxEntries, { onConflict: "photo_id,job_type,asset_version", ignoreDuplicates: true });
+    } catch (outboxErr) {
+      console.warn("[SavePhotoBatch] Outbox batch upsert notice:", outboxErr);
+    }
+
+    background("SavePhotoBatchFastMediaTrigger", () =>
+      Promise.allSettled(imagePayloads.map((img) => publishFastMediaTask({ ...img, asset_version: 1 }))),
+    );
   }
 
-  if (firstEventId) {
+  // With VIDEO_READY_PUSH, videos are announced once processed (/internal/video-processed), so only photos count here
+  const notifyCount = isVideoReadyPushEnabled() ? imagePayloads.length : upsertRows.length;
+  if (firstEventId && notifyCount > 0) {
     background("SavePhotoBatchNotify", () =>
-      sendOwnerUploadNotification(firstEventId, userId, "📸 New photos uploaded", `Someone added ${upsertRows.length} photos to your event`, { eventId: firstEventId }),
+      sendOwnerUploadNotification(firstEventId, userId, "📸 New photos uploaded", `Someone added ${notifyCount} photos to your event`, { eventId: firstEventId }),
     );
   }
 
   response.json({ success: true, processed: upsertRows.length });
+}));
+
+// ── MOBILE-SPECIFIC SECURE & DEBOUNCED MEDIA PIPELINE ─────────────────────────
+
+// Helper to check B2 file existence and size
+async function checkB2FileExists(auth: BackblazeAuth, bucketId: string, key: string): Promise<{ exists: boolean; contentLength?: number }> {
+  try {
+    const listResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
+      method: "POST",
+      headers: {
+        Authorization: auth.authorizationToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ bucketId, startFileName: key, maxFileCount: 1, prefix: key }),
+    });
+
+    if (!listResponse.ok) return { exists: false };
+    const listData = await listResponse.json();
+    const file = listData.files?.find((item: { fileName: string; contentLength?: number }) => item.fileName === key);
+    if (!file) return { exists: false };
+    return { exists: true, contentLength: file.contentLength };
+  } catch (err) {
+    console.warn(`[MobileB2Check] Failed to check file existence for ${key}:`, err);
+    return { exists: false };
+  }
+}
+
+// Memory debounce timer map for event notifications: eventId -> NodeJS.Timeout
+const notificationTimers = new Map<string, NodeJS.Timeout>();
+
+async function flushEventNotification(eventId: string) {
+  notificationTimers.delete(eventId);
+  await flushEventNotificationOutbox(eventId);
+}
+
+function debounceEventNotification(eventId: string, uploaderUserId: string, photoCount: number) {
+  const supabaseAdmin = getSupabaseAdminClient();
+  background("MobileOutboxRecord", async () => {
+    try {
+      const { data: existing } = await supabaseAdmin
+        .from("event_notifications_outbox")
+        .select("*")
+        .eq("event_id", eventId)
+        .maybeSingle();
+
+      const now = new Date().toISOString();
+      if (!existing) {
+        await supabaseAdmin.from("event_notifications_outbox").insert({
+          event_id: eventId,
+          uploader_user_id: uploaderUserId,
+          unsent_count: photoCount,
+          first_unsent_at: now,
+          last_unsent_at: now,
+        });
+      } else {
+        const firstUnsentAt = new Date(existing.first_unsent_at).getTime();
+        const tenMinutesMs = 10 * 60 * 1000;
+        
+        await supabaseAdmin.from("event_notifications_outbox").update({
+          unsent_count: (existing.unsent_count || 0) + photoCount,
+          uploader_user_id: uploaderUserId,
+          last_unsent_at: now,
+        }).eq("event_id", eventId);
+
+        // Max wait check: if first_unsent_at is >= 10 minutes ago, flush immediately
+        if (Date.now() - firstUnsentAt >= tenMinutesMs) {
+          if (notificationTimers.has(eventId)) {
+            clearTimeout(notificationTimers.get(eventId)!);
+          }
+          await flushEventNotification(eventId);
+          return;
+        }
+      }
+
+      // Reset trailing 2-minute debounce timer (the watchdog sends it if this timer is lost on restart)
+      if (notificationTimers.has(eventId)) {
+        clearTimeout(notificationTimers.get(eventId)!);
+      }
+      const timer = setTimeout(() => {
+        void flushEventNotification(eventId);
+      }, EVENT_NOTIFICATION_DEBOUNCE_MS);
+      notificationTimers.set(eventId, timer);
+    } catch (err) {
+      console.warn(`[MobileOutbox] Notice on record/debounce for ${eventId}:`, err);
+    }
+  });
+}
+
+mediaRouter.post("/mobile/get-upload-url", asyncRoute(async (request, response) => {
+  const body = request.body || {};
+  const eventId = String(body.eventId || "").trim();
+  const resourceType = body.resourceType === "video" ? "video" : "image";
+  const fileName = String(body.fileName || "upload.bin");
+  const fileSize = Number(body.fileSize || 0);
+  const clientUploadId = String(body.clientUploadId || randomUUID());
+
+  if (!eventId) return jsonError(response, 400, "Missing eventId");
+
+  const userId = await getUploadUserId(request);
+  if (userId === "anonymous" && !(await validateAnonymousEvent(eventId))) {
+    return jsonError(response, 401, "Invalid event or unauthorized access");
+  }
+  if (await refuseOverLimitUpload(response, {
+    eventId, uploaderId: userId, bytes: fileSize, isVideo: isVideoResource(resourceType, fileName),
+  })) return;
+
+  // Deterministic storageKey including clientUploadId
+  const folder = resourceType === "video" ? "videos" : "photos";
+  const cleanName = sanitizeSegment(fileName) || `${folder.slice(0, -1)}.bin`;
+  const storageKey = `events/${sanitizeSegment(eventId)}/${folder}/${sanitizeSegment(userId)}-${sanitizeSegment(clientUploadId)}-${cleanName}`;
+
+  // Record upload intent
+  const supabaseAdmin = getSupabaseAdminClient();
+  try {
+    await supabaseAdmin.from("upload_intents").upsert({
+      client_upload_id: clientUploadId,
+      user_id: userId,
+      event_id: eventId,
+      storage_key: storageKey,
+      file_name: fileName,
+      media_type: resourceType,
+      declared_size: fileSize,
+      status: "pending",
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "client_upload_id" });
+  } catch (intentErr) {
+    console.warn("[MobileMedia] upload_intents record notice:", intentErr);
+  }
+
+  const backblazeAuth = await getCachedBackblazeAuth();
+  const b2UploadData = await getCachedUploadUrl(backblazeAuth);
+
+  response.json({
+    uploadUrl: b2UploadData.uploadUrl,
+    authorizationToken: b2UploadData.authorizationToken,
+    storageKey,
+    clientUploadId,
+    mediaDomain: getMediaDomain(),
+  });
+}));
+
+mediaRouter.post("/mobile/reconcile-upload", asyncRoute(async (request, response) => {
+  const body = request.body || {};
+  const clientUploadId = String(body.clientUploadId || "").trim();
+  const storageKey = String(body.storageKey || "").trim();
+  const expectedSize = Number(body.expectedSize || 0);
+
+  if (!clientUploadId && !storageKey) {
+    return jsonError(response, 400, "Missing clientUploadId or storageKey");
+  }
+
+  const supabaseAdmin = getSupabaseAdminClient();
+  
+  // 1. Check if photo already exists in photos table
+  const photoId = storageKey ? storageKey.replace(/\//g, "_") : "";
+  if (photoId) {
+    const { data: existingPhoto } = await supabaseAdmin
+      .from("photos")
+      .select("id")
+      .eq("id", photoId)
+      .maybeSingle();
+    if (existingPhoto) {
+      response.json({ state: "completed", alreadySaved: true });
+      return;
+    }
+  }
+
+  // 2. Look up upload intent
+  let targetStorageKey = storageKey;
+  let targetSize = expectedSize;
+  if (clientUploadId) {
+    const { data: intent } = await supabaseAdmin
+      .from("upload_intents")
+      .select("*")
+      .eq("client_upload_id", clientUploadId)
+      .maybeSingle();
+
+    if (intent) {
+      targetStorageKey = intent.storage_key;
+      targetSize = Number(intent.declared_size) || targetSize;
+      if (intent.status === "completed") {
+        response.json({ state: "completed", alreadySaved: true });
+        return;
+      }
+    }
+  }
+
+  if (!targetStorageKey) {
+    response.json({ state: "not_found" });
+    return;
+  }
+
+  // 3. Check B2 remote state
+  const backblazeAuth = await getCachedBackblazeAuth();
+  const bucketId = requireEnv("B2_BUCKET_ID");
+  const b2Status = await checkB2FileExists(backblazeAuth, bucketId, targetStorageKey);
+
+  if (b2Status.exists) {
+    response.json({
+      state: "completed",
+      storageKey: targetStorageKey,
+      contentLength: b2Status.contentLength,
+      alreadySaved: false,
+    });
+    return;
+  }
+
+  response.json({ state: "not_found" });
+}));
+
+mediaRouter.post("/mobile/save-photo-batch", asyncRoute(async (request, response) => {
+  const photos = request.body?.photos;
+  if (!Array.isArray(photos) || photos.length === 0) {
+    return jsonError(response, 400, "Missing photos array");
+  }
+
+  const userId = await getUploadUserId(request);
+  const supabaseAdmin = getSupabaseAdminClient();
+  const backblazeAuth = await getCachedBackblazeAuth();
+  const bucketId = requireEnv("B2_BUCKET_ID");
+
+  const results: Array<{ clientUploadId: string; status: "saved" | "rejected" | "not_uploaded"; error?: string }> = [];
+  const upsertRows: unknown[] = [];
+  const imagePayloads: PhotoPayload[] = [];
+  const videoPayloads: Array<PhotoPayload & { fileSize?: number; duration?: number }> = [];
+  const completedIntentIds: string[] = [];
+  let eventIdForNotification = "";
+
+  const rootEventId = String(request.body?.eventId || "");
+
+  for (const photo of photos) {
+    const clientUploadId = String(photo.clientUploadId || "");
+    const storageKey = String(photo.storageKey || "");
+    let eventId = String(photo.eventId || rootEventId || "");
+    if (!eventId && storageKey.startsWith("events/")) {
+      const parts = storageKey.split("/");
+      if (parts.length > 1 && parts[1]) {
+        eventId = parts[1];
+      }
+    }
+    const fileName = String(photo.fileName || "");
+    const fileSize = Number(photo.fileSize || 0);
+    const duration = Number(photo.duration || 0);
+
+    if (!storageKey || !eventId) {
+      results.push({ clientUploadId, status: "rejected", error: "Missing storageKey or eventId" });
+      continue;
+    }
+
+    if (!eventIdForNotification) eventIdForNotification = eventId;
+
+    // Validate storageKey belongs to this event
+    if (!storageKey.startsWith(`events/${eventId}/`)) {
+      results.push({ clientUploadId, status: "rejected", error: "Invalid storage key prefix for event" });
+      continue;
+    }
+
+    let effectiveSize = fileSize;
+    try {
+      const b2Check = await checkB2FileExists(backblazeAuth, bucketId, storageKey);
+      if (b2Check.exists && b2Check.contentLength) {
+        effectiveSize = b2Check.contentLength;
+      }
+    } catch {
+      // Non-blocking check
+    }
+
+    const { row, url, photoId, isVideo } = toPhotoRow({
+      storageKey,
+      eventId,
+      fileName,
+      fileSize: effectiveSize,
+      userId,
+      resourceType: photo.resourceType,
+      duration,
+    });
+
+    upsertRows.push(row);
+    if (clientUploadId) completedIntentIds.push(clientUploadId);
+
+    if (isVideo && !photo.skipTranscode) {
+      videoPayloads.push({ id: photoId, storage_key: storageKey, event_id: eventId, url, fileSize, duration, user_id: userId });
+    } else if (!isVideo) {
+      imagePayloads.push({ id: photoId, storage_key: storageKey, event_id: eventId, url, width: null, height: null, user_id: userId, fileSize });
+    }
+
+    results.push({ clientUploadId, status: "saved" });
+  }
+
+  if (upsertRows.length > 0) {
+    const { error: dbError } = await safeUpsertPhotosBatch(supabaseAdmin, upsertRows);
+    if (dbError) {
+      return jsonError(response, 500, `Failed to save database records: ${dbError.message}`);
+    }
+
+    // Mark upload intents as completed
+    if (completedIntentIds.length > 0) {
+      background("UpdateUploadIntents", async () => {
+        await supabaseAdmin
+          .from("upload_intents")
+          .update({ status: "completed", updated_at: new Date().toISOString() })
+          .in("client_upload_id", completedIntentIds);
+      });
+    }
+
+    // Trigger video transcode tasks
+    if (videoPayloads.length > 0) {
+      await Promise.allSettled(
+        videoPayloads.map((video) => publishVideoTranscodeTask(video, video.fileSize))
+      );
+    }
+
+    // Trigger image previews & fast media tasks
+    if (imagePayloads.length > 0) {
+      try {
+        const outboxEntries = imagePayloads.map((img) => ({
+          photo_id: img.id,
+          job_type: "media_preview",
+          asset_version: 1,
+          status: "pending",
+        }));
+        // ignoreDuplicates: saving the same photo again must not reset a finished job back to 'pending'
+        await supabaseAdmin.from("processing_outbox").upsert(outboxEntries, { onConflict: "photo_id,job_type,asset_version", ignoreDuplicates: true });
+      } catch (outboxErr) {
+        console.warn("[MobileSavePhotoBatch] Outbox batch upsert notice:", outboxErr);
+      }
+
+      background("MobileSavePhotoBatchFastMediaTrigger", () =>
+        Promise.allSettled(imagePayloads.map((img) => publishFastMediaTask({ ...img, asset_version: 1 })))
+      );
+    }
+
+    // Consolidated, debounced notification. With VIDEO_READY_PUSH, videos are announced once processed
+    // (/internal/video-processed), so only photos count here.
+    const notifyCount = isVideoReadyPushEnabled() ? imagePayloads.length : upsertRows.length;
+    if (eventIdForNotification && notifyCount > 0) {
+      debounceEventNotification(eventIdForNotification, userId, notifyCount);
+    }
+  }
+
+  response.json({ success: true, processed: upsertRows.length, results });
 }));
 
 mediaRouter.post("/process-thumbnail", asyncRoute(async (request, response) => {
@@ -987,27 +1441,71 @@ mediaRouter.post("/trigger-modal-batch", asyncRoute(async (request, response) =>
   response.json({ success: true, queued: payload.length });
 }));
 
+// Called by Modal once a video is transcoded. With VIDEO_READY_PUSH on, this is where the event owner's
+// "new video" push is sent, so it never announces a video that isn't playable yet (or that failed).
+mediaRouter.post("/internal/video-processed", asyncRoute(async (request, response) => {
+  if (!verifyInternalJob(request)) return jsonError(response, 401, "Unauthorized");
+
+  const photoId = String(request.body?.photoId || "").trim();
+  if (!photoId) return jsonError(response, 400, "Missing photoId");
+
+  if (!isVideoReadyPushEnabled()) {
+    response.json({ success: true, skipped: "disabled" });
+    return;
+  }
+
+  const supabaseAdmin = getSupabaseAdminClient();
+  const { data: photo, error } = await supabaseAdmin
+    .from("photos")
+    .select("id, event_id, user_id, status, media_type, resource_type")
+    .eq("id", photoId)
+    .maybeSingle();
+  if (error) throw error;
+
+  const isVideo = photo?.media_type === "video" || photo?.resource_type === "video";
+  if (!photo || !isVideo || photo.status !== "processed") {
+    response.json({ success: true, skipped: "not_a_processed_video" });
+    return;
+  }
+
+  // Claim the row first: Modal can report the same video more than once (QStash retries, watchdog recovery)
+  const { data: claimed, error: claimError } = await supabaseAdmin
+    .from("photos")
+    .update({ owner_notified_at: new Date().toISOString() })
+    .eq("id", photoId)
+    .is("owner_notified_at", null)
+    .select("id");
+  if (claimError) throw claimError;
+  if (!claimed || claimed.length === 0) {
+    response.json({ success: true, skipped: "already_notified" });
+    return;
+  }
+
+  background("VideoProcessedNotify", () =>
+    sendOwnerUploadNotification(photo.event_id, photo.user_id, "🎥 New video uploaded", "Someone added a video to your event", { eventId: photo.event_id }),
+  );
+  response.json({ success: true, notified: true });
+}));
+
 mediaRouter.get("/indexing-status", asyncRoute(async (request, response) => {
   const eventId = String(request.query.eventId || "");
   if (!eventId) return jsonError(response, 400, "Missing eventId");
 
   const supabaseAdmin = getSupabaseAdminClient();
-  const [{ count: totalPhotos, error: totalError }, { count: indexedPhotos, error: indexedError }, { data: photoIds, error: photoIdsError }] = await Promise.all([
+  const [
+    { count: totalPhotos, error: totalError },
+    { count: indexedPhotos, error: indexedError },
+    { data: eventFaces, error: facesError },
+  ] = await Promise.all([
     supabaseAdmin.from("photos").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("media_type", "photo"),
     supabaseAdmin.from("photos").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("media_type", "photo").eq("face_indexed", true),
-    supabaseAdmin.from("photos").select("id").eq("event_id", eventId).eq("media_type", "photo"),
+    supabaseAdmin.from("faces").select("image_id").eq("event_id", eventId).limit(50000),
   ]);
-  if (totalError || indexedError || photoIdsError) throw totalError || indexedError || photoIdsError;
+  if (totalError || indexedError || facesError) throw totalError || indexedError || facesError;
 
   let photosWithFaces = 0;
-  if (photoIds && photoIds.length > 0) {
-    const ids = photoIds.map((photo) => photo.id);
-    const { data: eventFaces, error: facesError } = await supabaseAdmin
-      .from("faces")
-      .select("image_id")
-      .in("image_id", ids);
-    if (facesError) throw facesError;
-    photosWithFaces = eventFaces ? new Set(eventFaces.map((face) => face.image_id)).size : 0;
+  if (eventFaces && eventFaces.length > 0) {
+    photosWithFaces = new Set(eventFaces.map((face) => face.image_id).filter(Boolean)).size;
   }
 
   const total = totalPhotos || 0;
@@ -1089,6 +1587,69 @@ mediaRouter.post("/profile-image", asyncRoute(async (request, response) => {
   if (updateError) throw updateError;
 
   response.json({ success: true, deletedFiles });
+}));
+
+mediaRouter.post("/video-thumbnail", asyncRoute(async (request, response) => {
+  const verified = await verifyRequestUser(request);
+  if (!verified) return jsonError(response, 401, "Authorization required");
+  const user = verified.user;
+  const db = getSupabaseAdminClient();
+  try {
+    const result = await saveVideoThumbnail(user.id, request.body || {}, {
+      load: async (id) => {
+        const { data, error } = await db.from("photos").select("id,event_id,storage_key,url,thumbnail_url,media_type,resource_type,status,user_id").eq("id", id).maybeSingle();
+        if (error) throw error;
+        return data;
+      },
+      canEdit: async (media, userId) => {
+        const [{ data: event, error: eventError }, { data: profile, error: profileError }, { data: photo, error: photoError }] = await Promise.all([
+          db.from("events").select("created_by,parent_id").eq("id", media.event_id).maybeSingle(),
+          db.from("profiles").select("role,delegated_by,role_type").eq("id", userId).maybeSingle(),
+          db.from("photos").select("user_id").eq("id", media.id).maybeSingle(),
+        ]);
+        if (eventError || profileError || photoError) throw eventError || profileError || photoError;
+        if (!event) return false;
+        if (photo?.user_id === userId || ((profile?.role === "admin" || profile?.role === "super_admin") && !profile.delegated_by)) return true;
+        let parentOwner: string | undefined;
+        if (event.parent_id) {
+          const { data: parent, error } = await db.from("events").select("created_by").eq("id", event.parent_id).maybeSingle();
+          if (error) throw error;
+          parentOwner = parent?.created_by;
+        }
+        const owners = [event.created_by, parentOwner].filter(Boolean);
+        if (owners.includes(userId)) return true;
+        if (profile?.role_type === "primary" && owners.includes(profile.delegated_by)) return true;
+        const linkedIds = [media.event_id, event.parent_id].filter(Boolean);
+        const { data: assigned, error: assignedError } = await db.from("profile_assigned_events").select("event_id").eq("profile_id", userId).in("event_id", linkedIds);
+        if (assignedError) throw assignedError;
+        if (assigned?.length && profile?.role_type === "event") return true;
+        // Approved shared-event admins are matched against verified Auth identity,
+        // never an email or role supplied in the request body.
+        const identities = [userId, user.email_confirmed_at ? user.email?.toLowerCase() : undefined, user.phone_confirmed_at ? user.phone : undefined].filter((value): value is string => Boolean(value));
+        const results = await Promise.all(["event_id", "parent_event_id"].flatMap(column => ["email", "phone"].map(identityColumn =>
+          db.from("guests").select("id").eq("status", "approved").eq("can_admin", true).in(column, linkedIds).in(identityColumn, identities).limit(1)
+        )));
+        for (const result of results) if (result.error) throw result.error;
+        return results.some(result => Boolean(result.data?.length));
+      },
+      upload: async (key, bytes) => {
+        await uploadBufferToB2(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), bytes, key, "image/jpeg");
+        return `https://${getMediaDomain()}/${key.split("/").map(encodeURIComponent).join("/")}`;
+      },
+      commit: async (media, thumbnailUrl) => {
+        let query = db.from("photos").update({ thumbnail_url: thumbnailUrl }).eq("id", media.id).eq("storage_key", media.storage_key).eq("status", "processed");
+        query = media.thumbnail_url === null ? query.is("thumbnail_url", null) : query.eq("thumbnail_url", media.thumbnail_url);
+        const { data, error } = await query.select("id").maybeSingle();
+        if (error) throw error;
+        return Boolean(data);
+      },
+      remove: async (key) => deleteB2File(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), key),
+    });
+    response.json(result);
+  } catch (error) {
+    if (error instanceof ThumbnailError) return jsonError(response, error.status, error.message);
+    throw error;
+  }
 }));
 
 mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
@@ -1194,6 +1755,7 @@ mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
       width: rotatedMetadata.width || null,
       height: rotatedMetadata.height || null,
       size: rotatedBuffer.length,
+      overhead_size: thumbnailBuffer.length + previewBuffer.length,
     })
     .eq("id", photoId);
   if (updateError) throw updateError;

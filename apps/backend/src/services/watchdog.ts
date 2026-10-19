@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient } from "../supabase.js";
 import { cancelLargeFile, getCachedBackblazeAuth } from "../backblaze.js";
 import { publishManifestAssemblyTask } from "../qstash.js";
+import { flushStaleEventNotifications } from "../uploadNotifications.js";
 
 export interface WatchdogReport {
   timestamp: string;
@@ -15,6 +16,7 @@ export interface WatchdogReport {
  * 1. Finds videos stuck in 'processing' > 15 minutes and re-triggers transcoding.
  * 2. Marks videos as 'failed' if they exceed 3 recovery attempts.
  * 3. Aborts Backblaze B2 multipart sessions stuck in 'uploading' > 24 hours.
+ * 4. Sends grouped upload pushes still in the outbox after their debounce window (timer lost on restart).
  */
 export async function runMediaWatchdog(): Promise<WatchdogReport> {
   const supabase = getSupabaseAdminClient();
@@ -132,6 +134,16 @@ export async function runMediaWatchdog(): Promise<WatchdogReport> {
     }
   } catch (err: any) {
     report.errors.push(`Abandoned session cleanup failed: ${err?.message || err}`);
+  }
+
+  // ── 3. Send Grouped Upload Pushes Whose In-Memory Timer Was Lost (restart) ─
+  try {
+    const flushed = await flushStaleEventNotifications();
+    if (flushed > 0) {
+      console.log(`[Watchdog] Sent ${flushed} pending upload notification(s) left in the outbox`);
+    }
+  } catch (err: any) {
+    report.errors.push(`Pending upload notifications flush failed: ${err?.message || err}`);
   }
 
   return report;

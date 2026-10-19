@@ -1,5 +1,20 @@
 "use client";
 
+import { VideoThumbnailPicker, VideoThumbnailActions } from "@/components/VideoThumbnailPicker";
+import { MoveToGalleryDialog } from "@/components/MoveToGalleryDialog";
+import { FolderPickerDialog } from "@/components/vault/Dialogs";
+import { vaultApi } from "@/lib/vaultApi";
+import { GalleriesIcon, GalleryChaptersIcon } from "@/components/GalleriesIcon";
+import { PermissionsIcon } from "@/components/PermissionsIcon";
+import { DesignIcon } from "@/components/DesignIcon";
+import { EventDesignPreview } from "@/components/EventDesignPreview";
+import { PartnersIcon } from "@/components/PartnersIcon";
+import { GalleryTypesInfo } from "@/components/GalleryTypesInfo";
+import { HostIcon } from "@/components/HostIcon";
+import { HostConsoleIcon } from "@/components/HostConsoleIcon";
+import { DashboardEventCard, SERIF, formatShortEventDate } from "@/components/dashboard/DashboardEvents";
+import { PrivateIcon } from "@/components/PrivateIcon";
+import { PublicIcon } from "@/components/PublicIcon";
 import React, { useState, useEffect, Suspense, useTransition, useRef, useCallback } from "react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/context/AuthContext";
@@ -29,15 +44,14 @@ import {
     Users,
     Store,
     Share2,
+    Maximize2,
+    Minimize2,
     Phone,
     Globe,
-    Crown,
     Calendar,
     RefreshCw,
     ChevronDown,
     ChevronRight,
-    UserCog,
-    UserMinus,
     Info,
     MessageCircle,
     Sparkles,
@@ -51,13 +65,18 @@ import {
     Briefcase,
     GraduationCap,
     Download,
-    Layers3
+    Layers3,
+    FolderInput,
+    CheckSquare,
+    Square,
+    HardDrive
 } from "lucide-react";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     createEvent,
     createUserProfile,
+    getGuestProfile,
     getUserEvents,
     Event,
     Photo,
@@ -67,17 +86,14 @@ import {
     getEventPhotosPaginated,
     deletePhoto,
     rotatePhoto,
-    getUsers,
-    updateUserRole,
-    deleteUser,
     getUserTotalStorage,
     getUserEventCount,
-    getDelegatedAdminsCount,
     getGuestLogs,
     getEventLogs,
     getSubEvents,
     getEventById,
     getUserById,
+    getProfileCard,
     getApprovedSharedEventsForUser,
     saveCoverUsagePhoto,
     deleteCoverUsagePhoto,
@@ -87,11 +103,15 @@ import {
 	    toggleEventFavouritePhoto,
 	    getFavouritePhotosForEvents,
 	    generateEventJoinId,
-	    setEventSampleGalleryStatus,
+	    openGallery,
+	    movePhotosToGallery,
+	getDashboardEventStats,
+	type DashboardEventStats,
 	} from "@/lib/database";
 import { uploadEventImage, validateVideoFile } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
+import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDetails } from "@/lib/uploaders";
 import { Tooltip } from "@/components/Tooltip";
 import { navigateWithModifierClick } from "@/lib/navigation";
 import { formatStorageSize, getPlanDetails, getUsagePercent } from "@/lib/planLimits";
@@ -100,6 +120,8 @@ import { v4 as uuidv4 } from "uuid";
 
 
 import { Lightbox } from "@/components/ui/Lightbox";
+import { alertDialog, choiceDialog, confirmDialog, ModalCloseButton, ModalHeader, modalStyles } from "@/components/ui/Modal";
+import { fetchEntireEventZipItems, HOME_DOWNLOAD_DIALOG, toZipItem } from "@/lib/galleryDownload";
 const GridMediaCell = ({
     photo,
     gridSrc,
@@ -128,6 +150,7 @@ const GridMediaCell = ({
     if (isVideo) {
         return (
             <div className="relative h-full w-full bg-slate-950">
+                {photo.thumbnailUrl ? <img src={photo.thumbnailUrl} alt="Video thumbnail" className={cn("h-full w-full object-cover", shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]")} /> : (
                 <video
                     src={photo.url}
                     className={cn(
@@ -138,9 +161,10 @@ const GridMediaCell = ({
                     playsInline
                     preload="metadata"
                 />
+                )}
                 <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#CA9C68]/70 bg-slate-950/80 text-[#CA9C68] shadow-xl">
-                        <Play className="h-5 w-5 fill-current" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#D4A770] text-slate-950 shadow-xl shadow-black/40 sm:h-12 sm:w-12">
+                        <Play className="ml-0.5 h-5 w-5 fill-current" />
                     </div>
                 </div>
                 {photo.status === 'processing' && (
@@ -577,9 +601,32 @@ const getTemplateCategoryForEventCategory = (category?: string) => {
     return category || 'Wedding';
 };
 
-const getTemplatesForEventCategory = (category?: string) => {
-    const templateCategory = getTemplateCategoryForEventCategory(category);
-    return TEMPLATE_THEMES.filter((theme) => theme.category === templateCategory);
+// Hidden from the theme pickers because they have no website design of their own yet
+// (templateRegistry.tsx draws them with the generic makeUniversalTemplate layout). They are NOT
+// deleted: events already using one keep showing it everywhere. To unhide a theme, remove it from
+// this list AND from HIDDEN_TEMPLATE_IDS in apps/mobile/constants/templates.ts (keep both the same).
+const HIDDEN_TEMPLATE_IDS = [
+    "ethereal", "pastel", "golden_years", "vintage", "rose", "minimal_love", "diamond", "blush",
+    "garden", "midnight_glam", "modern_lounge", "elegant_night", "vibrant", "zen", "tech_sleek",
+    "executive", "retro_arcade", "academic_editorial", "neon_carnival",
+];
+
+const isTemplateHidden = (templateId?: string) => HIDDEN_TEMPLATE_IDS.includes(templateId || "");
+
+// Anniversary has no visible themes of its own, so its picker shows the Wedding themes.
+const getPickerTemplateCategoryForEventCategory = (category?: string) => {
+    if (category === 'Anniversary') return 'Wedding';
+    return getTemplateCategoryForEventCategory(category);
+};
+
+// Themes a host can pick for an event of this category (hidden themes left out).
+// Pass the event's current theme so a hidden one still shows (first) as the current choice.
+const getTemplatesForEventCategory = (category?: string, currentTemplateId?: string) => {
+    const templateCategory = getPickerTemplateCategoryForEventCategory(category);
+    const templates = TEMPLATE_THEMES.filter((theme) => theme.category === templateCategory && !isTemplateHidden(theme.id));
+    const current = isTemplateHidden(currentTemplateId) ? TEMPLATE_THEMES.find((theme) => theme.id === currentTemplateId) : undefined;
+    if (current) return [current, ...templates];
+    return templates;
 };
 
 type EventDetailLog = {
@@ -646,7 +693,7 @@ function DatePickerColumn({
 
     return (
         <div className="relative min-w-0 flex-1">
-            <div className="pointer-events-none absolute left-0 right-0 top-1/2 z-10 h-14 -translate-y-1/2 border-y border-slate-400" />
+            <div className="pointer-events-none absolute left-0 right-0 top-1/2 z-10 h-14 -translate-y-1/2 border-y border-[#CA9C68]/50" />
             <div
                 ref={scrollRef}
                 className="max-h-56 touch-pan-y snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth px-1 py-20 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -679,8 +726,8 @@ function DatePickerColumn({
                             className={cn(
                                 "flex h-14 w-full snap-center items-center justify-center rounded-xl text-center text-xl font-medium transition-colors",
                                 isSelected
-                                    ? "text-slate-950"
-                                    : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                    ? "font-black text-[#CA9C68]"
+                                    : "text-[var(--site-muted)] hover:bg-white/5 hover:text-[var(--site-text)]"
                             )}
                         >
                             {option.label}
@@ -696,16 +743,28 @@ function DashboardContent() {
     const { user, loading, logout } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [view, setView] = useState<"main" | "manage" | "permissions">("main");
+    const [view, setView] = useState<"main" | "manage">("main");
     const [manageMode, setManageMode] = useState<"list" | "add-event" | "add-image">("list");
     const [manageLevel, setManageLevel] = useState<"events" | "galleries" | "photos" | "event-details">("events");
     const [selectedMainEvent, setSelectedMainEvent] = useState<Event | null>(null);
     const [viewingPhoto, setViewingPhoto] = useState<any | null>(null);
     const [photoActionItem, setPhotoActionItem] = useState<Photo | null>(null);
+    const [videoActionItem, setVideoActionItem] = useState<Photo | null>(null);
+    const [thumbnailVideo, setThumbnailVideo] = useState<Photo | null>(null);
     const [galleryViewMode, setGalleryViewMode] = useState<"grid" | "list">("grid");
     const [galleryMediaTab, setGalleryMediaTab] = useState<"photos" | "videos">("photos");
+    const [isSelectingMedia, setIsSelectingMedia] = useState(false);
+    const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
+    const [mediaToMove, setMediaToMove] = useState<Photo[] | null>(null);
+    const [mediaToSave, setMediaToSave] = useState<Photo[] | null>(null);
     const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
     const [sourceGalleryFilter, setSourceGalleryFilter] = useState("all");
+    // "Uploaded by" filter: the person's user id, or "all"
+    const [uploaderFilter, setUploaderFilter] = useState("all");
+    // Names and roles per gallery (a person can be an admin of one event and a guest of another)
+    const [uploaderDetails, setUploaderDetails] = useState<Record<string, Record<string, UploaderDetails>>>({});
+    const [loadingAllMedia, setLoadingAllMedia] = useState(false);
+    const [allMediaLoadedFor, setAllMediaLoadedFor] = useState<string | null>(null);
     const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
     const [galleryMessageText, setGalleryMessageText] = useState("");
     const [isNavigating, setIsNavigating] = useState(false);
@@ -769,9 +828,19 @@ function DashboardContent() {
     // Data State
     const [userEvents, setUserEvents] = useState<Event[]>([]);
     const [loadingEvents, setLoadingEvents] = useState(false);
-    const [sampleGalleryUpdating, setSampleGalleryUpdating] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'hosted' | 'shared' | 'request'>('hosted');
     const [sharedEvents, setSharedEvents] = useState<Event[]>([]);
+    const [consoleEventStats, setConsoleEventStats] = useState<Record<string, DashboardEventStats>>({});
+    // Guest counts for the Host / Shared cards; they load after the cards, like on the dashboard
+    const consoleEventIdsKey = [...userEvents, ...sharedEvents].map((event) => event.id).join(",");
+    useEffect(() => {
+        if (!consoleEventIdsKey) return;
+        let cancelled = false;
+        getDashboardEventStats(consoleEventIdsKey.split(","))
+            .then((stats) => { if (!cancelled) setConsoleEventStats(stats); })
+            .catch((err) => console.error("Error fetching host card stats:", err));
+        return () => { cancelled = true; };
+    }, [consoleEventIdsKey]);
     const [currentEventPhotos, setCurrentEventPhotos] = useState<Photo[]>([]);
     const [currentEventMediaCounts, setCurrentEventMediaCounts] = useState({ photos: 0, videos: 0 });
     const [currentEventRetainedMediaIds, setCurrentEventRetainedMediaIds] = useState<Set<string>>(new Set());
@@ -786,26 +855,54 @@ function DashboardContent() {
     const [hostZipProgress, setHostZipProgress] = useState(0);
 
     const handleHostDownloadZip = async () => {
-        if (!currentEventPhotos || currentEventPhotos.length === 0) {
-            alert("No photos or videos to download in this gallery.");
+        if (!selectedEventId || !currentEventPhotos || currentEventPhotos.length === 0) {
+            void alertDialog({ title: "Nothing to download", message: "No photos or videos to download in this gallery." });
             return;
         }
+        // On Home, ask: just what Home shows (with the filters), or the whole event (every gallery, no filters)
+        const choice = isPrimaryGalleryView && selectedMainEvent ? await choiceDialog(HOME_DOWNLOAD_DIALOG) : "home";
+        if (!choice) return;
         setIsHostZipping(true);
         setHostZipProgress(0);
         try {
-            await downloadGalleryAsZip(
+            if (choice === "event" && selectedMainEvent) {
+                const items = await fetchEntireEventZipItems(selectedMainEvent, eventDetailGalleries);
+                if (items.length === 0) {
+                    void alertDialog({ title: "Nothing to download", message: "No photos or videos in this event yet." });
+                    return;
+                }
+                const result = await downloadGalleryAsZip(selectedMainEvent.title || "Event", items, (percent) => setHostZipProgress(percent));
+                if (result.failed > 0) {
+                    void alertDialog({ title: "Some files were skipped", message: `${result.failed} of ${result.total} files couldn't be downloaded and aren't in the ZIP. Please try again.` });
+                }
+                return;
+            }
+            // What's shown, from the whole gallery rather than just the pages loaded on screen (the primary gallery's
+            // favourites view is already complete): the Photos / Videos tab, then Source gallery, Favourites only and
+            // Uploaded by, the same steps as the grid. Uploads in progress and unfinished videos are left out, as on screen.
+            const all = hasMorePhotos ? await fetchAllEventMedia(selectedEventId) : currentEventPhotos;
+            const isVideo = (p: Photo) => p.mediaType === "video" || p.resourceType === "video";
+            let media = all.filter(p => galleryMediaTab === "videos" ? isVideo(p) && p.status === "processed" : !isVideo(p) && p.status !== "uploading");
+            if (isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all") {
+                const source = sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter);
+                media = media.filter(p => p.eventId === source?.id || (!!source?.legacyId && p.eventId === source.legacyId));
+            }
+            if (isFavouriteFilterActive) media = media.filter(p => eventFavouritePhotoIds.has(p.id));
+            if (isUploaderFilterActive) media = media.filter(p => uploaderOf(p) === effectiveUploaderFilter);
+            if (media.length === 0) {
+                void alertDialog({ title: "Nothing to download", message: `No ${galleryMediaTab === "videos" ? "videos" : "photos"} to download with the current filters.` });
+                return;
+            }
+            const result = await downloadGalleryAsZip(
                 selectedEventName || "Gallery",
-                currentEventPhotos.map(p => ({
-                    id: p.id,
-                    url: p.url,
-                    filename: p.storageKey ? p.storageKey.split("/").pop() : undefined,
-                    mediaType: p.mediaType,
-                    resourceType: p.resourceType,
-                })),
+                media.map(p => toZipItem(p)),
                 (percent) => setHostZipProgress(percent)
             );
+            if (result.failed > 0) {
+                void alertDialog({ title: "Some files were skipped", message: `${result.failed} of ${result.total} files couldn't be downloaded and aren't in the ZIP. Please try again.` });
+            }
         } catch (err: any) {
-            alert(err.message || "Failed to generate zip file.");
+            void alertDialog({ title: "Download failed", message: err.message || "Failed to generate zip file." });
         } finally {
             setIsHostZipping(false);
             setHostZipProgress(0);
@@ -843,14 +940,7 @@ function DashboardContent() {
     const [selectedGuestProfile, setSelectedGuestProfile] = useState<any | null>(null);
     const [loadingGuestProfile, setLoadingGuestProfile] = useState(false);
 
-    // Permissions State
-    const [allUsers, setAllUsers] = useState<any[]>([]);
-    const [loadingUsers, setLoadingUsers] = useState(false);
-    const [delegatedCount, setDelegatedCount] = useState(0);
-    const [activePermissionTab, setActivePermissionTab] = useState<"admin_details" | "guest_user">("admin_details");
-    const [expandedMainEvents, setExpandedMainEvents] = useState<Set<string>>(new Set());
-    const [expandedEventAdmins, setExpandedEventAdmins] = useState<Set<string>>(new Set());
-    const [expandedEventGuests, setExpandedEventGuests] = useState<Set<string>>(new Set());
+    // Guest requests (Requests tab)
     const [trafficLogs, setTrafficLogs] = useState<any[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
     const [selectedLogEventId, setSelectedLogEventId] = useState<string>("all");
@@ -861,6 +951,39 @@ function DashboardContent() {
     const [eventName, setEventName] = useState("");
     const [eventDate, setEventDate] = useState(() => formatCreateEventDate(new Date()));
     const [selectedEventId, setSelectedEventId] = useState("");
+    const selectedEventIdRef = useRef(selectedEventId);
+    useEffect(() => { selectedEventIdRef.current = selectedEventId; }, [selectedEventId]);
+    // Look up names and roles of this gallery's uploaders once more than one person has uploaded
+    const uploaderIdsKey = Array.from(new Set(currentEventPhotos.map(uploaderOf))).sort().join(",");
+    useEffect(() => {
+        const ids = uploaderIdsKey ? uploaderIdsKey.split(",") : [];
+        if (!selectedEventId || ids.length < 2) return;
+        let active = true;
+        void fetchUploaderDetails(selectedEventId, ids)
+            .then(details => { if (active) setUploaderDetails(prev => ({ ...prev, [selectedEventId]: { ...prev[selectedEventId], ...details } })); })
+            .catch(error => console.warn("[Dashboard] Could not load uploader names:", error));
+        return () => { active = false; };
+    }, [selectedEventId, uploaderIdsKey]);
+    useEffect(() => {
+        setIsSelectingMedia(false);
+        setSelectedMediaIds(new Set());
+    }, [selectedEventId, galleryMediaTab]);
+    const [videoUploadPermission, setVideoUploadPermission] = useState({ eventId: '', userId: '', allowed: false });
+    const canPostVideos = videoUploadPermission.eventId === selectedEventId && videoUploadPermission.userId === user?.uid && videoUploadPermission.allowed;
+    useEffect(() => {
+        let active = true;
+        if (!selectedEventId || !user?.uid) return;
+        const eventId = selectedEventId, userId = user.uid;
+        void (async () => {
+            const { data } = await supabase.auth.getSession();
+            if (!data.session) return;
+            const response = await fetch(getApiUrl(`/api/media/video-upload-permission?eventId=${encodeURIComponent(eventId)}`), { headers: { Authorization: `Bearer ${data.session.access_token}` } });
+            const result = await response.json();
+            if (active) setVideoUploadPermission({ eventId, userId, allowed: response.ok && result.allowed === true });
+        })().catch(() => { if (active) setVideoUploadPermission({ eventId, userId, allowed: false }); });
+        return () => { active = false; };
+    }, [selectedEventId, user?.uid]);
+
     const [selectedEventName, setSelectedEventName] = useState("");
     const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
     const [message, setMessage] = useState("");
@@ -888,53 +1011,11 @@ function DashboardContent() {
         coverOffsetX: number;
     } | null>(null);
 
-    const toggleMainEvent = (eventId: string) => {
-        setExpandedMainEvents(prev => {
-            const next = new Set(prev);
-            if (next.has(eventId)) next.delete(eventId);
-            else next.add(eventId);
-            return next;
-        });
-    };
-
-    const toggleEventAdmins = (eventId: string) => {
-        setExpandedEventAdmins(prev => {
-            const next = new Set(prev);
-            if (next.has(eventId)) next.delete(eventId);
-            else next.add(eventId);
-            return next;
-        });
-    };
-
-    const toggleEventGuests = (eventId: string) => {
-        setExpandedEventGuests(prev => {
-            const next = new Set(prev);
-            if (next.has(eventId)) next.delete(eventId);
-            else next.add(eventId);
-            return next;
-        });
-    };
-
     // Event Management State
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
     const [renamingEvent, setRenamingEvent] = useState<Event | null>(null);
     const [editDetailsMode, setEditDetailsMode] = useState<"title" | "date">("title");
     const [shareModalEvent, setShareModalEvent] = useState<Event | null>(null);
-    const [savingVisibility, setSavingVisibility] = useState(false);
-    const [visibilityError, setVisibilityError] = useState("");
-    const changeEventVisibility = async (isPublic: boolean) => {
-        if (!shareModalEvent || savingVisibility) return;
-        if (isPublic && !window.confirm("Anyone with the link will be able to view this event and its sub-galleries without approval. Make public?")) return;
-        setSavingVisibility(true); setVisibilityError("");
-        try {
-            const { error } = await supabase.rpc("set_event_public_viewing", { event_id: shareModalEvent.id, public_viewing: isPublic });
-            if (error) throw error;
-            setShareModalEvent(previous => previous ? { ...previous, isPublic } : previous);
-            setUserEvents(previous => previous.map(item => item.id === shareModalEvent.id ? { ...item, isPublic } : item));
-        } catch (error: any) {
-            setVisibilityError(error.message || "Unable to change event visibility");
-        } finally { setSavingVisibility(false); }
-    };
 
     const [showPlanDetailsModal, setShowPlanDetailsModal] = useState(false);
     const [newTitle, setNewTitle] = useState("");
@@ -943,6 +1024,63 @@ function DashboardContent() {
     const [showDeleteSuccessType, setShowDeleteSuccessType] = useState<"event" | "gallery" | null>(null);
     const selectedMainEventId = selectedMainEvent?.id;
     const selectedMainEventLegacyId = selectedMainEvent?.legacyId;
+    // Public/private switch on the Permissions tab: the owner, plus anyone can_manage_event_visibility allows.
+    // The owner already gets the switch, so only ask the database for other people (as the app does).
+    const [visibilityAdminEventId, setVisibilityAdminEventId] = useState('');
+    const selectedMainEventIsOwn = !!selectedMainEvent && (selectedMainEvent.createdBy === user?.uid || selectedMainEvent.createdBy === user?.email);
+    // A gallery's management screen opens from its link, so ask the database whether this person manages it (owner,
+    // guest admin or platform admin). Someone who isn't (or lost guest-admin rights while the page was open) goes back
+    // to their dashboard instead of seeing controls the server refuses.
+    const recheckManageAccess = useCallback(async (eventId: string | undefined) => {
+        if (!eventId) return;
+        try {
+            const opened = await openGallery(eventId);
+            if (opened.access === "manage") return;
+            setSelectedMainEvent(previous => previous?.id === eventId ? null : previous);
+            setMessage("You don't manage this gallery.");
+            setStatus("error");
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 4000);
+            router.replace("/host");
+        } catch (error) {
+            console.warn("[Host] Could not check gallery access:", error);
+        }
+    }, [router]);
+    useEffect(() => {
+        if (!selectedMainEventId || !user?.uid || selectedMainEventIsOwn) return;
+        void recheckManageAccess(selectedMainEventId);
+    }, [selectedMainEventId, selectedMainEventIsOwn, user?.uid, recheckManageAccess]);
+    useEffect(() => {
+        let active = true;
+        setVisibilityAdminEventId('');
+        if (!selectedMainEventId || selectedMainEvent?.parentId || selectedMainEventIsOwn) return;
+        void Promise.resolve(supabase.rpc('can_manage_event_visibility', { p_event_id: selectedMainEventId })).then(({ data, error }) => {
+            if (active && !error && data === true) setVisibilityAdminEventId(selectedMainEventId);
+        }).catch(() => {});
+        return () => { active = false; };
+    }, [selectedMainEventId, selectedMainEvent?.parentId, selectedMainEventIsOwn, user?.uid]);
+    const [savingVisibility, setSavingVisibility] = useState(false);
+    const [visibilityError, setVisibilityError] = useState("");
+    const canChangeSelectedEventVisibility = !!selectedMainEvent && !selectedMainEvent.parentId && (
+        selectedMainEvent.createdBy === user?.uid ||
+        selectedMainEvent.createdBy === user?.email ||
+        visibilityAdminEventId === selectedMainEvent.id
+    );
+    const changeEventVisibility = async (isPublic: boolean) => {
+        if (!selectedMainEvent || savingVisibility) return;
+        if (isPublic && !(await confirmDialog({ title: "Make event public?", message: "Anyone with the link will be able to view this event and its sub-galleries without approval.", confirmLabel: "Make public" }))) return;
+        const eventId = selectedMainEvent.id;
+        setSavingVisibility(true); setVisibilityError("");
+        try {
+            const { error } = await supabase.rpc("set_event_public_viewing", { event_id: eventId, public_viewing: isPublic });
+            if (error) throw error;
+            setSelectedMainEvent(previous => previous?.id === eventId ? { ...previous, isPublic } : previous);
+            setShareModalEvent(previous => previous?.id === eventId ? { ...previous, isPublic } : previous);
+            setUserEvents(previous => previous.map(item => item.id === eventId ? { ...item, isPublic } : item));
+            setSharedEvents(previous => previous.map(item => item.id === eventId ? { ...item, isPublic } : item));
+        } catch (error: any) {
+            setVisibilityError(error.message || "Unable to change event visibility");
+        } finally { setSavingVisibility(false); }
+    };
 
     // Template Selection State
     const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -1078,7 +1216,7 @@ function DashboardContent() {
         const galleryIdParam = searchParams.get("galleryId");
 
         // 1. View State
-        if (viewParam === "manage" || viewParam === "permissions") {
+        if (viewParam === "manage") {
             setView(viewParam as any);
         } else {
             setView("main");
@@ -1099,7 +1237,7 @@ function DashboardContent() {
         }
 
         // 4. Selected Event (for generic ID lookups)
-        if (eventIdParam && userEvents.length > 0) {
+        if (eventIdParam) {
             // Find in loaded events (may need to be robust if events aren't loaded yet)
             // We'll trust fetchUserEvents to handle data loading, this just sets the ID.
             const targetEvent = userEvents.find(e => e.id === eventIdParam);
@@ -1128,20 +1266,25 @@ function DashboardContent() {
                         if (parent) setSelectedMainEvent(parent);
                     }
                 }
-            } else {
-                // If event events aren't loaded yet, we might need to rely on the ID alone
-                // and let the fetch logic handle it, but for now we set the generic IDs
-                if (levelParam === "galleries") {
-                    // We need the object for some UI, but ID is enough for fetching
-                    // We'll optimistically set what we can
+            } else if (levelParam === "event-details" && modeParam === "add-image" && galleryIdParam) {
+                // Not in this list: events shared with you as an admin (only your own events are), or your events
+                // haven't loaded yet. Still open the gallery the link names, not the event's primary gallery.
+                const targetGallery = eventDetailGalleries.find(e => e.id === galleryIdParam)
+                    || (selectedMainEvent?.id === galleryIdParam ? selectedMainEvent : undefined);
+                setSelectedEventId(galleryIdParam);
+                if (targetGallery) {
+                    setSelectedEventName(targetGallery.title || "Gallery");
+                    setGalleryMessageText(targetGallery.description || "");
                 }
+            } else {
+                // Events aren't loaded yet (or it's an event shared with you): the ID alone is enough for fetching
                 setSelectedEventId(eventIdParam);
             }
         } else if (!eventIdParam) {
             setSelectedEventId("");
             setSelectedMainEvent(null);
         }
-    }, [searchParams, userEvents, eventDetailGalleries]);
+    }, [searchParams, userEvents, eventDetailGalleries, selectedMainEvent]);
 
     useEffect(() => {
         const levelParam = searchParams.get("level");
@@ -1189,28 +1332,6 @@ function DashboardContent() {
         }
     }, [user?.uid, view, manageLevel, selectedMainEvent?.id]);
 
-    // 2. Fetch main events and delegated count once when in "permissions" view
-    useEffect(() => {
-        if (user && user.uid && view === "permissions") {
-            fetchUserEvents();
-            fetchDelegatedCount();
-        }
-    }, [user?.uid, view]);
-
-    // 3. Fetch full users list ONLY when in "permissions" view under "admin_details" tab
-    useEffect(() => {
-        if (user && user.uid && view === "permissions" && activePermissionTab === "admin_details") {
-            fetchUsersList();
-        }
-    }, [user?.uid, view, activePermissionTab]);
-
-    // 4. Fetch guest traffic logs ONLY when in "permissions" view under "guest_user" tab, filtered by selected log event
-    useEffect(() => {
-        if (user && user.uid && view === "permissions" && activePermissionTab === "guest_user") {
-            fetchTrafficLogs();
-        }
-    }, [user?.uid, view, activePermissionTab, selectedLogEventId]);
-
     useEffect(() => {
         if (selectedEventId && (manageMode === "add-image" || manageLevel === "photos" || (manageLevel === "event-details" && activeEventDetailTab === "galleries"))) {
             fetchEventPhotos();
@@ -1242,7 +1363,7 @@ function DashboardContent() {
 
                 if (!isMounted) return;
 
-                setEventDetailGalleries(galleries.sort((a, b) => (a.title || "").localeCompare(b.title || "")));
+                setEventDetailGalleries(galleries.sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" })));
                 setEventDetailLogs(logs);
             } catch (error) {
                 console.error("Error loading event detail sections:", error);
@@ -1314,7 +1435,7 @@ function DashboardContent() {
     const fetchUserEvents = async () => {
         if (!user || !user.uid) return;
         setLoadingEvents(true);
-        const type = (view === "main" || view === "permissions" || manageLevel === "events" || manageLevel === "event-details") ? "main" : "sub";
+        const type = (view === "main" || manageLevel === "events" || manageLevel === "event-details") ? "main" : "sub";
         const parentId = (view === "manage" && (manageLevel === "galleries" || manageLevel === "photos")) ? selectedMainEvent?.id : undefined;
 
         // Own events are always visible. Delegated owner events are scoped by roleType below.
@@ -1340,7 +1461,7 @@ function DashboardContent() {
                 }
             });
 
-            const sorted = combined.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+            const sorted = combined.sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
 
             // Event managers only see events explicitly assigned to them.
             if (user.roleType === 'event') {
@@ -1505,6 +1626,45 @@ function DashboardContent() {
             console.error("[Dashboard] loadMorePhotos Error:", error);
         } finally {
             setLoadingPhotos(false);
+        }
+    };
+
+    // The "Uploaded by" filter needs the whole gallery, not just the pages loaded so far. Only the media rows are
+    // loaded here; images still load lazily as they scroll into view.
+    /** Every media row of a gallery, page by page (media rows only, no images). */
+    const fetchAllEventMedia = async (eventId: string): Promise<Photo[]> => {
+        let currentEvent = userEvents.find(e => e.id === eventId) || eventDetailGalleries.find(e => e.id === eventId);
+        if (!currentEvent || (!currentEvent.legacyId && eventId.includes("-"))) {
+            currentEvent = (await getEventById(eventId).catch(() => null)) || currentEvent;
+        }
+        const all: Photo[] = [];
+        for (let page = 0, more = true; more; page += 1) {
+            const result = await getEventPhotosPaginated(eventId, currentEvent?.legacyId, page, 200);
+            all.push(...(result.photos as Photo[]));
+            more = result.hasMore;
+        }
+        // Pages can share an item at their edges
+        const seen = new Set<string>();
+        return all.filter(photo => !seen.has(photo.id) && seen.add(photo.id));
+    };
+
+    const loadAllEventPhotos = async () => {
+        const eventId = selectedEventId;
+        if (!eventId || !hasMorePhotos || loadingAllMedia) return;
+        setLoadingAllMedia(true);
+        try {
+            const all = await fetchAllEventMedia(eventId);
+            if (selectedEventIdRef.current !== eventId) return;
+            setCurrentEventPhotos(all);
+            setHasMorePhotos(false);
+            setAllMediaLoadedFor(eventId);
+        } catch (error) {
+            console.error("[Dashboard] loadAllEventPhotos Error:", error);
+            setMessage("Couldn't load the whole gallery for this filter. Please try again.");
+            setStatus("error");
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
+        } finally {
+            setLoadingAllMedia(false);
         }
     };
 
@@ -1677,31 +1837,9 @@ function DashboardContent() {
         let isMounted = true;
 
         const loadSelectedGuestProfile = async () => {
-            const possibleIdentifiers = [
-                selectedGuestLog.email,
-                selectedGuestLog.phone,
-            ].filter(Boolean) as string[];
-
             setLoadingGuestProfile(true);
             try {
-                const filters = possibleIdentifiers.flatMap((identifier) => [
-                    `id.eq.${identifier}`,
-                    `email.eq.${identifier}`,
-                    `phone.eq.${identifier}`,
-                ]);
-                const { data } = filters.length > 0
-                    ? await supabase.from("profiles").select("*").or(filters.join(",")).limit(1).maybeSingle()
-                    : { data: null };
-
-                const matchedProfile = data ? {
-                    id: data.id,
-                    name: data.name,
-                    username: data.username,
-                    email: data.email,
-                    phone: data.phone,
-                    profileImage: data.profile_image,
-                } : null;
-
+                const matchedProfile = await getGuestProfile(selectedGuestLog);
                 if (isMounted) setSelectedGuestProfile(matchedProfile);
             } catch (error) {
                 console.error("Error loading guest profile:", error);
@@ -1717,26 +1855,6 @@ function DashboardContent() {
             isMounted = false;
         };
     }, [selectedGuestLog]);
-
-    const fetchUsersList = async () => {
-        setLoadingUsers(true);
-        try {
-            const users = await getUsers();
-            // Sort all users alphabetically by name
-            const sortedUsers = users.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-            setAllUsers(sortedUsers);
-        } catch (error) {
-            console.error("Error fetching users:", error);
-        } finally {
-            setLoadingUsers(false);
-        }
-    };
-
-    const fetchDelegatedCount = async () => {
-        if (!user) return;
-        const count = await getDelegatedAdminsCount(user.uid);
-        setDelegatedCount(count);
-    };
 
     const fetchTrafficLogs = async () => {
         if (!user) return;
@@ -1766,69 +1884,33 @@ function DashboardContent() {
         }
     };
 
-    const handleUpdateUserRole = async (targetUid: string, currentRole: string, roleType: 'primary' | 'event' = 'primary', assignedEvents: string[] = []) => {
-        if (!user) return;
-
-        const targetUser = allUsers.find(u => u.id === targetUid);
-        const isRevoking = currentRole === "revoke";
-        const isNewDelegation = targetUser?.delegatedBy !== user.uid;
-        const isPromoting = !isRevoking;
-
-        if (isPromoting && isNewDelegation && delegatedCount >= 2) {
-            setMessage("You can only have a maximum of 2 delegated managers.");
-            setStatus("error");
-            setTimeout(() => setStatus("idle"), 3000);
-            return;
-        }
-
-        // When promoting: Set delegation fields, but DO NOT flip global role to 'admin'
-        // When revoking: Remove delegation fields. Signature: (uid, newRole, delegatedBy, roleType, assignedEvents)
-        const success = await updateUserRole(
-            targetUid,
-            null, // Do not change global role
-            isPromoting ? user.uid : undefined,
-            isPromoting ? roleType : undefined,
-            isPromoting ? assignedEvents : undefined
-        );
-
-        if (success) {
-            setMessage(`User successfully ${isPromoting ? "authorized as Manager" : "access revoked"}.`);
-            setStatus("success");
-            fetchUsersList();
-            fetchDelegatedCount();
-            fetchUserEvents();
-            fetchTrafficLogs();
-        } else {
-            setMessage("Failed to update user authorizations.");
-            setStatus("error");
-        }
-        setTimeout(() => setStatus("idle"), 3000);
-    };
-
-    const handleDeleteUserAccount = async (id: string) => {
-        if (!window.confirm("Are you sure you want to delete this user? This action cannot be undone.")) return;
-
-        const success = await deleteUser(id);
-        if (success) {
-            setMessage("User deleted successfully!");
-            setStatus("success");
-            fetchUsersList();
-        } else {
-            setMessage("Failed to delete user.");
-            setStatus("error");
-        }
-        setTimeout(() => setStatus("idle"), 3000);
+    // The guest routes check the signed-in user, so send the login with every call
+    const guestRouteHeaders = async (): Promise<Record<string, string>> => {
+        const { data: { session } } = await supabase.auth.getSession();
+        return {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        };
     };
 
     const updateGuestStatusAction = async (logId: string, status: string, requester: any) => {
         try {
             const url = getApiUrl("/api/v1/permissions/update-guest-status");
+            const headers = await guestRouteHeaders();
             const res = await fetch(url, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers,
                 body: JSON.stringify({ logId, status, requester }),
             });
             const data = await res.json().catch(() => ({}));
+            if (res.ok && data.success) {
+                // Tell the guest (push to their phone); sent by the backend, browsers can't reach Expo
+                void fetch(getApiUrl("/api/v1/notifications/gallery-decision"), {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify({ guestId: logId }),
+                }).catch(() => {});
+            }
             return res.ok && data.success ? { success: true } : { success: false, error: data.error };
         } catch (err: any) {
             return { success: false, error: err.message };
@@ -1840,7 +1922,7 @@ function DashboardContent() {
             const url = getApiUrl("/api/v1/permissions/delete-guest");
             const res = await fetch(url, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: await guestRouteHeaders(),
                 body: JSON.stringify({ logId, requester }),
             });
             const data = await res.json().catch(() => ({}));
@@ -1850,12 +1932,27 @@ function DashboardContent() {
         }
     };
 
+    const denyRequestAction = async (logId: string, requester: { uid?: string | null; email?: string | null }) => {
+        try {
+            // One backend step: tells the person (push), then erases the request so they can ask again later
+            const res = await fetch(getApiUrl("/api/v1/permissions/deny-request"), {
+                method: "POST",
+                headers: await guestRouteHeaders(),
+                body: JSON.stringify({ logId, requester }),
+            });
+            const data = await res.json().catch(() => ({}));
+            return res.ok && data.success ? { success: true } : { success: false, error: data.error };
+        } catch (err) {
+            return { success: false, error: err instanceof Error ? err.message : "Network error" };
+        }
+    };
+
     const updateGuestPermissionsAction = async (logId: string, permissions: any, requester: any) => {
         try {
             const url = getApiUrl("/api/v1/permissions/update-guest-permissions");
             const res = await fetch(url, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: await guestRouteHeaders(),
                 body: JSON.stringify({ logId, permissions, requester }),
             });
             const data = await res.json().catch(() => ({}));
@@ -1865,7 +1962,7 @@ function DashboardContent() {
         }
     };
 
-    const handleGuestStatusUpdate = async (logId: string, nextStatus: "approved" | "rejected") => {
+    const handleGuestStatusUpdate = async (logId: string, nextStatus: "approved" | "rejected"): Promise<boolean> => {
         const result = await updateGuestStatusAction(logId, nextStatus, {
             uid: user?.uid,
             email: user?.email,
@@ -1874,13 +1971,7 @@ function DashboardContent() {
         if (result.success) {
             setMessage(`Guest ${nextStatus === "approved" ? "approved" : "rejected"} successfully.`);
             setStatus("success");
-            const updateLog = (item: EventDetailLog) => item.id === logId
-                ? {
-                    ...item,
-                    status: nextStatus,
-                    ...(nextStatus === "approved" ? { canUpload: true, canComment: true } : {}),
-                }
-                : item;
+            const updateLog = (item: EventDetailLog) => item.id === logId ? { ...item, status: nextStatus } : item;
             setEventDetailLogs(prev => prev.map(updateLog));
             setTrafficLogs(prev => prev.map(updateLog as any));
             setSelectedGuestLog(prev => prev?.id === logId ? updateLog(prev) : prev);
@@ -1888,12 +1979,38 @@ function DashboardContent() {
         } else {
             setMessage(result.error || "Failed to update guest.");
             setStatus("error");
+            void recheckManageAccess(selectedMainEventId);
         }
-        setTimeout(() => setStatus("idle"), 3000);
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
+        return result.success;
     };
 
-    const handleGuestDelete = async (logId: string) => {
-        if (!window.confirm("Are you sure you want to remove this user from the guest list?")) return;
+    const handleGuestDeny = async (log: { id: string; name?: string | null }): Promise<boolean> => {
+        if (!(await confirmDialog({ title: `Deny ${log.name || "this guest"}'s request?`, message: "They'll be notified, and they can ask again later.", confirmLabel: "Deny", tone: "danger" }))) return false;
+
+        const result = await denyRequestAction(log.id, {
+            uid: user?.uid,
+            email: user?.email,
+        });
+
+        if (result.success) {
+            setMessage("Request denied.");
+            setStatus("success");
+            setEventDetailLogs(prev => prev.filter(item => item.id !== log.id));
+            setTrafficLogs(prev => prev.filter(item => item.id !== log.id));
+            setSelectedGuestLog(prev => prev?.id === log.id ? null : prev);
+            fetchTrafficLogs();
+        } else {
+            setMessage(result.error || "Failed to deny the request.");
+            setStatus("error");
+            void recheckManageAccess(selectedMainEventId);
+        }
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
+        return result.success;
+    };
+
+    const handleGuestDelete = async (logId: string): Promise<boolean> => {
+        if (!(await confirmDialog({ title: "Remove guest?", message: "Are you sure you want to remove this user from the guest list?", confirmLabel: "Remove", tone: "danger" }))) return false;
 
         const result = await deleteGuestAction(logId, {
             uid: user?.uid,
@@ -1907,12 +2024,10 @@ function DashboardContent() {
         } else {
             setMessage(result.error || "Failed to remove guest.");
             setStatus("error");
+            void recheckManageAccess(selectedMainEventId);
         }
-        setTimeout(() => setStatus("idle"), 3000);
-    };
-
-    const handleGuestViewAccessToggle = async (log: EventDetailLog) => {
-        await handleGuestStatusUpdate(log.id, log.status === "approved" ? "rejected" : "approved");
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
+        return result.success;
     };
 
     const handleGuestPermissionToggle = async (
@@ -1934,7 +2049,7 @@ function DashboardContent() {
             if (!statusResult.success) {
                 setMessage(statusResult.error || "Failed to update guest.");
                 setStatus("error");
-                setTimeout(() => setStatus("idle"), 3000);
+                setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
                 return;
             }
         }
@@ -1958,8 +2073,9 @@ function DashboardContent() {
         } else {
             setMessage(result.error || "Failed to update permissions.");
             setStatus("error");
+            void recheckManageAccess(selectedMainEventId);
         }
-        setTimeout(() => setStatus("idle"), 3000);
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
     };
 
     // Fetch workspace owner if current user is delegated
@@ -2007,8 +2123,9 @@ function DashboardContent() {
 
             const ownerEntries = await Promise.all(
                 ownerIds.map(async (ownerId) => {
-                    const owner = await getUserById(ownerId);
-                    return [ownerId, { email: owner?.email, name: owner?.name, username: owner?.username }] as const;
+                    // Name only: other people's email and username aren't readable once RLS is on (profile_cards is)
+                    const owner = await getProfileCard(ownerId);
+                    return [ownerId, { email: undefined as string | undefined, name: owner?.name, username: undefined as string | undefined }] as const;
                 })
             );
 
@@ -2041,7 +2158,7 @@ function DashboardContent() {
         if (!eventName.trim()) {
             setStatus("error");
             setMessage("Please enter an event name.");
-            setTimeout(() => setStatus("idle"), 5000);
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 5000);
             return false;
         }
 
@@ -2050,7 +2167,7 @@ function DashboardContent() {
         if (authError || !authUser?.id) {
             setStatus("error");
             setMessage("Please sign in again before creating an event.");
-            setTimeout(() => setStatus("idle"), 5000);
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 5000);
             return false;
         }
 
@@ -2068,7 +2185,7 @@ function DashboardContent() {
             if (eventCount >= maxEvents) {
                 setMessage(`You've reached your ${currentPlan.eventLabel}-event limit for the ${currentPlan.name}. Upgrade your plan to create more events.`);
                 setStatus("error");
-                setTimeout(() => setStatus("idle"), 5000);
+                setTimeout(() => { setStatus("idle"); setMessage(""); }, 5000);
                 return false;
             }
         }
@@ -2127,7 +2244,7 @@ function DashboardContent() {
             }
             setMessage("Your event has been created! ✨");
             if (isSubEvent) {
-                setEventDetailGalleries(prev => [...prev, newEvent].sort((a, b) => (a.title || "").localeCompare(b.title || "")));
+                setEventDetailGalleries(prev => [...prev, newEvent].sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" })));
             }
             setEventName("");
             setEventDate(formatCreateEventDate(new Date()));
@@ -2142,6 +2259,9 @@ function DashboardContent() {
             return false;
         }
     };    const uploadFiles = async (files: FileList | File[]) => {
+        if (galleryMediaTab === "videos" && !canPostVideos) {
+            setStatus("error"); setMessage("Only the event owner and event admins can upload videos."); return;
+        }
         const expectedPrefix = galleryMediaTab === "videos" ? "video/" : "image/";
         const selectedFiles = Array.from(files).filter(file => file.type.startsWith(expectedPrefix));
         if (selectedFiles.length === 0 || !selectedEventId) return;
@@ -2152,7 +2272,7 @@ function DashboardContent() {
             if (oversizedVideo) {
                 setMessage("Free plan videos can be up to 200 MB. Upgrade to upload larger videos.");
                 setStatus("error");
-                setTimeout(() => setStatus("idle"), 5000);
+                setTimeout(() => { setStatus("idle"); setMessage(""); }, 5000);
                 return;
             }
         }
@@ -2164,7 +2284,7 @@ function DashboardContent() {
                 if (!validation.valid) {
                     setMessage(validation.error ?? "Invalid video file.");
                     setStatus("error");
-                    setTimeout(() => setStatus("idle"), 6000);
+                    setTimeout(() => { setStatus("idle"); setMessage(""); }, 6000);
                     return;
                 }
             }
@@ -2177,12 +2297,17 @@ function DashboardContent() {
             if (user.email) identifiers.push(user.email);
             if (user.phone) identifiers.push(user.phone);
             const currentUsage = await getUserTotalStorage(identifiers);
-            const selectedUploadSize = selectedFiles.reduce((total, file) => total + file.size, 0);
+            const selectedUploadSize = selectedFiles.reduce((total, file) => {
+                const isVideo = file.type.startsWith("video/") || ["mp4", "mov", "avi", "mkv", "webm", "m4v"].includes(file.name.split('.').pop()?.toLowerCase() || "");
+                // For videos, factor in ~35% overhead for adaptive bitrate HLS streaming chunks (.ts files)
+                const estimatedSize = isVideo ? Math.round(file.size * 1.35) : file.size;
+                return total + estimatedSize;
+            }, 0);
 
             if (currentUsage >= currentPlan.storageBytes) {
                 setMessage(`You've reached your ${currentPlan.storageLabel} storage limit. Upgrade your plan for more storage.`);
                 setStatus("error");
-                setTimeout(() => setStatus("idle"), 5000);
+                setTimeout(() => { setStatus("idle"); setMessage(""); }, 5000);
                 return;
             }
 
@@ -2192,7 +2317,7 @@ function DashboardContent() {
                     `Upload exceeds your ${currentPlan.storageLabel} storage limit. You have ${formatStorageSize(remainingStorage)} remaining, but selected files are ${formatStorageSize(selectedUploadSize)}.`
                 );
                 setStatus("error");
-                setTimeout(() => setStatus("idle"), 7000);
+                setTimeout(() => { setStatus("idle"); setMessage(""); }, 7000);
                 return;
             }
         }
@@ -2224,7 +2349,7 @@ function DashboardContent() {
             const concurrencyLimit = 3;
             let activeCount = 0;
             let currentIndex = 0;
-            let chunkBuffer: { photo: Photo; queueItemId: string; transcodeTriggered?: boolean }[] = [];
+            let chunkBuffer: { photo: Photo; queueItemId: string }[] = [];
             let completedCount = 0;
 
             const flushChunkBuffer = async () => {
@@ -2247,8 +2372,7 @@ function DashboardContent() {
                                 eventId: item.photo.eventId,
                                 fileName: item.photo.storageKey.split('/').pop() || 'image.jpg',
                                 fileSize: item.photo.size,
-                                resourceType: item.photo.resourceType,
-                                skipTranscode: item.transcodeTriggered ?? false
+                                resourceType: item.photo.resourceType
                             }))
                         })
                     });
@@ -2267,8 +2391,7 @@ function DashboardContent() {
                                         eventId: item.photo.eventId,
                                         fileName: item.photo.storageKey.split('/').pop() || 'image.jpg',
                                         fileSize: item.photo.size,
-                                        resourceType: item.photo.resourceType,
-                                        skipTranscode: item.transcodeTriggered ?? false
+                                        resourceType: item.photo.resourceType
                                     }))
                                 })
                             });
@@ -2377,12 +2500,22 @@ function DashboardContent() {
                             : item
                     ));
 
-                    // If this was a video (routed via uploadLargeFileInChunks), upload/chunk/complete
-                    // already dispatched the transcode task — skip duplicate trigger in save-photo-batch
-                    const transcodeTriggered = isVideoFile;
-                    chunkBuffer.push({ photo, queueItemId, transcodeTriggered });
-                    // Flush immediately after each upload so resizing starts right away (non-blocking)
-                    flushChunkBuffer();
+                    if (uploadResult.videoSavedByBackend) {
+                        // /upload/chunk/complete already saved the row and queued the transcode. Saving it again via
+                        // save-photo-batch would re-upsert the row (clearing its duration) and notify the host twice.
+                        // The video processing poll marks it ready or failed.
+                        setUploadQueue(prev => prev.map(qItem =>
+                            qItem.id === queueItemId && qItem.status !== "success" && qItem.status !== "error"
+                                ? { ...qItem, status: "processing", progress: 90 }
+                                : qItem
+                        ));
+                    } else {
+                        // Photos (incl. large chunked images, whose previews are queued here) and small direct-upload
+                        // videos, whose transcode save-photo-batch queues.
+                        chunkBuffer.push({ photo, queueItemId });
+                        // Flush immediately after each upload so resizing starts right away (non-blocking)
+                        flushChunkBuffer();
+                    }
 
                     // Store for background indexing
                     uploadResults.push({ file, photo });
@@ -2391,6 +2524,11 @@ function DashboardContent() {
                         console.error(`[Dashboard] File upload error for ${file.name}:`, fileErr);
                     }
                     setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: fileErr.name === "AbortError" ? "cancelled" : "error", progress: 0, error: fileErr.name === "AbortError" ? undefined : fileErr.message || "Failed" } : item));
+                    if (fileErr.code === "storage_full" || fileErr.code === "plan_expired") {
+                        // The plan is the reason: say so at the top, not only on each file
+                        setMessage(fileErr.message);
+                        setStatus("error");
+                    }
                 } finally {
                     uploadControllers.current.delete(queueItemId);
                     activeCount--;
@@ -2419,25 +2557,7 @@ function DashboardContent() {
 
             await fetchStorageStats();
 
-            // Trigger immediate face recognition on the backend if any photo uploads succeeded
-            const photoUploads = uploadResults.filter(item => item.photo.mediaType === "photo" && item.photo.resourceType === "image");
-            if (photoUploads.length > 0) {
-                console.log(`[Dashboard] Drained upload queue. Triggering immediate face indexing...`);
-                const { data: sessionData } = await supabase.auth.getSession();
-                const accessToken = sessionData.session?.access_token;
-                if (accessToken) {
-                    fetch(getApiUrl('/api/media/trigger-modal-batch?immediate=true'), {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${accessToken}`,
-                        },
-                        body: JSON.stringify({ eventId: selectedEventId }),
-                    }).catch(err => {
-                        console.warn("[Dashboard] Immediate face indexing trigger failed:", err);
-                    });
-                }
-            }
+            // Face scanning runs from the upload pipeline itself (the old trigger-modal-batch call was removed)
 
             // Auto-update cover if it's currently a placeholder or if it's the first upload
             const currentEvent = userEvents.find(ev => ev.id === selectedEventId);
@@ -2460,7 +2580,7 @@ function DashboardContent() {
             } else {
                 setStatus("success");
                 setMessage("Gallery updated! ✨");
-                setTimeout(() => setStatus("idle"), 2000);
+                setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
             }
             fetchUserEvents();
             fetchEventPhotos();
@@ -2498,7 +2618,7 @@ function DashboardContent() {
         if (droppedFiles.length === 0) {
             setStatus("error");
             setMessage(galleryMediaTab === "videos" ? "Drop video files to upload." : "Drop image files to upload.");
-            setTimeout(() => setStatus("idle"), 2500);
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 2500);
             return;
         }
 
@@ -2519,7 +2639,7 @@ function DashboardContent() {
                 setStatus("success");
                 setMessage(`${isMainEvent ? 'Event' : 'Gallery'} thumbnail updated! ✨`);
                 fetchUserEvents();
-                setTimeout(() => setStatus("idle"), 2000);
+                setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
             } else {
                 setStatus("error");
                 setMessage("Failed to update thumbnail.");
@@ -2979,6 +3099,19 @@ function DashboardContent() {
         setActiveMenu(null);
     };
 
+    const closeCreateSuccessModal = () => {
+        setShowCreateSuccessModal(false);
+        setStatus("idle");
+        setMessage("");
+    };
+
+    const closeRenameModal = () => {
+        setRenamingEvent(null);
+        setEditDetailsMode("title");
+        setNewTitle("");
+        setNewDate("");
+    };
+
     const handleRenameSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!renamingEvent || !newTitle.trim()) return;
@@ -2996,10 +3129,10 @@ function DashboardContent() {
         setNewDate("");
         setMessage(currentRenamingEvent.type === "sub" ? "Gallery updated!" : "Event updated!");
         setStatus("success");
-        setTimeout(() => setStatus("idle"), 2000);
 
         try {
             await updateEvent(currentRenamingEvent.id, { title: newTitle, date: newDate });
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
             if (currentRenamingEvent.id === selectedEventId) {
                 setSelectedEventName(newTitle);
             }
@@ -3109,7 +3242,7 @@ function DashboardContent() {
             setTemplateTargetEvent(null);
             setMessage("Theme updated successfully! ✨");
             setStatus("success");
-            setTimeout(() => setStatus("idle"), 2000);
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
 
             // Refresh to ensure everything is synced
             fetchUserEvents();
@@ -3169,34 +3302,6 @@ function DashboardContent() {
         }
     };
 
-    const handleToggleSampleGallery = async (event: Event) => {
-        if (sampleGalleryUpdating) return;
-
-        const nextStatus = !event.isSampleGallery;
-        setSampleGalleryUpdating(event.id);
-        setStatus("uploading");
-        setMessage(nextStatus ? "Adding event to Sample Galleries..." : "Removing event from Sample Galleries...");
-
-        const success = await setEventSampleGalleryStatus(event.id, nextStatus);
-
-        if (success) {
-            setUserEvents(prev => prev.map(item => item.id === event.id ? { ...item, isSampleGallery: nextStatus } : item));
-            setSharedEvents(prev => prev.map(item => item.id === event.id ? { ...item, isSampleGallery: nextStatus } : item));
-            setMessage(nextStatus ? "Event added to Sample Galleries." : "Event removed from Sample Galleries.");
-            setStatus("success");
-            fetchUserEvents();
-        } else {
-            setMessage("Could not update Sample Gallery status.");
-            setStatus("error");
-        }
-
-        setSampleGalleryUpdating(null);
-        setTimeout(() => {
-            setStatus("idle");
-            setMessage("");
-        }, 2200);
-    };
-
     const handleDeletePhoto = async (photoId: string) => {
         try {
             const success = await deletePhoto(photoId);
@@ -3215,6 +3320,61 @@ function DashboardContent() {
             console.error("Error deleting photo:", error);
             setStatus("error");
             setMessage("Error removing photo.");
+        }
+    };
+
+    const toggleMediaSelection = (photoId: string) => {
+        setSelectedMediaIds(prev => {
+            const next = new Set(prev);
+            if (next.has(photoId)) next.delete(photoId); else next.add(photoId);
+            return next;
+        });
+    };
+
+    const exitMediaSelection = () => {
+        setIsSelectingMedia(false);
+        setSelectedMediaIds(new Set());
+    };
+
+    // Returns an error message for the dialog, or null when the move succeeded.
+    const handleMoveMedia = async (targetGalleryId: string): Promise<string | null> => {
+        if (!mediaToMove || mediaToMove.length === 0) return null;
+        const ids = mediaToMove.map(item => item.id);
+        const result = await movePhotosToGallery(ids, targetGalleryId);
+        if (result.error) return result.error;
+
+        const movedIds = new Set(ids);
+        const targetLabel = targetGalleryId === selectedMainEvent?.id
+            ? "Home (Primary Gallery)"
+            : eventDetailGalleries.find(gallery => gallery.id === targetGalleryId)?.title || "the selected gallery";
+        // The Primary Gallery view lists every gallery's media, so items stay and only change source there.
+        setCurrentEventPhotos(prev => isPrimaryGalleryView
+            ? prev.map(item => movedIds.has(item.id) ? { ...item, eventId: targetGalleryId } : item)
+            : prev.filter(item => !movedIds.has(item.id)));
+        setMediaToMove(null);
+        exitMediaSelection();
+        setStatus("success");
+        setMessage(`Moved ${ids.length === 1 ? "1 item" : `${ids.length} items`} to ${targetLabel}.`);
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 2500);
+        return null;
+    };
+
+    // Copies the originals into the user's EB Vault; the items stay in the event. Returns an error for the dialog.
+    const handleSaveToVault = async (vaultFolderId: string | null): Promise<string | null> => {
+        if (!mediaToSave || mediaToSave.length === 0) return null;
+        try {
+            const { saved, failed } = await vaultApi.saveFromEvent(mediaToSave.map(item => item.id), vaultFolderId);
+            if (saved.length === 0) return failed[0]?.error || "Nothing could be saved. Please try again.";
+            setMediaToSave(null);
+            exitMediaSelection();
+            setStatus(failed.length ? "error" : "success");
+            setMessage(failed.length
+                ? `Saved ${saved.length} of ${saved.length + failed.length} to EB Vault. ${failed[0].error}`
+                : `Saved ${saved.length === 1 ? "1 item" : `${saved.length} items`} to EB Vault.`);
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 4000);
+            return null;
+        } catch (error) {
+            return error instanceof Error ? error.message : "Couldn't save to EB Vault. Please try again.";
         }
     };
 
@@ -3294,7 +3454,7 @@ function DashboardContent() {
     const activeSubEvent = userEvents.find(e => e.id === selectedEventId)
         || eventDetailGalleries.find(e => e.id === selectedEventId)
         || (selectedMainEvent?.id === selectedEventId ? selectedMainEvent : undefined);
-    const coverUrl = resolveEventCoverImage(activeSubEvent?.coverImage, 'preview');
+    const coverUrl = resolveEventCoverImage(activeSubEvent?.coverImage, 'preview', activeSubEvent?.category || selectedMainEvent?.category);
     const isInlineEventDetailGalleryEditor = manageLevel === "event-details" && activeEventDetailTab === "galleries" && manageMode === "add-image";
     const activeEventDetailEvent = isInlineEventDetailGalleryEditor ? (activeSubEvent || selectedMainEvent) : selectedMainEvent;
     const activeGalleryOriginalMessage = activeEventDetailEvent?.description || "";
@@ -3307,7 +3467,7 @@ function DashboardContent() {
         .filter((gallery): gallery is Event => !!gallery)
         .map(gallery => ({
             id: gallery.id,
-            label: gallery.id === selectedMainEvent?.id ? "Main event" : gallery.title,
+            label: gallery.id === selectedMainEvent?.id ? "Home (Primary Gallery)" : gallery.title,
             legacyId: gallery.legacyId,
             count: selectedMediaItems.filter(photo => photo.eventId === gallery.id || (!!gallery.legacyId && photo.eventId === gallery.legacyId)).length,
         }))
@@ -3322,16 +3482,26 @@ function DashboardContent() {
             return photo.eventId === source?.id || (!!source?.legacyId && photo.eventId === source.legacyId);
         })
         : selectedMediaItems;
-    const activeGalleryItems = isFavouriteFilterActive
+    const favouriteFilteredItems = isFavouriteFilterActive
         ? sourceFilteredMediaItems.filter(photo => eventFavouritePhotoIds.has(photo.id))
         : sourceFilteredMediaItems;
+    const uploaderOptions = buildUploaderOptions(favouriteFilteredItems, uploaderDetails[selectedEventId] || {}, user.uid);
+    const effectiveUploaderFilter = uploaderOptions.some(option => option.userId === uploaderFilter) ? uploaderFilter : "all";
+    const isUploaderFilterActive = effectiveUploaderFilter !== "all";
+    const activeGalleryItems = isUploaderFilterActive
+        ? favouriteFilteredItems.filter(photo => uploaderOf(photo) === effectiveUploaderFilter)
+        : favouriteFilteredItems;
+    const isAnyGalleryFilterActive = isUploaderFilterActive || isFavouriteFilterActive || (isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all");
+    // Shown once more than one person uploaded here (or more pages could reveal another uploader)
+    const showUploaderFilter = new Set(currentEventPhotos.map(uploaderOf)).size > 1 || hasMorePhotos || allMediaLoadedFor === selectedEventId;
     const activeFavouriteCount = selectedMediaItems.filter(photo => eventFavouritePhotoIds.has(photo.id)).length;
+    const moveTargetGalleries = [selectedMainEvent, ...eventDetailGalleries]
+        .filter((gallery): gallery is Event => !!gallery)
+        .map(gallery => ({ id: gallery.id, label: gallery.id === selectedMainEvent?.id ? "Home (Primary Gallery)" : gallery.title }));
+    const canMoveMedia = moveTargetGalleries.length > 1;
     const stripUrlQuery = (value?: string | null) => (value || "").split("?")[0];
     const createdEvents = userEvents.filter(evt => evt.createdBy && ownEventIdentifiers.has(evt.createdBy));
     const legacySharedEvents = userEvents.filter(evt => !evt.createdBy || !ownEventIdentifiers.has(evt.createdBy));
-    const permissionMainEvents = userEvents.filter(e => e.type === 'main' || (!e.type && !e.parentId));
-    const permissionCreatedEvents = permissionMainEvents.filter(evt => evt.createdBy && ownEventIdentifiers.has(evt.createdBy));
-    const permissionOtherEvents = permissionMainEvents.filter(evt => !evt.createdBy || !ownEventIdentifiers.has(evt.createdBy));
 
     const pendingGuestRequests = trafficLogs.filter(log => log.status === "pending");
     const pendingRequestsByEvent = Object.entries(
@@ -3342,15 +3512,19 @@ function DashboardContent() {
             return groups;
         }, {})
     );
-    const hostConsoleMetrics = [
-        { label: "Hosted", value: userEvents.length, icon: Calendar },
-        { label: "Shared", value: sharedEvents.length, icon: Users },
-        { label: "Requests", value: pendingGuestRequests.length, icon: UserPlus },
-    ];
+    const hostConsoleTabs = [
+        { id: "hosted", label: "Host", count: userEvents.length, Icon: HostIcon },
+        { id: "shared", label: "Shared", count: sharedEvents.length, Icon: Users },
+        { id: "request", label: "Requests", count: pendingGuestRequests.length, Icon: UserPlus },
+    ] as const;
     const eventDetailPendingLogs = eventDetailLogs.filter(log => log.status === "pending");
-    const eventDetailAdminLogs = eventDetailLogs.filter(log => log.status === "approved" && !!log.canAdmin);
-    const eventDetailMemberLogs = eventDetailLogs.filter(log => log.status === "approved" && !log.canAdmin);
-    const eventDetailVisibleLogsCount = eventDetailPendingLogs.length + eventDetailAdminLogs.length + eventDetailMemberLogs.length;
+    // Admins and members share one table in list order, so a row doesn't jump when its Admin switch flips
+    const eventDetailApprovedLogs = eventDetailLogs.filter(log => log.status === "approved");
+    const eventDetailAdminCount = eventDetailApprovedLogs.filter(log => !!log.canAdmin).length;
+    const eventDetailVisibleLogsCount = eventDetailPendingLogs.length + eventDetailApprovedLogs.length;
+    // Galleries without a template show Midnight Hero on the guest page
+    const designTemplate = TEMPLATE_THEMES.find(t => t.id === (selectedMainEvent?.templateId || "hero"));
+    const designTemplateLabel = designTemplate?.label || selectedMainEvent?.templateId || "Midnight Hero";
     const planDetails = getPlanDetails(user.role);
     const subscriptionStatus = getSubscriptionStatus({
         role: user.role,
@@ -3366,28 +3540,10 @@ function DashboardContent() {
         { id: "videos", label: `Videos (${currentEventMediaCounts.videos})`, icon: Video },
     ] as const;
 
-    const getEventOwnerEmail = (evt: Event) => {
+    const getEventOwnerName = (evt: Event) => {
         if (!evt.createdBy) return "Unknown owner";
         if (evt.createdBy.includes("@")) return evt.createdBy;
-        return eventOwners[evt.createdBy]?.email || workspaceOwner?.email || evt.createdBy;
-    };
-
-    const getEventOwnerDetails = (evt: Event) => {
-        const ownerId = evt.createdBy;
-        if (!ownerId) {
-            return { name: "Unknown owner", email: "Unknown", username: "Not set" };
-        }
-
-        if (ownerId.includes("@")) {
-            return { name: "Unknown owner", email: ownerId, username: "Not set" };
-        }
-
-        const owner = eventOwners[ownerId];
-        return {
-            name: owner?.name || "Unknown owner",
-            email: owner?.email || ownerId,
-            username: owner?.username || "Not set",
-        };
+        return eventOwners[evt.createdBy]?.name || "Unknown owner";
     };
 
     const getSharedAccessLabel = (evt: Event) => {
@@ -3401,97 +3557,173 @@ function DashboardContent() {
         return isFullManager ? "Full Manager" : "Event Manager";
     };
 
-    const renderEventDetailPermissionCard = (log: EventDetailLog) => {
-        const loginDate = log.loginAt?.seconds
-            ? new Date(log.loginAt.seconds * 1000).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
-            : "Unknown";
-        const contact = log.email || log.phone || "No contact";
-        const hasAdminAccess = Boolean(log.canAdmin);
-        const hasUploadAccess = hasAdminAccess || Boolean(log.canUpload);
-        const hasCommentAccess = hasAdminAccess || Boolean(log.canComment);
-        const permissionBadges = log.status === "pending"
-            ? [{ label: "Pending", icon: RefreshCw, className: "border-sky-400/30 bg-sky-400/10 text-sky-300" }]
-            : log.status === "rejected"
-                ? [{ label: "Denied", icon: X, className: "border-rose-400/30 bg-rose-400/10 text-rose-300" }]
-                : [
-                    { label: "View", icon: Eye, className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" },
-                    ...(hasAdminAccess ? [{ label: "Admin", icon: ShieldCheck, className: "border-[#CA9C68]/30 bg-[#CA9C68]/10 text-[#CA9C68]" }] : []),
-                    ...(hasUploadAccess ? [{ label: "Upload", icon: Camera, className: "border-purple-400/30 bg-purple-400/10 text-purple-300" }] : []),
-                    ...(hasCommentAccess ? [{ label: "Comment", icon: MessageCircle, className: "border-cyan-400/30 bg-cyan-400/10 text-cyan-300" }] : []),
-                ];
+    // Guest list on the Permissions tab: one row per guest with a switch per permission. From xl up it's a
+    // table (Member / Role / Permissions / Actions); below that each row stacks into a card.
+    // Borders use plain border-slate-800 (globals.css re-themes it); divide-slate-800, xl:border-slate-800 and bg-slate-800/60 fall through to cream.
+    const renderEventDetailPermissionTable = (logs: EventDetailLog[], isPending: boolean) => {
+        const columns = isPending
+            ? "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(4,5.5rem)_16rem]"
+            : "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(4,5.5rem)_6.5rem]";
+        const headerLabel = "text-[11px] font-black uppercase tracking-[0.16em] text-slate-500";
+        const permissionColumns = [
+            { key: "view", label: "View" },
+            { key: "canAdmin", label: "Admin" },
+            { key: "canUpload", label: "Upload" },
+            { key: "canComment", label: "Comment" },
+        ] as const;
 
         return (
-            <div
-                key={log.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedGuestLog(log)}
-                onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") setSelectedGuestLog(log);
-                }}
-                className="flex cursor-pointer flex-col gap-3 rounded-[1.5rem] border border-slate-700 bg-slate-900/50 p-4 transition-colors hover:border-[#CA9C68]/50 hover:bg-slate-900 lg:flex-row lg:items-center"
-            >
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#CA9C68]/10 text-sm font-black text-[#CA9C68]">
-                        {(log.name || "G").charAt(0)}
-                    </div>
-                    <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <h5 className="truncate text-base font-black text-white">{log.name || "Guest"}</h5>
-                        </div>
-                        <p className="truncate text-xs font-bold text-slate-400">{contact} • {loginDate}</p>
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                            {permissionBadges.map(({ label, icon: Icon, className }) => (
-                                <span
-                                    key={label}
-                                    className={cn(
-                                        "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-widest",
-                                        className
-                                    )}
-                                >
-                                    <Icon className="h-3 w-3" />
-                                    {label}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
+            <div className="overflow-hidden rounded-[1.5rem] border border-slate-700 bg-slate-900/50">
+                <div className={cn("hidden border-b border-slate-700 bg-slate-900 xl:grid", columns)}>
+                    <div className={cn("row-span-2 self-center px-5 py-3", headerLabel)}>Member</div>
+                    <div className={cn("row-span-2 flex items-center border-l border-slate-800 px-4", headerLabel)}>Role</div>
+                    <div className="col-span-4 border-b border-l border-slate-800 py-2.5 text-center text-[11px] font-black uppercase tracking-[0.18em] text-[#CA9C68]">Permissions</div>
+                    <div className={cn("row-span-2 flex items-center justify-end border-l border-slate-800 px-5", headerLabel)}>Actions</div>
+                    {permissionColumns.map(({ key, label }) => (
+                        <div key={key} className={cn("border-l border-slate-800 px-2 py-2.5 text-center", headerLabel)}>{label}</div>
+                    ))}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                    {log.status === "pending" && (
-                        <>
-                            <button
-                                onClick={async (event) => {
-                                    event.stopPropagation();
-                                    await handleGuestStatusUpdate(log.id, "approved");
-                                    setEventDetailLogs(prev => prev.map(item => item.id === log.id ? { ...item, status: "approved", canUpload: true, canComment: true } : item));
-                                }}
-                                className="rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-300"
+                <div>
+                    {logs.map((log) => {
+                        const guestName = log.name || "Guest";
+                        const loginDate = log.loginAt?.seconds
+                            ? new Date(log.loginAt.seconds * 1000).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+                            : "Unknown";
+                        const contact = log.email || log.phone || "No contact";
+                        const hasAdminAccess = Boolean(log.canAdmin);
+                        const role = isPending
+                            ? { label: "Pending", icon: RefreshCw, className: "border-sky-400/30 bg-sky-400/10 text-sky-300" }
+                            : hasAdminAccess
+                                ? { label: "Admin", icon: ShieldCheck, className: "border-[#CA9C68]/30 bg-[#CA9C68]/10 text-[#CA9C68]" }
+                                : { label: "Member", icon: Users, className: "border-slate-700 bg-slate-800 text-slate-300" };
+                        const RoleIcon = role.icon;
+                        const roleBadge = (
+                            <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-widest", role.className)}>
+                                <RoleIcon className="h-3 w-3" />
+                                {role.label}
+                            </span>
+                        );
+                        const removeGuest = async () => {
+                            // Only drop the row once it's really deleted (not on Cancel or a failed request); otherwise the
+                            // guest looked removed but kept their approved row and got straight back in when asking again
+                            if (await handleGuestDelete(log.id)) {
+                                setEventDetailLogs(prev => prev.filter(item => item.id !== log.id));
+                            }
+                        };
+
+                        return (
+                            <div
+                                key={log.id}
+                                className={cn(
+                                    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-4 border-t border-slate-800 p-4 transition-colors first:border-t-0 hover:bg-slate-900 xl:items-stretch xl:gap-0 xl:p-0",
+                                    columns
+                                )}
                             >
-                                Approve
-                            </button>
-                            <button
-                                onClick={async (event) => {
-                                    event.stopPropagation();
-                                    await handleGuestStatusUpdate(log.id, "rejected");
-                                    setEventDetailLogs(prev => prev.filter(item => item.id !== log.id));
-                                }}
-                                className="rounded-full bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-300"
-                            >
-                                Deny
-                            </button>
-                        </>
-                    )}
-                    <button
-                        onClick={async (event) => {
-                            event.stopPropagation();
-                            await handleGuestDelete(log.id);
-                            setEventDetailLogs(prev => prev.filter(item => item.id !== log.id));
-                        }}
-                        className="rounded-full border border-slate-700 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-300"
-                    >
-                        Delete
-                    </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedGuestLog(log)}
+                                    title="View guest details"
+                                    className="group/member col-start-1 row-start-1 flex min-w-0 items-center gap-3 text-left xl:px-5 xl:py-3.5"
+                                >
+                                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#CA9C68]/10 text-sm font-black text-[#CA9C68]">
+                                        {guestName.charAt(0)}
+                                    </span>
+                                    <span className="min-w-0">
+                                        <span className="block truncate text-base font-black text-white transition-colors group-hover/member:text-[#CA9C68]">{guestName}</span>
+                                        <span className="block truncate text-xs font-bold text-slate-400">{contact} • {loginDate}</span>
+                                        <span className="mt-2 flex xl:hidden">{roleBadge}</span>
+                                    </span>
+                                </button>
+
+                                <div className="hidden items-center border-l border-slate-800 px-4 xl:flex">{roleBadge}</div>
+
+                                <div className="col-span-2 row-start-2 grid grid-cols-4 gap-2 rounded-2xl border border-slate-800 bg-slate-950/40 p-3 xl:contents">
+                                    {permissionColumns.map(({ key, label }) => {
+                                        let control: React.ReactNode;
+                                        if (key === "view") {
+                                            // Not a switch: approved guests can always view; removing a guest is the trash button
+                                            control = isPending ? (
+                                                <span className="flex h-7 items-center text-sm font-black text-slate-600" aria-label="Can't view until approved">—</span>
+                                            ) : (
+                                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#CA9C68]/10 text-[#CA9C68]" aria-label="Can view" title="Approved guests can view this event">
+                                                    <Check className="h-4 w-4" />
+                                                </span>
+                                            );
+                                        } else {
+                                            // Admins always get uploads and comments, so those switches show on and are locked
+                                            const impliedByAdmin = key !== "canAdmin" && hasAdminAccess;
+                                            const isOn = Boolean(log[key]) || impliedByAdmin;
+                                            control = (
+                                                <button
+                                                    type="button"
+                                                    role="switch"
+                                                    aria-checked={isOn}
+                                                    aria-label={`${label} for ${guestName}`}
+                                                    title={impliedByAdmin ? "Admins can always upload and comment" : undefined}
+                                                    disabled={impliedByAdmin}
+                                                    onClick={() => void handleGuestPermissionToggle(log, key)}
+                                                    className={cn(
+                                                        "relative h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60 disabled:cursor-not-allowed disabled:opacity-50",
+                                                        isOn ? "bg-[#CA9C68]" : "bg-slate-700"
+                                                    )}
+                                                >
+                                                    <span className={cn(
+                                                        "absolute left-0 top-1 h-5 w-5 rounded-full bg-white transition-transform",
+                                                        isOn ? "translate-x-6" : "translate-x-1"
+                                                    )} />
+                                                </button>
+                                            );
+                                        }
+
+                                        return (
+                                            <div key={key} className="flex flex-col items-center gap-2 border-slate-800 xl:justify-center xl:border-l xl:px-2 xl:py-3.5">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 xl:hidden">{label}</span>
+                                                {control}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className={cn(
+                                    "flex items-center justify-end gap-2 border-slate-800 xl:col-span-1 xl:col-start-auto xl:row-start-auto xl:border-l xl:px-5 xl:py-3.5",
+                                    isPending ? "col-span-2 row-start-3" : "col-start-2 row-start-1"
+                                )}>
+                                    {isPending && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleGuestStatusUpdate(log.id, "approved")}
+                                                className="flex-1 rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-300 xl:flex-none"
+                                            >
+                                                Approve
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleGuestDeny(log)}
+                                                className="flex-1 rounded-full bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-300 xl:flex-none"
+                                            >
+                                                Deny
+                                            </button>
+                                        </>
+                                    )}
+                                    {/* Members only: a pending request is turned down with Deny. Plain title, not <Tooltip>: its
+                                        hidden bubble pokes past the table's clipped right edge */}
+                                    {!isPending && (
+                                        <button
+                                            type="button"
+                                            onClick={() => void removeGuest()}
+                                            aria-label={`Remove ${guestName}`}
+                                            title="Remove guest"
+                                            className="rounded-xl border border-slate-700 bg-slate-800 p-2.5 text-slate-400 transition-colors hover:border-rose-400/30 hover:bg-rose-500/10 hover:text-rose-400"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         );
@@ -3511,33 +3743,38 @@ function DashboardContent() {
                     navigateWithModifierClick(e, `/host?view=manage&level=photos&mode=add-image&eventId=${evt.id}`, router.push);
                 }
             }}
-            className="group relative bg-slate-800 aspect-[4/5] rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all duration-500 border border-slate-700 cursor-pointer"
+            className="group relative flex cursor-pointer flex-col rounded-2xl border border-[#273034] bg-[#0E141A] p-3 text-left transition-colors hover:border-[#CA9C68]/40"
         >
-            <div className="absolute inset-0 overflow-hidden rounded-[2.5rem]">
+            {/* Same card as the dashboard (src/components/dashboard/DashboardEvents.tsx) */}
+            <div className="relative w-full overflow-hidden rounded-xl bg-[#0E141A]" style={{ aspectRatio: "16 / 10" }}>
                 <img
-                    src={resolveEventCoverImage(evt.coverImage, 'thumbnail')}
+                    src={resolveEventCoverImage(evt.coverImage, 'thumbnail', evt.category)}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover opacity-30 blur-xl"
+                />
+                <img
+                    src={resolveEventCoverImage(evt.coverImage, 'thumbnail', evt.category)}
                     alt={evt.title}
-                    className="absolute inset-0 w-full h-full transition-transform duration-700 group-hover:scale-110"
+                    className="absolute inset-0 h-full w-full transition-transform duration-700 group-hover:scale-105"
                     style={getCoverImageStyle(evt)}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent transition-all" />
                 {evt.category && (
-                    <div className="absolute left-5 top-5 z-10 rounded-lg border border-[#CA9C68]/30 bg-black/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#CA9C68] backdrop-blur-sm">
+                    <div className="absolute left-3 top-3 z-10 rounded-full border border-[#CA9C68]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#CA9C68] backdrop-blur-sm">
                         {evt.category}
                     </div>
                 )}
             </div>
 
-            <div className="absolute top-6 right-6 z-20">
+            <div className="absolute top-5 right-5 z-20">
                 <Tooltip text="Options">
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             setActiveMenu(activeMenu === evt.id ? null : evt.id);
                         }}
-                        className="p-2.5 bg-slate-800/90 backdrop-blur-md shadow-lg hover:bg-slate-800 rounded-2xl text-white transition-all active:scale-95 border border-white/50"
+                        className="rounded-full border border-white/20 bg-black/65 p-2 text-white backdrop-blur-sm transition-all hover:bg-black/80 active:scale-95"
                     >
-                        <MoreHorizontal className="w-5 h-5" />
+                        <MoreHorizontal className="h-4 w-4" />
                     </button>
                 </Tooltip>
 
@@ -3627,41 +3864,27 @@ function DashboardContent() {
                 </AnimatePresence>
             </div>
 
-            <div className="absolute bottom-0 left-0 w-full bg-black p-6 text-left text-white sm:p-8">
+            <div className="px-1 pb-1 pt-4 text-left text-white">
+                <h3 className="truncate text-xl leading-tight text-white" style={SERIF}>{evt.title}</h3>
+                <div className="mt-2 flex items-center gap-1.5 text-sm text-slate-400">
+                    <Calendar className="h-4 w-4 shrink-0 text-[#CA9C68]" aria-hidden="true" />
+                    <span className="truncate">{formatShortEventDate(formatEventDate(evt.date))}</span>
+                </div>
                 {isSharedEvent && (
-                    <div className="mb-3 space-y-1">
-                        <div className="inline-flex max-w-full items-center px-2 py-1 bg-slate-800/20 backdrop-blur-md rounded text-[9px] font-bold uppercase tracking-widest border border-white/20">
-                            <span className="truncate">Owner: {getEventOwnerEmail(evt)}</span>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                        <div className="inline-flex max-w-full items-center rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-slate-300">
+                            <span className="truncate">Owner: {getEventOwnerName(evt)}</span>
                         </div>
-                        <div className="w-fit px-2 py-1 bg-black/30 backdrop-blur-md rounded text-[9px] font-bold uppercase tracking-widest border border-white/10 text-white/90">
+                        <div className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-slate-300">
                             {getSharedAccessLabel(evt)}
                         </div>
                     </div>
                 )}
                 {user?.delegatedBy && workspaceOwner && (
-                    <div className="mb-2 inline-flex items-center px-2 py-0.5 bg-slate-800/20 backdrop-blur-md rounded text-[9px] font-bold uppercase tracking-widest border border-white/20">
-                        Managed for: {workspaceOwner.email}
+                    <div className="mt-3 inline-flex max-w-full items-center rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-slate-300">
+                        <span className="truncate">Managed for: {workspaceOwner.email}</span>
                     </div>
                 )}
-                <h3 className="text-2xl font-bold italic tracking-tight mb-4">{evt.title}</h3>
-                <div className="mb-3 flex items-center text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                    <Calendar className="mr-2 h-3.5 w-3.5 text-[#CA9C68]" />
-                    <span>{formatEventDate(evt.date)}</span>
-                </div>
-                <div className="flex items-center text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-y-3 group-hover:translate-y-0 duration-300">
-                    {manageLevel === "events" ? (
-                        <>
-                            <Settings className="w-4 h-4 mr-2" />
-                            Manage Event
-                        </>
-                    ) : (
-                        <>
-                            <ImageIcon className="w-4 h-4 mr-2" />
-                            Manage Photos
-                        </>
-                    )}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                </div>
             </div>
         </motion.div>
         );
@@ -3702,7 +3925,7 @@ function DashboardContent() {
                     <p className="text-sm text-slate-400 font-sans">{items.length} {items.length === 1 ? "item" : "items"}</p>
                 </div>
                 {showWorkspaceBanner && renderManagedWorkspaceBanner()}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                     {items.map(renderEventCard)}
                 </div>
             </section>
@@ -3752,95 +3975,69 @@ function DashboardContent() {
                             exit={{ opacity: 0, y: -10 }}
                             className="space-y-8"
                         >
-                            <div className="relative overflow-hidden rounded-3xl border border-[#2B2F2E] bg-[#13191F] p-5 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8">
-                                <div className="flex flex-col gap-5 mb-6 lg:flex-row lg:items-center lg:justify-between">
-                                    <div className="flex items-center gap-4">
+                            <div className="relative">
+                                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-[#0B0F13] p-3 shadow-2xl shadow-black/30 sm:p-4 xl:flex xl:gap-x-6">
+                                    <div className="order-1 flex min-w-0 items-center gap-3 sm:gap-4">
                                         <Tooltip text="Plan Details">
                                             <button
                                                 onClick={() => {
                                                     fetchStorageStats();
                                                     setShowPlanDetailsModal(true);
                                                 }}
-                                                className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#CA9C68]/35 bg-[#CA9C68]/10 text-[#CA9C68] transition-colors hover:bg-[#CA9C68]/20"
+                                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#CA9C68] transition-colors hover:bg-white/10"
                                                 aria-label="Plan Details"
                                             >
-                                                <svg
-                                                    width="22"
-                                                    height="22"
-                                                    viewBox="0 0 24 24"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="2"
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    aria-hidden="true"
-                                                >
-                                                    <rect width="20" height="8" x="2" y="2" rx="2" ry="2" />
-                                                    <rect width="20" height="8" x="2" y="14" rx="2" ry="2" />
-                                                    <line x1="6" x2="6.01" y1="6" y2="6" />
-                                                    <line x1="6" x2="6.01" y1="18" y2="18" />
-                                                </svg>
+                                                <HostConsoleIcon className="h-6 w-6" aria-hidden="true" />
                                             </button>
                                         </Tooltip>
-                                        <div>
-                                            <p className="mb-1 font-sans text-[10px] font-black uppercase tracking-[0.24em] text-[#CA9C68]">Control Room</p>
-                                            <h2 className="text-3xl font-bold text-white">Host Console</h2>
-                                            <p className="text-sm text-slate-400 font-sans">Event operations</p>
+                                        <div className="min-w-0">
+                                            <h2 className="truncate font-brand font-normal tracking-wide text-[#F5EFE6]" style={{ fontSize: 28, lineHeight: "30px" }}>Host Console</h2>
+                                            <p className="truncate font-sans text-slate-400" style={{ fontSize: 12, lineHeight: "18px" }}>Event operations</p>
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-wrap gap-2">
+                                    <span className="order-2 hidden h-10 w-px shrink-0 bg-white/10 xl:block" />
+
+                                    <div className="order-3 col-span-2 flex gap-1 overflow-x-auto rounded-2xl border border-white/10 bg-black/40 p-1.5 [scrollbar-width:none] sm:gap-1.5 xl:max-w-2xl xl:flex-1">
+                                        {hostConsoleTabs.map(({ id, label, count, Icon }) => {
+                                            const isActive = activeTab === id;
+                                            const highlightCount = isActive || (id === "request" && count > 0);
+                                            return (
+                                                <button
+                                                    key={id}
+                                                    onClick={() => setActiveTab(id)}
+                                                    aria-pressed={isActive}
+                                                    className={cn(
+                                                        "flex h-12 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-2 font-sans text-[11px] font-semibold uppercase tracking-[0.04em] max-[360px]:gap-1 max-[360px]:px-1.5 max-[360px]:tracking-normal transition-colors sm:h-[3.25rem] sm:gap-2.5 sm:px-4 sm:text-[13px] sm:tracking-[0.14em]",
+                                                        isActive
+                                                            ? "border-[#CA9C68]/50 bg-gradient-to-b from-[#CA9C68]/20 to-[#CA9C68]/[0.06] text-[#E2BC8C] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                                                            : "border-transparent text-slate-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
+                                                    )}
+                                                >
+                                                    <Icon className="hidden h-[18px] w-[18px] shrink-0 sm:block" />
+                                                    {label}
+                                                    <span className={cn(
+                                                        "min-w-6 rounded-md px-1.5 py-0.5 text-center text-[11px] font-bold tracking-normal sm:min-w-7 sm:text-xs",
+                                                        highlightCount ? "bg-[#CA9C68] text-slate-950" : "bg-white/10 text-slate-300"
+                                                    )}>
+                                                        {count}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="order-2 xl:order-4 xl:ml-auto">
                                         <button
                                             onClick={() => setIsCreateModalOpen(true)}
-                                            className="flex items-center gap-2 rounded-xl bg-[#CA9C68] px-4 py-3 text-sm font-black text-slate-950 transition-colors hover:bg-[#D7AE7D]"
+                                            className="flex h-12 items-center gap-2 whitespace-nowrap rounded-xl bg-[#CA9C68] px-4 font-sans text-sm font-black text-slate-950 transition-colors hover:bg-[#D7AE7D] sm:px-5"
+                                            aria-label="Create Event"
                                         >
                                             <Plus className="w-4 h-4" />
-                                            Create Event
+                                            <span className="sm:hidden">New</span>
+                                            <span className="hidden sm:inline">Create Event</span>
                                         </button>
                                     </div>
-                                </div>
-
-                                <div className="mb-6 grid gap-3 sm:grid-cols-3">
-                                    {hostConsoleMetrics.map(({ label, value, icon: MetricIcon }) => (
-                                        <div key={label} className="flex items-center justify-between rounded-xl border border-[#2B2F2E] bg-[#0D1318]/80 px-4 py-3">
-                                            <div>
-                                                <p className="font-sans text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{label}</p>
-                                                <p className="mt-1 font-sans text-2xl font-black text-white">{value}</p>
-                                            </div>
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#CA9C68]/25 bg-[#CA9C68]/10 text-[#CA9C68]">
-                                                <MetricIcon className="h-4 w-4" />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className="flex w-full gap-2 overflow-x-auto rounded-xl border border-[#2B2F2E] bg-[#0D1318]/80 p-1 sm:w-fit">
-                                    <button
-                                        onClick={() => setActiveTab('hosted')}
-                                        className={`flex min-w-28 items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'hosted' ? 'border-[#CA9C68]/40 bg-[#CA9C68]/10 text-[#CA9C68]' : 'border-transparent text-slate-400 hover:bg-[#1B211F] hover:text-white'}`}
-                                    >
-                                        <Camera className="h-4 w-4" />
-                                        Host
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveTab('shared')}
-                                        className={`flex min-w-28 items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'shared' ? 'border-[#CA9C68]/40 bg-[#CA9C68]/10 text-[#CA9C68]' : 'border-transparent text-slate-400 hover:bg-[#1B211F] hover:text-white'}`}
-                                    >
-                                        <Users className="h-4 w-4" />
-                                        Shared
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveTab('request')}
-                                        className={`relative flex min-w-28 items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'request' ? 'border-[#CA9C68]/40 bg-[#CA9C68]/10 text-[#CA9C68]' : 'border-transparent text-slate-400 hover:bg-[#1B211F] hover:text-white'}`}
-                                    >
-                                        <UserPlus className="h-4 w-4" />
-                                        Requests
-                                        {pendingGuestRequests.length > 0 && (
-                                            <span className="ml-1 rounded-full bg-[#CA9C68] px-2 py-0.5 text-[10px] font-black text-slate-950">
-                                                {pendingGuestRequests.length}
-                                            </span>
-                                        )}
-                                    </button>
                                 </div>
 
                                 {loadingEvents ? (
@@ -3880,9 +4077,9 @@ function DashboardContent() {
                                                                     </div>
                                                                     <div className="flex gap-2 sm:ml-auto">
                                                                         <button
-                                                                            onClick={() => handleGuestStatusUpdate(log.id, "rejected")}
+                                                                            onClick={() => void handleGuestDeny(log)}
                                                                             className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500 text-white transition-colors hover:bg-rose-400"
-                                                                            aria-label="Reject request"
+                                                                            aria-label="Deny request"
                                                                         >
                                                                             <X className="h-4 w-4" />
                                                                         </button>
@@ -3903,49 +4100,20 @@ function DashboardContent() {
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
-                                        {(activeTab === 'hosted' ? userEvents : sharedEvents).map((event) => {
-                                            const ownerDetails = getEventOwnerDetails(event);
-                                            return (
-                                                <div
-                                                    key={event.id}
-                                                    onClick={() => {
-                                                        router.push(`/host?view=manage&level=event-details&eventId=${event.id}`);
-                                                    }}
-                                                    className={cn(
-                                                        "group relative cursor-pointer overflow-hidden rounded-2xl border border-[#2B2F2E] bg-[#0D1318]",
-                                                        activeTab === "shared" ? "h-80" : "h-64"
-                                                    )}
-                                                >
-                                                    <div className={cn("relative overflow-hidden", activeTab === "shared" ? "h-64" : "h-full")}>
-                                                        <img
-                                                            src={resolveEventCoverImage(event.coverImage, 'thumbnail')}
-                                                            alt={event.title}
-                                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                                        />
-                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent"></div>
-                                                        {event.category && (
-                                                            <div className="absolute left-4 top-4 rounded-lg border border-[#CA9C68]/30 bg-black/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#CA9C68] backdrop-blur-sm">
-                                                                {event.category}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="absolute bottom-0 left-0 right-0 border-t border-[#2B2F2E] bg-[#0D1318]/95 p-5 backdrop-blur-sm">
-                                                        <h3 className="text-white font-bold text-lg leading-tight mb-1 truncate">{event.title}</h3>
-                                                        <div className="mt-2 flex items-center text-xs font-bold text-slate-400">
-                                                            <Calendar className="w-3 h-3 mr-1.5 text-[#CA9C68]" />
-                                                            <span>{event.date}</span>
-                                                        </div>
-                                                        {activeTab === "shared" && (
-                                                            <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                                                                <p className="break-words leading-relaxed">Owner username: <span className="normal-case text-white">{ownerDetails.username.toLowerCase()}</span></p>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                    <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                                        {(activeTab === 'hosted' ? userEvents : sharedEvents).map((event) => (
+                                            <DashboardEventCard
+                                                key={event.id}
+                                                event={event}
+                                                guests={consoleEventStats[event.id]?.guests}
+                                                onOpen={() => router.push(`/host?view=manage&level=event-details&eventId=${event.id}`)}
+                                                footer={activeTab === "shared" && (
+                                                    <p className="mt-2 truncate text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                                                        Owner: <span className="normal-case text-white">{getEventOwnerName(event)}</span>
+                                                    </p>
+                                                )}
+                                            />
+                                        ))}
 
                                         {(activeTab === 'hosted' ? userEvents : sharedEvents).length === 0 && (
                                             <div className="col-span-full h-64 rounded-[1.5rem] border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-400">
@@ -4081,7 +4249,7 @@ function DashboardContent() {
 
                             {manageLevel === "event-details" && selectedMainEvent && (
                                 <div className="space-y-8">
-                                    <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-xl">
+                                    <div className="relative overflow-hidden rounded-[2rem] border border-[#CA9C68]/25 bg-neutral-950 shadow-2xl shadow-black/50">
                                         <div
                                             ref={(node) => {
                                                 if (activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id) {
@@ -4099,13 +4267,14 @@ function DashboardContent() {
                                             style={activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id ? { touchAction: "none" } : undefined}
                                         >
                                             <img
-                                                src={resolveEventCoverImage(activeEventDetailEvent?.coverImage, 'preview')}
+                                                src={resolveEventCoverImage(activeEventDetailEvent?.coverImage, 'preview', activeEventDetailEvent?.category || selectedMainEvent.category)}
                                                 alt={activeEventDetailEvent?.title || selectedMainEvent.title}
                                                 draggable={false}
                                                 className="h-full w-full select-none"
                                                 style={getCoverImageStyle(activeEventDetailEvent)}
                                             />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
+                                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#080a14] via-[#080a14]/55 to-black/10" />
+                                            <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/45 to-transparent" />
                                             {activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id && (
                                                 <div className="pointer-events-none absolute inset-x-6 top-6 z-20 rounded-full border border-white/15 bg-black/60 px-4 py-2 text-center text-xs font-black uppercase tracking-[0.2em] text-white/90 backdrop-blur-md">
                                                     Drag image
@@ -4120,32 +4289,34 @@ function DashboardContent() {
                                                 </div>
                                             )}
                                             {!coverPositionEvent && (
-                                            <div className="absolute right-6 top-6 z-10 flex flex-wrap justify-end gap-2">
+                                            <div className="absolute right-3 top-3 z-10 flex items-start gap-0.5 sm:right-6 sm:top-5 sm:gap-2">
                                                 {activeEventDetailEvent && (
                                                     <>
                                                         <button
                                                             onClick={() => handleToggleCoverMode(activeEventDetailEvent)}
                                                             disabled={status === "uploading"}
-                                                            className="flex items-center gap-2 rounded-full border border-white/30 bg-slate-950/40 px-4 py-2 text-xs font-black uppercase tracking-widest text-white shadow-lg backdrop-blur-md transition-colors hover:bg-slate-950/60 disabled:cursor-not-allowed disabled:opacity-60"
+                                                            className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
                                                         >
-                                                            <RefreshCw className="h-4 w-4" />
-                                                            <span>{(activeEventDetailEvent.coverMode || "fill") === "fill" ? "Fit" : "Fill"}</span>
+                                                            {(activeEventDetailEvent.coverMode || "fill") === "fill"
+                                                                ? <Maximize2 className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
+                                                                : <Minimize2 className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />}
+                                                            <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs">{(activeEventDetailEvent.coverMode || "fill") === "fill" ? "Fit" : "Fill"}</span>
                                                         </button>
                                                         {(activeEventDetailEvent.coverMode || "fill") === "fill" && (
                                                             <button
                                                                 onClick={() => openCoverPosition(activeEventDetailEvent)}
                                                                 disabled={status === "uploading"}
-                                                                className="flex items-center gap-2 rounded-full border border-white/30 bg-slate-950/40 px-4 py-2 text-xs font-black uppercase tracking-widest text-white shadow-lg backdrop-blur-md transition-colors hover:bg-slate-950/60 disabled:cursor-not-allowed disabled:opacity-60"
+                                                                className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
                                                             >
-                                                                <Settings className="h-4 w-4" />
-                                                                <span>Position</span>
+                                                                <Settings className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
+                                                                <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs">Position</span>
                                                             </button>
                                                         )}
                                                     </>
                                                 )}
-                                                <label className="flex cursor-pointer items-center gap-2 rounded-full border border-white/30 bg-slate-950/40 px-4 py-2 text-xs font-black uppercase tracking-widest text-white shadow-lg backdrop-blur-md transition-colors hover:bg-slate-950/60">
-                                                    <Camera className="h-4 w-4" />
-                                                    <span>Change Cover</span>
+                                                <label className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 cursor-pointer">
+                                                    <ImageIcon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
+                                                    <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs">Change Cover</span>
                                                     <input
                                                         type="file"
                                                         accept="image/*"
@@ -4157,125 +4328,90 @@ function DashboardContent() {
                                                 <button
                                                     onClick={() => activeEventDetailEvent && handleRemoveCoverForEvent(activeEventDetailEvent)}
                                                     disabled={status === "uploading"}
-                                                    className="rounded-full border border-rose-300/40 bg-rose-500/20 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-100 shadow-lg backdrop-blur-md transition-colors hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 hover:text-rose-200"
                                                 >
-                                                    Remove Cover
+                                                    <Trash2 className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
+                                                    <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs">Remove Cover</span>
                                                 </button>
                                             </div>
                                             )}
-                                            <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8">
-                                                <h3 className="text-3xl font-bold text-white sm:text-4xl">{activeEventDetailEvent?.title || selectedMainEvent.title}</h3>
-                                                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                                    <div className="flex items-center gap-2 text-sm font-bold text-slate-300">
-                                                        <Calendar className="h-4 w-4 text-[#CA9C68]" />
-                                                        <span>{formatEventDate(activeEventDetailEvent?.date || selectedMainEvent.date)}</span>
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        <button
-                                                            onClick={(e) => activeEventDetailEvent && handleRenameClick(e, activeEventDetailEvent, "title")}
-                                                            className="flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-white backdrop-blur-md transition-colors hover:bg-white/20"
-                                                        >
-                                                            <Pencil className="h-4 w-4" />
-                                                            <span>Edit Title</span>
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => activeEventDetailEvent && handleRenameClick(e, activeEventDetailEvent, "date")}
-                                                            className="flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-white backdrop-blur-md transition-colors hover:bg-white/20"
-                                                        >
-                                                            <Calendar className="h-4 w-4" />
-                                                            <span>Edit Date</span>
-                                                        </button>
-                                                        <button
-                                                            onClick={() => activeEventDetailEvent && handleShareEventLink(activeEventDetailEvent)}
-                                                            className="flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-white backdrop-blur-md transition-colors hover:bg-white/20"
-                                                        >
-                                                            <Share2 className="h-4 w-4" />
-                                                            <span>Share</span>
-                                                        </button>
-                                                    </div>
+                                            <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-4 p-6 sm:flex-row sm:items-end sm:justify-between sm:p-8">
+                                                <div className="min-w-0">
+                                                    <h3 className="line-clamp-2 break-words font-serif text-5xl font-semibold leading-[1.15] text-[#F5EFE6] sm:text-7xl">{activeEventDetailEvent?.title || selectedMainEvent.title}</h3>
+                                                    <p className="mt-3 font-sans text-base text-white/85 sm:text-xl">{formatEventDate(activeEventDetailEvent?.date || selectedMainEvent.date)}</p>
+                                                </div>
+                                                <div className="flex shrink-0 items-end gap-1 sm:gap-3">
+                                                    <button
+                                                        onClick={(e) => activeEventDetailEvent && handleRenameClick(e, activeEventDetailEvent, "title")}
+                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                    >
+                                                        <Pencil className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />
+                                                        <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs sm:text-sm">Edit Title</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => activeEventDetailEvent && handleRenameClick(e, activeEventDetailEvent, "date")}
+                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                    >
+                                                        <Calendar className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />
+                                                        <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs sm:text-sm">Edit Date</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => activeEventDetailEvent && handleShareEventLink(activeEventDetailEvent)}
+                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                    >
+                                                        <Share2 className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />
+                                                        <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs sm:text-sm">Share</span>
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3 rounded-[1.75rem] border border-white/10 bg-neutral-950/90 p-2 sm:grid-cols-4">
-                                        <button
-                                            onClick={() => setActiveEventDetailTab("galleries")}
-                                            className="group flex min-h-28 flex-col items-start justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
-                                        >
-                                            <span className={cn(
-                                                "flex h-10 w-10 items-center justify-center rounded-2xl",
-                                                activeEventDetailTab === "galleries" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
-                                            )}>
-                                                <Camera className="h-5 w-5" />
-                                            </span>
-                                            <span>
-                                                <span className="block text-base font-black text-white">Galleries</span>
-                                                <span className="mt-1 block text-xs font-bold text-slate-400">Photos and albums</span>
-                                            </span>
-                                        </button>
-
-                                        <button
-                                            onClick={() => {
-                                                setActiveEventDetailTab("permissions");
-                                                setManageMode("list");
-                                            }}
-                                            className="group relative flex min-h-28 flex-col items-start justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
-                                        >
-                                            <span className={cn(
-                                                "flex h-10 w-10 items-center justify-center rounded-2xl",
-                                                activeEventDetailTab === "permissions" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
-                                            )}>
-                                                <ShieldCheck className="h-5 w-5" />
-                                            </span>
-                                            <span>
-                                                <span className="block text-base font-black text-white">Permissions</span>
-                                                <span className="mt-1 block text-xs font-bold text-slate-400">Guest access</span>
-                                            </span>
-                                            {eventDetailLogs.filter(log => log.status === "pending").length > 0 && (
-                                                <span className="absolute right-4 top-4 rounded-full bg-[#CA9C68] px-2 py-0.5 text-[10px] font-black text-slate-950">
-                                                    {eventDetailLogs.filter(log => log.status === "pending").length}
-                                                </span>
-                                            )}
-                                        </button>
-
-                                        <button
-                                            onClick={() => {
-                                                setActiveEventDetailTab("design");
-                                                setManageMode("list");
-                                            }}
-                                            className="group flex min-h-28 flex-col items-start justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
-                                        >
-                                            <span className={cn(
-                                                "flex h-10 w-10 items-center justify-center rounded-2xl",
-                                                activeEventDetailTab === "design" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
-                                            )}>
-                                                <LayoutDashboard className="h-5 w-5" />
-                                            </span>
-                                            <span>
-                                                <span className="block text-base font-black text-white">Design</span>
-                                                <span className="mt-1 block text-xs font-bold text-slate-400">Theme and style</span>
-                                            </span>
-                                        </button>
-
-                                        <button
-                                            onClick={() => {
-                                                setActiveEventDetailTab("partners");
-                                                setManageMode("list");
-                                            }}
-                                            className="group flex min-h-28 flex-col items-start justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
-                                        >
-                                            <span className={cn(
-                                                "flex h-10 w-10 items-center justify-center rounded-2xl",
-                                                activeEventDetailTab === "partners" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
-                                            )}>
-                                                <Users className="h-5 w-5" />
-                                            </span>
-                                            <span>
-                                                <span className="block text-base font-black text-white">Partners</span>
-                                                <span className="mt-1 block text-xs font-bold text-slate-400">Linked vendors</span>
-                                            </span>
-                                        </button>
+                                    {/* sm:grid-cols-4 again when the Partners tab comes back */}
+                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                                        {([
+                                            { id: "galleries", label: "Galleries", subtitle: "Photos and Videos", Icon: GalleriesIcon },
+                                            { id: "permissions", label: "Permissions", subtitle: "Event access control", Icon: PermissionsIcon },
+                                            { id: "design", label: "Design", subtitle: "Theme and style", Icon: DesignIcon },
+                                            // Hidden until Phase 2 (comes with EB Business and EB Network). To restore, uncomment:
+                                            // { id: "partners", label: "Partners", subtitle: "Linked vendors", Icon: PartnersIcon },
+                                        ] as const).map(({ id, label, subtitle, Icon }) => {
+                                            const isActive = activeEventDetailTab === id;
+                                            const pendingCount = id === "permissions"
+                                                ? eventDetailLogs.filter(log => log.status === "pending").length
+                                                : 0;
+                                            return (
+                                                <button
+                                                    key={id}
+                                                    onClick={() => {
+                                                        setActiveEventDetailTab(id);
+                                                        if (id !== "galleries") setManageMode("list");
+                                                    }}
+                                                    aria-pressed={isActive}
+                                                    className={cn(
+                                                        "group relative flex min-h-[5.5rem] items-center overflow-hidden rounded-2xl border px-3 py-4 text-left transition-colors sm:px-5 sm:py-5",
+                                                        isActive
+                                                            ? "border-[#CA9C68]/70 bg-gradient-to-br from-[#CA9C68]/[0.09] via-neutral-950 to-neutral-950"
+                                                            : "border-white/10 bg-gradient-to-br from-white/[0.04] to-neutral-950 hover:border-white/20 hover:from-white/[0.07]"
+                                                    )}
+                                                >
+                                                    {isActive && (
+                                                        <span className="absolute inset-x-0 top-0 h-[3px] bg-[#CA9C68]" />
+                                                    )}
+                                                    <Icon className="h-6 w-6 shrink-0 text-[#CA9C68] sm:h-8 sm:w-8" />
+                                                    <span className="mx-2.5 h-10 w-px shrink-0 bg-white/10 sm:mx-5 sm:h-12" />
+                                                    <span className="min-w-0">
+                                                        <span className="block truncate text-sm font-semibold text-white sm:text-lg">{label}</span>
+                                                        <span className="mt-0.5 block text-[11px] leading-snug text-neutral-400 sm:mt-1 sm:text-sm">{subtitle}</span>
+                                                    </span>
+                                                    {pendingCount > 0 && (
+                                                        <span className="absolute right-2 top-2 rounded-full bg-[#CA9C68] px-1.5 py-0.5 text-[10px] leading-none sm:right-3 sm:top-3 sm:px-2 font-black text-slate-950">
+                                                            {pendingCount}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
 
                                     <div className={cn(
@@ -4283,146 +4419,158 @@ function DashboardContent() {
                                         isInlineEventDetailGalleryEditor && "hidden"
                                     )}>
                                         {activeEventDetailTab === "galleries" && (
-                                            <div className="space-y-5">
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <div>
-                                                        <h4 className="text-xl font-black text-white">Galleries</h4>
-                                                        <p className="text-sm font-bold text-slate-400">Primary gallery and sub-galleries for this event.</p>
+                                            <div className="space-y-6">
+                                                <div className="flex flex-wrap items-center justify-between gap-4">
+                                                    <div className="flex min-w-0 items-center gap-3">
+                                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#CA9C68]/30 bg-[#CA9C68]/10">
+                                                            <GalleryChaptersIcon className="h-6 w-6 text-[#CA9C68]" aria-hidden="true" />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <h4 className="font-serif text-3xl font-semibold leading-tight text-[#F5EFE6]">Galleries</h4>
+                                                                <GalleryTypesInfo />
+                                                            </div>
+                                                            <p className="text-sm text-slate-400">Your celebration in chapters</p>
+                                                        </div>
                                                     </div>
                                                     <button
                                                         onClick={() => setIsCreateSubGalleryModalOpen(true)}
-                                                        className="flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-950 transition-transform hover:-translate-y-0.5"
+                                                        className="flex items-center gap-2 rounded-xl bg-[#CA9C68] px-4 py-2.5 text-sm font-bold text-slate-950 transition-transform hover:-translate-y-0.5"
                                                     >
                                                         <Plus className="h-4 w-4" />
                                                         <span>Add Sub-Gallery</span>
                                                     </button>
                                                 </div>
 
-                                                <div className="space-y-6">
-                                                    <section className="space-y-3">
-                                                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#CA9C68]">Primary Gallery</p>
-                                                        <div className="flex flex-wrap gap-4">
-                                                            <div
-                                                                className={cn(
-                                                                    "group relative overflow-hidden rounded-[1.5rem] border shadow-lg transition-all cursor-pointer hover:border-[#CA9C68]/50 w-full sm:w-[280px] aspect-square flex-shrink-0",
-                                                                    selectedEventId === selectedMainEvent.id && manageMode === "add-image"
-                                                                        ? "border-[#CA9C68]/70 shadow-[#13191F]/10"
-                                                                        : "border-slate-700 shadow-slate-950/10"
-                                                                )}
-                                                                onClick={() => openUploadForEvent(selectedMainEvent.id, selectedMainEvent.title)}
-                                                            >
+                                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                                    <div
+                                                        className={cn(
+                                                            "group relative min-h-[220px] cursor-pointer overflow-hidden rounded-2xl border bg-neutral-900 shadow-lg transition-all hover:border-[#CA9C68]/70 sm:col-span-2",
+                                                            selectedEventId === selectedMainEvent.id && manageMode === "add-image"
+                                                                ? "border-[#CA9C68]/70"
+                                                                : "border-[#CA9C68]/35"
+                                                        )}
+                                                        onClick={() => openUploadForEvent(selectedMainEvent.id, selectedMainEvent.title)}
+                                                    >
+                                                        <img
+                                                            src={resolveEventCoverImage(selectedMainEvent.coverImage, 'thumbnail', selectedMainEvent.category)}
+                                                            alt={selectedMainEvent.title}
+                                                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                        />
+                                                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
+
+                                                        <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-5">
+                                                            <div className="flex justify-end">
+                                                                <span className="rounded-full border border-[#CA9C68]/60 bg-black/55 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#E8C9A0] shadow-[0_0_14px_rgba(202,156,104,0.35)] backdrop-blur-sm">Primary Collection</span>
+                                                            </div>
+                                                            <div className="flex items-end justify-between gap-3">
+                                                                <h5 className="min-w-0 flex-1 line-clamp-2 font-serif text-2xl font-semibold leading-tight text-white drop-shadow-md sm:text-3xl">Home (Primary Gallery)</h5>
+                                                                <span className="flex shrink-0 items-center gap-1 rounded-lg bg-[#CA9C68] px-3 py-2 text-xs font-bold text-slate-950 transition-colors group-hover:bg-[#d8ad7c]">
+                                                                    <span>Open</span>
+                                                                    <ChevronRight className="h-3.5 w-3.5" />
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {loadingEventDetail ? (
+                                                        <div className="flex min-h-[220px] items-center justify-center rounded-2xl border border-slate-700 p-8 text-slate-400">
+                                                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                                            <span className="text-sm font-bold">Loading sub-galleries...</span>
+                                                        </div>
+                                                    ) : eventDetailGalleries.map((gallery) => (
+                                                        <div
+                                                            key={gallery.id}
+                                                            className={cn(
+                                                                "group flex min-h-[220px] cursor-pointer flex-col overflow-hidden rounded-2xl border bg-neutral-900 p-2.5 shadow-lg transition-all hover:border-[#CA9C68]/70",
+                                                                selectedEventId === gallery.id && manageMode === "add-image"
+                                                                    ? "border-[#CA9C68]/70"
+                                                                    : "border-[#CA9C68]/35"
+                                                            )}
+                                                            onClick={() => openUploadForEvent(gallery.id, gallery.title)}
+                                                        >
+                                                            <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-neutral-800">
                                                                 <img
-                                                                    src={resolveEventCoverImage(selectedMainEvent.coverImage, 'thumbnail')}
-                                                                    alt={selectedMainEvent.title}
+                                                                    src={resolveEventCoverImage(gallery.coverImage || selectedMainEvent.coverImage, 'thumbnail', gallery.category || selectedMainEvent.category)}
+                                                                    alt={gallery.title}
                                                                     className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                                                 />
-                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
-
-                                                                <div className="absolute inset-0 p-3 flex flex-col justify-between">
-                                                                    <div className="flex">
-                                                                        <div className="flex items-center gap-1 rounded-lg bg-black/65 border border-white/20 px-2 py-1">
-                                                                            <Home className="h-2.5 w-2.5 text-white/90" />
-                                                                            <span className="text-[9px] font-bold tracking-wider text-white/90">PRIMARY</span>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <div className="flex items-end justify-between gap-2">
-                                                                        <div className="min-w-0 flex-1">
-                                                                            <h5 className="text-[13px] font-bold text-white drop-shadow-md line-clamp-2 leading-tight">{selectedMainEvent.title || 'Home'}</h5>
-                                                                        </div>
-                                                                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 border border-white/30 backdrop-blur-sm transition-colors group-hover:bg-white/30">
-                                                                            <ChevronRight className="h-3 w-3 text-white" />
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-1 items-center justify-between gap-2 px-1.5 pt-3 pb-1">
+                                                                <h5 className="min-w-0 flex-1 truncate font-serif text-xl font-semibold text-white" title={gallery.title}>{gallery.title}</h5>
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(gallery.id); }}
+                                                                    aria-label={`Delete ${gallery.title}`}
+                                                                    title="Delete gallery"
+                                                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-rose-400 transition-colors hover:border-rose-400/40 hover:bg-rose-500/15"
+                                                                >
+                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                </button>
                                                             </div>
                                                         </div>
-                                                    </section>
+                                                    ))}
 
-                                                    <section className="space-y-3">
-                                                        <div className="flex items-center justify-between gap-3">
-                                                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#CA9C68]">Sub-Galleries</p>
-                                                        </div>
-
-                                                        {loadingEventDetail ? (
-                                                            <div className="flex items-center justify-center rounded-[1.5rem] border border-slate-700 p-8 text-slate-400">
-                                                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                                                <span className="text-sm font-bold">Loading sub-galleries...</span>
-                                                            </div>
-                                                        ) : eventDetailGalleries.length > 0 ? (
-                                                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                                                                {eventDetailGalleries.map((gallery) => (
-                                                                    <div
-                                                                        key={gallery.id}
-                                                                        className={cn(
-                                                                            "group relative aspect-square overflow-hidden rounded-[1.5rem] border shadow-lg transition-all cursor-pointer hover:border-[#CA9C68]/50",
-                                                                            selectedEventId === gallery.id && manageMode === "add-image"
-                                                                                ? "border-[#CA9C68]/70 shadow-[#13191F]/10"
-                                                                                : "border-slate-700 shadow-slate-950/10"
-                                                                        )}
-                                                                        onClick={() => openUploadForEvent(gallery.id, gallery.title)}
-                                                                    >
-                                                                        <img
-                                                                            src={resolveEventCoverImage(gallery.coverImage || selectedMainEvent.coverImage, 'thumbnail')}
-                                                                            alt={gallery.title}
-                                                                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                                                        />
-                                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
-
-                                                                        <div className="absolute inset-0 p-3 flex flex-col justify-between">
-                                                                            <div className="flex justify-between items-start">
-                                                                                <div className="flex items-center gap-1 rounded-lg bg-black/65 border border-white/20 px-2 py-1">
-                                                                                    <ImageIcon className="h-2.5 w-2.5 text-white/90" />
-                                                                                    <span className="text-[9px] font-bold tracking-wider text-white/90">SUB-GALLERY</span>
-                                                                                </div>
-                                                                                <div className="flex gap-2 relative z-20">
-                                                                                    <button
-                                                                                        onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(gallery.id); }}
-                                                                                        className="flex h-6 w-6 items-center justify-center rounded-full bg-black/65 border border-white/15 backdrop-blur-sm transition-colors shadow-sm hover:bg-black"
-                                                                                    >
-                                                                                        <Trash2 className="h-3 w-3 text-red-500" />
-                                                                                    </button>
-                                                                                </div>
-                                                                            </div>
-
-                                                                            <div className="flex items-end justify-between gap-2">
-                                                                                <div className="min-w-0 flex-1">
-                                                                                    <h5 className="text-[13px] font-bold text-white drop-shadow-md line-clamp-2 leading-tight">{gallery.title}</h5>
-                                                                                </div>
-                                                                                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 border border-white/30 backdrop-blur-sm transition-colors group-hover:bg-white/30">
-                                                                                    <ChevronRight className="h-3 w-3 text-white" />
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="rounded-[1.5rem] border border-dashed border-slate-700 bg-slate-900/30 p-8 text-center">
-                                                                <ImageIcon className="mx-auto mb-3 h-8 w-8 text-slate-500" />
-                                                                <p className="text-sm font-bold text-slate-400">No sub-galleries created yet.</p>
-                                                            </div>
-                                                        )}
-                                                    </section>
-
-                                                    <div className="pt-6 flex justify-center">
-                                                        <button
-                                                            onClick={() => setShowDeleteConfirm(selectedMainEvent.id)}
-                                                            className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-8 py-3 text-sm font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-colors"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                            <span>Delete Event</span>
-                                                        </button>
-                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsCreateSubGalleryModalOpen(true)}
+                                                        className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[#CA9C68]/50 bg-transparent text-[#CA9C68] transition-colors hover:border-[#CA9C68] hover:bg-[#CA9C68]/5"
+                                                    >
+                                                        <Plus className="h-8 w-8" strokeWidth={1.5} />
+                                                        <span className="text-base">Create Sub-Gallery</span>
+                                                    </button>
+                                                </div>
+                                                <div className="pt-6 flex justify-center">
+                                                    <button
+                                                        onClick={() => setShowDeleteConfirm(selectedMainEvent.id)}
+                                                        className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-8 py-3 text-sm font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-colors"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                        <span>Delete Event</span>
+                                                    </button>
                                                 </div>
                                             </div>
                                         )}
 
                                         {activeEventDetailTab === "permissions" && (
                                             <div className="space-y-5">
-                                                <div>
-                                                    <h4 className="text-xl font-black text-white">Permissions</h4>
-                                                    <p className="text-sm font-bold text-slate-400">Approve, deny, or remove guest access requests for this event.</p>
+                                                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                                    <div>
+                                                        <h4 className="text-xl font-black text-white">Permissions</h4>
+                                                        <p className="text-sm font-bold text-slate-400">Approve, deny, or remove guest access requests for this event.</p>
+                                                    </div>
+                                                    {canChangeSelectedEventVisibility && selectedMainEvent && (
+                                                        <div className="w-full shrink-0 sm:w-[22rem]">
+                                                            <button
+                                                                type="button"
+                                                                role="switch"
+                                                                aria-checked={selectedMainEvent.isPublic}
+                                                                aria-label="Public event"
+                                                                aria-describedby="event-visibility-description"
+                                                                disabled={savingVisibility}
+                                                                onClick={() => void changeEventVisibility(!selectedMainEvent.isPublic)}
+                                                                className={cn(
+                                                                    "flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60 disabled:cursor-wait",
+                                                                    selectedMainEvent.isPublic
+                                                                        ? "border-[#CA9C68]/70 bg-[#CA9C68]/10"
+                                                                        : "border-slate-700 bg-slate-900/45 hover:border-slate-500 hover:bg-slate-900/70"
+                                                                )}
+                                                            >
+                                                                <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-colors", selectedMainEvent.isPublic ? "bg-[#CA9C68] text-slate-950" : "bg-slate-800 text-slate-300")}>
+                                                                    {savingVisibility ? <Loader2 className="h-4 w-4 animate-spin" /> : selectedMainEvent.isPublic ? <PublicIcon className="h-5 w-5" /> : <PrivateIcon className="h-5 w-5" />}
+                                                                </span>
+                                                                <span className="min-w-0 flex-1">
+                                                                    <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Event visibility</span>
+                                                                    <span className={cn("block text-sm font-bold", selectedMainEvent.isPublic ? "text-[#E2B77F]" : "text-slate-200")}>{selectedMainEvent.isPublic ? "Public" : "Private"}</span>
+                                                                    <span id="event-visibility-description" className="mt-0.5 block text-xs text-slate-400">{selectedMainEvent.isPublic ? "Anyone with the link can view this event and its sub-galleries." : "Guests need your approval to view this event."}</span>
+                                                                </span>
+                                                                <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", selectedMainEvent.isPublic ? "bg-[#CA9C68]" : "bg-slate-700", savingVisibility && "opacity-60")}>
+                                                                    <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", selectedMainEvent.isPublic ? "translate-x-5" : "translate-x-0.5")} />
+                                                                </span>
+                                                            </button>
+                                                            {savingVisibility && <p role="status" className="sr-only">Saving…</p>}
+                                                            {visibilityError && <p role="alert" className="mt-2 text-xs text-rose-300">{visibilityError}</p>}
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 {loadingEventDetail ? (
@@ -4437,25 +4585,19 @@ function DashboardContent() {
                                                                 <h5 className="text-sm font-black uppercase tracking-[0.18em] text-slate-400">
                                                                     Pending Requests ({eventDetailPendingLogs.length})
                                                                 </h5>
-                                                                {eventDetailPendingLogs.map(renderEventDetailPermissionCard)}
+                                                                {renderEventDetailPermissionTable(eventDetailPendingLogs, true)}
                                                             </section>
                                                         )}
 
-                                                        {eventDetailAdminLogs.length > 0 && (
-                                                            <section className="space-y-3">
-                                                                <h5 className="text-sm font-black uppercase tracking-[0.18em] text-[#CA9C68]">
-                                                                    Admins ({eventDetailAdminLogs.length})
-                                                                </h5>
-                                                                {eventDetailAdminLogs.map(renderEventDetailPermissionCard)}
-                                                            </section>
-                                                        )}
-
-                                                        {eventDetailMemberLogs.length > 0 && (
+                                                        {eventDetailApprovedLogs.length > 0 && (
                                                             <section className="space-y-3">
                                                                 <h5 className="text-sm font-black uppercase tracking-[0.18em] text-slate-400">
-                                                                    Members ({eventDetailMemberLogs.length})
+                                                                    Members ({eventDetailApprovedLogs.length})
+                                                                    {eventDetailAdminCount > 0 && (
+                                                                        <span className="text-[#CA9C68]"> · {eventDetailAdminCount} {eventDetailAdminCount === 1 ? "Admin" : "Admins"}</span>
+                                                                    )}
                                                                 </h5>
-                                                                {eventDetailMemberLogs.map(renderEventDetailPermissionCard)}
+                                                                {renderEventDetailPermissionTable(eventDetailApprovedLogs, false)}
                                                             </section>
                                                         )}
                                                     </div>
@@ -4468,47 +4610,90 @@ function DashboardContent() {
                                         )}
 
                                         {activeEventDetailTab === "design" && (
-                                            <div className="space-y-4">
-                                                <h4 className="text-xl font-black text-white mb-2">Event Design</h4>
-
-                                                <div
-                                                    onClick={() => setShowCategoryModal(true)}
-                                                    className="flex items-center justify-between rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-4 cursor-pointer hover:border-[#CA9C68]/50 transition-colors"
-                                                >
-                                                    <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Event Type</p>
-                                                        <p className="text-base font-bold text-white">{selectedMainEvent.category || 'Select Type'}</p>
-                                                    </div>
-                                                    <ChevronRight className="h-4 w-4 text-[#CA9C68]" />
+                                            <div className="space-y-5">
+                                                <div>
+                                                    <h4 className="text-xl font-black text-white">Event Design</h4>
+                                                    <p className="text-sm font-bold text-slate-400">Event type and the template guests see on the app and website.</p>
                                                 </div>
 
-                                                <div
-                                                    onClick={() => {
-                                                        setTemplateTargetEvent(selectedMainEvent);
-                                                        setShowTemplateModal(true);
-                                                    }}
-                                                    className="flex items-center justify-between rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-4 cursor-pointer hover:border-[#CA9C68]/50 transition-colors"
-                                                >
-                                                    <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Change Template</p>
-                                                        <p className="text-base font-bold text-white">
-                                                            {selectedMainEvent.templateId ? TEMPLATE_THEMES.find(t => t.id === selectedMainEvent.templateId)?.label : 'Hero (Default)'}
-                                                        </p>
+                                                <div className="grid gap-4 lg:grid-cols-12">
+                                                    <div className="flex flex-col gap-4 lg:col-span-5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowCategoryModal(true)}
+                                                            className="flex flex-1 items-center justify-between gap-3 rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-5 text-left transition-colors hover:border-[#CA9C68]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60"
+                                                        >
+                                                            <span className="min-w-0">
+                                                                <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Event Type</span>
+                                                                <span className="mt-1 block truncate font-serif text-2xl font-bold text-[#FFF7EB]">{selectedMainEvent.category || 'Select Type'}</span>
+                                                            </span>
+                                                            <ChevronRight className="h-5 w-5 shrink-0 text-[#CA9C68]" />
+                                                        </button>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setTemplateTargetEvent(selectedMainEvent);
+                                                                setShowTemplateModal(true);
+                                                            }}
+                                                            className="flex flex-1 items-center justify-between gap-3 rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-5 text-left transition-colors hover:border-[#CA9C68]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60"
+                                                        >
+                                                            <span className="min-w-0">
+                                                                <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Template</span>
+                                                                <span className="mt-1 block truncate font-serif text-2xl font-bold text-[#CA9C68]">{designTemplateLabel}</span>
+                                                            </span>
+                                                            <ChevronRight className="h-5 w-5 shrink-0 text-[#CA9C68]" />
+                                                        </button>
                                                     </div>
-                                                    <ChevronRight className="h-4 w-4 text-[#CA9C68]" />
+
+                                                    <div className="flex flex-col justify-between gap-5 rounded-[1.2rem] border border-[#CA9C68]/25 bg-[linear-gradient(135deg,rgba(202,156,104,0.12),rgba(27,33,31,0.5)_60%)] p-5 sm:p-6 lg:col-span-7">
+                                                        <div className="min-w-0">
+                                                            <div className="flex items-center gap-3">
+                                                                {designTemplate && (
+                                                                    <span
+                                                                        className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10"
+                                                                        style={{ backgroundColor: designTemplate.background?.dark || "#000" }}
+                                                                    >
+                                                                        <span className="h-3 w-3 rounded-full" style={{ backgroundColor: designTemplate.accent }} />
+                                                                    </span>
+                                                                )}
+                                                                <p className="min-w-0 truncate font-serif text-2xl font-bold text-[#CA9C68] sm:text-3xl">{designTemplateLabel}</p>
+                                                            </div>
+                                                            {designTemplate?.desc && (
+                                                                <p className="mt-2 text-base text-slate-300">{designTemplate.desc}</p>
+                                                            )}
+                                                        </div>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => window.open(`/events/${encodeURIComponent(selectedMainEvent.id)}`, '_blank', 'noopener,noreferrer')}
+                                                            className="flex w-full items-center gap-4 rounded-2xl border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-5 py-4 text-left transition-colors hover:bg-[#CA9C68]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60"
+                                                        >
+                                                            <Eye className="h-6 w-6 shrink-0 text-[#CA9C68]" />
+                                                            <span className="min-w-0">
+                                                                <span className="block font-serif text-base font-bold leading-tight text-[#FFF7EB] sm:text-lg">Preview Guest Theme</span>
+                                                                <span className="mt-1 block text-[11px] font-bold uppercase leading-snug tracking-widest text-slate-400">
+                                                                    See how guests view your {designTemplateLabel} theme
+                                                                </span>
+                                                            </span>
+                                                        </button>
+                                                    </div>
                                                 </div>
 
-                                                <div
-                                                    onClick={() => window.open(`/event/${selectedMainEvent.id}`, '_blank')}
-                                                    className="flex items-center justify-between rounded-[1.2rem] border border-[#CA9C68]/30 bg-[#CA9C68]/10 p-4 cursor-pointer hover:bg-[#CA9C68]/20 transition-colors mt-2"
-                                                >
-                                                    <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-[#CA9C68] mb-1">Preview Guest Theme</p>
-                                                        <p className="text-xs font-medium text-slate-300 mt-1">
-                                                            See how guests view your {selectedMainEvent.templateId ? TEMPLATE_THEMES.find(t => t.id === selectedMainEvent.templateId)?.label : 'Hero'} theme
-                                                        </p>
+                                                <div className="rounded-[1.5rem] border border-slate-700 bg-slate-950/80 p-5 sm:p-6">
+                                                    <div className="mb-5">
+                                                        <h5 className="text-lg font-black text-white">Guest Home Preview</h5>
+                                                        <p className="text-xs font-bold text-slate-400">A quick sketch of the app and website in your template&apos;s colours. Use Preview Guest Theme for the real page.</p>
                                                     </div>
-                                                    <Eye className="h-4 w-4 text-[#CA9C68]" />
+                                                    <EventDesignPreview
+                                                        eventId={selectedMainEvent.id}
+                                                        title={selectedMainEvent.title}
+                                                        eventType={selectedMainEvent.category}
+                                                        dateLabel={formatEventDate(selectedMainEvent.date)}
+                                                        coverUrl={resolveEventCoverImage(selectedMainEvent.coverImage, 'preview', selectedMainEvent.category)}
+                                                        galleryNames={eventDetailGalleries.filter(gallery => gallery.id !== selectedMainEvent.id).map(gallery => gallery.title || gallery.id)}
+                                                        templateId={selectedMainEvent.templateId}
+                                                    />
                                                 </div>
                                             </div>
                                         )}
@@ -4517,7 +4702,7 @@ function DashboardContent() {
                                             <div className="space-y-6">
                                                 <div className="rounded-[1.8rem] border border-[#CA9C68]/20 bg-slate-900/60 p-6 text-left shadow-xl backdrop-blur-md sm:p-8">
                                                     <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#CA9C68]/30 bg-[#CA9C68]/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#CA9C68]">
-                                                        <Users className="h-4 w-4 text-[#CA9C68]" />
+                                                        <PartnersIcon className="h-4 w-4 text-[#CA9C68]" />
                                                         <span>Event Partners · Phase 2</span>
                                                     </div>
                                                     <h4 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
@@ -4549,7 +4734,11 @@ function DashboardContent() {
                                     {message && (
                                         <div className={cn(
                                             "rounded-2xl p-4 text-center text-sm font-bold",
-                                            status === "success" ? "bg-emerald-500/10 text-emerald-300" : "bg-rose-500/10 text-rose-300"
+                                            status === "success"
+                                                ? "bg-emerald-500/10 text-emerald-300"
+                                                : status === "error"
+                                                    ? "bg-rose-500/10 text-rose-300"
+                                                    : "bg-sky-500/10 text-sky-300"
                                         )}>
                                             {message}
                                         </div>
@@ -4755,23 +4944,17 @@ function DashboardContent() {
 
                             <AnimatePresence>
                                 {isCreateSubGalleryModalOpen && (
-                                    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm overflow-y-auto">
+                                    <div className={modalStyles.overlay}>
                                         <motion.div
                                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                                             animate={{ opacity: 1, scale: 1, y: 0 }}
                                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                            className="w-full max-w-md bg-[#1a1a1a] p-8 rounded-[2rem] shadow-2xl border border-white/5 my-8 relative"
+                                            className={cn(modalStyles.panel, "my-8")}
                                         >
-                                            <div className="flex items-center justify-between mb-8">
-                                                <h3 className="text-2xl font-bold text-white tracking-tight">New Sub-Gallery</h3>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setIsCreateSubGalleryModalOpen(false)}
-                                                    className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors shrink-0"
-                                                >
-                                                    <X className="w-4 h-4 text-white" />
-                                                </button>
-                                            </div>
+                                            <ModalHeader
+                                                title="New Sub-Gallery"
+                                                onClose={() => setIsCreateSubGalleryModalOpen(false)}
+                                            />
 
                                             <form
                                                 onSubmit={async (e) => {
@@ -4789,20 +4972,20 @@ function DashboardContent() {
                                                         value={eventName}
                                                         onChange={(e) => setEventName(e.target.value)}
                                                         placeholder="Sub-gallery name"
-                                                        className="w-full px-5 py-4 bg-[#262626] border border-white/5 rounded-2xl focus:ring-1 focus:ring-[#CA9C68] transition-all outline-none text-base text-white placeholder-slate-400"
+                                                        className={modalStyles.input}
                                                         required
                                                         autoFocus
                                                     />
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-300 mb-3 ml-1">
+                                                    <label className={modalStyles.label}>
                                                         SUB-GALLERY DATE
                                                     </label>
                                                     <button
                                                         type="button"
                                                         onClick={() => openDatePicker("create")}
-                                                        className="flex w-full items-center justify-between px-5 py-4 bg-[#262626] border border-white/5 rounded-2xl focus:ring-1 focus:ring-[#CA9C68] transition-all outline-none text-base text-left"
+                                                        className={cn(modalStyles.input, "flex items-center justify-between text-left")}
                                                     >
                                                         <div className="flex items-center">
                                                             <Calendar className="w-5 h-5 text-[#CA9C68] mr-3" />
@@ -4817,12 +5000,7 @@ function DashboardContent() {
                                                 <button
                                                     type="submit"
                                                     disabled={status === "uploading"}
-                                                    className={cn(
-                                                        "w-full py-4 mt-2 rounded-2xl font-bold text-[15px] transition-all flex items-center justify-center space-x-3 active:scale-95",
-                                                        status === "uploading"
-                                                            ? "bg-[#806316]/50 text-black/50 cursor-not-allowed"
-                                                            : "bg-[#806316] text-[#2c2203] hover:bg-[#96741b]"
-                                                    )}
+                                                    className={cn(modalStyles.primary, "mt-2 w-full py-4")}
                                                 >
                                                     {status === "uploading" ? (
                                                         <>
@@ -4838,10 +5016,7 @@ function DashboardContent() {
                                                     <motion.div
                                                         initial={{ opacity: 0, y: 5 }}
                                                         animate={{ opacity: 1, y: 0 }}
-                                                        className={cn(
-                                                            "p-4 rounded-2xl text-sm font-bold text-center",
-                                                            status === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-                                                        )}
+                                                        className={status === "success" ? modalStyles.success : modalStyles.error}
                                                     >
                                                         {message}
                                                     </motion.div>
@@ -4861,13 +5036,13 @@ function DashboardContent() {
                                     onDragLeave={handleGalleryDrag}
                                     onDrop={handleGalleryDrop}
                                     className={cn(
-                                        "relative max-w-7xl mx-auto bg-slate-800 p-8 md:p-12 rounded-[2.5rem] shadow-xl border border-slate-700 transition-colors",
+                                        "relative max-w-7xl mx-auto bg-slate-800 p-4 sm:p-8 lg:p-10 rounded-[2rem] shadow-xl border border-slate-700 font-serif transition-colors",
                                         isDraggingPhotos && "border-[#CA9C68] bg-slate-800/95",
                                         isInlineEventDetailGalleryEditor && "mt-8"
                                     )}
                                 >
                                     {isDraggingPhotos && (
-                                        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-[2.5rem] border-2 border-dashed border-[#CA9C68] bg-slate-950/70 backdrop-blur-sm">
+                                        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-[2rem] border-2 border-dashed border-[#CA9C68] bg-slate-950/70 backdrop-blur-sm">
                                             <div className="flex flex-col items-center text-center">
                                                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#CA9C68] text-slate-950 shadow-lg">
                                                     <Upload className="h-8 w-8" />
@@ -4967,78 +5142,77 @@ function DashboardContent() {
                                     </div>
                                     )}
 
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-10">
-                                        <div>
-                                            <h3 className="text-3xl font-bold tracking-tight">Gallery Editor</h3>
-                                            <p className="text-slate-700 font-sans mt-1">Managing memories for <span className="text-white font-bold underline decoration-royal-gold decoration-2 underline-offset-4">{selectedEventName}</span></p>
-                                        </div>
-                                        <div className="flex items-center space-x-3">
+                                    {/* Header bar: back, gallery title, gallery actions */}
+                                    <div className={cn(
+                                        "mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-4 border-b border-slate-700 pb-5 sm:mb-8 md:grid-cols-[minmax(max-content,1fr)_minmax(0,auto)_minmax(max-content,1fr)] md:gap-x-6",
+                                        isInlineEventDetailGalleryEditor && "-mx-4 -mt-4 rounded-t-[2rem] bg-slate-950 px-4 pt-4 sm:-mx-8 sm:-mt-8 sm:px-8 sm:pt-6 lg:-mx-10 lg:-mt-10 lg:px-10"
+                                    )}>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const fallbackParams = new URLSearchParams(searchParams);
+                                                fallbackParams.set("mode", "list");
+                                                fallbackParams.delete("galleryId");
+
+                                                if (isInlineEventDetailGalleryEditor) {
+                                                    goBackOr(`/host?${fallbackParams.toString()}`);
+                                                    setMessage("");
+                                                    setStatus("idle");
+                                                    return;
+                                                }
+
+                                                goBackOr(`/host?${fallbackParams.toString()}`);
+                                            }}
+                                            className="col-start-1 row-start-1 inline-flex items-center gap-1.5 justify-self-start rounded-full py-2 pr-3 text-base font-semibold text-slate-300 transition-colors hover:text-white active:scale-95"
+                                        >
+                                            <ChevronLeft className="h-5 w-5" />
+                                            <span>Galleries</span>
+                                        </button>
+
+                                        <h3
+                                            className="col-span-2 row-start-2 min-w-0 truncate text-center font-serif text-2xl font-semibold tracking-tight text-[#F5EFE6] md:col-span-1 md:col-start-2 md:row-start-1 lg:text-[1.75rem]"
+                                            title={selectedEventName}
+                                        >
+                                            {selectedEventName}
+                                            {isInlineEventDetailGalleryEditor && activeEventDetailEvent && (
+                                                <> · {activeEventDetailEvent.id === selectedMainEvent?.id ? "Home (Primary Gallery)" : "Sub-Gallery"}</>
+                                            )}
+                                        </h3>
+
+                                        <div className="col-start-2 row-start-1 flex items-center justify-end gap-2 sm:gap-2.5 md:col-start-3">
                                             <button
                                                 type="button"
                                                 onClick={handleHostDownloadZip}
                                                 disabled={isHostZipping || currentEventPhotos.length === 0}
-                                                className="flex items-center gap-2 rounded-2xl border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#CA9C68] transition-all hover:bg-[#CA9C68] hover:text-slate-950 disabled:opacity-40"
+                                                aria-label={`Download ${galleryMediaTab === "videos" ? "videos" : "photos"} shown (.ZIP)`}
+                                                title={`Download ${isAnyGalleryFilterActive ? "the filtered " : "all "}${galleryMediaTab === "videos" ? "videos" : "photos"} in this gallery (.ZIP)`}
+                                                className="flex h-10 min-w-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-[#CA9C68]/60 bg-[#CA9C68]/10 px-2.5 font-sans text-sm font-black text-[#E2B77F] transition-colors hover:bg-[#CA9C68]/20 disabled:opacity-40 sm:h-12 sm:px-3.5"
                                             >
                                                 {isHostZipping ? (
                                                     <>
                                                         <Loader2 className="h-4 w-4 animate-spin" />
-                                                        <span>Zipping {hostZipProgress}%</span>
+                                                        <span>{hostZipProgress}%</span>
                                                     </>
                                                 ) : (
                                                     <>
                                                         <Download className="h-4 w-4" />
-                                                        <span>Download All (.ZIP)</span>
+                                                        <span className="hidden sm:inline">Download</span>
                                                     </>
                                                 )}
                                             </button>
 
-                                            {/* View Toggle */}
-                                            <div className="bg-slate-900/50 p-1 rounded-2xl flex items-center">
-                                                <Tooltip text="Grid View">
-                                                    <button
-                                                        onClick={() => setGalleryViewMode("grid")}
-                                                        className={cn(
-                                                            "p-2 rounded-xl transition-all",
-                                                            galleryViewMode === "grid" ? "bg-slate-800 shadow-sm text-white" : "text-slate-400 hover:text-slate-400"
-                                                        )}
-                                                    >
-                                                        <LayoutGrid className="w-5 h-5" />
-                                                    </button>
-                                                </Tooltip>
-                                                <Tooltip text="List View">
-                                                    <button
-                                                        onClick={() => setGalleryViewMode("list")}
-                                                        className={cn(
-                                                            "p-2 rounded-xl transition-all",
-                                                            galleryViewMode === "list" ? "bg-slate-800 shadow-sm text-white" : "text-slate-400 hover:text-slate-400"
-                                                        )}
-                                                    >
-                                                        <List className="w-5 h-5" />
-                                                    </button>
-                                                </Tooltip>
-                                            </div>
-
-                                            <Tooltip text="Back to galleries">
+                                            {isInlineEventDetailGalleryEditor && activeEventDetailEvent && activeEventDetailEvent.id !== selectedMainEvent?.id && (
                                                 <button
-                                                    onClick={() => {
-                                                        const fallbackParams = new URLSearchParams(searchParams);
-                                                        fallbackParams.set("mode", "list");
-                                                        fallbackParams.delete("galleryId");
-
-                                                        if (isInlineEventDetailGalleryEditor) {
-                                                            goBackOr(`/host?${fallbackParams.toString()}`);
-                                                            setMessage("");
-                                                            setStatus("idle");
-                                                            return;
-                                                        }
-
-                                                        goBackOr(`/host?${fallbackParams.toString()}`);
-                                                    }}
-                                                    className="p-3 bg-slate-900/50 hover:bg-slate-600 text-slate-400 hover:text-slate-400 rounded-2xl transition-all active:scale-95"
+                                                    type="button"
+                                                    onClick={() => setShowDeleteConfirm(activeEventDetailEvent.id)}
+                                                    aria-label="Delete Gallery"
+                                                    title="Delete Gallery"
+                                                    className="flex h-10 min-w-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-[#B4616A] px-2.5 font-sans text-sm font-black text-[#FCE8EA] transition-colors hover:bg-[#C26E77] sm:h-12 sm:px-3.5"
                                                 >
-                                                    <ChevronLeft className="w-6 h-6" />
+                                                    <Trash2 className="h-4 w-4" />
+                                                    <span className="hidden sm:inline">Delete</span>
                                                 </button>
-                                            </Tooltip>
+                                            )}
                                         </div>
                                     </div>
 
@@ -5058,16 +5232,11 @@ function DashboardContent() {
                                     )}
 
                                     {isInlineEventDetailGalleryEditor && activeEventDetailEvent && (
-                                        <div className="mb-8 rounded-3xl border border-[#CA9C68]/25 bg-white/[0.04] p-5">
-                                            <div className="mb-3 flex items-end justify-between gap-4">
-                                                <div>
-                                                    <p className="text-sm font-black tracking-wide text-white">Welcome Message</p>
-                                                    <p className="mt-1 text-xs font-bold text-slate-400">
-                                                        For: {activeEventDetailEvent.id === selectedMainEvent?.id ? "Primary Gallery" : activeEventDetailEvent.title}
-                                                    </p>
-                                                </div>
+                                        <div className="mb-6 rounded-2xl border border-[#CA9C68]/55 bg-slate-950/40 p-4 sm:p-5">
+                                            <div className="mb-3 flex items-center justify-between gap-4">
+                                                <p className="text-base font-semibold text-white">Welcome Message</p>
                                                 <span className={cn(
-                                                    "text-xs font-bold",
+                                                    "text-sm",
                                                     galleryMessageText.length >= 200 ? "text-rose-300" : "text-slate-400"
                                                 )}>
                                                     {galleryMessageText.length}/200
@@ -5078,22 +5247,22 @@ function DashboardContent() {
                                                 onChange={(event) => setGalleryMessageText(event.target.value.slice(0, 200))}
                                                 placeholder="Write a brief, elegant welcome note..."
                                                 maxLength={200}
-                                                className="min-h-24 w-full resize-none rounded-2xl border border-[#CA9C68]/20 bg-slate-950/50 p-4 text-sm font-semibold leading-6 text-white outline-none transition-colors placeholder:text-slate-500 focus:border-[#CA9C68]/60"
+                                                className="min-h-[7.5rem] w-full resize-none rounded-xl sm:min-h-[5.5rem] border border-[#CA9C68]/50 bg-slate-950/50 px-4 py-3 text-base leading-7 text-slate-100 outline-none transition-colors placeholder:text-slate-500 focus:border-[#CA9C68]"
                                             />
                                             <div className="mt-3 flex justify-end">
                                                 <button
                                                     onClick={handleSaveGalleryMessage}
                                                     disabled={!hasGalleryMessageChanges || status === "uploading"}
                                                     className={cn(
-                                                        "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black uppercase tracking-widest transition-all active:scale-95",
+                                                        "flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold transition-all active:scale-95",
                                                         hasGalleryMessageChanges && status !== "uploading"
                                                             ? "bg-[#CA9C68] text-slate-950 hover:bg-[#D7AE7D]"
-                                                            : "bg-slate-800 text-slate-500"
+                                                            : "border border-[#CA9C68]/25 bg-[#CA9C68]/10 text-[#CA9C68]/70"
                                                     )}
                                                 >
                                                     {status === "uploading" && message.toLowerCase().includes("gallery message") ? (
                                                         <Loader2 className="h-4 w-4 animate-spin" />
-                                                    ) : (
+                                                    ) : !hasGalleryMessageChanges && (
                                                         <Check className="h-4 w-4" />
                                                     )}
                                                     <span>{hasGalleryMessageChanges ? "Save" : "Saved"}</span>
@@ -5102,7 +5271,7 @@ function DashboardContent() {
                                         </div>
                                     )}
 
-                                    <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-900/60 p-1">
+                                    <div className="mb-4 flex rounded-2xl border border-slate-700 bg-slate-900/60 p-1.5">
                                         {mediaTabs.map(({ id, label, icon: Icon }) => {
                                             const active = galleryMediaTab === id;
                                             return (
@@ -5110,9 +5279,10 @@ function DashboardContent() {
                                                     key={id}
                                                     type="button"
                                                     onClick={() => setGalleryMediaTab(id)}
+                                                    aria-pressed={active}
                                                     className={cn(
-                                                        "inline-flex w-1/2 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition-colors",
-                                                        active ? "bg-[#CA9C68] text-slate-950" : "text-slate-300 hover:bg-slate-800"
+                                                        "inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-semibold transition-colors",
+                                                        active ? "bg-[#CA9C68] text-slate-950 shadow-sm" : "text-slate-300 hover:bg-slate-800 hover:text-white"
                                                     )}
                                                 >
                                                     <Icon className="h-4 w-4" />
@@ -5121,68 +5291,212 @@ function DashboardContent() {
                                             );
                                         })}
                                     </div>
-                                    {isPrimaryGalleryView ? (
-                                    <label className="mb-6 flex w-full items-center gap-3 rounded-xl border border-slate-700 bg-slate-900/45 px-4 py-3">
-                                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-800 text-[#CA9C68]">
-                                            <Layers3 className="h-4 w-4" />
-                                        </span>
-                                        <span className="min-w-0 flex-1">
-                                            <span className="block text-sm font-bold text-slate-200">Source gallery</span>
-                                            <span className="mt-0.5 block text-xs text-slate-400">Filter Primary Gallery media by origin</span>
-                                        </span>
-                                        <select
-                                            value={effectiveSourceGalleryFilter}
-                                            onChange={(event) => setSourceGalleryFilter(event.target.value)}
-                                            className="max-w-[14rem] rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm font-semibold text-white outline-none focus:border-[#CA9C68]"
-                                            aria-label="Filter by source gallery"
+                                    {/* Filter (top left) and view toggle on one line */}
+                                    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                                        <div className="flex min-w-0 flex-wrap items-center gap-3">
+                                        {isPrimaryGalleryView ? (
+                                        <label className="flex h-11 min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Filter Primary Gallery media by origin">
+                                            <Layers3 className="h-4 w-4 shrink-0 text-[#CA9C68]" />
+                                            <span className="hidden whitespace-nowrap text-sm font-semibold text-slate-100 sm:inline">Source gallery</span>
+                                            <select
+                                                value={effectiveSourceGalleryFilter}
+                                                onChange={(event) => setSourceGalleryFilter(event.target.value)}
+                                                className="h-8 min-w-0 max-w-[9.5rem] rounded-lg border border-slate-600 sm:max-w-[11rem] bg-slate-950 px-2 text-sm font-semibold text-white outline-none focus:border-[#CA9C68]"
+                                                aria-label="Filter by source gallery"
+                                            >
+                                                <option value="all">All galleries ({selectedMediaItems.length})</option>
+                                                {sourceGalleryOptions.map(option => (
+                                                    <option key={option.id} value={option.id}>{option.label} ({option.count})</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        ) : (
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={showOnlyFavourites}
+                                            onClick={() => setShowOnlyFavourites(current => !current)}
+                                            title={`${activeFavouriteCount} in ${galleryMediaTab === "videos" ? "Videos" : "Photos"}`}
+                                            className={cn(
+                                                "flex h-11 items-center gap-2 rounded-xl border pl-3 pr-2 text-left transition-colors",
+                                                showOnlyFavourites
+                                                    ? "border-[#CA9C68]/70 bg-[#CA9C68]/10"
+                                                    : "border-slate-700 bg-slate-900/45 hover:border-slate-500 hover:bg-slate-900/70"
+                                            )}
                                         >
-                                            <option value="all">All galleries ({selectedMediaItems.length})</option>
-                                            {sourceGalleryOptions.map(option => (
-                                                <option key={option.id} value={option.id}>{option.label} ({option.count})</option>
-                                            ))}
-                                        </select>
-                                    </label>
-                                    ) : (
-                                    <button
-                                        type="button"
-                                        role="switch"
-                                        aria-checked={showOnlyFavourites}
-                                        onClick={() => setShowOnlyFavourites(current => !current)}
-                                        className={cn(
-                                            "mb-6 flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors",
-                                            showOnlyFavourites
-                                                ? "border-[#CA9C68]/70 bg-[#CA9C68]/10"
-                                                : "border-slate-700 bg-slate-900/45 hover:border-slate-500 hover:bg-slate-900/70"
+                                            <Star className={cn("h-4 w-4 shrink-0", showOnlyFavourites ? "fill-current text-[#E2B77F]" : "text-slate-200")} />
+                                            <span className={cn("whitespace-nowrap text-sm font-semibold", showOnlyFavourites ? "text-[#E2B77F]" : "text-slate-100")}>
+                                                Favourites<span className="hidden sm:inline"> only</span>
+                                            </span>
+                                            <span className={cn(
+                                                "min-w-6 rounded-md px-1.5 py-0.5 text-center font-sans text-xs font-bold",
+                                                showOnlyFavourites ? "bg-[#CA9C68] text-slate-950" : "bg-white/10 text-slate-300"
+                                            )}>
+                                                {activeFavouriteCount}
+                                            </span>
+                                            <span className={cn("relative ml-0.5 h-5 w-9 shrink-0 rounded-full transition-colors", showOnlyFavourites ? "bg-[#CA9C68]" : "bg-slate-700")}>
+                                                <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform", showOnlyFavourites ? "translate-x-[18px]" : "translate-x-0.5")} />
+                                            </span>
+                                        </button>
                                         )}
-                                    >
-                                        <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", showOnlyFavourites ? "bg-[#CA9C68] text-slate-950" : "bg-slate-800 text-slate-300")}>
-                                            <Star className={cn("h-4 w-4", showOnlyFavourites && "fill-current")} />
-                                        </span>
-                                        <span className="min-w-0 flex-1">
-                                            <span className={cn("block text-sm font-bold", showOnlyFavourites ? "text-[#E2B77F]" : "text-slate-200")}>Favourites only</span>
-                                            <span className="mt-0.5 block text-xs text-slate-400">{activeFavouriteCount} in {galleryMediaTab === "videos" ? "Videos" : "Photos"}</span>
-                                        </span>
-                                        <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", showOnlyFavourites ? "bg-[#CA9C68]" : "bg-slate-700")}>
-                                            <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", showOnlyFavourites ? "translate-x-5" : "translate-x-0.5")} />
-                                        </span>
-                                    </button>
-                                    )}
 
-                                    {isInlineEventDetailGalleryEditor && activeEventDetailEvent && activeEventDetailEvent.id !== selectedMainEvent?.id && (
-                                        <div className="mb-6 flex justify-end">
+                                        {/* Uploaded by: owner, admins and guests who uploaded here. Picking someone loads the whole gallery first. */}
+                                        {showUploaderFilter && (
+                                        <label className="flex h-11 min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Show only what one person uploaded">
+                                            {loadingAllMedia
+                                                ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#CA9C68]" />
+                                                : <Users className="h-4 w-4 shrink-0 text-[#CA9C68]" />}
+                                            <span className="hidden whitespace-nowrap text-sm font-semibold text-slate-100 sm:inline">Uploaded by</span>
+                                            <select
+                                                value={effectiveUploaderFilter}
+                                                onFocus={() => void loadAllEventPhotos()}
+                                                onMouseDown={() => void loadAllEventPhotos()}
+                                                onChange={(event) => setUploaderFilter(event.target.value)}
+                                                className="h-8 min-w-0 max-w-[10rem] rounded-lg border border-slate-600 bg-slate-950 px-2 text-sm font-semibold text-white outline-none focus:border-[#CA9C68] sm:max-w-[14rem]"
+                                                aria-label="Filter by who uploaded"
+                                            >
+                                                <option value="all">{loadingAllMedia ? "Loading everyone…" : `Everyone (${favouriteFilteredItems.length}${hasMorePhotos ? "+" : ""})`}</option>
+                                                {uploaderOptions.map(option => (
+                                                    <option key={option.userId} value={option.userId}>{option.label} · {option.count}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        )}
+                                        </div>
+
+                                        {/* View Toggle */}
+                                        <div className="flex h-11 items-center rounded-xl border border-slate-700 bg-slate-900/60 p-1">
                                             <button
                                                 type="button"
-                                                onClick={() => setShowDeleteConfirm(activeEventDetailEvent.id)}
-                                                className="flex items-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-300"
+                                                onClick={() => setGalleryViewMode("grid")}
+                                                aria-label="Grid view"
+                                                title="Grid View"
+                                                aria-pressed={galleryViewMode === "grid"}
+                                                className={cn(
+                                                    "grid h-9 w-9 place-items-center rounded-lg transition-colors",
+                                                    galleryViewMode === "grid" ? "bg-[#CA9C68]/20 text-[#E2B77F]" : "text-slate-400 hover:text-white"
+                                                )}
                                             >
-                                                <Trash2 className="h-4 w-4" />
-                                                <span>Delete Gallery</span>
+                                                <LayoutGrid className="h-4 w-4" />
                                             </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setGalleryViewMode("list")}
+                                                aria-label="List view"
+                                                title="List View"
+                                                aria-pressed={galleryViewMode === "list"}
+                                                className={cn(
+                                                    "grid h-9 w-9 place-items-center rounded-lg transition-colors",
+                                                    galleryViewMode === "list" ? "bg-[#CA9C68]/20 text-[#E2B77F]" : "text-slate-400 hover:text-white"
+                                                )}
+                                            >
+                                                <List className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {galleryViewMode === "grid" && activeGalleryItems.length > 0 && (
+                                        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900/45 px-4 py-3 sm:px-5">
+                                            {isSelectingMedia ? (
+                                                <>
+                                                    <span className="text-sm font-bold text-slate-200" aria-live="polite">
+                                                        {selectedMediaIds.size} selected
+                                                    </span>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedMediaIds(
+                                                                selectedMediaIds.size === activeGalleryItems.length
+                                                                    ? new Set()
+                                                                    : new Set(activeGalleryItems.map(item => item.id))
+                                                            )}
+                                                            className="rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400"
+                                                        >
+                                                            {selectedMediaIds.size === activeGalleryItems.length ? "Clear" : "Select all"}
+                                                        </button>
+                                                        {canMoveMedia && (
+                                                            <button
+                                                                type="button"
+                                                                disabled={selectedMediaIds.size === 0}
+                                                                onClick={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
+                                                                className="flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-40"
+                                                            >
+                                                                <FolderInput className="h-4 w-4" />
+                                                                <span>Move to…</span>
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            disabled={selectedMediaIds.size === 0}
+                                                            onClick={() => setMediaToSave(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
+                                                            className="flex items-center gap-2 rounded-full border border-[#7FA38C]/50 bg-[#7FA38C]/10 px-4 py-2 text-sm font-semibold text-[#A9C9B4] disabled:opacity-40"
+                                                        >
+                                                            <HardDrive className="h-4 w-4" />
+                                                            <span>Save to EB Vault</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={exitMediaSelection}
+                                                            className="rounded-full px-3 py-2 text-sm font-semibold text-slate-400 hover:text-white"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="text-sm font-semibold text-slate-400">
+                                                        {canMoveMedia ? "Select items to move them to another gallery or save copies to EB Vault." : "Select items to save copies to your EB Vault."}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsSelectingMedia(true)}
+                                                        className="flex items-center gap-2 rounded-full border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-4 py-2 text-sm font-semibold text-[#CA9C68] hover:bg-[#CA9C68]/20"
+                                                    >
+                                                        <CheckSquare className="h-4 w-4" />
+                                                        <span>Select</span>
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     )}
 
                                     {galleryViewMode === "grid" ? (
-                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-5">
+                                            {/* Add Image Button */}
+                                            {!isFavouriteFilterActive && (galleryMediaTab !== "videos" || canPostVideos) && <motion.label
+                                                layout
+                                                className={cn(
+                                                    "group relative flex aspect-square cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-3 text-center transition-colors",
+                                                    status === "uploading" ? "border-sky-500/50 bg-sky-500/5" : "border-[#CA9C68]/55 bg-slate-900/50 hover:border-[#CA9C68] hover:bg-slate-900/70"
+                                                )}
+                                                title="Click to select photos to upload"
+                                            >
+                                                <input
+                                                    type="file"
+                                                    multiple
+                                                    accept={galleryMediaTab === "videos" ? "video/*" : "image/*"}
+                                                    onChange={handleFileUpload}
+                                                    className="hidden"
+                                                    disabled={status === "uploading"}
+                                                />
+                                                {status === "uploading" ? (
+                                                    <div className="flex flex-col items-center text-sky-400">
+                                                        <Loader2 className="w-10 h-10 animate-spin mb-3" />
+                                                        <span className="text-sm font-semibold">Adding...</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center gap-4 text-slate-200 transition-colors group-hover:text-white">
+                                                        <span className="grid h-14 w-14 place-items-center rounded-2xl border border-[#CA9C68]/70 bg-[#CA9C68]/10 text-[#F1D3A8] shadow-[0_0_28px_rgba(202,156,104,0.35)] transition-all group-hover:bg-[#CA9C68]/20 group-hover:shadow-[0_0_36px_rgba(202,156,104,0.5)] sm:h-16 sm:w-16">
+                                                            <Plus className="h-7 w-7 sm:h-8 sm:w-8" />
+                                                        </span>
+                                                        <span className="text-sm font-medium sm:text-base">
+                                                            {galleryMediaTab === "videos" ? "Add or Drop Videos" : "Add or Drop Photos"}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </motion.label>}
+
                                             {/* Existing Photos Grid */}
                                             {activeGalleryItems.map((photo, index) => {
                                                 const isCover = stripUrlQuery(userEvents.find(ev => ev.id === selectedEventId)?.coverImage) === stripUrlQuery(photo.url);
@@ -5194,8 +5508,23 @@ function DashboardContent() {
                                                     <motion.div
                                                         key={photo.id}
                                                         layout
-                                                        className="group relative aspect-square bg-stone-100 shadow-sm border border-slate-700 cursor-zoom-in"
+                                                        className={cn(
+                                                            "group relative aspect-square rounded-2xl bg-slate-900 shadow-md shadow-black/20 border border-slate-700",
+                                                            isSelectingMedia ? "cursor-pointer" : "cursor-zoom-in",
+                                                            isSelectingMedia && selectedMediaIds.has(photo.id) && "ring-2 ring-[#CA9C68] ring-offset-2 ring-offset-[#2B2F2E]"
+                                                        )}
+                                                        role={isSelectingMedia ? "checkbox" : undefined}
+                                                        aria-checked={isSelectingMedia ? selectedMediaIds.has(photo.id) : undefined}
+                                                        aria-label={isSelectingMedia ? `Select ${isVideo ? "video" : "photo"} ${index + 1}` : undefined}
+                                                        tabIndex={isSelectingMedia ? 0 : undefined}
+                                                        onKeyDown={isSelectingMedia ? (e) => {
+                                                            if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggleMediaSelection(photo.id); }
+                                                        } : undefined}
                                                         onClick={() => {
+                                                            if (isSelectingMedia) {
+                                                                toggleMediaSelection(photo.id);
+                                                                return;
+                                                            }
                                                             setViewingPhoto({
                                                                 id: photo.id,
                                                                 src: photo.url,
@@ -5210,7 +5539,7 @@ function DashboardContent() {
                                                         }}
                                                     >
                                                         {/* Inner Clipping Container for Photo */}
-                                                        <div className="absolute inset-0 overflow-hidden">
+                                                        <div className="absolute inset-0 overflow-hidden rounded-[15px]">
                                                             <GridMediaCell
                                                                 photo={photo}
                                                                 gridSrc={gridSrc}
@@ -5226,54 +5555,56 @@ function DashboardContent() {
                                                             )}
                                                         </div>
 
-                                                        {!isVideo && (
-                                                        <div className="absolute top-3 left-3 z-10">
-                                                            <Tooltip text="Photo actions">
+                                                        {isSelectingMedia ? (
+                                                            <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-lg bg-slate-950/80 p-1.5 text-[#CA9C68] shadow-lg">
+                                                                {selectedMediaIds.has(photo.id) ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5 text-white" />}
+                                                            </div>
+                                                        ) : (<>
+                                                        <div className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1.5">
+                                                            {!isVideo && (
                                                                 <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setPhotoActionItem(photo);
-                                                                    }}
-                                                                    className="p-2.5 bg-slate-800/90 backdrop-blur-md rounded-xl text-white shadow-lg opacity-0 transition-all active:scale-90 group-hover:opacity-100 hover:bg-slate-700"
-                                                                >
-                                                                    <MoreHorizontal className="w-4 h-4" />
-                                                                </button>
-                                                            </Tooltip>
-                                                        </div>
-                                                        )}
-                                                        <div className="absolute top-3 right-14 z-10">
-                                                            <Tooltip text={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleToggleEventFavourite(photo.id);
-                                                                        }}
-                                                                        className={cn(
-                                                                            "p-2.5 backdrop-blur-md rounded-xl shadow-lg transition-all active:scale-95",
-                                                                            isFavourite
-                                                                                ? "bg-[#CA9C68] text-slate-950 opacity-100"
-                                                                                : "bg-slate-800/90 text-white opacity-0 group-hover:opacity-100 hover:bg-[#CA9C68] hover:text-slate-950"
-                                                                        )}
-                                                                    >
-                                                                        <Star className={cn("w-4 h-4", isFavourite && "fill-current")} />
-                                                                    </button>
-                                                            </Tooltip>
-                                                        </div>
-                                                        <div className="absolute top-3 right-3 z-10">
-                                                            <Tooltip text={isVideo ? "Delete Video" : "Delete Image"}>
-                                                                <button
+                                                                    aria-label="Delete Image"
+                                                                    title="Delete Image"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         handleDeletePhoto(photo.id);
                                                                     }}
-                                                                    className="p-2.5 bg-slate-800/90 backdrop-blur-md rounded-xl text-red-500 shadow-lg opacity-0 group-hover:opacity-100 transition-all active:scale-95 hover:bg-red-50"
+                                                                    className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950/70 text-rose-300 shadow-lg backdrop-blur-md opacity-0 transition-all active:scale-95 group-hover:opacity-100 hover:bg-rose-500 hover:text-white"
                                                                 >
-                                                                    <Trash2 className="w-4 h-4" />
+                                                                    <Trash2 className="h-4 w-4" />
                                                                 </button>
-                                                            </Tooltip>
+                                                            )}
+                                                            <button
+                                                                aria-label={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
+                                                                title={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
+                                                                aria-pressed={isFavourite}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleToggleEventFavourite(photo.id);
+                                                                }}
+                                                                className={cn(
+                                                                    "grid h-9 w-9 place-items-center rounded-lg shadow-lg backdrop-blur-md transition-all active:scale-95",
+                                                                    isFavourite
+                                                                        ? "bg-[#CA9C68] text-slate-950"
+                                                                        : "bg-slate-950/70 text-white hover:bg-[#CA9C68] hover:text-slate-950"
+                                                                )}
+                                                            >
+                                                                <Star className={cn("h-4 w-4", isFavourite && "fill-current")} />
+                                                            </button>
+                                                            <button
+                                                                aria-label={isVideo ? "Video actions" : "Photo actions"}
+                                                                title={isVideo ? "Video actions" : "Photo actions"}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    isVideo ? setVideoActionItem(photo) : setPhotoActionItem(photo);
+                                                                }}
+                                                                className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950/70 text-white shadow-lg backdrop-blur-md transition-all active:scale-90 hover:bg-slate-950/90"
+                                                            >
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </button>
                                                         </div>
-                                                        {!isFavouriteFilterActive && activeGalleryItems.length > 1 && (
-                                                            <div className="absolute bottom-3 left-3 z-10 flex overflow-hidden rounded-full border border-slate-700 bg-slate-950/80 text-white shadow-lg backdrop-blur-md">
+                                                        {!isFavouriteFilterActive && !isUploaderFilterActive && activeGalleryItems.length > 1 && (
+                                                            <div className="absolute bottom-2.5 left-2.5 z-10 flex overflow-hidden rounded-lg border border-white/10 bg-slate-950/70 font-sans text-white shadow-lg backdrop-blur-md">
                                                                 <button
                                                                     type="button"
                                                                     onClick={(e) => {
@@ -5300,6 +5631,7 @@ function DashboardContent() {
                                                                 </button>
                                                             </div>
                                                         )}
+                                                        </>)}
 
                                                     </motion.div>
                                                 );
@@ -5308,51 +5640,17 @@ function DashboardContent() {
                                             {/* Loading Skeletons for current fetching */}
                                             {loadingPhotos && activeGalleryItems.length === 0 && (
                                                 Array.from({ length: 4 }).map((_, i) => (
-                                                    <div key={i} className="aspect-square bg-slate-900/50 rounded-[2rem] animate-pulse border border-slate-700" />
+                                                    <div key={i} className="aspect-square bg-slate-900/50 rounded-2xl animate-pulse border border-slate-700" />
                                                 ))
                                             )}
-
-                                            {/* Add Image Button */}
-                                            {!isFavouriteFilterActive && <motion.label
-                                                layout
-                                                className={cn(
-                                                    "relative aspect-square rounded-[2rem] border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-slate-900/50 group",
-                                                    status === "uploading" ? "border-sky-500/50 bg-sky-500/5" : "border-slate-700"
-                                                )}
-                                                title="Click to select photos to upload"
-                                            >
-                                                    <input
-                                                        type="file"
-                                                        multiple
-                                                        accept={galleryMediaTab === "videos" ? "video/*" : "image/*"}
-                                                        onChange={handleFileUpload}
-                                                    className="hidden"
-                                                    disabled={status === "uploading"}
-                                                />
-                                                {status === "uploading" ? (
-                                                    <div className="flex flex-col items-center text-sky-400">
-                                                        <Loader2 className="w-10 h-10 animate-spin mb-3" />
-                                                        <span className="text-xs font-bold uppercase tracking-widest">Adding...</span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col items-center text-slate-400 group-hover:text-white transition-colors">
-                                                        <div className="p-4 bg-slate-900/50 rounded-2xl mb-3 group-hover:bg-slate-800 group-hover:shadow-md transition-all">
-                                                            <Plus className="w-8 h-8" />
-                                                        </div>
-                                                        <span className="text-xs font-bold uppercase tracking-widest">
-                                                            {galleryMediaTab === "videos" ? "Add or Drop Videos" : "Add or Drop Photos"}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </motion.label>}
                                         </div>
                                     ) : (
                                         <div className="space-y-4">
                                             {/* Add Image Option as List Item */}
-                                            {!isFavouriteFilterActive && <motion.label
+                                            {!isFavouriteFilterActive && (galleryMediaTab !== "videos" || canPostVideos) && <motion.label
                                                 className={cn(
-                                                    "flex items-center p-6 border-2 border-dashed rounded-3xl cursor-pointer transition-all hover:bg-slate-900/50 group",
-                                                    status === "uploading" ? "border-sky-500/50 bg-sky-500/5" : "border-slate-700"
+                                                    "flex items-center p-5 sm:p-6 border-2 border-dashed rounded-2xl cursor-pointer transition-colors group",
+                                                    status === "uploading" ? "border-sky-500/50 bg-sky-500/5" : "border-[#CA9C68]/55 bg-slate-900/50 hover:border-[#CA9C68] hover:bg-slate-900/70"
                                                 )}
                                             >
                                                 <input
@@ -5363,11 +5661,11 @@ function DashboardContent() {
                                                     className="hidden"
                                                     disabled={status === "uploading"}
                                                 />
-                                                <div className="w-16 h-16 bg-slate-900/50 rounded-2xl flex items-center justify-center mr-6 group-hover:bg-slate-800 transition-all">
+                                                <div className="mr-5 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#CA9C68]/70 bg-[#CA9C68]/10 text-[#F1D3A8] shadow-[0_0_24px_rgba(202,156,104,0.3)] transition-all group-hover:bg-[#CA9C68]/20 sm:mr-6">
                                                     {status === "uploading" ? (
                                                         <Loader2 className="w-6 h-6 text-sky-400 animate-spin" />
                                                     ) : (
-                                                        <Plus className="w-6 h-6 text-slate-400 group-hover:text-white" />
+                                                        <Plus className="w-6 h-6" />
                                                     )}
                                                 </div>
                                                 <div>
@@ -5380,7 +5678,7 @@ function DashboardContent() {
                                                 </div>
                                             </motion.label>}
 
-                                            <div className="bg-slate-800 rounded-[2.5rem] border border-slate-700 overflow-hidden shadow-sm">
+                                            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-sm">
                                                 <div className="overflow-x-auto">
                                                     <table className="w-full text-left border-collapse">
                                                         <thead>
@@ -5499,7 +5797,7 @@ function DashboardContent() {
                                                                         </td>
                                                                         <td className="px-8 py-6 text-right">
                                                                             <div className="flex items-center justify-end space-x-2">
-                                                                                {!isFavouriteFilterActive && activeGalleryItems.length > 1 && (
+                                                                                {!isFavouriteFilterActive && !isUploaderFilterActive && activeGalleryItems.length > 1 && (
                                                                                     <div className="flex overflow-hidden rounded-xl border border-slate-700 bg-slate-800">
                                                                                         <button
                                                                                             type="button"
@@ -5521,16 +5819,15 @@ function DashboardContent() {
                                                                                         </button>
                                                                                     </div>
                                                                                 )}
-                                                                                {!isVideo && (
-                                                                                <Tooltip text="Photo actions">
+                                                                                <Tooltip text={isVideo ? "Video actions" : "Photo actions"}>
                                                                                     <button
-                                                                                        onClick={() => setPhotoActionItem(photo)}
+                                                                                        aria-label={isVideo ? "Video actions" : "Photo actions"}
+                                                                                        onClick={() => isVideo ? setVideoActionItem(photo) : setPhotoActionItem(photo)}
                                                                                         className="p-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 transition-all active:scale-95 hover:bg-slate-700 hover:text-white"
                                                                                     >
                                                                                         <MoreHorizontal className="w-4 h-4" />
                                                                                     </button>
                                                                                 </Tooltip>
-                                                                                )}
                                                                                 <Tooltip text={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}>
                                                                                         <button
                                                                                             onClick={() => handleToggleEventFavourite(photo.id)}
@@ -5596,378 +5893,6 @@ function DashboardContent() {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                         >
-                            {view === "permissions" && (
-                                <div className="space-y-12">
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                        <div className="flex items-center space-x-4">
-                                            <div className="w-12 h-12 bg-slate-900 rounded-[1.2rem] flex items-center justify-center text-white shadow-xl shadow-slate-200">
-                                                <ShieldCheck size={24} />
-                                            </div>
-                                            <div>
-                                                <h2 className="text-3xl font-bold mb-1 font-serif text-slate-200">Permissions & Traffic</h2>
-                                                <p className="text-slate-700 font-sans text-sm">Manage your team and monitor guest access.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                        {/* Primary Admins Section */}
-                                        <div className="bg-slate-800 p-8 rounded-[2.5rem] shadow-sm border border-slate-700">
-                                            <div className="flex items-center justify-between mb-8">
-                                                <div>
-                                                    <h3 className="text-2xl font-bold text-slate-200 font-serif">Premium Users (Primary)</h3>
-                                                    <p className="text-slate-400 text-sm font-sans uppercase tracking-widest mt-1">Full account management access</p>
-                                                </div>
-                                                <div className="w-12 h-12 bg-slate-700 rounded-full flex items-center justify-center text-slate-300">
-                                                    <Crown size={24} />
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-6">
-                                                {allUsers.filter(u => (u.delegatedBy === user?.uid || u.id === user?.uid) && (u.roleType === 'primary' || u.id === user?.uid)).length > 0 ? (
-                                                    allUsers.filter(u => (u.delegatedBy === user?.uid || u.id === user?.uid) && (u.roleType === 'primary' || u.id === user?.uid)).map((u) => (
-                                                        <div key={u.id} className="flex items-center justify-between p-4 bg-slate-900/50 rounded-2xl border border-slate-700 group hover:bg-slate-800 hover:shadow-md transition-all duration-300">
-                                                            <div className="flex items-center space-x-4">
-                                                                <div className="w-12 h-12 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-base">
-                                                                    {u.name.charAt(0)}
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-slate-200 font-bold text-base">{u.name} {u.id === user?.uid && "(You)"}</p>
-                                                                    <p className="text-slate-400 text-xs font-sans">{u.email}</p>
-                                                                </div>
-                                                            </div>
-                                                            {u.id !== user?.uid && (
-                                                                <button
-                                                                    onClick={() => handleUpdateUserRole(u.id, "revoke")}
-                                                                    className="px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
-                                                                >
-                                                                    Revoke
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="py-10 text-center border-2 border-dashed border-slate-700 rounded-3xl">
-                                                        <p className="text-slate-400 text-base font-sans italic">No premium users assigned yet.</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Events Hierarchy Section */}
-                                        <div className="bg-slate-800 p-8 rounded-[2.5rem] shadow-sm border border-slate-700">
-                                            <div className="flex items-center justify-between mb-8">
-                                                <div>
-                                                    <h3 className="text-2xl font-bold text-slate-200 font-serif">Event Administrators & Guests</h3>
-                                                    <p className="text-slate-400 text-sm font-sans uppercase tracking-widest mt-1">Management per event</p>
-                                                </div>
-                                                <div className="w-12 h-12 bg-slate-700 rounded-full flex items-center justify-center text-slate-300">
-                                                    <Calendar size={24} />
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-4">
-                                                {loadingEvents ? (
-                                                    <div className="flex items-center justify-center py-12">
-                                                        <RefreshCw className="w-8 h-8 animate-spin text-stone-300" />
-                                                    </div>
-                                                ) : permissionMainEvents.length > 0 ? (
-                                                    [
-                                                        { title: "Events Created by You", events: permissionCreatedEvents, groupByOwner: false },
-                                                        { title: "Events Created by Others", events: permissionOtherEvents, groupByOwner: true }
-                                                    ].filter(section => section.events.length > 0).map(section => (
-                                                        <div key={section.title} className="space-y-3">
-                                                            <div className="px-1">
-                                                                <h4 className="text-lg font-bold text-slate-200 font-serif">{section.title}</h4>
-                                                                <p className="text-xs text-slate-400 font-sans uppercase tracking-widest mt-1">
-                                                                    {section.events.length} {section.events.length === 1 ? "event" : "events"}
-                                                                </p>
-                                                            </div>
-                                                            {(section.groupByOwner
-                                                                ? Object.entries(section.events.reduce<Record<string, Event[]>>((groups, event) => {
-                                                                    const ownerEmail = getEventOwnerEmail(event);
-                                                                    if (!groups[ownerEmail]) groups[ownerEmail] = [];
-                                                                    groups[ownerEmail].push(event);
-                                                                    return groups;
-                                                                }, {}))
-                                                                : [["", section.events] as [string, Event[]]]
-                                                            ).map(([ownerEmail, events]) => (
-                                                                <div key={ownerEmail || section.title} className="space-y-3">
-                                                                    {section.groupByOwner && (
-                                                                        <div className="px-1 pt-2">
-                                                                            <h5 className="text-sm font-bold text-slate-200 font-sans">{ownerEmail}</h5>
-                                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                                                                                {events.length} shared {events.length === 1 ? "event" : "events"}
-                                                                            </p>
-                                                                        </div>
-                                                                    )}
-                                                                    {events.map(event => {
-                                                        const isMainExpanded = expandedMainEvents.has(event.id);
-                                                        const isOtherUserEvent = !event.createdBy || !ownEventIdentifiers.has(event.createdBy);
-                                                        const eventAdmins = allUsers.filter(u =>
-                                                            u.delegatedBy === user?.uid &&
-                                                            u.roleType === 'event' &&
-                                                            u.assignedEvents?.includes(event.id)
-                                                        );
-                                                        const eventLogs = trafficLogs.filter(log => (log.parentEventId === event.id || log.eventId === event.id));
-                                                        const pendingCount = eventLogs.filter(l => l.status === 'pending').length;
-
-                                                        return (
-                                                            <div key={event.id} className="relative">
-                                                                {isMainExpanded && (eventAdmins.length > 0 || eventLogs.length > 0) && (
-                                                                    <div className="absolute left-7 top-14 bottom-6 w-px bg-stone-100"></div>
-                                                                )}
-
-                                                                <div className="flex items-center justify-between gap-4 p-4 sm:p-5 bg-slate-900/50/50 hover:bg-slate-800/50 rounded-[1.5rem] transition-all border border-slate-700/50 group/event">
-                                                                    <div className="flex items-center flex-1">
-                                                                        <button
-                                                                            onClick={() => toggleMainEvent(event.id)}
-                                                                            className={cn(
-                                                                                "mr-3 w-8 h-8 flex items-center justify-center rounded-lg transition-all",
-                                                                                isMainExpanded ? "bg-slate-200 text-slate-700" : "bg-slate-800 text-slate-400 hover:text-slate-300 border border-slate-700"
-                                                                            )}
-                                                                        >
-                                                                            {isMainExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                                                                        </button>
-                                                                        <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center mr-3 shadow-sm">
-                                                                            <Calendar className="w-5 h-5 text-slate-400" />
-                                                                        </div>
-                                                                        <div>
-                                                                            {isOtherUserEvent && !section.groupByOwner && (
-                                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
-                                                                                    Shared by {getEventOwnerEmail(event)}
-                                                                                </p>
-                                                                            )}
-                                                                            <span className="text-base font-bold text-slate-200">{event.title}</span>
-                                                                            <div className="flex items-center space-x-2 mt-1">
-                                                                                {event.isSampleGallery && (
-                                                                                    <span className="text-xs text-royal-gold font-bold">• Sample</span>
-                                                                                )}
-                                                                                {eventAdmins.length > 0 && (
-                                                                                    <span className="text-xs text-teal-600 font-bold">• {eventAdmins.length} Admin{eventAdmins.length > 1 ? "s" : ""}</span>
-                                                                                )}
-                                                                                {eventLogs.length > 0 && (
-                                                                                    <span className="text-xs text-[#CA9C68] font-bold">• {eventLogs.length} Visit{eventLogs.length > 1 ? "s" : ""}</span>
-                                                                                )}
-                                                                                {pendingCount > 0 && (
-                                                                                    <span className="text-xs text-rose-500 font-bold">• {pendingCount} Pending</span>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                    {user?.role === "admin" && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={(buttonEvent) => {
-                                                                                buttonEvent.stopPropagation();
-                                                                                handleToggleSampleGallery(event);
-                                                                            }}
-                                                                            disabled={sampleGalleryUpdating === event.id}
-                                                                            className={cn(
-                                                                                "shrink-0 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all disabled:cursor-not-allowed disabled:opacity-50",
-                                                                                event.isSampleGallery
-                                                                                    ? "border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20"
-                                                                                    : "border border-royal-gold/30 bg-royal-gold/10 text-royal-gold hover:bg-royal-gold/20"
-                                                                            )}
-                                                                        >
-                                                                            {sampleGalleryUpdating === event.id ? "Updating..." : event.isSampleGallery ? "Remove from Samples" : "Add to Samples"}
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-
-                                                                {isMainExpanded && (
-                                                                    <div className="pl-12 pr-4 py-3 space-y-5">
-                                                                        {/* Event Admins */}
-                                                                        <div className="mb-2">
-                                                                            <div
-                                                                                className="flex items-center space-x-1 text-xs font-bold text-teal-600 uppercase tracking-widest mb-2 px-1 cursor-pointer hover:text-teal-700 transition-colors w-fit"
-                                                                                onClick={() => toggleEventAdmins(event.id)}
-                                                                            >
-                                                                                {expandedEventAdmins.has(event.id) ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                                                                                <UserCog className="w-3.5 h-3.5" />
-                                                                                <span>Event Admins ({eventAdmins.length})</span>
-                                                                            </div>
-                                                                            {expandedEventAdmins.has(event.id) && (
-                                                                                <div className="mt-2 space-y-2 pl-4 border-l border-teal-100 ml-2">
-                                                                                    {eventAdmins.length > 0 ? (
-                                                                                        eventAdmins.map(ea => (
-                                                                                            <div key={ea.id} className="flex items-center p-3 bg-slate-800 border border-slate-700 rounded-xl group/ea hover:border-slate-700 transition-all">
-                                                                                                <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center mr-3">
-                                                                                                    <UserCog className="w-4 h-4 text-teal-600" />
-                                                                                                </div>
-                                                                                                <div>
-                                                                                                    <span className="text-sm font-bold text-slate-200">{ea.name || "Unnamed"}</span>
-                                                                                                    <p className="text-xs text-slate-400">{ea.email}</p>
-                                                                                                </div>
-                                                                                                <div className="ml-auto flex items-center gap-2">
-                                                                                                    <button
-                                                                                                        onClick={() => handleUpdateUserRole(ea.id, "user", "primary", [])}
-                                                                                                        className="px-3 py-2 bg-sky-500/10 text-sky-400 text-[10px] font-bold uppercase rounded-lg hover:bg-royal-gold/20 transition-colors"
-                                                                                                    >
-                                                                                                        Make Primary Admin
-                                                                                                    </button>
-                                                                                                    <button
-                                                                                                        onClick={() => handleUpdateUserRole(ea.id, "revoke")}
-                                                                                                        className="px-3 py-2 bg-rose-50 text-rose-600 text-[10px] font-bold uppercase rounded-lg hover:bg-rose-100 transition-colors flex items-center gap-1"
-                                                                                                        title="Revoke Admin"
-                                                                                                    >
-                                                                                                        <UserMinus size={14} />
-                                                                                                        <span>Make Guest</span>
-                                                                                                    </button>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        ))
-                                                                                    ) : (
-                                                                                        <p className="text-xs text-slate-400 italic px-2">No admins assigned.</p>
-                                                                                    )}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-
-                                                                        {/* Event Guests */}
-                                                                        <div className="mb-2">
-                                                                            <div
-                                                                                className="flex items-center space-x-1 text-xs font-bold text-[#CA9C68] uppercase tracking-widest mb-2 px-1 cursor-pointer hover:text-[#CA9C68] transition-colors w-fit"
-                                                                                onClick={() => toggleEventGuests(event.id)}
-                                                                            >
-                                                                                {expandedEventGuests.has(event.id) ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                                                                                <Users className="w-3.5 h-3.5" />
-                                                                                <span>Guest Users ({eventLogs.length})</span>
-                                                                            </div>
-                                                                            {expandedEventGuests.has(event.id) && (
-                                                                                <div className="mt-2 space-y-2 pl-4 border-l border-[#CA9C68]/30 ml-2">
-                                                                                    {eventLogs.length > 0 ? (
-                                                                                        [...eventLogs].sort((a, b) => b.loginAt?.seconds - a.loginAt?.seconds).map(log => {
-                                                                                            const loginDate = log.loginAt ? new Date(log.loginAt.seconds * 1000).toLocaleString('en-IN', {
-                                                                                                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
-                                                                                            }) : 'Unknown';
-
-                                                                                            const isEmailMethod = log.phone?.includes('@');
-                                                                                            const displayMethod = isEmailMethod ? "Email" : "Mobile";
-
-                                                                                            // Find matching registered user to allow admin promotion
-                                                                                            const matchingUser = allUsers.find(u =>
-                                                                                                (isEmailMethod && u.email === log.phone) ||
-                                                                                                (!isEmailMethod && u.phone === log.phone)
-                                                                                            );
-
-                                                                                            const isPrimaryAdmin = matchingUser?.roleType === 'primary' && matchingUser?.delegatedBy === user?.uid;
-                                                                                            const isEventAdmin = matchingUser?.roleType === 'event' && matchingUser?.delegatedBy === user?.uid && matchingUser?.assignedEvents?.includes(event.id);
-                                                                                            const isAdmin = isPrimaryAdmin || isEventAdmin;
-
-                                                                                            return (
-                                                                                                <div key={log.id} className="flex items-center p-3 bg-slate-800 border border-slate-700 rounded-xl group/g hover:border-slate-700 transition-all">
-                                                                                                    <div className="w-10 h-10 rounded-lg bg-[#CA9C68]/30 flex items-center justify-center mr-3">
-                                                                                                        <span className="text-xs font-bold text-[#CA9C68]">{(log.name || 'G').charAt(0)}</span>
-                                                                                                    </div>
-                                                                                                    <div>
-                                                                                                        <p className="font-bold text-slate-200 text-sm">{log.name || 'Anonymous'}</p>
-                                                                                                        <div className="flex items-center space-x-2 text-xs text-slate-400 font-sans mt-0.5">
-                                                                                                            <span className="truncate max-w-[150px]">{log.phone || 'N/A'}</span>
-                                                                                                            <span>•</span>
-                                                                                                            <span className="font-bold uppercase tracking-widest text-sky-600 bg-sky-50 px-2 py-0.5 rounded-md text-[10px]">{displayMethod}</span>
-                                                                                                            <span>•</span>
-                                                                                                            <span>{loginDate}</span>
-                                                                                                        </div>
-                                                                                                    </div>
-                                                                                                    <div className="ml-auto flex items-center space-x-2">
-                                                                                                        {log.status === 'pending' ? (
-                                                                                                            <>
-                                                                                                                <button onClick={() => handleGuestStatusUpdate(log.id, 'approved')} className="px-4 py-2 bg-emerald-50 text-emerald-600 text-xs font-bold uppercase rounded-lg hover:bg-emerald-100 transition-all">Approve View</button>
-                                                                                                                <button onClick={() => handleGuestStatusUpdate(log.id, 'rejected')} className="px-4 py-2 bg-rose-50 text-rose-600 text-xs font-bold uppercase rounded-lg hover:bg-rose-100 transition-all">Deny</button>
-                                                                                                            </>
-                                                                                                        ) : (
-                                                                                                            <span className={cn("px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest", log.status === 'approved' ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600")}>
-                                                                                                                {log.status === 'approved' ? 'View Access' : log.status}
-                                                                                                            </span>
-                                                                                                        )}
-
-                                                                                                        {matchingUser && (
-                                                                                                            <>
-                                                                                                                <div className="h-4 w-px bg-stone-200 mx-1"></div>
-                                                                                                                {isAdmin ? (
-                                                                                                                    <>
-                                                                                                                        <span className="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest bg-slate-700 text-slate-300">
-                                                                                                                            {isPrimaryAdmin ? "Primary Admin" : "Event Admin"}
-                                                                                                                        </span>
-                                                                                                                        {isPrimaryAdmin ? (
-                                                                                                                            <button
-                                                                                                                                onClick={() => handleUpdateUserRole(matchingUser.id, "user", "event", [event.id])}
-                                                                                                                                className="px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase rounded-lg hover:bg-slate-800 transition-all"
-                                                                                                                            >
-                                                                                                                                Make Event Admin
-                                                                                                                            </button>
-                                                                                                                        ) : (
-                                                                                                                            <button
-                                                                                                                                onClick={() => handleUpdateUserRole(matchingUser.id, "user", "primary", [])}
-                                                                                                                                className="px-4 py-2 bg-sky-500/10 text-sky-400 text-xs font-bold uppercase rounded-lg hover:bg-royal-gold/20 transition-all"
-                                                                                                                            >
-                                                                                                                                Make Primary Admin
-                                                                                                                            </button>
-                                                                                                                        )}
-                                                                                                                        <button
-                                                                                                                            onClick={() => handleUpdateUserRole(matchingUser.id, "revoke")}
-                                                                                                                            className="px-4 py-2 bg-rose-50 text-rose-600 text-xs font-bold uppercase rounded-lg hover:bg-rose-100 transition-all"
-                                                                                                                        >
-                                                                                                                            Revoke
-                                                                                                                        </button>
-                                                                                                                    </>
-                                                                                                                ) : (
-                                                                                                                    <>
-                                                                                                                        <button
-                                                                                                                            onClick={() => handleUpdateUserRole(matchingUser.id, "user", "event", [event.id])}
-                                                                                                                            className="px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase rounded-lg hover:bg-slate-800 transition-all"
-                                                                                                                        >
-                                                                                                                            Make Event Admin
-                                                                                                                        </button>
-                                                                                                                        <button
-                                                                                                                            onClick={() => handleUpdateUserRole(matchingUser.id, "user", "primary", [])}
-                                                                                                                            className="px-4 py-2 bg-sky-500/10 text-sky-400 text-xs font-bold uppercase rounded-lg hover:bg-royal-gold/20 transition-all"
-                                                                                                                        >
-                                                                                                                            Make Primary Admin
-                                                                                                                        </button>
-                                                                                                                    </>
-                                                                                                                )}
-                                                                                                            </>
-                                                                                                        )}
-
-                                                                                                        <div className="h-4 w-px bg-stone-200 mx-1"></div>
-                                                                                                        <button
-                                                                                                            onClick={() => handleGuestDelete(log.id)}
-                                                                                                            className="p-1.5 text-stone-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                                                                                                            title="Remove Guest"
-                                                                                                        >
-                                                                                                            <Trash2 className="w-4 h-4" />
-                                                                                                        </button>
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            );
-                                                                                        })
-                                                                                    ) : (
-                                                                                        <p className="text-xs text-slate-400 italic px-2">No guests recorded.</p>
-                                                                                    )}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                            })}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="py-8 text-center border-2 border-dashed border-slate-700 rounded-[2rem]">
-                                                        <p className="text-slate-400 text-sm font-sans italic">No events created yet.</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -5980,7 +5905,7 @@ function DashboardContent() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/80 backdrop-blur-sm sm:items-center p-4"
+                            className={cn(modalStyles.overlay, "items-end sm:items-center")}
                             onClick={() => setShowCategoryModal(false)}
                         >
                             <motion.div
@@ -5989,22 +5914,13 @@ function DashboardContent() {
                                 exit={{ y: "100%" }}
                                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="w-full max-w-md rounded-[2.5rem] bg-slate-900 border border-slate-800 p-6 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]"
+                                className={cn(modalStyles.panel, "flex max-h-[85vh] flex-col overflow-hidden")}
                             >
-                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-royal-gold to-rose-400" />
-
-                                <div className="flex items-center justify-between mb-6 mt-2">
-                                    <div>
-                                        <h2 className="text-2xl font-black text-white">Event Type</h2>
-                                        <p className="text-sm font-medium text-slate-400 mt-1">Choose a category for your gallery</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setShowCategoryModal(false)}
-                                        className="rounded-full bg-slate-800 p-2 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
-                                    >
-                                        <X className="h-5 w-5" />
-                                    </button>
-                                </div>
+                                <ModalHeader
+                                    title="Event Type"
+                                    subtitle="Choose a category for your gallery"
+                                    onClose={() => setShowCategoryModal(false)}
+                                />
 
                                 <div className="overflow-y-auto pr-2 -mr-2 space-y-2 pb-4">
                                     {EVENT_TYPE_OPTIONS.map(({ name, icon: Icon }) => {
@@ -6032,7 +5948,7 @@ function DashboardContent() {
                                                     "w-full flex items-center justify-between p-4 rounded-2xl border transition-all",
                                                     isActive
                                                         ? "border-[#CA9C68] bg-[#CA9C68]/10"
-                                                        : "border-slate-800 bg-slate-800/50 hover:border-slate-700 hover:bg-slate-800"
+                                                        : "border-[var(--site-border)] bg-[#13191F]/50 hover:border-[#CA9C68]/40"
                                                 )}
                                             >
                                                 <div className="flex items-center gap-4">
@@ -6070,7 +5986,7 @@ function DashboardContent() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4"
+                            className={modalStyles.overlay}
                             onClick={() => setShowTemplateModal(false)}
                         >
                             <motion.div
@@ -6078,28 +5994,19 @@ function DashboardContent() {
                                 animate={{ scale: 1, y: 0 }}
                                 exit={{ scale: 0.9, y: 20 }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="bg-slate-800 w-full max-w-2xl rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden"
+                                className={cn(modalStyles.panel, "max-w-2xl overflow-hidden")}
                             >
-                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-royal-gold to-rose-400" />
-
-                                <div className="flex justify-between items-start mb-8 w-full">
-                                    <div className="flex-1 mr-4">
-                                        <h2 className="text-3xl font-serif text-white mb-2">Choose Style</h2>
-                                        <p className="text-slate-700 font-sans">Select a design template for this event.</p>
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            setShowTemplateModal(false);
-                                            setTemplateTargetEvent(null);
-                                        }}
-                                        className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors shrink-0 mt-1"
-                                    >
-                                        <X className="w-5 h-5 text-[#CA9C68]" />
-                                    </button>
-                                </div>
+                                <ModalHeader
+                                    title="Choose Style"
+                                    subtitle="Select a design template for this event."
+                                    onClose={() => {
+                                        setShowTemplateModal(false);
+                                        setTemplateTargetEvent(null);
+                                    }}
+                                />
 
                                 <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-2 pb-4">
-                                    {getTemplatesForEventCategory(templateTargetEvent.category).map((template) => {
+                                    {getTemplatesForEventCategory(templateTargetEvent.category, templateTargetEvent.templateId).map((template) => {
                                         const isActive = templateTargetEvent.templateId === template.id;
                                         return (
                                             <div
@@ -6107,7 +6014,7 @@ function DashboardContent() {
                                                 onClick={() => handleUpdateTemplate(template.id)}
                                                 className={cn(
                                                     "flex items-center justify-between p-3 rounded-2xl border-2 transition-colors cursor-pointer",
-                                                    isActive ? "bg-white/5" : "bg-white/5 border-white/5 hover:border-white/20"
+                                                    isActive ? "bg-[#13191F]/50" : "border-[var(--site-border)] bg-[#13191F]/50 hover:border-[#CA9C68]/40"
                                                 )}
                                                 style={{ borderColor: isActive ? template.accent : undefined }}
                                             >
@@ -6155,27 +6062,28 @@ function DashboardContent() {
                 {/* Rename Modal */}
                 <AnimatePresence>
                     {renamingEvent && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                        <div className={modalStyles.overlay}>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.9 }}
-                                className="bg-slate-800 rounded-[2.5rem] p-8 md:p-12 w-full max-w-md shadow-2xl"
+                                className={modalStyles.panel}
                             >
-                                <h3 className="text-2xl font-bold mb-6 italic tracking-tight">
-                                    {editDetailsMode === "date"
+                                <ModalHeader
+                                    title={editDetailsMode === "date"
                                         ? renamingEvent.type === "sub" ? "Edit Gallery Date" : "Edit Event Date"
                                         : renamingEvent.type === "sub" ? "Edit Gallery Title" : "Edit Event Title"}
-                                </h3>
+                                    onClose={closeRenameModal}
+                                />
                                 <form onSubmit={handleRenameSubmit} className="space-y-6">
                                     {editDetailsMode === "title" && (
                                         <div>
-                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-400 mb-4 ml-1">New Name</label>
+                                            <label className={modalStyles.label}>New Name</label>
                                             <input
                                                 type="text"
                                                 value={newTitle}
                                                 onChange={(e) => setNewTitle(e.target.value)}
-                                                className="w-full px-6 py-4 bg-slate-900/50 border border-slate-700 rounded-2xl focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all outline-none text-lg font-medium text-white"
+                                                className={cn(modalStyles.input, "text-lg font-medium")}
                                                 required
                                                 autoFocus
                                             />
@@ -6183,11 +6091,11 @@ function DashboardContent() {
                                     )}
                                     {editDetailsMode === "date" && (
                                         <div>
-                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-400 mb-4 ml-1">Date</label>
+                                            <label className={modalStyles.label}>Date</label>
                                             <button
                                                 type="button"
                                                 onClick={() => openDatePicker("rename")}
-                                                className="flex w-full items-center justify-between rounded-2xl border border-slate-700 bg-slate-900/50 px-5 py-4 text-left transition-all hover:border-sky-500/60 hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                                className={cn(modalStyles.input, "flex items-center justify-between text-left hover:border-[#CA9C68]/60")}
                                             >
                                                 <span className="flex min-w-0 items-center gap-4">
                                                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
@@ -6200,22 +6108,17 @@ function DashboardContent() {
                                                         </span>
                                                     </span>
                                                 </span>
-                                                <span className="rounded-full bg-slate-800 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-300">
+                                                <span className="rounded-full bg-[#CA9C68]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#CA9C68]">
                                                     Change
                                                 </span>
                                             </button>
                                         </div>
                                     )}
-                                    <div className="flex space-x-3 pt-2">
+                                    <div className="flex gap-3 pt-2">
                                         <button
                                             type="button"
-                                            onClick={() => {
-                                                setRenamingEvent(null);
-                                                setEditDetailsMode("title");
-                                                setNewTitle("");
-                                                setNewDate("");
-                                            }}
-                                            className="flex-1 py-4 px-6 border border-slate-700 rounded-2xl font-bold text-slate-400 hover:bg-slate-900/50 transition-all active:scale-95"
+                                            onClick={closeRenameModal}
+                                            className={cn(modalStyles.secondary, "flex-1")}
                                             title="Discard changes"
                                         >
                                             Cancel
@@ -6223,7 +6126,7 @@ function DashboardContent() {
                                         <button
                                             type="submit"
                                             disabled={status === "uploading"}
-                                            className="flex-1 py-4 px-6 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95 disabled:bg-stone-300"
+                                            className={cn(modalStyles.primary, "flex-1")}
                                             title="Save changes"
                                         >
                                             {status === "uploading" ? "Saving..." : editDetailsMode === "date" ? "Save Date" : "Save Title"}
@@ -6238,7 +6141,7 @@ function DashboardContent() {
                 {/* Plan Details Modal */}
                 <AnimatePresence>
                     {showPlanDetailsModal && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+                        <div className={modalStyles.overlay}>
                             <button
                                 type="button"
                                 aria-label="Close plan details"
@@ -6249,7 +6152,7 @@ function DashboardContent() {
                                 initial={{ opacity: 0, scale: 0.92, y: 18 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.92, y: 18 }}
-                                className="relative w-full max-w-md overflow-hidden rounded-[2rem] border bg-slate-800 shadow-2xl"
+                                className={cn(modalStyles.panel, "overflow-hidden p-0 sm:p-0")}
                                 style={{ borderColor: planDetails.accentSoft }}
                             >
                                 <div className="px-7 pb-6 pt-7" style={{ background: `linear-gradient(to bottom, ${planDetails.accentSoft}, rgba(15, 23, 42, 0.2), transparent)` }}>
@@ -6283,14 +6186,7 @@ function DashboardContent() {
                                             <h3 className="text-2xl font-black text-white">Storage & Quota</h3>
                                             <p className="text-sm font-semibold text-slate-400">Your current plan usage</p>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPlanDetailsModal(false)}
-                                            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900/70 text-slate-400 transition-colors hover:text-white"
-                                            aria-label="Close plan details"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
+                                        <ModalCloseButton onClick={() => setShowPlanDetailsModal(false)} label="Close plan details" className="self-start" />
                                     </div>
 
                                     <p className="mt-6 text-sm font-semibold text-slate-300">
@@ -6384,7 +6280,7 @@ function DashboardContent() {
                 {/* Share Modal */}
                 <AnimatePresence>
                     {shareModalEvent && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+                        <div className={modalStyles.overlay}>
                             <button
                                 type="button"
                                 aria-label="Close share modal"
@@ -6395,22 +6291,9 @@ function DashboardContent() {
                                 initial={{ opacity: 0, scale: 0.92, y: 18 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.92, y: 18 }}
-                                className="relative w-full max-w-md rounded-[2rem] border border-[#CA9C68]/25 bg-slate-800 px-7 py-9 text-center shadow-2xl sm:px-10"
+                                className={cn(modalStyles.panel, "text-center")}
                             >
-                                <h3 className="text-3xl font-black tracking-tight text-white">Share Event</h3>
-                                {!shareModalEvent.parentId && (shareModalEvent.createdBy === user?.uid || shareModalEvent.createdBy === user?.email) && (
-                                    <div className="mt-5 rounded-xl border border-slate-600 p-4 text-left">
-                                        <label className="flex items-center justify-between gap-3 text-sm font-bold text-white">
-                                            Event visibility
-                                            <select aria-label="Event visibility" value={shareModalEvent.isPublic ? "public" : "private"} disabled={savingVisibility} onChange={event => void changeEventVisibility(event.target.value === "public")} className="rounded-lg bg-slate-900 p-2 disabled:opacity-50">
-                                                <option value="private">Private</option><option value="public">Public</option>
-                                            </select>
-                                        </label>
-                                        <p className="mt-2 text-xs text-slate-300">{shareModalEvent.isPublic ? "Anyone with the link can view this event and its sub-galleries. Viewing does not grant upload or editing access." : "Guests need approval to view this event through its shared link."}</p>
-                                        {savingVisibility && <p role="status" className="mt-2 text-xs text-slate-300">Saving…</p>}
-                                        {visibilityError && <p role="alert" className="mt-2 text-xs text-rose-300">{visibilityError}</p>}
-                                    </div>
-                                )}
+                                <ModalHeader title="Share Event" onClose={() => setShareModalEvent(null)} closeLabel="Close share modal" className="mb-0 text-left" />
 
 
                                 <div className="mx-auto mt-7 w-full max-w-[250px] rounded-[2rem] bg-white p-6 shadow-xl">
@@ -6437,14 +6320,6 @@ function DashboardContent() {
                                 >
                                     <Share2 className="h-5 w-5" />
                                     <span>Share Invitation</span>
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={() => setShareModalEvent(null)}
-                                    className="mt-7 text-lg font-semibold text-slate-400 transition-colors hover:text-white"
-                                >
-                                    Close
                                 </button>
                             </motion.div>
                         </div>
@@ -6511,16 +6386,17 @@ function DashboardContent() {
                 <AnimatePresence>
                     {showDatePickerModal && (
                         <div
-                            className="fixed inset-0 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                            className={modalStyles.overlay}
                             style={{ zIndex: 10000 }}
                         >
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.92, y: 12 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.92, y: 12 }}
-                                className="relative w-full max-w-sm rounded bg-white p-6 text-slate-950 shadow-2xl"
+                                className={cn(modalStyles.panel, "max-w-sm")}
                                 style={{ zIndex: 10001 }}
                             >
+                                <ModalHeader title="Select Date" onClose={() => setShowDatePickerModal(false)} closeLabel="Close date picker" />
                                 <div className="grid grid-cols-3 gap-6">
                                     <DatePickerColumn
                                         options={DATE_PICKER_MONTHS.map((label, value) => ({ label, value }))}
@@ -6546,11 +6422,11 @@ function DashboardContent() {
                                     />
                                 </div>
 
-                                <div className="mt-10 flex justify-end gap-3">
+                                <div className={modalStyles.actions}>
                                     <button
                                         type="button"
                                         onClick={() => setShowDatePickerModal(false)}
-                                        className="rounded-full px-5 py-3 text-sm font-black uppercase tracking-widest text-slate-800 transition-colors hover:bg-slate-100"
+                                        className={modalStyles.secondary}
                                     >
                                         Cancel
                                     </button>
@@ -6565,7 +6441,7 @@ function DashboardContent() {
                                             }
                                             setShowDatePickerModal(false);
                                         }}
-                                        className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black uppercase tracking-widest text-white transition-colors hover:bg-slate-800"
+                                        className={modalStyles.primary}
                                     >
                                         OK
                                     </button>
@@ -6578,12 +6454,12 @@ function DashboardContent() {
                 {/* Delete Confirmation Modal */}
                 <AnimatePresence>
                     {showDeleteConfirm && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                        <div className={modalStyles.overlay}>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.9 }}
-                                className="bg-white rounded-md p-6 w-full max-w-xs shadow-2xl"
+                                className={modalStyles.panel}
                             >
                                 {(() => {
                                     const eventToDelete = userEvents.find(e => e.id === showDeleteConfirm) || eventDetailGalleries.find(e => e.id === showDeleteConfirm);
@@ -6591,15 +6467,15 @@ function DashboardContent() {
                                     const itemTypeTitle = eventToDelete?.type === "sub" ? "Gallery" : "Event";
                                     return (
                                         <>
-                                            <h3 className="text-[20px] font-medium mb-3 tracking-tight text-slate-900">Delete {itemTypeTitle}</h3>
-                                            <p className="text-slate-600 mb-8 font-inter text-[15px] leading-relaxed">
+                                            <ModalHeader title={`Delete ${itemTypeTitle}`} onClose={() => setShowDeleteConfirm(null)} className="mb-3" />
+                                            <p className={modalStyles.body}>
                                                 Are you sure you want to delete the {itemType} "{eventToDelete?.title}"? This will permanently remove all photos inside this {itemType}.
                                             </p>
-                                            <div className="flex justify-end space-x-6">
+                                            <div className={modalStyles.actions}>
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowDeleteConfirm(null)}
-                                                    className="font-bold text-teal-500 hover:text-teal-400 transition-colors uppercase text-sm tracking-wide"
+                                                    className={modalStyles.secondary}
                                                 >
                                                     Cancel
                                                 </button>
@@ -6607,7 +6483,7 @@ function DashboardContent() {
                                                     type="button"
                                                     onClick={() => handleDeleteEvent(showDeleteConfirm)}
                                                     disabled={status === "uploading"}
-                                                    className="font-bold text-teal-500 hover:text-teal-400 transition-colors uppercase text-sm tracking-wide disabled:opacity-50"
+                                                    className={modalStyles.danger}
                                                 >
                                                     {status === "uploading" ? "Deleting..." : "Delete"}
                                                 </button>
@@ -6623,22 +6499,22 @@ function DashboardContent() {
                 {/* Delete Success Modal */}
                 <AnimatePresence>
                     {showDeleteSuccessType && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                        <div className={modalStyles.overlay}>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.9 }}
-                                className="bg-white rounded-md p-6 w-full max-w-xs shadow-2xl"
+                                className={modalStyles.panel}
                             >
-                                <h3 className="text-[20px] font-medium mb-3 tracking-tight text-slate-900">Success</h3>
-                                <p className="text-slate-600 mb-8 font-inter text-[15px] leading-relaxed">
+                                <ModalHeader title="Success" onClose={() => setShowDeleteSuccessType(null)} className="mb-3" />
+                                <p className={modalStyles.body}>
                                     {showDeleteSuccessType === "gallery" ? "Gallery" : "Event"} deleted successfully.
                                 </p>
-                                <div className="flex justify-end">
+                                <div className={modalStyles.actions}>
                                     <button
                                         type="button"
                                         onClick={() => setShowDeleteSuccessType(null)}
-                                        className="font-bold text-teal-500 hover:text-teal-400 transition-colors uppercase text-sm tracking-wide"
+                                        className={modalStyles.primary}
                                     >
                                         OK
                                     </button>
@@ -6710,28 +6586,42 @@ function DashboardContent() {
                     }}
                 />
 
+                {videoActionItem && <VideoThumbnailActions ready={videoActionItem.status === "processed"} onClose={() => setVideoActionItem(null)} onChoose={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} onDelete={() => { void handleDeletePhoto(videoActionItem.id); setVideoActionItem(null); }} onMove={canMoveMedia ? () => { setMediaToMove([videoActionItem]); setVideoActionItem(null); } : undefined} onSaveToVault={() => { setMediaToSave([videoActionItem]); setVideoActionItem(null); }} />}
+                {mediaToSave && (
+                    <FolderPickerDialog
+                        title={`Save ${mediaToSave.length === 1 ? "1 item" : `${mediaToSave.length} items`} to EB Vault`}
+                        confirmLabel="Save"
+                        excludeFolderIds={[]}
+                        onClose={() => setMediaToSave(null)}
+                        onPick={handleSaveToVault}
+                    />
+                )}
+                {mediaToMove && (
+                    <MoveToGalleryDialog
+                        itemCount={mediaToMove.length}
+                        galleries={moveTargetGalleries}
+                        currentGalleryIds={Array.from(new Set(mediaToMove.map(item => item.eventId)))}
+                        onClose={() => setMediaToMove(null)}
+                        onMove={handleMoveMedia}
+                    />
+                )}
+                {thumbnailVideo && <VideoThumbnailPicker video={thumbnailVideo} onClose={() => setThumbnailVideo(null)} onSaved={(id, thumbnailUrl) => setCurrentEventPhotos(previous => previous.map(photo => photo.id === id ? { ...photo, thumbnailUrl } : photo))} />}
+
                 <AnimatePresence>
                     {photoActionItem && (
-                        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setPhotoActionItem(null)}>
+                        <div className={modalStyles.overlay} onClick={() => setPhotoActionItem(null)}>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.95, y: 16 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 16 }}
-                                className="w-full max-w-md rounded-[2rem] border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+                                className={modalStyles.panel}
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                <div className="mb-5 flex items-start justify-between gap-4">
-                                    <div>
-                                        <h3 className="text-2xl font-black text-white">Photo Actions</h3>
-                                        <p className="mt-1 text-sm font-bold text-slate-400">Choose where this photo should appear as a thumbnail.</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setPhotoActionItem(null)}
-                                        className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
-                                    >
-                                        <X className="h-5 w-5" />
-                                    </button>
-                                </div>
+                                <ModalHeader
+                                    title="Photo Actions"
+                                    subtitle="Choose where this photo should appear as a thumbnail."
+                                    onClose={() => setPhotoActionItem(null)}
+                                />
 
                                 <div className="space-y-3">
                                     <button
@@ -6756,6 +6646,28 @@ function DashboardContent() {
                                             <span>Make Event Thumbnail</span>
                                         </button>
                                     )}
+                                    {canMoveMedia && (
+                                        <button
+                                            onClick={() => {
+                                                setMediaToMove([photoActionItem]);
+                                                setPhotoActionItem(null);
+                                            }}
+                                            className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-slate-600 px-5 py-4 text-left font-black text-slate-200 transition-transform active:scale-[0.98] hover:border-slate-400"
+                                        >
+                                            <FolderInput className="h-5 w-5 shrink-0" />
+                                            <span>Move to Another Gallery</span>
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => {
+                                            setMediaToSave([photoActionItem]);
+                                            setPhotoActionItem(null);
+                                        }}
+                                        className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-[#7FA38C]/40 px-5 py-4 text-left font-black text-[#A9C9B4] transition-transform active:scale-[0.98] hover:border-[#7FA38C]"
+                                    >
+                                        <HardDrive className="h-5 w-5 shrink-0" />
+                                        <span>Save to EB Vault</span>
+                                    </button>
                                 </div>
                             </motion.div>
                         </div>
@@ -6764,15 +6676,15 @@ function DashboardContent() {
 
                 <AnimatePresence>
                     {selectedGuestLog && (
-                        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setSelectedGuestLog(null)}>
+                        <div className={modalStyles.overlay} onClick={() => setSelectedGuestLog(null)}>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.95, y: 16 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 16 }}
-                                className="w-full max-w-xl overflow-hidden rounded-[2rem] border border-slate-700 bg-slate-950 shadow-2xl"
+                                className={cn(modalStyles.panel, "max-w-xl overflow-hidden p-0 sm:p-0")}
                                 onClick={(event) => event.stopPropagation()}
                             >
-                                <div className="bg-gradient-to-b from-slate-900 to-slate-950 px-6 py-6">
+                                <div className="border-b border-[var(--site-border)] px-6 py-6">
                                     <div className="flex items-start gap-4">
                                         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-[#CA9C68] text-xl font-black text-slate-950">
                                             {selectedGuestProfile?.profileImage ? (
@@ -6788,13 +6700,7 @@ function DashboardContent() {
                                                 Member #{String(eventDetailLogs.findIndex(log => log.id === selectedGuestLog.id) + 1).padStart(2, "0")}
                                             </p>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setSelectedGuestLog(null)}
-                                            className="rounded-full bg-slate-900 p-2 text-slate-400 transition-colors hover:text-white"
-                                        >
-                                            <X className="h-5 w-5" />
-                                        </button>
+                                        <ModalCloseButton onClick={() => setSelectedGuestLog(null)} />
                                     </div>
                                 </div>
 
@@ -6826,28 +6732,18 @@ function DashboardContent() {
                                         <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#CA9C68]">Member Privileges</p>
                                         <div className="space-y-3">
                                             {[
-                                                { key: "viewAccess", label: "View Access", desc: "Can open and view this event gallery", icon: Eye },
                                                 { key: "canAdmin", label: "Admin Access", desc: "Manage event, sub-galleries, and other guests", icon: ShieldCheck },
-                                                { key: "canUpload", label: "Allow Uploads", desc: "Can add photos and videos to the event", icon: Camera },
+                                                { key: "canUpload", label: "Allow Photo Uploads", desc: "Can add photos to the event. Videos are reserved for the event owner and admins.", icon: Camera },
                                                 { key: "canComment", label: "Allow Comments", desc: "Can react and post comments on media", icon: MessageCircle },
                                             ].map(({ key, label, desc, icon: Icon }) => {
-                                                const isViewAccess = key === "viewAccess";
                                                 const permKey = key as "canAdmin" | "canUpload" | "canComment";
-                                                const isActive = isViewAccess
-                                                    ? selectedGuestLog.status === "approved"
-                                                    : Boolean(selectedGuestLog[permKey] || (selectedGuestLog.canAdmin && (permKey === "canUpload" || permKey === "canComment")));
+                                                const isActive = Boolean(selectedGuestLog[permKey] || (selectedGuestLog.canAdmin && (permKey === "canUpload" || permKey === "canComment")));
 
                                                 return (
                                                     <button
                                                         key={key}
                                                         type="button"
-                                                        onClick={() => {
-                                                            if (isViewAccess) {
-                                                                handleGuestViewAccessToggle(selectedGuestLog);
-                                                                return;
-                                                            }
-                                                            handleGuestPermissionToggle(selectedGuestLog, permKey);
-                                                        }}
+                                                        onClick={() => handleGuestPermissionToggle(selectedGuestLog, permKey)}
                                                         className={cn(
                                                             "flex w-full items-center gap-4 rounded-[1.25rem] border p-4 text-left transition-colors",
                                                             isActive ? "border-[#CA9C68]/45 bg-[#CA9C68]/10" : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
@@ -6893,26 +6789,23 @@ function DashboardContent() {
 
                 <AnimatePresence>
                     {showCreateSuccessModal && (
-                        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                        <div className={modalStyles.overlay}>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.94, y: 12 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.94, y: 12 }}
-                                className="w-full max-w-sm rounded-[2rem] border border-emerald-400/25 bg-slate-900 p-7 text-center shadow-2xl"
+                                className={cn(modalStyles.panel, "max-w-sm text-center")}
                             >
-                                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
+                                <ModalCloseButton onClick={closeCreateSuccessModal} className="absolute right-5 top-5" />
+                                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#CA9C68]/10 text-[#CA9C68]">
                                     <Check className="h-7 w-7" />
                                 </div>
-                                <h3 className="text-2xl font-black text-white">Success</h3>
-                                <p className="mt-3 text-sm font-bold text-slate-300">Your event has been created! ✨</p>
+                                <h2 className={modalStyles.title}>Success</h2>
+                                <p className={cn(modalStyles.body, "mt-3")}>Your event has been created! ✨</p>
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        setShowCreateSuccessModal(false);
-                                        setStatus("idle");
-                                        setMessage("");
-                                    }}
-                                    className="mt-7 w-full rounded-2xl bg-[#CA9C68] px-5 py-4 text-sm font-black uppercase tracking-widest text-slate-950 transition-colors hover:bg-[#D7AE7D]"
+                                    onClick={closeCreateSuccessModal}
+                                    className={cn(modalStyles.primary, "mt-7 w-full py-4")}
                                 >
                                     OK
                                 </button>
@@ -6924,28 +6817,18 @@ function DashboardContent() {
                 {/* Create Event Modal */}
                 <AnimatePresence>
                     {isCreateModalOpen && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto">
+                        <div className={modalStyles.overlay}>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                className="bg-slate-800 rounded-[2.5rem] p-8 md:p-12 w-full max-w-lg shadow-2xl relative overflow-hidden my-8"
+                                className={cn(modalStyles.panel, "my-8 max-w-lg")}
                             >
-                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-sky-400 via-sky-200 to-sky-400"></div>
-
-                                <div className="flex justify-between items-center mb-8">
-                                    <h3 className="text-3xl font-bold tracking-tight text-white">Create Event</h3>
-                                    <button
-                                        onClick={() => setIsCreateModalOpen(false)}
-                                        className="p-2 hover:bg-slate-900/50 rounded-full transition-colors"
-                                    >
-                                        <X className="w-6 h-6 text-stone-400" />
-                                    </button>
-                                </div>
+                                <ModalHeader title="Create Event" onClose={() => setIsCreateModalOpen(false)} />
 
                                 {status === "error" && message && (
-                                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
-                                        <p className="text-red-400 text-sm font-medium text-center">{message}</p>
+                                    <div className={cn(modalStyles.error, "mb-6")}>
+                                        {message}
                                     </div>
                                 )}
 
@@ -6957,20 +6840,20 @@ function DashboardContent() {
                                     }
                                 }} className="space-y-6">
                                     <div>
-                                        <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">Event Name</label>
+                                        <label className={modalStyles.label}>Event Name</label>
                                         <input
                                             type="text"
                                             value={eventName}
                                             onChange={(e) => setEventName(e.target.value)}
                                             placeholder="e.g. Wedding of John & Jane"
-                                            className="w-full px-6 py-5 bg-slate-900/50 border border-slate-700 rounded-2xl focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all outline-none text-lg font-medium text-white"
+                                            className={cn(modalStyles.input, "text-lg font-medium")}
                                             required
                                             autoFocus
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">Event Type</label>
+                                        <label className={modalStyles.label}>Event Type</label>
                                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                                             {EVENT_TYPE_OPTIONS.map(({ name, icon: Icon }) => {
                                                 const isSelected = eventType === name;
@@ -6987,7 +6870,7 @@ function DashboardContent() {
                                                             "flex min-h-12 items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-black transition-colors",
                                                             isSelected
                                                                 ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950"
-                                                                : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-[#CA9C68]/50 hover:text-white"
+                                                                : "border-[var(--site-border)] bg-[#13191F] text-[var(--site-subtle)] hover:border-[#CA9C68]/50 hover:text-white"
                                                         )}
                                                     >
                                                         <Icon className="h-4 w-4 shrink-0" />
@@ -6999,11 +6882,11 @@ function DashboardContent() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">Event Date</label>
+                                        <label className={modalStyles.label}>Event Date</label>
                                         <button
                                             type="button"
                                             onClick={() => openDatePicker("create")}
-                                            className="flex w-full items-center justify-between rounded-2xl border border-slate-700 bg-slate-900/50 px-6 py-5 text-left text-lg font-medium text-white transition-colors hover:border-[#CA9C68]/50"
+                                            className={cn(modalStyles.input, "flex items-center justify-between text-left text-lg font-medium hover:border-[#CA9C68]/50")}
                                         >
                                             <span className={eventDate ? "text-white" : "text-slate-500"}>
                                                 {eventDate || "Select event date"}
@@ -7015,7 +6898,7 @@ function DashboardContent() {
                                     <button
                                         type="submit"
                                         disabled={status === "uploading"}
-                                        className="w-full py-5 bg-[#CA9C68] text-slate-950 rounded-2xl font-black hover:bg-[#D7AE7D] transition-all shadow-xl active:scale-[0.98] disabled:bg-stone-200 disabled:shadow-none flex items-center justify-center gap-3 text-lg"
+                                        className={cn(modalStyles.primary, "w-full py-5")}
                                     >
                                         {status === "uploading" ? (
                                             <>

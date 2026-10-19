@@ -2,10 +2,12 @@
 
 import React, { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ChevronRight, MapPin, Star, Users, Store } from "lucide-react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Business, Event, getBusinessById, getEventById } from "@/lib/database";
+import { RequireLogin } from "../RequireLogin";
 
 function getVendorLocation(business: Business) {
     return business.location?.address || "Location not listed";
@@ -67,7 +69,7 @@ function EventPartnersContent({ slug }: { slug: string }) {
         return (
             <main className="min-h-screen bg-stone-50 px-6 py-32 text-center">
                 <h1 className="text-2xl font-black text-slate-900">Event not found</h1>
-                <Link href="/gallery" className="mt-6 inline-flex rounded-full bg-slate-900 px-6 py-3 text-sm font-black uppercase tracking-widest text-white">
+                <Link href="/dashboard" className="mt-6 inline-flex rounded-full bg-slate-900 px-6 py-3 text-sm font-black uppercase tracking-widest text-white">
                     Back to Gallery
                 </Link>
             </main>
@@ -148,12 +150,27 @@ function EventPartnersContent({ slug }: { slug: string }) {
     );
 }
 
+// Event Partners is hidden until Phase 2 (it comes with EB Business and EB Network), so old links and bookmarks go to
+// the event itself. To restore, delete this function and uncomment the original page below.
+export default function EventPartnersPage({ params }: { params: Promise<{ slug: string }> }) {
+    const { slug } = React.use(params);
+    redirect(`/events/${slug}`);
+}
+
+/*
 export default function EventPartnersPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = React.use(params);
 
     return (
-        <Suspense fallback={<LoadingScreen message="Loading event partners" />}>
-            <EventPartnersContent slug={slug} />
-        </Suspense>
+        <RequireLogin
+            heading="Log in to see the event partners"
+            body="The vendors behind this event are shown to signed-in guests. Log in or create an account to see them."
+            returnTo={`/events/${slug}/event-partners`}
+        >
+            <Suspense fallback={<LoadingScreen message="Loading event partners" />}>
+                <EventPartnersContent slug={slug} />
+            </Suspense>
+        </RequireLogin>
     );
 }
+*/

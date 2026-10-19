@@ -1,3 +1,4 @@
+import { PolicyAcceptanceGate } from "../components/PolicyAcceptanceGate";
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
@@ -8,6 +9,7 @@ type GoogleSigninModule = {
   configure: (options: { webClientId: string; iosClientId: string }) => void;
   hasPlayServices: () => Promise<boolean> | boolean;
   signIn: () => Promise<any>;
+  signOut: () => Promise<null>;
 };
 
 let googleSigninModule: GoogleSigninModule | null | undefined;
@@ -36,8 +38,11 @@ const configureGoogleSignin = async () => {
   const GoogleSignin = await getGoogleSignin();
   if (!GoogleSignin || googleSigninConfigured) return GoogleSignin;
 
+  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '71982315150-f5rfe8cr2sido3l06v6sprlkju4siis2.apps.googleusercontent.com';
+  console.log('[Auth] Configuring GoogleSignin with webClientId:', webClientId);
+
   GoogleSignin.configure({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'YOUR_WEB_CLIENT_ID_HERE',
+    webClientId,
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'YOUR_IOS_CLIENT_ID_HERE',
   });
   googleSigninConfigured = true;
@@ -125,6 +130,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isMounted = true;
     let profileUnsubscribe: (() => void) | undefined;
     let authLoadingFallback: ReturnType<typeof setTimeout> | undefined;
+    // At startup checkSession() and the auth listener (SIGNED_IN, INITIAL_SESSION) all report the
+    // same user. Skip repeats while that user's setup is still running, so the profile isn't
+    // fetched and a realtime channel opened once per event.
+    let settingUpUserId: string | null = null;
 
     const finishAuthLoading = () => {
       if (authLoadingFallback) {
@@ -167,6 +176,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const handleUserSession = async (supabaseUser: SupabaseUser) => {
+      if (settingUpUserId === supabaseUser.id) return;
+      settingUpUserId = supabaseUser.id;
       try {
         if (needsEmailVerification(supabaseUser)) {
           await supabase.auth.signOut();
@@ -212,6 +223,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role: 'user',
               });
             if (insertErr) throw insertErr;
+          } else {
+            // Update last login timestamp in the background
+            Promise.resolve(
+              supabase.from('profiles')
+                .update({ last_login: new Date().toISOString() })
+                .eq('id', supabaseUser.id)
+            ).then(({ error }) => {
+              if (error) {
+                console.error("[Auth] Supabase rejected lastLogin update in mobile:", error.message);
+              }
+            }).catch(e => console.error('[Auth] Failed to update lastLogin:', e));
           }
         } catch (docErr) {
           const nameVal = supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'User';
@@ -306,15 +328,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         console.error('[Auth] handleUserSession error:', err);
         finishAuthLoading();
+      } finally {
+        if (settingUpUserId === supabaseUser.id) settingUpUserId = null;
       }
     };
 
     checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('[Auth] onAuthStateChange fired. Event:', event, 'User:', session?.user?.id || 'none');
       if (session?.user) {
-        await handleUserSession(session.user);
+        // Not awaited: auth-js waits for this callback while it restores the saved session, and
+        // handleUserSession's queries wait for that restore, so awaiting can deadlock startup.
+        // The user is still set synchronously, before the first await inside handleUserSession.
+        handleUserSession(session.user);
       } else {
         if (profileUnsubscribe) profileUnsubscribe();
         if (isMounted) {
@@ -337,7 +364,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -474,6 +501,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
+      console.log('[Auth] GoogleSignin.signIn() response:', JSON.stringify(response));
+
+      // v16 returns { type: 'success' | 'cancelled' | 'noSavedCredentialFound', data }
+      if ((response as any).type === 'cancelled') {
+        return { success: false, error: 'Google sign-in was cancelled.' };
+      }
+
       // @ts-ignore - Handle both v10 and v11/12 return structures
       const idToken = response.data?.idToken || response.idToken;
       if (!idToken) throw new Error('No ID token present!');
@@ -531,12 +565,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.warn('[Auth] Error during supabase.auth.signOut():', err);
     }
+    // Forget the Google account too, so the next "Continue with Google" shows the account picker. Best effort and
+    // not awaited: logging out never waits on or fails because of Google.
+    configureGoogleSignin()
+      .then((GoogleSignin) => GoogleSignin?.signOut())
+      .catch((err) => console.warn('[Auth] Google sign-out failed:', err));
     setUser(null);
   };
 
   return (
     <AuthContext.Provider value={{ user, loading, login, signup, authWithPhone, loginWithGoogle, loginWithApple, resetPassword, logout }}>
-      {children}
+      <PolicyAcceptanceGate userId={user?.uid} onSignOut={logout}>{children}</PolicyAcceptanceGate>
     </AuthContext.Provider>
   );
 }

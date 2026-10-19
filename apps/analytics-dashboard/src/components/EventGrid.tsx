@@ -411,7 +411,7 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) =>
 
     const totalPhotos = photos.filter(p => p.mediaType !== 'video').length;
     const totalVideos = photos.filter(p => p.mediaType === 'video').length;
-    const totalData = photos.reduce((sum, p) => sum + (Number(p.size) || 0), 0);
+    const totalData = photos.reduce((sum, p) => sum + (Number(p.size) || 0) + (Number(p.overheadSize) || 0), 0);
     const totalVendors = events.reduce((sum, e) => sum + (e.vendors ? e.vendors.length : 0), 0);
 
     return {

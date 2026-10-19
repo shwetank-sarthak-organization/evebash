@@ -1,15 +1,51 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "../globals.css";
+import { brand, inter, playfair } from "../fonts";
 import Navbar from "@/components/Navbar";
 
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import Footer from "@/components/Footer";
 import MainWrapper from "@/components/MainWrapper";
+import { jsonLd, siteUrl } from "@/lib/seo";
+
+// Who EveBash is, for search engines (brand result, logo, contact).
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${siteUrl}/#organization`,
+      name: "EveBash",
+      url: siteUrl,
+      logo: `${siteUrl}/evebash-logo-gold.png`,
+      email: "support@evebash.com",
+      sameAs: ["https://www.youtube.com/@EveBashApp"],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${siteUrl}/#website`,
+      name: "EveBash",
+      url: siteUrl,
+      publisher: { "@id": `${siteUrl}/#organization` },
+    },
+  ],
+};
 
 export const metadata: Metadata = {
-  title: "EveBash | Premium Wedding Photography",
-  description: "Capturing life's most beautiful moments.",
+  metadataBase: new URL("https://www.evebash.com"),
+  title: {
+    default: "EveBash | Event media platform for photographers and organizers",
+    template: "%s · EveBash",
+  },
+  description: "Upload, organize and share every event's photos and videos with your clients and guests.",
+  applicationName: "EveBash",
+  openGraph: {
+    type: "website",
+    siteName: "EveBash",
+    locale: "en_IN",
+  },
+  twitter: { card: "summary_large_image" },
   icons: {
     icon: [
       { url: "/evebash-logo-gold.svg", type: "image/svg+xml" },
@@ -20,19 +56,24 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#13191F",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${inter.variable} ${playfair.variable} ${brand.variable}`}>
       <head>
         <link rel="icon" href="/evebash-logo-gold.svg" type="image/svg+xml" />
         <link rel="alternate icon" href="/evebash-logo-gold.png" type="image/png" />
         <link rel="apple-touch-icon" href="/evebash-logo-gold.png" />
       </head>
       <body className="antialiased font-sans">
+        <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(organizationJsonLd)} />
         <AuthProvider>
           <ThemeProvider>
             <Navbar />

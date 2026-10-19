@@ -10,6 +10,7 @@ import { getPlanDetails, getUsagePercent } from '@/lib/planLimits';
 import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 import { supabase } from '@/lib/supabase';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
+import { APP_VERSION } from '@/lib/appVersion';
 
 const { width } = Dimensions.get('window');
 
@@ -156,14 +157,14 @@ export default function UsageScreen() {
         style={styles.header}
       >
         <View style={styles.headerRow}>
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
             onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
             style={styles.backButton}
           >
             <IconSymbol name="chevron.left" size={24} color="#CA9C68" />
           </TouchableOpacity>
           <View style={styles.headingLogoRow}>
-            <EveBashLogoBadge onPress={() => router.replace('/(tabs)' as any)} />
+            <EveBashLogoBadge />
             <Text style={styles.headerTitle}>Plan & Usage</Text>
           </View>
           <View style={{ width: 40 }} />
@@ -306,7 +307,7 @@ export default function UsageScreen() {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.versionText}>EveBash v1.0.4</Text>
+          <Text style={styles.versionText}>EveBash v{APP_VERSION}</Text>
         </View>
 
       </ScrollView>

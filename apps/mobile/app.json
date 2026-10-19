@@ -4,24 +4,34 @@
     "slug": "evebash",
     "version": "1.2.4",
     "orientation": "default",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon-fullbleed.png",
     "scheme": "evebash",
     "userInterfaceStyle": "automatic",
+    "backgroundColor": "#13191F",
+    "primaryColor": "#CA9C68",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.wed-albummobile"
+      "bundleIdentifier": "com.evebash.app",
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundColor": "#13191F",
+        "foregroundImage": "./assets/images/adaptive-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "monochromeImage": "./assets/images/adaptive-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.wed_albummobile",
+      "blockedPermissions": [
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+      ],
+      "package": "com.evebash.app",
       "versionCode": 25,
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "single",
@@ -32,30 +42,79 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/splash-logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#13191F",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#13191F"
           }
         }
       ],
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
-          "color": "#ffffff",
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#CA9C68",
           "androidMode": "default",
           "androidCollapsedTitle": "EveBash"
         }
       ],
       "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "EveBash uses your photo library so you can add photos and videos to event galleries and choose a profile picture.",
+          "cameraPermission": "EveBash uses your camera to scan event QR codes and to take a selfie for Find You.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "EveBash uses your camera to scan event QR codes and to take a selfie for Find You.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "EveBash uses your photo library so you can add photos and videos to event galleries and choose a profile picture.",
+          "savePhotosPermission": "EveBash saves the photos and videos you download from event galleries to your photo library.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "EveBash uses your location to show event vendors near you.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false
+        }
+      ],
       "expo-image",
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       "expo-video",
-      "@react-native-google-signin/google-signin"
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.71982315150-e883v8ajl6qqnsgg3a7clqd9a5t4s9qk"
+        }
+      ],
+      "expo-sharing",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "extraPods": [
+              { "name": "GoogleUtilities", "modular_headers": true },
+              { "name": "RecaptchaInterop", "modular_headers": true }
+            ]
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
@@ -67,6 +126,12 @@
       "typedRoutes": true,
       "reactCompiler": false
     },
-    "owner": "elnino_009"
+    "owner": "elnino_009",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c56e7efd-1e46-4243-a77c-bff834914615"
+    }
   }
 }

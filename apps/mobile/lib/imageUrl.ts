@@ -48,6 +48,13 @@ export function getImageUrl(
     // Map to pre-generated static files on Backblaze B2 based on size requested
     const [baseSrc, queryString] = src.split("?");
     const query = queryString ? `?${queryString}` : "";
+
+    // Already a pre-resized WebP file (e.g. a gallery cover): use it as is, as the website does,
+    // instead of appending a second "-preview.webp"
+    if (baseSrc.endsWith("-preview.webp") || baseSrc.endsWith("-thumbnail.webp")) {
+        return src;
+    }
+
     const width = opts.width || 0;
     if (width > 0 && width <= 200) {
         return thumbnailUrl || `${baseSrc}-thumbnail.webp${query}`;
@@ -67,4 +74,11 @@ export function getGridThumbnail(src: string | null | undefined, thumbnailUrl?: 
 /** Convenience preset: small square avatar/preview (200px wide) */
 export function getSmallThumbnail(src: string | null | undefined, thumbnailUrl?: string | null): string {
     return getImageUrl(src, { width: 200 }, thumbnailUrl);
+}
+
+/** Public URL of an uploaded original file, e.g. the source MP4 behind a streamed (HLS) video. */
+export function getOriginalMediaUrl(storageKey: string): string {
+    const domain = MEDIA_DOMAIN.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    const path = storageKey.trim().replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/');
+    return `https://${domain}/${path}`;
 }

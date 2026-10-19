@@ -8,30 +8,32 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
 import { useRouter } from 'expo-router';
-import { updateUserPrivacy, updateUserProfile, submitFeedback } from '@/lib/database';
+import { updateUserProfile, submitFeedback } from '@/lib/database';
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { APP_VERSION } from '@/lib/appVersion';
+import { Button } from '@/components/ui/Button';
+import { appAlert, showToast } from '@/lib/feedback';
+import { haptic } from '@/lib/haptics';
+import * as Clipboard from 'expo-clipboard';
+import { MidnightColors } from '@/constants/theme';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const { colors, isDark } = useAppTheme();
-  const styles = getStyles(colors, isDark);
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   // Core Privacy Toggles
-  const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
   const [isDiscoverable, setIsDiscoverable] = useState(user?.discoverable ?? true);
-  const [updatingPrivacy, setUpdatingPrivacy] = useState(false);
   const [updatingSearch, setUpdatingSearch] = useState(false);
 
   // Notification Preferences
@@ -58,6 +60,8 @@ export default function SettingsScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackCategory, setFeedbackCategory] = useState<'Bug' | 'Suggestion' | 'Other'>('Bug');
@@ -81,7 +85,6 @@ export default function SettingsScreen() {
 
   // Update State when User Context changes
   useEffect(() => {
-    if (user?.isPrivate !== undefined) setIsPrivate(user.isPrivate);
     if (user?.discoverable !== undefined) setIsDiscoverable(user.discoverable);
     if (user?.notificationPreferences) {
       setNotifPreferences({
@@ -93,18 +96,6 @@ export default function SettingsScreen() {
     }
   }, [user]);
 
-  // Privacy Toggle
-  const togglePrivacy = async () => {
-    if (!user?.uid || updatingPrivacy) return;
-    setUpdatingPrivacy(true);
-    const newStatus = !isPrivate;
-    const success = await updateUserPrivacy(user.uid, newStatus);
-    if (success) {
-      setIsPrivate(newStatus);
-    }
-    setUpdatingPrivacy(false);
-  };
-
   // Discoverability Toggle
   const toggleDiscoverability = async () => {
     if (!user?.uid || updatingSearch) return;
@@ -112,6 +103,7 @@ export default function SettingsScreen() {
     const newStatus = !isDiscoverable;
     const success = await updateUserProfile(user.uid, { discoverable: newStatus });
     if (success) {
+      haptic('select');
       setIsDiscoverable(newStatus);
     }
     setUpdatingSearch(false);
@@ -126,6 +118,7 @@ export default function SettingsScreen() {
     };
     
     // Optimistically set state
+    haptic('select');
     setNotifPreferences(updatedPreferences);
 
     const success = await updateUserProfile(user.uid, {
@@ -135,7 +128,7 @@ export default function SettingsScreen() {
     if (!success) {
       // Revert state on failure
       setNotifPreferences(notifPreferences);
-      Alert.alert('Error', 'Failed to update preferences. Try again.');
+      appAlert('Error', 'Failed to update preferences. Try again.');
     }
   };
 
@@ -160,7 +153,7 @@ export default function SettingsScreen() {
           clearInterval(interval);
           setTimeout(() => {
             setClearingCache(false);
-            Alert.alert('Cache Wiped', 'Successfully cleared 24.2 MB of temporary media logs.');
+            appAlert('Cache Wiped', 'Successfully cleared 24.2 MB of temporary media logs.');
           }, 300);
           return 100;
         }
@@ -172,11 +165,11 @@ export default function SettingsScreen() {
   // Password Change Handler
   const handlePasswordChange = async () => {
     if (newPassword.length < 6) {
-      Alert.alert('Password too short', 'Password must be at least 6 characters long.');
+      appAlert('Password too short', 'Password must be at least 6 characters long.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Passwords match error', 'New password and confirmation password do not match.');
+      appAlert('Passwords match error', 'New password and confirmation password do not match.');
       return;
     }
 
@@ -186,13 +179,13 @@ export default function SettingsScreen() {
         password: newPassword
       });
       if (error) throw error;
-      Alert.alert('Success', 'Your account password has been updated.');
+      showToast('Your account password has been updated.');
       setPasswordModalVisible(false);
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
       console.error('Password change error:', error);
-      Alert.alert('Error', error?.message || 'Failed to update password.');
+      appAlert('Error', error?.message || 'Failed to update password.');
     } finally {
       setUpdatingPassword(false);
     }
@@ -202,7 +195,7 @@ export default function SettingsScreen() {
   const handleFeedbackSubmit = async () => {
     if (!user?.uid) return;
     if (!feedbackText.trim()) {
-      Alert.alert('Error', 'Feedback message cannot be empty.');
+      appAlert('Error', 'Feedback message cannot be empty.');
       return;
     }
 
@@ -216,15 +209,15 @@ export default function SettingsScreen() {
       );
 
       if (success) {
-        Alert.alert('Feedback Sent', 'Thank you for your valuable feedback! Our team will review this shortly.');
+        appAlert('Feedback Sent', 'Thank you for your valuable feedback! Our team will review this shortly.');
         setFeedbackModalVisible(false);
         setFeedbackText('');
       } else {
-        Alert.alert('Error', 'Failed to submit feedback. Please try again.');
+        appAlert('Error', 'Failed to submit feedback. Please try again.');
       }
     } catch (err) {
       console.error('Error submitting feedback:', err);
-      Alert.alert('Error', 'An unexpected error occurred.');
+      appAlert('Error', 'An unexpected error occurred.');
     } finally {
       setSubmittingFeedback(false);
     }
@@ -232,23 +225,36 @@ export default function SettingsScreen() {
 
   // Delete Account Handler
   const handleDeleteAccount = async () => {
-    if (!user?.uid) return;
-    
+    if (deleteConfirmation !== 'DELETE' || deletingAccount) return;
+
+    setDeletingAccount(true);
     try {
-      await updateUserProfile(user.uid, { discoverable: false });
-      
-      await supabase.from('profiles').update({
-        role: 'deleted',
-        email: null,
-        phone: null,
-      }).eq('id', user.uid);
-      
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (!accessToken) throw new Error('Please sign in again before deleting your account.');
+
+      const apiBaseUrl = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '');
+      const response = await fetch(`${apiBaseUrl}/api/v1/account`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ confirmation: deleteConfirmation }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Failed to delete account.');
+
       await logout();
-      Alert.alert('Account Deleted', 'Your EveBash account has been deleted permanently.');
       setDeleteModalVisible(false);
-    } catch (error: any) {
+      setDeleteConfirmation('');
+      appAlert('Account Deleted', 'Your EveBash account has been deleted permanently.');
+      router.replace('/login');
+    } catch (error: unknown) {
       console.error('Account deletion error:', error);
-      Alert.alert('Error', error?.message || 'Failed to delete account.');
+      appAlert('Error', error instanceof Error ? error.message : 'Failed to delete account.');
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -280,19 +286,19 @@ export default function SettingsScreen() {
   const isEmailLogin = user?.email && !user.email.endsWith('@phone-login.local');
 
   return (
-    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile')}
-          style={styles.backBtn}
-        >
-          <IconSymbol name="chevron.left" size={20} color={colors.white} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <View style={{ width: 36 }} />
-      </View>
+    <View style={styles.safeArea}>
+      {/* Same header as the main tabs; back button in place of the logo since Settings has no tab bar */}
+      <TabScreenHeader
+        title="Settings"
+        left={
+          <HeaderAction
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile')}
+            accessibilityLabel="Back"
+          >
+            <IconSymbol name="chevron.left" size={24} color={colors.gold} />
+          </HeaderAction>
+        }
+      />
 
       <ScrollView
         style={styles.container}
@@ -322,7 +328,7 @@ export default function SettingsScreen() {
               onPress={() => setPasswordModalVisible(true)}
             >
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-                <IconSymbol name="lock.fill" size={18} color="#CA9C68" />
+                <IconSymbol name="lock.fill" size={18} color={MidnightColors.gold} />
               </View>
               <Text style={styles.actionText}>Change Password</Text>
               <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -330,7 +336,7 @@ export default function SettingsScreen() {
           ) : (
             <View style={[styles.actionItemRow, { opacity: 0.5 }]}>
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.05)' }]}>
-                <IconSymbol name="lock.fill" size={18} color="#CDB89E" />
+                <IconSymbol name="lock.fill" size={18} color={MidnightColors.slate400} />
               </View>
               <Text style={[styles.actionText, { color: colors.slate400 }]}>Change Password (Phone Login)</Text>
             </View>
@@ -344,40 +350,19 @@ export default function SettingsScreen() {
             onPress={() => setDeleteModalVisible(true)}
           >
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
-              <IconSymbol name="trash.fill" size={18} color="#ef4444" />
+              <IconSymbol name="trash.fill" size={18} color={MidnightColors.danger} />
             </View>
-            <Text style={[styles.actionText, { color: '#f87171' }]}>Delete Account</Text>
-            <IconSymbol name="chevron.right" size={16} color="#f87171" />
+            <Text style={[styles.actionText, { color: MidnightColors.dangerSoft }]}>Delete Account</Text>
+            <IconSymbol name="chevron.right" size={16} color={MidnightColors.dangerSoft} />
           </TouchableOpacity>
         </View>
 
         {/* Privacy Settings */}
         <Text style={styles.sectionLabel}>Privacy</Text>
         <View style={styles.settingsCard}>
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={togglePrivacy} disabled={updatingPrivacy}>
-            <View style={[styles.infoIconBox, { backgroundColor: isPrivate ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)' }]}>
-              <IconSymbol name={isPrivate ? "lock.fill" : "globe"} size={18} color={isPrivate ? "#ef4444" : "#10b981"} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionText}>{isPrivate ? 'Private Account' : 'Public Account'}</Text>
-              <Text style={styles.actionSubtext}>
-                {isPrivate ? 'Followers must be approved' : 'Anyone can follow you'}
-              </Text>
-            </View>
-            <View style={[styles.toggleBtn, isPrivate && styles.toggleBtnActive]}>
-              {updatingPrivacy ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <View style={[styles.toggleDot, isPrivate && styles.toggleDotActive]} />
-              )}
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={toggleDiscoverability} disabled={updatingSearch}>
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={toggleDiscoverability} disabled={updatingSearch} accessibilityRole="switch" accessibilityLabel="Discoverable profile" accessibilityState={{ checked: isDiscoverable, disabled: updatingSearch }}>
             <View style={[styles.infoIconBox, { backgroundColor: isDiscoverable ? 'rgba(16, 185, 129, 0.1)' : 'rgba(100, 116, 139, 0.1)' }]}>
-              <IconSymbol name="magnifyingglass" size={18} color={isDiscoverable ? "#10b981" : "#64748b"} />
+              <IconSymbol name="magnifyingglass" size={18} color={isDiscoverable ? MidnightColors.success : MidnightColors.slate600} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionText}>Discoverable Profile</Text>
@@ -396,7 +381,7 @@ export default function SettingsScreen() {
         {/* Notification Preferences */}
         <Text style={styles.sectionLabel}>Notifications</Text>
         <View style={styles.settingsCard}>
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('likesAndComments')}>
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('likesAndComments')} accessibilityRole="switch" accessibilityLabel="Likes and comments notifications" accessibilityState={{ checked: notifPreferences.likesAndComments }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionText}>Likes & Comments</Text>
               <Text style={styles.actionSubtext}>When people interact with your photos</Text>
@@ -408,7 +393,7 @@ export default function SettingsScreen() {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('eventInvites')}>
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('eventInvites')} accessibilityRole="switch" accessibilityLabel="Event invitation notifications" accessibilityState={{ checked: notifPreferences.eventInvites }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionText}>Event Invitations</Text>
               <Text style={styles.actionSubtext}>When you get added to a new event album</Text>
@@ -420,7 +405,7 @@ export default function SettingsScreen() {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('businessMatches')}>
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('businessMatches')} accessibilityRole="switch" accessibilityLabel="Local match enquiry notifications" accessibilityState={{ checked: notifPreferences.businessMatches }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionText}>Local Match Enquiries</Text>
               <Text style={styles.actionSubtext}>New lead alerts matching your area</Text>
@@ -432,7 +417,7 @@ export default function SettingsScreen() {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('marketing')}>
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('marketing')} accessibilityRole="switch" accessibilityLabel="Marketing offer notifications" accessibilityState={{ checked: notifPreferences.marketing }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionText}>Marketing Offers</Text>
               <Text style={styles.actionSubtext}>Coupons, specials, and milestone deals</Text>
@@ -483,7 +468,7 @@ export default function SettingsScreen() {
             </View>
             {!clearingCache && (
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(100, 116, 139, 0.1)' }]}>
-                <IconSymbol name="clock.fill" size={16} color="#64748b" />
+                <IconSymbol name="clock.fill" size={16} color={MidnightColors.slate600} />
               </View>
             )}
           </TouchableOpacity>
@@ -498,7 +483,7 @@ export default function SettingsScreen() {
             onPress={() => setFeedbackModalVisible(true)}
           >
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="bell.fill" size={18} color="#CA9C68" />
+              <IconSymbol name="bell.fill" size={18} color={MidnightColors.gold} />
             </View>
             <Text style={styles.actionText}>Report a Bug / Send Feedback</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -509,13 +494,19 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={styles.actionItemRow}
             activeOpacity={0.7}
-            onPress={() => Alert.alert('Customer Support', 'Mail us directly at support@evebash.com or tap to copy.', [
+            onPress={() => appAlert('Customer Support', 'Mail us directly at support@evebash.com or tap to copy.', [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Copy Email', onPress: () => Alert.alert('Copied', 'Email copied to clipboard.') }
+              {
+                text: 'Copy Email',
+                onPress: async () => {
+                  await Clipboard.setStringAsync('support@evebash.com');
+                  showToast('Email copied to clipboard.');
+                },
+              }
             ])}
           >
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="envelope.fill" size={16} color="#CA9C68" />
+              <IconSymbol name="envelope.fill" size={16} color={MidnightColors.gold} />
             </View>
             <Text style={styles.actionText}>Contact Customer Support</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -538,7 +529,7 @@ export default function SettingsScreen() {
                   <IconSymbol
                     name={isExpanded ? "chevron.down" : "chevron.right"}
                     size={16}
-                    color="#CA9C68"
+                    color={MidnightColors.gold}
                   />
                 </TouchableOpacity>
                 {isExpanded && (
@@ -555,9 +546,9 @@ export default function SettingsScreen() {
         {/* Legal Section */}
         <Text style={styles.sectionLabel}>About & Legal</Text>
         <View style={styles.settingsCard}>
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => router.push('/' as any)}>
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => router.push('/(tabs)' as any)}>
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="house.fill" size={18} color="#CA9C68" />
+              <IconSymbol name="house.fill" size={18} color={MidnightColors.gold} />
             </View>
             <Text style={styles.actionText}>About EveBash</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -567,7 +558,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => openLegalModal('terms')}>
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="doc.on.doc.fill" size={18} color="#CA9C68" />
+              <IconSymbol name="doc.on.doc.fill" size={18} color={MidnightColors.gold} />
             </View>
             <Text style={styles.actionText}>Terms of Service</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -577,7 +568,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => openLegalModal('privacy')}>
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="shield.fill" size={18} color="#CA9C68" />
+              <IconSymbol name="shield.fill" size={18} color={MidnightColors.gold} />
             </View>
             <Text style={styles.actionText}>Privacy Policy</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -585,7 +576,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* App Version Footer */}
-        <Text style={styles.footerVersionText}>EveBash v1.1.2 • Standard Package</Text>
+        <Text style={styles.footerVersionText}>EveBash v{APP_VERSION} • Standard Package</Text>
 
       </ScrollView>
 
@@ -605,8 +596,8 @@ export default function SettingsScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Change Password</Text>
-              <TouchableOpacity onPress={() => setPasswordModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color="#64748b" />
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setPasswordModalVisible(false)}>
+                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -619,7 +610,7 @@ export default function SettingsScreen() {
                   onChangeText={setNewPassword}
                   secureTextEntry={true}
                   placeholder="At least 6 characters"
-                  placeholderTextColor="#475569"
+                  placeholderTextColor={MidnightColors.slate600}
                 />
               </View>
 
@@ -631,30 +622,30 @@ export default function SettingsScreen() {
                   onChangeText={setConfirmPassword}
                   secureTextEntry={true}
                   placeholder="Re-enter password"
-                  placeholderTextColor="#475569"
+                  placeholderTextColor={MidnightColors.slate600}
                 />
               </View>
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
+              <Button
+                title="Cancel"
+                variant="secondary"
+                size="md"
+                fullWidth={false}
+                style={{ flex: 1 }}
                 onPress={() => setPasswordModalVisible(false)}
                 disabled={updatingPassword}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.saveBtn}
+              />
+              <Button
+                title="Save Password"
+                variant="primary"
+                size="md"
+                fullWidth={false}
+                style={{ flex: 1 }}
                 onPress={handlePasswordChange}
-                disabled={updatingPassword}
-              >
-                {updatingPassword ? (
-                  <ActivityIndicator size="small" color="#13191F" />
-                ) : (
-                  <Text style={styles.saveBtnText}>Save Password</Text>
-                )}
-              </TouchableOpacity>
+                loading={updatingPassword}
+              />
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -668,11 +659,11 @@ export default function SettingsScreen() {
         onRequestClose={() => setDeleteModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { borderTopColor: '#ef4444', borderTopWidth: 4 }]}>
+          <View style={[styles.modalContent, { borderTopColor: MidnightColors.danger, borderTopWidth: 4 }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: '#ef4444' }]}>Delete Account Permanently?</Text>
-              <TouchableOpacity onPress={() => setDeleteModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color="#64748b" />
+              <Text style={[styles.modalTitle, { color: MidnightColors.danger }]}>Delete Account Permanently?</Text>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setDeleteModalVisible(false)}>
+                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -680,21 +671,42 @@ export default function SettingsScreen() {
               <Text style={styles.modalWarningText}>
                 Warning: This action is irreversible. All of your hosted event albums, photos shared, uploaded media, and profile details will be permanently wiped from EveBash databases.
               </Text>
+              <Text style={[styles.inputLabel, { marginTop: 18 }]}>Type DELETE to confirm</Text>
+              <TextInput
+                style={styles.textInput}
+                value={deleteConfirmation}
+                onChangeText={setDeleteConfirmation}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                editable={!deletingAccount}
+                placeholder="DELETE"
+                placeholderTextColor={MidnightColors.slate600}
+              />
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={() => setDeleteModalVisible(false)}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveBtn, { backgroundColor: '#ef4444' }]}
+              <Button
+                title="Cancel"
+                variant="secondary"
+                size="md"
+                fullWidth={false}
+                style={{ flex: 1 }}
+                onPress={() => {
+                  setDeleteModalVisible(false);
+                  setDeleteConfirmation('');
+                }}
+                disabled={deletingAccount}
+              />
+              <Button
+                title="Delete"
+                variant="destructive"
+                size="md"
+                fullWidth={false}
+                style={{ flex: 1 }}
                 onPress={handleDeleteAccount}
-              >
-                <Text style={[styles.saveBtnText, { color: '#fff' }]}>Delete Permanently</Text>
-              </TouchableOpacity>
+                loading={deletingAccount}
+                disabled={deleteConfirmation !== 'DELETE'}
+              />
             </View>
           </View>
         </View>
@@ -714,8 +726,8 @@ export default function SettingsScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Send Feedback</Text>
-              <TouchableOpacity onPress={() => setFeedbackModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color="#64748b" />
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setFeedbackModalVisible(false)}>
+                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -740,7 +752,7 @@ export default function SettingsScreen() {
                   value={feedbackText}
                   onChangeText={setFeedbackText}
                   placeholder="Describe your issue or suggest a premium feature..."
-                  placeholderTextColor="#475569"
+                  placeholderTextColor={MidnightColors.slate600}
                   multiline={true}
                   numberOfLines={5}
                 />
@@ -748,24 +760,24 @@ export default function SettingsScreen() {
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
+              <Button
+                title="Cancel"
+                variant="secondary"
+                size="md"
+                fullWidth={false}
+                style={{ flex: 1 }}
                 onPress={() => setFeedbackModalVisible(false)}
                 disabled={submittingFeedback}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.saveBtn}
+              />
+              <Button
+                title="Send Feedback"
+                variant="primary"
+                size="md"
+                fullWidth={false}
+                style={{ flex: 1 }}
                 onPress={handleFeedbackSubmit}
-                disabled={submittingFeedback}
-              >
-                {submittingFeedback ? (
-                  <ActivityIndicator size="small" color="#13191F" />
-                ) : (
-                  <Text style={styles.saveBtnText}>Send Feedback</Text>
-                )}
-              </TouchableOpacity>
+                loading={submittingFeedback}
+              />
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -784,8 +796,8 @@ export default function SettingsScreen() {
               <Text style={styles.modalTitle}>
                 {legalModalType === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
               </Text>
-              <TouchableOpacity onPress={() => setLegalModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color="#64748b" />
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setLegalModalVisible(false)}>
+                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -812,12 +824,7 @@ export default function SettingsScreen() {
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.saveBtn, { width: '100%' }]}
-                onPress={() => setLegalModalVisible(false)}
-              >
-                <Text style={styles.saveBtnText}>Accept & Close</Text>
-              </TouchableOpacity>
+              <Button title="Close" onPress={() => setLegalModalVisible(false)} />
             </View>
           </View>
         </View>
@@ -827,30 +834,10 @@ export default function SettingsScreen() {
   );
 }
 
-const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: 'Outfit_700Bold',
-    color: colors.white,
   },
   container: {
     flex: 1,
@@ -915,7 +902,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   infoIconBox: {
     width: 34,
     height: 34,
-    borderRadius: 10,
+    borderRadius: 12,
     backgroundColor: 'rgba(202, 156, 104, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -929,7 +916,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     justifyContent: 'center',
   },
   toggleBtnActive: {
-    backgroundColor: '#10b981',
+    backgroundColor: colors.success,
   },
   toggleDot: {
     width: 20,
@@ -956,7 +943,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   segmentPill: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
   },
   segmentPillActive: {
@@ -968,7 +955,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.slate400,
   },
   segmentPillTextActive: {
-    color: '#13191F',
+    color: colors.onAccent,
     fontFamily: 'Inter_700Bold',
   },
   progressContainer: {
@@ -987,7 +974,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   progressText: {
     position: 'absolute',
     alignSelf: 'center',
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: 'Inter_700Bold',
     color: colors.white,
   },
@@ -1103,7 +1090,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.03)',
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    borderRadius: 14,
+    borderRadius: 16,
     height: 48,
     paddingHorizontal: 16,
     fontSize: 14,
@@ -1124,7 +1111,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   categoryPillActive: {
     backgroundColor: 'rgba(202, 156, 104, 0.15)',
-    borderColor: '#CA9C68',
+    borderColor: colors.gold,
   },
   categoryPillText: {
     fontSize: 12,
@@ -1132,7 +1119,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.slate400,
   },
   categoryPillTextActive: {
-    color: '#CA9C68',
+    color: colors.gold,
   },
   modalActions: {
     flexDirection: 'row',
@@ -1142,7 +1129,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   cancelBtn: {
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1155,13 +1142,13 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: colors.gold,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
   saveBtnText: {
     fontSize: 14,
     fontFamily: 'Outfit_700Bold',
-    color: '#13191F',
+    color: colors.onAccent,
   },
 });

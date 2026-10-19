@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { POLICY_PENDING_KEY, acceptanceIntent } from '../../../shared/legal/acceptance';
 import React, { useState } from 'react';
 import {
   View,
@@ -11,19 +13,36 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'expo-router';
+import { safeReturnTo } from '@/lib/loginReturn';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { MidnightColors } from '@/constants/theme';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
+import * as AppleAuthentication from 'expo-apple-authentication';
+
+// Text colours for the white card, chosen for at least 4.5:1 contrast
+const LINK = '#8C6434';
+const MUTED = '#7C6C58';
 
 const { height } = Dimensions.get('window');
 
 export default function LoginScreen() {
-  console.log('LoginScreen rendering...');
   const { login, signup, authWithPhone, loginWithGoogle, loginWithApple } = useAuth();
   const router = useRouter();
+  // Set by a gallery's "Log in" button: go back to that gallery after login instead of the dashboard
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const goAfterLogin = () => {
+    const target = safeReturnTo(returnTo);
+    if (!target) router.replace('/(tabs)/dashboard');
+    else if (router.canGoBack()) router.back();
+    else router.replace(target as any);
+  };
 
   const [isSignUp, setIsSignUp] = useState(false);
+  const [policiesAccepted, setPoliciesAccepted] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -32,6 +51,9 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [verificationMessage, setVerificationMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  // Which social sign-in is in progress, so only that button shows a spinner
+  const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
+  const anyLoading = loading || socialLoading !== null;
   const [showPass, setShowPass] = useState(false);
   const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
   const isPhoneAuth = authMethod === 'phone';
@@ -82,6 +104,7 @@ export default function LoginScreen() {
       return;
     }
     if (isSignUp) {
+      if (!policiesAccepted) { setError('Please accept the Terms and acknowledge the Privacy Policy.'); return; }
       if (!isPassValid) {
         setError('Please meet all password requirements.');
         return;
@@ -98,6 +121,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     const loginId = isPhoneAuth ? `${phone.replace(/\D/g, '')}@phone-login.local` : email.trim();
+    if (isSignUp) await AsyncStorage.setItem(POLICY_PENDING_KEY, acceptanceIntent(loginId)).catch(() => undefined);
     const result = isSignUp
       ? isPhoneAuth
         ? await authWithPhone(name.trim(), phone.trim(), password)
@@ -109,19 +133,20 @@ export default function LoginScreen() {
       if ((result as any).needsEmailVerification) {
         setVerificationMessage(`A verification email has been sent to ${email.trim()}. Please check your inbox and verify your email to log in.`);
       } else {
-        router.replace('/(tabs)/dashboard');
+        goAfterLogin();
       }
     } else {
+      if (isSignUp) await AsyncStorage.removeItem(POLICY_PENDING_KEY).catch(() => undefined);
       setError(result.error || 'Something went wrong.');
     }
   };
   const handleGoogleLogin = async () => {
     setError('');
-    setLoading(true);
+    setSocialLoading('google');
     const result = await loginWithGoogle();
-    setLoading(false);
+    setSocialLoading(null);
     if (result.success) {
-      router.replace('/(tabs)/dashboard');
+      goAfterLogin();
     } else {
       setError(result.error || 'Google login failed.');
     }
@@ -129,17 +154,18 @@ export default function LoginScreen() {
 
   const handleAppleLogin = async () => {
     setError('');
-    setLoading(true);
+    setSocialLoading('apple');
     const result = await loginWithApple();
-    setLoading(false);
+    setSocialLoading(null);
     if (result.success) {
-      router.replace('/(tabs)/dashboard');
+      goAfterLogin();
     } else {
       setError(result.error || 'Apple login failed.');
     }
   };
   const toggleMode = () => {
     setIsSignUp((v) => !v);
+    setPoliciesAccepted(false);
     setError('');
     setVerificationMessage('');
     setName('');
@@ -148,26 +174,25 @@ export default function LoginScreen() {
     setConfirmPassword('');
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
     <LinearGradient colors={['#1B211F', '#2B2F2E', '#594C3D']} style={styles.gradient}>
-      <SafeAreaView style={styles.safe}>
+      {/* Bottom inset is applied inside the scroll so the card isn't clipped above the nav bar */}
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.kav}
         >
           <ScrollView
-            contentContainerStyle={styles.scroll}
+            contentContainerStyle={[styles.scroll, { paddingBottom: 88 + insets.bottom }]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
             {/* Logo / Brand */}
             <View style={styles.brandContainer}>
-              <View style={styles.logoRing}>
-                <Text style={styles.logoEmoji}>EB</Text>
-              </View>
               <Text style={styles.brandName}>EveBash</Text>
-              <Text style={styles.versionLabel}>v1.1</Text>
-              <Text style={styles.brandTagline}>Your event memories, beautifully preserved</Text>
+              <Text style={styles.brandTagline}>Celebrate. Capture. Connect.</Text>
             </View>
 
             {/* Card */}
@@ -208,10 +233,12 @@ export default function LoginScreen() {
                   <TextInput
                     style={styles.input}
                     placeholder="John Doe"
-                    placeholderTextColor="#CDB89E"
+                    placeholderTextColor={MUTED}
                     value={name}
                     onChangeText={setName}
                     autoCapitalize="words"
+                    autoComplete="name"
+                    textContentType="name"
                     returnKeyType="next"
                   />
                 </View>
@@ -223,10 +250,12 @@ export default function LoginScreen() {
                   <TextInput
                     style={styles.input}
                     placeholder="9876543210"
-                    placeholderTextColor="#CDB89E"
+                    placeholderTextColor={MUTED}
                     value={phone}
                     onChangeText={setPhone}
                     keyboardType="phone-pad"
+                    autoComplete="tel"
+                    textContentType="telephoneNumber"
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="next"
@@ -238,10 +267,12 @@ export default function LoginScreen() {
                   <TextInput
                     style={styles.input}
                     placeholder="you@example.com"
-                    placeholderTextColor="#CDB89E"
+                    placeholderTextColor={MUTED}
                     value={email}
                     onChangeText={setEmail}
                     keyboardType="email-address"
+                    autoComplete="email"
+                    textContentType="emailAddress"
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="next"
@@ -253,8 +284,8 @@ export default function LoginScreen() {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
                   <Text style={[styles.label, { marginBottom: 0 }]}>Password</Text>
                   {isSignUp && (
-                    <TouchableOpacity onPress={generateStrongPassword}>
-                      <Text style={{ color: '#0284c7', fontSize: 12, fontWeight: '700' }}>Suggest Strong Password</Text>
+                    <TouchableOpacity onPress={generateStrongPassword} hitSlop={12} accessibilityRole="button">
+                      <Text style={{ color: LINK, fontSize: 12, fontWeight: '700' }}>Suggest Strong Password</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -262,18 +293,22 @@ export default function LoginScreen() {
                   <TextInput
                     style={[styles.input, styles.passwordInput]}
                     placeholder="••••••••"
-                    placeholderTextColor="#CDB89E"
+                    placeholderTextColor={MUTED}
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={!showPass}
+                    autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                    textContentType={isSignUp ? 'newPassword' : 'password'}
                     returnKeyType={isSignUp ? 'next' : 'done'}
                     onSubmitEditing={!isSignUp ? handleSubmit : undefined}
                   />
                   <TouchableOpacity
                     style={styles.eyeBtn}
                     onPress={() => setShowPass((v) => !v)}
+                    accessibilityRole="button"
+                    accessibilityLabel={showPass ? 'Hide password' : 'Show password'}
                   >
-                    <Text style={styles.eyeText}>{showPass ? '🙈' : '👁️'}</Text>
+                    <IconSymbol name={showPass ? 'eye.slash.fill' : 'eye.fill'} size={20} color={MUTED} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -299,8 +334,8 @@ export default function LoginScreen() {
               )}
 
               {!isSignUp && !isPhoneAuth && (
-                <TouchableOpacity onPress={() => router.push('/forgot-password')} style={{ alignSelf: 'flex-end', marginTop: -8, marginBottom: 12 }}>
-                  <Text style={{ color: '#0284c7', fontSize: 13, fontWeight: '600' }}>Forgot Password?</Text>
+                <TouchableOpacity onPress={() => router.push('/forgot-password')} style={{ alignSelf: 'flex-end', marginTop: -8, marginBottom: 12 }} hitSlop={12} accessibilityRole="button">
+                  <Text style={{ color: LINK, fontSize: 13, fontWeight: '600' }}>Forgot Password?</Text>
                 </TouchableOpacity>
               )}
 
@@ -310,10 +345,12 @@ export default function LoginScreen() {
                   <TextInput
                     style={styles.input}
                     placeholder="••••••••"
-                    placeholderTextColor="#CDB89E"
+                    placeholderTextColor={MUTED}
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                     secureTextEntry={!showPass}
+                    autoComplete="new-password"
+                    textContentType="newPassword"
                     returnKeyType="done"
                     onSubmitEditing={handleSubmit}
                   />
@@ -335,14 +372,22 @@ export default function LoginScreen() {
               )}
 
               {/* Submit */}
+              {isSignUp && <View style={{ marginVertical: 16, gap: 12 }}>
+                <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{ checked: policiesAccepted }} onPress={() => setPoliciesAccepted(!policiesAccepted)} style={{ flexDirection: 'row', gap: 10 }}>
+                  <Text style={{ color: LINK, fontSize: 22 }}>{policiesAccepted ? '☑' : '☐'}</Text><Text style={{ flex: 1, color: '#334155', lineHeight: 22 }}>I agree to the Terms &amp; Conditions and acknowledge the Privacy Policy.</Text>
+                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 20 }}><TouchableOpacity accessibilityRole="link" onPress={() => router.push('/terms-and-conditions')}><Text style={{ color: LINK, textDecorationLine: 'underline' }}>Terms &amp; Conditions</Text></TouchableOpacity><TouchableOpacity accessibilityRole="link" onPress={() => router.push('/privacy-policy')}><Text style={{ color: LINK, textDecorationLine: 'underline' }}>Privacy Policy</Text></TouchableOpacity></View>
+              </View>}
               <TouchableOpacity
-                style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+                style={[styles.submitBtn, (anyLoading || (isSignUp && !policiesAccepted)) && styles.submitBtnDisabled]}
                 onPress={handleSubmit}
-                disabled={loading}
+                disabled={anyLoading || (isSignUp && !policiesAccepted)}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: anyLoading || (isSignUp && !policiesAccepted), busy: loading }}
               >
                 {loading ? (
-                  <ActivityIndicator color="#ffffff" size="small" />
+                  <ActivityIndicator color={MidnightColors.gold} size="small" />
                 ) : (
                   <Text style={styles.submitText}>{isSignUp ? 'Create Account' : 'Sign In'}</Text>
                 )}
@@ -355,24 +400,28 @@ export default function LoginScreen() {
                 <View style={styles.dividerLine} />
               </View>
 
-              <TouchableOpacity
-                style={styles.socialBtnGoogle}
+              <GoogleSignInButton
                 onPress={handleGoogleLogin}
-                disabled={loading}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.socialBtnGoogleText}>Continue with Google</Text>
-              </TouchableOpacity>
+                loading={socialLoading === 'google'}
+                disabled={anyLoading}
+              />
 
               {Platform.OS === 'ios' && (
-                <TouchableOpacity
-                  style={styles.socialBtnApple}
-                  onPress={handleAppleLogin}
-                  disabled={loading}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.socialBtnAppleText}>Continue with Apple</Text>
-                </TouchableOpacity>
+                // Apple requires its own native button (App Store guideline 4.8 / HIG)
+                <View pointerEvents={anyLoading ? 'none' : 'auto'} style={[styles.appleBtnWrap, anyLoading && { opacity: 0.5 }]}>
+                  <AppleAuthentication.AppleAuthenticationButton
+                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                    buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                    cornerRadius={14}
+                    style={styles.appleBtn}
+                    onPress={handleAppleLogin}
+                  />
+                  {socialLoading === 'apple' && (
+                    <View style={[StyleSheet.absoluteFill, styles.appleBtnLoading]}>
+                      <ActivityIndicator color="#ffffff" />
+                    </View>
+                  )}
+                </View>
               )}
 
               {/* Toggle */}
@@ -380,7 +429,7 @@ export default function LoginScreen() {
                 <Text style={styles.toggleLabel}>
                   {isSignUp ? 'Already have an account?' : "Don't have an account?"}
                 </Text>
-                <TouchableOpacity onPress={toggleMode}>
+                <TouchableOpacity onPress={toggleMode} hitSlop={{ top: 14, bottom: 14, left: 8, right: 16 }} accessibilityRole="button">
                   <Text style={styles.toggleAction}>
                     {isSignUp ? ' Sign In' : ' Sign Up'}
                   </Text>
@@ -389,7 +438,12 @@ export default function LoginScreen() {
             </View>
 
             {/* Footer */}
-            <Text style={styles.footer}>Protected access to EveBash</Text>
+            <Text style={styles.footer}>
+              Review our{' '}
+              <Text style={styles.footerLink} onPress={() => router.push('/terms-and-conditions')}>Terms</Text>
+              {' '}and{' '}
+              <Text style={styles.footerLink} onPress={() => router.push('/privacy-policy')}>Privacy Policy</Text>.
+            </Text>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -411,44 +465,34 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingTop: 32,
+    // Extra bottom padding lifts the centred brand + card group
+    paddingBottom: 88,
     minHeight: height,
   },
 
   // Brand
   brandContainer: {
     alignItems: 'center',
-    marginBottom: 36,
-  },
-  logoRing: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(202, 156, 104,0.15)',
-    borderWidth: 2,
-    borderColor: 'rgba(202, 156, 104,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  logoEmoji: {
-    fontSize: 24,
-    color: '#FFF7EB',
-    fontWeight: '900',
-    letterSpacing: 1,
+    marginBottom: 24,
   },
   brandName: {
-    fontFamily: 'AkayaKanadaka_400Regular',
-    fontSize: 32,
-    color: '#FFF7EB',
+    fontFamily: 'AkayaKanadakaHeader_400Regular',
+    fontSize: 44,
+    lineHeight: 54,
+    includeFontPadding: false,
+    color: MidnightColors.gold,
     letterSpacing: 0.5,
     marginBottom: 6,
   },
   brandTagline: {
-    fontSize: 14,
+    fontFamily: 'AkayaKanadakaHeader_400Regular',
+    fontSize: 18,
+    lineHeight: 24,
+    includeFontPadding: false,
     color: '#CDB89E',
-    fontWeight: '400',
     letterSpacing: 0.3,
+    textAlign: 'center',
   },
 
   // Card
@@ -497,7 +541,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   segmentTextActive: {
-    color: '#ffffff',
+    color: MidnightColors.gold,
   },
 
   // Fields
@@ -545,9 +589,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  eyeText: {
-    fontSize: 18,
-  },
   passwordChecklist: {
     marginTop: -10,
     marginBottom: 20,
@@ -555,7 +596,7 @@ const styles = StyleSheet.create({
   },
   checkItem: {
     fontSize: 12,
-    color: '#CDB89E',
+    color: MUTED,
     marginBottom: 4,
   },
   checkMet: {
@@ -612,7 +653,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   submitText: {
-    color: '#ffffff',
+    color: MidnightColors.gold,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -630,7 +671,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   toggleAction: {
-    color: '#0284c7',
+    color: LINK,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -648,54 +689,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#e2e8f0',
   },
   dividerText: {
-    color: '#CDB89E',
+    color: MUTED,
     fontSize: 12,
     fontWeight: '700',
     paddingHorizontal: 12,
     letterSpacing: 0.5,
   },
-  socialBtnGoogle: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
+  appleBtnWrap: {
     marginBottom: 12,
   },
-  socialBtnGoogleText: {
-    color: '#1B211F',
-    fontSize: 15,
-    fontWeight: '600',
+  appleBtn: {
+    width: '100%',
+    height: 50,
   },
-  socialBtnApple: {
+  appleBtnLoading: {
     backgroundColor: '#000000',
     borderRadius: 14,
-    paddingVertical: 14,
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  socialBtnAppleText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '600',
+    justifyContent: 'center',
   },
 
   // Footer
   footer: {
     textAlign: 'center',
-    color: '#64748b',
+    color: '#E6D8C3',
     fontSize: 13,
+    lineHeight: 20,
     marginTop: 28,
+    paddingHorizontal: 12,
   },
-  versionLabel: {
-    fontSize: 10,
-    color: '#CA9C68',
-    fontWeight: 'bold',
-    marginBottom: 4,
-    backgroundColor: 'rgba(202, 156, 104,0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+  footerLink: {
+    color: '#FFF7EB',
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });

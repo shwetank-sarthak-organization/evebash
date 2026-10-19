@@ -10,7 +10,7 @@ import { Event, getSampleGalleryEvents } from '@/lib/database';
 export default function SampleGalleriesScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
-  const styles = getStyles(colors, isDark);
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [albums, setAlbums] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,7 +37,7 @@ export default function SampleGalleriesScreen() {
         headerTintColor: colors.white,
         headerStyle: { backgroundColor: colors.background },
         headerLeft: () => (
-          <TouchableOpacity 
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" 
             onPress={() => {
               if (router.canGoBack()) {
                 router.back();
@@ -136,7 +136,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   cardImage: { ...StyleSheet.absoluteFillObject },
   cardGradient: { ...StyleSheet.absoluteFillObject },
   cardContent: { position: 'absolute', bottom: 20, left: 20, right: 20 },
-  categoryBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, backgroundColor: 'rgba(202, 156, 104,0.2)', borderRadius: 10, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(202, 156, 104,0.3)' },
+  categoryBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, backgroundColor: 'rgba(202, 156, 104,0.2)', borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(202, 156, 104,0.3)' },
   categoryText: { fontSize: 10, color: colors.gold, fontFamily: Fonts.inter.bold, textTransform: 'uppercase' },
   cardTitle: { fontSize: 20, color: '#fff', fontFamily: Fonts.outfit.bold },
   cardYear: { fontSize: 12, color: colors.slate400, fontFamily: Fonts.inter.medium, marginTop: 2 },

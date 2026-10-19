@@ -1,210 +1,56 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { resolveEventCoverImage } from "@/lib/eventCovers";
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import {
+    DashboardEventStats,
     Event,
-    getApprovedSharedEventsForUser,
-    getEventByJoinId,
-    getUserEvents,
-    logGuestLogin,
+    getDashboardEventStats,
+    openGallery,
+    requestGalleryAccess,
 } from "@/lib/database";
 import {
     ArrowLeft,
     ArrowRight,
-    Calendar,
-    MessageCircle,
     Play,
     Plus,
     QrCode,
-    X,
-    Send,
-    Minus,
-    Search,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { ModalHeader, modalStyles } from "@/components/ui/Modal";
+import { cn } from "@/lib/utils";
+import { CollectionsIcon } from "@/components/CollectionsIcon";
+import { EventsJoinedStatIcon, PhotosStatIcon, VideosStatIcon } from "@/components/dashboard/StatIcons";
+import {
+    DashboardEventCard,
+    SERIF,
+    loadDashboardEvents,
+} from "@/components/dashboard/DashboardEvents";
 
 const DEFAULT_EVENT_COVER_IMAGE = "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop";
+// The two stat boxes and the Join button share one size. The height is inline so it never depends on a newly
+// generated Tailwind class.
+const STAT_BOX = "flex min-w-0 flex-col justify-center rounded-2xl border border-[#273034] bg-[#0E141A] px-5 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:px-6";
+const STAT_BOX_SIZE: React.CSSProperties = { height: 74 };
+
 const MEMORIES_CARD_IMAGE = "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2071&auto=format&fit=crop";
-
-function getCreatedTime(event: Event) {
-    const createdAt = event.createdAt as any;
-    if (!createdAt) return 0;
-    if (typeof createdAt === "string" || typeof createdAt === "number") {
-        return new Date(createdAt).getTime() || 0;
-    }
-    if (createdAt.seconds) {
-        return createdAt.seconds * 1000;
-    }
-    if (createdAt.toDate) {
-        return createdAt.toDate().getTime();
-    }
-    return 0;
-}
-
-function getCoverImageStyle(event?: Event): React.CSSProperties {
-    const coverMode = event?.coverMode || "fill";
-    if (coverMode === "fit") {
-        return { objectFit: "contain", backgroundColor: "#050505" };
-    }
-
-    const x = 50 + (event?.coverOffsetX || 0);
-    const y = 50 + (event?.coverOffset || 0);
-    return {
-        objectFit: "cover",
-        objectPosition: `${Math.max(0, Math.min(100, x))}% ${Math.max(0, Math.min(100, y))}%`,
-        transform: `scale(${event?.coverScale || 1})`,
-    };
-}
 
 export default function DashboardHub() {
     const { user, loading } = useAuth();
     const router = useRouter();
 
     const [events, setEvents] = useState<Event[]>([]);
+    const [hostedIds, setHostedIds] = useState<Set<string>>(new Set());
+    const [eventStats, setEventStats] = useState<Record<string, DashboardEventStats>>({});
     const [isLoadingEvents, setIsLoadingEvents] = useState(true);
-    const [showAllEvents, setShowAllEvents] = useState(false);
 
     const [showJoinModal, setShowJoinModal] = useState(false);
     const [joinCode, setJoinCode] = useState("");
     const [isJoining, setIsJoining] = useState(false);
     const [joinMessage, setJoinMessage] = useState("");
     const [joinMessageType, setJoinMessageType] = useState<"success" | "error">("success");
-    const [showChatBox, setShowChatBox] = useState(false);
-    const [chatInput, setChatInput] = useState("");
-    const [searchQuery, setSearchQuery] = useState("");
-    const [activeChatId, setActiveChatId] = useState<string | null>(null);
-
-    // Mock conversations resembling real wedding groups and direct messages
-    const [conversations, setConversations] = useState([
-        {
-            id: "wedding",
-            name: "Arjun & Priya's Wedding 💍",
-            avatar: "AP",
-            isGroup: true,
-            lastMessage: "Priya: Can you upload the portrait photos?",
-            time: "10:30 AM",
-            unread: true,
-        },
-        {
-            id: "siddharth",
-            name: "Siddharth (Host) 🤵",
-            avatar: "SH",
-            isGroup: false,
-            lastMessage: "Did you receive the join code?",
-            time: "Yesterday",
-            unread: false,
-        },
-        {
-            id: "rohan",
-            name: "Rohan (Photographer) 📸",
-            avatar: "RP",
-            isGroup: false,
-            lastMessage: "Sent you the folder link.",
-            time: "2 days ago",
-            unread: false,
-        },
-        {
-            id: "corporate",
-            name: "Corporate Bash 2026 🏢",
-            avatar: "CB",
-            isGroup: true,
-            lastMessage: "Nehal: Great event photos!",
-            time: "1 week ago",
-            unread: false,
-        }
-    ]);
-
-    const [messagesByChat, setMessagesByChat] = useState<Record<string, Array<{ id: string; text: string; sender: "user" | "other"; senderName?: string; time: string }>>>({
-        wedding: [
-            { id: "w1", text: "Hey! Welcome to the group chat for Priya and Arjun's wedding!", sender: "other", senderName: "Priya", time: "10:15 AM" },
-            { id: "w2", text: "We will share all the high-resolution event downloads here.", sender: "other", senderName: "Arjun", time: "10:20 AM" },
-            { id: "w3", text: "Can you upload the portrait photos?", sender: "other", senderName: "Priya", time: "10:30 AM" }
-        ],
-        siddharth: [
-            { id: "s1", text: "Hey! Let me know if you can see the wedding gallery dashboard.", sender: "other", time: "4:15 PM" },
-            { id: "s2", text: "Yes, I can see it perfectly!", sender: "user", time: "4:20 PM" },
-            { id: "s3", text: "Awesome! Did you receive the join code?", sender: "other", time: "Yesterday" }
-        ],
-        rohan: [
-            { id: "r1", text: "Hi! I just finished exporting the edits.", sender: "other", time: "3 days ago" },
-            { id: "r2", text: "Sent you the folder link.", sender: "other", time: "2 days ago" }
-        ],
-        corporate: [
-            { id: "c1", text: "Awesome photos from the corporate meeting yesterday!", sender: "other", senderName: "Amit", time: "1 week ago" },
-            { id: "c2", text: "Nehal: Great event photos!", sender: "other", senderName: "Nehal", time: "1 week ago" }
-        ]
-    });
-
-    const [isTyping, setIsTyping] = useState(false);
-
-    const handleSendMessage = (e: React.FormEvent) => {
-        e.preventDefault();
-        const text = chatInput.trim();
-        if (!text || !activeChatId) return;
-
-        const newMsg = {
-            id: Date.now().toString(),
-            text,
-            sender: "user" as const,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-
-        setMessagesByChat((prev) => ({
-            ...prev,
-            [activeChatId]: [...(prev[activeChatId] || []), newMsg],
-        }));
-
-        setConversations((prev) =>
-            prev.map((c) =>
-                c.id === activeChatId
-                    ? { ...c, lastMessage: `You: ${text}`, time: "Just now", unread: false }
-                    : c
-            )
-        );
-
-        setChatInput("");
-
-        setIsTyping(true);
-        setTimeout(() => {
-            setIsTyping(false);
-            
-            let replyText = "Awesome! Thanks for the message.";
-            let replySenderName = "";
-
-            if (activeChatId === "wedding") {
-                replyText = "Perfect! I will let Arjun know as well. Looking forward to the other files.";
-                replySenderName = "Priya";
-            } else if (activeChatId === "siddharth") {
-                replyText = "Great! Let's sync tomorrow about the remaining uploads.";
-            } else if (activeChatId === "rohan") {
-                replyText = "Got it. Let me check the uploads and get back to you.";
-            }
-
-            const replyMsg = {
-                id: (Date.now() + 1).toString(),
-                text: replyText,
-                sender: "other" as const,
-                senderName: replySenderName || undefined,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            };
-
-            setMessagesByChat((prev) => ({
-                ...prev,
-                [activeChatId]: [...(prev[activeChatId] || []), replyMsg],
-            }));
-
-            setConversations((prev) =>
-                prev.map((c) =>
-                    c.id === activeChatId
-                        ? { ...c, lastMessage: replySenderName ? `${replySenderName}: ${replyText}` : replyText, time: "Just now" }
-                        : c
-                )
-            );
-        }, 1500);
-    };
 
     useEffect(() => {
         if (!loading && !user) {
@@ -217,20 +63,15 @@ export default function DashboardHub() {
 
         setIsLoadingEvents(true);
         try {
-            const ownIdentifiers = [user.uid];
-            if (user.email) ownIdentifiers.push(user.email);
-            if (user.phone) ownIdentifiers.push(user.phone);
-
-            const [hostedEvents, approvedSharedEvents] = await Promise.all([
-                getUserEvents(ownIdentifiers, "main"),
-                getApprovedSharedEventsForUser(ownIdentifiers),
-            ]);
-
-            const visibleEvents = Array.from(
-                new Map([...hostedEvents, ...approvedSharedEvents].map((event) => [event.id, event])).values()
-            ).sort((a, b) => getCreatedTime(b) - getCreatedTime(a));
+            const { events: visibleEvents, hostedIds: hosted } = await loadDashboardEvents(user);
 
             setEvents(visibleEvents);
+            setHostedIds(hosted);
+
+            // Counts load after the cards so they never hold the grid back
+            getDashboardEventStats(visibleEvents.map((event) => event.id))
+                .then(setEventStats)
+                .catch((err) => console.error("Error fetching dashboard stats:", err));
         } catch (err) {
             console.error("Error fetching dashboard data:", err);
         } finally {
@@ -258,44 +99,31 @@ export default function DashboardHub() {
         setJoinMessage("");
 
         try {
-            const event = await getEventByJoinId(finalCode);
+            // The join code is resolved by open_gallery (the events table isn't readable to non-members once RLS is
+            // on). Public galleries are joined right here; private ones need a request the host approves.
+            const opened = await openGallery(finalCode);
 
-            if (!event) {
+            if (opened.access === "not_found") {
                 setJoinMessageType("error");
                 setJoinMessage("Invalid Join ID. Please check the code and try again.");
                 return;
             }
 
-            const guestName = user.name || "Anonymous Guest";
-            const guestId = user.phone || user.email || user.uid;
-
-            if (!guestId) {
-                throw new Error("User identifier not found.");
+            let status: string = opened.access === "manage" || opened.access === "member" ? "approved" : opened.access;
+            if (status === "none") {
+                status = await requestGalleryAccess(finalCode);
             }
 
-            const success = await logGuestLogin(
-                guestName,
-                guestId,
-                event.id,
-                event.parentId || undefined,
-                event.title || "Untitled Event",
-                event.createdBy || undefined,
-                "pending"
-            );
-
-            if (success) {
-                setJoinMessageType("success");
-                setJoinMessage("Request sent. You will see the event in your collections once approved.");
-                setTimeout(() => {
-                    setShowJoinModal(false);
-                    setJoinCode("");
-                    setJoinMessage("");
-                    fetchData();
-                }, 2500);
-            } else {
-                setJoinMessageType("error");
-                setJoinMessage("Request could not be submitted. Please try again.");
-            }
+            setJoinMessageType("success");
+            setJoinMessage(status === "approved"
+                ? "You're in. The event is now in your collections."
+                : "Request sent. You will see the event in your collections once approved.");
+            setTimeout(() => {
+                setShowJoinModal(false);
+                setJoinCode("");
+                setJoinMessage("");
+                fetchData();
+            }, 2500);
         } catch (err) {
             console.error("[Join] Error:", err);
             setJoinMessageType("error");
@@ -305,9 +133,14 @@ export default function DashboardHub() {
         }
     };
 
-    const visibleEvents = useMemo(() => (
-        showAllEvents ? events : events.slice(0, 3)
-    ), [events, showAllEvents]);
+
+    const attendedCount = events.length - events.filter((event) => hostedIds.has(event.id)).length;
+    const statsLoaded = Object.keys(eventStats).length > 0;
+    const totalPhotos = events.reduce((sum, event) => sum + (eventStats[event.id]?.photos || 0), 0);
+    const totalVideos = events.reduce((sum, event) => sum + (eventStats[event.id]?.videos || 0), 0);
+
+    // The full list lives on /dashboard/events (the "Your memories" card opens it)
+    const visibleEvents = events.slice(0, 3);
 
     if (loading) {
         return (
@@ -321,35 +154,60 @@ export default function DashboardHub() {
 
     return (
         <div className="min-h-screen bg-[#0E141A] font-sans text-white">
-            {/* Dashboard Sub-Navbar */}
-            <div className="border-b border-[#273034] bg-[#0E141A]/95 pt-24 pb-4">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-                    {/* Left: Greeting / Workspace */}
-                    <div className="flex items-center gap-3">
-                        <div className="h-2 w-2 rounded-full bg-[#CA9C68]" />
-                        <span className="text-xs font-black tracking-wide text-white uppercase">Collections</span>
-                        <span className="text-[#3A534D]">|</span>
-                        <span className="text-xs font-bold text-slate-400">{user.name || user.email || "My Dashboard"}</span>
-                    </div>
-
-                </div>
-            </div>
-
-            <main className="relative z-20 mx-auto max-w-7xl space-y-8 px-4 pt-8 pb-24 sm:px-6 lg:px-8">
-                <section className="rounded-[2rem] border border-[#CA9C68]/20 bg-[#151B21] p-5 shadow-2xl shadow-black/25 sm:p-8">
-                    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                        <div>
-                            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[#CA9C68]">Event Gallery</p>
-                            <h2 className="mt-1 text-2xl font-black text-white">Memories curated for you</h2>
+            <main className="relative z-20 mx-auto max-w-7xl space-y-8 px-4 pt-12 pb-24 sm:px-6 lg:px-8">
+                <section className="rounded-[2rem] border border-[#273034] bg-[#121820] p-5 shadow-2xl shadow-black/25 sm:p-8 lg:p-10">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#CA9C68]">
+                                <CollectionsIcon className="h-6 w-6" aria-hidden="true" />
+                            </div>
+                            <div className="min-w-0">
+                                <h1 className="truncate font-brand font-normal tracking-wide text-[#F5EFE6]" style={{ fontSize: 28, lineHeight: "30px" }}>
+                                    Collections <span className="text-[#CA9C68]">|</span> {user.name || user.email || "My Dashboard"}
+                                </h1>
+                                <p className="truncate font-sans text-slate-400" style={{ fontSize: 12, lineHeight: "18px" }}>Memories curated for you</p>
+                            </div>
                         </div>
                         <button
                             type="button"
                             onClick={() => setShowJoinModal(true)}
-                            className="inline-flex w-fit items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-sm font-black text-[#13191F] transition-transform active:scale-95"
+                            className="flex h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-[#CA9C68] px-4 font-sans text-sm font-black text-slate-950 transition-colors hover:bg-[#D7AE7D] sm:px-5"
+                            aria-label="Join Event"
                         >
                             <Plus className="h-4 w-4" />
-                            <span>Join Event</span>
+                            <span className="sm:hidden">Join</span>
+                            <span className="hidden sm:inline">Join Event</span>
                         </button>
+                    </div>
+
+                    <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                        <div className={STAT_BOX} style={STAT_BOX_SIZE}>
+                            <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-400">
+                                <PhotosStatIcon className="h-5 w-5 text-[#CA9C68]" aria-hidden="true" />
+                                Total Photos
+                            </span>
+                            <span className="truncate text-xl text-[#CA9C68] lg:text-2xl" style={SERIF}>
+                                {statsLoaded ? totalPhotos.toLocaleString("en-US") : "—"} {totalPhotos === 1 ? "Photo" : "Photos"}
+                            </span>
+                        </div>
+                        <div className={STAT_BOX} style={STAT_BOX_SIZE}>
+                            <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-400">
+                                <VideosStatIcon className="h-5 w-5 text-[#CA9C68]" aria-hidden="true" />
+                                Total Videos
+                            </span>
+                            <span className="truncate text-xl text-[#CA9C68] lg:text-2xl" style={SERIF}>
+                                {statsLoaded ? totalVideos.toLocaleString("en-US") : "—"} {totalVideos === 1 ? "Video" : "Videos"}
+                            </span>
+                        </div>
+                        <div className={STAT_BOX} style={STAT_BOX_SIZE}>
+                            <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-400">
+                                <EventsJoinedStatIcon className="h-5 w-5 text-[#CA9C68]" aria-hidden="true" />
+                                Events Joined
+                            </span>
+                            <span className="truncate text-xl text-white lg:text-2xl" style={SERIF}>
+                                {attendedCount}
+                            </span>
+                        </div>
                     </div>
 
                     {isLoadingEvents ? (
@@ -357,74 +215,38 @@ export default function DashboardHub() {
                             <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#2B2F2E] border-t-[#CA9C68]" />
                         </div>
                     ) : (
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            {visibleEvents.map((event) => {
-                                const coverImage = resolveEventCoverImage(event.coverImage, 'thumbnail');
-                                return (
-                                    <button
-                                        key={event.id}
-                                        type="button"
-                                        onClick={() => window.open(`/events/${event.id}?mode=visitor`, "_blank", "noopener,noreferrer")}
-                                        className="group relative h-64 overflow-hidden rounded-[1.75rem] border border-[#CA9C68]/15 bg-[#10161C] text-left shadow-xl shadow-black/15 transition-transform hover:-translate-y-1"
-                                    >
-                                        <div className="absolute inset-0 overflow-hidden bg-[#0E141A]">
-                                            <img
-                                                src={coverImage}
-                                                alt=""
-                                                className="absolute inset-0 h-full w-full object-cover opacity-30 blur-xl"
-                                            />
-                                            <img
-                                                src={coverImage}
-                                                alt={event.title}
-                                                className="relative h-full w-full transition-transform duration-700 group-hover:scale-105"
-                                                style={getCoverImageStyle(event)}
-                                            />
-                                        </div>
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
-                                        {event.category && (
-                                            <div className="absolute left-4 top-4 rounded-full border border-[#CA9C68]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#CA9C68] backdrop-blur-sm">
-                                                {event.category}
-                                            </div>
-                                        )}
-                                        <div className="absolute bottom-0 left-0 right-0 border-t border-[#CA9C68]/10 bg-[#0E141A]/78 p-5 text-white backdrop-blur-md">
-                                            <h3 className="truncate text-lg font-black leading-tight text-white">{event.title}</h3>
-                                            <div className="mt-2 flex items-center gap-2 text-xs font-bold text-slate-400">
-                                                <Calendar className="h-3.5 w-3.5 text-[#CA9C68]" />
-                                                <span>{event.date}</span>
-                                            </div>
-                                        </div>
-                                    </button>
-                                );
-                            })}
+                        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                            {visibleEvents.map((event) => (
+                                <DashboardEventCard key={event.id} event={event} guests={eventStats[event.id]?.guests} />
+                            ))}
 
-                            <button
-                                type="button"
-                                onClick={() => setShowAllEvents(prev => !prev)}
-                                className="group relative h-full min-h-64 overflow-hidden rounded-[1.75rem] border border-[#CA9C68]/20 bg-[#10161C] text-center shadow-xl shadow-black/10"
-                            >
-                                <img
-                                    src={MEMORIES_CARD_IMAGE}
-                                    alt=""
-                                    className="absolute inset-0 h-full w-full object-cover opacity-45 transition-transform duration-700 group-hover:scale-105"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-[#0E141A] via-[#0E141A]/72 to-[#0E141A]/25" />
-                                <div className="relative z-10 flex h-full min-h-64 flex-col items-center justify-center p-6">
-                                    <h3 className="text-xl font-black text-white">Your memories</h3>
-                                    <div className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-black">
-                                        {events.length} Collections
-                                    </div>
-                                    <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-xs font-black uppercase tracking-widest text-[#13191F]">
-                                        <span>{showAllEvents ? "Show Less" : "Explore All"}</span>
-                                        <ArrowRight className="h-4 w-4" />
-                                    </div>
+                            {events.length === 0 ? (
+                                <div className="col-span-full rounded-2xl border border-dashed border-[#CA9C68]/25 p-10 text-center text-slate-400">
+                                    <p className="text-2xl text-white" style={SERIF}>No events yet</p>
+                                    <p className="mt-2 text-sm font-medium">Join an event or create your first hosted collection.</p>
                                 </div>
-                            </button>
-
-                            {events.length === 0 && (
-                                <div className="col-span-full rounded-[1.5rem] border border-dashed border-[#CA9C68]/20 p-10 text-center text-slate-400">
-                                    <p className="text-lg font-black text-white">No events yet</p>
-                                    <p className="mt-2 text-sm font-semibold">Join an event or create your first hosted collection.</p>
-                                </div>
+                            ) : (
+                                <Link
+                                    href="/dashboard/events"
+                                    className="group relative block min-h-64 overflow-hidden rounded-2xl border border-dashed border-[#CA9C68]/35 bg-[#0E141A] text-center transition-colors hover:border-[#CA9C68]/60"
+                                >
+                                    <img
+                                        src={MEMORIES_CARD_IMAGE}
+                                        alt=""
+                                        className="absolute inset-0 h-full w-full object-cover opacity-25 transition-transform duration-700 group-hover:scale-105"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-[#0E141A] via-[#0E141A]/75 to-[#0E141A]/40" />
+                                    <div className="relative z-10 flex h-full min-h-64 flex-col items-center justify-center p-6">
+                                        <h3 className="text-2xl text-white" style={SERIF}>Your memories</h3>
+                                        <div className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold">
+                                            {events.length} {events.length === 1 ? "Collection" : "Collections"}
+                                        </div>
+                                        <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#13191F]">
+                                            <span>Explore All</span>
+                                            <ArrowRight className="h-4 w-4" />
+                                        </div>
+                                    </div>
+                                </Link>
                             )}
                         </div>
                     )}
@@ -474,50 +296,37 @@ export default function DashboardHub() {
 
             <AnimatePresence>
                 {showJoinModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className={cn(modalStyles.overlay, "z-[100] bg-transparent backdrop-blur-none")}>
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setShowJoinModal(false)}
-                            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+                            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
                         />
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="relative z-10 w-full max-w-md overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900 shadow-2xl"
+                            className={cn(modalStyles.panel, "z-10")}
                         >
-                            <div className="flex items-center justify-between border-b border-slate-800 bg-slate-950/60 p-6">
-                                <h3 className="text-xl font-black text-white">Join Event</h3>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowJoinModal(false)}
-                                    className="rounded-full bg-slate-800 p-2 text-slate-400 transition-colors hover:text-white"
-                                >
-                                    <X className="h-5 w-5" />
-                                </button>
-                            </div>
+                            <ModalHeader title="Join Event" onClose={() => setShowJoinModal(false)} />
 
-                            <form onSubmit={handleJoinEvent} className="p-6 sm:p-8">
+                            <form onSubmit={handleJoinEvent}>
                                 <div className="mb-6">
-                                    <label className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">Enter Join ID</label>
+                                    <label className={modalStyles.label}>Enter Join ID</label>
                                     <input
                                         type="text"
                                         value={joinCode}
                                         onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-                                        className="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-4 text-center text-2xl font-black tracking-[0.2em] text-white outline-none transition-all placeholder:text-slate-600 focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20"
-                                        placeholder="A1B2C3"
-                                        maxLength={6}
+                                        className={cn(modalStyles.input, "text-center text-2xl font-black tracking-[0.2em]")}
+                                        placeholder="A1B2-C3D4"
+                                        maxLength={12}
                                     />
                                 </div>
 
                                 {joinMessage && (
-                                    <div className={`mb-6 rounded-xl border p-4 text-center text-sm font-bold ${
-                                        joinMessageType === "error"
-                                            ? "border-rose-500/30 bg-rose-950/40 text-rose-300"
-                                            : "border-emerald-500/30 bg-emerald-950/40 text-emerald-300"
-                                    }`}>
+                                    <div className={cn(joinMessageType === "error" ? modalStyles.error : modalStyles.success, "mb-6")}>
                                         {joinMessage}
                                     </div>
                                 )}
@@ -525,7 +334,7 @@ export default function DashboardHub() {
                                 <button
                                     type="submit"
                                     disabled={isJoining}
-                                    className="flex w-full items-center justify-center rounded-xl bg-amber-400 py-4 text-[15px] font-black text-slate-950 transition-all disabled:opacity-70"
+                                    className={cn(modalStyles.primary, "w-full py-4")}
                                 >
                                     {isJoining ? (
                                         <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950" />
@@ -535,9 +344,9 @@ export default function DashboardHub() {
                                 </button>
 
                                 <div className="mt-6 flex items-center">
-                                    <div className="flex-1 border-t border-slate-800" />
-                                    <span className="px-4 text-xs font-black tracking-widest text-slate-500">OR</span>
-                                    <div className="flex-1 border-t border-slate-800" />
+                                    <div className="flex-1 border-t border-[var(--site-border)]" />
+                                    <span className="px-4 text-xs font-black tracking-widest text-[var(--site-muted)]">OR</span>
+                                    <div className="flex-1 border-t border-[var(--site-border)]" />
                                 </div>
 
                                 <button
@@ -546,9 +355,9 @@ export default function DashboardHub() {
                                         setJoinMessageType("error");
                                         setJoinMessage("QR scanning is available on the mobile app. Please enter your Join ID here.");
                                     }}
-                                    className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 py-4 text-[15px] font-black text-white transition-colors hover:bg-slate-700"
+                                    className={cn(modalStyles.secondary, "mt-6 w-full py-4")}
                                 >
-                                    <QrCode className="h-5 w-5 text-amber-300" />
+                                    <QrCode className="h-5 w-5 text-[#CA9C68]" />
                                     <span>Scan QR Code</span>
                                 </button>
                             </form>
@@ -556,205 +365,6 @@ export default function DashboardHub() {
                     </div>
                 )}
             </AnimatePresence>
-
-            {/* Floating Chat Bubble & Box (FB Style) */}
-            <div className="fixed bottom-6 right-6 z-50 font-sans">
-                <AnimatePresence>
-                    {showChatBox && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 50, scale: 0.9 }}
-                            className="absolute bottom-18 right-0 w-80 sm:w-96 h-[480px] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-white"
-                        >
-                            {activeChatId === null ? (
-                                /* Conversations Inbox List View */
-                                <>
-                                    {/* Inbox Header */}
-                                    <div className="bg-slate-950 px-4 py-3.5 border-b border-slate-800 flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <MessageCircle className="h-5 w-5 text-amber-300" />
-                                            <h4 className="text-sm font-black text-white">EveBash Messages</h4>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowChatBox(false)}
-                                            className="p-1 rounded-full text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-                                        >
-                                            <Minus className="h-4.5 w-4.5" />
-                                        </button>
-                                    </div>
-
-                                    {/* Inbox Search */}
-                                    <div className="p-3 bg-slate-950/20 border-b border-slate-850">
-                                        <div className="relative flex items-center">
-                                            <Search className="absolute left-3.5 h-4 w-4 text-slate-500 pointer-events-none" />
-                                            <input
-                                                type="text"
-                                                value={searchQuery}
-                                                onChange={(e) => setSearchQuery(e.target.value)}
-                                                placeholder="Search chats..."
-                                                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder:text-slate-500 outline-none focus:border-amber-400/50 transition-colors"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Inbox Conversations List */}
-                                    <div className="flex-1 overflow-y-auto bg-slate-950/10 divide-y divide-slate-850">
-                                        {conversations
-                                            .filter((convo) =>
-                                                convo.name.toLowerCase().includes(searchQuery.toLowerCase())
-                                            )
-                                            .map((convo) => (
-                                                <button
-                                                    key={convo.id}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setActiveChatId(convo.id);
-                                                        // Mark as read
-                                                        setConversations((prev) =>
-                                                            prev.map((c) =>
-                                                                c.id === convo.id ? { ...c, unread: false } : c
-                                                            )
-                                                        );
-                                                    }}
-                                                    className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-slate-800/40 transition-colors"
-                                                >
-                                                    <div className="relative h-10 w-10 rounded-full bg-slate-850 border border-slate-800 flex items-center justify-center font-black text-slate-200 text-xs flex-shrink-0">
-                                                        {convo.avatar}
-                                                        {convo.unread && (
-                                                            <span className="absolute top-0 right-0 h-3 w-3 rounded-full bg-amber-400 border-2 border-slate-900" />
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-baseline justify-between mb-0.5">
-                                                            <h5 className={`text-xs truncate ${convo.unread ? "font-black text-white" : "font-bold text-slate-200"}`}>
-                                                                {convo.name}
-                                                            </h5>
-                                                            <span className="text-[10px] text-slate-500 font-semibold">{convo.time}</span>
-                                                        </div>
-                                                        <p className={`text-[11px] truncate ${convo.unread ? "font-bold text-amber-300" : "text-slate-400"}`}>
-                                                            {convo.lastMessage}
-                                                        </p>
-                                                    </div>
-                                                </button>
-                                            ))}
-                                        {conversations.filter((c) => c.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
-                                            <div className="p-8 text-center text-xs text-slate-500 font-semibold">
-                                                No conversations found
-                                            </div>
-                                        )}
-                                    </div>
-                                </>
-                            ) : (
-                                /* Chat Thread Messages View */
-                                <>
-                                    {/* Thread Header */}
-                                    <div className="bg-slate-950 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-                                        <div className="flex items-center gap-2.5 min-w-0">
-                                            <button
-                                                type="button"
-                                                onClick={() => setActiveChatId(null)}
-                                                className="p-1 rounded-full text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-                                                aria-label="Back to inbox"
-                                            >
-                                                <ArrowLeft className="h-4.5 w-4.5" />
-                                            </button>
-                                            <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-black text-slate-200 text-xs flex-shrink-0">
-                                                {conversations.find((c) => c.id === activeChatId)?.avatar}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <h4 className="text-xs font-black text-white truncate">
-                                                    {conversations.find((c) => c.id === activeChatId)?.name}
-                                                </h4>
-                                                <p className="text-[9px] text-emerald-400 font-bold">Active Chat</p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowChatBox(false)}
-                                            className="p-1 rounded-full text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-                                        >
-                                            <Minus className="h-4.5 w-4.5" />
-                                        </button>
-                                    </div>
-
-                                    {/* Thread Messages List */}
-                                    <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-950/40 flex flex-col">
-                                        {messagesByChat[activeChatId]?.map((msg) => (
-                                            <div
-                                                key={msg.id}
-                                                className={`max-w-[75%] flex flex-col ${
-                                                    msg.sender === "user" ? "self-end" : "self-start"
-                                                }`}
-                                            >
-                                                {msg.sender === "other" && msg.senderName && (
-                                                    <span className="text-[9px] font-semibold text-slate-400 mb-1 ml-1.5">
-                                                        {msg.senderName}
-                                                    </span>
-                                                )}
-                                                <div
-                                                    className={`rounded-2xl px-4 py-2.5 text-sm ${
-                                                        msg.sender === "user"
-                                                            ? "bg-amber-400 text-slate-950 rounded-br-none font-medium shadow-md shadow-amber-400/5"
-                                                            : "bg-slate-800 text-slate-200 rounded-bl-none"
-                                                    }`}
-                                                >
-                                                    <p className="leading-normal">{msg.text}</p>
-                                                    <span className={`block text-[9px] mt-1 text-right ${
-                                                        msg.sender === "user" ? "text-slate-800/70" : "text-slate-500"
-                                                    }`}>
-                                                        {msg.time}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {isTyping && (
-                                            <div className="bg-slate-800 text-slate-200 self-start rounded-2xl rounded-bl-none px-4 py-2.5 max-w-[75%] flex items-center gap-1">
-                                                <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-                                                <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-                                                <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Thread Message Input */}
-                                    <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-800 bg-slate-900 flex items-center gap-2">
-                                        <input
-                                            type="text"
-                                            value={chatInput}
-                                            onChange={(e) => setChatInput(e.target.value)}
-                                            placeholder="Type a message..."
-                                            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-amber-400 transition-colors"
-                                        />
-                                        <button
-                                            type="submit"
-                                            className="h-9 w-9 flex items-center justify-center rounded-xl bg-amber-400 text-slate-950 hover:bg-amber-300 transition-colors disabled:opacity-50"
-                                            disabled={!chatInput.trim()}
-                                        >
-                                            <Send className="h-4 w-4" />
-                                        </button>
-                                    </form>
-                                </>
-                            )}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                {/* Floating Chat Bubble */}
-                <button
-                    type="button"
-                    onClick={() => setShowChatBox((prev) => !prev)}
-                    className="h-14 w-14 rounded-full bg-amber-400 text-slate-950 shadow-2xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
-                    aria-label="Toggle chat"
-                >
-                    {showChatBox ? (
-                        <Minus className="h-6 w-6" />
-                    ) : (
-                        <MessageCircle className="h-6 w-6 fill-slate-950" />
-                    )}
-                </button>
-            </div>
         </div>
     );
 }

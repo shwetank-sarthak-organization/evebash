@@ -9,7 +9,6 @@ import {
   RefreshControl,
   Dimensions,
   Platform,
-  Alert,
   Modal,
   TextInput,
   KeyboardAvoidingView,
@@ -20,19 +19,24 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image as ExpoImage } from 'expo-image';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { EventGridCard } from '@/components/ui/EventGridCard';
 import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { formatStorageSize, getPlanDetails, getUsagePercent } from '@/lib/planLimits';
-import { EVENT_PLACEHOLDER_IMAGES, resolveEventCoverImage } from '@/lib/eventCovers';
+import { EVENT_PLACEHOLDER_IMAGES } from '@/lib/eventCovers';
 import { supabase } from '@/lib/supabase';
 import { MidnightColors, Fonts } from '../../constants/theme';
-import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../../constants/templates';
-import { EveBashLogoBadge } from '@/components/EveBashLogo';
+import { EventGrid, getEventGridCardWidth } from '../../constants/layout';
+import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory, isTemplateHidden } from '../../constants/templates';
+import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { ErrorState } from '@/components/ui/ErrorState';
 import {
   Event as DatabaseEvent,
   getUserEvents,
@@ -45,11 +49,21 @@ import {
   createEvent,
   updateEvent,
   deleteEvent,
-  getUsers,
-  getUserById,
+  getGuestProfile,
+  getProfileCard,
   UserProfile
 } from '@/lib/database';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { haptic } from '@/lib/haptics';
+import { appAlert, showToast } from '@/lib/feedback';
+import { getGalleryWebUrl } from '@/lib/webLinks';
+import { confirmDenyRequest } from '@/lib/denyRequest';
+
+// Approve / reject a guest with a confirming haptic
+function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'approved' | 'rejected') {
+  haptic(status === 'approved' ? 'success' : 'warning');
+  return updateGuestStatus(logId, status);
+}
 
 const { width } = Dimensions.get('window');
 const EVENT_TYPE_OPTIONS = [
@@ -92,9 +106,10 @@ function createSlug(value: string) {
 
 export default function PortfolioTabScreen() {
   const router = useRouter();
+  const { create: createParam } = useLocalSearchParams<{ create?: string }>();
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
-  const styles = getStyles(colors, isDark);
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState<'my' | 'shared' | 'requests'>('my');
@@ -105,6 +120,8 @@ export default function PortfolioTabScreen() {
   const [storageUsed, setStorageUsed] = useState(0);
   const [mainEventCount, setMainEventCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const userRefreshRef = React.useRef(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [selectedRequestProfile, setSelectedRequestProfile] = useState<any | null>(null);
@@ -136,6 +153,16 @@ export default function PortfolioTabScreen() {
   const storagePercent = getUsagePercent(storageUsed, planDetails.storageBytes);
   const eventPercent = getUsagePercent(mainEventCount, planDetails.eventLimit);
 
+  useEffect(() => {
+    if (createParam !== '1') return;
+    // Wait for the tab switch to settle; a Modal opened mid-transition doesn't show
+    const timer = setTimeout(() => {
+      setCreateModalVisible(true);
+      router.setParams({ create: undefined });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [createParam, router]);
+
   const fetchData = React.useCallback(async (silent = false) => {
     if (!user) {
       setEvents([]);
@@ -154,7 +181,7 @@ export default function PortfolioTabScreen() {
       if (user.phone) identifiers.push(user.phone);
 
       const [myEvts, shEvts, storage, eventCount] = await Promise.all([
-        getUserEvents(identifiers, 'main'),
+        getUserEvents(identifiers, 'main', undefined, undefined, { throwOnError: true }),
         getApprovedSharedEventsForUser(identifiers, true),
         getUserTotalStorage(identifiers),
         getUserEventCount(user.uid)
@@ -162,6 +189,7 @@ export default function PortfolioTabScreen() {
 
       setEvents(myEvts);
       setSharedEvents(shEvts);
+      setLoadError(false);
       setStorageUsed(storage);
       setMainEventCount(eventCount);
 
@@ -171,6 +199,11 @@ export default function PortfolioTabScreen() {
       }
     } catch (error) {
       console.error('[Portfolio] Fetch error:', error);
+      setLoadError(true);
+      // Keep the events already shown; just say the pull-to-refresh failed
+      if (userRefreshRef.current) {
+        showToast("Couldn't refresh. Check your connection.", { type: 'error' });
+      }
     } finally {
       if (!silent) setLoading(false);
       setRefreshing(false);
@@ -203,11 +236,12 @@ export default function PortfolioTabScreen() {
       }
 
       const entries = await Promise.all(ownerIds.map(async (ownerId) => {
-        const owner = await getUserById(ownerId);
+        // Name only: other people's email and username aren't readable once RLS is on (profile_cards is)
+        const owner = await getProfileCard(ownerId);
         return [ownerId, {
           name: owner?.name || 'Unknown owner',
-          email: owner?.email || ownerId,
-          username: owner?.username || 'Not set',
+          email: ownerId,
+          username: 'Not set',
         }] as const;
       }));
 
@@ -249,12 +283,11 @@ export default function PortfolioTabScreen() {
   }, [user?.uid, user?.email, user?.phone, fetchData]);
 
   const onRefresh = () => {
+    userRefreshRef.current = true;
     setRefreshing(true);
-    fetchData();
+    fetchData().finally(() => { userRefreshRef.current = false; });
   };
 
-  const normalizePhoneValue = (val?: string | null) => (val || '').replace(/\D/g, '');
-  const normalizeEmailValue = (val?: string | null) => (val || '').trim().toLowerCase();
 
   useEffect(() => {
     let isActive = true;
@@ -268,17 +301,7 @@ export default function PortfolioTabScreen() {
 
       setLoadingRequestProfile(true);
       try {
-        const users = await getUsers();
-        const requestEmail = normalizeEmailValue(selectedRequest.email || selectedRequest.phone);
-        const requestPhone = normalizePhoneValue(selectedRequest.phone);
-        const profile = users.find((candidate) => {
-          const candidateEmail = normalizeEmailValue(candidate.email);
-          const candidatePhone = normalizePhoneValue(candidate.phone);
-          return (
-            (!!requestEmail && requestEmail === candidateEmail) ||
-            (!!requestPhone && requestPhone === candidatePhone)
-          );
-        }) || null;
+        const profile = await getGuestProfile(selectedRequest);
 
         if (isActive) {
           setSelectedRequestProfile(profile);
@@ -305,9 +328,9 @@ export default function PortfolioTabScreen() {
   const handleCreateSubmit = async () => {
     if (!user) return;
     const title = newEventTitle.trim();
-    if (!title) return Alert.alert("Missing Title", "Please enter an event name.");
-    if (!newEventType) return Alert.alert("Missing Event Type", "Please choose an event type.");
-    if (!newEventDate) return Alert.alert("Missing Date", "Please choose an event date.");
+    if (!title) return appAlert("Missing Title", "Please enter an event name.");
+    if (!newEventType) return appAlert("Missing Event Type", "Please choose an event type.");
+    if (!newEventDate) return appAlert("Missing Date", "Please choose an event date.");
 
     const baseSlug = createSlug(title);
     const id = `${baseSlug}-${Math.random().toString(36).slice(-5)}`;
@@ -324,7 +347,7 @@ export default function PortfolioTabScreen() {
             const maxEvents = currentPlan.eventLimit;
             
             if (mainEventCount >= maxEvents) {
-                Alert.alert(
+                appAlert(
                     "Plan Limit Reached", 
                     `You've reached your ${currentPlan.eventLabel}-event limit for the ${currentPlan.name}. Upgrade your plan to create more events.`
                 );
@@ -356,11 +379,11 @@ export default function PortfolioTabScreen() {
         setNewEventDate(formatDisplayDate(today));
         setNewEventType('Wedding');
         fetchData();
-        Alert.alert("Success", "Your event has been created! ✨");
+        showToast("Your event has been created!");
       }
     } catch (err) {
       console.error('[CreateEvent] Error:', err);
-      Alert.alert("Error", "Failed to create event.");
+      appAlert("Error", "Failed to create event.");
     } finally {
       setCreating(false);
     }
@@ -379,13 +402,13 @@ export default function PortfolioTabScreen() {
   };
 
   const handleVisitWebsite = (event: DatabaseEvent) => {
-    const url = `https://wedalbum.app/events/${event.id}`;
+    const url = getGalleryWebUrl(event.id);
     Linking.openURL(url).catch(err => console.error('Could not open URL', err));
   };
 
   const handleShareLink = async (event: DatabaseEvent) => {
     try {
-      const url = `https://wedalbum.app/events/${event.id}`;
+      const url = getGalleryWebUrl(event.id);
       await Share.share({
         message: `Check out the ${event.title} gallery: ${url}`,
         url: url,
@@ -396,7 +419,7 @@ export default function PortfolioTabScreen() {
   };
 
   const handleDeleteEvent = async (event: DatabaseEvent) => {
-    Alert.alert(
+    appAlert(
       "Delete Event",
       `Are you sure you want to delete "${event.title}"? This will permanently remove all photos and sub-events.`,
       [
@@ -409,9 +432,9 @@ export default function PortfolioTabScreen() {
             const success = await deleteEvent(event.id);
             if (success) {
               fetchData();
-              Alert.alert("Success", "Event deleted successfully.");
+              showToast("Event deleted successfully.");
             } else {
-              Alert.alert("Error", "Failed to delete event.");
+              appAlert("Error", "Failed to delete event.");
             }
             setLoading(false);
           }
@@ -428,9 +451,9 @@ export default function PortfolioTabScreen() {
       setRenameVisible(false);
       setTargetEvent(null);
       fetchData();
-      Alert.alert("Success", "Event renamed successfully.");
+      showToast("Event renamed successfully.");
     } else {
-      Alert.alert("Error", "Failed to rename event.");
+      appAlert("Error", "Failed to rename event.");
     }
     setLoading(false);
   };
@@ -445,9 +468,9 @@ export default function PortfolioTabScreen() {
       setWelcomeEditVisible(false);
       setTargetEvent(null);
       fetchData();
-      Alert.alert("Success", "Welcome card settings updated.");
+      showToast("Welcome card settings updated.");
     } else {
-      Alert.alert("Error", "Failed to update settings.");
+      appAlert("Error", "Failed to update settings.");
     }
     setLoading(false);
   };
@@ -463,21 +486,20 @@ export default function PortfolioTabScreen() {
     try {
       const success = await updateEvent(targetEvent.id, { templateId });
       if (!success) {
-        Alert.alert("Error", "Failed to update template.");
+        appAlert("Error", "Failed to update template.");
         fetchData();
         return;
       }
       setTemplateVisible(false);
       setOptionsVisible(false);
-      Alert.alert("Success", "Template updated!");
+      showToast("Template updated!");
     } catch (error) {
       console.error('[Portfolio] Template update error:', error);
-      Alert.alert("Error", "Failed to update template.");
+      appAlert("Error", "Failed to update template.");
       fetchData();
     }
   };
 
-  const showQuotaAlert = () => setShowQuotaModal(true);
   const pendingGuestRequests = guestLogs.filter(log => log.status === 'pending');
   const pendingRequestsByEvent = Object.entries(
     pendingGuestRequests.reduce<Record<string, GuestLog[]>>((groups, log) => {
@@ -487,14 +509,8 @@ export default function PortfolioTabScreen() {
       return groups;
     }, {})
   );
-  const hostConsoleMetrics = [
-    { label: 'Hosted', value: events.length, icon: 'calendar' },
-    { label: 'Shared', value: sharedEvents.length, icon: 'person.2.fill' },
-    { label: 'Requests', value: pendingGuestRequests.length, icon: 'envelope.fill' },
-  ];
 
   const renderEventCard = (event: DatabaseEvent, index: number) => {
-    const coverImage = resolveEventCoverImage(event.coverImage);
     const isSharedCard = activeTab === 'shared';
     const ownerDetails = event.createdBy?.includes('@')
       ? { name: 'Unknown owner', email: event.createdBy, username: 'Not set' }
@@ -503,48 +519,23 @@ export default function PortfolioTabScreen() {
         : { name: 'Unknown owner', email: 'Unknown', username: 'Not set' };
 
     return (
-      <TouchableOpacity
+      <EventGridCard
         key={event.id}
-        style={[styles.eventCard, isSharedCard && styles.sharedEventCard]}
-        activeOpacity={0.9}
+        title={event.title}
+        date={event.date}
+        category={event.category}
+        coverImage={event.coverImage}
+        tall={isSharedCard}
         onPress={() => router.push(`/events/${event.id}?mode=admin`)}
       >
-        {/* Top Part: Image Container */}
-        <View style={[styles.cardImageWrap, isSharedCard && styles.sharedCardImageWrap]}>
-          <ExpoImage
-            source={{ uri: coverImage }}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            contentPosition="center"
-            transition={400}
-          />
-          <LinearGradient
-            colors={['rgba(19, 25, 31,0.15)', 'transparent']}
-            style={StyleSheet.absoluteFill}
-          />
-          {event.category ? (
-            <View style={styles.cardCategoryBadge}>
-              <Text style={styles.cardCategoryText}>{event.category.toUpperCase()}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {/* Bottom Part: Text Details */}
-        <View style={styles.cardInfoStrip}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{event.title}</Text>
-          <View style={styles.cardMeta}>
-            <IconSymbol name="calendar" size={10} color={colors.gold} />
-            <Text style={styles.cardDate}>{event.date}</Text>
+        {isSharedCard && (
+          <View style={styles.sharedOwnerBlock}>
+            <Text style={styles.sharedOwnerLine}>
+              <Text style={styles.sharedOwnerLabel}>Owner: </Text>{ownerDetails.name}
+            </Text>
           </View>
-          {isSharedCard && (
-            <View style={styles.sharedOwnerBlock}>
-              <Text style={styles.sharedOwnerLine}>
-                <Text style={styles.sharedOwnerLabel}>Owner username: </Text>{(ownerDetails.username || 'not set').toLowerCase()}
-              </Text>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
+        )}
+      </EventGridCard>
     );
   };
 
@@ -562,42 +553,17 @@ export default function PortfolioTabScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* ── HEADER ── */}
-        <LinearGradient
-          colors={isDark ? ['#10161C', '#13191F'] : [colors.deepSlate, colors.background]}
-          style={[styles.header, { paddingTop: insets.top + 4 }]}
-        >
-          <View style={styles.headerLeft}>
-            <TouchableOpacity
-              style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}
-              activeOpacity={0.7}
-              onPress={showQuotaAlert}
-            >
-              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <Rect width={20} height={8} x={2} y={2} rx={2} ry={2} />
-                <Rect width={20} height={8} x={2} y={14} rx={2} ry={2} />
-                <Line x1={6} x2={6.01} y1={6} y2={6} />
-                <Line x1={6} x2={6.01} y1={18} y2={18} />
-              </Svg>
-            </TouchableOpacity>
-          </View>
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={styles.headingLogoRow}>
-              <EveBashLogoBadge onPress={() => router.replace('/(tabs)' as any)} />
-              <Text style={styles.headerName}>Host</Text>
-            </View>
-          </View>
-          <View style={styles.headerRight}>
-            <TouchableOpacity
-              style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}
-              onPress={() => setCreateModalVisible(true)}
-            >
-              <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <TabScreenHeader
+          title="Host"
+          right={
+            <HeaderAction onPress={() => setCreateModalVisible(true)} accessibilityLabel="Create event">
+              <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <Path d="M5 12h14" />
                 <Path d="M12 5v14" />
               </Svg>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
+            </HeaderAction>
+          }
+        />
 
 
         {/* ── TABS (Segmented Control Style) ── */}
@@ -609,9 +575,9 @@ export default function PortfolioTabScreen() {
             <IconSymbol
               name="camera.fill"
               size={14}
-              color={activeTab === 'my' ? colors.gold : colors.slate400}
+              color={activeTab === 'my' ? colors.onAccent : colors.slate400}
             />
-            <Text style={[styles.tabText, activeTab === 'my' && styles.tabTextActive]}>Host</Text>
+            <Text style={[styles.tabText, activeTab === 'my' && styles.tabTextActive]}>My Events</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -621,7 +587,7 @@ export default function PortfolioTabScreen() {
             <IconSymbol
               name="person.2.fill"
               size={14}
-              color={activeTab === 'shared' ? colors.gold : colors.slate400}
+              color={activeTab === 'shared' ? colors.onAccent : colors.slate400}
             />
             <Text style={[styles.tabText, activeTab === 'shared' && styles.tabTextActive]}>Shared</Text>
           </TouchableOpacity>
@@ -633,7 +599,7 @@ export default function PortfolioTabScreen() {
               <IconSymbol
                 name="envelope.fill"
                 size={14}
-                color={activeTab === 'requests' ? colors.gold : colors.slate400}
+                color={activeTab === 'requests' ? colors.onAccent : colors.slate400}
               />
               <Text style={[styles.tabText, activeTab === 'requests' && styles.tabTextActive]}>Requests</Text>
 
@@ -647,20 +613,25 @@ export default function PortfolioTabScreen() {
             </TouchableOpacity>
         </View>
 
-        <View style={styles.opsStrip}>
-          {hostConsoleMetrics.map((metric) => (
-            <View key={metric.label} style={styles.opsMetric}>
-              <View style={styles.opsMetricIcon}>
-                <IconSymbol name={metric.icon as any} size={13} color={colors.gold} />
-              </View>
-              <Text style={styles.opsMetricValue}>{metric.value}</Text>
-              <Text style={styles.opsMetricLabel}>{metric.label}</Text>
-            </View>
-          ))}
-        </View>
 
         {loading && !refreshing ? (
-          <ActivityIndicator color={colors.gold} style={{ marginTop: 60 }} />
+          <View style={styles.grid} accessible accessibilityLabel="Loading your events">
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} style={styles.eventCard}>
+                <Skeleton height={EventGrid.imageHeight} radius={0} />
+                <View style={{ padding: 12, gap: 8 }}>
+                  <Skeleton width="70%" height={13} />
+                  <Skeleton width="50%" height={10} />
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : loadError && events.length === 0 && sharedEvents.length === 0 ? (
+          <ErrorState
+            title="Couldn't load your events"
+            onRetry={() => fetchData()}
+            retrying={loading}
+          />
         ) : (
           <View style={styles.grid}>
             {activeTab === 'my' && (
@@ -668,7 +639,14 @@ export default function PortfolioTabScreen() {
                 <View style={styles.emptyState}>
                   <IconSymbol name="photo.on.rectangle" size={40} color={colors.slate400} />
                   <Text style={styles.emptyTitle}>No events yet</Text>
-                  <Text style={styles.emptyBody}>Create your first album to see it here.</Text>
+                  <Text style={styles.emptyBody}>Create your first event to start a private gallery.</Text>
+                  <Button
+                    title="Create Event"
+                    icon="plus"
+                    fullWidth={false}
+                    onPress={() => setCreateModalVisible(true)}
+                    style={{ marginTop: 20, minWidth: 200 }}
+                  />
                 </View>
               ) : (
                 events.map((event, index) => renderEventCard(event, index))
@@ -726,13 +704,19 @@ export default function PortfolioTabScreen() {
                           <View style={styles.requestActionsMini}>
                             <TouchableOpacity
                               style={styles.miniActionBtnRed}
-                              onPress={() => updateGuestStatus(log.id, 'rejected').then(fetchData)}
+                              onPress={() => confirmDenyRequest(log, fetchData)}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Deny ${log.name || 'guest'}`}
+                              hitSlop={6}
                             >
                               <IconSymbol name="xmark" size={12} color="#fff" />
                             </TouchableOpacity>
                             <TouchableOpacity
                               style={styles.miniActionBtnGreen}
-                              onPress={() => updateGuestStatus(log.id, 'approved').then(fetchData)}
+                              onPress={() => updateGuestStatusWithFeedback(log.id, 'approved').then(fetchData)}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Approve ${log.name || 'guest'}`}
+                              hitSlop={6}
                             >
                               <IconSymbol name="checkmark" size={12} color="#fff" />
                             </TouchableOpacity>
@@ -746,7 +730,7 @@ export default function PortfolioTabScreen() {
             )}
 
           {/* ── PREMIUM REQUEST DETAIL MODAL ── */}
-          <Modal visible={!!selectedRequest} transparent animationType="fade">
+          <Modal visible={!!selectedRequest} transparent animationType="fade" onRequestClose={() => setSelectedRequest(null)}>
             <View style={styles.premiumModalBackdrop}>
               <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                 <LinearGradient
@@ -768,7 +752,7 @@ export default function PortfolioTabScreen() {
                       <Text style={styles.premiumModalTitle}>{selectedRequest?.name}</Text>
                       <Text style={styles.premiumModalSub}>Requesting Access</Text>
                     </View>
-                    <TouchableOpacity onPress={() => setSelectedRequest(null)} style={styles.closeModalCircle}>
+                    <TouchableOpacity onPress={() => setSelectedRequest(null)} style={styles.closeModalCircle} accessibilityRole="button" accessibilityLabel="Close" hitSlop={8}>
                       <IconSymbol name="xmark" size={16} color={MidnightColors.slate400} />
                     </TouchableOpacity>
                   </View>
@@ -801,21 +785,21 @@ export default function PortfolioTabScreen() {
                       style={[styles.modalActionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
                       onPress={() => {
                         if (selectedRequest) {
-                          updateGuestStatus(selectedRequest.id, 'rejected').then(() => {
+                          confirmDenyRequest(selectedRequest, () => {
                             setSelectedRequest(null);
                             fetchData();
                           });
                         }
                       }}
                     >
-                      <Text style={[styles.modalActionText, { color: '#ef4444' }]}>Reject</Text>
+                      <Text style={[styles.modalActionText, { color: MidnightColors.danger }]}>Deny</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                       style={styles.modalActionBtnApprove}
                       onPress={() => {
                         if (selectedRequest) {
-                          updateGuestStatus(selectedRequest.id, 'approved').then(() => {
+                          updateGuestStatusWithFeedback(selectedRequest.id, 'approved').then(() => {
                             setSelectedRequest(null);
                             fetchData();
                           });
@@ -847,7 +831,7 @@ export default function PortfolioTabScreen() {
               </View>
               <View style={styles.benefitContent}>
                 <Text style={styles.benefitTitle}>Stunning Galleries</Text>
-                <Text style={styles.benefitDesc}>Create unlimited, high-resolution albums to preserve every beautiful memory.</Text>
+                <Text style={styles.benefitDesc}>Create beautiful, high-resolution albums to preserve every memory.</Text>
               </View>
             </View>
 
@@ -866,8 +850,8 @@ export default function PortfolioTabScreen() {
                 <IconSymbol name="video.fill" size={20} color={colors.gold} />
               </View>
               <View style={styles.benefitContent}>
-                <Text style={styles.benefitTitle}>Live Streaming</Text>
-                <Text style={styles.benefitDesc}>{"Broadcast your special moments live to loved ones who couldn't attend in person."}</Text>
+                <Text style={styles.benefitTitle}>Photos & Videos</Text>
+                <Text style={styles.benefitDesc}>Share event videos alongside photos, ready to play smoothly on any phone.</Text>
               </View>
             </View>
           </View>
@@ -879,7 +863,7 @@ export default function PortfolioTabScreen() {
             onPress={() => Linking.openURL('https://www.youtube.com/@EveBashApp')}
           >
             <LinearGradient
-              colors={['#312e81', '#1e1b4b']}
+              colors={['#1E1B17', '#12171C']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.howToHostGradient}
@@ -906,7 +890,7 @@ export default function PortfolioTabScreen() {
               {/* Right: play icon watermark */}
               <View style={{ marginLeft: 10, justifyContent: 'center', alignItems: 'center' }}>
                 <View style={styles.howToHostPlayCircle}>
-                  <IconSymbol name="play.fill" size={28} color="rgba(167,139,250,0.6)" />
+                  <IconSymbol name="play.fill" size={28} color="rgba(202,156,104,0.6)" />
                 </View>
               </View>
             </LinearGradient>
@@ -917,7 +901,7 @@ export default function PortfolioTabScreen() {
       </ScrollView>
 
       {/* ── QUOTA MODAL ── */}
-      <Modal visible={showQuotaModal} transparent animationType="fade" statusBarTranslucent>
+      <Modal visible={showQuotaModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setShowQuotaModal(false)}>
         <TouchableOpacity
           style={styles.quotaOverlay}
           activeOpacity={1}
@@ -944,7 +928,7 @@ export default function PortfolioTabScreen() {
                   <Text style={styles.quotaHeroTitle}>Storage & Quota</Text>
                   <Text style={styles.quotaHeroSub}>Your current plan usage</Text>
                 </View>
-                <TouchableOpacity onPress={() => setShowQuotaModal(false)} style={styles.quotaCloseBtn}>
+                <TouchableOpacity onPress={() => setShowQuotaModal(false)} style={styles.quotaCloseBtn} accessibilityRole="button" accessibilityLabel="Close" hitSlop={10}>
                   <IconSymbol name="xmark" size={13} color={colors.slate400} />
                 </TouchableOpacity>
               </View>
@@ -1001,14 +985,14 @@ export default function PortfolioTabScreen() {
               <View style={styles.quotaMetricRow}>
                 <View style={styles.quotaMetricTop}>
                   <View style={styles.quotaMetricLeft}>
-                    <View style={[styles.quotaDot, { backgroundColor: '#818cf8' }]} />
+                    <View style={[styles.quotaDot, { backgroundColor: MidnightColors.gold }]} />
                     <Text style={styles.quotaMetricLabel}>Events</Text>
                   </View>
                   <View style={styles.quotaMetricRight}>
                     <Text style={styles.quotaMetricValue}>{mainEventCount}</Text>
                     <Text style={styles.quotaMetricMax}> / {planDetails.eventLabel}</Text>
-                    <View style={[styles.quotaPercentChip, { backgroundColor: 'rgba(129,140,248,0.12)' }]}>
-                      <Text style={[styles.quotaPercentText, { color: '#818cf8' }]}>
+                    <View style={[styles.quotaPercentChip, { backgroundColor: 'rgba(202, 156, 104, 0.12)' }]}>
+                      <Text style={[styles.quotaPercentText, { color: MidnightColors.gold }]}>
                         {planDetails.eventLimit === Infinity ? '∞' : `${Math.round(eventPercent)}%`}
                       </Text>
                     </View>
@@ -1016,7 +1000,7 @@ export default function PortfolioTabScreen() {
                 </View>
                 <View style={styles.quotaBarTrack}>
                   <LinearGradient
-                    colors={['#818cf8', '#a5b4fc']}
+                    colors={[MidnightColors.gold, MidnightColors.slate400]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={[
@@ -1049,7 +1033,15 @@ export default function PortfolioTabScreen() {
       </Modal>
 
       {/* ── EVENT OPTIONS MODAL ── */}
-      <Modal visible={optionsVisible} transparent animationType="slide">
+      <Modal
+        visible={optionsVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setTemplateVisible(false);
+          setOptionsVisible(false);
+        }}
+      >
         <View style={styles.modalOverlay}>
           <TouchableOpacity
             style={styles.modalBackdrop}
@@ -1063,9 +1055,9 @@ export default function PortfolioTabScreen() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>{templateVisible ? 'Choose Template' : targetEvent?.title}</Text>
-                <Text style={styles.headerGreeting}>{templateVisible ? '10 gallery themes' : 'Event Management'}</Text>
+                <Text style={styles.headerGreeting}>{templateVisible ? 'Gallery themes' : 'Event Management'}</Text>
               </View>
-              <TouchableOpacity onPress={() => {
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => {
                 setTemplateVisible(false);
                 setOptionsVisible(false);
               }}>
@@ -1075,7 +1067,7 @@ export default function PortfolioTabScreen() {
 
             {templateVisible ? (
               <ScrollView showsVerticalScrollIndicator={false} style={styles.templateModalContent}>
-                {MOBILE_TEMPLATE_THEMES.map((template) => {
+                {MOBILE_TEMPLATE_THEMES.filter((template) => !isTemplateHidden(template.id) || template.id === (targetEvent?.templateId || 'hero')).map((template) => {
                   const isActive = (targetEvent?.templateId || 'hero') === template.id;
                   return (
                     <TouchableOpacity
@@ -1176,8 +1168,8 @@ export default function PortfolioTabScreen() {
                     if (targetEvent) handleDeleteEvent(targetEvent);
                   }}
                 >
-                  <IconSymbol name="trash.fill" size={20} color="#ef4444" />
-                  <Text style={[styles.optionText, { color: '#ef4444' }]}>Delete Event</Text>
+                  <IconSymbol name="trash.fill" size={20} color={MidnightColors.danger} />
+                  <Text style={[styles.optionText, { color: MidnightColors.danger }]}>Delete Event</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1186,7 +1178,7 @@ export default function PortfolioTabScreen() {
       </Modal>
 
       {/* ── RENAME MODAL ── */}
-      <Modal visible={renameVisible} transparent animationType="fade">
+      <Modal visible={renameVisible} transparent animationType="fade" onRequestClose={() => setRenameVisible(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity
             style={styles.modalBackdrop}
@@ -1196,7 +1188,7 @@ export default function PortfolioTabScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Rename Event</Text>
-              <TouchableOpacity onPress={() => setRenameVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setRenameVisible(false)}>
                 <IconSymbol name={"xmark.circle.fill" as any} size={24} color={colors.slate400} />
               </TouchableOpacity>
             </View>
@@ -1228,17 +1220,14 @@ export default function PortfolioTabScreen() {
       </Modal>
 
       {/* ── CREATE EVENT MODAL ── */}
-      <Modal visible={createModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => {
-              setShowCreateDatePicker(false);
-              setCreateModalVisible(false);
-            }}
-          />
-          <View style={styles.createModalContent}>
+      <BottomSheet
+        visible={createModalVisible}
+        onClose={() => {
+          setShowCreateDatePicker(false);
+          setCreateModalVisible(false);
+        }}
+        style={{ backgroundColor: colors.deepSlate, maxHeight: '88%' }}
+      >
             <ScrollView
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
@@ -1246,7 +1235,7 @@ export default function PortfolioTabScreen() {
             >
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>New Event</Text>
-                <TouchableOpacity onPress={() => {
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => {
                   setShowCreateDatePicker(false);
                   setCreateModalVisible(false);
                 }}>
@@ -1310,29 +1299,20 @@ export default function PortfolioTabScreen() {
                 )}
               </View>
 
-              <TouchableOpacity
-                style={[styles.submitBtn, creating && { opacity: 0.7 }]}
+              <Button
+                title="Create Event"
+                icon="sparkles"
+                iconPosition="right"
                 onPress={handleCreateSubmit}
-                disabled={creating}
-              >
-                {creating ? (
-                  <ActivityIndicator color={'#13191F'} />
-                ) : (
-                  <>
-                    <Text style={styles.submitBtnText}>Create Event</Text>
-                    <IconSymbol name="sparkles" size={16} color={'#13191F'} />
-                  </>
-                )}
-              </TouchableOpacity>
+                loading={creating}
+              />
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
     </View>
   );
 }
 
-const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
   scrollContent: { paddingBottom: 40 },
@@ -1392,10 +1372,12 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     overflow: 'hidden',
     marginTop: 16,
     elevation: 6,
-    shadowColor: '#312e81',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(202, 156, 104, 0.16)',
   },
   howToHostGradient: {
     flexDirection: 'row',
@@ -1403,18 +1385,18 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     padding: 20,
   },
   howToHostBadge: {
-    backgroundColor: 'rgba(167,139,250,0.2)',
+    backgroundColor: 'rgba(202, 156, 104, 0.1)',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 8,
     alignSelf: 'flex-start',
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'rgba(167,139,250,0.3)',
+    borderColor: 'rgba(202, 156, 104, 0.18)',
   },
   howToHostBadgeText: {
-    color: '#c4b5fd',
-    fontSize: 9,
+    color: colors.gold,
+    fontSize: 10,
     fontFamily: Fonts.outfit.extraBold,
     letterSpacing: 0.8,
   },
@@ -1425,7 +1407,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginBottom: 4,
   },
   howToHostSubtitle: {
-    color: 'rgba(196,181,253,0.85)',
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
     fontFamily: Fonts.inter.regular,
     lineHeight: 17,
@@ -1438,7 +1420,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: '#ff0000',
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 12,
     alignSelf: 'flex-start',
   },
   howToHostYtBtnText: {
@@ -1452,50 +1434,17 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 32,
     backgroundColor: 'rgba(255,255,255,0.07)',
     borderWidth: 1.5,
-    borderColor: 'rgba(167,139,250,0.3)',
+    borderColor: 'rgba(202, 156, 104, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   // Header
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(202, 156, 104, 0.12)',
-  },
-  headerLeft: {
-    width: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-  },
-  headerRight: {
-    width: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  unreadBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.gold,
-  },
   headerGreeting: { fontSize: 15, color: colors.slate400, fontFamily: 'AkayaKanadaka_400Regular', textAlign: 'center', marginTop: -18 },
-  headerName: { fontSize: 28, lineHeight: 38, color: colors.white, fontFamily: 'AkayaKanadakaHeader_400Regular', letterSpacing: 0.5, textAlign: 'center', includeFontPadding: false },
-  headingLogoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 38 },
   createBtnHeader: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: 'rgba(202, 156, 104,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104,0.3)',
@@ -1516,8 +1465,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 14,
     padding: 4,
-    borderRadius: 14,
-    backgroundColor: '#0D1318',
+    borderRadius: 16,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104, 0.14)',
   },
@@ -1530,128 +1479,36 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: 10,
     position: 'relative',
     overflow: 'visible',
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  tabBadge: { position: 'absolute', top: 4, right: 8, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: colors.background },
-  tabBadgeText: { color: colors.white, fontSize: 9, fontFamily: Fonts.inter.bold },
+  tabBadge: { position: 'absolute', top: 4, right: 8, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: colors.background },
+  tabBadgeText: { color: colors.white, fontSize: 10, fontFamily: Fonts.inter.bold },
+  // Selected tab uses the Dashboard "Join Event" button colours
   tabButtonActive: {
-    backgroundColor: 'rgba(202, 156, 104, 0.1)',
-    borderColor: 'rgba(202, 156, 104, 0.32)',
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
   },
   tabText: { fontSize: 13, color: colors.slate400, fontFamily: Fonts.inter.medium },
-  tabTextActive: { color: colors.gold, fontFamily: Fonts.inter.bold },
-  opsStrip: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-  },
-  opsMetric: {
-    flex: 1,
-    minHeight: 70,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(202, 156, 104, 0.14)',
-    backgroundColor: '#0D1318',
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    justifyContent: 'space-between',
-  },
-  opsMetricIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    backgroundColor: 'rgba(202, 156, 104, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  opsMetricValue: {
-    color: colors.white,
-    fontSize: 18,
-    fontFamily: Fonts.outfit.extraBold,
-    lineHeight: 22,
-  },
-  opsMetricLabel: {
-    color: colors.slate400,
-    fontSize: 9,
-    fontFamily: Fonts.inter.bold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.9,
-  },
+  tabTextActive: { color: colors.onAccent, fontFamily: Fonts.inter.bold },
 
   // Grid
-  grid: { paddingHorizontal: 16, paddingTop: 16, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start' },
+  grid: { paddingHorizontal: EventGrid.sidePadding, paddingTop: 16, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start' },
   eventCard: {
-    width: (width - 44) / 2,
-    height: 185,
-    borderRadius: 16,
+    width: getEventGridCardWidth(width),
+    height: EventGrid.cardHeight,
+    borderRadius: EventGrid.radius,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104,0.14)',
-    backgroundColor: isDark ? '#0D1318' : '#ffffff',
-    marginBottom: 12,
+    backgroundColor: isDark ? colors.surface : '#ffffff',
+    marginBottom: EventGrid.rowGap,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 10,
     elevation: 6,
-  },
-  sharedEventCard: {
-    height: 260,
-  },
-  cardImageWrap: {
-    width: '100%',
-    height: 115,
-    backgroundColor: isDark ? '#10161C' : '#f1f5f9',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  sharedCardImageWrap: {
-    height: 160,
-  },
-  cardCategoryBadge: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: 'rgba(19, 25, 31,0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(202, 156, 104,0.3)',
-    borderRadius: 7,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  cardCategoryText: {
-    fontSize: 8,
-    color: colors.gold,
-    fontFamily: Fonts.inter.bold,
-    letterSpacing: 0.7,
-  },
-  cardInfoStrip: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    justifyContent: 'center',
-    flex: 1,
-    backgroundColor: isDark ? '#0D1318' : '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(202, 156, 104, 0.08)',
-  },
-  cardTitle: {
-    fontSize: 14,
-    color: colors.white,
-    fontFamily: Fonts.outfit.bold,
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  cardDate: {
-    fontSize: 11,
-    color: colors.slate400,
-    fontFamily: Fonts.inter.medium,
   },
   sharedOwnerBlock: {
     marginTop: 8,
@@ -1660,7 +1517,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderTopColor: 'rgba(255,255,255,0.08)',
   },
   sharedOwnerLine: {
-    fontSize: 8,
+    fontSize: 10,
     color: colors.white,
     fontFamily: Fonts.inter.bold,
     letterSpacing: 0.4,
@@ -1700,7 +1557,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   requestGroupLabel: {
     color: colors.slate400,
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: Fonts.inter.bold,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
@@ -1729,7 +1586,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: isDark ? '#000000' : '#ffffff',
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 12,
     width: '100%',
     borderWidth: 1,
@@ -1745,12 +1602,12 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   requestEventLabel: { color: colors.slate400, fontSize: 10, fontFamily: Fonts.inter.medium },
   requestEventTitle: { color: colors.gold, fontSize: 10, fontFamily: Fonts.inter.bold, flex: 1 },
   requestActionsMini: { flexDirection: 'row', gap: 10, paddingRight: 4 },
-  miniActionBtnGreen: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#10b981', alignItems: 'center', justifyContent: 'center' },
-  miniActionBtnRed: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center' },
+  miniActionBtnGreen: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center' },
+  miniActionBtnRed: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center' },
 
   // Request Modal Styles
   ironCladWrapper: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
-  premiumRequestModal: { width: width * 0.85, borderRadius: 32, padding: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  premiumRequestModal: { width: width * 0.85, borderRadius: 28, padding: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   largeAvatar: { width: 80, height: 80, borderRadius: 40, overflow: 'hidden', marginBottom: 16 },
   avatarGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   largeAvatarText: { color: MidnightColors.background, fontSize: 32, fontFamily: Fonts.outfit.extraBold },
@@ -1821,7 +1678,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
   },
   quotaHeroTitle: {
-    fontSize: 17,
+    fontSize: 18,
     color: colors.white,
     fontFamily: Fonts.outfit.extraBold,
   },
@@ -1927,7 +1784,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 20,
     paddingVertical: 14,
-    borderRadius: 18,
+    borderRadius: 20,
   },
   quotaUpgradeBtnText: {
     fontSize: 14,
@@ -1947,16 +1804,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  createModalContent: {
-    backgroundColor: colors.deepSlate,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    maxHeight: '88%',
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   modalTitle: { fontSize: 24, color: colors.white, fontFamily: Fonts.outfit.extraBold },
@@ -1984,7 +1831,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     gap: 7,
     paddingHorizontal: 12,
     paddingVertical: 11,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
@@ -2125,7 +1972,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   premiumModalContent: {
     width: width * 0.85,
     alignSelf: 'center',
-    borderRadius: 32,
+    borderRadius: 28,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
@@ -2142,11 +1989,11 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   premiumModalSub: { color: MidnightColors.gold, fontSize: 10, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginTop: 1, opacity: 0.8 },
   closeModalCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
   permissionsScroll: { padding: 16 },
-  userInfoToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.025)', padding: 10, borderRadius: 14, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)', gap: 10 },
+  userInfoToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.025)', padding: 10, borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)', gap: 10 },
   userInfoToggleActive: { backgroundColor: 'rgba(202, 156, 104, 0.06)', borderColor: 'rgba(202, 156, 104, 0.18)' },
-  userInfoToggleIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: 'rgba(202, 156, 104, 0.1)', alignItems: 'center', justifyContent: 'center' },
+  userInfoToggleIcon: { width: 30, height: 30, borderRadius: 12, backgroundColor: 'rgba(202, 156, 104, 0.1)', alignItems: 'center', justifyContent: 'center' },
   userInfoToggleTitle: { color: '#fff', fontSize: 13, fontFamily: Fonts.outfit.bold },
-  userInfoToggleSub: { color: '#CDB89E', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 1 },
+  userInfoToggleSub: { color: colors.slate400, fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 1 },
   userInfoPanel: { backgroundColor: 'rgba(255,255,255,0.025)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', padding: 10, marginBottom: 10 },
   userInfoProfileRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   userInfoLargeAvatar: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden' },
@@ -2155,6 +2002,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   userInfoHandle: { color: MidnightColors.gold, fontSize: 11, fontFamily: Fonts.inter.bold, marginTop: 2 },
   userInfoDetails: { gap: 6 },
   userInfoDetailRow: { backgroundColor: 'rgba(27, 33, 31, 0.7)', padding: 9, borderRadius: 12 },
-  userInfoDetailLabel: { color: '#CDB89E', fontSize: 9, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.8 },
+  userInfoDetailLabel: { color: colors.slate400, fontSize: 10, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.8 },
   userInfoDetailValue: { color: '#fff', fontSize: 12, fontFamily: Fonts.inter.medium },
 });

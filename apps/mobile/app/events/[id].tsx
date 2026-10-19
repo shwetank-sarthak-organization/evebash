@@ -1,13 +1,18 @@
+import EventVisibilityControl from '../../components/EventVisibilityControl';
+import VideoThumbnailPicker, { type ThumbnailVideo } from '../../components/VideoThumbnailPicker';
+import { galleryActionText } from '../../constants/galleryContrast';
 import React, { useCallback, useEffect, useState } from 'react';
 import LoadingScreen from '@/components/LoadingScreen';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler, PanResponder, Animated as RNAnimated, type ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler, PanResponder, Animated as RNAnimated, type ViewStyle } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, logGuestLogin, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto } from '@/lib/database';
+import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, GuestProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery } from '@/lib/database';
+import { confirmDenyRequest } from '@/lib/denyRequest';
+import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDetails } from '@/lib/uploaders';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
@@ -23,26 +28,42 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import Sortable from 'react-native-sortables';
 import { supabase } from '@/lib/supabase';
 import { getGridThumbnail } from '@/lib/imageUrl';
-import { resolveEventCoverImage } from '@/lib/eventCovers';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getEventCoverSource, resolveEventCoverImage } from '@/lib/eventCovers';
 import { getPlanDetails, getUsagePercent } from '@/lib/planLimits';
 import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 
 // ── Extracted modular components ──
-import { ThemeHeader } from '../../components/event/ThemeHeader';
+import { SHOW_EVENT_PARTNERS, ThemeHeader } from '../../components/event/ThemeHeader';
 import { ThemeDivider } from '../../components/event/ThemeDivider';
-import { GatedAccessPanel } from '../../components/event/GatedAccessPanel';
+import { GalleryAccessGate, GalleryGateState } from '../../components/event/GalleryAccessGate';
 import { RenameEventModal } from '../../components/event/modals/RenameEventModal';
 import { SubEventModal } from '../../components/event/modals/SubEventModal';
 import { TemplateSelectionModal } from '../../components/event/modals/TemplateSelectionModal';
 import { GalleryDescriptionModal } from '../../components/event/modals/GalleryDescriptionModal';
-import { useGuestAccess } from '../../hooks/useGuestAccess';
 import { FindYouPanel } from '../../components/event/FindYouPanel';
+import GalleriesIcon from '../../components/icons/GalleriesIcon';
+import PermissionsIcon from '../../components/icons/PermissionsIcon';
+import DesignIcon from '../../components/icons/DesignIcon';
+import PartnersIcon from '../../components/icons/PartnersIcon';
+import { haptic } from '@/lib/haptics';
+import { appAlert, showToast } from '@/lib/feedback';
+import { FolderPicker } from '@/components/vault/VaultModals';
+import { getGalleryWebUrl } from '@/lib/webLinks';
+
+// Approve / reject a guest with a confirming haptic
+function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'approved' | 'rejected') {
+  haptic(status === 'approved' ? 'success' : 'warning');
+  return updateGuestStatus(logId, status);
+}
 
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GRID_GAP = 3;
 const PHOTO_PAGE_SIZE = 20;
+// Logged-out public view pages through previews (get_public_gallery_media)
+const PUBLIC_PAGE_SIZE = 60;
+// Visitor templates that draw their own back/share buttons inside the hero instead of the native header
+const NATIVE_HEADER_HIDDEN_TEMPLATES = ['classic', 'hero', 'pop', 'ethereal', 'cyber_tech', 'retro_arcade', 'academic_editorial', 'neon_carnival', 'garden', 'bohemian', 'tech_sleek', 'executive'];
 const FREE_PLAN_VIDEO_LIMIT_BYTES = 200 * 1024 * 1024;
 const SPORTS_TEMPLATE_IDS = [
   'bohemian',
@@ -347,8 +368,12 @@ function GalleryThumbnailImage({
       style={style}
       contentFit="cover"
       blurRadius={blurRadius}
+      transition={200}
       onError={() => {
-        // Do not fall back to original url
+        // If the web thumbnail is still generating in the background (404), fall back to the uploaded original photo
+        if (sourceUri !== url && url) {
+          setSourceUri(url);
+        }
       }}
     />
   );
@@ -430,6 +455,8 @@ function GalleryVideoCard({
           <TouchableOpacity
             activeOpacity={0.88}
             onPress={onOpen}
+            accessibilityRole="button"
+            accessibilityLabel="Play video"
             style={{
               position: 'absolute',
               top: compact || minimalPreview ? 0 : 10,
@@ -511,7 +538,7 @@ function GalleryVideoCard({
             zIndex: 10,
           }}>
             <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>
-              ⚠️ Processing Failed
+              Processing failed
             </Text>
           </View>
         )}
@@ -544,7 +571,8 @@ export default function EventDetailScreen() {
     scaleRef.current = tempCoverScale;
   }, [tempCoverScale]);
   const { width } = useWindowDimensions();
-  const { id, shared, guestView, tab, share, mode } = useLocalSearchParams<{ id: string; shared?: string; guestView?: string; tab?: string; share?: string; mode?: 'admin' | 'visitor' }>();
+  // findYou=1: opened from a website Find You link (lib/deepLinks.ts); shows the Find You tab once loaded
+  const { id, shared, guestView, tab, share, mode, findYou } = useLocalSearchParams<{ id: string; shared?: string; guestView?: string; tab?: string; share?: string; mode?: 'admin' | 'visitor'; findYou?: string }>();
   const router = useRouter();
   const { user } = useAuth();
   const subscriptionStatus = React.useMemo(() => getSubscriptionStatus({
@@ -553,8 +581,26 @@ export default function EventDetailScreen() {
     planEndDate: user?.planEndDate,
   }), [user?.role, user?.planStartDate, user?.planEndDate]);
 
-  const [scrollY, setScrollY] = useState(0);
   const scrollViewRef = React.useRef<ScrollView>(null);
+  // Native-driven scroll offset (no re-renders) used to fade in the pinned gallery tabs' background
+  const scrollYAnim = React.useRef(new RNAnimated.Value(0)).current;
+  const [stickyTabsY, setStickyTabsY] = useState<number | null>(null);
+  const loadingMorePhotosRef = React.useRef(false);
+  const loadMorePhotosRef = React.useRef<(() => void) | null>(null);
+  const handleScrollNearEnd = useCallback((e: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    const distanceFromEnd = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    if (distanceFromEnd < layoutMeasurement.height * 1.5) loadMorePhotosRef.current?.();
+  }, []);
+  // Bottom edge (window coords) of the floating back/share header buttons, measured on layout
+  const [floatingButtonsBottom, setFloatingButtonsBottom] = useState<number | null>(null);
+  const backButtonRef = React.useRef<View>(null);
+  const shareButtonRef = React.useRef<View>(null);
+  const measureFloatingButton = useCallback((ref: React.RefObject<View | null>) => {
+    ref.current?.measureInWindow((_x, y, _w, h) => {
+      if (h > 0) setFloatingButtonsBottom(prev => Math.max(prev ?? 0, Math.round(y + h)));
+    });
+  }, []);
   const { height: windowHeight } = useWindowDimensions();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -580,18 +626,23 @@ export default function EventDetailScreen() {
   const [event, setEvent] = useState<DatabaseEvent | null>(null);
   const [selectedGuest, setSelectedGuest] = useState<GuestLog | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<GuestLog | null>(null);
-  const [selectedGuestProfile, setSelectedGuestProfile] = useState<UserProfile | null>(null);
+  const [selectedGuestProfile, setSelectedGuestProfile] = useState<GuestProfile | null>(null);
   const [loadingGuestProfile, setLoadingGuestProfile] = useState(false);
   const [showGuestInfo, setShowGuestInfo] = useState(false);
-  const [selectedRequestProfile, setSelectedRequestProfile] = useState<UserProfile | null>(null);
+  const [selectedRequestProfile, setSelectedRequestProfile] = useState<GuestProfile | null>(null);
   const [loadingRequestProfile, setLoadingRequestProfile] = useState(false);
   const [showRequestInfo, setShowRequestInfo] = useState(false);
   const [subEvents, setSubEvents] = useState<DatabaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [guestStatus, setGuestStatus] = useState<string | null>(null);
-  const [guestName, setGuestName] = useState('');
-  const [guestPhone, setGuestPhone] = useState('');
-  const [submittedIdentifier, setSubmittedIdentifier] = useState<string | null>(null);
+  // What this viewer may do with the link (open_gallery)
+  const [galleryAccess, setGalleryAccess] = useState<GalleryAccess | null>(null);
+  // Members whose host turned on "Allow Photo Uploads" can add photos from the gallery view
+  const [memberCanUpload, setMemberCanUpload] = useState(false);
+  const [galleryOpenFailed, setGalleryOpenFailed] = useState(false);
+  const [gateTitle, setGateTitle] = useState('');
+  const [requestingAccess, setRequestingAccess] = useState(false);
+  const isPublicView = galleryAccess === 'public_view';
+  const hasMemberAccess = galleryAccess === 'manage' || galleryAccess === 'member';
 
   const [isOwner, setIsOwner] = useState(false);
   const [isSharedEventAdmin, setIsSharedEventAdmin] = useState(false);
@@ -631,17 +682,7 @@ export default function EventDetailScreen() {
 
       setLoadingGuestProfile(true);
       try {
-        const users = await getUsers();
-        const guestEmail = normalizeEmailValue(selectedGuest.email || selectedGuest.phone);
-        const guestPhone = normalizePhoneValue(selectedGuest.phone);
-        const profile = users.find((candidate) => {
-          const candidateEmail = normalizeEmailValue(candidate.email);
-          const candidatePhone = normalizePhoneValue(candidate.phone);
-          return (
-            (!!guestEmail && guestEmail === candidateEmail) ||
-            (!!guestPhone && guestPhone === candidatePhone)
-          );
-        }) || null;
+        const profile = await getGuestProfile(selectedGuest);
 
         if (isActive) {
           setSelectedGuestProfile(profile);
@@ -663,7 +704,7 @@ export default function EventDetailScreen() {
     return () => {
       isActive = false;
     };
-  }, [normalizeEmailValue, normalizePhoneValue, selectedGuest]);
+  }, [selectedGuest]);
 
   useEffect(() => {
     let isActive = true;
@@ -677,17 +718,7 @@ export default function EventDetailScreen() {
 
       setLoadingRequestProfile(true);
       try {
-        const users = await getUsers();
-        const requestEmail = normalizeEmailValue(selectedRequest.email || selectedRequest.phone);
-        const requestPhone = normalizePhoneValue(selectedRequest.phone);
-        const profile = users.find((candidate) => {
-          const candidateEmail = normalizeEmailValue(candidate.email);
-          const candidatePhone = normalizePhoneValue(candidate.phone);
-          return (
-            (!!requestEmail && requestEmail === candidateEmail) ||
-            (!!requestPhone && requestPhone === candidatePhone)
-          );
-        }) || null;
+        const profile = await getGuestProfile(selectedRequest);
 
         if (isActive) {
           setSelectedRequestProfile(profile);
@@ -709,12 +740,14 @@ export default function EventDetailScreen() {
     return () => {
       isActive = false;
     };
-  }, [normalizeEmailValue, normalizePhoneValue, selectedRequest]);
+  }, [selectedRequest]);
 
-  const canViewContent = isOwner || isPrivilegedViewer || guestStatus === 'approved';
+  const canViewContent = isOwner || isPrivilegedViewer || hasMemberAccess || isPublicView;
   const isFreePlanUser = !user?.delegatedBy && isFreePlanRole(user?.role);
 
-  const [activeTab, setActiveTab] = useState<'galleries' | 'permissions' | 'design' | 'partners'>((tab as any) || 'galleries');
+  const [activeTab, setActiveTab] = useState<'galleries' | 'permissions' | 'design' | 'partners'>(
+    // A link to the hidden Partners tab opens Galleries instead
+    (tab === 'partners' && !SHOW_EVENT_PARTNERS ? 'galleries' : (tab as any)) || 'galleries');
   const [linkingVendor, setLinkingVendor] = useState(false);
   const [vendorCode, setVendorCode] = useState('');
   const [linkedVendors, setLinkedVendors] = useState<Business[]>([]);
@@ -779,6 +812,11 @@ export default function EventDetailScreen() {
   const isSportsTemplate = !showAdminView && event?.category === 'Sports' && SPORTS_TEMPLATE_IDS.includes(event?.templateId || '');
   const sportsTheme = React.useMemo(() => getSportsTemplateTheme(event?.templateId), [event?.templateId]);
   const pageBackground = isSportsTemplate ? sportsTheme.background : selectedTemplate.background;
+  const showsNativeVisitorHeader = !showAdminView && !(isSportsTemplate || NATIVE_HEADER_HIDDEN_TEMPLATES.includes(event?.templateId || ''));
+  // Room the pinned gallery tabs leave at the top: the status bar, plus the floating back/share buttons when shown
+  const stickyTabsTopInset = showsNativeVisitorHeader
+    ? Math.max(floatingButtonsBottom ?? (Platform.OS === 'android' ? 80 : insets.top + 52), insets.top) + 8
+    : insets.top + 4;
 
   const heroHeight = showAdminView
     ? 400
@@ -1015,6 +1053,11 @@ export default function EventDetailScreen() {
 
   const [activeSubEvent, setActiveSubEvent] = useState<DatabaseEvent | null>(null);
   const [photos, setPhotos] = useState<any[]>([]);
+  const photosRef = React.useRef<any[]>([]);
+  photosRef.current = photos;
+  const [videoActionItem, setVideoActionItem] = useState<ThumbnailVideo | null>(null);
+  const [thumbnailVideo, setThumbnailVideo] = useState<ThumbnailVideo | null>(null);
+  const [thumbnailSaving, setThumbnailSaving] = useState(false);
   const [mediaTotals, setMediaTotals] = useState({ photos: 0, videos: 0 });
   const [storageStats, setStorageStats] = useState<{ used: number; limit: number; label: string; percent: number } | null>(null);
   const [retainedMediaIds, setRetainedMediaIds] = useState<Set<string>>(new Set());
@@ -1045,6 +1088,8 @@ export default function EventDetailScreen() {
   }, [fetchStorage, photos.length]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [photoPage, setPhotoPage] = useState(0);
+  const photoPageRef = React.useRef(0);
+  photoPageRef.current = photoPage;
   const [hasMorePhotos, setHasMorePhotos] = useState(false);
   const [loadingMorePhotos, setLoadingMorePhotos] = useState(false);
   // undefined = gallery list, null = Primary Gallery, event = sub-gallery
@@ -1062,7 +1107,7 @@ export default function EventDetailScreen() {
       .filter((gallery): gallery is DatabaseEvent => !!gallery)
       .map(gallery => ({
         id: gallery.id,
-        label: gallery.id === event?.id ? 'Main event' : gallery.title,
+        label: gallery.id === event?.id ? 'Home (Primary Gallery)' : gallery.title,
         legacyId: gallery.legacyId,
         count: selectedMediaItems.filter(item => item.eventId === gallery.id || (!!gallery.legacyId && item.eventId === gallery.legacyId)).length,
       }))
@@ -1071,24 +1116,62 @@ export default function EventDetailScreen() {
   const effectiveSourceGalleryFilter = sourceGalleryOptions.some(option => option.id === sourceGalleryFilter)
     ? sourceGalleryFilter
     : 'all';
-  const isFavouriteFilterActive = !isPrimaryGalleryView && showOnlyFavourites;
+  const isFavouriteFilterActive = !isPrimaryGalleryView && !isPublicView && showOnlyFavourites;
   const sourceFilteredMediaItems = React.useMemo(() => {
     if (!isPrimaryGalleryView || effectiveSourceGalleryFilter === 'all') return selectedMediaItems;
     const source = sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter);
     return selectedMediaItems.filter(item => item.eventId === source?.id || (!!source?.legacyId && item.eventId === source.legacyId));
   }, [effectiveSourceGalleryFilter, isPrimaryGalleryView, selectedMediaItems, sourceGalleryOptions]);
-  const filteredPhotoItems = React.useMemo(
+  const favouriteFilteredPhotoItems = React.useMemo(
     () => galleryMediaTab === 'photos' && isFavouriteFilterActive
       ? sourceFilteredMediaItems.filter(item => eventFavouritePhotoIds.has(item.id))
       : galleryMediaTab === 'photos' ? sourceFilteredMediaItems : photoItems,
     [eventFavouritePhotoIds, galleryMediaTab, isFavouriteFilterActive, photoItems, sourceFilteredMediaItems],
   );
-  const filteredVideoItems = React.useMemo(
+  const favouriteFilteredVideoItems = React.useMemo(
     () => galleryMediaTab === 'videos' && isFavouriteFilterActive
       ? sourceFilteredMediaItems.filter(item => eventFavouritePhotoIds.has(item.id))
       : galleryMediaTab === 'videos' ? sourceFilteredMediaItems : videoItems,
     [eventFavouritePhotoIds, galleryMediaTab, isFavouriteFilterActive, sourceFilteredMediaItems, videoItems],
   );
+  // "Uploaded by" filter (hosts and admins): the person's user id, or 'all'. Roles are looked up per gallery.
+  const [uploaderFilter, setUploaderFilter] = useState('all');
+  const [uploaderMenuVisible, setUploaderMenuVisible] = useState(false);
+  const [uploaderDetails, setUploaderDetails] = useState<Record<string, Record<string, UploaderDetails>>>({});
+  const [loadingAllMedia, setLoadingAllMedia] = useState(false);
+  const [allMediaLoadedFor, setAllMediaLoadedFor] = useState<string | null>(null);
+  const adminGalleryId = selectedAdminGallery ? selectedAdminGallery.id : event?.id;
+  const adminGalleryIdRef = React.useRef(adminGalleryId);
+  useEffect(() => { adminGalleryIdRef.current = adminGalleryId; }, [adminGalleryId]);
+  const uploaderIdsKey = React.useMemo(() => Array.from(new Set(photos.map(uploaderOf))).sort().join(','), [photos]);
+  useEffect(() => {
+    const ids = uploaderIdsKey ? uploaderIdsKey.split(',') : [];
+    if (!showAdminView || !adminGalleryId || ids.length < 2) return;
+    let active = true;
+    void fetchUploaderDetails(adminGalleryId, ids)
+      .then(details => { if (active) setUploaderDetails(prev => ({ ...prev, [adminGalleryId]: { ...prev[adminGalleryId], ...details } })); })
+      .catch(error => console.warn('[EventDetail] Could not load uploader names:', error));
+    return () => { active = false; };
+  }, [adminGalleryId, showAdminView, uploaderIdsKey]);
+  const favouriteFilteredActiveItems = galleryMediaTab === 'photos' ? favouriteFilteredPhotoItems : favouriteFilteredVideoItems;
+  const uploaderOptions = React.useMemo(
+    () => buildUploaderOptions(favouriteFilteredActiveItems, (adminGalleryId && uploaderDetails[adminGalleryId]) || {}, user?.uid),
+    [adminGalleryId, favouriteFilteredActiveItems, uploaderDetails, user?.uid],
+  );
+  const effectiveUploaderFilter = showAdminView && uploaderOptions.some(option => option.userId === uploaderFilter) ? uploaderFilter : 'all';
+  const isUploaderFilterActive = effectiveUploaderFilter !== 'all';
+  const filteredPhotoItems = React.useMemo(
+    () => isUploaderFilterActive ? favouriteFilteredPhotoItems.filter(item => uploaderOf(item) === effectiveUploaderFilter) : favouriteFilteredPhotoItems,
+    [effectiveUploaderFilter, favouriteFilteredPhotoItems, isUploaderFilterActive],
+  );
+  const filteredVideoItems = React.useMemo(
+    () => isUploaderFilterActive ? favouriteFilteredVideoItems.filter(item => uploaderOf(item) === effectiveUploaderFilter) : favouriteFilteredVideoItems,
+    [effectiveUploaderFilter, favouriteFilteredVideoItems, isUploaderFilterActive],
+  );
+  // Shown once more than one person uploaded here (or more pages could reveal another uploader)
+  const showUploaderFilter = showAdminView && (uploaderIdsKey.includes(',') || hasMorePhotos || allMediaLoadedFor === adminGalleryId);
+  // Reordering a filtered subset would move items around hidden ones, so it's off while a subset filter is on
+  const isOrderLocked = isFavouriteFilterActive || isUploaderFilterActive;
   const displayedPhotoCount = mediaTotals.photos || photoItems.length;
   const displayedVideoCount = mediaTotals.videos || videoItems.length;
   const mediaTabs = React.useMemo<{ id: 'photos' | 'videos'; label: string }[]>(() => {
@@ -1098,6 +1181,20 @@ export default function EventDetailScreen() {
     ];
   }, [displayedPhotoCount, displayedVideoCount]);
   const activeGalleryItems = galleryMediaTab === 'photos' ? filteredPhotoItems : filteredVideoItems;
+
+  // Guests opening a video-only gallery land on Videos instead of an empty Photos tab.
+  // Runs once per gallery after its media counts load, so a manual tab choice is never overridden.
+  const autoMediaTabGalleryRef = React.useRef<string | null>(null);
+  const visitorGalleryKey = activeSubEvent?.id ?? 'primary';
+  useEffect(() => {
+    if (showAdminView || loading || loadingPhotos || !event) return;
+    if (visitorGalleryKey === 'event-partners' || visitorGalleryKey === 'find-you') return;
+    if (autoMediaTabGalleryRef.current === visitorGalleryKey) return;
+    autoMediaTabGalleryRef.current = visitorGalleryKey;
+    if (galleryMediaTab === 'photos' && displayedPhotoCount === 0 && displayedVideoCount > 0) {
+      setGalleryMediaTab('videos');
+    }
+  }, [showAdminView, loading, loadingPhotos, event, visitorGalleryKey, galleryMediaTab, displayedPhotoCount, displayedVideoCount]);
   const activeFavouriteCount = galleryMediaTab === 'photos'
     ? photoItems.filter(item => eventFavouritePhotoIds.has(item.id)).length
     : videoItems.filter(item => eventFavouritePhotoIds.has(item.id)).length;
@@ -1115,7 +1212,7 @@ export default function EventDetailScreen() {
   const currentActiveEvent = selectedAdminGallery !== undefined
     ? (selectedAdminGallery || event)
     : (activeSubEvent || event);
-  const resolvedActiveCoverImage = resolveEventCoverImage(currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl, 'preview');
+  const activeCoverSource = getEventCoverSource(currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl, 'preview', currentActiveEvent?.category || event?.category);
 
   const activeCoverMode = currentActiveEvent ? currentActiveEvent.coverMode : event?.coverMode;
   const activeCoverOffset = currentActiveEvent ? currentActiveEvent.coverOffset : event?.coverOffset;
@@ -1126,10 +1223,19 @@ export default function EventDetailScreen() {
   const [viewerVisible, setViewerVisible] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [photoActionItem, setPhotoActionItem] = useState<any | null>(null);
+  const [mediaToMove, setMediaToMove] = useState<any[] | null>(null);
+  const [mediaToSave, setMediaToSave] = useState<any[] | null>(null);
+  const [isMovingMedia, setIsMovingMedia] = useState(false);
+  const [isSelectingMedia, setIsSelectingMedia] = useState(false);
+  const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setIsSelectingMedia(false);
+    setSelectedMediaIds(new Set());
+  }, [selectedAdminGallery, galleryMediaTab]);
 
   const viewerIdentity = React.useMemo(() => user
     ? { id: user.uid, name: user.name || user.email?.split('@')[0] || 'User' }
-    : { id: guestPhone || 'anonymous', name: guestName || 'Guest' }, [user, guestPhone, guestName]);
+    : { id: 'anonymous', name: 'Guest' }, [user]);
 
   const getPrimaryFavouriteEventIds = useCallback((
     mainEvent: DatabaseEvent | null = event,
@@ -1160,18 +1266,80 @@ export default function EventDetailScreen() {
     const logIdPrefix = log.id?.split('_')[0] || '';
 
     return (
+      // Rows made by request_gallery_access are tied to the account
+      (!!userUid && log.userId === userUid) ||
       (!!userUid && (logIdPrefix === userUid || log.phone === userUid || log.email === userUid)) ||
       (!!userEmail && (logEmail === userEmail || normalizeEmailValue(logIdPrefix) === userEmail)) ||
       (!!userPhone && (logPhone === userPhone || normalizePhoneValue(logIdPrefix) === userPhone))
     );
   }, [normalizeEmailValue, normalizePhoneValue, user]);
 
+  // Logged out, public gallery: read-only previews and video streams (never originals), nothing read from the tables
+  const loadPublicPhotos = async (eventId: string, page = 0) => {
+    const media = await getPublicGalleryMedia(eventId, PUBLIC_PAGE_SIZE, page * PUBLIC_PAGE_SIZE);
+    setPhotos(prev => page === 0 ? media : [...prev, ...media]);
+    // Totals aren't known up front, so the counts follow what has loaded
+    setMediaTotals({ photos: 0, videos: 0 });
+    setPhotoPage(page);
+    setHasMorePhotos(media.length === PUBLIC_PAGE_SIZE);
+  };
+
+  const showPublicGallery = async (eventData: DatabaseEvent, galleries: DatabaseEvent[]) => {
+    setEvent(eventData);
+    setIsOwner(false);
+    // A sub-gallery link shows that gallery on its own, as it does for members
+    setSubEvents(eventData.parentId ? [] : galleries);
+    setLinkedVendors([]);
+    setGuestLogs([]);
+    setRetainedMediaIds(new Set());
+    setEventFavouritePhotoIds(new Set());
+    await loadPublicPhotos(eventData.id, 0);
+  };
+
   const loadEvent = async () => {
     setLoading(true);
     setIsSharedEventAdmin(false);
+    setGalleryOpenFailed(false);
     const perfStart = Date.now();
     console.log('[PERF] Starting loadEvent fetching pipeline...');
+    let redirecting = false;
     try {
+      // What this viewer may do with the link. Logged-in viewers of a public gallery join it here.
+      let opened: OpenedGallery;
+      try {
+        opened = await openGallery(id);
+      } catch (err) {
+        console.error('[EventDetail] Could not open gallery link:', err);
+        setGalleryAccess(null);
+        setEvent(null);
+        setGalleryOpenFailed(true);
+        return;
+      }
+
+      // Join codes and legacy ids continue on the gallery's own route, which the rest of the screen relies on
+      if (opened.eventId && opened.eventId !== decodeURIComponent(id)) {
+        redirecting = true;
+        const params = Object.fromEntries(
+          Object.entries({ shared, guestView, tab, share, mode, findYou, id: opened.eventId }).filter(([, value]) => value != null)
+        );
+        router.replace({ pathname: '/events/[id]', params } as any);
+        return;
+      }
+
+      setGalleryAccess(opened.access);
+      setGateTitle(opened.title || '');
+      setMemberCanUpload(opened.access === 'member' && opened.canUpload);
+
+      if (opened.access === 'public_view' && opened.event) {
+        await showPublicGallery(opened.event, opened.subEvents);
+        return;
+      }
+      // Not found, or a private gallery the viewer can't see yet: nothing of it is loaded
+      if (opened.access !== 'manage' && opened.access !== 'member') {
+        setEvent(null);
+        return;
+      }
+
       const eventData = await getEventById(id);
       if (eventData) {
         // Ensure joinId exists
@@ -1272,40 +1440,61 @@ export default function EventDetailScreen() {
       console.error('[EventDetail] Load error:', err);
       setMediaTotals({ photos: 0, videos: 0 });
     } finally {
-      setLoading(false);
+      if (!redirecting) setLoading(false);
     }
   };
 
-  const loadPhotos = async (eventId: string, legacyId?: string) => {
-    setLoadingPhotos(true);
+  // silent (realtime refresh): no spinner, keep the pages already scrolled through, keep the grid on error
+  const loadPhotos = async (eventId: string, legacyId?: string, { silent = false } = {}) => {
+    if (isPublicView) {
+      setLoadingPhotos(true);
+      try {
+        await loadPublicPhotos(eventId, 0);
+      } catch (err) {
+        console.error('[EventDetail] Public photos load error:', err);
+        setPhotos([]);
+        setHasMorePhotos(false);
+      } finally {
+        setLoadingPhotos(false);
+      }
+      return;
+    }
+    if (!silent) setLoadingPhotos(true);
+    const pageCount = silent ? photoPageRef.current + 1 : 1;
     const perfPhotosStart = Date.now();
     try {
       const [photoDataResult, retainedIds, favouriteRows] = await Promise.all([
-        getEventPhotosPaginated(eventId, legacyId, 0, PHOTO_PAGE_SIZE),
+        getEventPhotosPaginated(eventId, legacyId, 0, PHOTO_PAGE_SIZE * pageCount),
         getRetainedMediaIdsForEventGrace(eventId, legacyId),
         getEventFavouritePhotos(eventId),
       ]);
       setPhotos(photoDataResult.photos);
       setMediaTotals({ photos: photoDataResult.totalPhotos, videos: photoDataResult.totalVideos });
-      setPhotoPage(0);
+      if (!silent) setPhotoPage(0);
       setHasMorePhotos(photoDataResult.hasMore);
       setRetainedMediaIds(new Set(retainedIds));
       setEventFavouritePhotoIds(new Set(favouriteRows.map((row: any) => row.photoId)));
       console.log(`[PERF] loadPhotos completed in ${Date.now() - perfPhotosStart}ms`);
     } catch (err) {
       console.error('[EventDetail] Photos load error:', err);
+      if (silent) return;
       setPhotos([]);
       setMediaTotals({ photos: 0, videos: 0 });
       setHasMorePhotos(false);
       setEventFavouritePhotoIds(new Set());
     } finally {
-      setLoadingPhotos(false);
+      if (!silent) setLoadingPhotos(false);
     }
   };
 
-  const loadPrimaryGalleryPhotos = useCallback(async () => {
+  const loadPrimaryGalleryPhotos = useCallback(async ({ silent = false } = {}) => {
     if (!event) return;
-    setLoadingPhotos(true);
+    if (isPublicView) {
+      // get_public_gallery_media already returns the host's favourites for a top-level gallery's Home tab
+      await loadPhotos(event.id);
+      return;
+    }
+    if (!silent) setLoadingPhotos(true);
     try {
       const favouritePhotos = await getFavouritePhotosForEvents(getPrimaryFavouriteEventIds());
       if (favouritePhotos.length > 0) {
@@ -1322,31 +1511,35 @@ export default function EventDetailScreen() {
         return;
       }
 
+      const pageCount = silent ? photoPageRef.current + 1 : 1;
       const [photoDataResult, retainedIds, favouriteRows] = await Promise.all([
-        getEventPhotosPaginated(event.id, event.legacyId, 0, PHOTO_PAGE_SIZE),
+        getEventPhotosPaginated(event.id, event.legacyId, 0, PHOTO_PAGE_SIZE * pageCount),
         getRetainedMediaIdsForEventGrace(event.id, event.legacyId),
         getEventFavouritePhotos(event.id),
       ]);
 
       setPhotos(photoDataResult.photos);
       setMediaTotals({ photos: photoDataResult.totalPhotos, videos: photoDataResult.totalVideos });
-      setPhotoPage(0);
+      if (!silent) setPhotoPage(0);
       setHasMorePhotos(photoDataResult.hasMore);
       setRetainedMediaIds(new Set(retainedIds));
       setEventFavouritePhotoIds(new Set(favouriteRows.map((row: any) => row.photoId)));
     } catch (err) {
       console.error('[EventDetail] Primary gallery photos load error:', err);
+      if (silent) return;
       setPhotos([]);
       setMediaTotals({ photos: 0, videos: 0 });
       setHasMorePhotos(false);
       setEventFavouritePhotoIds(new Set());
     } finally {
-      setLoadingPhotos(false);
+      if (!silent) setLoadingPhotos(false);
     }
-  }, [event, getPrimaryFavouriteEventIds]);
+  }, [event, getPrimaryFavouriteEventIds, isPublicView]);
 
   const handleLoadMorePhotos = async () => {
-    if (loadingMorePhotos || !hasMorePhotos || !event) return;
+    // The ref blocks double-loads from rapid scroll events before state updates land
+    if (loadingMorePhotosRef.current || loadingMorePhotos || !hasMorePhotos || !event) return;
+    loadingMorePhotosRef.current = true;
     setLoadingMorePhotos(true);
     const nextPage = photoPage + 1;
     const activeId = selectedAdminGallery !== undefined
@@ -1357,6 +1550,10 @@ export default function EventDetailScreen() {
       : (activeSubEvent ? activeSubEvent.legacyId : event.legacyId);
 
     try {
+      if (isPublicView) {
+        await loadPublicPhotos(activeId, nextPage);
+        return;
+      }
       const { photos: nextPhotos, hasMore, totalPhotos, totalVideos } = await getEventPhotosPaginated(activeId, legacyId, nextPage, PHOTO_PAGE_SIZE);
       setPhotos(prev => [...prev, ...nextPhotos]);
       setMediaTotals({ photos: totalPhotos, videos: totalVideos });
@@ -1365,9 +1562,48 @@ export default function EventDetailScreen() {
     } catch (err) {
       console.error('[EventDetail] Load more photos error:', err);
     } finally {
+      loadingMorePhotosRef.current = false;
       setLoadingMorePhotos(false);
     }
   };
+
+  // The "Uploaded by" filter needs the whole gallery, not just the pages loaded so far (media rows only; images
+  // still load as they scroll into view)
+  const loadAllAdminMedia = async () => {
+    if (!event || !showAdminView || !hasMorePhotos || loadingAllMedia || loadingMorePhotosRef.current) return;
+    const galleryId = adminGalleryId;
+    if (!galleryId) return;
+    const legacyId = selectedAdminGallery ? selectedAdminGallery.legacyId : event.legacyId;
+    setLoadingAllMedia(true);
+    loadingMorePhotosRef.current = true;
+    try {
+      const all: any[] = [];
+      for (let page = 0, more = true; more; page += 1) {
+        const result = await getEventPhotosPaginated(galleryId, legacyId, page, 200);
+        all.push(...result.photos);
+        more = result.hasMore;
+      }
+      if (adminGalleryIdRef.current !== galleryId) return;
+      const seen = new Set<string>();
+      setPhotos(all.filter(item => !seen.has(item.id) && seen.add(item.id)));
+      setHasMorePhotos(false);
+      setAllMediaLoadedFor(galleryId);
+    } catch (err) {
+      console.error('[EventDetail] Load all media error:', err);
+      appAlert('Could not load the gallery', 'Please check your connection and try again.');
+    } finally {
+      loadingMorePhotosRef.current = false;
+      setLoadingAllMedia(false);
+    }
+  };
+
+  // Infinite scroll: fetch the next page when the user nears the end of a visible photo grid
+  const canAutoLoadMore = hasMorePhotos && !!event && (
+    showAdminView
+      ? activeTab === 'galleries' && selectedAdminGallery !== undefined
+      : activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you'
+  );
+  loadMorePhotosRef.current = canAutoLoadMore ? handleLoadMorePhotos : null;
 
   const handleSubEventChange = (sub: DatabaseEvent | null) => {
     setGalleryMediaTab('photos');
@@ -1381,6 +1617,15 @@ export default function EventDetailScreen() {
       loadPrimaryGalleryPhotos();
     }
   };
+
+  // A Find You link opens the Find You tab once, after the gallery has loaded for this viewer
+  const findYouLinkHandledRef = React.useRef(false);
+  useEffect(() => {
+    if (findYou !== '1' || findYouLinkHandledRef.current) return;
+    if (loading || !event || showAdminView || !(isPublicView || hasMemberAccess)) return;
+    findYouLinkHandledRef.current = true;
+    handleSubEventChange({ id: 'find-you', title: 'Find You' } as any);
+  }, [findYou, loading, event, showAdminView, isPublicView, hasMemberAccess]);
 
   const handleEventBack = useCallback(() => {
     if (selectedAdminGallery !== undefined) {
@@ -1437,10 +1682,10 @@ export default function EventDetailScreen() {
         setEvent({ ...event, description: galleryDescText.trim() });
       }
       setGalleryDescModalVisible(false);
-      Alert.alert("Success", "Gallery message updated successfully!");
+      showToast("Gallery message updated successfully!");
     } catch (err) {
       console.error('[SaveDesc] Error:', err);
-      Alert.alert("Error", "Failed to update description.");
+      appAlert("Error", "Failed to update description.");
     } finally {
       setUpdating(false);
     }
@@ -1448,31 +1693,66 @@ export default function EventDetailScreen() {
 
   const handleUploadGalleryMedia = async (mediaType: 'photo' | 'video' = 'photo') => {
     if (!event) return;
+    if (mediaType === 'video' && !canManageEvent && !isOwner) {
+      appAlert('Photos only', 'Only the event owner and event admins can upload videos.');
+      return;
+    }
     if (!user?.uid) {
-      Alert.alert("Login Required", "Please log in before uploading media.");
+      appAlert("Login Required", "Please log in before uploading media.");
       return;
     }
     const activeId = selectedAdminGallery !== undefined
       ? (selectedAdminGallery ? selectedAdminGallery.id : event.id)
       : (activeSubEvent ? activeSubEvent.id : event.id);
     if (!activeId) {
-      Alert.alert("Error", "Please select a valid gallery before uploading.");
+      appAlert("Error", "Please select a valid gallery before uploading.");
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: mediaType === 'video' ? ['videos'] : ['images'],
-      allowsEditing: false,
-      allowsMultipleSelection: true,
-      quality: 1.0,
-    });
+    if (mediaType === 'video') {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const base = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, '');
+        if (!base || !data.session) throw new Error('Unable to verify video-upload permission. Please try again.');
+        const response = await fetch(`${base}/api/media/video-upload-permission?eventId=${encodeURIComponent(activeId)}`, { headers: { Authorization: `Bearer ${data.session.access_token}` } });
+        const permission = await response.json();
+        if (!response.ok || permission.allowed !== true) throw new Error('Only the event owner and event admins can upload videos.');
+      } catch (error) {
+        appAlert('Video upload unavailable', error instanceof Error ? error.message : 'Unable to verify permission.');
+        return;
+      }
+    }
+
+    let result: ImagePicker.ImagePickerResult;
+    try {
+      result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: mediaType === 'video' ? ['videos'] : ['images'],
+        allowsEditing: false,
+        allowsMultipleSelection: true,
+        quality: 1.0,
+        exif: false,
+      });
+    } catch (pickerErr: any) {
+      const msg = pickerErr?.message || String(pickerErr);
+      if (msg.includes('ENOSPC') || msg.includes('No space left')) {
+        appAlert(
+          'Storage Full',
+          'Your device does not have enough free storage to select this file. Please free up space and try again.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        appAlert('Could Not Open Media Library', msg);
+      }
+      return;
+    }
+
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       try {
         if (mediaType === 'video' && isFreePlanUser) {
           const oversizedVideo = result.assets.find(asset => (asset.fileSize || 0) > FREE_PLAN_VIDEO_LIMIT_BYTES);
           if (oversizedVideo) {
-            Alert.alert("Upgrade Required", "Free plan videos can be up to 200 MB. Upgrade to upload larger videos.");
+            appAlert("Upgrade Required", "Free plan videos can be up to 200 MB. Upgrade to upload larger videos.");
             return;
           }
         }
@@ -1488,7 +1768,7 @@ export default function EventDetailScreen() {
               duration: asset.duration,
             });
             if (!validation.valid) {
-              Alert.alert(
+              appAlert(
                 "Invalid Video",
                 validation.error || "This file cannot be uploaded as a video.",
                 [{ text: "OK" }]
@@ -1506,13 +1786,14 @@ export default function EventDetailScreen() {
             uri: asset.uri,
             name: asset.fileName || fallbackName,
             type: asset.mimeType || fallbackType,
+            duration: asset.duration || undefined,
           };
         });
 
         await addToUploadQueue(files, activeId, user.uid, mediaType);
       } catch (err: any) {
         console.error('[UploadMedia] Error queueing uploads:', err);
-        Alert.alert("Error", `Failed to start upload: ${err.message || err}`);
+        appAlert("Error", `Failed to start upload: ${err.message || err}`);
       }
     }
   };
@@ -1566,6 +1847,7 @@ export default function EventDetailScreen() {
     if (!editableGallery || !user?.uid) return;
 
     const wasFavourite = eventFavouritePhotoIds.has(photoId);
+    haptic('select');
     setEventFavouritePhotoIds(prev => {
       const next = new Set(prev);
       if (wasFavourite) {
@@ -1587,7 +1869,7 @@ export default function EventDetailScreen() {
         }
         return next;
       });
-      Alert.alert('Error', result.error);
+      appAlert('Error', result.error);
       return;
     }
 
@@ -1614,7 +1896,7 @@ export default function EventDetailScreen() {
   const handleRotateGalleryPhoto = async (photoId: string, direction: 'left' | 'right') => {
     const result = await rotatePhoto(photoId, direction);
     if (!result.success || !result.url || !result.thumbnailUrl) {
-      Alert.alert('Error', result.error || 'Failed to rotate photo.');
+      appAlert('Error', result.error || 'Failed to rotate photo.');
       return;
     }
 
@@ -1650,7 +1932,7 @@ export default function EventDetailScreen() {
 
   const handleDeleteGalleryPhoto = async (photoId: string) => {
     const selectedMediaLabel = galleryMediaTab === 'videos' ? 'video' : 'photo';
-    Alert.alert(
+    appAlert(
       `Delete ${selectedMediaLabel === 'video' ? 'Video' : 'Photo'}`,
       `Are you sure you want to permanently delete this ${selectedMediaLabel} from the gallery?`,
       [
@@ -1681,10 +1963,10 @@ export default function EventDetailScreen() {
               } else {
                 loadPhotos(activeId, activeLegacyId);
               }
-              Alert.alert("Success", `${selectedMediaLabel === 'video' ? 'Video' : 'Photo'} removed from gallery.`);
+              showToast(`${selectedMediaLabel === 'video' ? 'Video' : 'Photo'} removed from gallery.`);
             } catch (err) {
               console.error('[DeletePhoto] Error:', err);
-              Alert.alert("Error", "Failed to delete photo.");
+              appAlert("Error", "Failed to delete photo.");
             } finally {
               setUpdating(false);
             }
@@ -1714,12 +1996,69 @@ export default function EventDetailScreen() {
       if (!success) throw new Error("Cover update failed");
       syncCoverForEvent(targetId, photoUrl);
       setPhotoActionItem(null);
-      Alert.alert("Updated", `${label} thumbnail updated.`);
+      showToast(`${label} thumbnail updated.`);
     } catch (err) {
       console.error('[SetPhotoCover] Error:', err);
-      Alert.alert("Error", `Failed to update ${label.toLowerCase()} thumbnail.`);
+      appAlert("Error", `Failed to update ${label.toLowerCase()} thumbnail.`);
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const toggleMediaSelection = (mediaId: string) => {
+    setSelectedMediaIds(prev => {
+      const next = new Set(prev);
+      if (next.has(mediaId)) next.delete(mediaId); else next.add(mediaId);
+      return next;
+    });
+  };
+
+  const exitMediaSelection = () => {
+    setIsSelectingMedia(false);
+    setSelectedMediaIds(new Set());
+  };
+
+  const handleMoveMediaToGallery = async (targetGalleryId: string) => {
+    if (!mediaToMove || mediaToMove.length === 0 || isMovingMedia) return;
+    setIsMovingMedia(true);
+    try {
+      const { movePhotosToGallery } = await import('@/lib/database');
+      const ids = mediaToMove.map(item => item.id);
+      const result = await movePhotosToGallery(ids, targetGalleryId);
+      if (result.error) {
+        appAlert('Could not move', result.error);
+        return;
+      }
+      const movedIds = new Set(ids);
+      const targetLabel = targetGalleryId === event?.id
+        ? 'Home (Primary Gallery)'
+        : subEvents.find(gallery => gallery.id === targetGalleryId)?.title || 'the selected gallery';
+      // The Primary Gallery view lists every gallery's media, so items stay and only change source there.
+      setPhotos(prev => isPrimaryGalleryView
+        ? prev.map(item => movedIds.has(item.id) ? { ...item, eventId: targetGalleryId } : item)
+        : prev.filter(item => !movedIds.has(item.id)));
+      setMediaToMove(null);
+      exitMediaSelection();
+      showToast(`Moved ${ids.length === 1 ? '1 item' : `${ids.length} items`} to ${targetLabel}.`);
+    } finally {
+      setIsMovingMedia(false);
+    }
+  };
+
+  // Copies the originals into the user's EB Vault; the items stay in the event. Returns an error for the picker.
+  const handleSaveToVault = async (vaultFolderId: string | null): Promise<string | null> => {
+    if (!mediaToSave || mediaToSave.length === 0) return null;
+    try {
+      const { vaultApi } = await import('@/lib/vaultApi');
+      const { saved, failed } = await vaultApi.saveFromEvent(mediaToSave.map(item => item.id), vaultFolderId);
+      if (saved.length === 0) return failed[0]?.error || 'Nothing could be saved. Please try again.';
+      setMediaToSave(null);
+      exitMediaSelection();
+      if (failed.length) appAlert('Partly saved', `Saved ${saved.length} of ${saved.length + failed.length} to EB Vault. ${failed[0].error}`);
+      else showToast(`Saved ${saved.length === 1 ? '1 item' : `${saved.length} items`} to EB Vault.`);
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : "Couldn't save to EB Vault. Please try again.";
     }
   };
 
@@ -1741,7 +2080,7 @@ export default function EventDetailScreen() {
 
   const handleShare = async () => {
     if (!event) return;
-    const shareUrl = `https://wedalbum.app/events/${event.id}`;
+    const shareUrl = getGalleryWebUrl(event.id);
     try {
       await Share.share({
         message: `Join our event "${event.title}" on EveBash!\nJoin ID: ${event.joinId}\nLink: ${shareUrl}`,
@@ -1766,10 +2105,18 @@ export default function EventDetailScreen() {
 
       if (!currentActiveId) return;
 
-      const filtered = items.filter(item => item.eventId === currentActiveId);
+      const activeLegacyId = selectedAdminGallery !== undefined
+        ? (selectedAdminGallery ? selectedAdminGallery.legacyId : event?.legacyId)
+        : (activeSubEvent ? activeSubEvent.legacyId : event?.legacyId);
+
+      const filtered = items.filter(
+        item => item.eventId === currentActiveId || (activeLegacyId && item.eventId === activeLegacyId)
+      );
       setUploadQueue(filtered);
 
-      const activeItems = filtered.filter(i => i.status === 'uploading' || i.status === 'pending');
+      const activeItems = filtered.filter(
+        i => i.status === 'uploading' || i.status === 'pending' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation' || i.status === 'processing'
+      );
       const completedItems = filtered.filter(i => i.status === 'completed');
       const failedItems = filtered.filter(i => i.status === 'failed');
 
@@ -1786,19 +2133,77 @@ export default function EventDetailScreen() {
         completedIdsRef.current = [];
       }
 
-      // Reload photos if any upload just finished successfully (one-by-one check)
-      const newlyCompleted = completedItems.filter(item => !completedIdsRef.current.includes(item.id));
-      if (newlyCompleted.length > 0) {
-        completedIdsRef.current = [...completedIdsRef.current, ...newlyCompleted.map(item => item.id)];
-        const activeLegacyId = selectedAdminGallery !== undefined
-          ? (selectedAdminGallery ? selectedAdminGallery.legacyId : event?.legacyId)
-          : (activeSubEvent ? activeSubEvent.legacyId : event?.legacyId);
+      // Option B: Reload progressively as each item becomes visible: photos once saved to DB ('processing'),
+      // videos only once Modal has transcoded them ('completed') — the grid hides unprocessed videos.
+      const readyItems = filtered.filter(item => item.mediaType === 'video'
+        ? item.status === 'completed'
+        : item.status === 'processing' || item.status === 'completed');
+      const newlyReady = readyItems.filter(item => !completedIdsRef.current.includes(item.id));
+      if (newlyReady.length > 0) {
+        completedIdsRef.current = [...completedIdsRef.current, ...newlyReady.map(item => item.id)];
         loadPhotos(currentActiveId, activeLegacyId);
       }
     });
 
     return unsubscribe;
-  }, [event?.id, activeSubEvent?.id, selectedAdminGallery?.id]);
+  }, [event?.id, event?.legacyId, activeSubEvent?.id, activeSubEvent?.legacyId, selectedAdminGallery?.id, selectedAdminGallery?.legacyId]);
+
+  // Live grid: media from any uploader (e.g. a guest's video that Modal just finished) shows up without a refresh.
+  const liveGalleryId = event
+    ? (selectedAdminGallery !== undefined
+      ? (selectedAdminGallery ? selectedAdminGallery.id : event.id)
+      : (activeSubEvent ? activeSubEvent.id : event.id))
+    : undefined;
+  const liveGalleryLegacyId = event
+    ? (selectedAdminGallery !== undefined
+      ? (selectedAdminGallery ? selectedAdminGallery.legacyId : event.legacyId)
+      : (activeSubEvent ? activeSubEvent.legacyId : event.legacyId))
+    : undefined;
+  // Called from the realtime callback through a ref so it always reloads the gallery on screen with current state.
+  const refreshLiveGalleryRef = React.useRef<() => void>(() => {});
+  refreshLiveGalleryRef.current = () => {
+    if (!liveGalleryId) return;
+    const isPrimaryGallery = selectedAdminGallery !== undefined ? selectedAdminGallery === null : !activeSubEvent;
+    if (isPrimaryGallery) {
+      loadPrimaryGalleryPhotos({ silent: true });
+    } else {
+      loadPhotos(liveGalleryId, liveGalleryLegacyId, { silent: true });
+    }
+  };
+
+  useEffect(() => {
+    if (!liveGalleryId || liveGalleryId === 'event-partners' || liveGalleryId === 'find-you' || !hasMemberAccess) return;
+
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    const handleMediaChange = (payload: any) => {
+      const row = payload.new;
+      if (!row?.id || !isPhotoRowVisibleInGallery(row)) return;
+      // Photo updates are thumbnails / face indexing of items already added; only a video's update
+      // (status -> 'processed') can make a new item appear.
+      const isVideo = row.media_type === 'video' || row.resource_type === 'video';
+      if (payload.eventType === 'UPDATE' && !isVideo) return;
+      if (photosRef.current.some(photo => photo.id === row.id)) return;
+
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        refreshLiveGalleryRef.current();
+      }, 1500);
+    };
+
+    const channel = supabase.channel(`event-media-${liveGalleryId}-${Math.random().toString(36).slice(2, 8)}`);
+    for (const galleryEventId of new Set([liveGalleryId, liveGalleryLegacyId].filter(Boolean) as string[])) {
+      channel
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'photos', filter: `event_id=eq.${galleryEventId}` }, handleMediaChange)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'photos', filter: `event_id=eq.${galleryEventId}` }, handleMediaChange);
+    }
+    channel.subscribe();
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      supabase.removeChannel(channel);
+    };
+  }, [liveGalleryId, liveGalleryLegacyId, hasMemberAccess]);
 
   // Poll face indexing status when upload completes in mobile app
   useEffect(() => {
@@ -1837,10 +2242,12 @@ export default function EventDetailScreen() {
 
         const res = await fetch(`${baseUrl}/api/v1/media/indexing-status?eventId=${eventIdToQuery}`);
         if (res.ok) {
-          const data = await res.json();
+          const rawData = await res.json();
+          // indexing-status only counts photos; an event with none (videos only) has nothing left to index
+          const data = rawData.total === 0 ? { ...rawData, status: 'complete' } : rawData;
           setMobileIndexingStatus(data);
-          
-          const hasActiveUploads = uploadQueue.some(i => i.status === 'uploading' || i.status === 'pending');
+
+          const hasActiveUploads = uploadQueue.some(i => i.status === 'uploading' || i.status === 'pending' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation' || i.status === 'processing');
           if (data.status === 'complete' && !hasActiveUploads) {
             clearInterval(pollInterval);
           }
@@ -1858,224 +2265,27 @@ export default function EventDetailScreen() {
     };
   }, [showUploadCompleteModal, id, activeSubEvent?.id, selectedAdminGallery?.id]);
 
-  useEffect(() => {
-    if (user) {
-      setGuestName(user.name || '');
-      const identifier = user.phone || user.email || user.uid || '';
-      setGuestPhone(identifier);
-      setSubmittedIdentifier(identifier);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    const loadStoredGuestInfo = async () => {
-      if (!user) {
-        try {
-          const storedName = await AsyncStorage.getItem('@guest_name');
-          const storedPhone = await AsyncStorage.getItem('@guest_phone');
-          if (storedName) setGuestName(storedName);
-          if (storedPhone) {
-            setGuestPhone(storedPhone);
-            setSubmittedIdentifier(storedPhone);
-          }
-        } catch (e) {
-          console.error('[EventDetail] Failed to load guest info from storage:', e);
-        }
-      }
-    };
-    loadStoredGuestInfo();
-  }, [user]);
-
-  useEffect(() => {
-    if (!id || isOwner || isPrivilegedViewer) {
-      return;
-    }
-
-    let unsubscribe: (() => void) | null = null;
-    let isActive = true;
-
-    const checkGuestAccess = async () => {
-      const identifiers: string[] = [];
-      if (user) {
-        if (user.phone) identifiers.push(user.phone);
-        if (user.email) identifiers.push(user.email);
-        if (user.uid) identifiers.push(user.uid);
-      } else if (submittedIdentifier) {
-        const normalized = submittedIdentifier.replace(/\D/g, '');
-        if (normalized) identifiers.push(normalized);
-      }
-
-      if (identifiers.length === 0) {
-        if (isActive) setGuestStatus(null);
-        return;
-      }
-
-      let foundLogId: string | null = null;
-      let foundStatus: string | null = null;
-
-      for (const identifier of identifiers) {
-        const logId = `${identifier}_${id}`;
-        try {
-          const { data: guestData, error } = await supabase
-            .from('guests')
-            .select('status')
-            .eq('id', logId)
-            .maybeSingle();
-
-          if (error) throw error;
-          if (guestData) {
-            foundLogId = logId;
-            foundStatus = guestData.status || 'pending';
-            break;
-          }
-        } catch (err) {
-          console.error('[GuestCheck] Error fetching document:', err);
-        }
-      }
-
-      if (!isActive) return;
-
-      if (foundLogId && foundStatus) {
-        setGuestStatus(foundStatus);
-
-        const fetchGuestStatus = async () => {
-          try {
-            const { data, error } = await supabase
-              .from('guests')
-              .select('status')
-              .eq('id', foundLogId as string)
-              .maybeSingle();
-            if (error) throw error;
-            if (data && isActive) {
-              setGuestStatus(data.status || 'pending');
-            }
-          } catch (err) {
-            console.error("Error updating guest status real-time:", err);
-          }
-        };
-
-        // Create a completely unique channel name so React re-renders don't try to attach listeners to an already-subscribed channel
-        const uniqueChannelName = `guest-status-${foundLogId}-${Math.random().toString(36).substring(7)}`;
-        const channel = supabase
-          .channel(uniqueChannelName)
-          .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'guests',
-            filter: `id=eq.${foundLogId}`
-          }, () => {
-            fetchGuestStatus();
-          })
-          .subscribe();
-
-        unsubscribe = () => {
-          supabase.removeChannel(channel);
-        };
-      } else {
-        setGuestStatus(null);
-      }
-    };
-
-    checkGuestAccess();
-
-    return () => {
-      isActive = false;
-      if (unsubscribe) unsubscribe();
-    };
-  }, [id, user, submittedIdentifier, isOwner, isPrivilegedViewer]);
-
-  const handleGuestAccess = async () => {
-    const nameToSubmit = user ? (user.name || guestName || 'Guest') : guestName.trim();
-    const rawPhone = user ? (user.phone || user.email || user.uid) : guestPhone.trim();
-
-    if (!nameToSubmit) {
-      Alert.alert("Error", "Please enter your name.");
-      return;
-    }
-    if (!rawPhone) {
-      Alert.alert("Error", "Please enter your phone number or email.");
-      return;
-    }
-
-    const normalizedIdentifier = (!user && !rawPhone.includes('@'))
-      ? rawPhone.replace(/\D/g, '')
-      : rawPhone;
-
-    if (!normalizedIdentifier) {
-      Alert.alert("Error", "Invalid phone number or email.");
-      return;
-    }
-
-    setUpdating(true);
+  const handleRequestAccess = async () => {
+    if (requestingAccess || !id) return;
+    setRequestingAccess(true);
     try {
-      const success = await logGuestLogin(
-        nameToSubmit,
-        normalizedIdentifier,
-        id,
-        event?.parentId || event?.id,
-        event?.title,
-        event?.createdBy,
-        'pending'
-      );
-      if (success) {
-        if (!user) {
-          try {
-            await AsyncStorage.setItem('@guest_name', nameToSubmit);
-            await AsyncStorage.setItem('@guest_phone', normalizedIdentifier);
-          } catch (e) {
-            console.error('[GuestAccess] Failed to save credentials to AsyncStorage:', e);
-          }
-        }
-        setSubmittedIdentifier(normalizedIdentifier);
-        const logId = `${normalizedIdentifier}_${id}`;
-        setGuestStatus('pending');
-
-        const fetchGuestStatus = async () => {
-          try {
-            const { data, error } = await supabase
-              .from('guests')
-              .select('status')
-              .eq('id', logId)
-              .maybeSingle();
-            if (error) throw error;
-            if (data) {
-              setGuestStatus(data.status || 'pending');
-            }
-          } catch (err) {
-            console.error("Error updating guest status real-time:", err);
-          }
-        };
-
-        const channel = supabase
-          .channel(`guest-status-new-${logId}`)
-          .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'guests',
-            filter: `id=eq.${logId}`
-          }, () => {
-            fetchGuestStatus();
-          })
-          .subscribe();
+      const status = await requestGalleryAccess(id);
+      if (status === 'pending') {
+        setGalleryAccess('pending');
       } else {
-        Alert.alert("Error", "Failed to send access request.");
+        await loadEvent();
       }
     } catch (err) {
-      console.error('[GuestAccess] Request error:', err);
-      Alert.alert("Error", "An error occurred while sending the request.");
+      console.error('[GalleryAccess] Request failed:', err);
+      appAlert('Request failed', "We couldn't send your request. Please try again.");
     } finally {
-      setUpdating(false);
+      setRequestingAccess(false);
     }
-  };
-
-  const handleRequestAccessAgain = () => {
-    setGuestStatus(null);
-    setSubmittedIdentifier(null);
   };
 
   const handleChangeCover = async () => {
     if (!user?.uid) {
-      Alert.alert("Login Required", "Please log in before changing the cover.");
+      appAlert("Login Required", "Please log in before changing the cover.");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -2140,7 +2350,7 @@ export default function EventDetailScreen() {
 
         showToast("Cover image updated successfully!");
       } catch (err) {
-        Alert.alert("Error", "Failed to update cover.");
+        appAlert("Error", "Failed to update cover.");
       } finally {
         setCoverUploadMessage(null);
         setUpdating(false);
@@ -2157,7 +2367,7 @@ export default function EventDetailScreen() {
       return;
     }
 
-    Alert.alert(
+    appAlert(
       "Remove Cover",
       "This will remove only the cover picture. Your event and galleries will stay as they are.",
       [
@@ -2197,7 +2407,7 @@ export default function EventDetailScreen() {
               showToast("Cover picture removed. Default cover restored.");
             } catch (err) {
               console.log("Error removing cover:", err);
-              Alert.alert("Error", "Failed to remove cover.");
+              appAlert("Error", "Failed to remove cover.");
             } finally {
               setUpdating(false);
             }
@@ -2236,11 +2446,11 @@ export default function EventDetailScreen() {
   const handleCreateSubEvent = async () => {
     if (!newSubTitle.trim() || !event) return;
     if (!newSubDate.trim()) {
-      Alert.alert("Missing Date", "Please choose a sub-gallery date.");
+      appAlert("Missing Date", "Please choose a sub-gallery date.");
       return;
     }
     if (!user?.uid) {
-      Alert.alert("Login Required", "Please log in before creating a gallery.");
+      appAlert("Login Required", "Please log in before creating a gallery.");
       return;
     }
     setUpdating(true);
@@ -2259,7 +2469,7 @@ export default function EventDetailScreen() {
         order: subEvents.length
       });
       if (!success) {
-        Alert.alert("Error", "Failed to create gallery. Please try again.");
+        appAlert("Error", "Failed to create gallery. Please try again.");
         return;
       }
       setNewSubTitle('');
@@ -2267,7 +2477,7 @@ export default function EventDetailScreen() {
       await loadEvent();
     } catch (err) {
       console.error("Error creating sub-gallery:", err);
-      Alert.alert("Error", "Failed to create gallery.");
+      appAlert("Error", "Failed to create gallery.");
     } finally {
       setUpdating(false);
     }
@@ -2281,7 +2491,7 @@ export default function EventDetailScreen() {
       await updateEvent(event.id, { templateId });
       setShowTemplateModal(false);
     } catch (err) {
-      Alert.alert("Error", "Failed to update theme.");
+      appAlert("Error", "Failed to update theme.");
     } finally {
       setUpdating(false);
     }
@@ -2300,7 +2510,7 @@ export default function EventDetailScreen() {
       setEvent({ ...event, ...updates });
       await updateEvent(event.id, updates);
     } catch (err) {
-      Alert.alert("Error", "Failed to update event type.");
+      appAlert("Error", "Failed to update event type.");
     } finally {
       setUpdating(false);
     }
@@ -2327,11 +2537,11 @@ export default function EventDetailScreen() {
         }
         setShowRenameModal(false);
       } else {
-        Alert.alert("Error", "Failed to rename in database.");
+        appAlert("Error", "Failed to rename in database.");
       }
     } catch (err) {
       console.error("[RenameEvent] Error:", err);
-      Alert.alert("Error", "An unexpected error occurred.");
+      appAlert("Error", "An unexpected error occurred.");
     } finally {
       setUpdating(false);
     }
@@ -2362,11 +2572,11 @@ export default function EventDetailScreen() {
             setEvent({ ...event, date: formattedDate });
           }
         } else {
-          Alert.alert("Error", "Failed to update date in database.");
+          appAlert("Error", "Failed to update date in database.");
         }
       } catch (err) {
         console.error("[DateChange] Error:", err);
-        Alert.alert("Error", "Failed to update date.");
+        appAlert("Error", "Failed to update date.");
       } finally {
         setUpdating(false);
       }
@@ -2375,7 +2585,7 @@ export default function EventDetailScreen() {
 
   const handleDeleteMainEvent = async () => {
     if (!event) return;
-    Alert.alert(
+    appAlert(
       "Delete Event",
       `Are you sure you want to delete "${event.title}"? This will permanently remove all photos and sub-events.`,
       [
@@ -2387,10 +2597,10 @@ export default function EventDetailScreen() {
             setUpdating(true);
             const success = await deleteEvent(event.id);
             if (success) {
-              Alert.alert("Success", "Event deleted successfully.");
+              showToast("Event deleted successfully.");
               router.replace('/(tabs)/gallery');
             } else {
-              Alert.alert("Error", "Failed to delete event.");
+              appAlert("Error", "Failed to delete event.");
             }
             setUpdating(false);
           }
@@ -2402,7 +2612,7 @@ export default function EventDetailScreen() {
   const handleDeleteSubGallery = async (targetGallery?: DatabaseEvent) => {
     const gallery = targetGallery || selectedAdminGallery;
     if (!gallery) return;
-    Alert.alert(
+    appAlert(
       "Delete Gallery",
       `Are you sure you want to delete the gallery "${gallery.title}"? This will permanently remove all photos inside this gallery.`,
       [
@@ -2415,17 +2625,17 @@ export default function EventDetailScreen() {
             try {
               const success = await deleteEvent(gallery.id);
               if (success) {
-                Alert.alert("Success", "Gallery deleted successfully.");
+                showToast("Gallery deleted successfully.");
                 if (selectedAdminGallery?.id === gallery.id) {
                   setSelectedAdminGallery(undefined);
                 }
                 loadEvent();
               } else {
-                Alert.alert("Error", "Failed to delete gallery.");
+                appAlert("Error", "Failed to delete gallery.");
               }
             } catch (err) {
               console.error("[DeleteSubGallery] Error:", err);
-              Alert.alert("Error", "Failed to delete gallery.");
+              appAlert("Error", "Failed to delete gallery.");
             } finally {
               setUpdating(false);
             }
@@ -2476,14 +2686,34 @@ export default function EventDetailScreen() {
 
       <View style={styles.memberActions}>
         <Text style={styles.memberNumber}>#{String(index + 1).padStart(2, '0')}</Text>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Remove guest"
           style={styles.memberDelete}
           onPress={() => {
             if (doesGuestLogBelongToCurrentUser(log) && !isOwner) {
-              Alert.alert("Permission Denied", "Ask host to remove you.");
+              appAlert("Permission Denied", "Ask host to remove you.");
               return;
             }
-            deleteGuest(log.id).then(loadEvent);
+            appAlert(
+              `Remove ${log.name || 'this guest'}?`,
+              'They will lose access to this event. They can request to join again later.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Remove',
+                  style: 'destructive',
+                  onPress: () => {
+                    deleteGuest(log.id).then((removed) => {
+                      if (!removed) {
+                        appAlert('Could not remove guest', 'Please check your connection and try again.');
+                        return;
+                      }
+                      showToast(`${log.name || 'Guest'} removed.`);
+                      loadEvent();
+                    });
+                  },
+                },
+              ]
+            );
           }}
         >
           <IconSymbol name="trash.fill" size={16} color="rgba(239, 68, 68, 0.4)" />
@@ -2497,6 +2727,28 @@ export default function EventDetailScreen() {
       <>
         <Stack.Screen options={{ headerShown: false }} />
         <LoadingScreen message="Loading event" />
+      </>
+    );
+  }
+
+  const galleryGate: GalleryGateState | null = galleryOpenFailed
+    ? 'error'
+    : galleryAccess === 'login_required' || galleryAccess === 'none' || galleryAccess === 'pending' || galleryAccess === 'rejected'
+      ? galleryAccess
+      : null;
+  if (galleryGate) {
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <GalleryAccessGate
+          state={galleryGate}
+          title={gateTitle}
+          requesting={requestingAccess}
+          onLogin={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })}
+          onRequestAccess={handleRequestAccess}
+          onRetry={loadEvent}
+          onBack={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
+        />
       </>
     );
   }
@@ -2525,18 +2777,24 @@ export default function EventDetailScreen() {
   };
 
   const renderUploadProgressCard = () => {
-    const active = uploadQueue.filter(i => i.status === 'uploading' || i.status === 'pending');
+    const active = uploadQueue.filter(
+      i => i.status === 'uploading' || i.status === 'pending' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation' || i.status === 'processing'
+    );
     const failed = uploadQueue.filter(i => i.status === 'failed');
 
     if (active.length === 0 && failed.length === 0) return null;
 
-    const total = uploadQueue.length;
+    const total = uploadQueue[0]?.batchTotal || uploadQueue.length;
     const completed = uploadQueue.filter(i => i.status === 'completed').length;
-    const currentUploading = uploadQueue.find(i => i.status === 'uploading');
+    const currentUploading = uploadQueue.find(
+      i => i.status === 'uploading' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation'
+    );
+    const isProcessingOnly = active.length > 0 && !currentUploading && active.every(i => i.status === 'processing');
 
     // Calculate progress percentage
     const progressSum = uploadQueue.reduce((sum, item) => {
       if (item.status === 'completed') return sum + 100;
+      if (item.status === 'failed') return sum;
       return sum + item.progress;
     }, 0);
     const overallPercent = total > 0 ? progressSum / (total * 100) * 100 : 0;
@@ -2548,22 +2806,36 @@ export default function EventDetailScreen() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flex: 1, marginRight: 8 }}>
             <Text style={localStyles.progressCardTitle}>
-              {active.length > 0
-                ? `Uploading Media (${completed}/${total})`
-                : 'Upload Halted with Issues'}
+              {isProcessingOnly
+                ? `Processing Media (${total} files)`
+                : active.length > 0
+                  ? `Uploading Media (${completed}/${total})`
+                  : 'Some Uploads Failed'}
             </Text>
-            {currentUploading && (
+            {isProcessingOnly ? (
               <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
-                {currentUploading.progress >= 90
-                  ? `Processing ${currentUploading.fileName}...`
-                  : `${currentUploading.fileName} (${Math.round(currentUploading.progress)}%)`}
+                {active.every(i => i.mediaType === 'video')
+                  ? `Preparing ${active.length > 1 ? 'videos' : 'video'} for playback...`
+                  : `AI face indexing and thumbnail generation... (${Math.round(overallPercent)}%)`}
               </Text>
-            )}
+            ) : currentUploading ? (
+              <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
+                {currentUploading.status === 'uploaded_pending_metadata'
+                  ? `Finalizing ${currentUploading.fileName}...`
+                  : currentUploading.status === 'upload_needs_reconciliation'
+                    ? `Checking ${currentUploading.fileName}...`
+                    : currentUploading.retryCount && currentUploading.retryCount > 0
+                      ? `Retrying ${currentUploading.fileName} (${Math.round(currentUploading.progress)}%)...`
+                      : currentUploading.progress >= 90
+                        ? `Finishing ${currentUploading.fileName}...`
+                        : `${currentUploading.fileName} (${Math.round(currentUploading.progress)}%)`}
+              </Text>
+            ) : null}
             {failed.length > 0 && (
               <TouchableOpacity
                 onPress={() => {
                   const errors = failed.map(item => `${item.fileName}: ${item.error || 'Unknown error'}`).join('\n\n');
-                  Alert.alert('Upload Details', errors);
+                  appAlert('Upload Details', errors);
                 }}
               >
                 <Text style={[localStyles.progressCardSubtitle, { color: '#f87171', textDecorationLine: 'underline' }]}>
@@ -2589,7 +2861,7 @@ export default function EventDetailScreen() {
               style={[localStyles.progressCardBtn, { backgroundColor: 'rgba(255,255,255,0.08)' }]}
               onPress={async () => {
                 if (active.length > 0) {
-                  Alert.alert(
+                  appAlert(
                     "Cancel Uploads",
                     "Are you sure you want to cancel all ongoing uploads?",
                     [
@@ -2629,7 +2901,7 @@ export default function EventDetailScreen() {
     <View style={[styles.safeArea, { backgroundColor: pageBackground }]}>
       <Stack.Screen
         options={{
-          headerShown: showAdminView ? false : !(isSportsTemplate || event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive'),
+          headerShown: showsNativeVisitorHeader,
           headerTransparent: true,
           headerTitle: '',
           headerLeft: () => {
@@ -2642,12 +2914,18 @@ export default function EventDetailScreen() {
             const isBrutalist = event?.templateId === 'brutalist';
             return (!showAdminView && (isSportsTemplate || event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (
               <TouchableOpacity
+                ref={backButtonRef}
+                onLayout={() => measureFloatingButton(backButtonRef)}
                 onPress={handleEventBack}
+                accessibilityRole="button"
+                accessibilityLabel="Back"
                 style={[
                   styles.floatingBack,
-                  { marginLeft: 16 },
+                  // Android: match the share button's offset so the back button clears the status bar
+                  { marginLeft: 16, marginTop: Platform.OS === 'android' ? 10 : 0 },
                   (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic')) && {
                     marginLeft: 24,
+                    marginTop: Platform.OS === 'android' ? 36 : 0,
                     width: 40,
                     height: 40,
                     borderRadius: 6,
@@ -2693,7 +2971,11 @@ export default function EventDetailScreen() {
                   isMuseum && styles.museumFloatingButton,
                   isBrutalist && styles.brutalistFloatingButton,
                 ]}
+                ref={shareButtonRef}
+                onLayout={() => measureFloatingButton(shareButtonRef)}
                 onPress={() => setShowShareModal(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Share event"
                 hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
               >
                 <IconSymbol name="square.and.arrow.up" size={isPop ? 18 : 20} color={(isPop || isMinimal || isMuseum || isBrutalist) ? '#fffaf2' : selectedTemplate.accent} />
@@ -2703,14 +2985,14 @@ export default function EventDetailScreen() {
         }}
       />
 
-      <ScrollView
+      <RNAnimated.ScrollView
         ref={scrollViewRef}
         style={[styles.container, { backgroundColor: pageBackground }]}
         bounces={false}
         showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onScroll={(e) => setScrollY(e.nativeEvent.contentOffset.y)}
         stickyHeaderIndices={!showAdminView ? [1] : undefined}
+        scrollEventThrottle={16}
+        onScroll={RNAnimated.event([{ nativeEvent: { contentOffset: { y: scrollYAnim } } }], { useNativeDriver: true, listener: handleScrollNearEnd })}
       >
         {/* ── HERO ── */}
         <View
@@ -2720,7 +3002,7 @@ export default function EventDetailScreen() {
           {isSportsTemplate ? (
             <View style={[styles.sportsHeroStage, { backgroundColor: sportsTheme.background, paddingTop: insets.top }]}>
               <Image
-                source={{ uri: resolvedActiveCoverImage }}
+                source={activeCoverSource}
                 style={styles.sportsHeroImage}
                 resizeMode="cover"
                 blurRadius={0.8}
@@ -2738,7 +3020,7 @@ export default function EventDetailScreen() {
               <View style={[styles.sportsAccentOrb, { backgroundColor: sportsTheme.accentAlt }]} />
 
               <View style={[styles.sportsTopBar, { top: insets.top + 12 }]}>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                   style={[styles.sportsHeaderButton, { backgroundColor: `${sportsTheme.darkControl}dd`, borderColor: `${sportsTheme.accent}66` }]}
                   onPress={handleEventBack}
                   activeOpacity={0.86}
@@ -2746,7 +3028,7 @@ export default function EventDetailScreen() {
                   <IconSymbol name="chevron.left" size={18} color={sportsTheme.imageFrame} />
                 </TouchableOpacity>
                 <Text style={[styles.sportsTopLabel, { color: sportsTheme.accent }]}>{sportsTheme.label}</Text>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                   style={[styles.sportsHeaderButton, { backgroundColor: `${sportsTheme.darkControl}dd`, borderColor: `${sportsTheme.accent}66` }]}
                   onPress={() => setShowShareModal(true)}
                   activeOpacity={0.86}
@@ -2760,7 +3042,7 @@ export default function EventDetailScreen() {
                 style={[styles.sportsPosterFrame, { top: insets.top + 82, backgroundColor: sportsTheme.imageFrame, borderColor: `${sportsTheme.accent}66`, shadowColor: sportsTheme.darkControl }]}
               >
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.sportsPosterImage}
                   resizeMode="cover"
                 />
@@ -2836,7 +3118,7 @@ export default function EventDetailScreen() {
 
               {/* Header Top Bar: Back | Date | Share */}
               <View style={styles.bohemianTopBar}>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                   onPress={handleEventBack}
                   style={styles.bohemianHeaderButton}
                   activeOpacity={0.85}
@@ -2868,7 +3150,7 @@ export default function EventDetailScreen() {
                   </Text>
                 </View>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                   onPress={() => setShowShareModal(true)}
                   style={styles.bohemianHeaderButton}
                   activeOpacity={0.85}
@@ -2969,7 +3251,7 @@ export default function EventDetailScreen() {
                   ]}
                 >
                   <Image
-                    source={{ uri: resolvedActiveCoverImage }}
+                    source={activeCoverSource}
                     style={styles.bohemianSleeveImage}
                   />
                   {/* Decorative double border to look like printed vinyl jacket */}
@@ -3025,11 +3307,11 @@ export default function EventDetailScreen() {
 
                 {/* Playback Controls */}
                 <View style={styles.bohemianControlsRow}>
-                  <TouchableOpacity style={styles.bohemianControlBtn} activeOpacity={0.7}>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Previous track" style={styles.bohemianControlBtn} activeOpacity={0.7}>
                     <IconSymbol name="backward.fill" size={20} color={selectedTemplate.text} />
                   </TouchableOpacity>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel={isBohemianPlaying ? "Pause music" : "Play music"}
                     style={[styles.bohemianPlayBtn, { backgroundColor: selectedTemplate.text }]}
                     onPress={() => setIsBohemianPlaying(prev => !prev)}
                     activeOpacity={0.8}
@@ -3041,7 +3323,7 @@ export default function EventDetailScreen() {
                     />
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.bohemianControlBtn} activeOpacity={0.7}>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Next track" style={styles.bohemianControlBtn} activeOpacity={0.7}>
                     <IconSymbol name="forward.fill" size={20} color={selectedTemplate.text} />
                   </TouchableOpacity>
                 </View>
@@ -3056,7 +3338,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && event?.templateId === 'classic' ? (
             <View style={styles.classicHeroImageContainer}>
               <Image
-                source={{ uri: resolvedActiveCoverImage }}
+                source={activeCoverSource}
                 style={[
                   styles.classicHeroImage,
                   (activeCoverMode === 'fit') ? {
@@ -3079,7 +3361,7 @@ export default function EventDetailScreen() {
               {/* Full-bleed Photo */}
               <View style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={{ width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.88 }}
                 />
                 {/* Dark gradient overlay at bottom of image for readability */}
@@ -3102,7 +3384,7 @@ export default function EventDetailScreen() {
                   marginTop: 12,
                   marginBottom: 12,
                 }}>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                     onPress={handleEventBack}
                     hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                   >
@@ -3119,7 +3401,7 @@ export default function EventDetailScreen() {
                     {`· ${activeSubEvent ? 'EXCERPT' : 'CAMPUS JOURNAL'} ·`}
                   </Text>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                     onPress={() => setShowShareModal(true)}
                     hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                   >
@@ -3141,7 +3423,7 @@ export default function EventDetailScreen() {
                   elevation: 2,
                 }}>
                   <Image
-                    source={{ uri: resolvedActiveCoverImage }}
+                    source={activeCoverSource}
                     style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
                   />
                 </View>
@@ -3207,7 +3489,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && isExecutiveTemplate ? (
             <View style={[styles.executiveHeroStage, { paddingTop: insets.top }]}>
               <Image
-                source={{ uri: resolvedActiveCoverImage }}
+                source={activeCoverSource}
                 style={styles.executiveBackdrop}
                 resizeMode="cover"
                 blurRadius={1}
@@ -3220,18 +3502,18 @@ export default function EventDetailScreen() {
               <View style={styles.executiveVignette} />
 
               <View style={[styles.executiveTopBar, { top: insets.top + 12 }]}>
-                <TouchableOpacity style={styles.executiveHeaderButton} onPress={handleEventBack} activeOpacity={0.86}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" style={styles.executiveHeaderButton} onPress={handleEventBack} activeOpacity={0.86}>
                   <IconSymbol name="chevron.left" size={18} color="#f5eddc" />
                 </TouchableOpacity>
                 <Text style={styles.executiveHeaderLabel}>Executive Suite</Text>
-                <TouchableOpacity style={styles.executiveHeaderButton} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event" style={styles.executiveHeaderButton} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
                   <IconSymbol name="square.and.arrow.up" size={16} color="#f5eddc" />
                 </TouchableOpacity>
               </View>
 
               <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.executivePortraitFrame, { top: insets.top + 84 }]}>
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.executivePortraitImage}
                   resizeMode="cover"
                 />
@@ -3274,7 +3556,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && isTechSleekTemplate ? (
             <View style={[styles.techSleekHeroStage, { paddingTop: insets.top }]}>
               <Image
-                source={{ uri: resolvedActiveCoverImage }}
+                source={activeCoverSource}
                 style={styles.techSleekBackdrop}
                 resizeMode="cover"
                 blurRadius={2}
@@ -3294,18 +3576,18 @@ export default function EventDetailScreen() {
               </View>
 
               <View style={[styles.techSleekTopBar, { top: insets.top + 12 }]}>
-                <TouchableOpacity style={styles.techSleekHeaderButton} onPress={handleEventBack} activeOpacity={0.86}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" style={styles.techSleekHeaderButton} onPress={handleEventBack} activeOpacity={0.86}>
                   <IconSymbol name="chevron.left" size={18} color="#e0f2fe" />
                 </TouchableOpacity>
                 <Text style={styles.techSleekHeaderLabel}>Tech Showcase</Text>
-                <TouchableOpacity style={styles.techSleekHeaderButton} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event" style={styles.techSleekHeaderButton} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
                   <IconSymbol name="square.and.arrow.up" size={16} color="#e0f2fe" />
                 </TouchableOpacity>
               </View>
 
               <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.techSleekDeviceFrame, { top: insets.top + 84 }]}>
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.techSleekDeviceImage}
                   resizeMode="cover"
                 />
@@ -3347,7 +3629,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && isMuseumTemplate ? (
             <View style={[styles.museumHeroStage, { paddingTop: insets.top }]}>
               <Image
-                source={{ uri: resolvedActiveCoverImage }}
+                source={activeCoverSource}
                 style={[StyleSheet.absoluteFillObject, { opacity: 0.5 }]}
                 resizeMode="cover"
                 blurRadius={1.2}
@@ -3371,7 +3653,7 @@ export default function EventDetailScreen() {
 
               <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.museumArtworkFrame, { top: insets.top + 82 }]}>
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.museumArtworkImage}
                   resizeMode="cover"
                 />
@@ -3418,7 +3700,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && isBrutalistTemplate ? (
             <View style={[styles.brutalistHeroStage, { paddingTop: insets.top }]}>
               <Image
-                source={{ uri: resolvedActiveCoverImage }}
+                source={activeCoverSource}
                 style={styles.brutalistHeroBackdrop}
                 resizeMode="cover"
                 blurRadius={0.8}
@@ -3441,7 +3723,7 @@ export default function EventDetailScreen() {
 
               <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.brutalistArtworkBlock, { top: insets.top + 104 }]}>
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.brutalistArtworkImage}
                   resizeMode="cover"
                 />
@@ -3473,7 +3755,7 @@ export default function EventDetailScreen() {
             </View>
           ) : (
             <Image
-              source={{ uri: resolvedActiveCoverImage }}
+              source={activeCoverSource}
               style={[
                 styles.heroImage,
                 (!showAdminView && event?.templateId === 'pop') ? styles.popPolaroidImage : {},
@@ -3504,7 +3786,7 @@ export default function EventDetailScreen() {
           )}
 
           {showAdminView && (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
               onPress={handleEventBack}
               style={[
                 styles.floatingBack,
@@ -3644,7 +3926,7 @@ export default function EventDetailScreen() {
                 </View>
 
                 {/* Downward Chevron */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Scroll to gallery"
                   onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
                   style={styles.royalChevron}
                 >
@@ -3675,7 +3957,7 @@ export default function EventDetailScreen() {
 
                 <View style={styles.classicActionRow}>
                   {/* Left: Symmetrical Gold Square Back Button */}
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                     style={[styles.classicSideButton, { borderColor: '#cca43b' }]}
                     onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
                   >
@@ -3691,7 +3973,7 @@ export default function EventDetailScreen() {
                   </TouchableOpacity>
 
                   {/* Right: Symmetrical Gold Square Share Button */}
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                     style={[styles.classicSideButton, { borderColor: '#cca43b' }]}
                     onPress={() => setShowShareModal(true)}
                   >
@@ -3707,7 +3989,7 @@ export default function EventDetailScreen() {
                   <Text style={[styles.classicBrandLogoScript, { color: selectedTemplate.text, fontFamily: selectedTemplate.serifItalic }]}>EveBash</Text>
                 </View>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Scroll to gallery"
                   onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
                   style={styles.classicChevron}
                 >
@@ -3718,7 +4000,7 @@ export default function EventDetailScreen() {
           ) : (!showAdminView && event?.templateId === 'ethereal') ? (
             <View style={styles.etherealOverlayContainer}>
               {/* Back button at top left */}
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                 style={styles.etherealBackBtnRound}
                 onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
               >
@@ -3726,7 +4008,7 @@ export default function EventDetailScreen() {
               </TouchableOpacity>
 
               {/* Share button at top right */}
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                 style={styles.etherealShareBtnRound}
                 onPress={() => setShowShareModal(true)}
               >
@@ -3794,7 +4076,7 @@ export default function EventDetailScreen() {
                 {/* Symmetrical parallel buttons block */}
                 <View style={styles.heroActionRow}>
                   {/* Left: Gold bordered Square back/chevron icon button */}
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                     style={[styles.heroSideButton, { borderColor: '#cca43b' }]}
                     onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
                   >
@@ -3810,7 +4092,7 @@ export default function EventDetailScreen() {
                   </TouchableOpacity>
 
                   {/* Right: Gold bordered Square share icon button */}
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                     style={[styles.heroSideButton, { borderColor: '#cca43b' }]}
                     onPress={() => setShowShareModal(true)}
                   >
@@ -3824,7 +4106,7 @@ export default function EventDetailScreen() {
                 <View style={styles.brandLogoContainer}>
                   <Text style={styles.heroBrandText}>CINEMATIC EDITIONS — WED ALBUM</Text>
                 </View>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Scroll to gallery"
                   onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
                   style={styles.heroChevron}
                 >
@@ -3848,7 +4130,7 @@ export default function EventDetailScreen() {
               <View style={[styles.popPolaroidFrame, { marginTop: insets.top + 78 }]}>
                 <View style={styles.popPolaroidInner}>
                   <Image
-                    source={{ uri: resolvedActiveCoverImage }}
+                    source={activeCoverSource}
                     style={styles.popPolaroidImage}
                     resizeMode="contain"
                   />
@@ -3857,7 +4139,7 @@ export default function EventDetailScreen() {
 
                 {/* Integrated Tactile Navigation Console */}
                 <View style={styles.popPolaroidCaptionRow}>
-                  <TouchableOpacity onPress={handleEventBack} style={styles.popCaptionBackBtn}>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" onPress={handleEventBack} style={styles.popCaptionBackBtn}>
                     <IconSymbol name="chevron.left" size={16} color="#ffffff" />
                   </TouchableOpacity>
 
@@ -3865,7 +4147,7 @@ export default function EventDetailScreen() {
                     {`${currentActiveEvent?.date || event.date || 'PARTY TIME'}`.toUpperCase()}
                   </Text>
 
-                  <TouchableOpacity onPress={() => setShowShareModal(true)} style={styles.popCaptionShareBtn}>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event" onPress={() => setShowShareModal(true)} style={styles.popCaptionShareBtn}>
                     <IconSymbol name="square.and.arrow.up" size={14} color="#ffffff" />
                   </TouchableOpacity>
                 </View>
@@ -3893,7 +4175,7 @@ export default function EventDetailScreen() {
               {/* Top status bar with centered Event Name and navigation icons */}
               <View style={styles.cyberTopBar}>
                 {/* Left: Back Button */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                   style={styles.cyberHeaderButton}
                   onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
                 >
@@ -3908,7 +4190,7 @@ export default function EventDetailScreen() {
                 </View>
 
                 {/* Right: Share Button */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                   style={styles.cyberHeaderButton}
                   onPress={() => setShowShareModal(true)}
                 >
@@ -3926,7 +4208,7 @@ export default function EventDetailScreen() {
                   <View style={[styles.cyberCorner, styles.cyberCornerBR]} />
 
                   <Image
-                    source={{ uri: resolvedActiveCoverImage }}
+                    source={activeCoverSource}
                     style={styles.cyberPosterImg}
                     resizeMode="cover"
                   />
@@ -3951,7 +4233,7 @@ export default function EventDetailScreen() {
               {/* Arcade Top Bar Header */}
               <View style={styles.retroTopBar}>
                 {/* Left: Back Button styled as a round arcade button */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                   style={styles.retroHeaderButtonBack}
                   onPress={handleEventBack}
                 >
@@ -3966,7 +4248,7 @@ export default function EventDetailScreen() {
                 </View>
 
                 {/* Right: Share Button styled as a round arcade button */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                   style={styles.retroHeaderButtonShare}
                   onPress={() => setShowShareModal(true)}
                 >
@@ -3978,7 +4260,7 @@ export default function EventDetailScreen() {
               <View style={styles.retroMiddleFrame}>
                 <View style={styles.retroPosterWrapper}>
                   <Image
-                    source={{ uri: resolvedActiveCoverImage }}
+                    source={activeCoverSource}
                     style={styles.retroPosterImg}
                     resizeMode="cover"
                   />
@@ -3999,7 +4281,7 @@ export default function EventDetailScreen() {
               {/* Cover Image spanning full background, blending top & bottom */}
               <View style={styles.neonCarnivalCoverWrapper}>
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.neonCarnivalCoverImg}
                   resizeMode="cover"
                 />
@@ -4011,7 +4293,7 @@ export default function EventDetailScreen() {
 
               {/* Top status bar with Event Name and navigation icons */}
               <View style={styles.neonCarnivalTopBar}>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                   style={styles.neonCarnivalHeaderButton}
                   onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
                 >
@@ -4019,7 +4301,7 @@ export default function EventDetailScreen() {
                 </TouchableOpacity>
 
                 {/* Right: Share Button */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                   style={styles.neonCarnivalHeaderButton}
                   onPress={() => setShowShareModal(true)}
                 >
@@ -4048,7 +4330,7 @@ export default function EventDetailScreen() {
               <View style={styles.gardenTopBar}>
                 {/* Left: back + share */}
                 <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                     style={styles.gardenHeaderButton}
                     onPress={handleEventBack}
                     hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
@@ -4056,7 +4338,7 @@ export default function EventDetailScreen() {
                     <IconSymbol name="chevron.left" size={20} color="#ffffff" />
                   </TouchableOpacity>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                     style={styles.gardenHeaderButton}
                     onPress={() => setShowShareModal(true)}
                     hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
@@ -4114,7 +4396,7 @@ export default function EventDetailScreen() {
               >
                 <View style={styles.goldenCeremonyPhotoCard}>
                   <Image
-                    source={{ uri: resolvedActiveCoverImage }}
+                    source={activeCoverSource}
                     style={styles.goldenCeremonyPhoto}
                     resizeMode="cover"
                   />
@@ -4174,7 +4456,7 @@ export default function EventDetailScreen() {
                   <View style={styles.vintageEditorialTape} />
                   <View style={styles.vintageEditorialClip} />
                   <Image
-                    source={{ uri: resolvedActiveCoverImage }}
+                    source={activeCoverSource}
                     style={styles.vintageEditorialImage}
                     resizeMode="cover"
                   />
@@ -4239,7 +4521,7 @@ export default function EventDetailScreen() {
                 <View style={styles.roseBloomPhotoTape} />
                 <View style={styles.roseBloomPhotoCorner} />
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.roseBloomPhoto}
                   resizeMode="cover"
                 />
@@ -4288,7 +4570,7 @@ export default function EventDetailScreen() {
               <View style={styles.minimalEditorialPhotoPanel}>
                 <View style={styles.minimalEditorialTape} />
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.minimalEditorialPhoto}
                   resizeMode="cover"
                 />
@@ -4306,7 +4588,7 @@ export default function EventDetailScreen() {
                 </View>
                 <View style={styles.minimalEditorialMetaRow}>
                   <Text style={styles.minimalEditorialDate}>{currentActiveEvent?.date || event.date}</Text>
-                  <TouchableOpacity style={styles.minimalEditorialShare} onPress={() => setShowShareModal(true)}>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event" style={styles.minimalEditorialShare} onPress={() => setShowShareModal(true)}>
                     <IconSymbol name="square.and.arrow.up" size={14} color="#fffaf2" />
                   </TouchableOpacity>
                 </View>
@@ -4436,7 +4718,7 @@ export default function EventDetailScreen() {
                   {currentActiveEvent?.title || event.title}
                 </Text>
                 {showAdminView && (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Edit event name"
                     style={styles.renameHeroBtn}
                     onPress={() => {
                       setEditTitle(currentActiveEvent?.title || event.title);
@@ -4471,7 +4753,7 @@ export default function EventDetailScreen() {
                     selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', letterSpacing: 2 }
                   ]}>{currentActiveEvent?.date || event.date}</Text>
                   {showAdminView && (
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Change event date"
                       style={styles.editDateBtn}
                       onPress={() => setShowDatePicker(true)}
                     >
@@ -4508,14 +4790,36 @@ export default function EventDetailScreen() {
 
         {/* Visitor Navigation Tabs placed BELOW the Cover Photo screen */}
         {!showAdminView && canViewContent && (
-          <ThemeHeader
-            event={event}
-            selectedTemplate={selectedTemplate}
-            activeSubEvent={activeSubEvent}
-            subEvents={subEvents}
-            handleSubEventChange={handleSubEventChange}
-            styles={styles}
-          />
+          // Sticky wrapper: the top spacer keeps pinned tabs clear of the status bar and floating buttons.
+          // It overlaps the hero while scrolling (transparent, touch-through) and gets an opaque background once pinned.
+          <View
+            pointerEvents="box-none"
+            style={{ marginTop: -stickyTabsTopInset, paddingTop: stickyTabsTopInset }}
+            onLayout={(e) => setStickyTabsY(e.nativeEvent.layout.y)}
+          >
+            <RNAnimated.View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  backgroundColor: pageBackground,
+                  opacity: stickyTabsY === null ? 0 : scrollYAnim.interpolate({
+                    inputRange: [stickyTabsY - 1, stickyTabsY],
+                    outputRange: [0, 1],
+                    extrapolate: 'clamp',
+                  }),
+                },
+              ]}
+            />
+            <ThemeHeader
+              event={event}
+              selectedTemplate={selectedTemplate}
+              activeSubEvent={activeSubEvent}
+              subEvents={subEvents}
+              handleSubEventChange={handleSubEventChange}
+              styles={styles}
+            />
+          </View>
         )}
 
         {/* ── CONTENT ── */}
@@ -4528,13 +4832,15 @@ export default function EventDetailScreen() {
                   style={[styles.tab, activeTab === 'galleries' && styles.activeTab]}
                   onPress={() => { setActiveTab('galleries'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
-                  <Text style={[styles.tabText, activeTab === 'galleries' && styles.activeTabText]}>Galleries</Text>
+                  <GalleriesIcon size={18} color={activeTab === 'galleries' ? MidnightColors.gold : MidnightColors.slate400} />
+                  <Text style={[styles.tabText, activeTab === 'galleries' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Galleries</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.tab, activeTab === 'permissions' && styles.activeTab]}
                   onPress={() => setActiveTab('permissions')}
                 >
-                  <Text style={[styles.tabText, activeTab === 'permissions' && styles.activeTabText]}>Permissions</Text>
+                  <PermissionsIcon size={18} color={activeTab === 'permissions' ? MidnightColors.gold : MidnightColors.slate400} />
+                  <Text style={[styles.tabText, activeTab === 'permissions' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Permissions</Text>
                   {guestLogs.filter(l => l.status === 'pending').length > 0 && (
                     <View style={styles.badge}>
                       <Text style={styles.badgeText}>{guestLogs.filter(l => l.status === 'pending').length}</Text>
@@ -4545,14 +4851,19 @@ export default function EventDetailScreen() {
                   style={[styles.tab, activeTab === 'design' && styles.activeTab]}
                   onPress={() => { setActiveTab('design'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
-                  <Text style={[styles.tabText, activeTab === 'design' && styles.activeTabText]}>Design</Text>
+                  <DesignIcon size={18} color={activeTab === 'design' ? MidnightColors.gold : MidnightColors.slate400} />
+                  <Text style={[styles.tabText, activeTab === 'design' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Design</Text>
                 </TouchableOpacity>
+                {/* Partners: hidden until Phase 2 (SHOW_EVENT_PARTNERS in components/event/ThemeHeader.tsx) */}
+                {SHOW_EVENT_PARTNERS && (
                 <TouchableOpacity
                   style={[styles.tab, activeTab === 'partners' && styles.activeTab]}
                   onPress={() => { setActiveTab('partners'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
-                  <Text style={[styles.tabText, activeTab === 'partners' && styles.activeTabText]}>Partners</Text>
+                  <PartnersIcon size={18} color={activeTab === 'partners' ? MidnightColors.gold : MidnightColors.slate400} />
+                  <Text style={[styles.tabText, activeTab === 'partners' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Partners</Text>
                 </TouchableOpacity>
+                )}
               </View>
 
               {activeTab === 'galleries' && (
@@ -4579,7 +4890,7 @@ export default function EventDetailScreen() {
                           marginBottom: 8,
                           marginTop: 4
                         }}>
-                          Primary Gallery
+                          Home (Primary Gallery)
                         </Text>
                         {event && (
                           <TouchableOpacity
@@ -4595,7 +4906,7 @@ export default function EventDetailScreen() {
 	                            }}
                             activeOpacity={0.85}
                           >
-                            <Image source={{ uri: resolveEventCoverImage(event.coverImage, 'thumbnail') }} style={styles.subImageFull} />
+                            <ExpoImage source={getEventCoverSource(event.coverImage, 'thumbnail', event.category)} style={styles.subImageFull} contentFit="cover" cachePolicy="memory-disk" transition={150} />
                             <LinearGradient
                               colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
                               style={StyleSheet.absoluteFillObject}
@@ -4671,7 +4982,7 @@ export default function EventDetailScreen() {
 	                                }}
                                 activeOpacity={0.85}
                               >
-                                <Image source={{ uri: resolveEventCoverImage(sub.coverImage, 'thumbnail') }} style={styles.subImageFull} />
+                                <ExpoImage source={getEventCoverSource(sub.coverImage, 'thumbnail', sub.category || event?.category)} style={styles.subImageFull} contentFit="cover" cachePolicy="memory-disk" transition={150} />
                                 <LinearGradient
                                   colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
                                   style={StyleSheet.absoluteFillObject}
@@ -4686,7 +4997,7 @@ export default function EventDetailScreen() {
                                 </View>
 
                                 {/* Card Delete Option */}
-                                <TouchableOpacity
+                                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Delete gallery"
                                   style={{
                                     position: 'absolute',
                                     top: 10,
@@ -4761,7 +5072,7 @@ export default function EventDetailScreen() {
                             value={galleryDescText}
                             onChangeText={setGalleryDescText}
                             placeholder="Write a brief, elegant welcome note..."
-                            placeholderTextColor="rgba(255,255,255,0.4)"
+                            placeholderTextColor={MidnightColors.slate600}
                             multiline
                             maxLength={200}
                           />
@@ -4785,7 +5096,7 @@ export default function EventDetailScreen() {
                                         selectedAdminGallery.description = galleryDescText;
                                       }
 
-                                      Alert.alert('Saved', 'Welcome message updated.');
+                                      showToast('Welcome message updated.');
                                     }}
                                   >
                                     <IconSymbol name="checkmark" size={12} color={MidnightColors.gold} />
@@ -4866,7 +5177,9 @@ export default function EventDetailScreen() {
                               <TouchableOpacity
                                 key={item.id}
                                 style={{ flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 12, backgroundColor: active ? MidnightColors.gold : 'transparent' }}
-                                onPress={() => setGalleryMediaTab(item.id)}
+                                accessibilityRole="tab"
+                        accessibilityState={{ selected: active }}
+                        onPress={() => setGalleryMediaTab(item.id)}
                               >
                                 <Text style={{ color: active ? '#13191F' : '#cbd5e1', fontSize: 12, fontFamily: Fonts.inter.bold }}>
                                   {item.label}
@@ -4913,7 +5226,97 @@ export default function EventDetailScreen() {
                           </View>
                         </TouchableOpacity>
                         )}
+                        {showUploaderFilter && (
+                        <TouchableOpacity
+                          accessibilityRole="button"
+                          accessibilityLabel="Filter by who uploaded"
+                          onPress={() => {
+                            setUploaderMenuVisible(true);
+                            void loadAllAdminMedia();
+                          }}
+                          style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: isUploaderFilterActive ? MidnightColors.gold : 'rgba(255,255,255,0.12)', backgroundColor: isUploaderFilterActive ? 'rgba(204,164,59,0.12)' : 'rgba(27,33,31,0.72)', paddingHorizontal: 12, paddingVertical: 10 }}
+                        >
+                          <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(204,164,59,0.14)' }}>
+                            <IconSymbol name="person.2.fill" size={16} color={MidnightColors.gold} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ color: '#f8fafc', fontSize: 13, fontFamily: Fonts.inter.bold }}>Uploaded by</Text>
+                            <Text style={{ color: '#94a3b8', fontSize: 11, marginTop: 2 }} numberOfLines={1}>
+                              {isUploaderFilterActive
+                                ? `${uploaderOptions.find(option => option.userId === effectiveUploaderFilter)?.label || 'Someone'} · ${activeGalleryItems.length}`
+                                : 'Everyone'}
+                            </Text>
+                          </View>
+                          <IconSymbol name="chevron.down" size={16} color="#94a3b8" />
+                        </TouchableOpacity>
+                        )}
                       </View>
+
+                      {!loadingPhotos && activeGalleryItems.length > 0 && (
+                        <View style={{ marginBottom: 12, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(27,33,31,0.72)', paddingHorizontal: 12, paddingVertical: 10 }}>
+                          {isSelectingMedia ? (
+                            <>
+                              <Text accessibilityLiveRegion="polite" style={{ color: '#f8fafc', fontSize: 13, fontFamily: Fonts.inter.bold }}>
+                                {selectedMediaIds.size} selected
+                              </Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <TouchableOpacity
+                                  accessibilityRole="button"
+                                  onPress={() => setSelectedMediaIds(
+                                    selectedMediaIds.size === activeGalleryItems.length
+                                      ? new Set()
+                                      : new Set(activeGalleryItems.map(item => item.id))
+                                  )}
+                                  style={{ paddingHorizontal: 10, paddingVertical: 8 }}
+                                >
+                                  <Text style={{ color: '#cbd5e1', fontSize: 12, fontFamily: Fonts.inter.bold }}>
+                                    {selectedMediaIds.size === activeGalleryItems.length ? 'Clear' : 'All'}
+                                  </Text>
+                                </TouchableOpacity>
+                                {subEvents.length > 0 && (
+                                  <TouchableOpacity
+                                    accessibilityRole="button"
+                                    accessibilityState={{ disabled: selectedMediaIds.size === 0 }}
+                                    disabled={selectedMediaIds.size === 0}
+                                    onPress={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
+                                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 16, backgroundColor: MidnightColors.gold, paddingHorizontal: 12, paddingVertical: 8, opacity: selectedMediaIds.size === 0 ? 0.4 : 1 }}
+                                  >
+                                    <IconSymbol name={"folder" as any} size={13} color="#13191F" />
+                                    <Text style={{ color: '#13191F', fontSize: 12, fontFamily: Fonts.inter.bold }}>Move to…</Text>
+                                  </TouchableOpacity>
+                                )}
+                                <TouchableOpacity
+                                  accessibilityRole="button"
+                                  accessibilityLabel="Save to EB Vault"
+                                  accessibilityState={{ disabled: selectedMediaIds.size === 0 }}
+                                  disabled={selectedMediaIds.size === 0}
+                                  onPress={() => setMediaToSave(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
+                                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 16, borderWidth: 1, borderColor: '#7FA38C', backgroundColor: 'rgba(127,163,140,0.15)', paddingHorizontal: 12, paddingVertical: 8, opacity: selectedMediaIds.size === 0 ? 0.4 : 1 }}
+                                >
+                                  <IconSymbol name={"externaldrive.fill" as any} size={13} color="#A9C9B4" />
+                                  <Text style={{ color: '#A9C9B4', fontSize: 12, fontFamily: Fonts.inter.bold }}>To Vault</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity accessibilityRole="button" onPress={exitMediaSelection} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
+                                  <Text style={{ color: '#94a3b8', fontSize: 12, fontFamily: Fonts.inter.bold }}>Cancel</Text>
+                                </TouchableOpacity>
+                              </View>
+                            </>
+                          ) : (
+                            <>
+                              <Text style={{ flex: 1, color: '#94a3b8', fontSize: 12 }}>
+                                {subEvents.length > 0 ? 'Select items to move them or save copies to EB Vault.' : 'Select items to save copies to your EB Vault.'}
+                              </Text>
+                              <TouchableOpacity
+                                accessibilityRole="button"
+                                onPress={() => setIsSelectingMedia(true)}
+                                style={{ borderRadius: 16, borderWidth: 1, borderColor: MidnightColors.gold, backgroundColor: 'rgba(204,164,59,0.12)', paddingHorizontal: 12, paddingVertical: 6 }}
+                              >
+                                <Text style={{ color: MidnightColors.gold, fontSize: 12, fontWeight: '600' }}>Select</Text>
+                              </TouchableOpacity>
+                            </>
+                          )}
+                        </View>
+                      )}
 
                       {/* Media Grid */}
                       {loadingPhotos ? (
@@ -4941,9 +5344,23 @@ export default function EventDetailScreen() {
                                 accent={MidnightColors.gold}
                                 compact
                                 blurred={shouldBlurVideo}
-                                onOpen={() => openViewer(idx)}
+                                onOpen={() => isSelectingMedia ? toggleMediaSelection(video.id) : openViewer(idx)}
                               />
-                              <TouchableOpacity
+                              {isSelectingMedia && (
+                                <TouchableOpacity
+                                  accessibilityRole="checkbox"
+                                  accessibilityState={{ checked: selectedMediaIds.has(video.id) }}
+                                  accessibilityLabel="Select for moving"
+                                  onPress={() => toggleMediaSelection(video.id)}
+                                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 10, borderWidth: selectedMediaIds.has(video.id) ? 3 : 0, borderColor: MidnightColors.gold, backgroundColor: selectedMediaIds.has(video.id) ? 'rgba(202,156,104,0.18)' : 'rgba(0,0,0,0.15)' }}
+                                >
+                                  <View style={{ position: 'absolute', top: 6, left: 6, width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: selectedMediaIds.has(video.id) ? MidnightColors.gold : '#fff', backgroundColor: selectedMediaIds.has(video.id) ? MidnightColors.gold : 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+                                    {selectedMediaIds.has(video.id) && <IconSymbol name={"checkmark" as any} size={13} color="#13191F" />}
+                                  </View>
+                                </TouchableOpacity>
+                              )}
+                              {!isSelectingMedia && (<>
+                              <TouchableOpacity accessibilityRole="button" accessibilityLabel={isFavouriteVideo ? "Remove from favourites" : "Add to favourites"}
                                 style={{
                                   position: 'absolute',
                                   top: 4,
@@ -4977,15 +5394,18 @@ export default function EventDetailScreen() {
                                   width: 22,
                                   height: 22,
                                   borderRadius: 11,
-                                  backgroundColor: 'rgba(239,68,68,0.92)',
+                                  backgroundColor: 'rgba(15,23,42,0.92)',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                 }}
-                                onPress={() => handleDeleteGalleryPhoto(video.id)}
+                                accessibilityRole="button"
+                                accessibilityLabel="Video actions"
+                                hitSlop={10}
+                                onPress={() => setVideoActionItem(video)}
                               >
-                                <IconSymbol name="trash.fill" size={10} color="#fff" />
+                                <IconSymbol name="ellipsis" size={14} color="#fff" />
                               </TouchableOpacity>
-                              {!isFavouriteFilterActive && filteredVideoItems.length > 1 && (
+                              {!isOrderLocked && filteredVideoItems.length > 1 && (
                                 <View
                                   style={{
                                     position: 'absolute',
@@ -4999,7 +5419,7 @@ export default function EventDetailScreen() {
                                     borderColor: 'rgba(255,255,255,0.12)',
                                   }}
                                 >
-                                  <TouchableOpacity
+                                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Move video up"
                                     style={{
                                       width: 24,
                                       height: 24,
@@ -5015,7 +5435,7 @@ export default function EventDetailScreen() {
                                   >
                                     <IconSymbol name="chevron.up" size={15} color="#fff" />
                                   </TouchableOpacity>
-                                  <TouchableOpacity
+                                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Move video down"
                                     style={{
                                       width: 24,
                                       height: 24,
@@ -5033,13 +5453,14 @@ export default function EventDetailScreen() {
                                   </TouchableOpacity>
                                 </View>
                               )}
+                              </>)}
                               </View>
                           );
                           })}
                         </View>
                       ) : (
                         <View>
-                          {!isFavouriteFilterActive && <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 8, letterSpacing: 0.4 }}>
+                          {!isOrderLocked && <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 8, letterSpacing: 0.4 }}>
                             ✦ Hold & drag a photo to reorder
                           </Text>}
                           <Sortable.Grid
@@ -5048,7 +5469,7 @@ export default function EventDetailScreen() {
                             columns={3}
                             columnGap={8}
                             rowGap={8}
-                            sortEnabled={!isFavouriteFilterActive}
+                            sortEnabled={!isOrderLocked && !isSelectingMedia}
                             onDragEnd={({ data: newData }: { data: any[] }) => handleReorderPhotos(newData)}
 	                            renderItem={({ item }: { item: any }) => {
 	                              const shouldBlurPhoto = shouldBlurMediaForPlan(item);
@@ -5061,9 +5482,16 @@ export default function EventDetailScreen() {
 	                                <TouchableOpacity
                                   activeOpacity={0.9}
                                   onPress={() => {
+                                    if (isSelectingMedia) {
+                                      toggleMediaSelection(item.id);
+                                      return;
+                                    }
                                     const photoIndex = filteredPhotoItems.findIndex(photo => photo.id === item.id);
                                     openViewer(photoIndex >= 0 ? photoIndex : 0);
                                   }}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Photo ${itemIndex + 1} of ${filteredPhotoItems.length}`}
+                                  accessibilityHint="Opens the photo viewer. Hold and drag to reorder."
                                 >
                                   <GalleryThumbnailImage
                                     url={item.url}
@@ -5077,6 +5505,20 @@ export default function EventDetailScreen() {
                                   />
                                 </TouchableOpacity>
                                 {shouldBlurPhoto && <ExpiredMediaThumbnailNotice />}
+                                {isSelectingMedia && (
+                                <TouchableOpacity
+                                  accessibilityRole="checkbox"
+                                  accessibilityState={{ checked: selectedMediaIds.has(item.id) }}
+                                  accessibilityLabel="Select for moving"
+                                  onPress={() => toggleMediaSelection(item.id)}
+                                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 10, borderWidth: selectedMediaIds.has(item.id) ? 3 : 0, borderColor: MidnightColors.gold, backgroundColor: selectedMediaIds.has(item.id) ? 'rgba(202,156,104,0.18)' : 'rgba(0,0,0,0.15)' }}
+                                >
+                                  <View style={{ position: 'absolute', top: 6, left: 6, width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: selectedMediaIds.has(item.id) ? MidnightColors.gold : '#fff', backgroundColor: selectedMediaIds.has(item.id) ? MidnightColors.gold : 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+                                    {selectedMediaIds.has(item.id) && <IconSymbol name={"checkmark" as any} size={13} color="#13191F" />}
+                                  </View>
+                                </TouchableOpacity>
+                              )}
+                                {!isSelectingMedia && (<>
                                 <TouchableOpacity
                                   style={{
                                     position: 'absolute',
@@ -5096,7 +5538,7 @@ export default function EventDetailScreen() {
 	                                >
 	                                  <Text style={{ color: '#fff', fontSize: 14, lineHeight: 14, fontWeight: '900' }}>⋯</Text>
 	                                </TouchableOpacity>
-                                <TouchableOpacity
+                                <TouchableOpacity accessibilityRole="button" accessibilityLabel={isFavouritePhoto ? "Remove from favourites" : "Add to favourites"}
                                   style={{
                                     position: 'absolute',
                                     top: 4,
@@ -5122,7 +5564,7 @@ export default function EventDetailScreen() {
                                     color={isFavouritePhoto ? '#13191F' : '#fff'}
                                   />
                                 </TouchableOpacity>
-	                                <TouchableOpacity
+	                                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Delete photo"
 	                                  style={{
 	                                    position: 'absolute',
                                     top: 4,
@@ -5141,7 +5583,7 @@ export default function EventDetailScreen() {
 	                                >
 	                                  <IconSymbol name="trash.fill" size={10} color="#fff" />
 	                                </TouchableOpacity>
-                                {!isFavouriteFilterActive && filteredPhotoItems.length > 1 && (
+                                {!isOrderLocked && filteredPhotoItems.length > 1 && (
                                   <View
                                     style={{
                                       position: 'absolute',
@@ -5155,7 +5597,7 @@ export default function EventDetailScreen() {
                                       borderColor: 'rgba(255,255,255,0.12)',
                                     }}
                                   >
-                                    <TouchableOpacity
+                                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Move photo up"
                                       style={{
                                         width: 24,
                                         height: 24,
@@ -5171,7 +5613,7 @@ export default function EventDetailScreen() {
                                     >
                                       <IconSymbol name="chevron.up" size={15} color="#fff" />
                                     </TouchableOpacity>
-                                    <TouchableOpacity
+                                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Move photo down"
                                       style={{
                                         width: 24,
                                         height: 24,
@@ -5189,6 +5631,7 @@ export default function EventDetailScreen() {
                                     </TouchableOpacity>
                                   </View>
                                 )}
+                                </>)}
 	                              </View>
 	                            );
 	                            }}
@@ -5210,6 +5653,15 @@ export default function EventDetailScreen() {
 
               {activeTab === 'permissions' && (
                 <View style={styles.section}>
+                  {/* Public/private switch for the main gallery (sub-galleries follow it), as on the website */}
+                  {!event.parentId && (isOwner || canManageEvent) && (
+                    <EventVisibilityControl
+                      eventId={event.id}
+                      isPublic={!!event.isPublic}
+                      isOwner={isOwner || (!!user?.email && user.email === event.createdBy)}
+                      onChanged={isPublic => setEvent(previous => previous ? { ...previous, isPublic } : previous)}
+                    />
+                  )}
                   <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Guest List</Text>
                   </View>
@@ -5237,15 +5689,15 @@ export default function EventDetailScreen() {
                         </View>
 
                         <View style={styles.requestActionsMini}>
-                          <TouchableOpacity
+                          <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Deny ${log.name || "guest"}`}
                             style={styles.miniActionBtnRed}
-                            onPress={() => updateGuestStatus(log.id, 'rejected').then(loadEvent)}
+                            onPress={() => confirmDenyRequest(log, loadEvent)}
                           >
                             <IconSymbol name="xmark" size={12} color="#fff" />
                           </TouchableOpacity>
-                          <TouchableOpacity
+                          <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Approve ${log.name || "guest"}`}
                             style={styles.miniActionBtnGreen}
-                            onPress={() => updateGuestStatus(log.id, 'approved').then(loadEvent)}
+                            onPress={() => updateGuestStatusWithFeedback(log.id, 'approved').then(loadEvent)}
                           >
                             <IconSymbol name="checkmark" size={12} color="#fff" />
                           </TouchableOpacity>
@@ -5286,8 +5738,30 @@ export default function EventDetailScreen() {
                 </View>
               )}
 
+              {/* Video actions and frame picker share one native modal. */}
+              <Modal visible={Boolean(videoActionItem || thumbnailVideo)} transparent animationType="slide" onRequestClose={() => { if (!thumbnailSaving) { setVideoActionItem(null); setThumbnailVideo(null); } }}>
+                {thumbnailVideo ? (
+                  <View style={{ flex: 1, backgroundColor: '#0f172a', paddingTop: insets.top, paddingBottom: insets.bottom }}>
+                    <VideoThumbnailPicker video={thumbnailVideo} onBusyChange={setThumbnailSaving} onClose={() => { setThumbnailVideo(null); setThumbnailSaving(false); }} onSaved={(id, thumbnailUrl) => setPhotos(previous => previous.map(photo => photo.id === id ? { ...photo, thumbnailUrl } : photo))} />
+                  </View>
+                ) : (
+                  <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+                    <TouchableOpacity accessibilityLabel="Close video actions" style={{ flex: 1 }} onPress={() => setVideoActionItem(null)} />
+                    <View style={{ padding: 24, paddingBottom: 24 + insets.bottom, gap: 16, backgroundColor: '#0f172a', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+                      <Text accessibilityRole="header" style={{ color: '#fff', fontSize: 22, fontWeight: '700' }}>Video actions</Text>
+                      <TouchableOpacity accessibilityRole="button" disabled={videoActionItem?.status !== 'processed'} onPress={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, backgroundColor: '#CA9C68', opacity: videoActionItem?.status === 'processed' ? 1 : 0.4 }}><Text style={{ color: '#0f172a', fontWeight: '700' }}>Change thumbnail</Text></TouchableOpacity>
+                      {videoActionItem?.status !== 'processed' && <Text style={{ color: '#cbd5e1' }}>Available after video processing finishes.</Text>}
+                      {subEvents.length > 0 && <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) setMediaToMove([videoActionItem]); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(148,163,184,0.35)' }}><Text style={{ color: '#E2E8F0', fontWeight: '700' }}>Move to another gallery</Text></TouchableOpacity>}
+                      <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) setMediaToSave([videoActionItem]); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(127,163,140,0.45)' }}><Text style={{ color: '#A9C9B4', fontWeight: '700' }}>Save to EB Vault</Text></TouchableOpacity>
+                      <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) handleDeleteGalleryPhoto(videoActionItem.id); setVideoActionItem(null); }} style={{ padding: 16 }}><Text style={{ color: '#fca5a5' }}>Delete video</Text></TouchableOpacity>
+                      <TouchableOpacity accessibilityRole="button" onPress={() => setVideoActionItem(null)} style={{ padding: 16 }}><Text style={{ color: '#fff' }}>Cancel</Text></TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              </Modal>
+
               {/* ── PREMIUM MEMBER PERMISSIONS MODAL ── */}
-              <Modal visible={!!selectedGuest} transparent animationType="fade">
+              <Modal visible={!!selectedGuest} transparent animationType="fade" onRequestClose={() => setSelectedGuest(null)}>
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
@@ -5309,7 +5783,7 @@ export default function EventDetailScreen() {
                           <Text style={styles.premiumModalTitle}>{selectedGuest?.name}</Text>
                           <Text style={styles.premiumModalSub}>Member #0{guestLogs.filter(l => l.status === 'approved').findIndex(l => l.id === selectedGuest?.id) + 1}</Text>
                         </View>
-                        <TouchableOpacity onPress={() => setSelectedGuest(null)} style={styles.closeModalCircle}>
+                        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setSelectedGuest(null)} style={styles.closeModalCircle}>
                           <IconSymbol name="xmark" size={16} color={MidnightColors.slate400} />
                         </TouchableOpacity>
                       </View>
@@ -5339,15 +5813,11 @@ export default function EventDetailScreen() {
                         <Text style={styles.permissionsGroupLabel}>Member Privileges</Text>
 
                         {[
-                          { id: 'viewAccess', label: 'View Access', desc: 'Can open and view this event gallery', icon: 'eye.fill' },
                           { id: 'canAdmin', label: 'Admin Access', desc: 'Manage event, sub-galleries, and other guests', icon: 'shield.fill' },
-                          { id: 'canUpload', label: 'Allow Uploads', desc: 'Can add photos and videos to the event', icon: 'camera.fill' },
+                          { id: 'canUpload', label: 'Allow Photo Uploads', desc: 'Can add photos to the event. Videos are reserved for the event owner and admins.', icon: 'camera.fill' },
                           { id: 'canComment', label: 'Allow Comments', desc: 'Can react and post comments on any media', icon: 'bubble.left.fill' },
                         ].map((perm) => {
-                          const isViewAccess = perm.id === 'viewAccess';
-                          const isActive = isViewAccess
-                            ? selectedGuest?.status === 'approved'
-                            : Boolean((selectedGuest as any)?.[perm.id] || (selectedGuest?.canAdmin && (perm.id === 'canUpload' || perm.id === 'canComment')));
+                          const isActive = Boolean((selectedGuest as any)?.[perm.id] || (selectedGuest?.canAdmin && (perm.id === 'canUpload' || perm.id === 'canComment')));
                           const isSelfAdminCheck = perm.id === 'canAdmin' && selectedGuest && doesGuestLogBelongToCurrentUser(selectedGuest) && !isOwner;
                           const displayDesc = isSelfAdminCheck ? "Ask host to remove you" : perm.desc;
 
@@ -5361,21 +5831,8 @@ export default function EventDetailScreen() {
                               ]}
                               onPress={() => {
                                 if (selectedGuest) {
-                                  if (isViewAccess) {
-                                    const nextStatus: GuestLog['status'] = isActive ? 'rejected' : 'approved';
-                                    updateGuestStatus(selectedGuest.id, nextStatus).then(() => {
-                                      const updatedGuest = {
-                                        ...selectedGuest,
-                                        status: nextStatus,
-                                        ...(nextStatus === 'approved' ? { canUpload: true, canComment: true } : {}),
-                                      };
-                                      setSelectedGuest(nextStatus === 'approved' ? updatedGuest : null);
-                                      loadEvent();
-                                    });
-                                    return;
-                                  }
                                   if (isSelfAdminCheck) {
-                                    Alert.alert("Permission Denied", "Ask host to remove you.");
+                                    appAlert("Permission Denied", "Ask host to remove you.");
                                     return;
                                   }
                                   const nextValue = !isActive;
@@ -5394,7 +5851,7 @@ export default function EventDetailScreen() {
                                   };
 
                                   if (perm.id === 'canAdmin' && nextValue && selectedGuest.status !== 'approved') {
-                                    updateGuestStatus(selectedGuest.id, 'approved').then(applyPermissionUpdate);
+                                    updateGuestStatusWithFeedback(selectedGuest.id, 'approved').then(applyPermissionUpdate);
                                   } else {
                                     applyPermissionUpdate();
                                   }
@@ -5445,7 +5902,7 @@ export default function EventDetailScreen() {
               </Modal>
 
               {/* ── PREMIUM REQUEST DETAIL MODAL ── */}
-              <Modal visible={!!selectedRequest} transparent animationType="fade">
+              <Modal visible={!!selectedRequest} transparent animationType="fade" onRequestClose={() => setSelectedRequest(null)}>
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
@@ -5467,7 +5924,7 @@ export default function EventDetailScreen() {
                           <Text style={styles.premiumModalTitle}>{selectedRequest?.name}</Text>
                           <Text style={styles.premiumModalSub}>Requesting Access</Text>
                         </View>
-                        <TouchableOpacity onPress={() => setSelectedRequest(null)} style={styles.closeModalCircle}>
+                        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setSelectedRequest(null)} style={styles.closeModalCircle}>
                           <IconSymbol name="xmark" size={16} color={MidnightColors.slate400} />
                         </TouchableOpacity>
                       </View>
@@ -5500,21 +5957,21 @@ export default function EventDetailScreen() {
                           style={[styles.modalActionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
                           onPress={() => {
                             if (selectedRequest) {
-                              updateGuestStatus(selectedRequest.id, 'rejected').then(() => {
+                              confirmDenyRequest(selectedRequest, () => {
                                 setSelectedRequest(null);
                                 loadEvent();
                               });
                             }
                           }}
                         >
-                          <Text style={[styles.modalActionText, { color: '#ef4444' }]}>Reject</Text>
+                          <Text style={[styles.modalActionText, { color: '#ef4444' }]}>Deny</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                           style={styles.modalActionBtnApprove}
                           onPress={() => {
                             if (selectedRequest) {
-                              updateGuestStatus(selectedRequest.id, 'approved').then(() => {
+                              updateGuestStatusWithFeedback(selectedRequest.id, 'approved').then(() => {
                                 setSelectedRequest(null);
                                 loadEvent();
                               });
@@ -5560,7 +6017,12 @@ export default function EventDetailScreen() {
 
                     <TouchableOpacity
                       style={[styles.designCard, { marginTop: 12, backgroundColor: 'rgba(202, 156, 104, 0.08)', borderColor: 'rgba(202, 156, 104, 0.3)', borderWidth: 1 }]}
-                      onPress={() => setIsAdminViewActive(false)}
+                      onPress={() => {
+                        setSelectedAdminGallery(undefined);
+                        handleSubEventChange(null);
+                        setIsAdminViewActive(false);
+                        requestAnimationFrame(() => scrollViewRef.current?.scrollTo({ y: 0, animated: false }));
+                      }}
                     >
                       <View style={styles.designInfo}>
                         <Text style={[styles.designLabel, { color: '#cca43b' }]}>Preview Guest Theme</Text>
@@ -5590,8 +6052,12 @@ export default function EventDetailScreen() {
                       paddingVertical: 4,
                       alignSelf: 'flex-start',
                       borderWidth: 1,
-                      borderColor: 'rgba(204, 164, 59, 0.3)'
+                      borderColor: 'rgba(204, 164, 59, 0.3)',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6
                     }}>
+                      <PartnersIcon size={12} color={MidnightColors.gold} />
                       <Text style={{ color: MidnightColors.gold, fontSize: 10, fontFamily: Fonts.outfit.bold, textTransform: 'uppercase', letterSpacing: 1.5 }}>
                         Event Partners · Phase 2
                       </Text>
@@ -5629,25 +6095,7 @@ export default function EventDetailScreen() {
             </>
           ) : (
             <>
-              {!canViewContent ? (
-                <GatedAccessPanel
-                  event={event}
-                  selectedTemplate={selectedTemplate}
-                  isThemeDark={isThemeDark}
-                  guestStatus={guestStatus}
-                  guestName={guestName}
-                  setGuestName={setGuestName}
-                  guestPhone={guestPhone}
-                  setGuestPhone={setGuestPhone}
-                  user={user}
-                  updating={updating}
-                  handleGuestAccess={handleGuestAccess}
-                  handleRequestAccessAgain={handleRequestAccessAgain}
-                  styles={styles}
-                />
-              ) : (
-                <>
-                  {/* ── VISITOR IMMERSIVE CONTENT ── */}
+                  {/* ── VISITOR IMMERSIVE CONTENT ── (the link check in loadEvent decides who gets here) */}
                   <View style={[styles.visitorContent, { backgroundColor: pageBackground }]}>
                 {(event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
                   <View style={[
@@ -5968,13 +6416,47 @@ export default function EventDetailScreen() {
                   </View>
                 )}
 
+                {galleryAccess === 'member' && memberCanUpload && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
+                  activeSubEvent || subEvents.length === 0 ? (
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel="Add photos"
+                      onPress={handleUploadGalleryPhoto}
+                      style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 12, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 999, backgroundColor: selectedTemplate.accent }}
+                    >
+                      <IconSymbol name="plus" size={14} color={galleryActionText(selectedTemplate.accent)} />
+                      <Text style={{ color: galleryActionText(selectedTemplate.accent), fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>ADD PHOTOS</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text style={{ alignSelf: 'center', marginVertical: 12, color: selectedTemplate.muted, fontSize: 12, fontWeight: '700' }}>
+                      Open an album to add your photos.
+                    </Text>
+                  )
+                )}
+
                 <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />
 
-                {activeSubEvent?.id === 'find-you' ? (
+                {/* Find You and Event partners are for signed-in guests; logged-out visitors get a log-in prompt */}
+                {isPublicView && !user && (activeSubEvent?.id === 'find-you' || activeSubEvent?.id === 'event-partners') ? (
+                  <View style={styles.guestSection}>
+                    <Text style={styles.guestTitle}>
+                      {activeSubEvent?.id === 'find-you' ? 'Find yourself in the photos' : 'Meet the event partners'}
+                    </Text>
+                    <Text style={styles.guestSub}>
+                      {activeSubEvent?.id === 'find-you'
+                        ? "Log in to use Find You: take a selfie and we'll show the photos you're in."
+                        : 'Log in to see the vendors behind this event.'}
+                    </Text>
+                    <TouchableOpacity style={styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
+                      <Text style={styles.accessBtnText}>Log in</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : activeSubEvent?.id === 'find-you' ? (
                   <FindYouPanel
                     eventId={event.id}
                     legacyId={event.legacyId}
                     parentId={event.parentId}
+                    subEvents={subEvents}
                     selectedTemplate={selectedTemplate}
                     styles={styles}
                     event={event}
@@ -6375,10 +6857,12 @@ export default function EventDetailScreen() {
                           borderRadius: 12,
                           backgroundColor: active ? activeBg : 'transparent',
                         }}
+                        accessibilityRole="tab"
+                        accessibilityState={{ selected: active }}
                         onPress={() => setGalleryMediaTab(item.id)}
                       >
                         <Text style={{
-                          color: active ? '#ffffff' : (isSportsTemplate ? sportsTheme.muted : selectedTemplate.muted),
+                          color: active ? galleryActionText(activeBg) : (isSportsTemplate ? sportsTheme.muted : selectedTemplate.muted),
                           fontSize: 12,
                           fontFamily: Fonts.inter.bold,
                         }}>
@@ -6407,7 +6891,7 @@ export default function EventDetailScreen() {
                   </View>
                   <IconSymbol name="chevron.down" size={16} color={selectedTemplate.muted} />
                 </TouchableOpacity>
-                ) : (
+                ) : isPublicView ? null : (
                 <TouchableOpacity
                   accessibilityRole="switch"
                   accessibilityState={{ checked: showOnlyFavourites }}
@@ -6433,7 +6917,50 @@ export default function EventDetailScreen() {
                   </View>
                 ) : (
                   <View style={styles.photoGrid}>
-                    {activeGalleryItems.length === 0 ? (
+                    {activeGalleryItems.length === 0 && isPrimaryGalleryView && !isFavouriteFilterActive
+                      && subEvents.length > 0 && displayedPhotoCount === 0 && displayedVideoCount === 0 ? (
+                      // Home has no highlights yet, but the sub-galleries may: point guests to them
+                      <View style={{ width: '100%', paddingVertical: 8 }}>
+                        <Text style={{ color: selectedTemplate.text, fontFamily: selectedTemplate.bodyBold || Fonts.inter.bold, fontSize: 16, marginBottom: 4 }}>
+                          Explore the galleries
+                        </Text>
+                        <Text style={{ color: selectedTemplate.muted, fontFamily: Fonts.inter.regular, fontSize: 13, lineHeight: 19, marginBottom: 14 }}>
+                          Photos and videos from this event are inside its galleries.
+                        </Text>
+                        {subEvents.map((sub) => (
+                          <TouchableOpacity
+                            key={sub.id}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Open ${sub.title} gallery`}
+                            onPress={() => handleSubEventChange(sub)}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 12,
+                              minHeight: 64,
+                              padding: 10,
+                              marginBottom: 10,
+                              borderRadius: Math.min(selectedTemplate.radius ?? 14, 16),
+                              borderWidth: 1,
+                              borderColor: `${selectedTemplate.accent}40`,
+                              backgroundColor: selectedTemplate.accentBg,
+                            }}
+                          >
+                            <ExpoImage
+                              source={getEventCoverSource(sub.coverImage || event?.coverImage, 'thumbnail', sub.category || event?.category)}
+                              style={{ width: 48, height: 48, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.2)' }}
+                              contentFit="cover"
+                              transition={200}
+                            />
+                            <Text style={{ flex: 1, color: selectedTemplate.text, fontFamily: Fonts.inter.semiBold, fontSize: 15 }} numberOfLines={1}>
+                              {sub.title}
+                            </Text>
+                            <IconSymbol name="chevron.right" size={18} color={selectedTemplate.accent} />
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    ) : activeGalleryItems.length === 0 ? (
                       <View style={styles.emptyGallery}>
                         <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={40} color={isCyberTechTemplate ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255,255,255,0.05)'} />
                         <Text style={[styles.emptyText, isCyberTechTemplate && styles.cyberEmptyText]}>
@@ -6486,7 +7013,8 @@ export default function EventDetailScreen() {
                           return (
                             <Animated.View
                               key={photo.id}
-                              entering={FadeInUp.delay(idx * 80).duration(600).springify().damping(14)}
+                              // Stagger only within a page and cap it, so tiles loaded later don't wait seconds to appear
+                              entering={FadeInUp.delay(Math.min(idx % PHOTO_PAGE_SIZE, 6) * 80).duration(600).springify().damping(14)}
                               style={[
                                 styles.photoCard,
                                 !isGardenTemplate && {
@@ -6498,6 +7026,9 @@ export default function EventDetailScreen() {
                                 style={isGardenTemplate ? { width: '100%' } : { flex: 1 }}
                                 activeOpacity={0.9}
                                 onPress={() => openViewer(idx)}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Photo ${idx + 1} of ${filteredPhotoItems.length}`}
+                                accessibilityHint="Opens the photo viewer"
                               >
                                 <View style={[
                                   styles.photoTile,
@@ -6872,38 +7403,21 @@ export default function EventDetailScreen() {
 
                 <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />
 
-                {/* Join Prompt for non-logged in users */}
-                {!user && (
+                {/* Logged-out visitors of a public gallery see previews only */}
+                {isPublicView && !user && activeSubEvent?.id !== 'find-you' && activeSubEvent?.id !== 'event-partners' && (
                   <View style={styles.guestSection}>
                     <Text style={styles.guestTitle}>Enter the Celebration</Text>
-                    <Text style={styles.guestSub}>Join to view all photos and interactions</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Your Name"
-                      placeholderTextColor={MidnightColors.slate400}
-                      value={guestName}
-                      onChangeText={setGuestName}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Phone Number"
-                      placeholderTextColor={MidnightColors.slate400}
-                      keyboardType="phone-pad"
-                      value={guestPhone}
-                      onChangeText={setGuestPhone}
-                    />
-                    <TouchableOpacity style={styles.accessBtn} onPress={handleGuestAccess}>
-                      <Text style={styles.accessBtnText}>Request Access</Text>
+                    <Text style={styles.guestSub}>Log in to join this gallery, see full-size photos, like and comment</Text>
+                    <TouchableOpacity style={styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
+                      <Text style={styles.accessBtnText}>Log in to join</Text>
                     </TouchableOpacity>
                   </View>
                 )}
                   </View>
-                </>
-              )}
             </>
           )}
         </View>
-      </ScrollView>
+      </RNAnimated.ScrollView>
 
       {/* ── CREATE SUB-EVENT MODAL ── */}
       <SubEventModal
@@ -6922,7 +7436,7 @@ export default function EventDetailScreen() {
       />
 
       {/* ── CATEGORY MODAL ── */}
-      <Modal visible={showCategoryModal} transparent animationType="slide">
+      <Modal visible={showCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCategoryModal(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowCategoryModal(false)} />
           <View style={[styles.modalContent, { maxHeight: '80%' }]}>
@@ -6933,7 +7447,7 @@ export default function EventDetailScreen() {
                   Choose a category for your gallery
                 </Text>
               </View>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close"
                 onPress={() => setShowCategoryModal(false)}
                 style={{ marginTop: 2 }}
               >
@@ -6999,7 +7513,7 @@ export default function EventDetailScreen() {
                 <Text style={styles.modalTitle}>Source gallery</Text>
                 <Text style={{ color: MidnightColors.slate400, fontSize: 12, marginTop: 4 }}>Show media selected from</Text>
               </View>
-              <TouchableOpacity onPress={() => setSourceGalleryMenuVisible(false)} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' }}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setSourceGalleryMenuVisible(false)} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' }}>
                 <IconSymbol name="xmark" size={17} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -7025,6 +7539,56 @@ export default function EventDetailScreen() {
         </View>
       </Modal>
 
+      <Modal
+        visible={uploaderMenuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setUploaderMenuVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setUploaderMenuVisible(false)} />
+          <View style={[styles.modalContent, { gap: 8, maxHeight: '70%' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <View>
+                <Text style={styles.modalTitle}>Uploaded by</Text>
+                <Text style={{ color: MidnightColors.slate400, fontSize: 12, marginTop: 4 }}>
+                  {loadingAllMedia ? 'Loading the whole gallery…' : 'Show media uploaded by'}
+                </Text>
+              </View>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setUploaderMenuVisible(false)} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' }}>
+                <IconSymbol name="xmark" size={17} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            {loadingAllMedia ? (
+              <ActivityIndicator color={MidnightColors.gold} style={{ paddingVertical: 24 }} />
+            ) : (
+              <ScrollView contentContainerStyle={{ gap: 8 }}>
+                {[{ userId: 'all', label: 'Everyone', count: favouriteFilteredActiveItems.length }, ...uploaderOptions].map(option => {
+                  const selected = effectiveUploaderFilter === option.userId;
+                  return (
+                    <TouchableOpacity
+                      key={option.userId}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      onPress={() => {
+                        setUploaderFilter(option.userId);
+                        setUploaderMenuVisible(false);
+                      }}
+                      style={{ minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, borderWidth: 1, borderColor: selected ? MidnightColors.gold : 'rgba(255,255,255,0.08)', backgroundColor: selected ? 'rgba(204,164,59,0.12)' : 'rgba(255,255,255,0.035)', paddingHorizontal: 14, paddingVertical: 10 }}
+                    >
+                      <IconSymbol name={option.userId === 'all' ? 'person.2.fill' : 'person.fill'} size={17} color={selected ? MidnightColors.gold : MidnightColors.slate400} />
+                      <Text style={{ flex: 1, color: selected ? MidnightColors.gold : '#f8fafc', fontSize: 14, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>{option.label}</Text>
+                      <Text style={{ color: selected ? MidnightColors.gold : MidnightColors.slate400, fontSize: 12 }}>{option.count}</Text>
+                      {selected && <IconSymbol name="checkmark" size={15} color={MidnightColors.gold} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       {/* ── IMAGE VIEWER MODAL ── */}
       <PhotoViewer
         visible={viewerVisible}
@@ -7040,6 +7604,21 @@ export default function EventDetailScreen() {
         isPhotoFavourite={showAdminView ? ((photo) => !!photo?.id && eventFavouritePhotoIds.has(photo.id)) : undefined}
         onTogglePhotoFavourite={showAdminView ? ((photo) => photo?.id ? handleToggleEventFavourite(photo.id) : undefined) : undefined}
         onRotatePhoto={showAdminView ? ((photo, direction) => photo?.id ? handleRotateGalleryPhoto(photo.id, direction) : undefined) : undefined}
+        readOnly={isPublicView}
+        onRequireLogin={isPublicView && !user ? () => appAlert(
+          'Log in to continue',
+          'Log in or create a free account to like, comment on and download photos from this gallery.',
+          [
+            { text: 'Not now', style: 'cancel' },
+            {
+              text: 'Log in',
+              onPress: () => {
+                setViewerVisible(false);
+                router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } });
+              },
+            },
+          ],
+        ) : undefined}
       />
 
       <Modal
@@ -7058,7 +7637,7 @@ export default function EventDetailScreen() {
                   Manage how this photo appears in the gallery.
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setPhotoActionItem(null)} style={{ marginTop: 2 }}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setPhotoActionItem(null)} style={{ marginTop: 2 }}>
                 <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
               </TouchableOpacity>
             </View>
@@ -7162,6 +7741,136 @@ export default function EventDetailScreen() {
                 Make Event Thumbnail
               </Text>
             </TouchableOpacity>
+            {subEvents.length > 0 && (
+              <TouchableOpacity
+                style={{
+                  width: '100%',
+                  minHeight: 56,
+                  borderRadius: 18,
+                  borderWidth: 1,
+                  borderColor: 'rgba(148, 163, 184, 0.35)',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
+                  paddingHorizontal: 18,
+                  gap: 12,
+                }}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                disabled={updating || !photoActionItem || !event}
+                onPress={() => {
+                  if (!photoActionItem) return;
+                  setMediaToMove([photoActionItem]);
+                  setPhotoActionItem(null);
+                }}
+              >
+                <IconSymbol name={"folder" as any} size={16} color="#E2E8F0" />
+                <Text style={{ flex: 1, color: '#E2E8F0', fontFamily: Fonts.outfit.bold, fontSize: 15 }} numberOfLines={2}>
+                  Move to Another Gallery
+                </Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={{
+                width: '100%',
+                minHeight: 56,
+                borderRadius: 18,
+                borderWidth: 1,
+                borderColor: 'rgba(127, 163, 140, 0.45)',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                paddingHorizontal: 18,
+                gap: 12,
+              }}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              disabled={updating || !photoActionItem}
+              onPress={() => {
+                if (!photoActionItem) return;
+                setMediaToSave([photoActionItem]);
+                setPhotoActionItem(null);
+              }}
+            >
+              <IconSymbol name={"externaldrive.fill" as any} size={16} color="#A9C9B4" />
+              <Text style={{ flex: 1, color: '#A9C9B4', fontFamily: Fonts.outfit.bold, fontSize: 15 }} numberOfLines={2}>
+                Save to EB Vault
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {mediaToSave && (
+        <FolderPicker
+          title={`Save ${mediaToSave.length === 1 ? '1 item' : `${mediaToSave.length} items`} to EB Vault`}
+          confirmLabel="Save"
+          excludeFolderIds={[]}
+          onClose={() => setMediaToSave(null)}
+          onPick={handleSaveToVault}
+        />
+      )}
+
+      <Modal
+        visible={!!mediaToMove}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { if (!isMovingMedia) setMediaToMove(null); }}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => { if (!isMovingMedia) setMediaToMove(null); }} />
+          <View style={[styles.modalContent, { gap: 10 }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+              <View style={{ flex: 1, marginRight: 16 }}>
+                <Text style={{ fontSize: 22, color: '#fff', fontFamily: Fonts.outfit.bold }}>
+                  Move {mediaToMove && mediaToMove.length > 1 ? `${mediaToMove.length} items` : '1 item'}
+                </Text>
+                <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
+                  Choose a gallery in this event. Likes and comments move too.
+                </Text>
+              </View>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" disabled={isMovingMedia} onPress={() => setMediaToMove(null)} style={{ marginTop: 2 }}>
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ width: '100%', maxHeight: 320 }} contentContainerStyle={{ gap: 8 }}>
+              {[event, ...subEvents]
+                .filter((gallery): gallery is DatabaseEvent => !!gallery)
+                .map(gallery => {
+                  const isCurrent = !!mediaToMove && mediaToMove.length > 0 && mediaToMove.every(item =>
+                    item.eventId === gallery.id || (!!gallery.legacyId && item.eventId === gallery.legacyId));
+                  return (
+                    <TouchableOpacity
+                      key={gallery.id}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: isCurrent || isMovingMedia }}
+                      disabled={isCurrent || isMovingMedia}
+                      onPress={() => handleMoveMediaToGallery(gallery.id)}
+                      style={{
+                        minHeight: 52,
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        borderColor: 'rgba(202, 156, 104, 0.28)',
+                        paddingHorizontal: 16,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        opacity: isCurrent ? 0.45 : 1,
+                      }}
+                    >
+                      <Text style={{ flex: 1, color: '#fff', fontFamily: Fonts.inter.semiBold, fontSize: 15 }} numberOfLines={1}>
+                        {gallery.id === event?.id ? 'Home (Primary Gallery)' : gallery.title}
+                      </Text>
+                      {isCurrent ? (
+                        <Text style={{ color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.regular }}>Current</Text>
+                      ) : isMovingMedia ? null : (
+                        <IconSymbol name={"checkmark" as any} size={16} color={MidnightColors.gold} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+            </ScrollView>
+            {isMovingMedia && <ActivityIndicator color={MidnightColors.gold} />}
           </View>
         </View>
       </Modal>
@@ -7224,15 +7933,15 @@ export default function EventDetailScreen() {
         );
       })()}
       {/* ── SHARE MODAL ── */}
-      <Modal visible={showShareModal} transparent animationType="slide">
+      <Modal visible={showShareModal} transparent animationType="slide" onRequestClose={() => setShowShareModal(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowShareModal(false)} />
-          <View style={styles.shareModalContent}>
+          <ScrollView style={{ maxHeight: '85%' }} contentContainerStyle={styles.shareModalContent}>
             <Text style={styles.modalTitle}>Share Event</Text>
 
             <View style={styles.qrContainer}>
               <Image
-                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://wedalbum.app/events/${event.id}` }}
+                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getGalleryWebUrl(event.id))}` }}
                 style={styles.qrCode}
               />
               <Text style={styles.qrLabel}>Scan to Join</Text>
@@ -7253,12 +7962,12 @@ export default function EventDetailScreen() {
             <TouchableOpacity style={styles.closeModalBtn} onPress={() => setShowShareModal(false)}>
               <Text style={styles.closeModalText}>Close</Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
 
       {/* ── LINK VENDOR MODAL ── */}
-      <Modal visible={linkingVendor} transparent animationType="slide">
+      <Modal visible={linkingVendor} transparent animationType="slide" onRequestClose={() => { setLinkingVendor(false); setVendorCode(''); }}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
@@ -7288,7 +7997,7 @@ export default function EventDetailScreen() {
                   Connect photographers, makeup artists, and venues from EB Business.
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => { setLinkingVendor(false); setVendorCode(''); }}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => { setLinkingVendor(false); setVendorCode(''); }}>
                 <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
               </TouchableOpacity>
             </View>
@@ -7321,7 +8030,7 @@ export default function EventDetailScreen() {
                   value={vendorCode}
                   onChangeText={(text) => setVendorCode(text.toUpperCase())}
                   placeholder="e.g. VEN-1234"
-                  placeholderTextColor={MidnightColors.slate700}
+                  placeholderTextColor={MidnightColors.slate600}
                   autoCapitalize="characters"
                 />
               </View>
@@ -7360,18 +8069,18 @@ export default function EventDetailScreen() {
                     const biz = await getBusinessByVendorCode(vendorCode);
                     if (biz) {
                       if (event?.vendors?.includes(biz.id)) {
-                        Alert.alert("Already Linked", "This vendor is already linked to your event.");
+                        appAlert("Already Linked", "This vendor is already linked to your event.");
                       } else {
                         const newVendors = [...(event?.vendors || []), biz.id];
                         await updateEvent(event!.id, { vendors: newVendors });
                         setEvent({ ...event!, vendors: newVendors });
                         setLinkedVendors([...linkedVendors, biz]);
-                        Alert.alert("Vendor Linked!", `Successfully linked ${biz.name}. They will now appear on the Event Partners page.`);
+                        appAlert("Vendor Linked!", `Successfully linked ${biz.name}. They will now appear on the Event Partners page.`);
                         setLinkingVendor(false);
                         setVendorCode('');
                       }
                     } else {
-                      Alert.alert("Invalid Code", "No business found with this code. Please try again.");
+                      appAlert("Invalid Code", "No business found with this code. Please try again.");
                     }
                   }}
                 >
@@ -7483,14 +8192,14 @@ export default function EventDetailScreen() {
 
           {/* Zoom controls */}
           <View style={styles.zoomControlRow}>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Zoom out cover"
               style={styles.zoomBtn}
               onPress={() => setTempCoverScale(prev => Math.max(1.0, prev - 0.1))}
             >
               <IconSymbol name={"minus" as any} size={12} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.zoomText}>{Math.round(tempCoverScale * 100)}%</Text>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Zoom in cover"
               style={styles.zoomBtn}
               onPress={() => setTempCoverScale(prev => Math.min(2.5, prev + 0.1))}
             >
@@ -7585,63 +8294,69 @@ export default function EventDetailScreen() {
               padding: 24,
               borderRadius: 24,
               borderWidth: 1.5,
-              backgroundColor: selectedTemplate.panel || (isDark ? '#1B211F' : '#ffffff'),
-              borderColor: selectedTemplate.accentBg || 'rgba(202, 156, 104, 0.3)',
+              backgroundColor: '#1B211F',
+              borderColor: selectedTemplate.accentBg || 'rgba(202, 156, 104, 0.35)',
               alignItems: 'center',
               alignSelf: 'center',
-              width: width * 0.8,
+              width: width * 0.85,
+              maxWidth: 400,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.5,
+              shadowRadius: 20,
+              elevation: 10,
             }
           ]}>
             <View style={{
-              width: 60,
-              height: 60,
-              borderRadius: 30,
-              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: 'rgba(34, 197, 94, 0.15)',
               justifyContent: 'center',
               alignItems: 'center',
               marginBottom: 16,
               borderWidth: 1,
-              borderColor: 'rgba(34, 197, 94, 0.3)',
+              borderColor: 'rgba(34, 197, 94, 0.35)',
             }}>
-              <IconSymbol name="checkmark.circle.fill" size={32} color="#22c55e" />
+              <IconSymbol name="checkmark.circle.fill" size={34} color="#22c55e" />
             </View>
 
             <Text style={{
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: 'bold',
               color: selectedTemplate.accent || MidnightColors.gold || '#CCA43B',
-              marginBottom: 8,
+              marginBottom: 10,
               fontFamily: Fonts.outfit.bold,
               textAlign: 'center',
+              letterSpacing: -0.3,
             }}>
               Upload Complete
             </Text>
 
             {mobileIndexingStatus ? (
-              <View style={{ width: '100%', alignItems: 'center', marginBottom: 20 }}>
+              <View style={{ width: '100%', alignItems: 'center', marginBottom: 24 }}>
                 <Text style={{
                   fontSize: 14,
-                  color: isDark ? '#cbd5e1' : '#64748b',
+                  color: '#cbd5e1',
                   textAlign: 'center',
                   marginBottom: 12,
                   fontFamily: Fonts.inter.regular,
-                  lineHeight: 18,
+                  lineHeight: 20,
+                  paddingHorizontal: 8,
                 }}>
                   {mobileIndexingStatus.status === 'complete'
-                    ? (mobileIndexingStatus.photosWithoutFaces > 0
-                        ? `✓ AI face indexing complete! ${mobileIndexingStatus.photosWithFaces || 0} with faces, ${mobileIndexingStatus.photosWithoutFaces} without faces.`
-                        : '✓ AI face indexing complete! All photos are searchable by guests.')
-                    : `AI is indexing faces: ${mobileIndexingStatus.indexed}/${mobileIndexingStatus.total} (${mobileIndexingStatus.percentComplete}%)`}
+                    ? (mobileIndexingStatus.total > 0 ? 'Upload finished. All photos are ready.' : 'Upload finished. Your videos are ready.')
+                    : `Processing photos: ${mobileIndexingStatus.indexed}/${mobileIndexingStatus.total} (${mobileIndexingStatus.percentComplete}%)`}
                 </Text>
                 {mobileIndexingStatus.status === 'processing' && (
-                  <View style={{ width: '100%', height: 4, backgroundColor: isDark ? '#202020' : '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
+                  <View style={{ width: '100%', height: 4, backgroundColor: '#2B2F2E', borderRadius: 2, overflow: 'hidden' }}>
                     <View style={{ width: `${mobileIndexingStatus.percentComplete}%`, height: '100%', backgroundColor: selectedTemplate.accent || MidnightColors.gold || '#CCA43B' }} />
                   </View>
                 )}
                 {mobileIndexingStatus.status === 'processing' && (
                   <Text style={{
-                    fontSize: 11,
-                    color: isDark ? '#CDB89E' : '#64748b',
+                    fontSize: 12,
+                    color: MidnightColors.slate400,
                     textAlign: 'center',
                     marginTop: 8,
                     fontStyle: 'italic',
@@ -7654,10 +8369,12 @@ export default function EventDetailScreen() {
             ) : (
               <Text style={{
                 fontSize: 14,
-                color: isDark ? '#cbd5e1' : '#64748b',
+                color: '#cbd5e1',
                 textAlign: 'center',
-                marginBottom: 20,
+                marginBottom: 24,
                 fontFamily: Fonts.inter.regular,
+                lineHeight: 20,
+                paddingHorizontal: 8,
               }}>
                 Upload complete. Previews are being generated...
               </Text>
@@ -7666,15 +8383,20 @@ export default function EventDetailScreen() {
             <TouchableOpacity
               style={{
                 backgroundColor: selectedTemplate.accent || MidnightColors.gold || '#CCA43B',
-                paddingVertical: 12,
+                paddingVertical: 14,
                 paddingHorizontal: 24,
-                borderRadius: 12,
+                borderRadius: 14,
                 width: '100%',
-                alignItems: 'center'
+                alignItems: 'center',
+                shadowColor: selectedTemplate.accent || MidnightColors.gold || '#CCA43B',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.25,
+                shadowRadius: 8,
+                elevation: 3,
               }}
               onPress={() => setShowUploadCompleteModal(false)}
             >
-              <Text style={{ color: isDark ? '#13191F' : '#ffffff', fontWeight: 'bold', fontFamily: Fonts.outfit.semiBold }}>
+              <Text style={{ color: '#13191F', fontWeight: 'bold', fontSize: 15, fontFamily: Fonts.outfit.semiBold }}>
                 Done
               </Text>
             </TouchableOpacity>
@@ -7697,60 +8419,69 @@ export default function EventDetailScreen() {
               padding: 24,
               borderRadius: 24,
               borderWidth: 1.5,
-              backgroundColor: selectedTemplate.panel || (isDark ? '#1B211F' : '#ffffff'),
-              borderColor: 'rgba(239, 68, 68, 0.3)',
+              backgroundColor: '#1B211F',
+              borderColor: 'rgba(239, 68, 68, 0.35)',
               alignItems: 'center',
               alignSelf: 'center',
-              width: width * 0.8,
+              width: width * 0.85,
+              maxWidth: 400,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.5,
+              shadowRadius: 20,
+              elevation: 10,
             }
           ]}>
             <View style={{
-              width: 60,
-              height: 60,
-              borderRadius: 30,
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
               justifyContent: 'center',
               alignItems: 'center',
               marginBottom: 16,
               borderWidth: 1,
-              borderColor: 'rgba(239, 68, 68, 0.3)',
+              borderColor: 'rgba(239, 68, 68, 0.35)',
             }}>
-              <IconSymbol name="xmark.circle.fill" size={32} color="#ef4444" />
+              <IconSymbol name="xmark.circle.fill" size={34} color="#ef4444" />
             </View>
 
             <Text style={{
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: 'bold',
               color: '#ef4444',
-              marginBottom: 8,
+              marginBottom: 10,
               fontFamily: Fonts.outfit.bold,
               textAlign: 'center',
+              letterSpacing: -0.3,
             }}>
               Upload Failed
             </Text>
 
             <Text style={{
               fontSize: 14,
-              color: isDark ? '#cbd5e1' : '#64748b',
+              color: '#cbd5e1',
               textAlign: 'center',
-              marginBottom: 20,
+              marginBottom: 24,
               fontFamily: Fonts.inter.regular,
+              lineHeight: 20,
+              paddingHorizontal: 8,
             }}>
               Upload failed
             </Text>
 
             <TouchableOpacity
               style={{
-                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0',
-                paddingVertical: 12,
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                paddingVertical: 14,
                 paddingHorizontal: 24,
-                borderRadius: 12,
+                borderRadius: 14,
                 width: '100%',
                 alignItems: 'center'
               }}
               onPress={() => setShowUploadFailedModal(false)}
             >
-              <Text style={{ color: isDark ? '#ffffff' : '#1B211F', fontWeight: 'bold', fontFamily: Fonts.outfit.semiBold }}>
+              <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 15, fontFamily: Fonts.outfit.semiBold }}>
                 Close
               </Text>
             </TouchableOpacity>

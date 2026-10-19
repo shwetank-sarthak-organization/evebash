@@ -1,11 +1,13 @@
 "use client";
 
+import { Camera, ImageUp } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import * as faceapi from "face-api.js";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { getApiUrl } from "@/lib/apiBase";
+import { supabase } from "@/lib/supabase";
 
 export default function FindYouPage() {
     const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -40,9 +42,13 @@ export default function FindYouPage() {
             setProcessing(true);
 
             try {
+                const { data: { session } } = await supabase.auth.getSession();
                 const response = await fetch(getApiUrl("/api/find-you"), {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                    },
                     body: JSON.stringify({
                         selfieBase64: base64Selfie,
                         eventIds: [], // Empty array = search all indexed events
@@ -77,7 +83,7 @@ export default function FindYouPage() {
                 if (matches.length === 0) {
                     setStatusMessage("No matching photos found in database. Try a clearer selfie!");
                 } else {
-                    setStatusMessage(`Found ${matches.length} photo${matches.length === 1 ? "" : "s"} of you! 🎉`);
+                    setStatusMessage(`Found ${matches.length} photo${matches.length === 1 ? "" : "s"} of you!`);
                 }
             } catch (error) {
                 console.error("Matching error:", error);
@@ -115,7 +121,7 @@ export default function FindYouPage() {
                                         : 'border-stone-200 bg-stone-50 text-stone-600 cursor-not-allowed'}
                                 `}
                             >
-                                <span className="text-4xl mb-3">📁</span>
+                                <ImageUp className="mb-3 h-9 w-9" aria-hidden />
                                 <span className="font-serif font-bold text-lg">Upload from Gallery</span>
                                 <span className="text-xs opacity-70 mt-1">Select existing photo</span>
                             </button>
@@ -131,7 +137,7 @@ export default function FindYouPage() {
                                         : 'border-stone-200 bg-stone-50 text-stone-600 cursor-not-allowed'}
                                 `}
                             >
-                                <span className="text-4xl mb-3">📸</span>
+                                <Camera className="mb-3 h-9 w-9" aria-hidden />
                                 <span className="font-serif font-bold text-lg">Take Selfie</span>
                                 <span className="text-xs opacity-70 mt-1">Use camera directly</span>
                             </button>

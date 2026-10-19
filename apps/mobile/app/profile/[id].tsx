@@ -10,7 +10,7 @@ function formatJoinedDate(value: any) {
   if (!value) return 'Not available';
   const date = value?.seconds ? new Date(value.seconds * 1000) : new Date(value);
   if (Number.isNaN(date.getTime())) return 'Not available';
-  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function getPersonaLabel(value: any) {
@@ -87,7 +87,7 @@ export default function PublicProfileScreen() {
     <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={goBack}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" style={styles.backButton} onPress={goBack}>
           <IconSymbol name="chevron.left" size={20} color="#ffffff" />
         </TouchableOpacity>
       </View>
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   title: {
     marginTop: 18,
     color: '#ffffff',
-    fontSize: 26,
+    fontSize: 28,
     fontFamily: 'Outfit_800ExtraBold',
     textAlign: 'center',
   },
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   infoLabel: {
-    color: '#64748b',
+    color: '#9A8B78',
     fontSize: 10,
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',

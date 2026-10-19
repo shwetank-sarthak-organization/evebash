@@ -1,0 +1,2092 @@
+EVEBASH - TEST YOURSELF
+=======================
+Things to check by hand on a real device (website and/or phone app).
+Share this file in chats and keep it in the repo so everyone knows what is tested.
+
+HOW TO USE
+- Status:   TODO | PASS | FAIL | BLOCKED | RETEST
+- Priority: High (launch blocker, test first) | Medium | Low
+- When you test, fill:
+    Done by           tester name
+    Device / browser  e.g. "iPhone 13, iOS 18" or "Chrome 129 on Mac"
+    Build / version   app version (e.g. 1.2.4) or website commit / date deployed
+    Date tested       YYYY-MM-DD
+    Account used      host / guest / logged out + which test account
+    Screenshot        file name or link (required for FAIL)
+    Fix ref           commit or chat that fixed a FAIL (filled by developer)
+    Feedback          what you saw
+- If it FAILS: write exactly what happened + screenshot. Developer fills Fix ref and
+  sets Status to RETEST; tester re-tests and sets PASS or FAIL.
+- New tests go at the bottom with the "Next test number" below, then increase that number by 1.
+  Never reuse a number. Pull staging first so two chats don't take the same number.
+
+Next test number: 88
+
+- Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
+
+Last updated: 2026-10-13
+
+--------------------------------------------------------------------------------
+#1  Find You still works for your own gallery
+Status:    RETEST
+Priority:  High
+Platform:  Website + App
+Brief:     Find You now needs login and gallery access. Check real users are not blocked.
+Detail:    Backend flag FIND_YOU_REQUIRE_ACCESS (commit 5021ce4). Set to false on Railway 2026-10-10
+           until the app build with fba2cdc is out; turn back to true before the final retest.
+How to test:
+  1. Log in. Open a gallery you created that has photos of you.
+  2. Open Find You, take/upload a selfie.
+  3. Expect: your photos are found. NOT "no access" / "log in" / error.
+  4. Repeat on a gallery you joined as a guest (not created).
+Done by:   Sarthak
+Device / browser: Chrome (website)
+Build / version: website staging after fba2cdc
+Date tested: 2026-10-10
+Account used: host (own gallery photo_check)
+Screenshot / recording:
+Fix ref:   fba2cdc (2026-10-10) website + app now send the login token. App needs a new build.
+Feedback:  2026-10-10 Sarthak, website: "Failed to search: 401". Every logged-in search failed.
+           2026-10-10 Sarthak, website after fix: PASS, photos found. App not tested yet (needs new build, then
+           turn FIND_YOU_REQUIRE_ACCESS back to true and retest website + app).
+
+--------------------------------------------------------------------------------
+#2  Find You asks logged-out visitors to log in
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Logged-out users must not use Find You.
+Detail:    Logged out, the Find You / partners pages should show a login prompt.
+How to test:
+  1. Log out (or use a private/incognito window).
+  2. Open a gallery link, tap Find You.
+  3. Expect: "log in" prompt, no search runs.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#3  Public gallery link - logged out = view only
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Anyone with link/QR of a PUBLIC gallery can view previews, nothing else.
+Detail:    No download, like, comment or Find You while logged out.
+How to test:
+  1. Make one test gallery public (host settings). Copy its link / QR.
+  2. Open the link logged out (incognito on web).
+  3. Expect: photos and videos visible and playable.
+  4. Expect: no download, like, comment buttons work (they ask to log in or are hidden).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#4  Public gallery link - logged in = joins at once
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     A logged-in user opening a public gallery link joins immediately.
+How to test:
+  1. With a second account (not the host), log in and open the public gallery link.
+  2. Expect: gallery opens straight away, you can like, comment, download.
+  3. Host side: the user appears in the guest list.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#5  Private gallery - request and host approval
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Private gallery needs host approval. Rejection is not final.
+How to test:
+  1. Second account opens a PRIVATE gallery link -> "Request access" screen.
+  2. Tap Request. Expect: "waiting for approval".
+  3. Host: notification / request appears. Approve -> guest can now open the gallery.
+  4. Repeat with a new account, host REJECTS -> guest sees the normal Request screen
+     again and can ask again (goes back to waiting).
+  5. Logged out on a private link: expect "log in", no photos visible.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#6  Join with join code
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App (dashboard)
+Brief:     Joining by typing the gallery code still works.
+How to test:
+  1. Second account, dashboard -> Join with code -> enter a public gallery code.
+  2. Expect: joined at once. With a private gallery code: request sent, waits for host.
+  3. Wrong code: clear "not found" message.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#7  Host view of own gallery unchanged
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Host can still do everything on their gallery.
+How to test:
+  1. As host open your gallery: upload, delete photo, edit settings, sub-galleries,
+     guest list, approve requests, comments, likes, favourites (Home tab).
+  2. Expect: nothing missing or broken compared to before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#8  Guest admin - can manage, cannot delete gallery
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     A guest made admin manages the gallery but can't delete it.
+How to test:
+  1. Host makes a guest an admin (guest list -> admin).
+  2. As that guest: approve requests, upload, manage photos -> should work.
+  3. Try deleting the gallery -> expect: not allowed / option hidden.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#9  Delete gallery (host)
+Status:    PASS
+Priority:  High
+Platform:  Website + App
+Brief:     Deleting a gallery works (it used to give a 400 error).
+How to test:
+  1. Create a throwaway gallery with 2-3 photos. Delete it.
+  2. Expect: deleted with no error, gone from dashboard, link now shows "not found".
+Done by:   Sarthak
+Device / browser: Chrome (website)
+Build / version:
+Date tested: 2026-10-10
+Account used: host
+Screenshot / recording:
+Fix ref:
+Feedback:  Website: deleted with no error (photo-check-e9c0, 27-sep-b4fd). Console shows a harmless
+           404 for rpc/can_manage_event_visibility from the Host page visibility switch; that function
+           arrives with lockdown part 2 (#21). App not tested yet.
+
+--------------------------------------------------------------------------------
+#10 Likes and comments show names
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Names/avatars on likes and comments still show.
+How to test:
+  1. Logged in, like and comment on a photo with two accounts.
+  2. Expect: correct names and pictures on both, on web and app.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#11 Chat opens and sends
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Chat screen was broken by an ambiguous query; fixed in 982237b.
+How to test:
+  1. Open chats, open a conversation, send a message both ways.
+  2. Expect: list loads with names, messages send and arrive.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#12 Sample gallery opens logged out
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     The sample "Wedding" gallery is read-only for anyone.
+How to test:
+  1. Logged out, open the sample gallery from the homepage / app.
+  2. Expect: opens, photos visible, no like/comment/download.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#13 Sign-up username
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Sign-up still picks a free username.
+How to test:
+  1. Create a new test account (use a name that probably exists, e.g. "Test User").
+  2. Expect: sign-up finishes, no "username taken" loop or error.
+Done by:   Sarthak
+Device / browser: Pixel 8 (physical), Android app
+Build / version: app 1.2.4 (25) EAS 253acefa, staging c2bdb76
+Date tested: 2026-10-12
+Account used: brand-new Google account (Continue with Google)
+Screenshot / recording:
+Fix ref:
+Feedback:  2026-10-12 Sarthak, app: partial. Sign-up finished with no error or "username taken" loop, and the name came
+           from Google, but Profile shows Username "not set": no username is saved at sign-up (issue #61). Website
+           not tested yet.
+
+--------------------------------------------------------------------------------
+#14 Host guest panel shows guest details
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Guest list shows names/photos of joined guests.
+How to test:
+  1. Host opens guest list of a gallery with 2+ guests.
+  2. Expect: names and avatars shown, not blank / "Unknown".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#15 Photo upload processing
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Uploaded photos get thumbnails and faces indexed.
+How to test:
+  1. Upload 20-50 photos.
+  2. Expect: all show previews within a few minutes, none stuck "processing".
+  3. Find You on that gallery finds the people in them.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#16 Video upload - short and long
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Videos process once and play.
+How to test:
+  1. Upload a short video (<1 min) and a long one (10+ min).
+  2. Expect: both become playable (long can take ~5 min), no duplicate copies,
+     no "failed".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#17 Refresh during web upload
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     Refreshing mid-upload must not create broken/duplicate files.
+How to test:
+  1. Start uploading a large video on the website, refresh the page halfway.
+  2. Upload it again.
+  3. Expect: no console error spam, one clean copy in the gallery.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#18 Move photos between galleries
+Status:    RETEST
+Priority:  Medium
+Platform:  Website + App
+Brief:     Move photos/videos to another gallery of the same event. Website: Galleries > Select > Move to...
+           (or a photo's or video's action menu). App: event admin view > Select, or a photo's/video's actions.
+How to test:
+  1. Move 2 photos from one gallery to a sub-gallery (website), then 1 video (app).
+  2. Expect: they move, show in the new place, gone from the old one.
+  3. Expect: likes and comments are still on the moved photo; Find You still finds it.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   0cd1faf; migration 20261010000000 applied 2026-10-10 (issue #22)
+Feedback:
+
+--------------------------------------------------------------------------------
+#19 Profile storage card shows events and EB Vault
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Events and EB Vault share one plan storage limit. Profile shows the total plus each part.
+How to test:
+  1. Open Profile (website /profile, and the app's Profile tab).
+  2. Expect: "X of <plan> used", a two-colour bar, Event Storage and Vault Storage rows, and space left.
+  3. Upload a file to EB Vault (test #20), reopen Profile: Vault Storage and the total go up.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#20 EB Vault - upload files and a folder
+Status:    TODO
+Priority:  High
+Platform:  Website (desktop and phone browser)
+Brief:     /vault is private personal storage. Uploads go straight to storage with progress.
+How to test:
+  1. Profile > "EB Vault - Your personal storage" (or open /vault).
+  2. + New > Upload files: pick 3 files incl. one over 100 MB. Expect a progress bar per file, then all listed.
+  3. + New > Upload folder: pick a folder with a subfolder. Expect the same folder tree with the files inside.
+  4. Drag a file onto the page (desktop). Expect it uploads.
+  5. Cancel one upload midway. Expect "Cancelled" and the file is not listed.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#21 EB Vault - previews (especially PDF on phones)
+Status:    TODO
+Priority:  High
+Platform:  Website (Android Chrome, iPhone Safari, desktop)
+Brief:     Click a file to preview it. PDFs use pdf.js so they work on Android Chrome.
+How to test:
+  1. Upload and open: a JPG/PNG, an MP4, a multi-page PDF, a TXT or CSV, and a ZIP or DOCX.
+  2. Expect: image shown; video plays; PDF pages appear (with "Show more pages" on long PDFs);
+     text shown as plain text; ZIP/DOCX shows a file info card with Download.
+  3. Download from the preview: the file saves with its correct name.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#22 EB Vault - organise: folders, rename, move, copy, star, search, recent
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+How to test:
+  1. + New > New folder. Rename it. Move a file into it (file menu > Move).
+  2. Try to move a folder into its own subfolder. Expect: not allowed.
+  3. Make a copy of a file. Expect "<name> (1)" and storage goes up by its size.
+  4. Star a file: it appears under Starred. Recent shows recently changed files.
+  5. Search part of a file name: it is found. Another account's files never appear.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#23 EB Vault - Trash, restore and delete forever
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+How to test:
+  1. Move a file and a folder (with files) to Trash. Expect them in Trash with a "Gone forever on" date.
+  2. Storage used does NOT go down yet (Trash still counts).
+  3. Restore the folder: it returns with its files.
+  4. Delete forever one file, then Empty Trash. Expect storage used goes down.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#24 EB Vault - privacy and storage limits
+Status:    TODO
+Priority:  High
+Platform:  Website
+How to test:
+  1. With account A upload a file. Log in as account B: A's file is not in My Files, Recent, Starred or Search.
+  2. On a Free account: upload a file over 200 MB. Expect "Files on your plan can be up to 200 MB each."
+  3. On a Free account near 1 GB (events + Vault): upload something that doesn't fit.
+     Expect the storage-limit message and no upload.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#25 EB Vault - long video keeps playing after a pause
+Status:    TODO
+Priority:  Medium
+Platform:  Website (phone browser and desktop)
+Brief:     Video previews now use 2-hour links and refresh themselves if a link expires (commit d504769).
+How to test:
+  1. Upload an MP4 of at least 15 minutes to EB Vault and open its preview.
+  2. Play for a minute, pause for 10+ minutes, then press play.
+  3. Expect: it continues from the same moment. No error, no restart from the beginning.
+  4. Skip near the end of the video: it keeps playing.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#26 App - EB Vault opens from Profile and uploads work
+Status:    TODO
+Priority:  High
+Platform:  App (iPhone + Android) - needs a NEW staging build (new native packages)
+Brief:     EB Vault in the app: Profile > EB Vault (under Usage & Plan).
+How to test:
+  1. Open Profile, tap "EB Vault - Your personal storage". Expect the Vault screen with the storage bar.
+  2. Tap + > Upload photos & videos: pick 3 photos and a video over 100 MB.
+     Expect a progress bar per file ("Keep the app open"), then all files listed.
+  3. Tap + > Upload files: pick a PDF and a document from Files/Drive. Expect them listed.
+  4. Tap + > New folder, open it, upload a file inside it. Back arrow returns to the parent.
+  5. Cancel one upload midway: shows "Cancelled", file not listed.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#27 App - EB Vault previews (PDF in-app on Android and iPhone)
+Status:    TODO
+Priority:  High
+Platform:  App (iPhone + Android)
+How to test:
+  1. Tap a photo: shown full screen. Tap an MP4: plays in the app; pause 10+ min then play: continues.
+  2. Tap a multi-page PDF: pages appear inside the app (not a download), "Show more pages" on long PDFs.
+     Check this on Android especially.
+  3. Tap a TXT/CSV: text shown. Tap a ZIP/DOCX: info card with "Share or save".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#28 App - EB Vault save, share, organise and Trash
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone + Android)
+How to test:
+  1. File ... > Save to Photos (photo and video): appears in the phone's gallery.
+  2. File ... > Share or save to Files: share sheet opens; saving to Files/Drive works.
+  3. Star, Rename, Move (into a folder), Make a copy: all work; Starred and Recent tabs update.
+  4. Move to Trash, then Trash tab > tap item > Restore. Then Delete forever and Empty Trash.
+  5. Files uploaded on the website show up in the app and the other way round.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#29 App: deleting a gallery deletes its sub-galleries
+Status:    TODO
+Priority:  High
+Platform:  App (new build from staging with 06019c8)
+Brief:     Deleting a main gallery in the app now also deletes its sub-galleries (issue #1).
+How to test:
+  1. In the app, create a gallery, add a sub-gallery, upload 2 photos into the sub-gallery.
+  2. Delete the main gallery.
+  3. Expect: no error; the gallery and its sub-gallery are gone from the dashboard and website.
+     The sub-gallery link now shows "not found".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   06019c8 (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#30 App: Find You also searches sub-galleries
+Status:    TODO
+Priority:  Medium
+Platform:  App (new build from staging with 06019c8)
+Brief:     App Find You now includes the sub-galleries, like the website (issue #2).
+How to test:
+  1. Upload a photo of yourself ONLY into a sub-gallery.
+  2. In the app, open the MAIN gallery -> Find You -> selfie.
+  3. Expect: that photo is found.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   06019c8 (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#31 App: sub-gallery covers show
+Status:    TODO
+Priority:  Medium
+Platform:  App (new build from staging with 06019c8)
+Brief:     Sub-gallery cover pictures were blank in the app (broken image address) (issue #3).
+How to test:
+  1. In the app, set a cover picture on a sub-gallery.
+  2. Open the main gallery.
+  3. Expect: the sub-gallery card shows its cover picture.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   06019c8 (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#32 App: "Log in" from a gallery comes back to the gallery
+Status:    TODO
+Priority:  Medium
+Platform:  App (new build from staging with 06019c8)
+Brief:     After logging in from a gallery, you return to it instead of the dashboard (issue #5).
+How to test:
+  1. Log out of the app. Open a private gallery link -> tap "Log in" -> log in.
+  2. Expect: you are back on that gallery (Request access screen, or the gallery if you're a member).
+  3. Repeat with Google sign-in, and from a public gallery's Find You "Log in" button.
+  4. Normal login from the home screen still goes to the dashboard.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   06019c8 (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#33 Save event photos and videos to EB Vault (website)
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     Event owners/admins can save copies of event media into their own EB Vault. The items stay in the event.
+How to test:
+  1. As the event owner: Host > event > Galleries > Select > tick 2 photos and 1 video > "Save to EB Vault".
+  2. Pick a Vault folder (or My Files) > Save. Expect "Saved 3 items to EB Vault."
+  3. Open EB Vault: the 3 files are in that folder with their original names; photos and the MP4 preview fine.
+  4. The items are still in the event gallery. Profile storage: Vault went up by their size.
+  5. Also try a single photo's action menu > "Save to EB Vault", and a video's actions.
+  6. As a guest who is NOT an admin, the option must not work (no Select bar for guests; direct calls are refused).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#34 Save event photos and videos to EB Vault (app)
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone + Android) - needs a build with this change
+How to test:
+  1. Event admin view > Select > tick items > "To Vault" > pick a folder > Save. Expect a "Saved ..." message.
+  2. A photo's action sheet and a video's actions both have "Save to EB Vault".
+  3. Profile > EB Vault: the saved items are there with their original names.
+  4. On a Free account near 1 GB: saving more than fits shows the storage-limit message.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#35 App: share links and QR codes open the EveBash website
+Status:    TODO
+Priority:  High
+Platform:  App (new build from staging with 65efa33)
+Brief:     Share links and QR codes used wedalbum.app (blank page). Now staging builds use
+           staging.evebash.com and production builds www.evebash.com (issue #16).
+How to test:
+  1. In the app, open a gallery -> Share. Open the shared link on another phone/computer.
+     Expect: the gallery on staging.evebash.com opens.
+  2. Show the gallery's QR code; scan it with another phone's camera. Expect: same.
+  3. In the app dashboard -> Join -> scan that QR code. Expect: the gallery opens in the app.
+  4. Scan an OLD printed wedalbum.app QR code (if you have one) with the app scanner: still opens.
+  5. Galleries tab -> Visit website: opens the gallery on staging.evebash.com.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   65efa33 (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#36 EB Network: same "coming soon" page and sign-up form on app and website
+Status:    TODO
+Priority:  Medium
+Platform:  Both (app: JS-only change, any staging build; website: staging.evebash.com/eb-network)
+Brief:     The app's "Vendors" tab is now "EB Network", with the same wording as the website.
+           The website's EB Network page now has the same "List your business" form as the app.
+How to test:
+  1. App: the bottom tab says "EB Network" (shop icon). Open it. Expect: "Coming soon",
+     tagline "Find trusted event vendors, all in one place.", How it works (3 steps),
+     A first look (preview), Why list your business, and the "List your business" form.
+  2. Website: open EB Network from the menu. Expect: the same text and sections, in the same order.
+  3. Website: press "List your business" at the top. Expect: it scrolls to the form.
+  4. Website: fill the form without picking a category -> "Please choose a category."
+  5. Website: submit a real test entry (business name starting "TEST"). Expect: "You're on the list".
+     Then "Register another business" shows the empty form again.
+  6. Check the website page on a phone too: no sideways scrolling, form is easy to fill.
+  7. Tell the team the TEST entry's name so they can remove it from vendor_leads.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#37 Guest gets a push when their request is approved
+Status:    TODO
+Priority:  Medium
+Platform:  Website now; App (new build from staging with 363c5aa)
+Brief:     Approving (or rejecting) a request now sends the guest a phone notification (issue #8).
+How to test:
+  1. Second account on a phone with the app installed and notifications allowed.
+  2. That account requests access to your PRIVATE gallery.
+  3. On the WEBSITE, Host -> Requests -> Approve.
+     Expect: within a few seconds the phone shows "Access Approved! ✨".
+  4. Repeat with Reject: the phone shows "Access Request Update".
+  5. After the new app build: approve from the APP instead; same notification.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   f295f29 + 363c5aa (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#38 Host can still manage guests (approve, permissions, remove)
+Status:    PASS
+Priority:  High
+Platform:  Website
+Brief:     Guest management now checks your real login (security fix, issue #23). Make sure hosts
+           and guest admins aren't blocked.
+How to test:
+  1. As the gallery owner on the website: approve a request, reject one, change a guest's
+     upload/comment/admin switches, remove a guest. Expect: all work, no "log in" or "forbidden".
+  2. Make a guest an admin; log in as that guest admin and approve another request. Expect: works.
+  3. As a normal guest (not admin) you should not see these controls at all.
+Done by:   Sarthak
+Device / browser: Chrome (website)
+Build / version: website staging after fff63a6
+Date tested: 2026-10-11
+Account used: A code4sarthak (owner), B chauhansarthak497 (guest admin, then normal guest), C sarthak.chauhan496
+Screenshot / recording:
+Fix ref:   363c5aa (2026-10-10)
+Feedback:  2026-10-11 all 5 parts pass. Found on the way and fixed: join box cut codes at 6 chars (49af6d1), View Access switch removed (20bc0e8), guest-admin video check 500 (46c4063), removed guest got back in (2b0c1fa), management screen open to non-managers (fff63a6).
+
+--------------------------------------------------------------------------------
+#39 Storage used shows the same number on website and app
+Status:    TODO
+Priority:  Medium
+Platform:  Website now; App (new build from staging with 8acf63a)
+Brief:     Storage is now counted by the server for both (issue #6). The app used to leave out
+           previews/streaming copies (18.19 GB showed as 10.55 GB).
+How to test:
+  1. Same account: website Profile -> storage, and app Profile/Usage -> storage.
+  2. Expect: the same "used" number on both (small rounding differences are fine).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   8acf63a (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#40 Uploads stop at the gallery owner's storage limit (website and app)
+Status:    BLOCKED
+Priority:  High
+Platform:  Website + App (new build from staging with 8acf63a)
+Brief:     The server now refuses gallery uploads that don't fit the OWNER's plan (issue #6).
+           Guests use the host's storage, not their own. Blocked until EVENT_UPLOAD_LIMITS=true
+           is set on Railway (backend).
+How to test (use a FREE test account = 1 GB, with a gallery holding ~0.9 GB):
+  1. As that host, upload a 200 MB+ video on the website.
+     Expect: refused, message at the top "...more storage than your plan has left...".
+  2. Same in the app. Expect: one pop-up "Upload paused" with the same reason; the file
+     shows failed and does NOT keep retrying.
+  3. As a GUEST of that gallery, upload a photo. Expect: "This gallery is out of storage.
+     Ask the host to free up space or upgrade their plan." The guest's own storage is unchanged.
+  4. A small photo that fits still uploads fine.
+  5. Paid host with an expired plan (more than 0 days past end): uploads refused with
+     "Uploads are paused because your plan has expired...".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   8acf63a (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#41 A guest with upload permission can still upload photos (before and after RLS part 2)
+Status:    TODO
+Priority:  High
+Platform:  Website + App (build from staging)
+Brief:     RLS lockdown part 2 (issue #21) lets only gallery managers add photo rows directly.
+           It isn't confirmed whether guest uploads go through the backend or write photo rows
+           themselves, so a guest with upload permission might lose uploads once part 2 is on.
+           Run this now (baseline) and again right after part 2 is applied.
+How to test (host account + a second GUEST account approved in the host's private gallery):
+  1. As the host, give that guest upload permission (Permissions tab).
+  2. As the guest on the website, upload 2 photos and 1 short video.
+     Expect: all finish, and show in the gallery for both guest and host.
+  3. Same as the guest in the app.
+  4. Take upload permission away and try again. Expect: the guest can't upload.
+  5. Note in Feedback whether this run was BEFORE or AFTER part 2.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#42 Dashboard has no chat bubble; navbar links are easy to read (website)
+Status:    TODO
+Priority:  Low
+Platform:  Website (staging.evebash.com)
+Brief:     The mock "EveBash Messages" chat bubble was removed from the Dashboard (issue #27), and
+           navbar links now use Inter instead of the decorative brand font (issue #34).
+How to test:
+  1. Log in on the website and open the Dashboard.
+     Expect: no round amber chat button at the bottom right; the rest of the page works as before
+     (event cards, Join with code, QR, shared galleries).
+  2. Look at the navbar on desktop (wide window) and in the phone menu (narrow window, tap the menu icon),
+     both logged out and logged in.
+     Expect: links are in the plain Inter font and easy to read; the "EveBash" logo text still uses
+     the brand font; the active page is underlined (desktop) or highlighted (phone menu).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#43 Guest panel has no "View Access" switch; removing a guest still works (website and app)
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website now; app needs a new build from staging)
+Brief:     The View Access switch was really "reject this guest" (turning it off kicked the guest out
+           and hid them from the list; on public galleries they got straight back in). It was removed.
+           Kicking someone out is done with Delete (website) / the remove button (app).
+How to test:
+  1. As the host, open a gallery → Permissions → tap an approved guest.
+     Expect: only Admin Access, Allow Photo Uploads and Allow Comments. No View Access.
+  2. Turn each of those three off and on. Expect: saves, still shows after a refresh.
+  3. Remove the guest (website: Delete on their row; app: the remove button on their card).
+     Expect: they disappear from the list; on a private gallery they see "Request access" again.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#44 Guest admin can upload videos; normal guests can't (website)
+Status:    TODO
+Priority:  Medium
+Platform:  Website (app needs no change; it uses the same backend)
+Brief:     The "may this person upload videos?" check crashed (500) for guest admins: it looked up a
+           guests.email column that doesn't exist. It now matches guest admins by their login.
+How to test:
+  1. As a guest admin (Admin Access on), open the gallery's upload page with DevTools open.
+     Expect: no red 500 on video-upload-permission; uploading a short video works.
+  2. As a normal guest with Allow Photo Uploads on, try to upload a video.
+     Expect: refused with "videos are reserved for the owner and admins"; photos still upload.
+  Note: a red 404 for can_manage_event_visibility on the guest admin page is expected until RLS
+  lockdown part 2 (#21); it only means guest admins don't get the public/private switch yet.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#45 A removed guest has to ask again; the list only changes when the change is saved (website)
+Status:    TODO
+Priority:  High
+Platform:  Website
+Brief:     Delete (and Deny) used to drop the guest from the Permissions list even when nothing was
+           deleted (Cancel on "Are you sure?", or a failed request). The guest kept their approved
+           row, so asking again let them straight back in. Now the row only goes when it's really deleted.
+How to test:
+  1. As the host on a PRIVATE gallery, open Permissions and click Delete on an approved guest, then
+     press Cancel. Expect: the guest stays in the list.
+  2. Click Delete again and press OK. Expect: "Guest removed successfully" and the guest disappears;
+     refresh the page: still gone.
+  3. As that guest, open the gallery link and request access.
+     Expect: "Request sent" (pending), NOT straight in. The host sees the request under Requests.
+  4. Repeat 2–3 in the app (host removes with the trash icon). Expect: the same.
+Done by:   Sarthak
+Device / browser: Chrome (website)
+Build / version:
+Date tested: 2026-10-11
+Account used: A code4sarthak (owner), B chauhansarthak497
+Screenshot / recording:
+Fix ref:
+Feedback:  2026-10-11 website steps 1-3 pass (done as test #38 part 5). Still to do: step 4 in the app (new build).
+
+#46 New guests start with uploads and comments off (website and app)
+Status:    TODO
+Priority:  Medium
+Platform:  Both (app approve needs a new build; the database part is live)
+Brief:     Joining or being approved no longer turns on Allow Photo Uploads or Allow Comments. The host
+           switches them on per guest. Turning Admin on still turns both on.
+How to test:
+  1. As a new guest, request a PRIVATE gallery; as the host approve on the website. Open that guest
+     in Permissions, refresh. Expect: Uploads off, Comments off, Admin off.
+  2. Same, but approve in the app (new build). Expect: the same.
+  3. As a new guest, open a PUBLIC gallery link (joins at once). Expect: Uploads and Comments off.
+  4. Turn Admin on for a guest. Expect: Uploads and Comments switch on with it.
+  Tests #47 and #48 check what the switches then allow.
+Done by:   Sarthak
+Device / browser: Chrome (website)
+Build / version: website staging after fff63a6
+Date tested: 2026-10-11
+Account used: A code4sarthak (owner), C sarthak.chauhan496 (guest)
+Screenshot / recording:
+Fix ref:
+Feedback:  2026-10-11 website pass (steps 1, 3, 4). Still to do: step 2 (approve in the app, new build).
+
+#47 Guests can add photos only when the host allows it (website and app)
+Status:    TODO
+Priority:  High
+Platform:  Both (website now; app needs a new build from staging; the server check is live)
+Brief:     A guest whose host turned on "Allow Photo Uploads" gets an "Add photos" button in the gallery.
+           Everyone else gets no button, and the server refuses their uploads (issue #40: before, anyone
+           who knew a gallery's id could upload, even logged out). Videos stay owner/admin only.
+How to test:
+  1. As the host, open a gallery → Permissions → a guest → turn on Allow Photo Uploads.
+  2. As that guest on the website, open the gallery (inside an album if it has albums).
+     Expect: an "Add photos" button; pick 2 photos; they upload and appear (previews may take a minute).
+     On the gallery's Home tab with albums: "Open an album to add your photos."
+  3. Same in the app: the member view shows ADD PHOTOS; a sub-gallery opened from a link shows a
+     floating ADD PHOTOS button. Photos upload and show up.
+  4. Turn the switch off and reload as the guest. Expect: no button on website or app.
+  5. As the host, upload photos and a video from the dashboard/app as usual. Expect: still works.
+  6. Guest admin: uploads photos and videos as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#48 Everyone can read comments; only allowed guests can write them (website and app)
+Status:    TODO
+Priority:  High
+Platform:  Both (website now; app needs a new build from staging)
+Brief:     The comment box shows only for the host, admins and guests whose host turned on
+           "Allow Comments". Other members still see all comments, with "The host hasn't turned on
+           comments for you." where the box would be. Likes are unchanged.
+How to test:
+  1. As the host, comment on a photo. Expect: works as before.
+  2. As a guest with Allow Comments OFF, open the same photo → comments.
+     Expect: the host's comment is visible; no text box, no Reply buttons; the note is shown.
+  3. Turn Allow Comments ON for that guest; reopen the photo. Expect: the box and Reply appear;
+     posting works.
+  4. Repeat 2–3 in the app (new build).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#49 Permissions tab shows guests as a table with switches (website)
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     Host dashboard → event → Permissions now lists guests in a table: Member, Role, then
+           View / Admin / Upload / Comment switches, then Actions. Same gold/dark colours and fonts.
+           Pending requests have their own table with Approve / Deny. Admins and members share one
+           "Members" table. On screens under 1280px wide each guest is a card with the same switches.
+How to test:
+  1. As the host on a computer (window 1280px or wider), open an event with pending and approved
+     guests → Permissions. Expect: two tables lined up as described; nothing cut off or scrolling sideways.
+  2. Turn Upload on for a member. Expect: "Guest permissions updated."; reload, still on.
+  3. Turn Admin on for a member. Expect: role changes to Admin, Upload and Comment show on and greyed
+     (locked), and the row stays in place.
+  4. Pending guest: Approve → moves to Members. Another: Deny → disappears.
+  5. Trash icon → confirm → guest is removed. Cancel on the confirm → guest stays.
+  6. Click a guest's name. Expect: the guest details panel opens as before.
+  7. Repeat 2–5 on a phone. Expect: cards with labelled switches, no sideways scrolling, names not cut short.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#50 Only people who manage a gallery can open its management screen (website)
+Status:    PASS
+Priority:  High
+Platform:  Website
+Brief:     The host page opened any gallery's management screen from its link without checking access,
+           and kept showing controls to a guest admin whose Admin switch had been turned off (the server
+           refused their changes: 403 in the console). Now the screen checks with the database when it
+           opens and after any refused change, and sends non-managers back to their dashboard.
+How to test:
+  1. As guest B with Admin on, open the gallery's management screen (Host → Shared → the gallery).
+  2. As the host, turn B's Admin off. As B (page still open), flip a guest switch.
+     Expect: "You don't manage this gallery." and B is taken back to /host; the gallery is no longer
+     under Shared.
+  3. As B, paste the management link (/host?view=manage&level=event-details&eventId=<id>).
+     Expect: sent back to /host with the same message.
+  4. As the owner and as a guest admin, open the screen. Expect: works as before.
+Done by:   Sarthak
+Device / browser: Chrome (website)
+Build / version: website staging after fff63a6
+Date tested: 2026-10-11
+Account used: A code4sarthak (owner), B chauhansarthak497
+Screenshot / recording:
+Fix ref:   fff63a6 (2026-10-11)
+Feedback:  2026-10-11 steps 3-4 pass (done as test #38 part 4: B sent back from the pasted link; owner fine). Step 2 pass too: B was sent back to /host after Admin was turned off with the page open. All steps pass.
+
+#51 Android app with the new package com.evebash.app: sign-in and push still work
+Status:    TODO
+Priority:  High
+Platform:  App (Android)
+Brief:     The Android package changed from com.anonymous.evebash to com.evebash.app (#41). The new
+           build installs as a separate app next to the old one. Google sign-in and push depend on the
+           new Firebase Android app, google-services.json and SHA-1s (#18), so test only once those are in.
+How to test:
+  1. Uninstall the old staging app (otherwise you'll have two "EveBash" icons and pushes may go to both).
+  2. Install the new staging build. Expect: it opens normally; Settings → Apps shows com.evebash.app.
+  3. Log in with Google. Expect: signed in to your existing account (same galleries), no
+     DEVELOPER_ERROR or "something went wrong".
+  4. Log out, log in with email and password. Expect: works as before.
+  5. Allow notifications. From another account, trigger a push (e.g. upload a video to a shared
+     gallery and wait for it to finish). Expect: the push arrives on the new app.
+  6. Open an evebash:// link (e.g. a shared gallery QR). Expect: opens in the new app.
+Done by:   Sarthak
+Device / browser: Pixel 8 (physical), Android app
+Build / version: app 1.2.4 (25) EAS 253acefa, staging c2bdb76
+Date tested: 2026-10-12
+Account used: new Google account; code4sarthak (Google); an existing email/password account; chauhansarthak497 (uploader)
+Screenshot / recording:
+Fix ref:
+Feedback:  2026-10-12 partial, Pixel 8 (Sarthak): step 1 old app uninstalled; step 2 pass (one EveBash app, 1.2.4).
+           Step 3 pass: Google sign-in works with a brand-new account (no DEVELOPER_ERROR) and with code4sarthak
+           (existing galleries show). Found: after logout, "Continue with Google" signed straight back in to the last
+           Google account with no picker (#62, fixed in 96bc72b, needs the next build; test #66); the new account has
+           no username (#61). Step 4 pass: email/password login to an existing account, its data shows. Step 5 fail but
+           not this build: chauhansarthak497 (guest admin) uploaded a video to code4sarthak's gallery, it processed and
+           plays, no push arrived. Cause is #58 (profiles has no notification_preferences column, so host upload pushes
+           never send). Still to do: step 5 with a push that works today (e.g. approval push, test #37), and step 6.
+           2026-10-12 partial, emulator only (Sarthak): local release build com.evebash.app 1.2.4 (debug key) on
+           a Pixel emulator with Google Play; old app uninstalled first. Step 3 Google sign-in works. Step 5: the first
+           approval push didn't arrive (EAS held a deleted FCM key); after the new key was assigned, a direct Expo test
+           push arrived. Real approval push, step 6 and a real phone still to do, so Status stays TODO.
+
+#52 iOS app with the new bundle ID com.evebash.app: Apple and Google sign-in and push work
+Status:    TODO
+Priority:  High
+Platform:  App (iOS)
+Brief:     The iOS bundle ID changed from com.anonymous.wed-albummobile to com.evebash.app (#17), and the
+           build now asks for the Sign in with Apple entitlement (ios.usesAppleSignIn). Needs the App ID
+           with Sign in with Apple + Push in Apple Developer, and com.evebash.app in Supabase's Apple
+           Client IDs. Google sign-in needs the iOS OAuth client, the iosUrlScheme in app.json and
+           EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID in EAS (#42).
+How to test:
+  1. Remove any older EveBash dev build from the phone. Install the new build (TestFlight or internal).
+  2. Log in with Apple. Expect: signed in; an account that used Apple before gets the same account
+     back (same galleries), not a new empty one.
+  3. Log out, log in with Google. Expect: the Google sheet opens, you come back to the app signed in
+     to your existing account. NOT a crash, "missing URL scheme" or a Supabase nonce error.
+  4. Log out, log in with email and password. Expect: works as before.
+  5. Allow notifications. Trigger a push from another account (as in #51 step 5). Expect: it arrives.
+  6. Open an evebash:// link (shared gallery QR). Expect: opens in the app.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:  2026-10-12 partial, iOS Simulator only (Sarthak): local Release build com.evebash.app on an iPhone 17 Pro
+           simulator (iOS 26.3). Step 3 Google sign-in works (after #50 pod fix and #51 Supabase Skip nonce checks).
+           Apple sign-in, push, link and a real iPhone still to do, so Status stays TODO.
+
+#53 Website SEO: link previews, 404 page and sample gallery page
+Status:    TODO
+Priority:  Medium
+Platform:  Website (staging.evebash.com; repeat steps 1-3 on www.evebash.com after the merge to main)
+Brief:     Sample gallery pages have their own title and cover preview, unknown addresses show a
+           branded 404 page, and staging is hidden from Google.
+How to test:
+  1. Paste https://staging.evebash.com/sample-galleries/wedding-fdd8 into a WhatsApp chat (don't send).
+     Expect: preview with the gallery's cover photo and "Wedding sample gallery · EveBash".
+  2. Paste https://staging.evebash.com/pricing into WhatsApp. Expect: the EveBash preview image and "Pricing · EveBash".
+  3. Open https://staging.evebash.com/this-page-does-not-exist on a phone and a computer.
+     Expect: EB logo, "We couldn't find that page", buttons "Go to the homepage" and "Find your photos",
+     links Sample galleries / Pricing / Contact us, all working. No sideways scrolling on the phone.
+  4. Open the sample gallery from Sample Galleries. Expect: cover, title and description show, then the albums load
+     and each album opens its gallery.
+  5. After the merge to main: paste https://www.evebash.com into https://search.google.com/test/rich-results.
+     Expect: FAQ and Organization detected, no errors. Do the same for /pricing (Software App detected).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#54 Typing in bottom sheets: the keyboard doesn't make the sheet flicker or cover the text box
+Status:    TODO
+Priority:  High
+Platform:  App (Android and iOS)
+Brief:     The shared bottom sheet's keyboard handling changed on Android (issue #45): it lifts the sheet
+           by the keyboard height instead of resizing it, which flickered non-stop with a floating
+           keyboard. iOS code is unchanged but check it once too.
+How to test:
+  1. Dashboard > Join Event. Tap the Join ID box. Expect: the keyboard opens and the sheet sits just above
+     it, still and fully visible (title, box, Join with Code, Scan QR Code). No jumping, no tab bar
+     showing under the sheet. Type a code: the text shows as you type.
+  2. Close the keyboard (back / swipe down). Expect: the sheet drops back to the bottom of the screen.
+  3. Close the sheet while the keyboard is open, then open Join Event again. Expect: the sheet opens at
+     the bottom, not floating halfway up.
+  4. Host > create a new event (New Event sheet). Tap Event Name and type. Expect: same as step 1.
+  5. Android only, if you have one: a phone or tablet with a Bluetooth keyboard, or the emulator with
+     its hardware keyboard on (only Gboard's small toolbar shows). Expect: the sheet doesn't move.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#55 App Permissions screen: hosts see every guest and request, guest admins keep their controls
+Status:    TODO
+Priority:  High
+Platform:  App (Android and iOS; needs a staging build with the #46 fix)
+Brief:     The event's Permissions tab now asks the server for this gallery's guests only, instead of
+           loading the whole guests table (all hosts) and filtering on the phone, which was cut off at
+           1,000 rows (issue #46). The lists and who counts as a guest admin must not change.
+Detail:    apps/mobile/lib/database.ts getEventLogs. Gallery > Requests is unchanged but is checked here too.
+How to test:
+  Needs: a host account with a PRIVATE gallery that already has approved guests, and two other accounts (A, B).
+  1. Accounts A and B: Join Event with the gallery's join code (or open its link) and request access.
+  2. Host, in the app: open the gallery > Permissions. Expect: every guest the website shows for this gallery
+     (staging.evebash.com host page > Permissions), A and B under pending, and the badge on the Permissions
+     tab matches the pending count. Guests of the host's other galleries do NOT show here.
+  3. Host: Gallery tab > Requests. Expect: A's and B's requests show, as before.
+  4. Host: approve A and turn on Admin Access for A. Leave B pending.
+  5. Account A: open the gallery in the app. Expect: the admin view (Galleries and Permissions tabs) with the
+     same guest list as the host, B under pending. Approve B (leave Admin Access off).
+  6. Account B: open the gallery in the app. Expect: the normal guest view; no Permissions tab or admin controls.
+  7. Host: pull to refresh on Permissions. Expect: A (with the shield icon) and B under approved, nothing missing.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#56 Joined galleries still show everywhere (guests, guest admins, users with none)
+Status:    TODO
+Priority:  High
+Platform:  Website + App (Android and iOS; the app needs a staging build with the #52 fix)
+Brief:     The lists of galleries you joined now ask the server for your own guests rows only, instead of
+           loading every approved guests row (all hosts) and keeping yours on the device, which was cut off
+           at 1,000 rows (issue #52). The galleries shown must not change.
+Detail:    getUserVisits / getApprovedSharedEventsForUser in apps/mobile/lib/database.ts and src/lib/database.ts.
+           Test data on 2026-10-12: newone@email.com is a guest admin of "event_check_";
+           chauhansarthak497@gmail.com joined "10 oct reject" and "11 october 2026";
+           sarthak.chauhan496@gmail.com joined "11 october 2026" and "Check push".
+How to test:
+  Needs: a guest account that joined at least two galleries of other hosts (approved), a guest admin account
+  (a host turned on Admin Access for it), and an account that joined nothing.
+  1. Guest account, app: Dashboard. Expect: every gallery you joined shows, next to your own galleries.
+  2. Same account, app: Profile (joined count) and Your Events. Expect: the same joined galleries on each.
+     Gallery tab > Shared lists only galleries where you are a guest admin (unchanged): empty for this account.
+  3. Same account, website (staging.evebash.com): Dashboard and Profile. Expect: the same galleries as the app.
+  4. Guest admin account, website: Host page (main view). Expect: the admin gallery is listed with your own
+     galleries. App: Gallery tab > Shared. Expect: the admin gallery shows there. Dashboard, Profile and Your
+     Events (app) and Dashboard (website) show it too.
+  5. As a host, approve a new request from the guest account for another private gallery. Guest: pull to refresh
+     (app) / reload (website). Expect: the new gallery appears.
+  6. Account that joined nothing: Dashboard, Profile and Your Events (app) and Dashboard / Profile (website).
+     Expect: no joined galleries, no error, only the account's own galleries if it has any.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#57 Deny a join request: one Deny button, the person is told, and can ask again
+Status:    TODO
+Priority:  High
+Platform:  Both (website: staging.evebash.com; app: JS-only change, any staging build)
+Brief:     Pending requests now have only Approve and Deny (no bin button). Deny asks to confirm, sends the
+           person a push, erases the request, and lets them ask again. Members keep the bin (Remove).
+How to test:
+  1. Account B: Join Event with the code of a private gallery owned by account A (e.g. BIJA-0D8C).
+  2. Website, as A: Host -> the event -> Permissions. Pending row shows Approve and Deny only (no bin).
+     Members rows still show the bin.
+  3. Press Deny. Expect: "Deny <name>'s request? They'll be notified, and they can ask again later."
+     Cancel -> nothing changes. Deny -> "Request denied." and the row disappears.
+  4. B's phone (app installed, logged in, push allowed): "Access request not approved" /
+     "The host didn't approve your request to join "<gallery>". You can ask again later."
+  5. B joins again with the same code: "Request sent", and a new pending row appears for A.
+  6. App, as A: Gallery tab -> Requests, and Event -> Permissions: the red X and the request popup's
+     "Deny" show the same confirmation and behave the same way.
+  7. Host overview on the website (requests grouped by event): its red X behaves the same way.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#58 Website gallery: like, comment and download sit on the photo
+Status:    TODO
+Priority:  Medium
+Platform:  Website (staging.evebash.com), computer and phone
+Brief:     The white strip under each photo is gone. The icons sit on the bottom of the photo over a soft fade:
+           on hover with a mouse, always on phones and tablets.
+How to test:
+  1. Computer, logged in as a member or host: open a gallery. Expect: photos with no strip underneath.
+  2. Point at a photo: a dark fade with white heart, comment and download appears at its bottom.
+  3. A photo with likes or comments shows a small "heart 2  comment 1" pill when not pointed at;
+     a photo you liked shows a red heart (gold in the Royal Emerald design).
+  4. Heart: likes/unlikes without opening the photo. Download: downloads the original.
+     Comment icon or the photo itself: opens the photo viewer.
+  5. Phone browser: the icons are always visible on every photo and are easy to tap.
+  6. Check 2-3 gallery designs (e.g. Royal Emerald and two others): icons readable on bright photos.
+  7. Logged out on a public gallery: no icons, as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#59 Host's guest details panel shows the same details as before
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website: staging.evebash.com; app: needs a staging build with the #53 fix)
+Brief:     For old guest rows (joined by phone or email before accounts were linked), the guest panel now asks the
+           server for that one profile. The app used to download every user's profile and match on the phone
+           (issue #53); the website now uses the same matching as the app. What the panel shows must not change.
+Detail:    getGuestProfile in apps/mobile/lib/database.ts and src/lib/database.ts (commit af711b8). Only one old
+           row can still be opened: "Shwetank Chauhan Another" in the Wedding gallery (wedding-fdd8). It matches
+           no profile today, so its panel shows the row's own name and phone. Guests who joined with an account
+           still get their name and photo as before (profile_cards).
+How to test:
+  Needs: the Wedding gallery's owner account (or a platform admin), and a gallery of yours where someone joined
+  or asked to join with their account.
+  1. Website, as Wedding's owner: Host -> Wedding -> Permissions -> "View guest details" on
+     "Shwetank Chauhan Another". Expect: the panel shows that name and phone as before, no error.
+     DevTools > Network: the "profiles" request has an or= filter (email.imatch / phone.match) and returns no
+     more than one row. There is no "profiles" request without a filter.
+  2. App, same account: Wedding -> Permissions -> tap the same guest. Expect: the same details as before, no error.
+  3. Website and app: open the details of a guest who joined with an account. Expect: name and photo as before.
+  4. App: Gallery tab -> Requests -> tap a pending request, and Event -> Permissions -> a pending request.
+     Expect: the popup shows the person's name and photo as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#60 App tabs work the same after the hidden Social tab was removed
+Status:    TODO
+Priority:  Low
+Platform:  App (Android and iOS; needs a staging build with the #54 change)
+Brief:     The hidden Social screen (no button led to it) and its code were deleted (issue #54). Nothing visible
+           should change.
+How to test:
+  1. Open the app logged out, then log in. Expect: no error or red/yellow warning about a missing "social" route.
+  2. Expect: the bottom tab bar has the same tabs, in the same order, as the previous build.
+  3. Tap every tab and open a gallery. Expect: each opens as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#61 Event Partners is hidden until Phase 2 (website and app)
+Status:    TODO
+Priority:  Low
+Platform:  Both (website: staging.evebash.com; app: JS-only change, any staging build)
+Brief:     Event Partners comes with EB Business and EB Network in Phase 2, so it's hidden everywhere for now.
+How to test:
+  1. Website, logged in: open a gallery from the Dashboard. The menu shows Home, Collections, Find You and
+     Download All, with no Event Partners.
+  2. Website: open <gallery link>/event-partners directly. Expect: you land on the gallery's main page.
+  3. Website, Host -> an event: tabs are Galleries, Permissions and Design (no Partners), in one even row.
+  4. App, as a guest: open a gallery. No Partners tab in the top menu.
+  5. App, as the host: open the event. Tabs are Galleries, Permissions and Design (no Partners).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#62 Host gets "New access request" when someone asks to join a private gallery
+Status:    TODO
+Priority:  High
+Platform:  Both (backend fix on staging; any app build with push, website staging.evebash.com)
+Brief:     The access-request push never reached the host (issue #47): the server looked up a profile column
+           that doesn't exist and gave up quietly. Approval and deny pushes (#37, #57) had the same problem.
+How to test:
+  1. Host A: logged in on the app (com.evebash.app), notifications allowed. Owns a PRIVATE gallery
+     (e.g. "Check push", CHEC-DPNUU). If B already joined it, remove B in Permissions first.
+  2. Account B (not a platform admin, not a member), on the WEBSITE: Dashboard -> Join with Code -> the code.
+     Expect: "Request sent", and within a few seconds A's phone shows "New access request 🔔" /
+     "<B's name> is asking to join "<gallery>"." Tapping it opens the app.
+  3. Same from the APP as B: Join Event with the code of another private gallery of A's. Same push.
+  4. Ask again within 10 minutes (after A denies): no second push (repeats are held back for 10 minutes).
+  5. A approves B: B's phone (if B has the app) shows "Access Approved! ✨" (see #37 for details).
+  If a push is missing, Railway logs show the reason: search "[notifications] gallery-request".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:  2026-10-12 partial, emulator only (Claude, for Sarthak): step 2 PASS. Account "New" joined "Check push"
+           (CHEC-DPNUU) on staging.evebash.com; the host's Android emulator (com.evebash.app, local build) showed
+           "New access request 🔔 / New is asking to join "Check push"." within seconds. Steps 3-5 and a real phone
+           still to do, so Status stays TODO.
+
+--------------------------------------------------------------------------------
+#63 Event visibility is now an on/off switch (website Permissions tab)
+Status:    TODO
+Priority:  Low
+Platform:  Website (staging.evebash.com; check on a phone browser too)
+Brief:     The Private/Public drop-down on Host -> an event -> Permissions is now a card with a switch. Off = Private
+           (lock icon), on = Public (eye icon, gold). What it saves is unchanged.
+How to test:
+  1. Log in as the event's host. Open Host -> your event -> Permissions.
+  2. Expect: an "Event visibility" card on the right (full width on a phone) showing Private or Public, with a
+     one-line explanation under it.
+  3. With the event Private, click the card. Expect: the "Make public?" confirm. Cancel: nothing changes.
+     Confirm: the switch turns gold, the card says Public, and it stays Public after a page reload.
+  4. Click it again. Expect: it goes back to Private straight away (no confirm) and stays Private after a reload.
+  5. On a sub-gallery, and as an approved guest who is not an admin: expect no visibility card.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#64 Website modals all look the same (dark gold) and close with an X
+Status:    TODO
+Priority:  Medium
+Platform:  Website (staging.evebash.com; check on a phone browser too)
+Brief:     Every website popup now uses one dark-gold design with an X at the top right (commit 5a5e1d7, issue #38).
+           The browser's own grey OK/Cancel popups are replaced by themed ones. What each button does is unchanged.
+How to test:
+  1. Log in as a host. Open Host and, for each popup below, check: dark card with a gold border, no white box,
+     no teal/blue/olive/yellow, an X at the top right that closes it, and the main button is gold.
+     - Create Event, then the date picker (was white), New Sub-Gallery, Edit title / Edit date, Event Type,
+       Choose Style (subtitle must be readable), Storage & Quota, Share Event, event-created Success.
+     - Delete a test gallery: the Delete confirm (was white with teal buttons; Delete is now red) and the
+       "deleted successfully" popup (was white).
+     - Tap a photo (Photo Actions) and a video (Video actions -> Change thumbnail, Move to another gallery,
+       Save to EB Vault folder picker). Open a guest in Permissions (guest profile).
+  2. Themed confirms instead of the browser popup: Permissions -> make an event Public; deny a request;
+     remove a guest; Profile -> Edit -> Remove Profile Photo; delete your own comment in the photo viewer.
+     Expect a dark card with Cancel / confirm buttons. Cancel, the X or Esc must do nothing; confirm must work as before.
+  3. Dashboard -> Join Event: gold "Join with Code" button (was bright yellow), X closes it.
+  4. Profile -> Edit Profile: gold Save and gold selected chips (was yellow). Delete account popup: X closes it.
+  5. Pricing -> pick a different plan: the confirm has an X, and Cancel / Continue to Payment work as before.
+  6. EB Vault: New folder, Rename, Delete, Move: each has an X; file preview X closes it.
+  7. On a phone browser, repeat a few: the card fits the screen with a margin and the X is easy to tap.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#65 Host Event Design tab: new layout with phone and website preview
+Status:    TODO
+Priority:  Low
+Platform:  Website (staging.evebash.com; check on a phone browser too)
+Brief:     Host > open an event > Design tab is redesigned: Event Type and Template cards on the left, the template's
+           name and description with a Preview Guest Theme button on the right, and below a sketch of the guest home
+           on a phone and in a browser, drawn in the template's own colours. The sketch is plain page markup (no
+           embedded page), so it adds no loading. What each card does is unchanged.
+How to test:
+  1. Log in as a host. Host > open one of your events > Design.
+  2. Expect: Event Type shows the event's type; Template shows the template name in gold (a gallery that never
+     picked one shows "Midnight Hero", which is what guests get). The right card shows the same name and its
+     description.
+  3. Click Event Type: the Event Type picker opens. Click Template: the Choose Style picker opens. Pick another
+     template: the name, description and both sketches change to the new template's colours.
+  4. Click Preview Guest Theme: the guest page opens in a new tab at /events/<this event>.
+  5. Sketches: the phone and browser show your cover photo, the event title, its date, "Home", your sub-gallery
+     names (phone) or "Collections" (browser, only when there are sub-galleries) and "Find You". Try a light
+     template (Classic White) and a dark one (Midnight Hero): text must be readable in both.
+  6. Event with a very long title: the title stops at two lines with "..." and nothing spills out of the frames.
+  7. Tab key: Event Type, Template and Preview Guest Theme can be reached and opened with Enter.
+  8. On a phone browser: the cards stack, the phone sketch sits above the browser sketch, no sideways scrolling.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#66 App: after logging out, "Continue with Google" lets you pick the account
+Status:    TODO
+Priority:  Medium
+Platform:  App (Android and iOS; needs a staging build with 96bc72b)
+Brief:     Logging out used to keep the Google account, so "Continue with Google" signed straight back in to
+           the same account with no picker (issue #62). Logout now also signs out of Google.
+How to test:
+  1. Install a staging build that has 96bc72b. Sign in with "Continue with Google" as account A.
+  2. Profile > Log out. Tap "Continue with Google".
+     Expect: Google's account picker appears; pick account B. You are signed in as B.
+  3. Log out again; sign in with email and password. Expect: works as before.
+  4. Log out from B and sign in with Google as A again. Expect: picker shows, A's galleries are there.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   96bc72b (2026-10-12)
+Feedback:
+
+#67 Website: new login page design (same look as the app) still logs in and signs up
+Status:    TODO
+Priority:  Medium
+Platform:  Website (phone browsers first: Safari on iPhone, Chrome on Android; then a desktop browser)
+Brief:     The website login page now looks like the app's login screen: white card on the dark-to-bronze
+           gradient, cream input boxes, dark Sign In button with gold text, white Google button. Only the
+           look changed; the login and sign-up steps are the same as before.
+How to test:
+  1. Logged out, open staging.evebash.com/login on a phone.
+     Expect: looks like the app's login screen. All text is readable, nothing cut off, page scrolls.
+  2. Sign in with email and password. Expect: lands on the dashboard (or back on the gallery you came from).
+  3. Log out. Tap Phone, sign in with a phone account. Expect: works.
+  4. Log out. Tap "Continue with Google". Expect: Google sign-in works as before.
+  5. Tap Sign Up. Type a password: the checklist ticks turn green. Tap "Suggest Strong Password":
+     both password boxes fill. Create Account stays greyed out until the Terms box is ticked.
+  6. Let the browser autofill a saved email and password. Expect: text in the boxes is still readable.
+  7. Tap "Forgot Password?", "Back to site", and the Terms / Privacy Policy links. Expect: each opens.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#68 Website: gallery page inside an event (new design) still works
+Status:    TODO
+Priority:  Medium
+Platform:  Website (a desktop browser first, then Safari on iPhone and Chrome on Android)
+Brief:     The host gallery page (Host > an event > Galleries > open a gallery) has a new look: a top bar
+           with "< Galleries", the gallery name ("(Sub-Gallery)" or "(Primary Gallery)") and Download /
+           Delete buttons (same rounded shape as Create Event); a gold-bordered Welcome Message box; a small
+           Favourites switch (or Source gallery filter) at top left with the Grid/List switch on the same line;
+           the "Add or Drop" tile now comes first in the grid; rounded tiles with the star and "..." buttons
+           always shown; gold play buttons on videos. Only the look changed. On phones the Download and Delete
+           buttons show icons only and the Favourites switch says just "Favourites".
+How to test:
+  1. Open a sub-gallery of one of your events. Expect: the new top bar; the title ends with "(Sub-Gallery)".
+  2. Tap "< Galleries". Expect: back to the event's galleries list. Open the gallery again.
+  3. Edit the welcome message, tap Save. Expect: the button changes to "Saved"; reload, the text is kept.
+  4. Tap the Grid and List icons (right of the Favourites switch). Expect: the view switches each time.
+  5. Photos and Videos tabs: each shows its own items. Favourites switch: only starred items show, and the
+     number on it matches how many are starred in that tab.
+  6. Tap the star on a tile (it is always shown now). Expect: it turns gold, and the item shows in the Primary Gallery.
+  7. Tap "..." on a photo and on a video. Expect: the action menu opens. Hover a photo on desktop: the bin icon
+     appears and deletes it after you confirm.
+  8. Upload from the "Add or Drop" tile, and by dragging files onto the page. Expect: both upload.
+  9. Tap Select, pick two items, Move to... another gallery. Expect: picked tiles get a gold outline; the move works.
+ 10. Download. Expect: shows "N%" while zipping, then a zip downloads.
+ 11. Delete on a test sub-gallery. Expect: a confirm box, then the gallery is gone.
+ 12. Open the Primary Gallery. Expect: title ends with "(Primary Gallery)", no Delete button,
+     the "Source gallery" filter works.
+ 13. On a phone: nothing is cut off, no sideways scrolling, the Favourites and Grid/List switches sit on
+     one line, and the buttons are easy to tap.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#69 App: over-the-air updates (expo-updates) install and the app still starts
+Status:    TODO
+Priority:  Medium
+Platform:  App (Android first, then iOS)
+Brief:     The app now has expo-updates (runtimeVersion policy appVersion, EAS channels staging/production).
+           A new native build is needed; after that, JavaScript-only changes can reach the app with eas update
+           instead of a new build. Nothing else changed.
+How to test:
+  1. Install a new EAS staging build (preview profile). Expect: it opens normally, login and galleries work.
+  2. Developer: make a small visible JS change and run eas update --channel staging (from apps/mobile).
+  3. Close the app fully and open it, then close and open it once more. Expect: the change shows.
+  4. A build with a different app version must not receive that update (runtime version = app version).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#70 Website: Galleries list inside an event (new layout) still works
+Status:    TODO
+Priority:  Medium
+Platform:  Website (desktop and phone browser)
+Brief:     Host > open an event > Galleries tab has a new look: icon with "Galleries" / "Your celebration in
+           chapters", a wide Primary Gallery card, sub-gallery cards with the photo on top and a delete button,
+           and a dashed "Create Sub-Gallery" tile at the end. Design only; behaviour unchanged.
+How to test:
+  1. Open an event with 2+ sub-galleries. Expect: icon, heading and subheading side by side; Add Sub-Gallery at right.
+  2. Expect: Primary Gallery card is twice as wide, has the "Primary Collection" badge and NO delete button.
+  3. Click the Primary Gallery card (or Open). Expect: the Primary Gallery page opens as before.
+  4. Click a sub-gallery card. Expect: that gallery opens. Click its trash button. Expect: the delete
+     confirmation for that gallery (Cancel keeps it).
+  5. Click "Create Sub-Gallery" tile and "Add Sub-Gallery". Expect: both open the New Sub-Gallery form.
+  6. Event with no sub-galleries: only the Primary card and the dashed tile show.
+  7. Phone width: cards stack in one column, nothing sticks out sideways; long names are cut with "...".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#71 Theme pickers hide the 19 themes without a website design; old events keep theirs
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website desktop + phone browser, Android and iOS app)
+Brief:     Choose Style now shows only themes with their own website design. Wedding: Royal Emerald,
+           Classic White, Midnight Hero. Birthday: Playful Scrapbook, Neon Party, Pop Art. Anniversary:
+           the Wedding three. Corporate: Museum Gallery, Brutalist Grid. College: Cyber Tech.
+           Other and Sports: Bohemian Rhapsody, Cinematic Noir, Vintage Polaroid, Editorial Mag.
+           Events already on a hidden theme (e.g. Golden Years, Garden Path, Tech Sleek) must look exactly as before.
+How to test:
+  1. Website: Create Event, tap each event type. Expect: Choose Style lists only the themes above, and the first
+     one is pre-selected (Anniversary pre-selects Royal Emerald). Create one Anniversary event and check it uses Royal Emerald.
+  2. App: create an event of each type. Expect: it opens with the first theme above (Anniversary: Royal Emerald).
+     Open Design > Choose Style. Expect: only the themes above.
+  3. App: Gallery tab > event menu > Choose Template. Expect: 13 themes, none of the hidden ones.
+  4. Find (or ask a developer for) an existing event on a hidden theme, e.g. an Anniversary event on Golden Years
+     or a Sports event on Garden Path. Open its guest page on the website and in the app, and the host view.
+     Expect: same look as before (Sports event keeps its sports header).
+  5. On that event open Choose Style (website Change Template and app Design). Expect: the hidden theme shows
+     FIRST and ticked as the current choice, followed by the visible themes. Pick another theme. Expect: it
+     changes; reopen Choose Style and the hidden theme is gone from the list.
+  6. Change an event's type in the app (Event type). Expect: theme resets to the first visible theme of that type.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#72 Website: "Open in app" bar on event pages (Android phones only, behind a flag)
+Status:    TODO
+Priority:  Medium
+Platform:  Website (Android phone in Chrome; also iPhone Safari and a computer for the "not shown" checks)
+Brief:     Event pages show a small dark bar at the bottom on Android phones: "EveBash app / Continue in the app",
+           an Open button and an X. Open tries the EveBash app; if the app isn't installed nothing happens.
+           Only shows when NEXT_PUBLIC_OPEN_IN_APP_BANNER=true was set for that deploy (issue #67).
+Setup:     Set NEXT_PUBLIC_OPEN_IN_APP_BANNER=true for the staging website and REDEPLOY (the value is read at build).
+How to test:
+  1. Before setting the flag (or on www.evebash.com): open a gallery link on an Android phone. Expect: no bar,
+     the page looks exactly as before.
+  2. With the flag on, Android phone without the EveBash app: open https://staging.evebash.com/events/<id>.
+     Expect: the bar at the bottom; the footer can still be scrolled fully into view above it.
+  3. Tap Open. Expect: nothing happens. You stay on the page, with no error page, popup or store link.
+  4. Open a photo. Expect: the bar is hidden while the photo viewer is open and comes back after closing it.
+  5. Tap X. Expect: the bar goes away. Reload, and open another gallery and its Find You page. Expect: no bar.
+     (Clear the site's data in Chrome to see it again.)
+  6. Homepage, pricing, dashboard, login: no bar. iPhone Safari, Android tablet and a computer: no bar on event pages.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#73 App: event links open the event in the app (Android)
+Status:    TODO
+Priority:  Medium
+Platform:  App (Android) + website on the same Android phone
+Brief:     The app now opens links to an event: evebash://events/<id> (what the website's Open button uses) and
+           website links /events/<id> and /events/<id>/find-you. The event code can be an event id or a join code.
+           Opening the app normally must be unchanged. Website links (https) only open the app by themselves after
+           Android App Links are set up (#67, not done yet), so use the website's Open button from test #72.
+Setup:     An app build or over-the-air update that includes this change, and the staging website with the bar
+           turned on (#72 Setup).
+How to test:
+  1. Open the app from its icon (signed in, then signed out). Expect: it starts as before (dashboard / login),
+     with no flash of another screen.
+  2. Signed in, app fully closed: in Chrome open a gallery link, tap Open. Expect: the app starts straight on that
+     gallery. The back button goes to the dashboard.
+  3. App open in the background on another screen: back in Chrome, tap Open. Expect: the app comes forward on
+     that gallery.
+  4. Open the gallery's Find You page on the website (/events/<id>/find-you) and tap Open. Expect: the app opens
+     that gallery on its Find You tab.
+  5. Use a link with the join code instead of the id (/events/<JOIN CODE>?shared=true) and tap Open. Expect: the
+     same gallery opens.
+  6. Signed out in the app: tap Open on a public gallery. Expect: the gallery shows, with a Log in button. On a
+     private gallery: the "private" screen. Tap Log in and log in. Expect: you land back on that gallery, not
+     the dashboard.
+  7. Gallery that doesn't exist (/events/nope123): tap Open. Expect: the app's "not found" message, no crash.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#74 Website: new dashboard layout (header, stats, event cards)
+Status:    TODO
+Priority:  Medium
+Platform:  Website (computer + phone browser)
+Brief:     Design-only change to /dashboard. New header (icon, "Collections | <name>", "Memories curated for you",
+           with a "Join Event" button on the right like the host page's Create Event), three stat boxes (Total
+           Photos = photos across all your events and their sub-galleries; Total Videos = videos across the same;
+           Events Joined), and event cards with the photo on top and title, date and guest count below. The last card in the grid is "Your memories"; since #69 its Explore All opens the full list (test #75).
+Setup:     An account that hosts at least one event and has joined at least one other event (4+ events in total).
+How to test:
+  1. Open /dashboard on a computer. Expect: layout as above; 3 event cards + the Your memories card in one row.
+  2. Expect: the heading and subheading together are as tall as the icon; no filter tabs.
+  3. (Changed by #69) Click Explore All. Expect: the full events page opens; checked in test #75.
+  3b. Compare the counts with the host page. Expect: each card's guests = approved guests of that event (a guest
+     counted once even with several sub-galleries); Total Photos = sum of the events' photos; Total Videos = sum of
+     the events' videos.
+  4. Click an event card. Expect: the event opens in a new tab as before.
+  5. Click Join Event and join with a code. Expect: same modal and behaviour as before.
+  6. Open /dashboard on a phone. Expect: no sideways scroll; the button reads "Join" next to the heading; stats and
+     cards stack.
+  7. Account with no events. Expect: "No events yet" message, no Your memories card.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#75 Website: "Your memories" Explore All opens the full events page
+Status:    TODO
+Priority:  Medium
+Platform:  Website (computer + phone browser)
+Brief:     Issue #69. On /dashboard the "Your memories" card (last card in the events grid) used to only show more
+           cards in place, so with 3 or fewer events it seemed to do nothing. It now opens /dashboard/events, a page
+           with every event you host or joined (like the app's Gallery screen): All Events / Attended Memories /
+           Hosted Galleries tabs, search, sort (Recently added, Event date newest/oldest, Name A to Z) and an event
+           type filter. The dashboard itself still shows 3 event cards per tab.
+Setup:     An account that hosts at least one event and has joined at least one other event (4+ events in total,
+           with at least two event types, e.g. Wedding and Birthday). Also an account with 1-2 events.
+How to test:
+  1. Open /dashboard, stay on All Events and click Explore All. Expect: "Your memories" page opens with every
+     event, count matches the dashboard card. The Dashboard link in the top bar stays highlighted.
+  2. Back on /dashboard, pick Hosted Galleries, click Explore All. Expect: the page opens on Hosted Galleries
+     (address ends ?tab=hosted). Same for Attended Memories.
+  3. Switch tabs on the page. Expect: list and count change; browser Back returns to the dashboard, not the
+     previous tab.
+  4. Search part of an event name. Expect: only matching events; nonsense text shows "No matches" with Clear filters.
+  5. Try each sort and the type filter. Expect: order and list change; Clear resets everything.
+  6. Click an event card. Expect: the event opens in a new tab, same as on the dashboard.
+  7. Click "Dashboard" at the top. Expect: back to /dashboard.
+  8. Account with 1-2 events: click Explore All. Expect: the page opens (it used to do nothing).
+  9. Phone browser: no sideways scroll; search, sort and type stack neatly; tabs scroll inside their pill.
+  10. Logged out, open /dashboard/events. Expect: sent to the login page.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#76 Website: host page event cards use the dashboard card design
+Status:    TODO
+Priority:  Low
+Platform:  Website (computer + phone browser)
+Brief:     Host page event cards (Host Console grid and the Hosted / Shared tabs) now look like the dashboard
+           cards: photo on top, title, short date ("6 Aug 26") with a calendar icon, guest count with a person icon
+           (loads after the cards). Shared cards show "Owner: <username>" underneath. The dashboard cards also get
+           the icons and short date. Design only; clicking a card opens it as before.
+How to test:
+  1. Open /host. Expect: cards in rows of 4 on a computer, with photo, title, short date and guest count.
+  2. Click a card. Expect: the event's manage view opens as before. The "..." menu on a card still works.
+  3. Hosted and Shared tabs: same card look; Shared cards show the owner's username.
+  4. Compare a card's guest count with the event's Permissions tab: approved guests, each counted once.
+  5. An event with a custom date text (not a normal date): the text shows unchanged.
+  6. /dashboard: cards show the short date and the icons too.
+  7. Phone browser: cards stack, nothing sticks out sideways.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#77 Website: new Settings page; profile without relationship, anniversary and privacy
+Status:    TODO
+Priority:  Medium
+Platform:  Website (computer + phone browser)
+Brief:     The website now has Settings (/settings), like the app: sign-in method, Change Password, Delete
+           Account, feedback and support, terms and privacy. Open it from the new Settings button next to
+           Edit Profile. Delete Account moved there from the profile page. The profile no longer shows or
+           edits Relationship Status, Anniversary / Milestone Date or the Profile Privacy switch.
+How to test:
+  1. Log in, open /profile. Expect: Edit Profile and Settings buttons side by side (one line on a phone).
+     No Relationship Status, Anniversary, Profile Privacy or Delete Account on the page.
+  2. Edit Profile: no Relationship Status or Anniversary fields. Change the location and save.
+     Expect: saved; the other fields are unchanged.
+  3. Click Settings. Expect: "Signed in via" shows Email, Google or Phone number correctly for your account.
+  4. Change Password (use a test account): set a new password, log out, log in with it. Expect: works.
+     Wrong confirm password or a weak password: the button stays disabled / the error shows.
+  5. Report a Bug / Send Feedback opens Contact Us; Contact Customer Support opens a mail to
+     support@evebash.com; About, Terms and Privacy open their pages. The Profile button goes back.
+  6. Delete Account (THROWAWAY account only): type DELETE, confirm. Expect: account deleted, logged out.
+  7. Phone browser: nothing sticks out sideways, texts wrap.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#78 App: profile without relationship status, anniversary and Private Account
+Status:    TODO
+Priority:  Medium
+Platform:  App (Android + iOS)
+Brief:     Profile no longer shows or edits Relationship Status and Anniversary / Milestone Date, and Settings
+           no longer has the Private Account switch. Saving the profile no longer sends those two fields,
+           so values saved before stay in the database untouched.
+How to test:
+  1. Open Profile. Expect: no Relationship Status or Anniversary rows. The "Complete your profile" hint
+     only mentions location, gender and birthday.
+  2. Edit: no Relationship Status or Anniversary fields. Change the location and save. Expect: saved.
+  3. Gear icon > Settings: the Privacy section only has Discoverable Profile; it still switches.
+  4. Website and app on the same account: the same profile fields show on both.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#79 Wedding, Birthday and Sports events without a cover show their new default photo
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website + app)
+Brief:     Events with no uploaded cover now show a default photo picked by category: Wedding (mandap at
+           sunset), Birthday (balloon arch and cake), Sports (multisport collage). Other categories still
+           show the old stock photo. Covers a host uploaded are unchanged. Nothing new is saved to the database.
+How to test:
+  1. Create a Wedding event and don't upload a cover. Expect the mandap photo on the website dashboard
+     card, the host page card and header, the guest page (/events/<slug>) and its gallery tiles.
+  2. Same event in the app: Dashboard and Your Events grid cards, the event screen header and the
+     gallery tiles show the mandap photo.
+  3. An older Wedding event that never had a cover: it also shows the mandap photo now.
+  4. Repeat 1-3 with a Birthday event (balloon photo) and a Sports event (multisport photo).
+     A Corporate or College event without a cover: still the old stock photo.
+  5. Upload a cover on the Wedding event: your photo replaces the default everywhere.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#80 Profile page matches the site's dark-gold theme; activity cards are compact
+Status:    TODO
+Priority:  Low
+Platform:  Website (desktop + phone browser)
+Brief:     The redesigned /profile page had a navy background and bright yellow accents. It now uses the
+           site's dark background and gold (#CA9C68). The three Activity & Engagement cards (Photos Added,
+           Events Hosted, Events Joined) are now short single-row cards.
+How to test:
+  1. Log in and open /profile. The page background matches the home and host pages (no navy blue tint).
+  2. Icons, @username, the Edit button, "View Plans" and "Extend / Upgrade Plan" are gold,
+     not bright yellow. Hovering the gold buttons makes them lighter gold, not yellow.
+  3. Activity & Engagement: three small cards, each with an icon, the number and the label on one row.
+     On a phone they stack and stay short.
+  4. Open the "Plans" tab: the tier text, "Valid until" date and yearly prices are gold, not yellow.
+  5. Hard-refresh /profile. The three activity numbers and the storage figure each appear within about
+     2 seconds and don't go back to "..." after showing a number.
+  6. Next to the Profile Overview / Plans switcher (right side) there is an "EB Vault" button that opens
+     /vault; the old "Active Quota" text and the EB Vault card in the right column are gone. On the Plans
+     tab the table heading reads "Plans and Quotas".
+Expected:  No bright yellow or navy anywhere on the page; amber warning badges (e.g. "Needs Entry") stay.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#81 "Uploaded by" filter in the host gallery view (website and app)
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website: staging.evebash.com/host; app: JS-only change, any staging build)
+Brief:     Hosts and admins can show only what one person uploaded (Owner, Admin, Guest, Former guest...).
+How to test:
+  1. As the owner, make account B an admin and account C a guest with Upload on. B and C each upload a
+     few photos to the same gallery.
+  2. Website, owner: Host -> the event -> that gallery. "Uploaded by" appears next to Source gallery /
+     Favourites only. Options: Me (Owner), B (Admin), C (Guest), each with a count.
+  3. Pick C: only C's photos show; pick Everyone: all show. Same on the Videos tab.
+  4. With more than 20 photos: open the filter. Expect a short "Loading everyone…", then complete counts.
+  5. While a person is picked, the reorder arrows are hidden.
+  6. Remove C from the guests: C now shows as "(Former guest)".
+  7. App, owner: open the event -> the gallery. An "Uploaded by" row opens a list with the same people.
+  8. A gallery where only you uploaded (and fewer than 20 items): no "Uploaded by" filter.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#82 Event admin opens the sub-gallery they click on the website host page (issue #74)
+Status:    TODO
+Priority:  High
+Platform:  Website (staging.evebash.com/host)
+Brief:     An admin who doesn't own the event got the primary gallery whichever sub-gallery they opened.
+How to test:
+  1. Log in as an admin of someone else's event (e.g. shwetank.chauhan3 on "Wedding").
+  2. Host -> Shared Events -> the event -> Galleries tab -> open a sub-gallery (e.g. Rec 1).
+     Expect: Rec 1's title, cover and photos, not the primary gallery's.
+  3. Open another sub-gallery and the primary gallery: each shows its own title, cover and photos.
+  4. Reload the page while a sub-gallery is open: the same sub-gallery stays open.
+  5. As the owner, repeat step 2: unchanged, the sub-gallery opens.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   580a5c4 (2026-10-13)
+Feedback:
+
+--------------------------------------------------------------------------------
+#83 Download All: real videos in the ZIP, and the host console downloads the whole gallery
+Status:    TODO
+Priority:  High
+Platform:  Website (staging.evebash.com), computer
+Brief:     Videos used to be saved as tiny .m3u8 playlist files; now the original .mp4 is downloaded.
+           The host console's Download All used to include only the 20-odd items loaded on screen.
+How to test:
+  1. Gallery with photos and at least one video (logged in as a member): open a collection -> Download All.
+     Unzip: photos are there, and each video is a playable .mp4 (not a small .m3u8 file).
+  2. Host -> an event -> a gallery with more than 20 items (don't scroll) -> Download All.
+     The ZIP has every photo and video in that gallery (compare with the Photos / Videos counts).
+  3. Two photos with the same file name: both are in the ZIP (the second as name_2.jpg).
+  4. Single download: the download icon on a video card, and the download button in the full-screen
+     viewer, save the .mp4 (not a .m3u8).
+  5. The progress bar only goes up (no jump back from 100% to 50%).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#84 Logged-out visitors of a public gallery: like, comment and download ask them to log in
+Status:    TODO
+Priority:  High
+Platform:  Both (website: staging.evebash.com; app: JS-only change, any staging build)
+Brief:     The buttons used to be hidden for logged-out visitors; now they show and open a log-in prompt.
+How to test:
+  1. Website, logged out (private window): open a public gallery's collection. On each photo (hover on a
+     computer, always on a phone) heart, comment and download show. Download All shows in the menu.
+  2. Click each one: "Log in to continue" with Create account / Log in. The photo itself doesn't open.
+     Escape, the X or clicking outside closes it.
+  3. Open a photo full screen: Like, Comment and Download show; each opens the same prompt.
+  4. Click Log in, log in: you're back on the same gallery, joined, and the buttons now work.
+  5. Logged in on a sample gallery (view only): these buttons don't show and nothing asks to log in.
+  6. App, logged out, public gallery: open a photo. Like, Comment, Share and Download show; each asks
+     "Log in to continue" with Not now / Log in. Log in opens the login screen and returns to the gallery.
+  7. A private gallery logged out: still "This gallery is private" (unchanged).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#85 "Home (Primary Gallery)" name and the Galleries info icon
+Status:    TODO
+Priority:  Low
+Platform:  Both (website host page and gallery page; app host view)
+Brief:     The main gallery is labelled "Home (Primary Gallery)"; an info icon explains it vs sub-galleries.
+How to test:
+  1. Website: Host -> an event -> Galleries. The big card says "Home (Primary Gallery)". Open it: the
+     heading reads "<event> · Home (Primary Gallery)".
+  2. Next to the Galleries heading there's an (i). Hover it (computer) or tap it (phone): it explains Home
+     (Primary Gallery) and Sub-galleries. Tap outside or press Escape to close.
+  3. The Source gallery filter, and the Move to gallery list, say "Home (Primary Gallery)" (not "Main event").
+  4. App, host view of an event: the section above the main card says HOME (PRIMARY GALLERY); the move list
+     and Source gallery list say "Home (Primary Gallery)".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#86 Shared galleries show the owner's name (website and app)
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website: staging.evebash.com now; app: needs a staging build with d342b02)
+Brief:     Shared gallery cards now show "Owner: <name>" from the public name card instead of the owner's
+           username or email, so they keep working after RLS lockdown part 2 (issue #75).
+How to test (an account that is a guest admin of someone else's gallery, e.g. chauhansarthak497):
+  1. Website: log in as the guest admin, open the host page > Shared. Expect: each card says "Owner:" and the
+     owner's name (e.g. Sarthak Chauhan). No email address, no "Unknown owner".
+  2. App: Gallery tab > Shared. Expect: "Owner: <name>" on each card.
+  3. Repeat both after RLS part 2 is applied. Expect: the same.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   d342b02 (2026-10-13)
+Feedback:
+
+--------------------------------------------------------------------------------
+#87 Download on Home asks "Home only" or "Entire event"; Host download follows the filters
+Status:    TODO
+Priority:  High
+Platform:  Website (staging.evebash.com), computer
+Brief:     Download All on Home (Primary Gallery) now asks what to download. The host page's Download follows
+           the Photos / Videos tab, Source gallery, Favourites only and Uploaded by filters.
+How to test:
+  1. Logged in as a member: open an event (Home) -> Download All. Expect "What would you like to download?"
+     with "Home (Primary Gallery) only" and "Entire event". X / Escape / clicking outside cancels.
+  2. Home only: the ZIP has what Home shows (the favourites). On an event with no favourites, you get the main
+     gallery's own photos instead of "Nothing to download".
+  3. Entire event: the ZIP has a folder per gallery (Home, Rec 1, Rec 2...) with every photo and playable .mp4
+     video; no file appears twice.
+  4. A sub-gallery's Download All doesn't ask; it downloads that sub-gallery.
+  5. Host -> event -> Home: Download asks the same question. Home only respects the filters; Entire event
+     ignores them.
+  6. Host -> a sub-gallery, Photos tab: Download gives photos only; Videos tab: videos only. Filter Uploaded by
+     a person (or Favourites only): only those items. Filters that leave nothing say so.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

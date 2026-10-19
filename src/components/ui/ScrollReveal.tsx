@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef } from "react";
-import { motion, useInView, Variant } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { motion, useInView, useReducedMotion } from "framer-motion";
 
 interface ScrollRevealProps {
     children: React.ReactNode;
@@ -21,7 +21,17 @@ export const ScrollReveal = ({
     duration = 0.8
 }: ScrollRevealProps) => {
     const ref = useRef(null);
+    const reducedMotion = useReducedMotion();
     const isInView = useInView(ref, { once: true, margin: "-10%" });
+    // Content renders visible (server HTML, no JavaScript, background tabs). Only sections still below the
+    // screen in a visible tab are hidden after load, so they can animate in when scrolled to.
+    const [armed, setArmed] = useState(false);
+
+    useEffect(() => {
+        if (reducedMotion || document.visibilityState !== "visible" || !ref.current) return;
+        if ((ref.current as HTMLElement).getBoundingClientRect().top < window.innerHeight) return;
+        setArmed(true);
+    }, [reducedMotion]);
 
     const getVariants = () => {
         const distance = 50;
@@ -36,7 +46,7 @@ export const ScrollReveal = ({
         }
 
         return {
-            hidden: initial,
+            hidden: { ...initial, transition: { duration: 0 } },
             visible: {
                 x: 0,
                 y: 0,
@@ -54,8 +64,8 @@ export const ScrollReveal = ({
         <div ref={ref} style={{ width, overflow: "hidden" }} className={className}>
             <motion.div
                 variants={getVariants()}
-                initial="hidden"
-                animate={isInView ? "visible" : "hidden"}
+                initial={false}
+                animate={!armed || isInView ? "visible" : "hidden"}
             >
                 {children}
             </motion.div>

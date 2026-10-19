@@ -26,20 +26,29 @@ export function getEndpointsForPath(path: string) {
 
     const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
     if (apiBaseUrl) {
-        endpoints.push(joinUrl(apiBaseUrl, path));
+        // Map stale Railway domain to active live domain if present
+        const normalized = apiBaseUrl.replace("evebash-production.up.railway.app", "api-staging.evebash.com");
+        endpoints.push(joinUrl(normalized, path));
     }
 
-    const hostUri = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoGo?.developer?.hostUri;
-    const devHost = typeof hostUri === 'string' ? hostUri.split(':')[0] : '';
-    if (devHost) {
-        endpoints.push(`http://${devHost}:3000${path}`);
-    }
+    // Always include active production/staging Railway domains as fallback
+    endpoints.push(joinUrl("https://api-staging.evebash.com", path));
+    endpoints.push(joinUrl("https://evebash-production-0ae3.up.railway.app", path));
 
-    if (Platform.OS === 'android') {
-        endpoints.push(`http://10.0.2.2:3000${path}`);
-    }
+    // In development mode, allow local dev machine fallbacks
+    if (__DEV__) {
+        const hostUri = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoGo?.developer?.hostUri;
+        const devHost = typeof hostUri === 'string' ? hostUri.split(':')[0] : '';
+        if (devHost) {
+            endpoints.push(`http://${devHost}:3000${path}`);
+        }
 
-    endpoints.push(`http://localhost:8080${path}`);
+        if (Platform.OS === 'android') {
+            endpoints.push(`http://10.0.2.2:3000${path}`);
+        }
+
+        endpoints.push(`http://localhost:8080${path}`);
+    }
 
     return Array.from(new Set(endpoints));
 }

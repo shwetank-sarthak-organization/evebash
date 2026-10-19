@@ -60,6 +60,7 @@ export interface Event {
     createdBy?: string;
     type?: 'main' | 'sub';
     parentId?: string;
+    isPublic?: boolean;
     legacyId?: string;
     joinId?: string;
     category?: string;
@@ -246,6 +247,8 @@ export interface GuestLog {
     canAdmin?: boolean;
     canUpload?: boolean;
     canComment?: boolean;
+    /** Account that joined (rows made by request_gallery_access / open_gallery) */
+    userId?: string;
 }
 
 export interface Enquiry {
@@ -304,6 +307,7 @@ function mapSqlToEvent(e: any): Event {
         createdBy: e.created_by,
         type: e.type,
         parentId: e.parent_id,
+        isPublic: e.is_public === true,
         legacyId: e.legacy_id,
         category: e.category,
         templateId: e.template_id,
@@ -356,6 +360,11 @@ function isMediaVisibleInGallery(photo: Photo): boolean {
     // Strict requirement: Videos must NOT show until 100% processed and fully available
     if (isVideo && photo.status !== "processed") return false;
     return true;
+}
+
+/** Same rule as the gallery queries, for a raw `photos` row (e.g. a realtime payload). */
+export function isPhotoRowVisibleInGallery(row: any): boolean {
+    return isMediaVisibleInGallery(mapSqlToPhoto(row));
 }
 
 function mapSqlToEventFavouritePhoto(row: any): EventFavouritePhoto {
@@ -484,38 +493,53 @@ export async function getRetainedMediaIdsForEventGrace(eventId: string, legacyId
     const ids = legacyId && legacyId !== eventId ? [eventId, legacyId] : [eventId];
 
     try {
-        const ownerProfile = await getEventOwnerExpiryProfile(ids);
-        if (!isPastPlanEndDate(ownerProfile) || !ownerProfile) return [];
-
-        const visibleIds = await getVisiblePhotoIdsForExpiredOwner(ownerProfile);
-        return Array.from(visibleIds);
+        const planLimit = await getMediaPlanLimit(ids);
+        return planLimit.state === 'active' ? [] : Array.from(planLimit.retainedIds);
     } catch (error) {
         console.warn("[PlanExpiry] Could not load retained media ids:", error);
         return [];
     }
 }
 
+type MediaPlanLimit = { state: 'active' | 'grace' | 'expired'; retainedIds: Set<string> };
+
+/**
+ * Expired-plan media limit for a gallery (grace: past the plan's end date; expired: more than 7 days past, when only
+ * the oldest media within the free allowance shows). Worked out in the database by get_media_plan_limit, because the
+ * owner's profile and other galleries aren't readable to guests once RLS is on. Falls back to the device-side lookup
+ * below until that function exists.
+ */
+async function getMediaPlanLimit(eventIds: string[]): Promise<MediaPlanLimit> {
+    const ids = eventIds.filter(Boolean);
+    if (ids.length === 0) return { state: 'active', retainedIds: new Set() };
+
+    const { data, error } = await supabase.rpc('get_media_plan_limit', { p_event_id: ids[0] });
+    if (!error) {
+        const state = data?.state === 'grace' || data?.state === 'expired' ? data.state : 'active';
+        return { state, retainedIds: new Set<string>(Array.isArray(data?.retained_ids) ? data.retained_ids : []) };
+    }
+
+    const ownerProfile = await getEventOwnerExpiryProfile(ids);
+    if (!ownerProfile || !isPastPlanEndDate(ownerProfile)) return { state: 'active', retainedIds: new Set() };
+    return {
+        state: isBeyondPlanGracePeriod(ownerProfile) ? 'expired' : 'grace',
+        retainedIds: await getVisiblePhotoIdsForExpiredOwner(ownerProfile),
+    };
+}
+
 async function filterPhotosForPlanExpiry(photos: Photo[], eventIds: string[]): Promise<Photo[]> {
     if (photos.length === 0) return photos;
 
-    let ownerProfile = null;
+    let planLimit: MediaPlanLimit;
     try {
-        ownerProfile = await getEventOwnerExpiryProfile(eventIds);
+        planLimit = await getMediaPlanLimit(eventIds);
     } catch (error) {
         console.warn("[PlanExpiry] Skipping media visibility filter:", error);
         return photos;
     }
 
-    if (!isBeyondPlanGracePeriod(ownerProfile)) return photos;
-    if (!ownerProfile) return photos;
-
-    try {
-        const visibleIds = await getVisiblePhotoIdsForExpiredOwner(ownerProfile);
-        return photos.filter(photo => visibleIds.has(photo.id));
-    } catch (error) {
-        console.warn("[PlanExpiry] Skipping expired-owner visibility filter:", error);
-        return photos;
-    }
+    if (planLimit.state !== 'expired') return photos;
+    return photos.filter(photo => planLimit.retainedIds.has(photo.id));
 }
 
 function getCoverUsagePhotoId(eventId: string, storageKey: string, url: string): string {
@@ -567,11 +591,45 @@ function guestLogMatchesIdentifier(g: any, identifier: string): boolean {
 
     const derivedEmail = getGuestLogEmail(g);
     const idPrefix = typeof g.id === "string" ? g.id.split("_")[0] : undefined;
-    const candidates = [g.phone, g.email, derivedEmail, idPrefix]
+    // user_id: rows made by request_gallery_access are tied to the account, not a phone number
+    const candidates = [g.phone, g.email, derivedEmail, idPrefix, g.user_id]
         .filter(Boolean)
         .map(value => String(value).trim().toLowerCase());
 
     return candidates.includes(normalizedIdentifier);
+}
+
+// A value inside PostgREST's or=(...), quoted so the dots, commas and parentheses an email or phone can contain
+// stay part of the value
+function quoteFilterValue(value: string): string {
+    return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+// ilike pattern matching the value itself: "%" and "_" are LIKE wildcards, "\" escapes them
+function escapeLikePattern(value: string): string {
+    return value.replace(/[\\%_]/g, char => `\\${char}`);
+}
+
+// Regular expression matching the value itself, for PostgREST's match / imatch (where "*" is not a wildcard)
+function escapeRegexPattern(value: string): string {
+    return value.replace(/[\\^$.|?*+()[\]{}]/g, char => `\\${char}`);
+}
+
+// guestLogMatchesIdentifier as a server filter, for rows matching any of the identifiers. ilike without a wildcard is
+// a case-insensitive equals. guests has no email column: getGuestLogEmail reads the email from the id prefix, so the
+// candidates are phone, user_id and the id prefix (the whole id when it has no "_"). PostgREST reads "*" as a
+// wildcard, so a "*" in an identifier can match extra rows; callers check the rows with guestLogMatchesIdentifier.
+function guestIdentifiersFilter(identifiers: string[]): string {
+    return identifiers.flatMap(identifier => {
+        const pattern = escapeLikePattern(identifier.trim().toLowerCase());
+        if (!pattern) return [];
+        const conditions = [`phone.ilike.${quoteFilterValue(pattern)}`, `user_id.ilike.${quoteFilterValue(pattern)}`];
+        // The prefix ends at the first "_", so an identifier containing "_" is never one
+        if (!identifier.includes("_")) {
+            conditions.push(`id.ilike.${quoteFilterValue(pattern)}`, `id.ilike.${quoteFilterValue(`${pattern}\\_*`)}`);
+        }
+        return conditions;
+    }).join(",");
 }
 
 function mapSqlToGuestLog(g: any): GuestLog {
@@ -588,7 +646,8 @@ function mapSqlToGuestLog(g: any): GuestLog {
         status: g.status,
         canAdmin: g.can_admin,
         canUpload: g.can_upload,
-        canComment: g.can_comment
+        canComment: g.can_comment,
+        userId: g.user_id || undefined
     };
 }
 
@@ -669,86 +728,82 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     }
 }
 
+/**
+ * Another person's public card (name and photo only) from profile_cards, which any logged-in user can read once RLS
+ * is on. Other people's profiles (email, username, phone) aren't readable then, so use this to show who someone is.
+ */
+export async function getProfileCard(uid: string): Promise<{ id: string; name?: string; profileImage?: string } | null> {
+    if (!uid) return null;
+    const { data, error } = await supabase.from('profile_cards').select('id, name, profile_image').eq('id', uid).maybeSingle();
+    if (error || !data) return null;
+    return { id: data.id, name: data.name || undefined, profileImage: data.profile_image || undefined };
+}
+
 export async function getUserById(uid: string): Promise<UserProfile | null> {
     return getUserProfile(uid);
 }
 
-export async function getUsers(): Promise<UserProfile[]> {
-    try {
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        return (data || []).map(mapSqlToProfile);
-    } catch (error) {
-        console.error("Error fetching users:", error);
-        return [];
-    }
+export interface GuestProfile {
+    id?: string;
+    name?: string;
+    username?: string;
+    email?: string;
+    phone?: string;
+    profileImage?: string;
 }
 
-export async function getDelegatedAdminsCount(ownerUid: string): Promise<number> {
-    try {
-        const { count, error } = await supabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true })
-            .eq('delegated_by', ownerUid);
-
+/**
+ * Profile details of a guest row, for the gallery host's guest panel. Rows made by request_gallery_access carry the
+ * account (user_id): name and photo come from profile_cards, which hosts can still read once RLS is on (username and
+ * email are private then). Older phone/email rows keep the direct profile lookup, which works until the lockdown;
+ * after it the panel shows the guest row's own name and phone.
+ */
+export async function getGuestProfile(log: { userId?: string; email?: string; phone?: string }): Promise<GuestProfile | null> {
+    if (log.userId) {
+        const { data, error } = await supabase.from('profile_cards').select('id, name, profile_image').eq('id', log.userId).maybeSingle();
         if (error) throw error;
-        return count || 0;
-    } catch (error) {
-        console.error("Error counting delegated admins:", error);
-        return 0;
+        return data ? { id: data.id, name: data.name, profileImage: data.profile_image } : null;
     }
+
+    // Older rows: the newest profile with the row's email (its phone when it has no email), ignoring case and
+    // surrounding spaces, or with the same phone digits. The server applies these rules, so only matching profiles
+    // come back; they are checked again here in case the database compares a character differently.
+    const email = (log.email || log.phone || '').trim().toLowerCase();
+    const phone = (log.phone || '').replace(/\D/g, '');
+    const conditions: string[] = [];
+    if (email) conditions.push(`email.imatch.${quoteFilterValue(`^[[:space:]]*${escapeRegexPattern(email)}[[:space:]]*$`)}`);
+    if (phone) conditions.push(`phone.match.${quoteFilterValue(`^[^0-9]*${phone.split('').join('[^0-9]*')}[^0-9]*$`)}`);
+    if (conditions.length === 0) return null;
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, username, email, phone, profile_image')
+        .or(conditions.join(','))
+        .order('created_at', { ascending: false });
+    if (error) {
+        console.error("Error fetching guest profile:", error);
+        return null;
+    }
+    const match = (data || []).find((candidate) =>
+        (!!email && email === (candidate.email || '').trim().toLowerCase()) ||
+        (!!phone && phone === (candidate.phone || '').replace(/\D/g, ''))
+    );
+    return match ? {
+        id: match.id,
+        name: match.name,
+        username: match.username,
+        email: match.email,
+        phone: match.phone,
+        profileImage: match.profile_image,
+    } : null;
 }
 
-export async function updateUserRole(
-    uid: string,
-    newRole: string | null,
-    delegatedBy?: string,
-    roleType?: 'primary' | 'event',
-    assignedEvents?: string[]
-) {
-    if (!uid) return false;
-    try {
-        const updateData: any = {};
-        if (newRole) updateData.role = newRole;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-        if (delegatedBy) {
-            updateData.delegated_by = delegatedBy;
-            if (roleType) updateData.role_type = roleType;
-        } else {
-            updateData.delegated_by = null;
-            updateData.role_type = null;
-        }
+export type StorageBreakdown = { events: number; vault: number; total: number };
 
-        const { error } = await supabase
-            .from('profiles')
-            .update(updateData)
-            .eq('id', uid);
-
-        if (error) throw error;
-
-        // Manage assignments
-        if (delegatedBy && roleType === 'event' && assignedEvents) {
-            await supabase.from('profile_assigned_events').delete().eq('profile_id', uid);
-            const pairs = assignedEvents.map(eventId => ({ profile_id: uid, event_id: eventId }));
-            if (pairs.length > 0) {
-                await supabase.from('profile_assigned_events').insert(pairs);
-            }
-        } else {
-            await supabase.from('profile_assigned_events').delete().eq('profile_id', uid);
-        }
-
-        return true;
-    } catch (error) {
-        console.error("Error updating user role:", error);
-        return false;
-    }
-}
-
-export async function getUserTotalStorage(identifiers: string[]): Promise<number> {
+/** Bytes used by event media. */
+export async function getUserEventStorage(identifiers: string[]): Promise<number> {
     try {
         const { data, error } = await supabase
             .from('photos')
@@ -761,6 +816,62 @@ export async function getUserTotalStorage(identifiers: string[]): Promise<number
         console.error("Error fetching storage stats:", error);
         return 0;
     }
+}
+
+/**
+ * Bytes used by EB Vault, from its running total. Returns 0 until the Vault
+ * tables exist, so storage totals keep working before Vault launches.
+ */
+export async function getUserVaultStorage(identifiers: string[]): Promise<number> {
+    try {
+        // Vault rows are keyed by the auth user id; emails/phones in the identifier list don't apply.
+        const ids = identifiers.filter(id => UUID_PATTERN.test(id));
+        if (ids.length === 0) return 0;
+        const { data, error } = await supabase
+            .from('vault_accounts')
+            .select('used_bytes')
+            .in('owner_id', ids);
+
+        if (error) return 0;
+        return (data || []).reduce((acc, row: any) => acc + (Number(row.used_bytes) || 0), 0);
+    } catch {
+        return 0;
+    }
+}
+
+
+/**
+ * The signed-in user's storage as the server counts it for upload limits: everything in galleries they own (whoever
+ * uploaded it, previews and streaming copies included) plus EB Vault. Null when it isn't about the signed-in user or
+ * the server can't be reached, so callers fall back to adding it up on the device.
+ */
+async function getOwnStorageFromServer(identifiers: string[]): Promise<{ events: number; vault: number; total: number } | null> {
+    try {
+        const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!apiBaseUrl || !session?.access_token || !identifiers.includes(session.user.id)) return null;
+        const response = await fetch(`${apiBaseUrl.replace(/\/+$/, '')}/api/v1/media/storage-usage`, {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (typeof data?.total !== 'number') return null;
+        return { events: Number(data.events) || 0, vault: Number(data.vault) || 0, total: data.total };
+    } catch {
+        return null;
+    }
+}
+/** Event and Vault usage share one plan-wide storage limit. */
+export async function getUserStorageBreakdown(identifiers: string[]): Promise<StorageBreakdown> {
+    const fromServer = await getOwnStorageFromServer(identifiers);
+    if (fromServer) return fromServer;
+    const [events, vault] = await Promise.all([getUserEventStorage(identifiers), getUserVaultStorage(identifiers)]);
+    return { events, vault, total: events + vault };
+}
+
+/** Total plan storage used, events plus Vault; upload limit checks use this. */
+export async function getUserTotalStorage(identifiers: string[]): Promise<number> {
+    return (await getUserStorageBreakdown(identifiers)).total;
 }
 
 export async function getUserEventCount(uid: string): Promise<number> {
@@ -779,7 +890,14 @@ export async function getUserEventCount(uid: string): Promise<number> {
     }
 }
 
-export async function getUserEvents(userIds: string | string[], type?: 'main' | 'sub', parentId?: string, legacyParentId?: string): Promise<Event[]> {
+export async function getUserEvents(
+    userIds: string | string[],
+    type?: 'main' | 'sub',
+    parentId?: string,
+    legacyParentId?: string,
+    // Opt-in: rethrow instead of returning [], so screens can tell "no events" from "couldn't load"
+    options?: { throwOnError?: boolean }
+): Promise<Event[]> {
     try {
         const ids = Array.isArray(userIds) ? userIds.filter(Boolean) : [userIds].filter(Boolean);
         if (ids.length === 0) return [];
@@ -810,15 +928,20 @@ export async function getUserEvents(userIds: string | string[], type?: 'main' | 
             });
         }
 
-        return filteredEvents.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+        return filteredEvents.sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
     } catch (error) {
         console.error("Error fetching user events:", error);
+        if (options?.throwOnError) throw error;
         return [];
     }
 }
 
 export async function getSampleGalleryEvents(): Promise<Event[]> {
     try {
+        // Listed by get_sample_galleries, which logged-out visitors can call once RLS is on; until it exists, read the table
+        const { data: samples, error: samplesError } = await supabase.rpc('get_sample_galleries');
+        if (!samplesError && Array.isArray(samples)) return samples.map(mapSqlToEvent);
+
         const { data, error } = await supabase
             .from('events')
             .select('*')
@@ -860,6 +983,11 @@ export async function isUsernameUnique(username: string, excludeUid?: string): P
     try {
         const normalizedUsername = username.trim().toLowerCase();
         if (!isValidUsername(normalizedUsername)) return false;
+
+        // is_username_available answers without reading anyone's profile (other people's profiles aren't readable once
+        // RLS is on). It treats your own username as free. Until the function exists, fall back to the direct lookup.
+        const { data: available, error: availabilityError } = await supabase.rpc('is_username_available', { p_username: normalizedUsername });
+        if (!availabilityError && typeof available === 'boolean') return available;
 
         let queryBuilder = supabase
             .from('profiles')
@@ -977,6 +1105,176 @@ export async function getEventById(eventId: string): Promise<Event | null> {
     }
 }
 
+// --- Gallery links (supabase/migrations/20261007000000_rls_part1_gallery_link_functions.sql) ---
+
+/** What the current viewer may do with a gallery link, as decided by open_gallery() */
+export type GalleryAccess = 'manage' | 'member' | 'public_view' | 'pending' | 'rejected' | 'none' | 'login_required' | 'not_found';
+
+export interface OpenedGallery {
+    access: GalleryAccess;
+    /** The gallery's own id; links may use a join code or legacy id */
+    eventId?: string;
+    title?: string;
+    /** public_view only: display fields of the gallery and the sub-galleries of its top-level event */
+    event?: Event;
+    subEvents: Event[];
+    /** manage: always; member: the host's "Allow Photo Uploads" / "Allow Comments" switches for this viewer */
+    canUpload: boolean;
+    canComment: boolean;
+}
+
+/**
+ * Resolves a gallery link (id, legacy id or join code) for the current viewer.
+ * Opening a public gallery while logged in joins it. Throws if the lookup fails.
+ */
+export async function openGallery(ref: string): Promise<OpenedGallery> {
+    const { data, error } = await supabase.rpc('open_gallery', { p_ref: decodeURIComponent(ref) });
+    if (error) throw error;
+
+    const result = (data || {}) as any;
+    const event: Event | undefined = result.event ? { ...mapSqlToEvent(result.event), isPublic: true } : undefined;
+    const rootId = event?.parentId || event?.id;
+    const subEvents: Event[] = Array.isArray(result.sub_events)
+        ? result.sub_events
+            .map((sub: any) => ({ ...mapSqlToEvent(sub), type: 'sub' as const, parentId: rootId, isPublic: true }))
+            .sort((a: Event, b: Event) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }))
+        : [];
+
+    return {
+        access: (result.access || 'not_found') as GalleryAccess,
+        eventId: result.event_id || event?.id,
+        title: result.title || event?.title,
+        event,
+        subEvents,
+        canUpload: result.can_upload === true,
+        canComment: result.can_comment === true,
+    };
+}
+
+/**
+ * Whether the logged-in viewer may post comments on this photo: gallery managers, and members whose host turned on
+ * "Allow Comments". Everyone who can see the photo can still read its comments.
+ */
+export async function canCommentOnPhoto(photoId: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('can_comment_on_photo', { p_photo_id: photoId });
+    if (error) {
+        console.warn('[Comments] Could not check comment permission:', error.message);
+        return false;
+    }
+    return data === true;
+}
+
+/** Previews and video streams of a public gallery, for viewers who aren't logged in. Never photo originals. */
+export async function getPublicGalleryMedia(eventId: string, limit = 60, offset = 0): Promise<Photo[]> {
+    const { data, error } = await supabase.rpc('get_public_gallery_media', { p_event_id: eventId, p_limit: limit, p_offset: offset });
+    if (error) throw error;
+
+    return (data || []).map((row: any): Photo => {
+        const isVideo = row.media_type === 'video';
+        return {
+            id: row.id,
+            eventId: row.event_id,
+            storageKey: '',
+            // Photos carry the preview image and videos the HLS stream, so `url` is never an original
+            url: (isVideo ? row.stream_url : row.preview_url) || '',
+            thumbnailUrl: row.thumbnail_url || undefined,
+            width: row.width ?? undefined,
+            height: row.height ?? undefined,
+            mediaType: isVideo ? 'video' : 'photo',
+            resourceType: isVideo ? 'video' : 'image',
+            order: row.sort_order ?? undefined,
+            status: 'processed',
+            uploadedAt: row.uploaded_at,
+        };
+    });
+}
+
+/** Logged-in viewer asks to join a gallery: public ones approve at once, private ones wait for the host. */
+export async function requestGalleryAccess(ref: string): Promise<string> {
+    const { data, error } = await supabase.rpc('request_gallery_access', { p_ref: decodeURIComponent(ref) });
+    if (error) throw error;
+    const status = String(data || 'pending');
+    if (status === 'pending') void notifyGalleryRequest(decodeURIComponent(ref));
+    return status;
+}
+
+/**
+ * Asks the backend to push the gallery's owner about a new request. The owner's push token isn't readable here once
+ * RLS is on, so the backend sends it after checking the request is real. Best effort: a failure never blocks the request.
+ */
+async function notifyGalleryRequest(ref: string) {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const url = getNotifyGalleryRequestUrl();
+        if (!session?.access_token || !url) return;
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ ref }),
+        });
+    } catch (error) {
+        console.warn('[GalleryRequest] Could not notify the host:', error);
+    }
+}
+
+/**
+ * Asks the backend to tell a guest their request was approved or turned down (push to their phone). The backend checks
+ * the caller manages the gallery and reads the guest's real status. Best effort: a failure never blocks the decision.
+ */
+async function notifyGalleryDecision(guestId: string) {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const base = getNotifyGalleryRequestUrl();
+        if (!session?.access_token || !base) return;
+        await fetch(base.replace(/\/gallery-request$/, '/gallery-decision'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ guestId }),
+        });
+    } catch (error) {
+        console.warn('[GalleryRequest] Could not notify the guest:', error);
+    }
+}
+
+/**
+ * Turns down a join request: the backend tells the person (push), then erases the request so they can ask again
+ * later. Members already approved are removed with deleteGuest instead.
+ */
+export async function denyGuestRequest(logId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, '');
+        if (!session?.access_token) return { success: false, error: 'Please log in again.' };
+        if (!apiBaseUrl) return { success: false, error: 'The app is not connected to the EveBash server.' };
+        const response = await fetch(`${apiBaseUrl}/api/v1/permissions/deny-request`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ logId }),
+        });
+        const result = await response.json().catch(() => ({}));
+        return response.ok && result.success ? { success: true } : { success: false, error: result.error };
+    } catch (error) {
+        console.error('Error denying guest request:', error);
+        return { success: false, error: 'Please check your connection and try again.' };
+    }
+}
+
+function getNotifyGalleryRequestUrl() {
+    const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+    return apiBaseUrl ? `${apiBaseUrl.replace(/\/+$/, '')}/api/v1/notifications/gallery-request` : '';
+}
+
+/**
+ * Where the signed-in user stands with a gallery: 'approved' (member or manager), 'pending', or null (can ask to join,
+ * including after an earlier rejection). Like opening the link, this joins a public gallery.
+ */
+export async function getGalleryRequestStatus(ref: string): Promise<'approved' | 'pending' | null> {
+    const opened = await openGallery(ref);
+    if (opened.access === 'manage' || opened.access === 'member') return 'approved';
+    if (opened.access === 'pending') return 'pending';
+    return null;
+}
+
 export async function getSubEvents(parentId: string, legacyParentId?: string): Promise<Event[]> {
     if (!parentId) return [];
     try {
@@ -991,7 +1289,7 @@ export async function getSubEvents(parentId: string, legacyParentId?: string): P
             .map(mapSqlToEvent)
             .filter(e => e.id !== parentId && (!legacyParentId || e.id !== legacyParentId));
 
-        return subEvents.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+        return subEvents.sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
     } catch (error) {
         console.error("Error fetching sub-events:", error);
         return [];
@@ -1190,6 +1488,23 @@ export async function toggleEventFavouritePhoto(eventId: string, photoId: string
             error: message || 'Failed to update Primary Gallery.'
         };
     }
+}
+
+/**
+ * Moves photos/videos to another gallery of the same event. Likes, comments and
+ * Primary Gallery favourites stay attached because they reference the photo id.
+ */
+export async function movePhotosToGallery(photoIds: string[], targetEventId: string): Promise<{ moved: number; error?: string }> {
+    if (photoIds.length === 0 || !targetEventId) return { moved: 0 };
+    const { data, error } = await supabase.rpc('move_photos_to_gallery', {
+        p_photo_ids: photoIds,
+        p_target_event_id: targetEventId,
+    });
+    if (error) {
+        console.error("Error moving media:", error.message);
+        return { moved: 0, error: error.message || 'Could not move media.' };
+    }
+    return { moved: typeof data === 'number' ? data : 0 };
 }
 
 export async function updatePhotosOrder(orderedIds: string[]): Promise<boolean> {
@@ -1404,9 +1719,13 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
     let currentComments: any[] = [];
 
     const fetchAndTrigger = async () => {
+        // Signed in: names come from profile_cards (name and photo only), since other people's profiles aren't
+        // readable once RLS is on. Signed out keeps the old embed; likes and comments are members-only after the lockdown.
+        const { data: { session } } = await supabase.auth.getSession();
+        const people = session ? 'profiles:profile_cards(name, profile_image)' : 'profiles(name, profile_image)';
         const [likesRes, commentsRes] = await Promise.all([
-            supabase.from('likes').select('id, created_at, user_id, profiles(name, profile_image)').eq('photo_id', photoId),
-            supabase.from('comments').select('id, text, created_at, user_id, parent_id, profiles(name, profile_image)').eq('photo_id', photoId)
+            supabase.from('likes').select(`id, created_at, user_id, ${people}`).eq('photo_id', photoId),
+            supabase.from('comments').select(`id, text, created_at, user_id, parent_id, ${people}`).eq('photo_id', photoId)
         ]);
 
         if (!likesRes.error && likesRes.data) {
@@ -1464,18 +1783,30 @@ export async function deletePhotoComment(commentId: string) {
     }
 }
 
+// Each identifier's approved guests rows, newest login first: one query filtered on the server for all of them
+// (a query returns at most 1,000 rows), then the few rows it returns are split by identifier
+async function getUserVisitsByIdentifier(identifiers: string[]): Promise<GuestLog[][]> {
+    const filter = guestIdentifiersFilter(identifiers);
+    if (!filter) return identifiers.map(() => []);
+
+    const { data, error } = await supabase
+        .from('guests')
+        .select('*')
+        .eq('status', 'approved')
+        .or(filter)
+        .order('login_at', { ascending: false });
+
+    if (error) throw error;
+    const rows = data || [];
+    return identifiers.map(identifier => rows
+        .filter(row => guestLogMatchesIdentifier(row, identifier))
+        .map(mapSqlToGuestLog));
+}
+
 export async function getUserVisits(identifier: string): Promise<any[]> {
     try {
-        const { data, error } = await supabase
-            .from('guests')
-            .select('*')
-            .eq('status', 'approved')
-            .order('login_at', { ascending: false });
-
-        if (error) throw error;
-        return (data || [])
-            .filter(row => guestLogMatchesIdentifier(row, identifier))
-            .map(mapSqlToGuestLog);
+        const [visits] = await getUserVisitsByIdentifier([identifier]);
+        return visits;
     } catch (error) {
         console.error("Error fetching user visits:", error);
         return [];
@@ -1503,7 +1834,7 @@ export async function getApprovedSharedEventsForUser(identifiers: string | strin
         const ids = Array.isArray(identifiers) ? identifiers.filter(Boolean) : [identifiers].filter(Boolean);
         if (ids.length === 0) return [];
 
-        const visitsByIdentifier = await Promise.all(ids.map((identifier) => getUserVisits(identifier)));
+        const visitsByIdentifier = await getUserVisitsByIdentifier(ids);
         const visits = visitsByIdentifier.flat();
 
         const eventVisits: { [eventId: string]: any[] } = {};
@@ -1525,99 +1856,11 @@ export async function getApprovedSharedEventsForUser(identifiers: string | strin
 
         return events
             .filter((event): event is Event => event !== null)
-            .sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+            .sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
     } catch (error) {
         console.error("Error fetching approved shared events:", error);
         return [];
     }
-}
-
-export async function logGuestLogin(
-    name: string, 
-    phone: string, 
-    eventId?: string, 
-    parentEventId?: string, 
-    eventTitle?: string, 
-    ownerId?: string, 
-    status: 'pending' | 'approved' | 'rejected' = 'pending'
-) {
-    if (!phone) return false;
-    try {
-        const logId = eventId ? `${phone}_${eventId}` : phone;
-
-        const { data: existing } = await supabase
-            .from('guests')
-            .select('status')
-            .eq('id', logId)
-            .maybeSingle();
-
-        const { error } = await supabase.from('guests').upsert({
-            id: logId,
-            name,
-            phone,
-            event_id: eventId || null,
-            parent_event_id: parentEventId || null,
-            parent_event_owner_id: ownerId || null,
-            event_title: eventTitle || null,
-            login_at: new Date().toISOString(),
-            status: existing?.status || status
-        });
-
-        if (error) throw error;
-
-        // Notify event owner when a new guest joins their event
-        if (ownerId && ownerId !== phone) {
-            const isNew = !existing;
-            if (isNew) {
-                sendPushNotificationDirectly(
-                    ownerId,
-                    '🎉 New guest joined',
-                    `${name} just joined "${eventTitle || 'your event'}"`,
-                    { eventId: eventId || '' }
-                ).catch(() => {});
-            }
-        }
-
-        return true;
-    } catch (error) {
-        console.error("Error logging guest login:", error);
-        return false;
-    }
-}
-
-export async function checkGuestRequestStatus(userId: string, eventId: string): Promise<'pending' | 'approved' | 'rejected' | null> {
-    try {
-        const { data, error } = await supabase
-            .from('guests')
-            .select('status')
-            .eq('id', `${userId}_${eventId}`)
-            .maybeSingle();
-
-        if (error) throw error;
-        return data ? (data.status as any) : null;
-    } catch (e) {
-        console.error("Error checking guest request status:", e);
-        return null;
-    }
-}
-
-export function onGuestStatusChange(logId: string, callback: (status: string) => void) {
-    const channel = supabase
-        .channel(`guest-status-${logId}`)
-        .on(
-            'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'guests', filter: `id=eq.${logId}` },
-            (payload) => {
-                if (payload.new && payload.new.status) {
-                    callback(payload.new.status);
-                }
-            }
-        )
-        .subscribe();
-
-    return () => {
-        supabase.removeChannel(channel);
-    };
 }
 
 export async function getGuestLogs(ownerIds?: string | string[]): Promise<GuestLog[]> {
@@ -1642,17 +1885,26 @@ export async function getGuestLogs(ownerIds?: string | string[]): Promise<GuestL
 
 export async function getEventLogs(eventId: string): Promise<GuestLog[]> {
     if (!eventId) return [];
-    const logs = await getGuestLogs();
-    return logs.filter(log => log.eventId === eventId || log.parentEventId === eventId);
+    try {
+        // Only this gallery's rows, filtered on the server (a query returns at most 1,000 rows)
+        const { data, error } = await supabase
+            .from('guests')
+            .select('*')
+            .or(`event_id.eq.${eventId},parent_event_id.eq.${eventId}`)
+            .order('login_at', { ascending: false });
+
+        if (error) throw error;
+        return (data || []).map(mapSqlToGuestLog);
+    } catch (error) {
+        console.error("Error fetching event logs:", error);
+        return [];
+    }
 }
 
 export async function updateGuestStatus(logId: string, status: 'pending' | 'approved' | 'rejected') {
     try {
+        // Approving doesn't turn on uploads or comments: the host switches those on per guest
         const updateData: any = { status };
-        if (status === 'approved') {
-            updateData.can_upload = true;
-            updateData.can_comment = true;
-        }
 
         const { error } = await supabase
             .from('guests')
@@ -1660,6 +1912,7 @@ export async function updateGuestStatus(logId: string, status: 'pending' | 'appr
             .eq('id', logId);
 
         if (error) throw error;
+        if (status !== 'pending') void notifyGalleryDecision(logId);
         return true;
     } catch (error) {
         console.error("Error updating guest status:", error);
@@ -1874,45 +2127,50 @@ export async function rotatePhoto(
 
 export async function deleteEvent(eventId: string) {
     try {
+        // Delete sub-galleries first, as the website does (they aren't removed with their parent)
+        const { data: subs } = await supabase.from('events').select('id').eq('parent_id', eventId);
+        for (const sub of subs || []) {
+            if (!(await deleteEvent(sub.id))) throw new Error(`Could not delete sub-gallery ${sub.id}`);
+        }
+
         // Fetch photos metadata and delete B2 assets for all photos associated with this event
-        const { data: photos } = await supabase.from('photos').select('id, size, media_type, uploaded_at').eq('event_id', eventId);
-        const { data: eventData } = await supabase.from('events').select('title, created_by, created_at').eq('id', eventId).maybeSingle();
+        const { data: photos } = await supabase.from('photos').select('id, size, overhead_size, media_type, uploaded_at').eq('event_id', eventId);
 
         if (photos && photos.length > 0) {
             console.log(`[deleteEvent] Cleaning up B2 files for ${photos.length} photos under event ${eventId}`);
-            await Promise.all(photos.map(photo => deletePhoto(photo.id)));
+            // In chunks of 4, as on the website, so a big gallery doesn't flood the storage server
+            for (let i = 0; i < photos.length; i += 4) {
+                await Promise.all(photos.slice(i, i + 4).map(photo => deletePhoto(photo.id)));
+            }
         }
 
         // Record compact 1-row financial ledger entry so Backblaze byte-hours and transactions can be accurately billed
         try {
-            const totalBytes = (photos || []).reduce((s: number, p: any) => s + (Number(p.size) || 0), 0);
+            const totalBytes = (photos || []).reduce((s: number, p: any) => s + (Number(p.size) || 0) + (Number(p.overhead_size) || 0), 0);
             const photosCount = (photos || []).filter((p: any) => String(p.media_type || '').toLowerCase() !== 'video').length;
             const videosCount = (photos || []).filter((p: any) => String(p.media_type || '').toLowerCase() === 'video').length;
             const earliestUpload = photos && photos.length > 0
                 ? photos.map((p: any) => p.uploaded_at).filter(Boolean).sort()[0]
                 : null;
-            const eventCreatedAt = eventData?.created_at || earliestUpload || new Date().toISOString();
+            const eventCreatedAt = earliestUpload || new Date().toISOString();
 
-            const ledgerPayload: Record<string, any> = {
-                event_id: eventId,
-                user_id: eventData?.created_by || null,
-                event_title: eventData?.title || 'Untitled Gallery',
-                photos_count: photosCount,
-                videos_count: videosCount,
-                total_bytes: totalBytes,
-                estimated_modal_cost_inr: 0,
-                deleted_by: 'user_mobile',
-                event_created_at: eventCreatedAt,
-            };
-
-            const { error: insErr } = await supabase.from('deleted_events_archive').insert(ledgerPayload);
-            if (insErr) {
-                delete ledgerPayload.event_created_at;
-                await supabase.from('deleted_events_archive').insert(ledgerPayload);
-            }
+            // archive_deleted_event writes the record with the gallery's real owner and title; only people who
+            // may manage the gallery can call it (the archive table itself is admin-only once RLS is on)
+            const { error: archiveError } = await supabase.rpc('archive_deleted_event', {
+                p_event_id: eventId,
+                p_photos_count: photosCount,
+                p_videos_count: videosCount,
+                p_total_bytes: totalBytes,
+                p_deleted_by: 'user_mobile',
+                p_event_created_at: eventCreatedAt,
+            });
+            if (archiveError) console.warn('[deleteEvent] Could not record deletion ledger (non-blocking):', archiveError.message);
         } catch (archiveErr) {
             console.warn('[deleteEvent] Could not record deletion ledger (non-blocking):', archiveErr);
         }
+
+        // Remove the gallery's face scans (guest privacy), as the website does
+        await supabase.from('faces').delete().eq('event_id', eventId);
 
         const { error } = await supabase.from('events').delete().eq('id', eventId);
         if (error) throw error;
@@ -1998,63 +2256,6 @@ export async function getUserBusinesses(uid: string): Promise<Business[]> {
     } catch (error) {
         console.error("Error fetching user businesses:", error);
         return [];
-    }
-}
-
-export async function addPhoto(data: Omit<Photo, 'id'>) {
-    try {
-        // Derive a deterministic ID from storage_key — same approach as web savePhoto.
-        // This prevents duplicate DB rows on retry (if the upload task is retried after a
-        // partial failure where B2 got the file but the DB write failed).
-        const derivedId = data.storageKey
-            ? data.storageKey.replace(/\//g, '_')
-            : Math.random().toString(36).substring(2, 15);
-
-        const { error } = await supabase.from('photos').upsert({
-            id: derivedId,
-            event_id: data.eventId,
-            storage_key: data.storageKey,
-            url: data.url,
-            user_id: data.userId || null,
-            width: data.width || null,
-            height: data.height || null,
-            size: data.size || null,
-            format: data.format || null,
-            media_type: data.mediaType || 'photo',
-            resource_type: data.resourceType || (data.mediaType === 'video' ? 'video' : 'image'),
-            thumbnail_url: data.thumbnailUrl || null,
-            tags: data.tags || [],
-            uploaded_at: new Date().toISOString()
-        });
-        if (error) throw error;
-
-        // Notify event owner when a guest uploads a photo
-        if (data.eventId && data.userId) {
-            void (async () => {
-                const { data: event } = await supabase
-                    .from('events')
-                    .select('created_by, title')
-                    .eq('id', data.eventId)
-                    .maybeSingle();
-
-                if (event?.created_by && event.created_by !== data.userId) {
-                    const isVideo = data.mediaType === 'video';
-                    await Promise.resolve(
-                        sendPushNotificationDirectly(
-                            event.created_by,
-                            isVideo ? '🎥 New video uploaded' : '📸 New photo uploaded',
-                            `Someone added a ${isVideo ? 'video' : 'photo'} to "${event.title}"`,
-                            { eventId: data.eventId }
-                        )
-                    );
-                }
-            })().catch(() => {});
-        }
-
-        return derivedId;
-    } catch (error) {
-        console.error("Error adding photo:", error);
-        return null;
     }
 }
 
@@ -2332,7 +2533,7 @@ export async function getReviewsForBusiness(bizId: string): Promise<any[]> {
   try {
     const { data, error } = await supabase
         .from('business_ratings')
-        .select('*, profiles(name)')
+        .select('*, profiles:profile_cards(name)')
         .eq('business_id', bizId)
         .order('created_at', { ascending: false });
 
@@ -2413,10 +2614,6 @@ export async function updateUserPrivacy(uid: string, isPrivate: boolean) {
     }
 }
 
-export async function followUser(followerId: string, followedId: string) {
-    return { success: true, status: 'accepted' };
-}
-
 export async function getPendingFollowRequests(userId: string): Promise<any[]> {
     return [];
 }
@@ -2429,55 +2626,12 @@ export async function rejectFollowRequest(relationshipId: string) {
     return true;
 }
 
-export async function unfollowUser(followerId: string, followedId: string) {
-    return true;
-}
-
-export async function getFollowing(userId: string): Promise<string[]> {
-    return [];
-}
-
 export async function getFollowersCount(userId: string): Promise<number> {
     return 0;
 }
 
 export async function getFollowingCount(userId: string): Promise<number> {
     return 0;
-}
-
-export async function getSocialFeed(followingIds: string[]): Promise<any[]> {
-    try {
-        const { data, error } = await supabase
-            .from('events')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        return (data || []).map(mapSqlToEvent).map(e => ({ ...e, type: 'event' }));
-    } catch (error) {
-        console.error("[SocialFeed] Error fetching feed:", error);
-        return [];
-    }
-}
-
-export async function toggleEventPostLike(eventId: string, userId: string) {
-    return { liked: true };
-}
-
-export async function isEventPostLikedByUser(eventId: string, userId: string): Promise<boolean> {
-    return false;
-}
-
-export async function getEventPostLikes(eventId: string) {
-    return { count: 0 };
-}
-
-export async function addEventPostComment(eventId: string, userId: string, userName: string, text: string) {
-    return true;
-}
-
-export async function getEventPostComments(eventId: string) {
-    return [];
 }
 
 export async function toggleShortlistBusiness(userId: string, businessId: string) {
@@ -2549,7 +2703,7 @@ export async function getEnquiriesForBusiness(businessId: string, userId: string
     try {
         const { data, error } = await supabase
             .from('enquiries')
-            .select('*, profiles:profiles!enquiries_user_id_fkey(name)')
+            .select('*, profiles:profile_cards!enquiries_user_id_fkey(name)')
             .eq('vendor_owner_id', userId);
 
         if (error) throw error;
@@ -2648,7 +2802,7 @@ export function onChatMessages(roomId: string, callback: (messages: ChatMessage[
   const fetchAndTrigger = async () => {
       const { data, error } = await supabase
         .from('messages')
-        .select('*, profiles(name)')
+        .select('*, profiles:profile_cards(name)')
         .eq('room_id', roomId)
         .order('created_at', { ascending: true });
 
@@ -2681,16 +2835,16 @@ export async function getUserChatRooms(userId: string, role: 'client' | 'vendor'
     const field = role === 'client' ? 'client_uid' : 'vendor_uid';
     const { data, error } = await supabase
         .from('chat_rooms')
-        .select('*, profiles(name)')
+        .select('*, client:profile_cards!chat_rooms_client_uid_fkey(name), vendor:profile_cards!chat_rooms_vendor_uid_fkey(name)')
         .eq(field, userId);
 
     if (error) throw error;
     return (data || []).map(r => ({
         id: r.id,
         clientUid: r.client_uid,
-        clientName: role === 'client' ? 'My Chat' : (r.profiles?.name || 'Client'),
+        clientName: role === 'client' ? 'My Chat' : (r.client?.name || 'Client'),
         vendorUid: r.vendor_uid,
-        vendorName: role === 'vendor' ? 'My Chat' : (r.profiles?.name || 'Vendor'),
+        vendorName: role === 'vendor' ? 'My Chat' : (r.vendor?.name || 'Vendor'),
         businessId: 'vendor-listing',
         createdAt: r.created_at,
         status: r.status,
@@ -2742,48 +2896,6 @@ export function generateEventJoinId(eventId: string): string {
 
     const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
     return `${prefix}-${randomSuffix}`;
-}
-
-export async function getEventByJoinId(joinId: string): Promise<Event | null> {
-    try {
-        const cleanJoinId = joinId.toUpperCase().trim();
-        let { data, error } = await supabase
-            .from('events')
-            .select('*')
-            .eq('join_id', cleanJoinId);
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-            const { data: allEvents, error: allErr } = await supabase
-                .from('events')
-                .select('*')
-                .not('join_id', 'is', null);
-
-            if (!allErr && allEvents) {
-                const targetNormalized = cleanJoinId.replace(/[^A-Z0-9]/g, '');
-                const matches = allEvents.filter(e => {
-                    if (!e.join_id) return false;
-                    const dbNormalized = e.join_id.toUpperCase().replace(/[^A-Z0-9]/g, '');
-                    return dbNormalized === targetNormalized;
-                });
-                if (matches.length > 0) {
-                    data = matches;
-                }
-            }
-        }
-
-        if (!data || data.length === 0) return null;
-
-        if (data.length > 1) {
-            const mainEvent = data.find(e => e.type === 'main');
-            if (mainEvent) return mapSqlToEvent(mainEvent);
-        }
-        return mapSqlToEvent(data[0]);
-    } catch (error) {
-        console.error("Error fetching event by joinId:", error);
-        return null;
-    }
 }
 
 export async function deleteGuest(logId: string) {

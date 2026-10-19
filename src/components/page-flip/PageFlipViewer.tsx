@@ -8,11 +8,13 @@ import { ThumbnailDrawer, VIEWER_LAYOUT_COMPONENTS } from "./PageFlipLayouts";
 import { PageFlipPage } from "./PageFlipPage";
 import { PageFlipProgress } from "./PageFlipProgress";
 import { PageFlipSocialBar } from "./PageFlipSocialBar";
-import { getPageFlipThemeConfig } from "./pageFlipThemes";
+import { getWebLightboxTheme } from "@/lib/webTemplateTheme";
+import { TEMPLATE_ID_TO_PAGE_FLIP_THEME, getPageFlipThemeConfig } from "./pageFlipThemes";
 import { getVisiblePageFlipIndexes } from "./pageFlipNavigation";
 import { usePageFlipNavigation } from "./usePageFlipNavigation";
 import { useSwipeNavigation } from "./useSwipeNavigation";
 import type { GalleryMediaItem, GalleryTransitionMode, PageFlipTheme, PageFlipThemeConfig, ViewerLayout } from "./types";
+import { getOriginalMediaUrl } from "@/lib/zipDownload";
 
 export interface PageFlipViewerProps {
   items: GalleryMediaItem[];
@@ -25,6 +27,8 @@ export interface PageFlipViewerProps {
   transitionMode?: GalleryTransitionMode;
   viewerLayout?: ViewerLayout;
   showDownload?: boolean;
+  /** Logged-out visitors of a public gallery: like, comment and download show and call this (a log-in prompt) */
+  onRequireLogin?: () => void;
   showFullscreen?: boolean;
   showGridButton?: boolean;
   showLikes?: boolean;
@@ -40,7 +44,8 @@ export interface PageFlipViewerProps {
 function downloadItem(item?: GalleryMediaItem) {
   if (!item) return;
   const link = document.createElement("a");
-  link.href = item.originalUrl || item.previewUrl;
+  // Videos: the uploaded file, not the streaming playlist
+  link.href = getOriginalMediaUrl(item.originalUrl || item.previewUrl);
   link.setAttribute("download", item.filename || "evebash-media");
   document.body.appendChild(link);
   link.click();
@@ -96,6 +101,7 @@ export function PageFlipViewer({
   transitionMode,
   viewerLayout,
   showDownload = true,
+  onRequireLogin,
   showFullscreen = true,
   showGridButton,
   showLikes = true,
@@ -107,6 +113,7 @@ export function PageFlipViewer({
   onClose,
   onIndexChange,
 }: PageFlipViewerProps) {
+  const palette = getWebLightboxTheme(Object.keys(TEMPLATE_ID_TO_PAGE_FLIP_THEME).find((id) => TEMPLATE_ID_TO_PAGE_FLIP_THEME[id] === theme));
   const themeConfig = useMemo(() => getPageFlipThemeConfig(theme), [theme]);
   const resolvedLayout = viewerLayout || themeConfig.layout || "bottom-filmstrip";
   const config = useMemo<PageFlipThemeConfig>(() => ({
@@ -401,6 +408,8 @@ export function PageFlipViewer({
       role="dialog"
       aria-modal="true"
       aria-label="Page flip media viewer"
+      data-viewer-theme={theme}
+      style={{ "--viewer-background": palette.background, "--viewer-panel": palette.panel, "--viewer-text": palette.text, "--viewer-muted": palette.muted, "--viewer-border": palette.border } as React.CSSProperties}
       className={cn("fixed inset-0 z-[9999] overflow-hidden text-white transition-colors duration-300", config.backgroundClass)}
       {...swipeHandlers}
     >
@@ -423,7 +432,7 @@ export function PageFlipViewer({
           fullscreen={fullscreen}
           slideshow={slideshow}
           showArrows={showArrows}
-          showDownload={showDownload && !isCoverFlow}
+          showDownload={(showDownload || !!onRequireLogin) && !isCoverFlow}
           showFullscreen={showFullscreen && (!isCoverFlow || fullscreen)}
           showGridButton={shouldShowGridButton && items.length > 1}
           commentsMode={commentsMode}
@@ -431,7 +440,7 @@ export function PageFlipViewer({
           onPrev={goPrev}
           onNext={goNext}
           onClose={() => onClose?.()}
-          onDownload={() => downloadItem(currentItem)}
+          onDownload={showDownload ? () => downloadItem(currentItem) : () => onRequireLogin?.()}
           onOpenGrid={() => setThumbnailDrawerOpen(true)}
           onToggleZoom={() => setZoomed((value) => !value)}
           onToggleFullscreen={toggleFullscreen}
@@ -478,6 +487,7 @@ export function PageFlipViewer({
           slideshow={slideshow}
           commentsPanelSuppressed={fullscreen}
           onDownload={() => downloadItem(currentItem)}
+          onRequireLogin={onRequireLogin}
           onFullscreen={toggleFullscreen}
           onFindYou={onFindYou}
           onCloseViewer={onClose}

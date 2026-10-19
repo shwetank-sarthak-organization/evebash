@@ -1,12 +1,14 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
+import { Stack, useGlobalSearchParams, useRouter, useSegments, useRootNavigationState } from 'expo-router';
+import { safeReturnTo } from '@/lib/loginReturn';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import * as React from 'react';
-import { useEffect, useState } from 'react';
-import { View, LogBox, Platform, StyleSheet, Text } from 'react-native';
+import { useEffect } from 'react';
+import { LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import LoadingScreen from '@/components/LoadingScreen';
+import { FeedbackHost } from '@/components/feedback/FeedbackHost';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { AppThemeProvider, useAppTheme } from '@/context/ThemeContext';
@@ -15,6 +17,7 @@ import { initUploadQueue } from '@/lib/uploadQueue';
 import { registerDeviceForPushNotifications } from '@/lib/notifications';
 import * as Notifications from 'expo-notifications';
 import { SCREEN_ORIENTATION_LOCK, lockScreenOrientation } from '@/lib/screenOrientation';
+import { markStartup } from '@/lib/startupTiming';
 import { useFonts } from 'expo-font';
 import { 
   Inter_400Regular, 
@@ -25,10 +28,20 @@ import {
   Inter_900Black
 } from '@expo-google-fonts/inter';
 
-const IS_STAGING_BUILD = process.env.EXPO_PUBLIC_API_BASE_URL?.includes('api-staging.evebash.com') ?? false;
-
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
+
+// The native splash stays up until AuthGate can show the first screen, but never longer than
+// this, so a slow session refresh shows the branded loading screen instead of a frozen splash.
+const SPLASH_MAX_MS = 2000;
+let splashHidden = false;
+
+function hideSplash(reason: 'ready' | 'timeout') {
+  if (splashHidden) return;
+  splashHidden = true;
+  markStartup(`splash hidden (${reason})`);
+  SplashScreen.hideAsync();
+}
 
 LogBox.ignoreLogs([
   "Can't perform a React state update on a component that hasn't mounted yet",
@@ -58,6 +71,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
   const router = useRouter();
   const rootNavigationState = useRootNavigationState();
+  const { returnTo } = useGlobalSearchParams<{ returnTo?: string }>();
+  // Login opened from a gallery: the login screen returns there itself
+  const loginReturnsToGallery = !!safeReturnTo(returnTo);
 
   useEffect(() => {
     if (loading || !rootNavigationState?.key) return;
@@ -76,16 +92,19 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       root === 'pricing' ||
       root === 'contact' ||
       root === 'sample-galleries' ||
-      root === 'events';
+      root === 'events' ||
+      // Legal pages are linked from the login screen, so they must open while signed out
+      root === 'terms-and-conditions' ||
+      root === 'privacy-policy';
 
     if (!user && !inAuthGroup && !isPublicRoute) {
       const timeoutId = setTimeout(() => router.replace('/login'), 1);
       return () => clearTimeout(timeoutId);
-    } else if (user && inAuthGroup) {
+    } else if (user && inAuthGroup && !loginReturnsToGallery) {
       const timeoutId = setTimeout(() => router.replace('/(tabs)/dashboard'), 1);
       return () => clearTimeout(timeoutId);
     }
-  }, [user, loading, segments, rootNavigationState?.key, router]);
+  }, [user, loading, segments, rootNavigationState?.key, router, loginReturnsToGallery]);
 
   // Register push notifications when user is signed in
   useEffect(() => {
@@ -123,6 +142,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
     return () => tapSubscription.remove();
   }, [router]);
+
+  useEffect(() => {
+    if (!loading && rootNavigationState?.key) hideSplash('ready');
+  }, [loading, rootNavigationState?.key]);
 
   if (loading || !rootNavigationState?.key) {
     return <LoadingScreen message="Loading your account" />;
@@ -167,6 +190,8 @@ function RootLayoutContent() {
           headerShadowVisible: false,
           headerTransparent: true,
         }}>
+          {/* Redirect-only route; without this its default header ("index") flashes at startup */}
+          <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
@@ -174,11 +199,8 @@ function RootLayoutContent() {
         </Stack>
       </AuthGate>
       <StatusBar style={isDark ? "light" : "dark"} />
-      {IS_STAGING_BUILD && (
-        <View pointerEvents="none" style={styles.stagingBadge}>
-          <Text style={styles.stagingBadgeText}>STAGING</Text>
-        </View>
-      )}
+      {/* App-wide toasts and the themed alert dialog (see lib/feedback.ts) */}
+      <FeedbackHost />
     </ThemeProvider>
   );
 }
@@ -234,64 +256,30 @@ export default function RootLayout() {
     GrandHotel_400Regular: Inter_400Regular,
   });
 
-  console.log('--- Font Diagnostics ---');
-  console.log('fontsLoaded:', fontsLoaded);
-  console.log('fontError:', fontError);
-  console.log('------------------------');
-
-  const [minLoadingDone, setMinLoadingDone] = useState(false);
-
-  // Guarantee at least 3 seconds of loading screen on app open
   useEffect(() => {
-    const timer = setTimeout(() => setMinLoadingDone(true), 3000);
+    if (fontError) console.warn('[Fonts] Failed to load:', fontError);
+  }, [fontError]);
+
+  const fontsReady = fontsLoaded || !!fontError;
+
+  useEffect(() => {
+    if (fontsReady) markStartup('fonts ready');
+  }, [fontsReady]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => hideSplash('timeout'), SPLASH_MAX_MS);
     return () => clearTimeout(timer);
   }, []);
 
-  const isReady = (fontsLoaded || !!fontError) && minLoadingDone;
-
-  useEffect(() => {
-    if (isReady) {
-      SplashScreen.hideAsync();
-    }
-  }, [isReady]);
-
-  if (!isReady) {
-    return <LoadingScreen message="Starting up" />;
-  }
-
+  // AuthProvider mounts before fonts finish loading so the session check starts right away
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppThemeProvider>
         <AuthProvider>
-          <RootLayoutContent />
+          {fontsReady ? <RootLayoutContent /> : <LoadingScreen message="Starting up" />}
         </AuthProvider>
       </AppThemeProvider>
     </GestureHandlerRootView>
   );
 }
 
-const styles = StyleSheet.create({
-  stagingBadge: {
-    position: 'absolute',
-    top: Platform.select({ ios: 56, android: 34, default: 34 }),
-    right: 12,
-    zIndex: 9999,
-    elevation: 9999,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: '#f59e0b',
-    borderWidth: 1,
-    borderColor: '#92400e',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 4,
-  },
-  stagingBadgeText: {
-    color: '#111827',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0,
-  },
-});

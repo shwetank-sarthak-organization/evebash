@@ -1,6 +1,15 @@
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
 
+/** The server's reason for refusing an upload; `code` is "storage_full" or "plan_expired" when the plan is the reason. */
+export type UploadRefusedError = Error & { code?: string };
+
+function uploadRefusedError(result: { error?: string; code?: string }, fallback: string): UploadRefusedError {
+    const error: UploadRefusedError = new Error(result?.error || fallback);
+    if (result?.code) error.code = result.code;
+    return error;
+}
+
 /**
  * Computes the SHA-1 hash of a Blob using the browser's SubtleCrypto API.
  * Returns the hex-encoded hash string.
@@ -23,9 +32,15 @@ function uploadWithXhr(
     authToken: string,
     storageKey: string,
     file: File,
-    onProgress?: (percent: number) => void
+    onProgress?: (percent: number) => void,
+    signal?: AbortSignal
 ): Promise<{ status: number; responseText: string }> {
     return new Promise((resolve, reject) => {
+        if (signal?.aborted) {
+            reject(new DOMException("Upload cancelled", "AbortError"));
+            return;
+        }
+
         const xhr = new XMLHttpRequest();
         xhr.open("POST", url, true);
 
@@ -43,7 +58,17 @@ function uploadWithXhr(
             };
         }
 
+        const onAbort = () => {
+            xhr.abort();
+            reject(new DOMException("Upload cancelled", "AbortError"));
+        };
+
+        if (signal) {
+            signal.addEventListener("abort", onAbort, { once: true });
+        }
+
         xhr.onload = () => {
+            if (signal) signal.removeEventListener("abort", onAbort);
             resolve({
                 status: xhr.status,
                 responseText: xhr.responseText
@@ -51,11 +76,13 @@ function uploadWithXhr(
         };
 
         xhr.onerror = () => {
+            if (signal) signal.removeEventListener("abort", onAbort);
             reject(new Error("Network error during direct B2 upload."));
         };
 
         xhr.onabort = () => {
-            reject(new Error("Upload aborted."));
+            if (signal) signal.removeEventListener("abort", onAbort);
+            reject(new DOMException("Upload cancelled", "AbortError"));
         };
 
         xhr.send(file);
@@ -211,7 +238,30 @@ function clearResumeState(fileName: string, fileSize: number) {
 
 // ─── Parallel + Resumable Chunk Upload ─────────────────────────────────────────
 
+// Chunked uploads running in this tab. A second upload of the same file resumes the same B2 session,
+// and whichever copy finishes first closes it under the other ("No active upload" on the remaining parts).
+const activeChunkUploads = new Set<string>();
+
 async function uploadLargeFileInChunks(
+    file: File,
+    eventId: string,
+    onProgress?: (percent: number) => void,
+    signal?: AbortSignal,
+    onFinalizing?: () => void
+) {
+    const key = `${eventId}:${file.name}:${file.size}`;
+    if (activeChunkUploads.has(key)) {
+        throw new Error(`${file.name} is already uploading, so this copy was skipped.`);
+    }
+    activeChunkUploads.add(key);
+    try {
+        return await uploadChunks(file, eventId, onProgress, signal, onFinalizing);
+    } finally {
+        activeChunkUploads.delete(key);
+    }
+}
+
+async function uploadChunks(
     file: File,
     eventId: string,
     onProgress?: (percent: number) => void,
@@ -256,7 +306,7 @@ async function uploadLargeFileInChunks(
         });
         const initiateData = await initiateRes.json().catch(() => ({}));
         if (!initiateRes.ok) {
-            throw new Error(initiateData.error || `Failed to initiate chunked upload (status: ${initiateRes.status})`);
+            throw uploadRefusedError(initiateData, `Failed to initiate chunked upload (status: ${initiateRes.status})`);
         }
         fileId = initiateData.fileId;
         storageKey = initiateData.storageKey;
@@ -555,6 +605,8 @@ async function uploadLargeFileInChunks(
         height: undefined,
         bytes: file.size,
         format: file.name.split(".").pop() || "mp4",
+        // /chunk/complete saved the row and, for videos, queued the transcode — callers must not save it again
+        videoSavedByBackend: completeData.mediaType === "video",
     };
     } catch (error) {
         if (signal?.aborted) {
@@ -596,10 +648,15 @@ export async function uploadEventImage(
         }
     }
 
-    // Use resilient chunked upload for all videos and media >= 5MB
-    // Backblaze B2 minimum part size is 5MB. Chunked upload provides multi-part parallelism,
-    // exponential backoff retry on network drops, and session resumption across tab refreshes.
-    if (signal || isVideoFile || file.size >= 5 * 1024 * 1024) {
+    // Backblaze B2 Large File requirements:
+    // 1. Must have at least 2 parts (single-part files are rejected with 400 Bad Request).
+    // 2. Each part except the last must be at least 5 MB (5,000,000 bytes).
+    // Therefore, chunked upload is strictly reserved for large videos or large files (>= 20 MB)
+    // where >= 2 chunks of 10 MB each are guaranteed.
+    // Standard photos & media (< 20 MB) upload via direct B2 upload (b2_upload_file), which
+    // is 3-4x faster, uses a single HTTP request, and natively supports files up to 5 GB.
+    const isLargeFileEligibleForChunking = (isVideoFile || file.size >= 20 * 1024 * 1024) && file.size >= 10 * 1024 * 1024;
+    if (isLargeFileEligibleForChunking) {
         return uploadLargeFileInChunks(file, eventId, onProgress, signal, onFinalizing);
     }
 
@@ -624,14 +681,16 @@ export async function uploadEventImage(
             body: JSON.stringify({
                 eventId,
                 fileName: file.name,
+                fileSize: file.size,
                 resourceType,
                 laneIndex,
             }),
+            signal,
         });
 
         const getUrlResult = await getUrlResponse.json().catch(() => ({}));
         if (!getUrlResponse.ok) {
-            throw new Error(getUrlResult.error || `Failed to get B2 upload URL (status: ${getUrlResponse.status})`);
+            throw uploadRefusedError(getUrlResult, `Failed to get B2 upload URL (status: ${getUrlResponse.status})`);
         }
 
         const { uploadUrl, authorizationToken, storageKey } = getUrlResult;
@@ -656,11 +715,12 @@ export async function uploadEventImage(
                         "Content-Length": String(file.size),
                     },
                     body: file,
+                    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(180_000)]) : AbortSignal.timeout(180_000),
                 });
                 responseStatus = res.status;
                 responseText = await res.text();
             } else {
-                const xhrResult = await uploadWithXhr(currentUploadUrl, currentAuthToken, storageKey, file, onProgress);
+                const xhrResult = await uploadWithXhr(currentUploadUrl, currentAuthToken, storageKey, file, onProgress, signal);
                 responseStatus = xhrResult.status;
                 responseText = xhrResult.responseText;
             }
@@ -677,10 +737,12 @@ export async function uploadEventImage(
                 body: JSON.stringify({
                     eventId,
                     fileName: file.name,
+                    fileSize: file.size,
                     resourceType,
                     laneIndex,
                     forceRefresh: true,
                 }),
+                signal,
             });
 
             const retryUrlResult = await retryUrlResponse.json().catch(() => ({}));
@@ -703,11 +765,12 @@ export async function uploadEventImage(
                         "Content-Length": String(file.size),
                     },
                     body: file,
+                    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(180_000)]) : AbortSignal.timeout(180_000),
                 });
                 responseStatus = res.status;
                 responseText = await res.text();
             } else {
-                const xhrResult = await uploadWithXhr(currentUploadUrl, currentAuthToken, storageKey, file, onProgress);
+                const xhrResult = await uploadWithXhr(currentUploadUrl, currentAuthToken, storageKey, file, onProgress, signal);
                 responseStatus = xhrResult.status;
                 responseText = xhrResult.responseText;
             }
@@ -786,6 +849,7 @@ export async function uploadEventImage(
             height: undefined,
             bytes: file.size,
             format: file.name.split(".").pop() || "jpg",
+            videoSavedByBackend: false,
         };
     } catch (error: unknown) {
         console.error("[Storage] Direct upload flow error:", error);

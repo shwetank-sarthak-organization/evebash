@@ -1,5 +1,5 @@
 export { BohemianEqualizer } from './BohemianEqualizer';
-export { GatedAccessPanel } from './GatedAccessPanel';
+export { GalleryAccessGate } from './GalleryAccessGate';
 export { ThemeDivider } from './ThemeDivider';
 export { ThemeHeader } from './ThemeHeader';
 export { RenameEventModal } from './modals/RenameEventModal';

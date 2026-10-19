@@ -6,6 +6,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { Event } from "@/lib/database";
+import { alertDialog } from "@/components/ui/Modal";
 
 interface TemplateHeroProps {
   event: Event;
@@ -40,7 +41,7 @@ export function TemplateHero({ event, children }: TemplateHeroProps) {
     } else {
       // Fallback
       navigator.clipboard.writeText(window.location.href);
-      alert("Link copied to clipboard!");
+      void alertDialog({ title: "Link copied", message: "The gallery link is copied to your clipboard." });
     }
   };
 
@@ -107,7 +108,7 @@ export function TemplateHero({ event, children }: TemplateHeroProps) {
               <div className="flex items-center justify-center gap-4 w-full">
                 {/* Back Button */}
                 <Link
-                  href="/gallery"
+                  href="/dashboard"
                   className="flex items-center justify-center w-12 h-12 border border-[#ca9c69]/60 rounded-sm hover:bg-white/5 transition-all text-[#ca9c69] bg-black/60"
                   title="Back to gallery"
                 >
@@ -142,7 +143,7 @@ export function TemplateHero({ event, children }: TemplateHeroProps) {
           {/* Scrolling indicator */}
           <ScrollReveal direction="up" delay={0.6} className="mt-4">
             <button onClick={scrollToContent} className="animate-bounce flex flex-col items-center gap-2">
-              <span className="text-[8px] uppercase tracking-[0.3em] text-[#ca9c69]/70 font-semibold">Scroll Down</span>
+              <span className="text-xs uppercase tracking-[0.3em] text-[#dfbd94] font-semibold">Scroll Down</span>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-[#ca9c69]/60">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
               </svg>

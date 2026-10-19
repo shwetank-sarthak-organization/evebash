@@ -6,16 +6,26 @@ import { pinoHttp } from "pino-http";
 import { PORT, corsOrigins } from "./config.js";
 import { adminRouter } from "./routes/admin.js";
 import { contactMessagesRouter } from "./routes/contactMessages.js";
+import { createVendorLeadsRouter } from "./routes/vendorLeads.js";
 import { findYouRouter } from "./routes/findYou.js";
 import { infrastructureRouter } from "./routes/infrastructure.js";
 import { mediaRouter } from "./routes/media.js";
 import { pricingPlansRouter } from "./routes/pricingPlans.js";
-import { subscriptionRouter } from "./routes/subscription.js";
+import { applyDuePlanChanges, subscriptionRouter } from "./routes/subscription.js";
 import { paymentsRouter } from "./routes/payments.js";
-import { tenantAuthRouter } from "./routes/tenantAuth.js";
 import { permissionsRouter } from "./routes/permissions.js";
 import { runMediaWatchdog } from "./services/watchdog.js";
 import { startWatchdogScheduler } from "./services/watchdogScheduler.js";
+import { createSignupRouter } from "./routes/signup.js";
+import { accountRouter } from "./routes/account.js";
+import { notificationsRouter } from "./routes/notifications.js";
+import { createVaultRouter } from "./routes/vault.js";
+import { getVaultBucketSettings, getVaultCopySettings, isVaultEnabled } from "./vault/config.js";
+import { createS3EventToVaultCopier } from "./vault/eventCopier.js";
+import { createSupabaseVaultRepository } from "./vault/repository.js";
+import { createS3VaultStorage } from "./vault/storage.js";
+import { runVaultMaintenance, startVaultMaintenanceScheduler } from "./services/vaultMaintenance.js";
+import { startPlanChangeScheduler } from "./services/planChangeScheduler.js";
 
 // ── Process-Level Crash Protection ──────────────────────────────────────────
 // Prevent unhandled promise rejections from crashing the process (Node 16+)
@@ -66,6 +76,14 @@ const contactMessagesLimiter = rateLimit({
   message: { success: false, error: "Too many contact requests. Please try again later." },
 });
 
+const vendorLeadsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: "Too many submissions. Please try again later." },
+});
+
 // Health checks for Railway, load balancers, and monitoring tools
 app.get(["/", "/health", "/api/health"], (_request, response) => {
   response.json({
@@ -80,6 +98,7 @@ app.use("/api/admin/control", adminRouter);
 app.use("/api/admin", infrastructureRouter);
 app.use("/api/contact-messages", contactMessagesLimiter, contactMessagesRouter);
 app.use("/api/v1/contact-messages", contactMessagesLimiter, contactMessagesRouter);
+app.use("/api/v1/vendor-leads", vendorLeadsLimiter, createVendorLeadsRouter());
 app.use("/api/find-you", findYouRouter);
 app.use("/api/media", mediaRouter);
 app.use("/api/v1/media", mediaRouter);
@@ -91,8 +110,26 @@ app.use("/api/v1/payments", paymentsRouter);
 app.use("/api/payments", paymentsRouter);
 app.use("/api/create-order", paymentsRouter);
 app.use("/api/verify-payment", paymentsRouter);
-app.use("/api/v1/tenant-auth", tenantAuthRouter);
 app.use("/api/v1/permissions", permissionsRouter);
+app.use("/api/v1/signup", createSignupRouter());
+app.use("/api/v1/account", accountRouter);
+app.use("/api/v1/notifications", notificationsRouter);
+
+// EB Vault: off unless VAULT_ENABLED=true and the private Vault bucket is configured.
+const vaultRepository = createSupabaseVaultRepository();
+const vaultBucket = getVaultBucketSettings();
+const vaultStorage = isVaultEnabled() && vaultBucket ? createS3VaultStorage(vaultBucket) : null;
+// "Save to EB Vault" from events needs a key that can read the event bucket and write the Vault bucket.
+const vaultCopySettings = getVaultCopySettings();
+const vaultCopier = vaultStorage && vaultCopySettings ? createS3EventToVaultCopier(vaultCopySettings) : null;
+const vaultLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, code: "rate_limited", error: "Too many requests. Please slow down and try again." },
+});
+app.use("/api/v1/vault", vaultLimiter, createVaultRouter({ repo: vaultRepository, storage: vaultStorage, copier: vaultCopier }));
 
 app.use((_request, response) => {
   response.status(404).json({ success: false, error: "Route not found." });
@@ -144,6 +181,10 @@ const safeRunWatchdog = async (context: string) => {
 };
 
 const stopWatchdogScheduler = startWatchdogScheduler(safeRunWatchdog);
+const stopVaultMaintenance = vaultStorage
+  ? startVaultMaintenanceScheduler(() => runVaultMaintenance(vaultRepository, vaultStorage))
+  : () => {};
+const stopPlanChangeScheduler = startPlanChangeScheduler(() => applyDuePlanChanges());
 
 function handleShutdown(signal: string) {
   if (isShuttingDown) return;
@@ -151,6 +192,8 @@ function handleShutdown(signal: string) {
   console.log(`[EveBashBackend] Received ${signal}. Starting graceful shutdown...`);
 
   stopWatchdogScheduler();
+  stopVaultMaintenance();
+  stopPlanChangeScheduler();
 
   // Stop accepting new connections
   server.close(() => {
@@ -167,4 +210,3 @@ function handleShutdown(signal: string) {
 
 process.on("SIGTERM", () => handleShutdown("SIGTERM"));
 process.on("SIGINT", () => handleShutdown("SIGINT"));
-

@@ -3,10 +3,13 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Dim
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getEventById, getEventPhotos, toggleLike, addComment, onPhotoInteractions, deletePhotoComment, logGuestLogin, onGuestStatusChange, Event as DatabaseEvent, Photo } from '@/lib/database';
+import { getEventById, getEventPhotos, toggleLike, addComment, onPhotoInteractions, deletePhotoComment, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, Photo } from '@/lib/database';
+import { GalleryAccessGate, GalleryGateState } from '@/components/event/GalleryAccessGate';
+import { appAlert } from '@/lib/feedback';
 import { useAuth } from '@/context/AuthContext';
 import { getGridThumbnail, getImageUrl } from '@/lib/imageUrl';
-import { subscribeToUploadQueue, clearFinishedUploads } from '@/lib/uploadQueue';
+import { subscribeToUploadQueue, clearFinishedUploads, addToUploadQueue } from '@/lib/uploadQueue';
+import * as ImagePicker from 'expo-image-picker';
 
 
 
@@ -14,6 +17,8 @@ import { subscribeToUploadQueue, clearFinishedUploads } from '@/lib/uploadQueue'
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
 const IMAGE_SIZE = (SCREEN_WIDTH - 24) / COLUMN_COUNT;
+// Logged-out public view pages through previews (get_public_gallery_media)
+const PUBLIC_PAGE_SIZE = 60;
 
 export default function SubEventPhotosScreen() {
   const { width } = useWindowDimensions();
@@ -25,13 +30,18 @@ export default function SubEventPhotosScreen() {
   const [subEvent, setSubEvent] = useState<DatabaseEvent | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [guestName, setGuestName] = useState('');
-  const [guestPhone, setGuestPhone] = useState('');
-  const [guestStatus, setGuestStatus] = useState<'idle' | 'pending' | 'approved' | 'rejected'>('idle');
-  const [submittingGuest, setSubmittingGuest] = useState(false);
+  // What this viewer may do with the link (open_gallery)
+  const [galleryAccess, setGalleryAccess] = useState<GalleryAccess | null>(null);
+  // Members whose host turned on "Allow Photo Uploads" can add photos here (videos are for the host and admins)
+  const [memberCanUpload, setMemberCanUpload] = useState(false);
+  const [galleryOpenFailed, setGalleryOpenFailed] = useState(false);
+  const [gateTitle, setGateTitle] = useState('');
+  const [requestingAccess, setRequestingAccess] = useState(false);
+  const [publicPage, setPublicPage] = useState(0);
+  const [hasMorePublic, setHasMorePublic] = useState(false);
+  const loadingMorePublicRef = useRef(false);
+  const isPublicView = galleryAccess === 'public_view';
   const completedIdsRef = useRef<string[]>([]);
-  const loggedInGuestIdentifier = user ? (user.email || user.phone || user.uid) : '';
-  const parentEventId = subEvent?.parentId || subEvent?.id;
   const isPrivilegedViewer = !!user && !!subEvent && (
     user.role === 'admin' ||
     user.uid === subEvent.createdBy ||
@@ -62,38 +72,120 @@ export default function SubEventPhotosScreen() {
     }
   };
 
-  useEffect(() => {
+  const loadGallery = useCallback(async () => {
     if (!id) return;
-    
-    const fetchData = async () => {
-      setLoading(true);
+    setLoading(true);
+    setGalleryOpenFailed(false);
+    let redirecting = false;
+    try {
+      // What this viewer may do with the link. Logged-in viewers of a public gallery join it here.
+      let opened: OpenedGallery;
       try {
-        const eventData = await getEventById(id);
-        const photosData = eventData ? await getEventPhotos(id, eventData.legacyId) : [];
-        setSubEvent(eventData);
-        setPhotos(photosData);
+        opened = await openGallery(id);
       } catch (err) {
-        console.error("Error fetching photos:", err);
-      } finally {
-        setLoading(false);
+        console.error('[SubEventPhotosScreen] Could not open gallery link:', err);
+        setGalleryAccess(null);
+        setSubEvent(null);
+        setGalleryOpenFailed(true);
+        return;
       }
-    };
-    
-    fetchData();
-  }, [id]);
+
+      // Join codes and legacy ids continue on the gallery's own route
+      if (opened.eventId && opened.eventId !== decodeURIComponent(id)) {
+        redirecting = true;
+        router.replace({ pathname: '/events/sub/[id]', params: { id: opened.eventId, ...(shared ? { shared } : {}) } } as any);
+        return;
+      }
+
+      setGalleryAccess(opened.access);
+      setGateTitle(opened.title || '');
+      setMemberCanUpload(opened.access === 'member' && opened.canUpload);
+
+      if (opened.access === 'public_view' && opened.event) {
+        // Logged out, public gallery: previews and video streams only (never originals)
+        const media = await getPublicGalleryMedia(opened.event.id, PUBLIC_PAGE_SIZE, 0);
+        setSubEvent(opened.event);
+        setPhotos(media);
+        setPublicPage(0);
+        setHasMorePublic(media.length === PUBLIC_PAGE_SIZE);
+        return;
+      }
+      // Not found, or a private gallery the viewer can't see yet: nothing of it is loaded
+      if (opened.access !== 'manage' && opened.access !== 'member') {
+        setSubEvent(null);
+        setPhotos([]);
+        return;
+      }
+
+      const eventData = await getEventById(id);
+      const photosData = eventData ? await getEventPhotos(id, eventData.legacyId) : [];
+      setSubEvent(eventData);
+      setPhotos(photosData);
+    } catch (err) {
+      console.error("Error fetching photos:", err);
+    } finally {
+      if (!redirecting) setLoading(false);
+    }
+  }, [id, router, shared]);
+
+  // The link check depends on who is logged in, so it runs again after login or logout
+  useEffect(() => {
+    void loadGallery();
+  }, [loadGallery, user?.uid]);
+
+  const loadMorePublicPhotos = async () => {
+    if (!isPublicView || !hasMorePublic || !subEvent || loadingMorePublicRef.current) return;
+    loadingMorePublicRef.current = true;
+    try {
+      const nextPage = publicPage + 1;
+      const media = await getPublicGalleryMedia(subEvent.id, PUBLIC_PAGE_SIZE, nextPage * PUBLIC_PAGE_SIZE);
+      setPhotos(prev => [...prev, ...media]);
+      setPublicPage(nextPage);
+      setHasMorePublic(media.length === PUBLIC_PAGE_SIZE);
+    } catch (err) {
+      console.error('[SubEventPhotosScreen] Load more failed:', err);
+    } finally {
+      loadingMorePublicRef.current = false;
+    }
+  };
+
+  const handleRequestAccess = async () => {
+    if (requestingAccess || !id) return;
+    setRequestingAccess(true);
+    try {
+      const status = await requestGalleryAccess(id);
+      if (status === 'pending') {
+        setGalleryAccess('pending');
+      } else {
+        await loadGallery();
+      }
+    } catch (err) {
+      console.error('[GalleryAccess] Request failed:', err);
+      appAlert('Request failed', "We couldn't send your request. Please try again.");
+    } finally {
+      setRequestingAccess(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
 
     const unsubscribe = subscribeToUploadQueue((items) => {
-      const filtered = items.filter(item => item.eventId === id);
-      const activeItems = filtered.filter(item => item.status === 'uploading' || item.status === 'pending');
+      const legacyId = subEvent?.legacyId;
+      const filtered = items.filter(item => item.eventId === id || (legacyId && item.eventId === legacyId));
+      const activeItems = filtered.filter(
+        item => item.status === 'uploading' || item.status === 'pending' || item.status === 'uploaded_pending_metadata' || item.status === 'processing'
+      );
       const completedItems = filtered.filter(item => item.status === 'completed');
 
-      // Reload photos if any upload just finished successfully (one-by-one check)
-      const newlyCompleted = completedItems.filter(item => !completedIdsRef.current.includes(item.id));
-      if (newlyCompleted.length > 0) {
-        completedIdsRef.current = [...completedIdsRef.current, ...newlyCompleted.map(item => item.id)];
+      // Option B: Reload progressively as each item becomes visible: photos once saved to DB ('processing'),
+      // videos only once Modal has transcoded them ('completed') — the grid hides unprocessed videos.
+      const readyItems = filtered.filter(item => item.mediaType === 'video'
+        ? item.status === 'completed'
+        : item.status === 'processing' || item.status === 'completed');
+      const newlyReady = readyItems.filter(item => !completedIdsRef.current.includes(item.id));
+      if (newlyReady.length > 0) {
+        completedIdsRef.current = [...completedIdsRef.current, ...newlyReady.map(item => item.id)];
         const loadFresh = async () => {
           try {
             const eventData = await getEventById(id);
@@ -105,71 +197,11 @@ export default function SubEventPhotosScreen() {
         };
         loadFresh();
       }
-
-      if (activeItems.length === 0 && completedItems.length > 0) {
-        clearFinishedUploads();
-        completedIdsRef.current = [];
-      }
     });
 
     return unsubscribe;
-  }, [id]);
+  }, [id, subEvent?.legacyId]);
 
-  useEffect(() => {
-    if (!isShared || isPrivilegedViewer || !id) return;
-    const guestIdentifier = user ? loggedInGuestIdentifier : guestPhone.trim() ? guestPhone.replace(/\D/g, '') : '';
-    if (!guestIdentifier) return;
-    const logId = `${guestIdentifier}_${id}`;
-    const unsubscribe = onGuestStatusChange(logId, (status) => {
-      setGuestStatus(status as any);
-    });
-    return unsubscribe;
-  }, [guestPhone, id, isPrivilegedViewer, isShared, loggedInGuestIdentifier, user]);
-
-  useEffect(() => {
-    if (!isShared || !user || !subEvent || !id || isPrivilegedViewer || guestStatus !== 'idle' || !loggedInGuestIdentifier) return;
-
-    let cancelled = false;
-    const requestGuestAccess = async () => {
-      setSubmittingGuest(true);
-      const success = await logGuestLogin(
-        user.name || 'Guest',
-        loggedInGuestIdentifier,
-        id,
-        parentEventId,
-        subEvent.title,
-        subEvent.createdBy
-      );
-      if (!cancelled) {
-        if (success) setGuestStatus('pending');
-        setSubmittingGuest(false);
-      }
-    };
-
-    requestGuestAccess();
-    return () => {
-      cancelled = true;
-    };
-  }, [guestStatus, id, isPrivilegedViewer, isShared, loggedInGuestIdentifier, parentEventId, subEvent, user]);
-
-  const accessGranted = !isShared || isPrivilegedViewer || guestStatus === 'approved';
-
-  const submitGuestRequest = async () => {
-    if (!subEvent || !id || !guestName.trim() || !guestPhone.trim()) return;
-    const normalizedPhone = guestPhone.replace(/\D/g, '');
-    setSubmittingGuest(true);
-    await logGuestLogin(
-      guestName.trim(),
-      normalizedPhone,
-      id,
-      subEvent.parentId || subEvent.id,
-      subEvent.title,
-      subEvent.createdBy
-    );
-    setGuestPhone(normalizedPhone);
-    setGuestStatus('pending');
-    setSubmittingGuest(false);
-  };
 
   const goBackToParentEvent = useCallback(() => {
     const parentId = subEvent?.parentId;
@@ -211,6 +243,49 @@ export default function SubEventPhotosScreen() {
     );
   }
 
+  const handleAddPhotos = async () => {
+    if (!user?.uid || !subEvent) {
+      appAlert('Login Required', 'Please log in before uploading photos.');
+      return;
+    }
+    let result: ImagePicker.ImagePickerResult;
+    try {
+      result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, allowsMultipleSelection: true, quality: 1.0, exif: false });
+    } catch (err: any) {
+      appAlert('Could Not Open Media Library', err?.message || String(err));
+      return;
+    }
+    if (result.canceled || !result.assets?.length) return;
+    const files = result.assets.map(asset => ({ uri: asset.uri, name: asset.fileName || 'photo.jpg', type: asset.mimeType || 'image/jpeg' }));
+    try {
+      await addToUploadQueue(files, subEvent.id, user.uid, 'photo');
+    } catch (err: any) {
+      appAlert('Error', `Failed to start upload: ${err?.message || err}`);
+    }
+  };
+
+  const galleryGate: GalleryGateState | null = galleryOpenFailed
+    ? 'error'
+    : galleryAccess === 'login_required' || galleryAccess === 'none' || galleryAccess === 'pending' || galleryAccess === 'rejected'
+      ? galleryAccess
+      : null;
+  if (galleryGate) {
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <GalleryAccessGate
+          state={galleryGate}
+          title={gateTitle}
+          requesting={requestingAccess}
+          onLogin={() => router.push({ pathname: '/login', params: { returnTo: `/events/sub/${id}` } })}
+          onRequestAccess={handleRequestAccess}
+          onRetry={loadGallery}
+          onBack={goBackToParentEvent}
+        />
+      </>
+    );
+  }
+
   if (!subEvent) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -231,7 +306,7 @@ export default function SubEventPhotosScreen() {
           headerTitle: '',
           headerTintColor: '#ffffff',
           headerLeft: () => (
-            <TouchableOpacity 
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" 
               onPress={goBackToParentEvent}
               style={styles.nativeBackButton}
               hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
@@ -243,21 +318,17 @@ export default function SubEventPhotosScreen() {
       />
       <View style={styles.container}>
 
-        {!accessGranted ? (
-          <View style={styles.emptyContainer}>
-            <IconSymbol name="shield.fill" size={64} color="#594C3D" />
-            <Text style={styles.emptyText}>Access approval required.</Text>
-            <Text style={styles.emptySubText}>Send a request to unlock this shared gallery.</Text>
-          </View>
-        ) : photos.length > 0 ? (
+        {photos.length > 0 ? (
           <FlatList
             data={photos}
             keyExtractor={(item) => item.id}
             numColumns={COLUMN_COUNT}
+            onEndReached={isPublicView ? loadMorePublicPhotos : undefined}
+            onEndReachedThreshold={0.5}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.gridContainer}
             renderItem={({ item, index }) => (
-              <TouchableOpacity activeOpacity={0.8} onPress={() => openViewer(index)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Open photo ${index + 1}`} activeOpacity={0.8} onPress={() => openViewer(index)}>
                 <Image 
                   source={{ uri: getGridThumbnail(item.url, item.thumbnailUrl) }} 
                   style={styles.gridImage} 
@@ -269,8 +340,20 @@ export default function SubEventPhotosScreen() {
           <View style={styles.emptyContainer}>
             <IconSymbol name="photo" size={64} color="#594C3D" />
             <Text style={styles.emptyText}>No photos uploaded yet.</Text>
-            <Text style={styles.emptySubText}>Use the web dashboard to upload photos to this gallery.</Text>
+            <Text style={styles.emptySubText}>{galleryAccess === 'member' && memberCanUpload ? 'Tap Add photos to share yours.' : 'Use the web dashboard to upload photos to this gallery.'}</Text>
           </View>
+        )}
+
+        {galleryAccess === 'member' && memberCanUpload && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Add photos"
+            onPress={handleAddPhotos}
+            style={{ position: 'absolute', right: 20, bottom: 36, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 13, borderRadius: 999, backgroundColor: '#CA9C68', elevation: 6, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}
+          >
+            <IconSymbol name="plus" size={14} color="#0f172a" />
+            <Text style={{ color: '#0f172a', fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>ADD PHOTOS</Text>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -289,76 +372,7 @@ export default function SubEventPhotosScreen() {
           user={user} 
         />
       </Modal>
-      <GuestAccessModal
-        visible={!!subEvent && isShared && !accessGranted && (!user || guestStatus !== 'idle')}
-        guestStatus={guestStatus}
-        guestName={guestName}
-        guestPhone={guestPhone}
-        submitting={submittingGuest}
-        onNameChange={setGuestName}
-        onPhoneChange={setGuestPhone}
-        onSubmit={submitGuestRequest}
-        onRetry={() => setGuestStatus('idle')}
-      />
     </>
-  );
-}
-
-function GuestAccessModal({
-  visible,
-  guestStatus,
-  guestName,
-  guestPhone,
-  submitting,
-  onNameChange,
-  onPhoneChange,
-  onSubmit,
-  onRetry,
-}: {
-  visible: boolean;
-  guestStatus: 'idle' | 'pending' | 'approved' | 'rejected';
-  guestName: string;
-  guestPhone: string;
-  submitting: boolean;
-  onNameChange: (value: string) => void;
-  onPhoneChange: (value: string) => void;
-  onSubmit: () => void;
-  onRetry: () => void;
-}) {
-  return (
-    <Modal visible={visible} transparent animationType="fade">
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.guestModalOverlay}>
-        <View style={styles.guestModal}>
-          <View style={styles.guestModalIcon}>
-            <IconSymbol name={guestStatus === 'pending' ? 'clock.fill' : 'shield.fill'} size={30} color="#CA9C68" />
-          </View>
-          {guestStatus === 'pending' ? (
-            <>
-              <Text style={styles.guestModalTitle}>Waiting for approval</Text>
-              <Text style={styles.guestModalText}>Your request has been sent to the event admin. This gallery will unlock after approval.</Text>
-            </>
-          ) : guestStatus === 'rejected' ? (
-            <>
-              <Text style={styles.guestModalTitle}>Access restricted</Text>
-              <Text style={styles.guestModalText}>The admin declined this request. You can try again with different details.</Text>
-              <TouchableOpacity style={styles.guestSubmitBtn} onPress={onRetry}>
-                <Text style={styles.guestSubmitText}>Try Again</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <Text style={styles.guestModalTitle}>Request gallery access</Text>
-              <Text style={styles.guestModalText}>Enter your details so the host can approve this shared gallery.</Text>
-              <TextInput style={styles.guestInput} value={guestName} onChangeText={onNameChange} placeholder="Your name" placeholderTextColor="#CDB89E" />
-              <TextInput style={styles.guestInput} value={guestPhone} onChangeText={onPhoneChange} placeholder="Phone number" placeholderTextColor="#CDB89E" keyboardType="phone-pad" />
-              <TouchableOpacity style={[styles.guestSubmitBtn, submitting && { opacity: 0.7 }]} onPress={onSubmit} disabled={submitting}>
-                {submitting ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.guestSubmitText}>Send Request</Text>}
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
   );
 }
 
@@ -377,11 +391,11 @@ function PhotoViewer({ photos, initialIndex, onClose, user }: any) {
 
   return (
     <View style={styles.viewerContainer}>
-      <TouchableOpacity style={styles.viewerClose} onPress={onClose}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" style={styles.viewerClose} onPress={onClose}>
         <IconSymbol name="xmark" size={28} color="#fff" />
       </TouchableOpacity>
       
-      <TouchableOpacity style={styles.navBtnLeft} onPress={goToPrev}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Previous photo" style={styles.navBtnLeft} onPress={goToPrev}>
         <IconSymbol name="chevron.left" size={32} color="#fff" />
       </TouchableOpacity>
       
@@ -393,7 +407,7 @@ function PhotoViewer({ photos, initialIndex, onClose, user }: any) {
         />
       )}
       
-      <TouchableOpacity style={styles.navBtnRight} onPress={goToNext}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Next photo" style={styles.navBtnRight} onPress={goToNext}>
         <IconSymbol name="chevron.right" size={32} color="#fff" />
       </TouchableOpacity>
       
@@ -755,65 +769,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#1B211F',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  guestModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(27, 33, 31,0.72)',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  guestModal: {
-    backgroundColor: '#ffffff',
-    borderRadius: 28,
-    padding: 24,
-    alignItems: 'center',
-  },
-  guestModalIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#fef3c7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
-  },
-  guestModalTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#1B211F',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  guestModalText: {
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-    lineHeight: 21,
-    marginBottom: 18,
-  },
-  guestInput: {
-    width: '100%',
-    backgroundColor: '#FFF7EB',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    color: '#1B211F',
-    marginBottom: 12,
-  },
-  guestSubmitBtn: {
-    width: '100%',
-    backgroundColor: '#1B211F',
-    borderRadius: 16,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  guestSubmitText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '900',
-    textTransform: 'uppercase',
   },
   viewerContainer: {
     flex: 1,

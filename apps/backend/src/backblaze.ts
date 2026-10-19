@@ -80,9 +80,9 @@ export async function listLargeFileParts(
   maxPartCount = 1000
 ): Promise<B2PartInfo[]> {
   const parts: B2PartInfo[] = [];
-  let nextPartNumber: number | undefined = startPartNumber;
+  let nextPartNumber: number | undefined | null = startPartNumber;
 
-  while (nextPartNumber !== undefined) {
+  while (nextPartNumber !== undefined && nextPartNumber !== null) {
     const res: Response = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_parts`, {
       method: "POST",
       headers: {

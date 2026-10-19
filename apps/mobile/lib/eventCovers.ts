@@ -15,3 +15,28 @@ export function resolveEventCoverImage(coverImage?: string | null, mode: 'previe
   const width = mode === 'preview' ? 900 : 400;
   return getImageUrl(trimmedCover, { width });
 }
+
+// Default cover per event category, shown when the host hasn't uploaded a cover.
+// Bundled copies of the website's public/event-covers/ files (src/lib/eventCovers.ts).
+// Categories not listed keep the generic event placeholder.
+const CATEGORY_DEFAULT_COVERS: Record<string, number> = {
+  wedding: require('@/assets/images/event-covers/wedding.webp'),
+  birthday: require('@/assets/images/event-covers/birthday.jpg'),
+  sports: require('@/assets/images/event-covers/sports.jpg'),
+};
+
+/** Empty covers and the stock photos saved on event creation both count as "no cover uploaded". */
+export function isDefaultEventCover(coverImage?: string | null) {
+  const trimmed = coverImage?.trim();
+  return !trimmed || EVENT_PLACEHOLDER_IMAGES.includes(trimmed);
+}
+
+/**
+ * Image source for an event cover: the category's bundled default when the host hasn't
+ * uploaded a cover, otherwise the resolved cover URL (same as resolveEventCoverImage).
+ */
+export function getEventCoverSource(coverImage?: string | null, mode: 'preview' | 'thumbnail' = 'preview', category?: string | null) {
+  const categoryCover = CATEGORY_DEFAULT_COVERS[category?.trim().toLowerCase() || ''];
+  if (categoryCover && isDefaultEventCover(coverImage)) return categoryCover;
+  return { uri: resolveEventCoverImage(coverImage, mode) };
+}

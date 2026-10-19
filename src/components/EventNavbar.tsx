@@ -8,6 +8,7 @@ import { Menu, X, ChevronRight, ChevronDown, User, LogOut, Camera, ScanFace, Dow
 import { Event } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { ProfileIcon } from "@/components/ProfileIcon";
 
 interface EventNavbarProps {
     mainEventTitle: string;
@@ -116,7 +117,8 @@ export function EventNavbar({
     }));
 
     const utilityDesktopLinks: EventNavLink[] = [
-        { name: "Event Partners", href: `${basePath}/event-partners${sharedQuery}`, gallery: null, isGallery: false, isEventPartners: true },
+        // Event Partners is hidden until Phase 2 (it comes with EB Business and EB Network). To restore, uncomment:
+        // { name: "Event Partners", href: `${basePath}/event-partners${sharedQuery}`, gallery: null, isGallery: false, isEventPartners: true },
         { name: "Find You", href: `${basePath}/find-you`, gallery: null, isGallery: false, isFindYou: true },
     ];
 
@@ -128,7 +130,7 @@ export function EventNavbar({
     ];
 
     if (user?.role === "admin") {
-        navLinks.push({ name: "Admin", href: `${basePath}/admin`, gallery: null, isGallery: false });
+        navLinks.push({ name: "Admin", href: `/host?view=manage&level=event-details&eventId=${mainEventId}`, gallery: null, isGallery: false });
     }
 
     const isLinkActive = (href: string, isFindYou?: boolean) => {
@@ -365,7 +367,7 @@ export function EventNavbar({
                             </button>
                         )}
 
-                        {user?.role === "admin" && renderDesktopNavItem({ name: "Admin", href: `${basePath}/admin`, gallery: null, isGallery: false })}
+                        {user?.role === "admin" && renderDesktopNavItem({ name: "Admin", href: `/host?view=manage&level=event-details&eventId=${mainEventId}`, gallery: null, isGallery: false })}
 
                         {activeName && (
                             user ? (
@@ -379,7 +381,7 @@ export function EventNavbar({
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img src={user.profileImage} alt="" className="h-full w-full object-cover" />
                                     ) : (
-                                        <User className="h-5 w-5" />
+                                        <ProfileIcon className="h-6 w-6" />
                                     )}
                                 </Link>
                             ) : (
@@ -400,6 +402,8 @@ export function EventNavbar({
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                             className="p-2 rounded-full active:scale-95 transition-transform"
                             style={hasTemplateChrome ? { color: navTextColor } : undefined}
+                            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+                            aria-expanded={mobileMenuOpen}
                         >
                             {mobileMenuOpen ? (
                                 <X className={hasTemplateChrome ? "" : "text-slate-900"} />
@@ -547,7 +551,7 @@ export function EventNavbar({
                                                     onClick={() => setMobileMenuOpen(false)}
                                                     className="flex items-center space-x-3 w-full p-4 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-stone-50 rounded-2xl transition-all border border-transparent"
                                                 >
-                                                    <User className="w-5 h-5" />
+                                                    <ProfileIcon className="w-5 h-5" />
                                                     <span>My Profile</span>
                                                 </Link>
                                                 <Link

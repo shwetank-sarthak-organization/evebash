@@ -14,6 +14,16 @@ const nextConfig = {
       },
     ];
   },
+  async headers() {
+    return [
+      {
+        // Only the production host is indexed; staging, preview and other hosts serve the same pages.
+        source: '/:path*',
+        missing: [{ type: 'host', value: 'www.evebash.com' }],
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex' }],
+      },
+    ];
+  },
   serverExternalPackages: ["sharp", "@tensorflow/tfjs-node"],
   images: {
     remotePatterns: [
@@ -36,6 +46,8 @@ const nextConfig = {
     ],
   },
   experimental: {
+    // app/global-not-found.tsx: one branded 404 for addresses outside every route group
+    globalNotFound: true,
     serverActions: {
       bodySizeLimit: '50mb',
     },

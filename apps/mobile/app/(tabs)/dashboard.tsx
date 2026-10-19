@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import {
   View,
   Text,
@@ -14,7 +13,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   PanResponder,
   Animated,
   Linking,
@@ -24,25 +22,35 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
-import { resolveEventCoverImage } from '@/lib/eventCovers';
 import {
   getUserEvents,
   Event as DatabaseEvent,
   getApprovedSharedEventsForUser,
-  getEventByJoinId,
-  logGuestLogin,
   getNotifications,
-  checkGuestRequestStatus,
+  openGallery,
+  requestGalleryAccess,
+  getGalleryRequestStatus,
 } from '@/lib/database';
-import { subscribeToUploadQueue } from '@/lib/uploadQueue';
+import { subscribeToUploadQueue, UploadQueueItem } from '@/lib/uploadQueue';
+import { markStartup } from '@/lib/startupTiming';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import Svg, { Path } from 'react-native-svg';
+import { EventGridCard, EVENT_PLACEHOLDER_ASSET } from '@/components/ui/EventGridCard';
+import { HostEventBanner } from '@/components/ui/HostEventBanner';
+import type { IconSymbolName } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
 import CakeIcon from '@/components/icons/CakeIcon';
 import HandshakeIcon from '@/components/icons/HandshakeIcon';
-import { EveBashLogoBadge } from '@/components/EveBashLogo';
+import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { appAlert, showToast } from '@/lib/feedback';
+import { MidnightColors } from '@/constants/theme';
+import { EventGrid, getEventGridCardWidth } from '@/constants/layout';
+import { galleryIdFromLink } from '@/lib/webLinks';
 
 const { width, height } = Dimensions.get('window');
 
@@ -91,7 +99,7 @@ export function SwipeableNotificationItem({ children, onDismiss, colors, isDark 
     <View style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, marginBottom: 12 }}>
       {/* Background delete action indicator */}
       <View style={[StyleSheet.absoluteFill, {
-        backgroundColor: colors.gold || '#CA9C68',
+        backgroundColor: colors.gold,
         justifyContent: 'center',
         alignItems: 'flex-end',
         paddingRight: 24,
@@ -110,14 +118,82 @@ export function SwipeableNotificationItem({ children, onDismiss, colors, isDark 
   );
 }
 
+const NOTIFICATION_ICONS: Record<string, IconSymbolName> = {
+  followed_event: 'calendar',
+  followed_business: 'briefcase.fill',
+  shortlist_creation: 'sparkles',
+  shortlist_faq: 'questionmark.circle.fill',
+  shortlist_portfolio: 'photo.on.rectangle',
+  upload_progress: 'cloud.fill',
+  upload_processing: 'clock.fill',
+  upload_success: 'checkmark.circle.fill',
+  upload_failed: 'exclamationmark.triangle.fill',
+};
+
+/** The in-app card for the upload queue, or null when there is nothing to show. */
+function buildUploadQueueNotification(queueItems: UploadQueueItem[]): any {
+  const active = queueItems.filter(i => i.status === 'uploading' || i.status === 'pending');
+  // Uploaded but not ready yet (videos wait for Modal to finish transcoding)
+  const processing = queueItems.filter(i => i.status === 'uploaded_pending_metadata' || i.status === 'processing');
+  const failed = queueItems.filter(i => i.status === 'failed');
+  const completedCount = queueItems.filter(i => i.status === 'completed').length;
+
+  const total = queueItems.length;
+  const progressSum = queueItems.reduce((sum, item) => {
+    if (item.status === 'completed') return sum + 100;
+    return sum + item.progress;
+  }, 0);
+  const overallPercentage = total > 0 ? progressSum / (total * 100) * 100 : 0;
+
+  if (active.length > 0) {
+    return {
+      id: 'upload-active',
+      title: 'Uploading Media',
+      body: `Uploading: ${completedCount}/${total} files (${Math.round(overallPercentage)}%)`,
+      createdAt: new Date(),
+      type: 'upload_progress',
+      targetId: 'upload_queue'
+    };
+  }
+  if (processing.length > 0) {
+    return {
+      id: 'upload-processing',
+      title: 'Processing Media',
+      body: `Preparing ${processing.length} ${processing.length === 1 ? 'file' : 'files'}...`,
+      createdAt: new Date(),
+      type: 'upload_processing',
+      targetId: 'upload_queue'
+    };
+  }
+  if (failed.length > 0) {
+    return {
+      id: 'upload-failed',
+      title: 'Some Uploads Failed',
+      body: `Succeeded: ${completedCount}, Failed: ${failed.length}. Tap to retry.`,
+      createdAt: new Date(),
+      type: 'upload_failed',
+      targetId: 'upload_queue'
+    };
+  }
+  if (completedCount > 0) {
+    return {
+      id: 'upload-success',
+      title: 'Upload Complete',
+      body: 'All your photos and videos have been uploaded.',
+      createdAt: new Date(),
+      type: 'upload_success',
+      targetId: 'upload_queue'
+    };
+  }
+  return null;
+}
+
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
-  const styles = getStyles(colors, isDark);
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
-  const [hasUnreadChats, setHasUnreadChats] = useState(false);
 
   // Notification States
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -158,48 +234,7 @@ export default function DashboardScreen() {
       const filtered = list.filter(item => !dismissed.has(item.id));
 
       const { getUploadQueue } = require('@/lib/uploadQueue');
-      const queueItems = getUploadQueue();
-      const active = queueItems.filter((i: any) => i.status === 'uploading' || i.status === 'pending');
-      const failed = queueItems.filter((i: any) => i.status === 'failed');
-      const completed = queueItems.filter((i: any) => i.status === 'completed');
-
-      let uploadNotif: any = null;
-      const total = queueItems.length;
-      const completedCount = completed.length;
-      const progressSum = queueItems.reduce((sum: number, item: any) => {
-        if (item.status === 'completed') return sum + 100;
-        return sum + item.progress;
-      }, 0);
-      const overallPercentage = total > 0 ? progressSum / (total * 100) * 100 : 0;
-
-      if (active.length > 0) {
-        uploadNotif = {
-          id: 'upload-active',
-          title: '📤 Uploading Media',
-          body: `Uploading: ${completedCount}/${total} files (${Math.round(overallPercentage)}%)`,
-          createdAt: new Date(),
-          type: 'upload_progress',
-          targetId: 'upload_queue'
-        };
-      } else if (failed.length > 0) {
-        uploadNotif = {
-          id: 'upload-failed',
-          title: '❌ Upload Halted with Issues',
-          body: `Succeeded: ${completedCount}, Failed: ${failed.length}. Tap to retry.`,
-          createdAt: new Date(),
-          type: 'upload_failed',
-          targetId: 'upload_queue'
-        };
-      } else if (completedCount > 0) {
-        uploadNotif = {
-          id: 'upload-success',
-          title: '✅ Upload Complete',
-          body: 'Upload complete',
-          createdAt: new Date(),
-          type: 'upload_success',
-          targetId: 'upload_queue'
-        };
-      }
+      const uploadNotif = buildUploadQueueNotification(getUploadQueue());
 
       const finalNotifs = [...filtered];
       if (uploadNotif && !dismissed.has(uploadNotif.id)) {
@@ -218,7 +253,7 @@ export default function DashboardScreen() {
           ? latestNotif.createdAt.seconds * 1000
           : (latestNotif.createdAt instanceof Date ? latestNotif.createdAt.getTime() : 0);
 
-        if (latestTime > lastReadTime || (uploadNotif && (active.length > 0 || failed.length > 0 || completedCount > 0))) {
+        if (latestTime > lastReadTime || uploadNotif) {
           setHasUnreadNotifications(true);
         } else {
           setHasUnreadNotifications(false);
@@ -265,24 +300,12 @@ export default function DashboardScreen() {
     if (!selectedRequestEvent || !user) return;
     setSendingRequest(true);
     try {
-      const guestName = user.name || 'Anonymous Guest';
-      const guestId = user.phone || user.email || user.uid;
-      if (!guestId) {
-        Alert.alert("Error", "You must be logged in to request access.");
-        return;
-      }
-
-      const success = await logGuestLogin(
-        guestName,
-        guestId,
-        selectedRequestEvent.targetId,
-        selectedRequestEvent.eventParentId || undefined,
-        selectedRequestEvent.eventTitle || 'Untitled Event',
-        selectedRequestEvent.eventCreatorId || undefined,
-        'pending'
-      );
-
-      if (success) {
+      // Tied to the signed-in account; a public gallery is joined at once
+      const status = await requestGalleryAccess(selectedRequestEvent.targetId);
+      if (status === 'approved') {
+        setShowRequestAccessModal(false);
+        router.push(`/events/${selectedRequestEvent.targetId}?mode=visitor`);
+      } else {
         // Close Request Access Modal immediately
         setShowRequestAccessModal(false);
         // Show Status Modal with details
@@ -293,13 +316,10 @@ export default function DashboardScreen() {
           eventName: selectedRequestEvent.eventTitle || undefined
         });
         setShowStatusModal(true);
-      } else {
-        setShowRequestAccessModal(false);
-        Alert.alert("Request Failed", "Failed to submit request. Please try again later.");
       }
     } catch (err) {
       console.error("Error submitting guest request:", err);
-      Alert.alert("Error", "An error occurred while sending your request.");
+      appAlert("Error", "An error occurred while sending your request.");
     } finally {
       setSendingRequest(false);
     }
@@ -318,6 +338,8 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState<DatabaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  // True when the event list failed to load, so we show Retry instead of a misleading empty state
+  const [loadError, setLoadError] = useState(false);
   const [infoModal, setInfoModal] = useState<{ visible: boolean; title: string; content: string }>({
     visible: false,
     title: '',
@@ -336,75 +358,64 @@ export default function DashboardScreen() {
     if (!finalCode) return;
 
     if (!user) {
-      Alert.alert("Error", "You must be logged in to join an event.");
+      appAlert("Error", "You must be logged in to join an event.");
       return;
     }
 
     setJoining(true);
     try {
-      console.log('[Join] Looking for event with code:', finalCode);
-      const event = await getEventByJoinId(finalCode);
+      // The join code is resolved by open_gallery (the events table isn't readable to non-members once RLS is on).
+      // Public galleries are joined right here; private ones need a request the host approves.
+      const opened = await openGallery(finalCode);
 
-      if (event) {
-        console.log('[Join] Event found:', event.title);
-
-        // Submit access request
-        const guestName = user.name || 'Anonymous Guest';
-        const guestId = user.phone || user.email || user.uid;
-
-        if (!guestId) {
-          throw new Error("User identifier not found.");
+      if (opened.access === 'not_found') {
+        appAlert("Invalid Code", "We couldn't find an event with that Join ID. Please check the code and try again.");
+      } else {
+        let status: string = opened.access === 'manage' || opened.access === 'member' ? 'approved' : opened.access;
+        if (status === 'none') {
+          status = await requestGalleryAccess(finalCode);
         }
-
-        const success = await logGuestLogin(
-          guestName,
-          guestId,
-          event.id,
-          event.parentId || undefined,
-          event.title || 'Untitled Event',
-          event.createdBy || undefined,
-          'pending'
-        );
-
-        if (success) {
-          Alert.alert(
+        const closeJoin = () => {
+          setShowJoinModal(false);
+          setIsScanning(false);
+          setJoinCode('');
+        };
+        if (status === 'approved') {
+          closeJoin();
+          router.push(`/events/${opened.eventId}?mode=visitor`);
+        } else {
+          appAlert(
             "Request Sent",
             "Your request to join this event has been sent to the admin. You will see the event in your collections once approved.",
-            [{ text: "OK", onPress: () => {
-              setShowJoinModal(false);
-              setIsScanning(false);
-              setJoinCode('');
-            }}]
+            [{ text: "OK", onPress: closeJoin }]
           );
-        } else {
-          Alert.alert("Error", "The join request could not be submitted. Please try again.");
         }
-      } else {
-        Alert.alert("Invalid Code", "We couldn't find an event with that Join ID. Please check the code and try again.");
       }
     } catch (err: any) {
       console.error('[Join] Error:', err);
-      Alert.alert("Join Error", "An unexpected error occurred while joining. Please try again later.");
+      appAlert("Join Error", "An unexpected error occurred while joining. Please try again later.");
     } finally {
       setJoining(false);
     }
   };
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
-    if (data.includes('wedalbum.app/events/')) {
-      const parts = data.split('/');
-      const eventId = parts[parts.length - 1];
-      if (eventId) {
-        setShowJoinModal(false);
-        setIsScanning(false);
-        router.push(`/events/${eventId}`);
-      }
+    // Gallery links from any EveBash site, and old wedalbum.app QR codes already printed
+    const eventId = galleryIdFromLink(data);
+    if (eventId) {
+      setShowJoinModal(false);
+      setIsScanning(false);
+      router.push(`/events/${eventId}`);
     } else {
       handleJoinEvent(data);
     }
   };
 
+  // Bumped on every fetch so a slower, older request can't overwrite newer results
+  const fetchSeq = React.useRef(0);
+
   const fetchData = async () => {
+    const seq = ++fetchSeq.current;
     if (!user) {
       setEvents([]);
       setLoading(false);
@@ -412,75 +423,49 @@ export default function DashboardScreen() {
       return;
     }
     setLoading(true);
+    // Notifications load on their own so the event list doesn't wait for them
+    fetchNotifs();
     try {
       const ownIdentifiers = [user.uid];
       if (user.email) ownIdentifiers.push(user.email);
       if (user.phone) ownIdentifiers.push(user.phone);
 
       const [fetchedEvents, approvedSharedEvents] = await Promise.all([
-        getUserEvents(ownIdentifiers, 'main'),
+        getUserEvents(ownIdentifiers, 'main', undefined, undefined, { throwOnError: true }),
         getApprovedSharedEventsForUser(ownIdentifiers),
-        fetchNotifs()
       ]);
+      if (seq !== fetchSeq.current) return;
 
       const visibleEvents = Array.from(
         new Map([...fetchedEvents, ...approvedSharedEvents].map((e) => [e.id, e])).values()
       ).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setEvents(visibleEvents);
+      setLoadError(false);
+      markStartup('dashboard loaded');
     } catch (err) {
+      if (seq === fetchSeq.current) {
+        setLoadError(true);
+        // Keep showing the events we already have; just say the pull-to-refresh failed
+        if (userRefreshRef.current && events.length > 0) {
+          showToast("Couldn't refresh. Check your connection.", { type: 'error' });
+        }
+      }
       console.error('Error fetching dashboard data:', err);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (seq === fetchSeq.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
-  useEffect(() => { fetchData(); }, [user]);
+  // Keyed on the identifiers fetchData uses: AuthContext replaces the user object several times
+  // at startup (placeholder, then full profile), which used to refetch and re-show the spinner.
+  useEffect(() => { fetchData(); }, [user?.uid, user?.email, user?.phone]);
 
   useEffect(() => {
     const unsubscribe = subscribeToUploadQueue((queueItems) => {
-      const active = queueItems.filter(i => i.status === 'uploading' || i.status === 'pending');
-      const failed = queueItems.filter(i => i.status === 'failed');
-      const completed = queueItems.filter(i => i.status === 'completed');
-
-      const total = queueItems.length;
-      const completedCount = completed.length;
-      const progressSum = queueItems.reduce((sum, item) => {
-        if (item.status === 'completed') return sum + 100;
-        return sum + item.progress;
-      }, 0);
-      const overallPercentage = total > 0 ? progressSum / (total * 100) * 100 : 0;
-
-      let uploadNotif: any = null;
-
-      if (active.length > 0) {
-        uploadNotif = {
-          id: 'upload-active',
-          title: '📤 Uploading Media',
-          body: `Uploading: ${completedCount}/${total} files (${Math.round(overallPercentage)}%)`,
-          createdAt: new Date(),
-          type: 'upload_progress',
-          targetId: 'upload_queue'
-        };
-      } else if (failed.length > 0) {
-        uploadNotif = {
-          id: 'upload-failed',
-          title: '❌ Upload Halted with Issues',
-          body: `Succeeded: ${completedCount}, Failed: ${failed.length}. Tap to retry.`,
-          createdAt: new Date(),
-          type: 'upload_failed',
-          targetId: 'upload_queue'
-        };
-      } else if (completedCount > 0) {
-        uploadNotif = {
-          id: 'upload-success',
-          title: '✅ Upload Complete',
-          body: 'Upload complete',
-          createdAt: new Date(),
-          type: 'upload_success',
-          targetId: 'upload_queue'
-        };
-      }
+      const uploadNotif = buildUploadQueueNotification(queueItems);
 
       setNotifications(prev => {
         const filtered = prev.filter(n => !n.id.startsWith('upload-'));
@@ -489,7 +474,7 @@ export default function DashboardScreen() {
         return [uploadNotif, ...filtered];
       });
 
-      if (uploadNotif && (active.length > 0 || failed.length > 0 || completedCount > 0)) {
+      if (uploadNotif) {
         setHasUnreadNotifications(true);
       }
     });
@@ -497,74 +482,12 @@ export default function DashboardScreen() {
     return () => unsubscribe();
   }, [dismissedNotifIds]);
 
-  useEffect(() => {
-    if (!user?.uid) {
-      setHasUnreadChats(false);
-      return;
-    }
-
-    let isMounted = true;
-
-    const checkUnreadChats = async () => {
-      try {
-        const { data: rooms, error: roomsErr } = await supabase
-          .from('chat_rooms')
-          .select('id, last_read, status')
-          .or(`client_uid.eq.${user.uid},vendor_uid.eq.${user.uid}`)
-          .eq('status', 'active');
-
-        if (roomsErr) throw roomsErr;
-        if (!rooms || rooms.length === 0) {
-          if (isMounted) setHasUnreadChats(false);
-          return;
-        }
-
-        const roomIds = rooms.map(r => r.id);
-
-        const { data: unreadMsgs, error: msgsErr } = await supabase
-          .from('messages')
-          .select('room_id, created_at, sender_id')
-          .in('room_id', roomIds)
-          .neq('sender_id', user.uid);
-
-        if (msgsErr) throw msgsErr;
-
-        const hasUnread = (rooms as any[]).some(room => {
-          const lastReadTimeStr = room.last_read?.[user.uid];
-          const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
-
-          const roomMsgs = (unreadMsgs || []).filter(m => m.room_id === room.id);
-          return roomMsgs.some(msg => {
-            const msgTime = new Date(msg.created_at).getTime();
-            return msgTime > lastReadTime;
-          });
-        });
-
-        if (isMounted) setHasUnreadChats(hasUnread);
-      } catch (err) {
-        console.error("Error checking unread chats:", err);
-      }
-    };
-
-    checkUnreadChats();
-
-    const roomsChannel = supabase
-      .channel(`dashboard-chat-rooms-${user.uid}-${Math.random().toString(36).slice(2, 8)}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_rooms' }, () => {
-        checkUnreadChats();
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
-        checkUnreadChats();
-      })
-      .subscribe();
-
-    return () => {
-      isMounted = false;
-      supabase.removeChannel(roomsChannel);
-    };
-  }, [user?.uid]);
-
-  const onRefresh = () => { setRefreshing(true); fetchData(); };
+  const userRefreshRef = React.useRef(false);
+  const onRefresh = () => {
+    userRefreshRef.current = true;
+    setRefreshing(true);
+    fetchData().finally(() => { userRefreshRef.current = false; });
+  };
 
   const getGreeting = () => {
     const h = new Date().getHours();
@@ -580,47 +503,45 @@ export default function DashboardScreen() {
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#CA9C68" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MidnightColors.gold} />}
       >
         {/* ── HEADER ── */}
-        <LinearGradient
-          colors={isDark ? ['#151C22', '#22302F', '#13191F'] : [colors.deepSlate, colors.background]}
-          style={[styles.header, { paddingTop: insets.top + 4 }]}
-        >
-          <View style={styles.headerLeft}>
-            <TouchableOpacity
-              style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center', position: 'relative' }}
-              activeOpacity={0.7}
+        <TabScreenHeader
+          title="Dashboard"
+          right={
+            <HeaderAction
               onPress={handleOpenNotifications}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityLabel={hasUnreadNotifications ? 'Notifications, new' : 'Notifications'}
+              showBadge={hasUnreadNotifications}
             >
               <IconSymbol name="bell.fill" size={20} color={colors.gold} />
-              {hasUnreadNotifications && <View style={styles.unreadBadge} />}
-            </TouchableOpacity>
-          </View>
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={styles.headingLogoRow}>
-              <EveBashLogoBadge onPress={() => router.replace('/(tabs)' as any)} />
-              <Text style={styles.headerTitle}>Dashboard</Text>
-            </View>
-          </View>
-          <View style={styles.headerRight}>
-            <TouchableOpacity
-              style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center', position: 'relative' }}
-              activeOpacity={0.7}
-              onPress={() => router.push('/customer-chats')}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <Path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
-              </Svg>
-              {hasUnreadChats && <View style={styles.unreadBadge} />}
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
+            </HeaderAction>
+          }
+        />
 
-        {loading && !refreshing
-          ? <ActivityIndicator color="#CA9C68" style={{ marginTop: 60 }} />
+        {loading && !refreshing && events.length === 0
+          ? (
+            <View style={styles.collectionSection} accessible accessibilityLabel="Loading your events">
+              <View style={styles.sectionHead}>
+                <View style={{ gap: 8 }}>
+                  <Skeleton width={120} height={13} />
+                  <Skeleton width={170} height={12} />
+                </View>
+                <Skeleton width={110} height={30} radius={10} />
+              </View>
+              <View style={styles.eventsGridContainer}>
+                {[0, 1, 2, 3].map((i) => (
+                  <View key={i} style={[styles.aestheticEventCard, { overflow: 'hidden' }]}>
+                    <Skeleton height={EventGrid.imageHeight} radius={0} />
+                    <View style={{ padding: 10, gap: 8 }}>
+                      <Skeleton width="70%" height={12} />
+                      <Skeleton width="45%" height={10} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )
           : <>
               {/* ── SECTION 1: EVENTS (Deep Midnight) ── */}
               <View style={styles.collectionSection}>
@@ -634,46 +555,50 @@ export default function DashboardScreen() {
                     activeOpacity={0.8}
                     onPress={() => setShowJoinModal(true)}
                   >
-                    <IconSymbol name="plus.circle.fill" size={12} color={'#13191F'} />
+                    <IconSymbol name="plus.circle.fill" size={12} color={MidnightColors.onAccent} />
                     <Text style={styles.catchyActionPillText}>Join Event</Text>
                   </TouchableOpacity>
                 </View>
 
+                {loadError && events.length === 0 ? (
+                  <ErrorState
+                    title="Couldn't load your events"
+                    message="Check your internet connection and try again."
+                    onRetry={fetchData}
+                    retrying={loading}
+                  />
+                ) : events.length === 0 ? (
+                  // First run: no events yet, so offer the two ways to get started
+                  <View style={styles.welcomeCard}>
+                    <Text style={styles.welcomeTitle}>Welcome to EveBash</Text>
+                    <Text style={styles.welcomeBody}>
+                      Create a private gallery for your celebration, or join one a host shared with you.
+                    </Text>
+                    <Button
+                      title="Create your first event"
+                      icon="plus"
+                      onPress={() => router.push({ pathname: '/(tabs)/gallery', params: { create: '1' } } as any)}
+                    />
+                    <Button
+                      title="Join with a code"
+                      variant="secondary"
+                      icon="qrcode.viewfinder"
+                      onPress={() => setShowJoinModal(true)}
+                      style={{ marginTop: 10 }}
+                    />
+                  </View>
+                ) : (
                 <View style={styles.eventsGridContainer}>
                   {events.slice(0, 3).map((event) => {
-                    const coverImage = resolveEventCoverImage(event.coverImage);
-
                     return (
-                      <TouchableOpacity
+                      <EventGridCard
                         key={event.id}
-                        style={styles.aestheticEventCard}
-                        activeOpacity={0.9}
+                        title={event.title}
+                        date={event.date}
+                        category={event.category}
+                        coverImage={event.coverImage}
                         onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
-                      >
-                        {/* Top Part: Image Container */}
-                        <View style={styles.aestheticImageContainer}>
-                          <ExpoImage
-                            source={{ uri: coverImage }}
-                            style={StyleSheet.absoluteFill}
-                            contentFit="cover"
-                            contentPosition="center"
-                            transition={400}
-                          />
-                          <LinearGradient
-                            colors={['transparent', 'rgba(0,0,0,0.1)']}
-                            style={StyleSheet.absoluteFill}
-                          />
-                        </View>
-
-                      {/* Bottom Part: Text Details */}
-                      <View style={styles.aestheticTextContainer}>
-                        <Text style={styles.aestheticEventTitle} numberOfLines={1}>{event.title}</Text>
-                        <View style={styles.aestheticEventMeta}>
-                          <IconSymbol name="calendar" size={10} color={colors.gold} />
-                          <Text style={styles.aestheticEventDate}>{event.date}</Text>
-                        </View>
-                      </View>
-                      </TouchableOpacity>
+                      />
                     );
                   })}
 
@@ -684,9 +609,9 @@ export default function DashboardScreen() {
                   >
                     <View style={{ width: '100%', height: '100%', position: 'relative' }}>
                       <ExpoImage
-                        source={require('@/assets/images/memories_bg.png')}
+                        source={EVENT_PLACEHOLDER_ASSET}
                         style={StyleSheet.absoluteFill}
-                        contentFit="fill"
+                        contentFit="cover"
                         transition={400}
                       />
                       <LinearGradient
@@ -695,7 +620,7 @@ export default function DashboardScreen() {
                       />
                       <View style={styles.aestheticExploreContent}>
                          <View style={{ alignItems: 'center', gap: 4, marginBottom: 12 }}>
-                           <Text style={styles.aestheticExploreTitle} numberOfLines={1}>Your memories</Text>
+                           <Text style={styles.aestheticExploreTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Your memories</Text>
                            <View style={styles.aestheticCountPill}>
                              <Text style={styles.aestheticCountText}>{events.length} Collections</Text>
                            </View>
@@ -703,44 +628,20 @@ export default function DashboardScreen() {
 
                          <View style={styles.aestheticExploreBtn}>
                             <Text style={styles.aestheticExploreBtnText}>Explore All</Text>
-                            <IconSymbol name="arrow.right" size={12} color={'#13191F'} />
+                            <IconSymbol name="arrow.right" size={12} color={MidnightColors.onAccent} />
                          </View>
                       </View>
                     </View>
                   </TouchableOpacity>
                 </View>
+                )}
               </View>
 
               {/* ── SECTION 3: HOST AN EVENT ── */}
-              <TouchableOpacity
-                activeOpacity={0.9}
-                style={[styles.heroCard, { marginBottom: 16 }]}
+              <HostEventBanner
+                style={{ marginBottom: 16 }}
                 onPress={() => router.push('/(tabs)/gallery')}
-              >
-                <LinearGradient
-                  colors={['#151B21', '#10161C']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.heroGradient}
-                >
-                  <View style={styles.heroContent}>
-                    <View style={styles.heroBadge}>
-                      <Text style={styles.heroBadgeText}>FOR HOSTS</Text>
-                    </View>
-                    <Text style={styles.heroTitle}>Host an Event</Text>
-                    <Text style={styles.heroSubtitle}>
-                      Create a stunning private gallery for weddings, parties or corporate meets.
-                    </Text>
-                    <View style={styles.heroBtn}>
-                      <Text style={styles.heroBtnText}>Create Now</Text>
-                      <IconSymbol name="chevron.right" size={12} color="#ffffff" />
-                    </View>
-                  </View>
-                  <View style={styles.heroIconContainer}>
-                    <IconSymbol name="calendar.badge.plus" size={60} color="rgba(202,156,104,0.22)" />
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
+              />
 
               {/* ── HOST YOUR PERFECT EVENT — HOW TO HOST ── */}
               <TouchableOpacity
@@ -749,17 +650,17 @@ export default function DashboardScreen() {
                 onPress={() => Linking.openURL('https://www.youtube.com/@EveBashApp')}
               >
                 <LinearGradient
-                  colors={['#312e81', '#1e1b4b']}
+                  colors={['#1E1B17', '#12171C']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.heroGradient}
                 >
                   <View style={styles.heroContent}>
-                    <View style={[styles.heroBadge, { backgroundColor: 'rgba(167,139,250,0.25)' }]}>
-                      <Text style={[styles.heroBadgeText, { color: '#c4b5fd' }]}>HOW TO HOST</Text>
+                    <View style={styles.heroBadge}>
+                      <Text style={styles.heroBadgeText}>HOW TO HOST</Text>
                     </View>
-                    <Text style={[styles.heroTitle, { color: '#ffffff' }]}>Host Your Perfect Event</Text>
-                    <Text style={[styles.heroSubtitle, { color: 'rgba(196,181,253,0.85)' }]}>
+                    <Text style={styles.heroTitle}>Host Your Perfect Event</Text>
+                    <Text style={styles.heroSubtitle}>
                       Watch our step-by-step tutorials and host your event like a pro.
                     </Text>
                     <View style={styles.howToHostBtn}>
@@ -768,7 +669,7 @@ export default function DashboardScreen() {
                     </View>
                   </View>
                   <View style={styles.heroIconContainer}>
-                    <IconSymbol name="play.rectangle.fill" size={60} color="rgba(167,139,250,0.25)" />
+                    <IconSymbol name="play.rectangle.fill" size={60} color="rgba(202,156,104,0.22)" />
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
@@ -784,32 +685,22 @@ export default function DashboardScreen() {
                   <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>{infoModal.title}</Text>
                     <Text style={styles.modalText}>{infoModal.content}</Text>
-                    <TouchableOpacity
-                      style={styles.modalCloseBtn}
-                      onPress={() => setInfoModal({ ...infoModal, visible: false })}
-                    >
-                      <Text style={styles.modalCloseBtnText}>Got it</Text>
-                    </TouchableOpacity>
+                    <Button title="Got it" onPress={() => setInfoModal({ ...infoModal, visible: false })} />
                   </View>
                 </View>
               </Modal>
 
               {/* ── JOIN EVENT MODAL ── */}
-              <Modal visible={showJoinModal} transparent animationType="slide">
-                <KeyboardAvoidingView
-                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                  style={styles.joinModalOverlay}
-                >
-                  <TouchableOpacity
-                    style={styles.joinModalBackdrop}
-                    activeOpacity={1}
-                    onPress={() => { setShowJoinModal(false); setIsScanning(false); }}
-                  />
-                  <View style={styles.joinModalContent}>
+              <BottomSheet visible={showJoinModal} onClose={() => { setShowJoinModal(false); setIsScanning(false); }}>
                     <View style={styles.modalHeader}>
                       <Text style={styles.modalTitle}>Join Event</Text>
-                      <TouchableOpacity onPress={() => { setShowJoinModal(false); setIsScanning(false); }}>
-                        <IconSymbol name="xmark.circle.fill" size={24} color="#64748b" />
+                      <TouchableOpacity
+                        onPress={() => { setShowJoinModal(false); setIsScanning(false); }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Close"
+                        hitSlop={10}
+                      >
+                        <IconSymbol name="xmark.circle.fill" size={24} color={MidnightColors.slate600} />
                       </TouchableOpacity>
                     </View>
 
@@ -847,22 +738,17 @@ export default function DashboardScreen() {
                             value={joinCode}
                             onChangeText={setJoinCode}
                             placeholder="E.G. A1B2C3"
-                            placeholderTextColor="#594C3D"
+                            placeholderTextColor={MidnightColors.slate600}
                             autoCapitalize="characters"
                           />
                         </View>
 
-                        <TouchableOpacity
-                          style={[styles.submitBtn, joining && { opacity: 0.7 }]}
+                        <Button
+                          title="Join with Code"
                           onPress={() => handleJoinEvent()}
-                          disabled={joining}
-                        >
-                          {joining ? (
-                            <ActivityIndicator color="#1B211F" />
-                          ) : (
-                            <Text style={styles.submitBtnText}>Join with Code</Text>
-                          )}
-                        </TouchableOpacity>
+                          loading={joining}
+                          disabled={!joinCode.trim()}
+                        />
 
                         <View style={styles.modalDivider}>
                           <View style={styles.dividerLine} />
@@ -870,35 +756,30 @@ export default function DashboardScreen() {
                           <View style={styles.dividerLine} />
                         </View>
 
-                        <TouchableOpacity
-                          style={styles.scanBtn}
+                        <Button
+                          title="Scan QR Code"
+                          variant="secondary"
+                          icon="qrcode.viewfinder"
                           onPress={() => setIsScanning(true)}
-                        >
-                          <IconSymbol name="qrcode.viewfinder" size={20} color="#CA9C68" />
-                          <Text style={styles.scanBtnText}>Scan QR Code</Text>
-                        </TouchableOpacity>
+                        />
                       </View>
                     )}
-                  </View>
-                </KeyboardAvoidingView>
-              </Modal>
+              </BottomSheet>
 
               {/* ── NOTIFICATIONS MODAL ── */}
-              <Modal visible={showNotificationsModal} transparent animationType="slide">
-                <View style={styles.joinModalOverlay}>
-                  <TouchableOpacity
-                    style={styles.joinModalBackdrop}
-                    activeOpacity={1}
-                    onPress={() => setShowNotificationsModal(false)}
-                  />
-                  <View style={[styles.joinModalContent, { maxHeight: height * 0.85 }]}>
+              <BottomSheet visible={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} style={{ maxHeight: height * 0.85 }}>
                     <View style={styles.modalHeader}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <IconSymbol name="bell.fill" size={22} color={colors.gold} />
                         <Text style={styles.modalTitle}>Notifications</Text>
                       </View>
-                      <TouchableOpacity onPress={() => setShowNotificationsModal(false)}>
-                        <IconSymbol name="xmark.circle.fill" size={24} color="#64748b" />
+                      <TouchableOpacity
+                        onPress={() => setShowNotificationsModal(false)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Close"
+                        hitSlop={10}
+                      >
+                        <IconSymbol name="xmark.circle.fill" size={24} color={MidnightColors.slate600} />
                       </TouchableOpacity>
                     </View>
 
@@ -911,7 +792,7 @@ export default function DashboardScreen() {
                         <View style={styles.emptyNotifRing}>
                           <IconSymbol name="bell.slash.fill" size={32} color={colors.gold} />
                         </View>
-                        <Text style={styles.emptyNotifTitle}>All caught up! ✨</Text>
+                        <Text style={styles.emptyNotifTitle}>All caught up</Text>
                         <Text style={styles.emptyNotifBody}>
                           Follow users, join events, or shortlist businesses to receive real-time updates here.
                         </Text>
@@ -966,9 +847,9 @@ export default function DashboardScreen() {
                                 activeOpacity={0.85}
                                 onPress={async () => {
                                   if (item.id === 'upload-failed') {
-                                    Alert.alert(
-                                      "Upload Halted",
-                                      "Would you like to retry the failed uploads or clear the queue?",
+                                    appAlert(
+                                      "Some Uploads Failed",
+                                      "Retry the failed uploads, or clear them from the queue?",
                                       [
                                         { text: "Cancel", style: "cancel" },
                                         {
@@ -995,7 +876,7 @@ export default function DashboardScreen() {
                                     return;
                                   }
                                   if (item.id === 'upload-active') {
-                                    Alert.alert(
+                                    appAlert(
                                       "Upload Active",
                                       "Would you like to cancel all ongoing uploads?",
                                       [
@@ -1017,6 +898,10 @@ export default function DashboardScreen() {
                                     setShowUploadCompleteModal(true);
                                     return;
                                   }
+                                  if (item.id === 'upload-processing') {
+                                    setShowNotificationsModal(false);
+                                    return;
+                                  }
 
                                   setShowNotificationsModal(false);
                                   if (item.type === 'followed_event') {
@@ -1027,10 +912,9 @@ export default function DashboardScreen() {
                                       return;
                                     }
 
-                                    // 2. Query Supabase database check for latest guest log status
-                                    const guestId = user?.phone || user?.email || user?.uid;
-                                    if (guestId) {
-                                      const dbStatus = await checkGuestRequestStatus(guestId, item.targetId);
+                                    // 2. Where the user stands with the gallery (a rejected request can be sent again)
+                                    if (user) {
+                                      const dbStatus = await getGalleryRequestStatus(item.targetId).catch(() => null);
                                       if (dbStatus === 'approved') {
                                         router.push(`/events/${item.targetId}?mode=visitor`);
                                         return;
@@ -1039,15 +923,6 @@ export default function DashboardScreen() {
                                           title: "Request Pending",
                                           message: `You have already sent an access request. Please wait for the creator to approve it.`,
                                           type: 'pending',
-                                          eventName: item.eventTitle || undefined
-                                        });
-                                        setShowStatusModal(true);
-                                        return;
-                                      } else if (dbStatus === 'rejected') {
-                                        setStatusModalConfig({
-                                          title: "Access Declined",
-                                          message: `Your request to join this private event was declined by the creator. Please get in touch with them directly.`,
-                                          type: 'rejected',
                                           eventName: item.eventTitle || undefined
                                         });
                                         setShowStatusModal(true);
@@ -1064,16 +939,11 @@ export default function DashboardScreen() {
                                 }}
                               >
                                 <View style={styles.notificationIconWrapper}>
-                                  <Text style={styles.notificationIconText}>
-                                    {item.type === 'followed_event' ? '🎉' :
-                                     item.type === 'followed_business' ? '💼' :
-                                     item.type === 'shortlist_creation' ? '✨' :
-                                     item.type === 'shortlist_faq' ? '❓' :
-                                     item.type === 'shortlist_portfolio' ? '📸' :
-                                     item.type === 'upload_progress' ? '📤' :
-                                     item.type === 'upload_success' ? '✅' :
-                                     item.type === 'upload_failed' ? '❌' : '📢'}
-                                  </Text>
+                                  <IconSymbol
+                                    name={NOTIFICATION_ICONS[item.type] || 'bell.fill'}
+                                    size={20}
+                                    color={item.type === 'upload_failed' ? MidnightColors.danger : item.type === 'upload_success' ? MidnightColors.success : colors.gold}
+                                  />
                                 </View>
                                 <View style={styles.notificationTextWrapper}>
                                   <View style={styles.notificationHeaderRow}>
@@ -1088,9 +958,7 @@ export default function DashboardScreen() {
                         })}
                       </ScrollView>
                     )}
-                  </View>
-                </View>
-              </Modal>
+              </BottomSheet>
 
               {/* ── CUSTOM REQUEST ACCESS MODAL ── */}
               <Modal
@@ -1116,7 +984,7 @@ export default function DashboardScreen() {
                     <Text style={{
                       fontSize: 14,
                       fontFamily: 'Inter_400Regular',
-                      color: colors.slate400 || '#cbd5e1',
+                      color: colors.slate400,
                       textAlign: 'center',
                       lineHeight: 22,
                       marginBottom: 24
@@ -1127,30 +995,18 @@ export default function DashboardScreen() {
                     </Text>
 
                     <View style={{ gap: 12 }}>
-                      <TouchableOpacity
-                        style={[styles.modalCloseBtn, { flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'center' }]}
+                      <Button
+                        title="Send Join Request"
+                        icon="paperplane.fill"
                         onPress={handleSendAccessRequest}
-                        disabled={sendingRequest}
-                      >
-                        {sendingRequest ? (
-                          <ActivityIndicator color="#1B211F" />
-                        ) : (
-                          <>
-                            <IconSymbol name="paperplane.fill" size={14} color="#1B211F" />
-                            <Text style={styles.modalCloseBtnText}>Send Join Request</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={{ paddingVertical: 12, alignItems: 'center' }}
+                        loading={sendingRequest}
+                      />
+                      <Button
+                        title="Cancel"
+                        variant="ghost"
                         onPress={() => setShowRequestAccessModal(false)}
                         disabled={sendingRequest}
-                      >
-                        <Text style={{ color: colors.slate400, fontFamily: 'Outfit_700Bold', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                          Cancel
-                        </Text>
-                      </TouchableOpacity>
+                      />
                     </View>
                   </View>
                 </View>
@@ -1170,13 +1026,13 @@ export default function DashboardScreen() {
                       padding: 24,
                       borderRadius: 28,
                       borderWidth: 1.5,
-                      backgroundColor: isDark ? '#1B211F' : '#ffffff',
+                      backgroundColor: isDark ? MidnightColors.deepSlate : '#ffffff',
                       borderColor: statusModalConfig.type === 'success'
                         ? (isDark ? 'rgba(34, 197, 94, 0.4)' : 'rgba(34, 197, 94, 0.2)')
                         : statusModalConfig.type === 'pending'
                         ? (isDark ? 'rgba(202, 156, 104, 0.4)' : 'rgba(202, 156, 104, 0.2)')
                         : (isDark ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.2)'),
-                      shadowColor: statusModalConfig.type === 'success' ? '#22c55e' : statusModalConfig.type === 'pending' ? colors.gold : '#ef4444',
+                      shadowColor: statusModalConfig.type === 'success' ? MidnightColors.success : statusModalConfig.type === 'pending' ? colors.gold : MidnightColors.danger,
                       shadowOffset: { width: 0, height: 10 },
                       shadowOpacity: isDark ? 0.15 : 0.08,
                       shadowRadius: 20,
@@ -1212,10 +1068,10 @@ export default function DashboardScreen() {
                             : "xmark.circle.fill"}
                           size={32}
                           color={statusModalConfig.type === 'success'
-                            ? "#22c55e"
+                            ? MidnightColors.success
                             : statusModalConfig.type === 'pending'
                             ? colors.gold
-                            : "#ef4444"}
+                            : MidnightColors.danger}
                         />
                       </View>
 
@@ -1224,7 +1080,7 @@ export default function DashboardScreen() {
                         {
                           textAlign: 'center',
                           fontSize: 22,
-                          color: isDark ? '#ffffff' : '#1B211F',
+                          color: isDark ? '#ffffff' : MidnightColors.deepSlate,
                           fontFamily: 'Outfit_800ExtraBold',
                           marginBottom: 8
                         }
@@ -1238,10 +1094,10 @@ export default function DashboardScreen() {
                         fontSize: 16,
                         fontFamily: 'Outfit_700Bold',
                         color: statusModalConfig.type === 'success'
-                          ? "#22c55e"
+                          ? MidnightColors.success
                           : statusModalConfig.type === 'pending'
                           ? colors.gold
-                          : "#ef4444",
+                          : MidnightColors.danger,
                         textAlign: 'center',
                         marginBottom: 16,
                         paddingHorizontal: 16
@@ -1253,7 +1109,7 @@ export default function DashboardScreen() {
                     <Text style={{
                       fontSize: 14,
                       fontFamily: 'Inter_400Regular',
-                      color: isDark ? colors.slate400 : '#475569',
+                      color: isDark ? colors.slate400 : MidnightColors.slate600,
                       textAlign: 'center',
                       lineHeight: 22,
                       marginBottom: statusModalConfig.type === 'pending' ? 28 : 20
@@ -1279,13 +1135,13 @@ export default function DashboardScreen() {
                           name="info.circle"
                           size={18}
                           color={statusModalConfig.type === 'success'
-                            ? "#22c55e"
-                            : "#ef4444"}
+                            ? MidnightColors.success
+                            : MidnightColors.danger}
                         />
                         <Text style={{
                           fontSize: 12,
                           fontFamily: 'Inter_500Medium',
-                          color: isDark ? colors.slate400 : '#475569',
+                          color: isDark ? colors.slate400 : MidnightColors.slate600,
                           flex: 1,
                           lineHeight: 16
                         }}>
@@ -1296,37 +1152,7 @@ export default function DashboardScreen() {
                       </View>
                     )}
 
-                    <TouchableOpacity
-                      style={[
-                        styles.modalCloseBtn,
-                        {
-                          backgroundColor: statusModalConfig.type === 'success'
-                            ? "#22c55e"
-                            : statusModalConfig.type === 'pending'
-                            ? colors.gold
-                            : "#ef4444",
-                          shadowColor: statusModalConfig.type === 'success'
-                            ? "#22c55e"
-                            : statusModalConfig.type === 'pending'
-                            ? colors.gold
-                            : "#ef4444",
-                          shadowOffset: { width: 0, height: 4 },
-                          shadowOpacity: 0.25,
-                          shadowRadius: 8,
-                          elevation: 4
-                        }
-                      ]}
-                      onPress={() => setShowStatusModal(false)}
-                    >
-                      <Text style={[
-                        styles.modalCloseBtnText,
-                        {
-                          color: statusModalConfig.type === 'pending' ? '#1B211F' : '#ffffff'
-                        }
-                      ]}>
-                        Got It!
-                      </Text>
-                    </TouchableOpacity>
+                    <Button title="Got it" onPress={() => setShowStatusModal(false)} />
                   </View>
                 </View>
               </Modal>
@@ -1345,60 +1171,65 @@ export default function DashboardScreen() {
                       padding: 24,
                       borderRadius: 24,
                       borderWidth: 1.5,
-                      backgroundColor: isDark ? '#1B211F' : '#ffffff',
-                      borderColor: isDark ? 'rgba(202, 156, 104, 0.3)' : 'rgba(202, 156, 104, 0.15)',
+                      backgroundColor: MidnightColors.deepSlate,
+                      borderColor: 'rgba(202, 156, 104, 0.3)',
                       alignItems: 'center',
                       alignSelf: 'center',
-                      width: width * 0.8,
+                      width: width * 0.85,
+                      maxWidth: 400,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 10 },
+                      shadowOpacity: 0.5,
+                      shadowRadius: 20,
+                      elevation: 10,
                     }
                   ]}>
                     <View style={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: 30,
-                      backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                      width: 64,
+                      height: 64,
+                      borderRadius: 32,
+                      backgroundColor: 'rgba(34, 197, 94, 0.15)',
                       justifyContent: 'center',
                       alignItems: 'center',
                       marginBottom: 16,
                       borderWidth: 1,
-                      borderColor: 'rgba(34, 197, 94, 0.3)',
+                      borderColor: 'rgba(34, 197, 94, 0.35)',
                     }}>
-                      <IconSymbol name="checkmark.circle.fill" size={32} color="#22c55e" />
+                      <IconSymbol name="checkmark.circle.fill" size={34} color={MidnightColors.success} />
                     </View>
 
                     <Text style={{
-                      fontSize: 20,
+                      fontSize: 22,
                       fontWeight: 'bold',
-                      color: colors.gold || '#CCA43B',
-                      marginBottom: 8,
+                      color: colors.gold,
+                      marginBottom: 10,
                       fontFamily: 'Outfit_700Bold',
                       textAlign: 'center',
+                      letterSpacing: -0.3,
                     }}>
                       Upload Complete
                     </Text>
 
                     <Text style={{
                       fontSize: 14,
-                      color: isDark ? '#cbd5e1' : '#64748b',
+                      color: MidnightColors.slate300,
                       textAlign: 'center',
-                      marginBottom: 20,
+                      marginBottom: 24,
                       fontFamily: 'Inter_400Regular',
+                      lineHeight: 20,
+                      paddingHorizontal: 8,
                     }}>
-                      Upload complete
+                      All your photos and videos have been uploaded.
                     </Text>
 
-                    <TouchableOpacity
-                      style={[styles.modalCloseBtn, { width: '100%' }]}
+                    <Button
+                      title="Done"
                       onPress={async () => {
                         setShowUploadCompleteModal(false);
                         const { clearFinishedUploads } = require('@/lib/uploadQueue');
                         await clearFinishedUploads();
                       }}
-                    >
-                      <Text style={styles.modalCloseBtnText}>
-                        Done
-                      </Text>
-                    </TouchableOpacity>
+                    />
                   </View>
                 </View>
               </Modal>
@@ -1411,32 +1242,14 @@ export default function DashboardScreen() {
 
 const CARD_W = width * 0.55;
 const CARD_H = 155;
-const DASHBOARD_GRID_SIDE_PADDING = 24;
-const DASHBOARD_GRID_ITEM_WIDTH = '48%' as const;
+const EVENT_CARD_W = getEventGridCardWidth(width);
 
-const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   centered: { justifyContent: 'center', alignItems: 'center' },
   container: { flex: 1, backgroundColor: colors.background },
 
   // ── Header ──
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-    gap: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: isDark ? 0.3 : 0.05,
-    shadowRadius: 10,
-    elevation: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(202, 156, 104, 0.12)',
-  },
   greetingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   greeting: { fontSize: 13, color: colors.slate400, fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 1.2 },
   datePill: {
@@ -1446,8 +1259,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20,
   },
   datePillText: { fontSize: 10, color: colors.gold, fontFamily: 'Outfit_700Bold', letterSpacing: 0.3 },
-  headerTitle: { fontSize: 28, lineHeight: 38, fontFamily: 'AkayaKanadakaHeader_400Regular', color: colors.white, letterSpacing: 0.5, textAlign: 'center', includeFontPadding: false },
-  headingLogoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 38 },
   avatarRingHeader: {
     padding: 3, borderRadius: 30,
     borderWidth: 1.5, borderColor: colors.gold,
@@ -1460,27 +1271,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   avatarFallbackText: {
     fontSize: 22, color: colors.gold, fontFamily: 'Outfit_800ExtraBold',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerIconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
   },
   notificationBadge: {
     position: 'absolute',
@@ -1496,16 +1286,27 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
 
   // ── Sections ──
   section: { paddingTop: 8, paddingBottom: 16 },
-  collectionSection: {
-    marginHorizontal: 16,
-    marginTop: 14,
+  welcomeCard: {
+    paddingHorizontal: 24,
+    paddingBottom: 6,
+  },
+  welcomeTitle: {
+    color: colors.white,
+    fontFamily: 'Inter_700Bold',
+    fontSize: 20,
+    marginBottom: 6,
+  },
+  welcomeBody: {
+    color: colors.slate400,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
     marginBottom: 18,
-    paddingTop: 18,
-    paddingBottom: 18,
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: 'rgba(202, 156, 104, 0.16)',
-    backgroundColor: '#151B21',
+  },
+  // Flat section (no card-in-card) so event cards line up with the cards below at 24px
+  collectionSection: {
+    marginTop: 22,
+    marginBottom: 10,
   },
   sectionHead: {
     flexDirection: 'row', justifyContent: 'space-between',
@@ -1531,9 +1332,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     backgroundColor: colors.gold,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: isDark ? 0.2 : 0.05,
@@ -1541,8 +1342,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     elevation: 4,
   },
   catchyActionPillText: {
-    fontSize: 10,
-    color: '#13191F',
+    fontSize: 12,
+    color: colors.onAccent,
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
@@ -1628,7 +1429,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: 'rgba(202, 156, 104,0.1)',
     paddingHorizontal: 6,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 8,
     alignSelf: 'flex-start',
     marginBottom: 8,
     borderWidth: 1,
@@ -1636,12 +1437,12 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   heroBadgeText: {
     color: colors.gold,
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: 0.8,
   },
   heroTitle: {
-    color: isDark ? '#ffffff' : '#1B211F',
+    color: isDark ? '#ffffff' : colors.deepSlate,
     fontSize: 18,
     fontFamily: 'Outfit_800ExtraBold',
     marginBottom: 2,
@@ -1652,23 +1453,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     marginBottom: 12,
     lineHeight: 16,
-  },
-  heroBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(202, 156, 104, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(202, 156, 104, 0.18)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  heroBtnText: {
-    color: isDark ? '#ffffff' : '#1B211F',
-    fontSize: 12,
-    fontFamily: 'Outfit_700Bold',
   },
   // ── How to Host Button ──
   howToHostBtn: {
@@ -1696,20 +1480,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   modalTitle: { fontSize: 24, color: colors.white, fontFamily: 'Outfit_800ExtraBold', marginBottom: 12, letterSpacing: -0.5 },
   modalText: { fontSize: 16, color: colors.slate400, fontFamily: 'Inter_400Regular', lineHeight: 26, marginBottom: 28 },
   modalCloseBtn: { backgroundColor: colors.gold, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
-  modalCloseBtnText: { color: '#1B211F', fontFamily: 'Outfit_800ExtraBold', fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
+  modalCloseBtnText: { color: colors.deepSlate, fontFamily: 'Outfit_800ExtraBold', fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
 
   // ── Join Event Modal Specific ──
-  joinModalOverlay: { flex: 1, justifyContent: 'flex-end' },
-  joinModalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(19, 25, 31, 0.8)' },
-  joinModalContent: {
-    backgroundColor: colors.slate900,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   form: { gap: 16 },
   inputGroup: { gap: 8 },
@@ -1733,10 +1506,10 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 20,
     marginTop: 10,
   },
-  submitBtnText: { color: '#1B211F', fontFamily: 'Outfit_800ExtraBold', fontSize: 16, textTransform: 'uppercase', letterSpacing: 1 },
+  submitBtnText: { color: colors.deepSlate, fontFamily: 'Outfit_800ExtraBold', fontSize: 16, textTransform: 'uppercase', letterSpacing: 1 },
   modalDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 24 },
   dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
-  dividerText: { color: '#475569', fontSize: 12, fontFamily: 'Inter_700Bold' },
+  dividerText: { color: colors.slate600, fontSize: 12, fontFamily: 'Inter_700Bold' },
   scanBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1829,7 +1602,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     gap: 8,
   },
   cardActionBtnMainText: {
-    color: '#13191F',
+    color: colors.onAccent,
     fontSize: 14,
     fontFamily: 'Outfit_800ExtraBold',
   },
@@ -1861,7 +1634,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignSelf: 'stretch',
-    paddingHorizontal: DASHBOARD_GRID_SIDE_PADDING,
+    paddingHorizontal: EventGrid.sidePadding,
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingBottom: 10,
@@ -1999,82 +1772,42 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: colors.gold,
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 14,
+    borderRadius: 16,
     width: '100%',
   },
   miniGalleryBtnText: {
     fontSize: 12,
-    color: '#13191F',
+    color: colors.onAccent,
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  unreadBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.gold || '#CA9C68',
-  },
   aestheticEventCard: {
-    width: DASHBOARD_GRID_ITEM_WIDTH,
-    height: 168,
-    borderRadius: 18,
-    marginBottom: 14,
+    width: EVENT_CARD_W,
+    height: EventGrid.cardHeight,
+    borderRadius: EventGrid.radius,
+    marginBottom: EventGrid.rowGap,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104, 0.16)',
-    backgroundColor: isDark ? '#10161C' : '#ffffff',
+    backgroundColor: isDark ? colors.surface : '#ffffff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 10,
     elevation: 6,
   },
-  aestheticImageContainer: {
-    width: '100%',
-    height: 100,
-    backgroundColor: '#0E141A',
-    position: 'relative',
-  },
-  aestheticTextContainer: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    justifyContent: 'center',
-    flex: 1,
-    backgroundColor: isDark ? 'rgba(14, 20, 26, 0.96)' : '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(202, 156, 104, 0.08)',
-  },
-  aestheticEventTitle: {
-    fontSize: 13,
-    color: colors.white,
-    fontFamily: 'Outfit_700Bold',
-  },
-  aestheticEventMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  aestheticEventDate: {
-    fontSize: 10,
-    color: colors.slate400,
-    fontFamily: 'Inter_500Medium',
-  },
 
   // Explore Card
   aestheticExploreCard: {
-    width: DASHBOARD_GRID_ITEM_WIDTH,
-    height: 168,
-    borderRadius: 18,
-    marginBottom: 14,
+    width: EVENT_CARD_W,
+    height: EventGrid.cardHeight,
+    borderRadius: EventGrid.radius,
+    marginBottom: EventGrid.rowGap,
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'rgba(202, 156, 104, 0.2)',
-    backgroundColor: '#10161C',
+    backgroundColor: colors.surface,
     shadowColor: colors.gold,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: isDark ? 0.15 : 0.03,
@@ -2125,7 +1858,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   aestheticExploreBtnText: {
     fontSize: 11,
-    color: '#13191F',
+    color: colors.onAccent,
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -2165,7 +1898,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 16,
-    backgroundColor: isDark ? '#1B211F' : '#ffffff',
+    backgroundColor: isDark ? colors.deepSlate : '#ffffff',
     marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.cardBorder,
@@ -2181,9 +1914,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginRight: 12,
     borderWidth: 0.5,
     borderColor: colors.border,
-  },
-  notificationIconText: {
-    fontSize: 18,
   },
   notificationTextWrapper: {
     flex: 1,
