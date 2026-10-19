@@ -899,6 +899,24 @@ export async function getUserEventCount(uid: string): Promise<number> {
     }
 }
 
+/**
+ * Of these parent ids, the ones that exist as galleries (by id or legacy id), whoever owns them. A sub-gallery
+ * an event admin created in someone else's event has a parent that exists; a real orphan's parent doesn't.
+ */
+async function findExistingGalleryIds(ids: string[]): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const [byId, byLegacyId] = await Promise.all([
+        supabase.from('events').select('id').in('id', ids),
+        supabase.from('events').select('legacy_id').in('legacy_id', ids),
+    ]);
+    if (byId.error) throw byId.error;
+    if (byLegacyId.error) throw byLegacyId.error;
+    return new Set([
+        ...(byId.data || []).map((row: { id: string }) => row.id),
+        ...(byLegacyId.data || []).map((row: { legacy_id: string | null }) => row.legacy_id),
+    ].filter((id): id is string => Boolean(id)));
+}
+
 export async function getUserEvents(
     userIds: string | string[],
     type?: 'main' | 'sub',
@@ -929,11 +947,18 @@ export async function getUserEvents(
                 return matchesParent && isNotSelf && looksSub;
             });
         } else {
+            // Main events, plus sub-galleries whose parent no longer exists at all (old orphaned data). A sub-gallery
+            // made in someone else's event (as its admin) isn't the creator's own event: its parent exists.
+            const isMainEvent = (e: Event) => e.type === 'main' || (!e.type && !e.parentId);
+            const ownsParent = (e: Event) => events.some(ev => ev.id === e.parentId || (!!ev.legacyId && ev.legacyId === e.parentId));
+            const parentIdsToCheck = Array.from(new Set(events
+                .filter(e => !isMainEvent(e) && !!e.parentId && !ownsParent(e))
+                .map(e => e.parentId as string)));
+            const existingParents = await findExistingGalleryIds(parentIdsToCheck);
             filteredEvents = filteredEvents.filter(e => {
-                const isMain = e.type === 'main' || (!e.type && !e.parentId);
-                if (isMain) return true;
-                const parentExists = events.some(ev => ev.id === e.parentId);
-                return !parentExists;
+                if (isMainEvent(e)) return true;
+                if (ownsParent(e)) return false;
+                return !e.parentId || !existingParents.has(e.parentId);
             });
         }
 

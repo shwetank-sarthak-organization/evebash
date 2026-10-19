@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 92
+Next test number: 93
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2175,6 +2175,28 @@ How to test:
   4. Download All on Home -> "Home only": the ZIP has both the favourites and the Home uploads.
   5. The (i) next to Galleries on the host page describes Home this way.
   6. Logged out on a public event: Home shows its favourites and its own uploads.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#92 A sub-gallery an event admin creates isn't listed as the admin's own event
+Status:    TODO
+Priority:  High
+Platform:  Both (website: Dashboard and Host; app: Dashboard, Your events, Gallery tab)
+Brief:     Samarth (admin of "Samarth & Jyoti Wedding") created the sub-gallery "Baraat"; it showed as a main
+           event in his own lists. It now only appears inside the wedding.
+How to test:
+  1. As Samarth: website Dashboard (Hosted) and Host (Your Created Events): no "Baraat" event.
+  2. App, as Samarth: Dashboard, Your events and the Gallery tab: no "Baraat" event.
+  3. As Samarth: the wedding is under Shared Events / Attended, and Baraat is inside it.
+  4. As the owner: Baraat is a sub-gallery of the wedding, as before.
+  5. As an admin, create another sub-gallery in someone else's event: it doesn't appear as your own event.
 Done by:
 Device / browser:
 Build / version:
