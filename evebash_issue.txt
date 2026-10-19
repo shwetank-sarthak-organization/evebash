@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 76
+Next issue number: 78
 
 =====================================================================
 ACTIVE ISSUES
@@ -377,6 +377,28 @@ Blocked by: -
 Found in: Footer review vs Samaro (2026-10-13)
 Issue: The website footer (src/components/Footer.tsx) leaves out key pages and wastes space on phones. (1) No link to Find You or Host / create an event, the product's main features. (2) No page on the site links to /delete-account (only the privacy policy text names it). (3) The YouTube channel listed in the site's structured data (src/app/(main)/layout.tsx, sameAs @EveBashApp) has no footer link. (4) On a 375 px phone the footer is 1110 px tall (taller than the screen) for 12 links, because every column stacks one under another. Samaro fits 36 links in 1257 px with two columns. (5) On phones the copyright line is centred while everything above it is left-aligned. (6) The right side of the bottom bar only says "Designed with ♥".
 How to reproduce: Open www.evebash.com on a phone (or 375 px wide) and scroll to the bottom. Look for Find You, Host, Delete account and YouTube links: none.
+
+#76
+Listed: 2026-10-13
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Cost analysis chat, checking what deleting a gallery removes (2026-10-13)
+Issue: When a host deletes a video (or a whole gallery) from the website or app, the streaming copy stays in B2 and we keep paying for it. Modal writes the transcoded video under hls/<storage_key>/ (modal_engine/main.py, hls_prefix), but the user delete route only removes <storage_key>-hls/ (custom thumbnails), plus the original, preview and thumbnail (apps/backend/src/routes/media.ts, POST /delete). The admin delete paths (apps/backend/src/deleteGalleryMedia.ts, routes/admin.ts) already remove both prefixes. The HLS copy counts toward overhead_size, so it can be a large share of each video's storage, and every video deleted this way so far has probably left one behind (not checked in B2 yet). Fix: also delete the hls/<storage_key>/ prefix in the user route, and sweep the orphaned hls/ folders whose photos row no longer exists (backend change: flag-gate per change-safety rules).
+How to reproduce: Upload a video to a test gallery, wait for it to play, note its storage_key, delete the gallery, then list B2 files with prefix hls/<storage_key>/: the playlist and segments are still there.
+
+#77
+Listed: 2026-10-19
+Platform: Both
+Priority: High
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Photo cost review and Modal benchmark (2026-10-13), plan agreed 2026-10-19
+Issue: Photo processing on Modal costs about 4x more than it needs to, and it is our second-biggest cost after B2 storage (about 31% of the infra bill at scale). Each photo runs through two workers (process_photo_preview, then FaceIndexer in modal_engine/main.py): two container start-ups, two idle windows (60 s and 45 s, both billed), the preview downloaded and decoded twice, and all 5 AuraFace models run on every face although only detection and recognition are used. Measured on 40 real 24 MP photos (2026-10-13 Modal bills): ₹0.0303 per photo for bulk uploads and ₹0.1695 for guest uploads (a few photos at a time). A merged worker with only the 2 models we use, a 15 s idle window and up to 4 photos per container cost ₹0.0076 and ₹0.0229 (-75% / -86%) with identical faces. Fix: add PhotoProcessorV2 (Modal only) behind a runtime switch (Modal Dict, default v1 = today), keep process_photo_preview and FaceIndexer deployed and unchanged for instant switch-back, test on one gallery, then switch everyone.
+How to reproduce: Upload 1-3 photos to any gallery, then run modal billing report for that hour: both process_photo_preview and FaceIndexer containers start and stay up after the work; the cost per photo is far above the logged execution cost.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

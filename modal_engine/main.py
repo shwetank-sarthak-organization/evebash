@@ -190,13 +190,15 @@ def get_selfie_model():
 def _hand_off_to_fast_pipeline(photos: list) -> dict:
     """
     Sends photos the 2-stage pipeline hasn't started yet (e.g. web uploads over 20 MB, which skip the
-    fast-media trigger) to process_photo_preview. Photos already in that pipeline are left alone instead
-    of being resized and face-indexed a second time.
+    fast-media trigger) to the photo worker: process_photo_preview, or PhotoProcessorV2 per the photo
+    pipeline switch. Photos already in that pipeline are left alone instead of being resized and
+    face-indexed a second time.
     """
     from supabase import create_client
 
     ids = [p.get("id") for p in photos if isinstance(p, dict) and p.get("id")]
     supabase = create_client(os.environ.get("NEXT_PUBLIC_SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_ROLE_KEY"))
+    mode, v2_events = _read_photo_pipeline_switch() if ids else ("v1", [])
     handed_off = 0
     for i in range(0, len(ids), 20):  # photo ids are long, so keep each request URL short
         rows = (
@@ -209,14 +211,14 @@ def _hand_off_to_fast_pipeline(photos: list) -> dict:
             .execute()
         ).data or []
         for p in rows:
-            process_photo_preview.spawn({
+            _spawn_photo_job({
                 "id": p["id"],
                 "photo_id": p["id"],
                 "storage_key": p.get("storage_key"),
                 "event_id": p.get("event_id"),
                 "user_id": p.get("user_id"),
                 "asset_version": p.get("asset_version") or 1,
-            })
+            }, mode, v2_events)
         handed_off += len(rows)
     print(f"[Batch] {len(ids)} photo(s): {handed_off} handed to the 2-stage pipeline, {len(ids) - handed_off} already in it")
     return {"status": "success", "processed": len(ids), "handed_off": handed_off}
@@ -429,7 +431,8 @@ def process_photo_preview(photo_data: dict):
 async def generate_photo_preview(request: fastapi.Request):
     """
     QStash webhook endpoint for Fast Media Path.
-    Verifies Upstash-Signature and spawns process_photo_preview asynchronously.
+    Verifies Upstash-Signature and spawns the photo worker asynchronously (process_photo_preview, or
+    PhotoProcessorV2 when the photo pipeline switch says so).
     Returns HTTP 202 Accepted in ~10ms. Zero QStash timeout risk.
     """
     import json
@@ -441,8 +444,10 @@ async def generate_photo_preview(request: fastapi.Request):
     payload = json.loads(body.decode("utf-8")) if body else {}
     photo_items = payload.get("photos") or ([payload] if payload.get("storage_key") or payload.get("id") or payload.get("photo_id") else [])
 
+    # process_photo_preview (v1, default) or PhotoProcessorV2, per the photo pipeline switch (issue #77)
+    mode, v2_events = _read_photo_pipeline_switch() if photo_items else ("v1", [])
     for item in photo_items:
-        process_photo_preview.spawn(item)
+        _spawn_photo_job(item, mode, v2_events)
 
     return {"accepted": True, "count": len(photo_items)}, 202
 
@@ -626,6 +631,307 @@ class FaceIndexer:
             except Exception:
                 pass
             return {"status": "error", "photo_id": photo_id, "error": str(e)}
+
+
+# ==============================================================================
+# PHOTO PIPELINE V2: ONE WORKER FOR PREVIEW + FACES (issue #77)
+# ==============================================================================
+# Same work as process_photo_preview followed by FaceIndexer.process, in one container: the original is
+# downloaded once, faces are found on the preview already in memory, only the 2 face models we use are
+# loaded, containers idle 15 s and handle up to 4 photos at once. Measured 2026-10-13 on 40 real photos:
+# 75% (bulk uploads) to 86% (guest uploads) cheaper, with identical faces.
+#
+# It sits behind a runtime switch (a Modal Dict, so no deploy and no .env line is needed to flip it).
+# The default is "v1", today's two workers. process_photo_preview and FaceIndexer stay deployed and
+# unchanged, and the 5-minute maintenance job keeps recovering stuck photos with them either way.
+# modal_engine/photo_pipeline_switch.py shows and sets the switch:
+#   mode       "v1" (default) or "v2" for every photo
+#   v2_events  gallery ids that use v2 while mode is "v1", for testing on one gallery
+
+PHOTO_PIPELINE_SWITCH = "photo-pipeline-switch"
+
+
+def _pick_photo_pipeline(event_id, mode, v2_events) -> str:
+    if mode == "v2" or (event_id and event_id in (v2_events or [])):
+        return "v2"
+    return "v1"
+
+
+def _read_photo_pipeline_switch():
+    """Returns (mode, v2_events). If the switch can't be read, photos go to today's pipeline."""
+    try:
+        switch = modal.Dict.from_name(PHOTO_PIPELINE_SWITCH, create_if_missing=True)
+        return switch.get("mode", "v1"), switch.get("v2_events", [])
+    except Exception as err:
+        print(f"[PhotoPipeline] Could not read the switch, using v1: {err}")
+        return "v1", []
+
+
+def _spawn_photo_job(item: dict, mode, v2_events):
+    if _pick_photo_pipeline(item.get("event_id"), mode, v2_events) == "v2":
+        PhotoProcessorV2().process.spawn(item)
+    else:
+        process_photo_preview.spawn(item)
+
+
+def _load_two_model_face_app():
+    """AuraFace with only the models whose output we save: detection (boxes + 5 key points, also used to
+    align each face) and recognition (the 512 numbers). The pack's 3D landmark, 2D landmark and gender/age
+    models run on every face otherwise, and nothing reads their results."""
+    from insightface.app import FaceAnalysis
+    face_app = FaceAnalysis(
+        name="auraface",
+        root="/root/.insightface",
+        providers=["CPUExecutionProvider"],
+        allowed_modules=["detection", "recognition"],
+    )
+    face_app.prepare(ctx_id=-1, det_size=(640, 640), det_thresh=0.25)
+    return face_app
+
+
+def _media_domain() -> str:
+    return (
+        os.environ.get("MEDIA_DOMAIN")
+        or os.environ.get("CLOUDFLARE_DOMAIN")
+        or os.environ.get("NEXT_PUBLIC_MEDIA_DOMAIN")
+        or "media.evebash.com"
+    ).strip().replace("https://", "").replace("http://", "").rstrip("/")
+
+
+def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_name: str, media_domain: str, photos_in_container=lambda: 1):
+    """
+    One photo start to finish, making the same database calls in the same order as process_photo_preview
+    followed by FaceIndexer.process: claim_media_job, complete_media_job (the photo shows in the gallery),
+    claim_face_job, replace_photo_faces. Clients are passed in so the pre-deploy test can run it with fakes.
+    """
+    import time
+    import uuid
+    import numpy as np
+    import cv2
+    from PIL import Image, ImageOps
+
+    start_time = time.time()
+    sharing_at_start = photos_in_container()
+    photo_id = photo_data.get("id") or photo_data.get("photo_id")
+    asset_version = int(photo_data.get("asset_version") or 1)
+    storage_key = photo_data.get("storage_key") or photo_data.get("object_key")
+    event_id = photo_data.get("event_id")
+    user_id = photo_data.get("user_id")
+
+    if not photo_id or not storage_key:
+        print(f"[PhotoV2] Missing required parameters: photo_id={photo_id}, storage_key={storage_key}")
+        return {"status": "error", "error": "Missing photo_id or storage_key"}
+
+    # ---- Preview and thumbnail (as process_photo_preview) ----
+    media_token = str(uuid.uuid4())
+    claimed = supabase.rpc("claim_media_job", {
+        "p_photo_id": photo_id,
+        "p_token": media_token,
+        "p_asset_version": asset_version
+    }).execute()
+    if not claimed.data:
+        print(f"[{photo_id}] Media job already claimed or exceeded max retries. Skipping.")
+        return {"status": "skipped", "photo_id": photo_id}
+
+    try:
+        resp = b2_client.get_object(Bucket=bucket_name, Key=storage_key)
+        raw_bytes = resp['Body'].read()
+        original_size = len(raw_bytes)
+
+        Image.MAX_IMAGE_PIXELS = 100_000_000
+        pil_img = Image.open(io.BytesIO(raw_bytes))
+        pil_img.load()  # full-size decode, as today (also stops thumbnail() from using JPEG draft mode)
+        del raw_bytes
+        try:
+            pil_img = ImageOps.exif_transpose(pil_img)
+        except Exception:
+            pass
+        if pil_img.mode != "RGB":
+            pil_img = pil_img.convert("RGB")
+        orig_w, orig_h = pil_img.size
+
+        # Resized in place rather than from a copy: the image is already fully decoded, so the output is the
+        # same as today's, and it saves a full-size copy while up to 4 photos share the container's memory.
+        preview_img = pil_img
+        preview_img.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+        preview_buf = io.BytesIO()
+        preview_img.save(preview_buf, format="WEBP", quality=70, method=4)
+        preview_bytes = preview_buf.getvalue()
+
+        # Thumbnail from the 1600 px preview instead of the full image (tested 2026-10-13; looks the same)
+        thumb_img = preview_img.copy()
+        thumb_img.thumbnail((480, 480), Image.Resampling.LANCZOS)
+        thumb_buf = io.BytesIO()
+        thumb_img.save(thumb_buf, format="WEBP", quality=68, method=4)
+        thumb_bytes = thumb_buf.getvalue()
+        del pil_img, preview_img, thumb_img
+
+        preview_key = f"{storage_key}-preview.webp"
+        thumb_key = f"{storage_key}-thumbnail.webp"
+        b2_client.put_object(Bucket=bucket_name, Key=preview_key, Body=preview_bytes, ContentType="image/webp")
+        b2_client.put_object(Bucket=bucket_name, Key=thumb_key, Body=thumb_bytes, ContentType="image/webp")
+
+        preview_url = f"https://{media_domain}/{preview_key}"
+        thumbnail_url = f"https://{media_domain}/{thumb_key}"
+
+        supabase.rpc("complete_media_job", {
+            "p_photo_id": photo_id,
+            "p_token": media_token,
+            "p_asset_version": asset_version,
+            "p_thumbnail_url": thumbnail_url,
+            "p_preview_url": preview_url,
+            "p_width": orig_w,
+            "p_height": orig_h,
+            "p_overhead_size": len(preview_bytes) + len(thumb_bytes)
+        }).execute()
+        preview_seconds = time.time() - start_time
+        print(f"[{photo_id}] Preview ready in {preview_seconds:.2f}s. Photo is now live in gallery.")
+
+    except Exception as e:
+        print(f"[{photo_id}] Fast Preview generation failed: {e}")
+        failed_update = {
+            "media_status": "failed",
+            "processing_error": str(e)[:1000]
+        }
+        error_code = (getattr(e, "response", None) or {}).get("Error", {}).get("Code")
+        if error_code in ("NoSuchKey", "404"):
+            # The original isn't in B2, so retrying can't succeed; use up the attempts now
+            failed_update["media_attempt"] = 3
+        try:
+            supabase.table("photos").update(failed_update).eq("id", photo_id).execute()
+        except Exception:
+            pass
+        return {"status": "error", "photo_id": photo_id, "error": str(e)}
+
+    # ---- Faces (as FaceIndexer.process, on the preview already in memory) ----
+    face_token = str(uuid.uuid4())
+    claimed = supabase.rpc("claim_face_job", {
+        "p_photo_id": photo_id,
+        "p_token": face_token,
+        "p_asset_version": asset_version
+    }).execute()
+    if not claimed.data:
+        print(f"[{photo_id}] Face indexing job already claimed or max attempts reached.")
+        return {"status": "success", "photo_id": photo_id, "preview_url": preview_url, "faces": None}
+
+    try:
+        # Decoding the WebP bytes, not using the resized image directly, gives the face model exactly the
+        # pixels FaceIndexer gets when it downloads the preview, so faces match today's
+        face_img = Image.open(io.BytesIO(preview_bytes))
+        if face_img.mode != "RGB":
+            face_img = face_img.convert("RGB")
+        img_bgr = cv2.cvtColor(np.array(face_img), cv2.COLOR_RGB2BGR)
+        h, w, _ = img_bgr.shape
+
+        faces = face_app.get(img_bgr)
+        face_records = []
+        for face in faces:
+            embedding = face.normed_embedding
+            if embedding is not None:
+                face_records.append({
+                    "event_id": event_id,
+                    "image_url": preview_url,
+                    "width": w,
+                    "height": h,
+                    "descriptor": embedding.tolist()
+                })
+
+        supabase.rpc("replace_photo_faces", {
+            "p_photo_id": photo_id,
+            "p_token": face_token,
+            "p_asset_version": asset_version,
+            "p_faces": face_records
+        }).execute()
+
+        # One cost-log row for both steps. Photos running at the same time share the container, so each is
+        # charged its share of the time.
+        duration = time.time() - start_time
+        sharing = max(1.0, (sharing_at_start + photos_in_container()) / 2)
+        cpu_cores = 1.0
+        memory_gb = 2.0
+        rate_per_sec = (cpu_cores * 0.0000131) + (memory_gb * 0.00000222)
+        cost_inr = duration / sharing * rate_per_sec * 100.0
+        try:
+            log_payload = {
+                "photo_id": photo_id,
+                "event_id": event_id,
+                "function_name": "process_photo_v2",
+                "worker_type": "Modal Photo Worker v2 (1 vCPU • 2GB RAM • up to 4 photos)",
+                "media_type": "photo",
+                "media_size": original_size,
+                "cpu_cores": cpu_cores,
+                "memory_gb": memory_gb,
+                "gpu_type": "None",
+                "execution_time_seconds": duration,
+                "estimated_cost_inr": cost_inr,
+                "faces_detected": len(face_records)
+            }
+            if user_id:
+                log_payload["user_id"] = user_id
+            supabase.table("modal_cost_logs").insert(log_payload).execute()
+        except Exception as log_err:
+            print(f"[{photo_id}] Cost logging failed: {log_err}")
+
+        print(f"[{photo_id}] Photo v2 finished: preview + {len(face_records)} faces in {duration:.2f}s (₹{cost_inr:.5f})")
+        return {"status": "success", "photo_id": photo_id, "preview_url": preview_url, "faces": len(face_records)}
+
+    except Exception as e:
+        # The preview is already live; only the faces failed, and the maintenance job retries just the faces
+        print(f"[{photo_id}] Face indexing error: {e}")
+        try:
+            supabase.table("photos").update({
+                "face_status": "failed",
+                "processing_error": str(e)[:1000]
+            }).eq("id", photo_id).execute()
+        except Exception:
+            pass
+        return {"status": "error", "photo_id": photo_id, "preview_url": preview_url, "error": str(e)}
+
+
+@app.cls(
+    image=image,
+    cpu=1.0,
+    memory=2048,
+    max_containers=12,
+    scaledown_window=15,
+    retries=0,
+    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+)
+@modal.concurrent(max_inputs=4)
+class PhotoProcessorV2:
+    @modal.enter()
+    def load_model(self):
+        import threading
+        self.face_app = _load_two_model_face_app()
+        self._lock = threading.Lock()
+        self._in_flight = 0
+        print("[PhotoV2] AuraFace (detection + recognition) warm and ready.")
+
+    @modal.method()
+    def process(self, photo_data: dict):
+        import boto3
+        from supabase import create_client
+
+        with self._lock:
+            self._in_flight += 1
+        try:
+            supabase = create_client(
+                os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
+                os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+            )
+            b2_client = boto3.client(
+                's3',
+                endpoint_url=f"https://{os.environ.get('B2_ENDPOINT')}",
+                aws_access_key_id=os.environ.get('B2_KEY_ID'),
+                aws_secret_access_key=os.environ.get('B2_APPLICATION_KEY')
+            )
+            return _process_photo_v2(
+                photo_data, self.face_app, supabase, b2_client, os.environ.get('B2_BUCKET_NAME'),
+                _media_domain(), photos_in_container=lambda: self._in_flight,
+            )
+        finally:
+            with self._lock:
+                self._in_flight -= 1
 
 
 # ==============================================================================
