@@ -8,7 +8,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
 import LoadingScreen from "@/components/LoadingScreen";
 import { getEvent } from "@/lib/events"; // Static Data
-import { getEventPhotosPaginated, getEventById, getSubEvents, Event, Photo as DatabasePhoto, getFavouritePhotosForEvents, getEventFavouritePhotos, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery } from "@/lib/database"; // Live Data
+import { getEventPhotosPaginated, getEventById, getSubEvents, visibleGalleries, mergeHomeMedia, Event, Photo as DatabasePhoto, getFavouritePhotosForEvents, getEventFavouritePhotos, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery } from "@/lib/database"; // Live Data
 import { useAuth } from "@/context/AuthContext";
 import { promptLogin } from "@/components/ui/LoginPrompt";
 import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check, Star, Layers3, Lock, Clock, Upload } from "lucide-react";
@@ -207,6 +207,7 @@ function EventPageContent() {
         const currentMainEvent = gallery.type === 'main' ? gallery : event;
         const subEventList = overrideSubEvents || subEvents;
 
+        // Home (Primary Gallery): the host's favourites first, then what was uploaded to Home itself (pages of 20)
         if (!gallery.parentId && (currentMainEvent || gallery.type === 'main')) {
             const rootId = gallery.type === 'main' ? gallery.id : currentMainEvent?.id;
             const eventIds = Array.from(new Set([
@@ -215,19 +216,29 @@ function EventPageContent() {
                 currentMainEvent?.legacyId,
                 ...subEventList.flatMap(s => [s.id, s.legacyId]),
             ].filter(Boolean) as string[]));
-            if (eventIds.length > 0) {
-                const favPhotos = await getFavouritePhotosForEvents(eventIds);
-                if (favPhotos.length > 0) {
-                    const transformedFavs = transformPhotos(favPhotos as DatabasePhoto[]);
-                    setFavouriteMediaIds(new Set(transformedFavs.map(photo => photo.id).filter(Boolean)));
-                    setPhotos(prev => append ? [...prev, ...transformedFavs] : transformedFavs);
-                    const photoCount = transformedFavs.filter(p => p.mediaType !== "video" && p.resourceType !== "video").length;
-                    const videoCount = transformedFavs.filter(p => p.mediaType === "video" || p.resourceType === "video").length;
-                    setMediaTotals({ photos: photoCount, videos: videoCount });
-                    setHasMorePhotos(false);
-                    return;
-                }
+            const homeIds = new Set([gallery.id, gallery.legacyId].filter(Boolean) as string[]);
+            const own = await getEventPhotosPaginated(gallery.id, gallery.legacyId, page, 20);
+            const ownPhotos = transformPhotos(own.photos as DatabasePhoto[]);
+            if (page === 0) {
+                // Only favourites from galleries this viewer sees (not from sub-galleries hidden from guests)
+                const favPhotos = eventIds.length > 0
+                    ? transformPhotos((await getFavouritePhotosForEvents(eventIds)).filter(photo => eventIds.includes(photo.eventId)) as DatabasePhoto[])
+                    : [];
+                setFavouriteMediaIds(new Set(favPhotos.map(photo => photo.id).filter(Boolean)));
+                setPhotos(mergeHomeMedia(favPhotos, ownPhotos));
+                // Home uploads that are also favourites are counted once
+                const extraFavourites = favPhotos.filter(photo => !homeIds.has(photo.eventId || ""));
+                const isVideoItem = (p: { mediaType?: string; resourceType?: string }) => p.mediaType === "video" || p.resourceType === "video";
+                setMediaTotals({
+                    photos: own.totalPhotos + extraFavourites.filter(p => !isVideoItem(p)).length,
+                    videos: own.totalVideos + extraFavourites.filter(isVideoItem).length,
+                });
+            } else {
+                setPhotos(prev => mergeHomeMedia(prev, ownPhotos));
             }
+            setPhotoPage(page);
+            setHasMorePhotos(own.hasMore);
+            return;
         }
 
         const { photos: databasePhotos, hasMore, totalPhotos, totalVideos } = await getEventPhotosPaginated(gallery.id, gallery.legacyId, page, 20);
@@ -325,6 +336,12 @@ function EventPageContent() {
                 eventData = getEvent(slug);
             }
 
+            // A sub-gallery hidden from guests opens only in the Host section, for everyone (the database also
+            // refuses it to anyone but the event's managers)
+            if (eventData && eventData.parentId && eventData.isHidden) {
+                eventData = null;
+            }
+
             if (!eventData) {
                 setEvent(null);
                 setLoading(false);
@@ -349,7 +366,7 @@ function EventPageContent() {
             if (eventData.type === 'main') {
                 // Fetch Home gallery media and sub-galleries so web follows the same structure as mobile.
                 console.log(`[EventPage] Main event detected. Fetching home gallery and sub-events for: ${eventData.id}`);
-                const data = await getSubEvents(eventData.id, eventData.legacyId);
+                const data = visibleGalleries(await getSubEvents(eventData.id, eventData.legacyId));
                 const resolvedSubEvents = data.map(sub => ({
                     ...sub,
                     coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail', sub.category || eventCategory)
@@ -368,7 +385,7 @@ function EventPageContent() {
                         const pEvent = await getEventById(eventData.parentId);
                         if (pEvent) {
                             pEvent.coverImage = resolveEventCoverImage(pEvent.coverImage, 'preview', pEvent.category);
-                            const siblings = await getSubEvents(pEvent.id, pEvent.legacyId);
+                            const siblings = visibleGalleries(await getSubEvents(pEvent.id, pEvent.legacyId));
                             const resolvedSiblings = siblings.map(sub => ({
                                 ...sub,
                                 coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail', sub.category || pEvent.category)

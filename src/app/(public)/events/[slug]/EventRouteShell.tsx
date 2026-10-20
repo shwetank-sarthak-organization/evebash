@@ -12,6 +12,8 @@ import {
     getEventPhotosPaginated,
     getFavouritePhotosForEvents,
     getSubEvents,
+    visibleGalleries,
+    mergeHomeMedia,
     openGallery,
 } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
@@ -98,7 +100,8 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
             setIsPublicView(false);
             setEvent(currentEvent);
             setMainEvent(rootEvent);
-            setSubEvents(galleries.filter((gallery) => gallery.id !== rootEvent.id));
+            // Sub-galleries hidden from guests appear only in the Host section, for everyone (the host too)
+            setSubEvents(visibleGalleries(galleries.filter((gallery) => gallery.id !== rootEvent.id)));
         }
 
         void loadNavigation().catch((error) => console.error("[EventRouteShell] Navigation failed:", error));
@@ -138,13 +141,14 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
     const loadDownloadMedia = useCallback(async (): Promise<Photo[]> => {
         if (!event || !mainEvent) return [];
 
-        // Home shows the host's favourites from every gallery; with none picked it shows the main gallery's own media,
-        // so Download All does the same.
+        // Home (Primary Gallery) shows the host's favourites, then what was uploaded to Home itself
+        let favourites: Photo[] = [];
         if (event.id === mainEvent.id) {
             const eventIds = [mainEvent.id, mainEvent.legacyId, ...subEvents.flatMap((gallery) => [gallery.id, gallery.legacyId])]
                 .filter((id): id is string => Boolean(id));
-            const favourites = await getFavouritePhotosForEvents(Array.from(new Set(eventIds)));
-            if (favourites.length > 0) return favourites;
+            // Only favourites from galleries this viewer sees (not from sub-galleries hidden from guests)
+            favourites = (await getFavouritePhotosForEvents(Array.from(new Set(eventIds))))
+                .filter((photo) => eventIds.includes(photo.eventId));
         }
 
         const media: Photo[] = [];
@@ -156,9 +160,8 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
             hasMore = result.hasMore;
             page += 1;
         }
-        // Pages can share an item at their edges
-        const seen = new Set<string>();
-        return media.filter((item) => !seen.has(item.id) && seen.add(item.id));
+        // Favourites first, each item once (pages can also share an item at their edges)
+        return mergeHomeMedia(favourites, media);
     }, [event, mainEvent, subEvents]);
 
     const handleDownloadZip = useCallback(async () => {

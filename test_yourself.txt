@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 89
+Next test number: 93
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2102,6 +2102,101 @@ How to test:
      Continue with Google still works.
   2. Log in with an existing email account: works. Create a new account with email: works.
   3. App login screen, both Log in and Sign up: no Email | Phone switch; Google and Apple buttons still show.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#89 Hide a sub-gallery from guests (website and app)
+Status:    TODO
+Priority:  High
+Platform:  Both (website: staging.evebash.com; app: JS-only change, any staging build)
+Brief:     A hidden sub-gallery shows only in the Host section (with a badge), for everyone including the host.
+How to test:
+  1. Website: Host -> an event -> Galleries -> the eye button on a sub-gallery. It greys out with "Hidden from
+     guests". Click again: back to normal. App host view: the eye button on the sub-gallery card does the same.
+  2. As the owner, open the event from the Dashboard: the hidden sub-gallery isn't in Collections or the gallery
+     cards (website), nor in the app's top tabs.
+  3. As a member: same, and opening the hidden sub-gallery's link shows it isn't available.
+  4. A photo from the hidden sub-gallery marked as a favourite doesn't show on Home for guests.
+  5. Find You (member) doesn't return photos from the hidden sub-gallery.
+  6. Download All on Home -> Entire event (guest): no folder for the hidden sub-gallery. Host -> Download ->
+     Entire event: it is included.
+  7. Logged out, public event: the hidden sub-gallery isn't listed and its link doesn't open.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#90 Hide single photos and videos from guests (website and app)
+Status:    TODO
+Priority:  High
+Platform:  Both (website: staging.evebash.com; app: JS-only change, any staging build)
+Brief:     Hidden photos/videos show only in the Host section (darkened, "Hidden" badge), never on the guest side.
+How to test:
+  1. Website: Host -> a gallery -> the eye button on a photo card: it darkens with "Hidden". Select mode ->
+     select several -> "Hide from guests" / "Show to guests" works for all of them.
+  2. App host view: the photo menu and the video menu have "Hide from guests"; the tile shows HIDDEN.
+  3. Dashboard view (owner and member): the hidden items aren't in the grid; Photos / Videos counts leave them
+     out; they aren't on Home even if they're favourites; Download All leaves them out.
+  4. Find You with a selfie that matches a hidden photo: that photo isn't in the results.
+  5. Logged out, public event: hidden items don't show.
+  6. Host -> Download (or Entire event): hidden items are included for the host.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#91 Home (Primary Gallery) shows the favourites and then its own uploads
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website and app; logged-out public view too)
+Brief:     Photos uploaded directly to Home used to disappear from Home once any favourite was picked.
+How to test:
+  1. Event with favourites and photos uploaded to Home (e.g. "Wedding": 7 favourites + 14 Home uploads).
+     Open Home (Dashboard, website and app): the favourites first, then the Home uploads; scroll loads more.
+  2. Mark a Home upload as a favourite: it moves to the favourites, and isn't shown twice. Counts count it once.
+  3. Host -> event -> Home: same list (with hidden items badged).
+  4. Download All on Home -> "Home only": the ZIP has both the favourites and the Home uploads.
+  5. The (i) next to Galleries on the host page describes Home this way.
+  6. Logged out on a public event: Home shows its favourites and its own uploads.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#92 A sub-gallery an event admin creates isn't listed as the admin's own event
+Status:    TODO
+Priority:  High
+Platform:  Both (website: Dashboard and Host; app: Dashboard, Your events, Gallery tab)
+Brief:     Samarth (admin of "Samarth & Jyoti Wedding") created the sub-gallery "Baraat"; it showed as a main
+           event in his own lists. It now only appears inside the wedding.
+How to test:
+  1. As Samarth: website Dashboard (Hosted) and Host (Your Created Events): no "Baraat" event.
+  2. App, as Samarth: Dashboard, Your events and the Gallery tab: no "Baraat" event.
+  3. As Samarth: the wedding is under Shared Events / Attended, and Baraat is inside it.
+  4. As the owner: Baraat is a sub-gallery of the wedding, as before.
+  5. As an admin, create another sub-gallery in someone else's event: it doesn't appear as your own event.
 Done by:
 Device / browser:
 Build / version:

@@ -37,3 +37,16 @@ test('a failing access lookup fails the search instead of allowing it', async ()
     /database unavailable/,
   );
 });
+
+test('Find You leaves out photos the host hid from guests; a failed lookup filters nothing', async () => {
+  const { findHiddenMediaIds } = await import('../src/routes/findYou.js');
+  const asked: string[][] = [];
+  const admin = (rows: { id: string }[] | null, error: unknown = null) => () => ({
+    from: () => ({ select: () => ({ in: (_c: string, ids: string[]) => { asked.push(ids); return { eq: async () => ({ data: rows, error }) }; } }) }),
+  }) as never;
+
+  assert.deepEqual([...await findHiddenMediaIds(['p1', 'p2', 'p1', ''], admin([{ id: 'p2' }]))], ['p2']);
+  assert.deepEqual(asked[0], ['p1', 'p2']);
+  assert.equal((await findHiddenMediaIds([], admin([{ id: 'x' }]))).size, 0);
+  assert.equal((await findHiddenMediaIds(['p1'], admin(null, { code: '42703' }))).size, 0);
+});

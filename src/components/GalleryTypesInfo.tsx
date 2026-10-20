@@ -48,9 +48,9 @@ export function GalleryTypesInfo() {
             >
                 <p className="font-semibold text-[#E8C9A0]">Home (Primary Gallery)</p>
                 <p>
-                    Your event&apos;s home page, and the first thing guests see. It shows the photos you mark as
-                    favourites from any gallery (or its own uploads if you haven&apos;t picked any). Every event has
-                    one, and it can&apos;t be deleted.
+                    Your event&apos;s home page, and the first thing guests see. It shows the photos and videos you
+                    mark as favourites (⭐) from any gallery, followed by anything you upload to Home itself. Every
+                    event has one, and it can&apos;t be deleted.
                 </p>
                 <p className="mt-3 font-semibold text-[#E8C9A0]">Sub-galleries</p>
                 <p>

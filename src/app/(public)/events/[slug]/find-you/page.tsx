@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import * as faceapi from "face-api.js";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
-import { getEventById, getSubEvents, Event } from "@/lib/database";
+import { getEventById, getSubEvents, visibleGalleries, Event } from "@/lib/database";
 import { getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { getApiUrl } from "@/lib/apiBase";
 import { supabase } from "@/lib/supabase";
@@ -60,7 +60,9 @@ function FindYouContent({ slug }: { slug: string }) {
             if (navRoot) {
                 const siblings = await getSubEvents(navRoot.id, navRoot.legacyId);
                 if (!active) return;
-                setSubEvents(siblings.filter((sub) => sub.id !== navRoot.id));
+                // Sub-galleries hidden from guests aren't searched (for members the backend would refuse a search
+                // that includes a gallery they can't open)
+                setSubEvents(visibleGalleries(siblings.filter((sub) => sub.id !== navRoot.id)));
             }
         }
 

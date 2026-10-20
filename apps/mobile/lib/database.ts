@@ -77,6 +77,8 @@ export interface Event {
     showWelcomeCard?: boolean;
     isSampleGallery?: boolean;
     sampleGalleryOrder?: number;
+    /** Sub-gallery hidden from guests by the host (managers still see it) */
+    isHidden?: boolean;
 }
 
 export interface Photo {
@@ -98,7 +100,12 @@ export interface Photo {
     status?: 'uploading' | 'processing' | 'processed' | 'failed';
     processingError?: string | null;
     transcodeAttempts?: number;
+    /** Hidden from guests by the host: shown only in the host view */
+    isHidden?: boolean;
 }
+
+/** Media loading options. Hidden photos and videos are left out unless the host view asks for them. */
+export type MediaQueryOptions = { includeHidden?: boolean };
 
 export interface EventFavouritePhoto {
     id: string;
@@ -322,6 +329,7 @@ function mapSqlToEvent(e: any): Event {
         vendors: e.vendors || [],
         hostName: e.host_name,
         isSampleGallery: !!e.is_sample_gallery,
+        isHidden: !!e.is_hidden,
         sampleGalleryOrder: e.sample_gallery_order
     };
 }
@@ -345,7 +353,8 @@ function mapSqlToPhoto(p: any): Photo {
         tags: p.tags || [],
         status: p.status,
         processingError: p.processing_error,
-        transcodeAttempts: p.transcode_attempts
+        transcodeAttempts: p.transcode_attempts,
+        isHidden: !!p.is_hidden
     };
 }
 
@@ -890,6 +899,24 @@ export async function getUserEventCount(uid: string): Promise<number> {
     }
 }
 
+/**
+ * Of these parent ids, the ones that exist as galleries (by id or legacy id), whoever owns them. A sub-gallery
+ * an event admin created in someone else's event has a parent that exists; a real orphan's parent doesn't.
+ */
+async function findExistingGalleryIds(ids: string[]): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const [byId, byLegacyId] = await Promise.all([
+        supabase.from('events').select('id').in('id', ids),
+        supabase.from('events').select('legacy_id').in('legacy_id', ids),
+    ]);
+    if (byId.error) throw byId.error;
+    if (byLegacyId.error) throw byLegacyId.error;
+    return new Set([
+        ...(byId.data || []).map((row: { id: string }) => row.id),
+        ...(byLegacyId.data || []).map((row: { legacy_id: string | null }) => row.legacy_id),
+    ].filter((id): id is string => Boolean(id)));
+}
+
 export async function getUserEvents(
     userIds: string | string[],
     type?: 'main' | 'sub',
@@ -920,11 +947,18 @@ export async function getUserEvents(
                 return matchesParent && isNotSelf && looksSub;
             });
         } else {
+            // Main events, plus sub-galleries whose parent no longer exists at all (old orphaned data). A sub-gallery
+            // made in someone else's event (as its admin) isn't the creator's own event: its parent exists.
+            const isMainEvent = (e: Event) => e.type === 'main' || (!e.type && !e.parentId);
+            const ownsParent = (e: Event) => events.some(ev => ev.id === e.parentId || (!!ev.legacyId && ev.legacyId === e.parentId));
+            const parentIdsToCheck = Array.from(new Set(events
+                .filter(e => !isMainEvent(e) && !!e.parentId && !ownsParent(e))
+                .map(e => e.parentId as string)));
+            const existingParents = await findExistingGalleryIds(parentIdsToCheck);
             filteredEvents = filteredEvents.filter(e => {
-                const isMain = e.type === 'main' || (!e.type && !e.parentId);
-                if (isMain) return true;
-                const parentExists = events.some(ev => ev.id === e.parentId);
-                return !parentExists;
+                if (isMainEvent(e)) return true;
+                if (ownsParent(e)) return false;
+                return !e.parentId || !existingParents.has(e.parentId);
             });
         }
 
@@ -1319,20 +1353,23 @@ export async function getEventPhotosPaginated(
     eventId: string,
     legacyId?: string,
     page: number = 0,
-    limit: number = 20
+    limit: number = 20,
+    options: MediaQueryOptions = {}
 ): Promise<{ photos: Photo[], hasMore: boolean, totalPhotos: number, totalVideos: number }> {
     if (!eventId) return { photos: [], hasMore: false, totalPhotos: 0, totalVideos: 0 };
+    // Hidden media is filtered here rather than in the query, so this also works before the is_hidden column exists
+    const isShown = (photo: Photo) => options.includeHidden || !photo.isHidden;
     try {
         const ids = legacyId && legacyId !== eventId ? [eventId, legacyId] : [eventId];
 
         const { data: countData, error: countError } = await supabase
             .from('photos')
-            .select('id,event_id,storage_key,url,media_type,resource_type,status')
+            .select('*')
             .in('event_id', ids);
 
         if (countError) throw countError;
 
-        const countedMedia = (countData || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery);
+        const countedMedia = (countData || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery).filter(isShown);
         const totalVideos = countedMedia.filter(photo => photo.mediaType === 'video' || photo.resourceType === 'video').length;
         const totalPhotos = countedMedia.length - totalVideos;
 
@@ -1348,8 +1385,9 @@ export async function getEventPhotosPaginated(
         if (error) throw error;
 
         const rawPhotos = (data || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery);
+        // "More" follows the page as stored, before hidden items are taken out of it
         const hasMore = rawPhotos.length > limit;
-        const photosToReturn = hasMore ? rawPhotos.slice(0, limit) : rawPhotos;
+        const photosToReturn = (hasMore ? rawPhotos.slice(0, limit) : rawPhotos).filter(isShown);
 
         return {
             photos: photosToReturn,
@@ -1363,7 +1401,7 @@ export async function getEventPhotosPaginated(
     }
 }
 
-export async function getFavouritePhotosForEvents(eventIds: string[]): Promise<Photo[]> {
+export async function getFavouritePhotosForEvents(eventIds: string[], options: MediaQueryOptions = {}): Promise<Photo[]> {
     const cleanEventIds = Array.from(new Set(eventIds.filter(Boolean)));
     if (cleanEventIds.length === 0) return [];
 
@@ -1389,7 +1427,7 @@ export async function getFavouritePhotosForEvents(eventIds: string[]): Promise<P
         const favouriteOrder = new Map(favouritePhotoIds.map((id, index) => [id, index]));
         return (data || [])
             .map(mapSqlToPhoto)
-            .filter(photo => !isCoverUsagePhoto(photo))
+            .filter(photo => !isCoverUsagePhoto(photo) && (options.includeHidden || !photo.isHidden))
             .sort((a, b) => (favouriteOrder.get(a.id) ?? 0) - (favouriteOrder.get(b.id) ?? 0));
     } catch (error) {
         if (isEventFavouriteTableUnavailable(error)) {
@@ -2179,6 +2217,53 @@ export async function deleteEvent(eventId: string) {
         console.error("Error deleting event:", error);
         return false;
     }
+}
+
+/**
+ * Home (Primary Gallery) shows the host's favourites first, then the media uploaded to Home itself, each item once
+ * (a Home upload that is also a favourite stays in the favourites).
+ */
+export function mergeHomeMedia<T extends { id: string }>(favourites: T[], ownUploads: T[]): T[] {
+    const seen = new Set(favourites.map(item => item.id));
+    return [...favourites, ...ownUploads.filter(item => !seen.has(item.id) && seen.add(item.id))];
+}
+
+/** Hides a photo or video from guests, or shows it again (only the host view shows hidden media). */
+export async function setMediaHidden(photoIds: string[], hidden: boolean): Promise<{ success: boolean; error?: string }> {
+    if (photoIds.length === 0) return { success: true };
+    const { error } = await supabase.from('photos').update({ is_hidden: hidden }).in('id', photoIds);
+    if (!error) return { success: true };
+    console.error("Error changing media visibility:", error);
+    return {
+        success: false,
+        error: error.code === 'PGRST204'
+            ? "Hiding photos isn't available yet (database update pending)."
+            : "Couldn't update the media. Please try again.",
+    };
+}
+
+/**
+ * Hides a sub-gallery from guests, or shows it again. Its own call (not updateEvent), so a database without the
+ * is_hidden column (migration 20261019000000 not applied) reports an error instead of silently doing nothing.
+ */
+export async function setGalleryHidden(galleryId: string, hidden: boolean): Promise<{ success: boolean; error?: string }> {
+    const { error } = await supabase.from('events').update({ is_hidden: hidden }).eq('id', galleryId).not('parent_id', 'is', null);
+    if (!error) return { success: true };
+    console.error("Error changing gallery visibility:", error);
+    return {
+        success: false,
+        error: error.code === 'PGRST204'
+            ? "Hiding galleries isn't available yet (database update pending)."
+            : "Couldn't update the gallery. Please try again.",
+    };
+}
+
+/**
+ * Sub-galleries shown on the guest side (the event's gallery pages, menus, Find You), for everyone including the
+ * host: hidden ones appear only in the Host section.
+ */
+export function visibleGalleries<T extends { isHidden?: boolean }>(galleries: T[]): T[] {
+    return galleries.filter(gallery => !gallery.isHidden);
 }
 
 export async function updateEvent(eventId: string, data: Partial<Event>): Promise<boolean> {
