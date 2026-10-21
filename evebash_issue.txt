@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 80
+Next issue number: 81
 
 =====================================================================
 ACTIVE ISSUES
@@ -395,7 +395,7 @@ Platform: Both
 Priority: High
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: Device checks (test_yourself #99, #100), then switching every gallery to v2
+Blocked by: 2-3 days of watching after switching every gallery to v2 (2026-10-21 23:54 IST, Modal v119); then move to RECENTLY FIXED
 Found in: Photo cost review and Modal benchmark (2026-10-13), plan agreed 2026-10-19
 Issue: Photo processing on Modal costs about 4x more than it needs to, and it is our second-biggest cost after B2 storage (about 31% of the infra bill at scale). Each photo runs through two workers (process_photo_preview, then FaceIndexer in modal_engine/main.py): two container start-ups, two idle windows (60 s and 45 s, both billed), the preview downloaded and decoded twice, and all 5 AuraFace models run on every face although only detection and recognition are used. Measured on 40 real 24 MP photos (2026-10-13 Modal bills): ₹0.0303 per photo for bulk uploads and ₹0.1695 for guest uploads (a few photos at a time). A merged worker with only the 2 models we use, a 15 s idle window and up to 4 photos per container cost ₹0.0076 and ₹0.0229 (-75% / -86%) with identical faces. Fix: add PhotoProcessorV2 (Modal only) behind a runtime switch (Modal Dict, default v1 = today), keep process_photo_preview and FaceIndexer deployed and unchanged for instant switch-back, test on one gallery, then switch everyone.
 How to reproduce: Upload 1-3 photos to any gallery, then run modal billing report for that hour: both process_photo_preview and FaceIndexer containers start and stay up after the work; the cost per photo is far above the logged execution cost.
@@ -421,6 +421,17 @@ Blocked by: Decision: QStash pay-as-you-go, or one message per upload batch
 Found in: Photo pipeline v2 website test (#77), 2026-10-19
 Issue: Photos take 2-7 minutes to appear once more than 1,000 are uploaded in a day (UTC). The backend sends one QStash message per photo (publishFastMediaTask in apps/backend/src/routes/media.ts), and our QStash plan allows 1,000 messages a day. After that, QStash refuses with 429 "daily ratelimit 1000 exceeded" (seen in the staging backend's Railway logs 2026-10-19; 1,199 messages were sent that UTC day). Photos are then only picked up by the 5-minute maintenance job on Modal (dispatch_outbox_jobs / sweep_stuck_jobs), and that job always uses the old photo workers, even for galleries on photo pipeline v2. Nothing is lost, but uploads look slow and cost more. One wedding can pass 1,000 photos. Fix options: (1) move QStash to pay-as-you-go ($1 per 100,000 messages), a setting in the Upstash account; (2) send one message per upload batch instead of per photo (Modal's generate_photo_preview already accepts {"photos": [...]}), which cuts messages ~99% (backend change, flag-gated).
 How to reproduce: Upload more than 1,000 photos in one UTC day (or after others have), then upload 1 more: it shows up only after the next 5-minute maintenance run, and Railway logs show "QStash publish failed with status 429".
+
+#80
+Listed: 2026-10-22
+Platform: Both
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: Decision: support RAW, or block it at upload
+Found in: Photo pipeline v2 health check (2026-10-21)
+Issue: RAW camera files never get a preview, thumbnail or faces. 76 photos uploaded on 2026-10-20 (61 Canon .CR3, 15 Sony .ARW, ~32 MB each, in galleries traditional-1-93df, -8-c3cb, -9-40d8, -10-63c8) failed with "cannot identify image file" and used up their 3 attempts, so they show no preview and aren't in Find You. Both photo workers (old process_photo_preview and PhotoProcessorV2 in modal_engine/main.py) open images with Pillow, which can't read RAW. The upload accepts these files and counts them against storage. Photographers often shoot RAW. Fix options: (1) in the worker, read the full-size JPEG preview every RAW file carries (e.g. rawpy/libraw or exiftool) and use it for the preview, thumbnail and faces; (2) or reject .cr3/.cr2/.nef/.arw/.dng at upload with a clear message. Failed photos then need their attempts reset so the maintenance job retries them.
+How to reproduce: Upload a .CR3 or .ARW file to any gallery: it never shows a preview; photos.media_status = failed, processing_error "cannot identify image file", media_attempt 3.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
