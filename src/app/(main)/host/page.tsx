@@ -3326,6 +3326,42 @@ function DashboardContent() {
         }
     };
 
+    // Deletes the selected items after a confirm, 4 at a time (one request per item, like the single delete)
+    const handleDeleteSelectedMedia = async () => {
+        const items = activeGalleryItems.filter(item => selectedMediaIds.has(item.id));
+        if (items.length === 0) return;
+        const what = items.length === 1 ? "1 item" : `${items.length} items`;
+        if (!(await confirmDialog({ title: `Delete ${what}?`, message: `${items.length === 1 ? "It" : "They"}'ll be removed from this event for everyone. This can't be undone.`, confirmLabel: "Delete", tone: "danger" }))) return;
+
+        setStatus("uploading");
+        setMessage(`Deleting ${what}...`);
+        const deletedIds = new Set<string>();
+        let next = 0;
+        const worker = async () => {
+            while (next < items.length) {
+                const item = items[next++];
+                if (await deletePhoto(item.id)) deletedIds.add(item.id);
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(4, items.length) }, worker));
+
+        setCurrentEventPhotos(prev => prev.filter(photo => !deletedIds.has(photo.id)));
+        const failed = items.length - deletedIds.size;
+        if (failed === 0) {
+            setStatus("success");
+            setMessage(`Deleted ${deletedIds.size === 1 ? "1 item" : `${deletedIds.size} items`}.`);
+            exitMediaSelection();
+        } else {
+            // Keep the failed ones selected so the host can try again
+            setSelectedMediaIds(new Set(items.filter(item => !deletedIds.has(item.id)).map(item => item.id)));
+            setStatus("error");
+            setMessage(`Deleted ${deletedIds.size} of ${items.length}. ${failed === 1 ? "1 item" : `${failed} items`} couldn't be deleted. Please try again.`);
+        }
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 4000);
+        await fetchStorageStats();
+        await refreshEventFavourites(selectedMainEventId);
+    };
+
     const toggleMediaSelection = (photoId: string) => {
         setSelectedMediaIds(prev => {
             const next = new Set(prev);
@@ -5488,6 +5524,15 @@ function DashboardContent() {
                                                 >
                                                     <Eye className="h-4 w-4" />
                                                     <span>Show to guests</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={selectedMediaIds.size === 0}
+                                                    onClick={() => void handleDeleteSelectedMedia()}
+                                                    className="flex items-center gap-2 rounded-full border border-rose-400/50 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-300 hover:bg-rose-500/20 disabled:opacity-40"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                    <span>Delete</span>
                                                 </button>
                                                 <button
                                                     type="button"

@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 96
+Next test number: 97
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2281,6 +2281,31 @@ How to test:
      right-aligned, a tick on the current choice. Escape closes just the open list; a second Escape closes
      the panel.
   9. Phone browser: the panel fits the screen (no sideways scroll) and the lists open normally.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#96 Host gallery: delete several photos and videos at once
+Status:    TODO
+Priority:  High
+Platform:  Website (desktop browser)
+Brief:     The selection bar (Filter > Select) now has a red Delete button. It asks first, then deletes every
+           selected item.
+How to test:
+  Use a test gallery with media you don't need.
+  1. Host -> test gallery -> Filter -> Select. Pick 3 photos and 1 video: the bar shows Delete.
+  2. Press Delete: a dialog asks "Delete 4 items?". Press Cancel: nothing is deleted, the 4 stay selected.
+  3. Press Delete again, then Delete in the dialog: "Deleting 4 items..." then "Deleted 4 items."; they
+     vanish from the grid, select mode ends, and the Photos / Videos counts go down.
+  4. Refresh the page: the 4 are still gone. Open the guest page of the gallery: they're gone there too.
+  5. Storage used (host page) goes down after the delete.
+  6. Select 1 item and delete it: the dialog says "Delete 1 item?" / "It'll be removed...".
+  7. With nothing selected, Delete is greyed out.
 Done by:
 Device / browser:
 Build / version:
