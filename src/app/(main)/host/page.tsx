@@ -646,6 +646,76 @@ type EventDetailLog = {
     canComment?: boolean;
 };
 
+// A dropdown for the gallery Filter panel. Its list opens below the button, lined up with the right edge
+// (a native <select> list opens wherever the OS puts it).
+function FilterDropdown({ value, options, onChange, onOpen, ariaLabel }: {
+    value: string;
+    options: { value: string; label: string }[];
+    onChange: (value: string) => void;
+    onOpen?: () => void;
+    ariaLabel: string;
+}) {
+    const [open, setOpen] = useState(false);
+    const rootRef = useRef<HTMLDivElement>(null);
+    const selected = options.find(option => option.value === value) ?? options[0];
+
+    useEffect(() => {
+        if (!open) return;
+        const closeOnOutsideClick = (event: PointerEvent) => {
+            if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+        };
+        // Escape closes only this list, not the whole Filter panel: catch it before the panel's listener
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") { event.stopPropagation(); setOpen(false); }
+        };
+        document.addEventListener("pointerdown", closeOnOutsideClick);
+        window.addEventListener("keydown", closeOnEscape, true);
+        return () => {
+            document.removeEventListener("pointerdown", closeOnOutsideClick);
+            window.removeEventListener("keydown", closeOnEscape, true);
+        };
+    }, [open]);
+
+    return (
+        <div ref={rootRef} className="relative min-w-0">
+            <button
+                type="button"
+                aria-label={ariaLabel}
+                aria-haspopup="listbox"
+                aria-expanded={open}
+                onClick={() => { if (!open) onOpen?.(); setOpen(current => !current); }}
+                className="flex h-8 min-w-0 max-w-[11rem] items-center gap-1 rounded-lg border border-slate-600 bg-slate-950 pl-2 pr-1 text-sm font-semibold text-white outline-none focus:border-[#CA9C68] sm:max-w-[14rem]"
+            >
+                <span className="truncate">{selected?.label}</span>
+                <ChevronDown className={cn("h-4 w-4 shrink-0 text-slate-400 transition-transform", open && "rotate-180")} />
+            </button>
+            {open && (
+                <div role="listbox" aria-label={ariaLabel} className="absolute right-0 top-full z-40 mt-1 max-h-72 min-w-full w-max max-w-[16rem] overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 p-1 shadow-2xl shadow-black/60">
+                    {options.map(option => {
+                        const isSelected = option.value === value;
+                        return (
+                            <button
+                                key={option.value}
+                                type="button"
+                                role="option"
+                                aria-selected={isSelected}
+                                onClick={() => { onChange(option.value); setOpen(false); }}
+                                className={cn(
+                                    "flex w-full items-center justify-end gap-2 rounded-lg px-3 py-2 text-right text-sm font-semibold transition-colors",
+                                    isSelected ? "bg-[#CA9C68]/15 text-[#E2B77F]" : "text-slate-200 hover:bg-slate-800"
+                                )}
+                            >
+                                <span className="truncate">{option.label}</span>
+                                <Check className={cn("h-4 w-4 shrink-0", isSelected ? "text-[#CA9C68]" : "invisible")} />
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
 const DATE_PICKER_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DATE_PICKER_ITEM_HEIGHT = 56;
 
@@ -771,10 +841,7 @@ function DashboardContent() {
         const closeOnOutsideClick = (event: PointerEvent) => {
             if (!galleryFilterMenuRef.current?.contains(event.target as Node)) setIsGalleryFilterOpen(false);
         };
-        // Escape on a dropdown only closes that dropdown's list
-        const closeOnEscape = (event: KeyboardEvent) => {
-            if (event.key === "Escape" && !(event.target instanceof HTMLSelectElement)) setIsGalleryFilterOpen(false);
-        };
+        const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setIsGalleryFilterOpen(false); };
         document.addEventListener("pointerdown", closeOnOutsideClick);
         document.addEventListener("keydown", closeOnEscape);
         return () => {
@@ -5255,21 +5322,19 @@ function DashboardContent() {
                                         {isGalleryFilterOpen && (
                                         <div role="dialog" aria-label="Gallery filters" className="absolute left-0 top-full z-30 mt-2 flex w-[min(21rem,calc(100vw-2rem))] flex-col gap-3 rounded-2xl border border-slate-700 bg-slate-950 p-3 shadow-2xl shadow-black/50">
                                         {isPrimaryGalleryView ? (
-                                        <label className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Filter Primary Gallery media by origin">
+                                        <div className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Filter Primary Gallery media by origin">
                                             <Layers3 className="h-4 w-4 shrink-0 text-[#CA9C68]" />
                                             <span className="flex-1 whitespace-nowrap text-sm font-semibold text-slate-100">Source gallery</span>
-                                            <select
+                                            <FilterDropdown
                                                 value={effectiveSourceGalleryFilter}
-                                                onChange={(event) => setSourceGalleryFilter(event.target.value)}
-                                                className="h-8 min-w-0 max-w-[9.5rem] rounded-lg border border-slate-600 sm:max-w-[11rem] bg-slate-950 px-2 text-sm font-semibold text-white outline-none focus:border-[#CA9C68]"
-                                                aria-label="Filter by source gallery"
-                                            >
-                                                <option value="all">All galleries ({selectedMediaItems.length})</option>
-                                                {sourceGalleryOptions.map(option => (
-                                                    <option key={option.id} value={option.id}>{option.label} ({option.count})</option>
-                                                ))}
-                                            </select>
-                                        </label>
+                                                onChange={setSourceGalleryFilter}
+                                                ariaLabel="Filter by source gallery"
+                                                options={[
+                                                    { value: "all", label: `All galleries (${selectedMediaItems.length})` },
+                                                    ...sourceGalleryOptions.map(option => ({ value: option.id, label: `${option.label} (${option.count})` })),
+                                                ]}
+                                            />
+                                        </div>
                                         ) : (
                                         <button
                                             type="button"
@@ -5302,25 +5367,22 @@ function DashboardContent() {
 
                                         {/* Uploaded by: owner, admins and guests who uploaded here. Picking someone loads the whole gallery first. */}
                                         {showUploaderFilter && (
-                                        <label className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Show only what one person uploaded">
+                                        <div className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Show only what one person uploaded">
                                             {loadingAllMedia
                                                 ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#CA9C68]" />
                                                 : <Users className="h-4 w-4 shrink-0 text-[#CA9C68]" />}
                                             <span className="flex-1 whitespace-nowrap text-sm font-semibold text-slate-100">Uploaded by</span>
-                                            <select
+                                            <FilterDropdown
                                                 value={effectiveUploaderFilter}
-                                                onFocus={() => void loadAllEventPhotos()}
-                                                onMouseDown={() => void loadAllEventPhotos()}
-                                                onChange={(event) => setUploaderFilter(event.target.value)}
-                                                className="h-8 min-w-0 max-w-[10rem] rounded-lg border border-slate-600 bg-slate-950 px-2 text-sm font-semibold text-white outline-none focus:border-[#CA9C68] sm:max-w-[14rem]"
-                                                aria-label="Filter by who uploaded"
-                                            >
-                                                <option value="all">{loadingAllMedia ? "Loading everyone…" : `Everyone (${favouriteFilteredItems.length}${hasMorePhotos ? "+" : ""})`}</option>
-                                                {uploaderOptions.map(option => (
-                                                    <option key={option.userId} value={option.userId}>{option.label} · {option.count}</option>
-                                                ))}
-                                            </select>
-                                        </label>
+                                                onOpen={() => void loadAllEventPhotos()}
+                                                onChange={setUploaderFilter}
+                                                ariaLabel="Filter by who uploaded"
+                                                options={[
+                                                    { value: "all", label: loadingAllMedia ? "Loading everyone…" : `Everyone (${favouriteFilteredItems.length}${hasMorePhotos ? "+" : ""})` },
+                                                    ...uploaderOptions.map(option => ({ value: option.userId, label: `${option.label} · ${option.count}` })),
+                                                ]}
+                                            />
+                                        </div>
                                         )}
                                         {galleryViewMode === "grid" && activeGalleryItems.length > 0 && !isSelectingMedia && (
                                         <div className="border-t border-slate-800 pt-3">

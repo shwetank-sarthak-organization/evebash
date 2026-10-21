@@ -2277,7 +2277,10 @@ How to test:
      Hide/Show and Cancel appears. Move and Save still work; Cancel removes the bar.
   6. Switch to list view: the panel has no Select button (as before, selecting is grid-only).
   7. Click outside the panel or press Escape: it closes.
-  8. Phone browser: the panel fits the screen (no sideways scroll) and the dropdowns open normally.
+  8. The Source gallery and Uploaded by lists open below their box, lined up with its right edge, text
+     right-aligned, a tick on the current choice. Escape closes just the open list; a second Escape closes
+     the panel.
+  9. Phone browser: the panel fits the screen (no sideways scroll) and the lists open normally.
 Done by:
 Device / browser:
 Build / version:
