@@ -70,7 +70,8 @@ import {
     FolderInput,
     CheckSquare,
     Square,
-    HardDrive
+    HardDrive,
+    SlidersHorizontal
 } from "lucide-react";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -762,6 +763,25 @@ function DashboardContent() {
     const [mediaToMove, setMediaToMove] = useState<Photo[] | null>(null);
     const [mediaToSave, setMediaToSave] = useState<Photo[] | null>(null);
     const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
+    // The Filter menu next to the grid/list toggle (Source gallery or Favourites only, Uploaded by, Select)
+    const [isGalleryFilterOpen, setIsGalleryFilterOpen] = useState(false);
+    const galleryFilterMenuRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!isGalleryFilterOpen) return;
+        const closeOnOutsideClick = (event: PointerEvent) => {
+            if (!galleryFilterMenuRef.current?.contains(event.target as Node)) setIsGalleryFilterOpen(false);
+        };
+        // Escape on a dropdown only closes that dropdown's list
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape" && !(event.target instanceof HTMLSelectElement)) setIsGalleryFilterOpen(false);
+        };
+        document.addEventListener("pointerdown", closeOnOutsideClick);
+        document.addEventListener("keydown", closeOnEscape);
+        return () => {
+            document.removeEventListener("pointerdown", closeOnOutsideClick);
+            document.removeEventListener("keydown", closeOnEscape);
+        };
+    }, [isGalleryFilterOpen]);
     const [sourceGalleryFilter, setSourceGalleryFilter] = useState("all");
     // "Uploaded by" filter: the person's user id, or "all"
     const [uploaderFilter, setUploaderFilter] = useState("all");
@@ -3407,6 +3427,7 @@ function DashboardContent() {
     const activeGalleryItems = isUploaderFilterActive
         ? favouriteFilteredItems.filter(photo => uploaderOf(photo) === effectiveUploaderFilter)
         : favouriteFilteredItems;
+    const activeGalleryFilterCount = [isUploaderFilterActive, isFavouriteFilterActive, isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all"].filter(Boolean).length;
     const isAnyGalleryFilterActive = isUploaderFilterActive || isFavouriteFilterActive || (isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all");
     // Shown once more than one person uploaded here (or more pages could reveal another uploader)
     const showUploaderFilter = new Set(currentEventPhotos.map(uploaderOf)).size > 1 || hasMorePhotos || allMediaLoadedFor === selectedEventId;
@@ -5210,11 +5231,33 @@ function DashboardContent() {
                                     </div>
                                     {/* Filter (top left) and view toggle on one line */}
                                     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                                        <div className="flex min-w-0 flex-wrap items-center gap-3">
+                                        <div ref={galleryFilterMenuRef} className="relative">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsGalleryFilterOpen(open => !open)}
+                                            aria-expanded={isGalleryFilterOpen}
+                                            aria-haspopup="dialog"
+                                            className={cn(
+                                                "flex h-11 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors",
+                                                isGalleryFilterOpen || activeGalleryFilterCount > 0
+                                                    ? "border-[#CA9C68]/70 bg-[#CA9C68]/10 text-[#E2B77F]"
+                                                    : "border-slate-700 bg-slate-900/45 text-slate-100 hover:border-slate-500 hover:bg-slate-900/70"
+                                            )}
+                                        >
+                                            <SlidersHorizontal className="h-4 w-4 shrink-0 text-[#CA9C68]" />
+                                            <span>Filter</span>
+                                            {activeGalleryFilterCount > 0 && (
+                                                <span className="min-w-5 rounded-md bg-[#CA9C68] px-1.5 py-0.5 text-center font-sans text-xs font-bold text-slate-950">{activeGalleryFilterCount}</span>
+                                            )}
+                                            <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", isGalleryFilterOpen && "rotate-180")} />
+                                        </button>
+                                        {/* Source gallery (or Favourites only), Uploaded by and Select */}
+                                        {isGalleryFilterOpen && (
+                                        <div role="dialog" aria-label="Gallery filters" className="absolute left-0 top-full z-30 mt-2 flex w-[min(21rem,calc(100vw-2rem))] flex-col gap-3 rounded-2xl border border-slate-700 bg-slate-950 p-3 shadow-2xl shadow-black/50">
                                         {isPrimaryGalleryView ? (
-                                        <label className="flex h-11 min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Filter Primary Gallery media by origin">
+                                        <label className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Filter Primary Gallery media by origin">
                                             <Layers3 className="h-4 w-4 shrink-0 text-[#CA9C68]" />
-                                            <span className="hidden whitespace-nowrap text-sm font-semibold text-slate-100 sm:inline">Source gallery</span>
+                                            <span className="flex-1 whitespace-nowrap text-sm font-semibold text-slate-100">Source gallery</span>
                                             <select
                                                 value={effectiveSourceGalleryFilter}
                                                 onChange={(event) => setSourceGalleryFilter(event.target.value)}
@@ -5235,7 +5278,7 @@ function DashboardContent() {
                                             onClick={() => setShowOnlyFavourites(current => !current)}
                                             title={`${activeFavouriteCount} in ${galleryMediaTab === "videos" ? "Videos" : "Photos"}`}
                                             className={cn(
-                                                "flex h-11 items-center gap-2 rounded-xl border pl-3 pr-2 text-left transition-colors",
+                                                "flex h-11 w-full items-center gap-2 rounded-xl border pl-3 pr-2 text-left transition-colors",
                                                 showOnlyFavourites
                                                     ? "border-[#CA9C68]/70 bg-[#CA9C68]/10"
                                                     : "border-slate-700 bg-slate-900/45 hover:border-slate-500 hover:bg-slate-900/70"
@@ -5243,7 +5286,7 @@ function DashboardContent() {
                                         >
                                             <Star className={cn("h-4 w-4 shrink-0", showOnlyFavourites ? "fill-current text-[#E2B77F]" : "text-slate-200")} />
                                             <span className={cn("whitespace-nowrap text-sm font-semibold", showOnlyFavourites ? "text-[#E2B77F]" : "text-slate-100")}>
-                                                Favourites<span className="hidden sm:inline"> only</span>
+                                                Favourites only
                                             </span>
                                             <span className={cn(
                                                 "min-w-6 rounded-md px-1.5 py-0.5 text-center font-sans text-xs font-bold",
@@ -5259,11 +5302,11 @@ function DashboardContent() {
 
                                         {/* Uploaded by: owner, admins and guests who uploaded here. Picking someone loads the whole gallery first. */}
                                         {showUploaderFilter && (
-                                        <label className="flex h-11 min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Show only what one person uploaded">
+                                        <label className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Show only what one person uploaded">
                                             {loadingAllMedia
                                                 ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#CA9C68]" />
                                                 : <Users className="h-4 w-4 shrink-0 text-[#CA9C68]" />}
-                                            <span className="hidden whitespace-nowrap text-sm font-semibold text-slate-100 sm:inline">Uploaded by</span>
+                                            <span className="flex-1 whitespace-nowrap text-sm font-semibold text-slate-100">Uploaded by</span>
                                             <select
                                                 value={effectiveUploaderFilter}
                                                 onFocus={() => void loadAllEventPhotos()}
@@ -5278,6 +5321,23 @@ function DashboardContent() {
                                                 ))}
                                             </select>
                                         </label>
+                                        )}
+                                        {galleryViewMode === "grid" && activeGalleryItems.length > 0 && !isSelectingMedia && (
+                                        <div className="border-t border-slate-800 pt-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => { setIsSelectingMedia(true); setIsGalleryFilterOpen(false); }}
+                                                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-4 text-sm font-semibold text-[#CA9C68] hover:bg-[#CA9C68]/20"
+                                            >
+                                                <CheckSquare className="h-4 w-4" />
+                                                <span>Select</span>
+                                            </button>
+                                            <p className="mt-2 text-xs text-slate-400">
+                                                {canMoveMedia ? "Select items to move them to another gallery or save copies to EB Vault." : "Select items to save copies to your EB Vault."}
+                                            </p>
+                                        </div>
+                                        )}
+                                        </div>
                                         )}
                                         </div>
 
@@ -5312,87 +5372,69 @@ function DashboardContent() {
                                         </div>
                                     </div>
 
-                                    {galleryViewMode === "grid" && activeGalleryItems.length > 0 && (
+                                    {galleryViewMode === "grid" && activeGalleryItems.length > 0 && isSelectingMedia && (
                                         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900/45 px-4 py-3 sm:px-5">
-                                            {isSelectingMedia ? (
-                                                <>
-                                                    <span className="text-sm font-bold text-slate-200" aria-live="polite">
-                                                        {selectedMediaIds.size} selected
-                                                    </span>
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setSelectedMediaIds(
-                                                                selectedMediaIds.size === activeGalleryItems.length
-                                                                    ? new Set()
-                                                                    : new Set(activeGalleryItems.map(item => item.id))
-                                                            )}
-                                                            className="rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400"
-                                                        >
-                                                            {selectedMediaIds.size === activeGalleryItems.length ? "Clear" : "Select all"}
-                                                        </button>
-                                                        {canMoveMedia && (
-                                                            <button
-                                                                type="button"
-                                                                disabled={selectedMediaIds.size === 0}
-                                                                onClick={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
-                                                                className="flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-40"
-                                                            >
-                                                                <FolderInput className="h-4 w-4" />
-                                                                <span>Move to…</span>
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            type="button"
-                                                            disabled={selectedMediaIds.size === 0}
-                                                            onClick={() => setMediaToSave(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
-                                                            className="flex items-center gap-2 rounded-full border border-[#7FA38C]/50 bg-[#7FA38C]/10 px-4 py-2 text-sm font-semibold text-[#A9C9B4] disabled:opacity-40"
-                                                        >
-                                                            <HardDrive className="h-4 w-4" />
-                                                            <span>Save to EB Vault</span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            disabled={selectedMediaIds.size === 0}
-                                                            onClick={() => void handleSetMediaHidden(Array.from(selectedMediaIds), true)}
-                                                            className="flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400 disabled:opacity-40"
-                                                        >
-                                                            <EyeOff className="h-4 w-4" />
-                                                            <span>Hide from guests</span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            disabled={selectedMediaIds.size === 0}
-                                                            onClick={() => void handleSetMediaHidden(Array.from(selectedMediaIds), false)}
-                                                            className="flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400 disabled:opacity-40"
-                                                        >
-                                                            <Eye className="h-4 w-4" />
-                                                            <span>Show to guests</span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={exitMediaSelection}
-                                                            className="rounded-full px-3 py-2 text-sm font-semibold text-slate-400 hover:text-white"
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <span className="text-sm font-semibold text-slate-400">
-                                                        {canMoveMedia ? "Select items to move them to another gallery or save copies to EB Vault." : "Select items to save copies to your EB Vault."}
-                                                    </span>
+                                            <span className="text-sm font-bold text-slate-200" aria-live="polite">
+                                                {selectedMediaIds.size} selected
+                                            </span>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedMediaIds(
+                                                        selectedMediaIds.size === activeGalleryItems.length
+                                                            ? new Set()
+                                                            : new Set(activeGalleryItems.map(item => item.id))
+                                                    )}
+                                                    className="rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400"
+                                                >
+                                                    {selectedMediaIds.size === activeGalleryItems.length ? "Clear" : "Select all"}
+                                                </button>
+                                                {canMoveMedia && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => setIsSelectingMedia(true)}
-                                                        className="flex items-center gap-2 rounded-full border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-4 py-2 text-sm font-semibold text-[#CA9C68] hover:bg-[#CA9C68]/20"
+                                                        disabled={selectedMediaIds.size === 0}
+                                                        onClick={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
+                                                        className="flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-40"
                                                     >
-                                                        <CheckSquare className="h-4 w-4" />
-                                                        <span>Select</span>
+                                                        <FolderInput className="h-4 w-4" />
+                                                        <span>Move to…</span>
                                                     </button>
-                                                </>
-                                            )}
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    disabled={selectedMediaIds.size === 0}
+                                                    onClick={() => setMediaToSave(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
+                                                    className="flex items-center gap-2 rounded-full border border-[#7FA38C]/50 bg-[#7FA38C]/10 px-4 py-2 text-sm font-semibold text-[#A9C9B4] disabled:opacity-40"
+                                                >
+                                                    <HardDrive className="h-4 w-4" />
+                                                    <span>Save to EB Vault</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={selectedMediaIds.size === 0}
+                                                    onClick={() => void handleSetMediaHidden(Array.from(selectedMediaIds), true)}
+                                                    className="flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400 disabled:opacity-40"
+                                                >
+                                                    <EyeOff className="h-4 w-4" />
+                                                    <span>Hide from guests</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={selectedMediaIds.size === 0}
+                                                    onClick={() => void handleSetMediaHidden(Array.from(selectedMediaIds), false)}
+                                                    className="flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400 disabled:opacity-40"
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                    <span>Show to guests</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={exitMediaSelection}
+                                                    className="rounded-full px-3 py-2 text-sm font-semibold text-slate-400 hover:text-white"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
 

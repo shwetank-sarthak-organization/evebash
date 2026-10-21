@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 95
+Next test number: 96
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2250,6 +2250,34 @@ How to test:
   6. With nothing uploading, refresh any page: no "Leave site?" question.
   7. Repeat step 1-2, but while uploading open a different gallery on the host page: uploads still finish
      and the panel shows "Indexing..." / Done for the first gallery's files.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#95 Host gallery: one Filter button holds Source gallery, Uploaded by and Select
+Status:    TODO
+Priority:  Medium
+Platform:  Website (desktop browser and phone browser)
+Brief:     Above the photos, the Source gallery (or Favourites only) and Uploaded by filters and the Select
+           button are now inside a "Filter" button, on the same line as the grid/list toggle (opposite side).
+How to test:
+  1. Host -> open an event's Primary Gallery. Left of the grid/list toggle there is only a "Filter" button;
+     the old Select bar under it is gone.
+  2. Click Filter: a panel opens with Source gallery, Uploaded by (when more than one person uploaded) and
+     Select. Pick a sub-gallery in Source gallery: the grid filters, and Filter shows a gold "1" badge.
+  3. Pick a person in Uploaded by: the grid filters further and the badge shows "2". Set both back to all:
+     the badge goes away.
+  4. Open a sub-gallery: the panel shows Favourites only instead of Source gallery; turning it on counts as 1.
+  5. Click Select in the panel: the panel closes and the bar with "N selected", Move to..., Save to EB Vault,
+     Hide/Show and Cancel appears. Move and Save still work; Cancel removes the bar.
+  6. Switch to list view: the panel has no Select button (as before, selecting is grid-only).
+  7. Click outside the panel or press Escape: it closes.
+  8. Phone browser: the panel fits the screen (no sideways scroll) and the dropdowns open normally.
 Done by:
 Device / browser:
 Build / version:
