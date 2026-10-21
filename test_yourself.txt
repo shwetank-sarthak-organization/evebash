@@ -2362,7 +2362,7 @@ Feedback:         18/18 on v2 (8 camera files + 10 phone photos), 0 failures, do
                   same face counts as v1.
 
 #99 Photo pipeline v2: guest upload
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website + App
 Brief:     A guest adding photos to a v2 gallery (one or two at a time) gets them processed like before.
@@ -2371,17 +2371,19 @@ How to test:
      page and add 2 photos (website), then 2 from the app.
   2. Expect: they show up within ~20 s with a preview and thumbnail; the host sees them; none failed.
   3. Developer check: modal_cost_logs shows process_photo_v2 for them.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:          Sarthak (with Claude)
+Device / browser: Second (guest) account, Mac browser, staging.evebash.com
+Build / version:  Modal v118 (3034f8c)
+Date tested:      2026-10-21
+Account used:     guest, gallery test-v2-358c
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:         Website only (app path already covered by #98). 15/15 ready and faces indexed; 14 on v2, 1 failed
+                  once with "Server disconnected" (database connection dropped after its preview was saved) and the
+                  5-minute recovery job redid it ~6 min later. Faces identical to v1 on 15/15.
 
 #100 Photo pipeline v2: Find You after v2
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website + App
 Brief:     Faces saved by the v2 worker must work in Find You exactly like before.
@@ -2390,11 +2392,12 @@ How to test:
      a selfie.
   2. Expect: your photos are found, and the same ones as for the same photos uploaded on v1 (if you have both).
   3. Repeat in the app.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:          Sarthak (with Claude)
+Device / browser: Mac browser, staging.evebash.com
+Build / version:  Modal v118 (3034f8c)
+Date tested:      2026-10-21
+Account used:     host, gallery test-v2-358c
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:         Website: selfie search compared all 1,459 faces in the gallery (v1 + v2 rows) and returned 106
+                  matches in 1.15 s. App not repeated (same backend and Modal function).
