@@ -428,9 +428,10 @@ Platform: Both
 Priority: High
 Status: Open
 Owner: Unassigned
-Blocked by: Decision: support RAW, or block it at upload
+Blocked by: -
 Found in: Photo pipeline v2 health check (2026-10-21)
 Issue: RAW camera files never get a preview, thumbnail or faces. 76 photos uploaded on 2026-10-20 (61 Canon .CR3, 15 Sony .ARW, ~32 MB each, in galleries traditional-1-93df, -8-c3cb, -9-40d8, -10-63c8) failed with "cannot identify image file" and used up their 3 attempts, so they show no preview and aren't in Find You. Both photo workers (old process_photo_preview and PhotoProcessorV2 in modal_engine/main.py) open images with Pillow, which can't read RAW. The upload accepts these files and counts them against storage. Photographers often shoot RAW. Fix options: (1) in the worker, read the full-size JPEG preview every RAW file carries (e.g. rawpy/libraw or exiftool) and use it for the preview, thumbnail and faces; (2) or reject .cr3/.cr2/.nef/.arw/.dng at upload with a clear message. Failed photos then need their attempts reset so the maintenance job retries them.
+Decision 2026-10-22 (Sarthak): support RAW; next photo-pipeline task. Plan: in PhotoProcessorV2 only (old workers unchanged), detect RAW by extension/magic bytes and pull out the camera's built-in full-size JPEG with rawpy (LibRaw: CR3, CR2, ARW, NEF, DNG...), then make the preview, thumbnail and faces exactly as for a JPEG; import rawpy only when a RAW arrives so JPEG photos cost and start the same as today. Don't develop the RAW sensor data (3-5x the CPU for no gain). Estimated Modal cost for RAW: ~+0.5 s and +5-20% per photo (about +₹1-4 per 1,000); the main cost is B2 storage (~3x per photo). Test first on copies of a few of the 76 failed files (read-only, test app), compare JPEG cost before/after, then reset media_attempt on the 76 so the maintenance job reprocesses them.
 How to reproduce: Upload a .CR3 or .ARW file to any gallery: it never shows a preview; photos.media_status = failed, processing_error "cannot identify image file", media_attempt 3.
 
 =====================================================================
