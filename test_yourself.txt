@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 93
+Next test number: 94
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2197,6 +2197,33 @@ How to test:
   3. As Samarth: the wedding is under Shared Events / Attended, and Baraat is inside it.
   4. As the owner: Baraat is a sub-gallery of the wedding, as before.
   5. As an admin, create another sub-gallery in someone else's event: it doesn't appear as your own event.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#93 Upload panel: cancel one file, and click the header to minimize
+Status:    TODO
+Priority:  Medium
+Platform:  Website (desktop browser)
+Brief:     Each queued or uploading file has a cancel (X) button. The panel's chevron is gone: clicking the
+           header bar (status text / Clear / close row) minimizes and expands the panel.
+How to test:
+  1. Host -> a test gallery -> upload ~20 photos and 1 large video (over 20 MB).
+  2. While it runs, press X on one file that is uploading: "Cancelling..." then "Cancelled". The other files
+     keep uploading and finish as Done.
+  3. Press X on a file that is still "Queued...": it shows "Cancelled" straight away and is never uploaded.
+  4. Press X on the large video mid-upload: it shows "Cancelled"; it never appears in the gallery.
+  5. When everything is done: the header reads "N ready · 0 failed · M cancelled"; the gallery has only the
+     files that weren't cancelled (refresh the page to check).
+  6. Click anywhere on the header bar: the list collapses (a thin progress bar shows while uploading).
+     Click again: it expands. There is no chevron button.
+  7. Clicking Clear, Cancel all uploads or the close X does its own job and doesn't minimize the panel.
+  8. Keyboard: Tab to the header, press Enter: it minimizes / expands.
 Done by:
 Device / browser:
 Build / version:

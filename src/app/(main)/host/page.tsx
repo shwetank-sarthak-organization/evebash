@@ -60,7 +60,6 @@ import {
     Play,
     Video,
     Home,
-    ChevronUp,
     Heart,
     Gift,
     Briefcase,
@@ -791,7 +790,8 @@ function DashboardContent() {
         const controller = uploadControllers.current.get(id);
         if (!controller || controller.signal.aborted) return;
         controller.abort();
-        setUploadQueue(previous => previous.map(item => item.id === id ? { ...item, status: "cancelling" } : item));
+        // A queued file has nothing in flight, so it is cancelled at once; its worker skips it when it gets there
+        setUploadQueue(previous => previous.map(item => item.id === id ? { ...item, status: item.status === "pending" ? "cancelled" : "cancelling" } : item));
     };
     const cancelAllUploads = () => {
         for (const id of uploadControllers.current.keys()) cancelUpload(id);
@@ -7063,7 +7063,20 @@ function DashboardContent() {
                             className="fixed bottom-6 right-6 z-[100] w-96 bg-slate-950/95 border border-slate-800 backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden font-sans"
                         >
                             {/* Header */}
-                            <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800">
+                            <div
+                                role="button"
+                                tabIndex={0}
+                                aria-expanded={!isUploadPanelMinimized}
+                                title={isUploadPanelMinimized ? "Expand" : "Minimize"}
+                                onClick={() => setIsUploadPanelMinimized(!isUploadPanelMinimized)}
+                                onKeyDown={(e) => {
+                                    if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                                        e.preventDefault();
+                                        setIsUploadPanelMinimized(!isUploadPanelMinimized);
+                                    }
+                                }}
+                                className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 cursor-pointer select-none hover:bg-slate-800/70 transition-colors"
+                            >
                                 <div className="flex items-center gap-2 min-w-0">
                                     {(uploadingItems > 0 || processingItems > 0) ? (
                                         <Loader2 className="w-4 h-4 animate-spin text-[#CA9C68] shrink-0" />
@@ -7074,7 +7087,8 @@ function DashboardContent() {
                                         {overallStatusText}
                                     </span>
                                 </div>
-                                <div className="flex items-center gap-1 shrink-0">
+                                {/* Buttons here act on their own and don't minimize the panel */}
+                                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                                     {uploadQueue.some(item => item.status === "pending" || item.status === "uploading") && (
                                         <button type="button" onClick={cancelAllUploads} className="px-2 py-1 text-xs text-rose-300 hover:text-white">Cancel all uploads</button>
                                     )}
@@ -7086,17 +7100,6 @@ function DashboardContent() {
                                             Clear
                                         </button>
                                     )}
-                                    <button
-                                        onClick={() => setIsUploadPanelMinimized(!isUploadPanelMinimized)}
-                                        className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors"
-                                        title={isUploadPanelMinimized ? "Expand" : "Minimize"}
-                                    >
-                                        {isUploadPanelMinimized ? (
-                                            <ChevronUp className="w-4 h-4" />
-                                        ) : (
-                                            <ChevronDown className="w-4 h-4" />
-                                        )}
-                                    </button>
                                     <button
                                         onClick={() => setIsUploadPanelOpen(false)}
                                         disabled={hasUnfinishedUploads}
