@@ -698,6 +698,18 @@ def _media_domain() -> str:
     ).strip().replace("https://", "").replace("http://", "").rstrip("/")
 
 
+def _db_execute(query):
+    """Runs a Supabase call and, if the connection dropped (not a timeout), tries once more on a fresh
+    connection. The job RPCs are safe to repeat: a retry of a call that did go through just returns False."""
+    try:
+        return query.execute()
+    except Exception as err:
+        if type(err).__name__ not in ("RemoteProtocolError", "ReadError", "WriteError", "ConnectError"):
+            raise
+        print(f"[PhotoV2] Database connection dropped ({err}); retrying once")
+        return query.execute()
+
+
 def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_name: str, media_domain: str, photos_in_container=lambda: 1):
     """
     One photo start to finish, making the same database calls in the same order as process_photo_preview
@@ -724,11 +736,11 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
 
     # ---- Preview and thumbnail (as process_photo_preview) ----
     media_token = str(uuid.uuid4())
-    claimed = supabase.rpc("claim_media_job", {
+    claimed = _db_execute(supabase.rpc("claim_media_job", {
         "p_photo_id": photo_id,
         "p_token": media_token,
         "p_asset_version": asset_version
-    }).execute()
+    }))
     if not claimed.data:
         print(f"[{photo_id}] Media job already claimed or exceeded max retries. Skipping.")
         return {"status": "skipped", "photo_id": photo_id}
@@ -774,7 +786,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         preview_url = f"https://{media_domain}/{preview_key}"
         thumbnail_url = f"https://{media_domain}/{thumb_key}"
 
-        supabase.rpc("complete_media_job", {
+        _db_execute(supabase.rpc("complete_media_job", {
             "p_photo_id": photo_id,
             "p_token": media_token,
             "p_asset_version": asset_version,
@@ -783,7 +795,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
             "p_width": orig_w,
             "p_height": orig_h,
             "p_overhead_size": len(preview_bytes) + len(thumb_bytes)
-        }).execute()
+        }))
         preview_seconds = time.time() - start_time
         print(f"[{photo_id}] Preview ready in {preview_seconds:.2f}s. Photo is now live in gallery.")
 
@@ -798,18 +810,18 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
             # The original isn't in B2, so retrying can't succeed; use up the attempts now
             failed_update["media_attempt"] = 3
         try:
-            supabase.table("photos").update(failed_update).eq("id", photo_id).execute()
+            _db_execute(supabase.table("photos").update(failed_update).eq("id", photo_id))
         except Exception:
             pass
         return {"status": "error", "photo_id": photo_id, "error": str(e)}
 
     # ---- Faces (as FaceIndexer.process, on the preview already in memory) ----
     face_token = str(uuid.uuid4())
-    claimed = supabase.rpc("claim_face_job", {
+    claimed = _db_execute(supabase.rpc("claim_face_job", {
         "p_photo_id": photo_id,
         "p_token": face_token,
         "p_asset_version": asset_version
-    }).execute()
+    }))
     if not claimed.data:
         print(f"[{photo_id}] Face indexing job already claimed or max attempts reached.")
         return {"status": "success", "photo_id": photo_id, "preview_url": preview_url, "faces": None}
@@ -836,12 +848,12 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
                     "descriptor": embedding.tolist()
                 })
 
-        supabase.rpc("replace_photo_faces", {
+        _db_execute(supabase.rpc("replace_photo_faces", {
             "p_photo_id": photo_id,
             "p_token": face_token,
             "p_asset_version": asset_version,
             "p_faces": face_records
-        }).execute()
+        }))
 
         # One cost-log row for both steps. Photos running at the same time share the container, so each is
         # charged its share of the time.
@@ -879,10 +891,10 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         # The preview is already live; only the faces failed, and the maintenance job retries just the faces
         print(f"[{photo_id}] Face indexing error: {e}")
         try:
-            supabase.table("photos").update({
+            _db_execute(supabase.table("photos").update({
                 "face_status": "failed",
                 "processing_error": str(e)[:1000]
-            }).eq("id", photo_id).execute()
+            }).eq("id", photo_id))
         except Exception:
             pass
         return {"status": "error", "photo_id": photo_id, "preview_url": preview_url, "error": str(e)}
@@ -910,14 +922,17 @@ class PhotoProcessorV2:
     @modal.method()
     def process(self, photo_data: dict):
         import boto3
-        from supabase import create_client
+        from supabase import create_client, ClientOptions
 
         with self._lock:
             self._in_flight += 1
         try:
+            # 20 s instead of the client's 120 s default, so a hanging database can't keep the container
+            # (billed per second) waiting for minutes; the maintenance job retries the photo later
             supabase = create_client(
                 os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
-                os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+                os.environ.get("SUPABASE_SERVICE_ROLE_KEY"),
+                options=ClientOptions(postgrest_client_timeout=20),
             )
             b2_client = boto3.client(
                 's3',
