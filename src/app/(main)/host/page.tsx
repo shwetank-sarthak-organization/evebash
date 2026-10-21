@@ -5623,23 +5623,6 @@ function DashboardContent() {
                                                                 </button>
                                                             )}
                                                             <button
-                                                                aria-label={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
-                                                                title={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
-                                                                aria-pressed={isFavourite}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleToggleEventFavourite(photo.id);
-                                                                }}
-                                                                className={cn(
-                                                                    "grid h-9 w-9 place-items-center rounded-lg shadow-lg backdrop-blur-md transition-all active:scale-95",
-                                                                    isFavourite
-                                                                        ? "bg-[#CA9C68] text-slate-950"
-                                                                        : "bg-slate-950/70 text-white hover:bg-[#CA9C68] hover:text-slate-950"
-                                                                )}
-                                                            >
-                                                                <Star className={cn("h-4 w-4", isFavourite && "fill-current")} />
-                                                            </button>
-                                                            <button
                                                                 type="button"
                                                                 aria-label={photo.isHidden ? `Show this ${isVideo ? "video" : "photo"} to guests` : `Hide this ${isVideo ? "video" : "photo"} from guests`}
                                                                 title={photo.isHidden ? "Hidden from guests: click to show it" : "Hide from guests"}
@@ -5656,6 +5639,23 @@ function DashboardContent() {
                                                                 )}
                                                             >
                                                                 {photo.isHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                            </button>
+                                                            <button
+                                                                aria-label={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
+                                                                title={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
+                                                                aria-pressed={isFavourite}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleToggleEventFavourite(photo.id);
+                                                                }}
+                                                                className={cn(
+                                                                    "grid h-9 w-9 place-items-center rounded-lg shadow-lg backdrop-blur-md transition-all active:scale-95",
+                                                                    isFavourite
+                                                                        ? "bg-[#CA9C68] text-slate-950"
+                                                                        : "bg-slate-950/70 text-white hover:bg-[#CA9C68] hover:text-slate-950"
+                                                                )}
+                                                            >
+                                                                <Star className={cn("h-4 w-4", isFavourite && "fill-current")} />
                                                             </button>
                                                             <button
                                                                 aria-label={isVideo ? "Video actions" : "Photo actions"}
