@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 97
+Next test number: 101
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2306,6 +2306,90 @@ How to test:
   5. Storage used (host page) goes down after the delete.
   6. Select 1 item and delete it: the dialog says "Delete 1 item?" / "It'll be removed...".
   7. With nothing selected, Delete is greyed out.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#97 Photo pipeline v2: website bulk upload
+Status:    PASS
+Priority:  High
+Platform:  Website
+Brief:     Galleries on photo pipeline v2 (issue #77) make the preview and find faces in one Modal worker.
+           Photos must show up and be searchable exactly as before, only cheaper.
+Detail:    v2 is on per gallery via the Modal Dict switch (modal_engine/photo_pipeline_switch.py). Check which
+           worker ran in modal_cost_logs: function_name process_photo_v2 = v2.
+How to test:
+  1. Put a test gallery on v2 (photo_pipeline_switch.py add-gallery <id>).
+  2. Host -> that gallery -> Home (Primary Gallery) -> upload ~50 camera photos with people in them.
+  3. Expect: every photo shows a preview and thumbnail within ~20 s, none stuck or failed.
+  4. Expect: cost logs show process_photo_v2 for every photo, and face counts per photo match the same
+     photos uploaded on v1.
+Done by:          Sarthak (with Claude)
+Device / browser: Mac browser, staging.evebash.com
+Build / version:  Modal v118 (3034f8c)
+Date tested:      2026-10-21
+Account used:     host, gallery test-v2-358c
+Screenshot / recording:
+Fix ref:
+Feedback:         55/55 on v2, 0 failures, preview + faces done 7 s median (18 s max) after upload. Faces 434 = v1's 434,
+                  same count on every file. Real Modal bill ₹0.018 per photo vs ₹0.064 on v1 (same photos, clean hours).
+
+#98 Photo pipeline v2: app upload, including portrait phone photos
+Status:    PASS
+Priority:  High
+Platform:  App (Android/iOS)
+Brief:     App uploads into a v2 gallery go through the new worker; phone photos (often rotated by EXIF)
+           must come out upright.
+How to test:
+  1. With a test gallery on v2: app -> that event -> Home (Primary Gallery) -> add 10 photos taken with the
+     phone's own camera, at least one portrait, some with people.
+  2. Expect: all appear, upright (portrait stays portrait), none failed.
+  3. Expect: people photos get faces; photos without people get none.
+Done by:          Sarthak (with Claude)
+Device / browser: Sarthak's phone, staging app
+Build / version:  Modal v118 (3034f8c)
+Date tested:      2026-10-21
+Account used:     host, gallery test-v2-358c
+Screenshot / recording:
+Fix ref:
+Feedback:         18/18 on v2 (8 camera files + 10 phone photos), 0 failures, done 5 s median after upload. Both portrait
+                  photos and the selfies upright; faces found on people photos, none on wallpapers. Camera files:
+                  same face counts as v1.
+
+#99 Photo pipeline v2: guest upload
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     A guest adding photos to a v2 gallery (one or two at a time) gets them processed like before.
+How to test:
+  1. With a test gallery on v2 and guest uploads allowed: as a different account, open the gallery's guest
+     page and add 2 photos (website), then 2 from the app.
+  2. Expect: they show up within ~20 s with a preview and thumbnail; the host sees them; none failed.
+  3. Developer check: modal_cost_logs shows process_photo_v2 for them.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#100 Photo pipeline v2: Find You after v2
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Faces saved by the v2 worker must work in Find You exactly like before.
+How to test:
+  1. In a v2 gallery that has photos of you (uploaded while it was on v2), open Find You and take or upload
+     a selfie.
+  2. Expect: your photos are found, and the same ones as for the same photos uploaded on v1 (if you have both).
+  3. Repeat in the app.
 Done by:
 Device / browser:
 Build / version:

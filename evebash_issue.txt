@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 79
+Next issue number: 80
 
 =====================================================================
 ACTIVE ISSUES
@@ -395,7 +395,7 @@ Platform: Both
 Priority: High
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: -
+Blocked by: Device checks (test_yourself #99, #100), then switching every gallery to v2
 Found in: Photo cost review and Modal benchmark (2026-10-13), plan agreed 2026-10-19
 Issue: Photo processing on Modal costs about 4x more than it needs to, and it is our second-biggest cost after B2 storage (about 31% of the infra bill at scale). Each photo runs through two workers (process_photo_preview, then FaceIndexer in modal_engine/main.py): two container start-ups, two idle windows (60 s and 45 s, both billed), the preview downloaded and decoded twice, and all 5 AuraFace models run on every face although only detection and recognition are used. Measured on 40 real 24 MP photos (2026-10-13 Modal bills): ₹0.0303 per photo for bulk uploads and ₹0.1695 for guest uploads (a few photos at a time). A merged worker with only the 2 models we use, a 15 s idle window and up to 4 photos per container cost ₹0.0076 and ₹0.0229 (-75% / -86%) with identical faces. Fix: add PhotoProcessorV2 (Modal only) behind a runtime switch (Modal Dict, default v1 = today), keep process_photo_preview and FaceIndexer deployed and unchanged for instant switch-back, test on one gallery, then switch everyone.
 How to reproduce: Upload 1-3 photos to any gallery, then run modal billing report for that hour: both process_photo_preview and FaceIndexer containers start and stay up after the work; the cost per photo is far above the logged execution cost.
@@ -410,6 +410,17 @@ Blocked by: Device check (test_yourself #94)
 Found in: Chat about uploads and page switching (2026-10-21)
 Issue: On the host page, going to another page of the website (Dashboard, Profile, Home...) while photos or videos upload hid the upload panel. The files kept uploading in the background, but the host couldn't see progress or cancel, and the "active uploads" warning was gone, so a refresh or close on the other page silently lost the rest. Coming back to the host page showed no panel. Fix (2026-10-21, on staging; move to fixed once test #94 passes): the upload queue, panel, Cancel buttons, video-ready and face-indexing polls and the leave warning moved from src/app/(main)/host/page.tsx into src/context/UploadContext.tsx, mounted in src/app/(main)/layout.tsx, so they stay on every website page. The face-indexing poll now follows the event the files were uploaded to, not the event open on the host page.
 How to reproduce: Host -> a gallery -> upload 20 photos -> click Dashboard in the navbar while they upload: the panel disappears and pressing refresh shows no warning.
+
+#79
+Listed: 2026-10-21
+Platform: Both
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: Decision: QStash pay-as-you-go, or one message per upload batch
+Found in: Photo pipeline v2 website test (#77), 2026-10-19
+Issue: Photos take 2-7 minutes to appear once more than 1,000 are uploaded in a day (UTC). The backend sends one QStash message per photo (publishFastMediaTask in apps/backend/src/routes/media.ts), and our QStash plan allows 1,000 messages a day. After that, QStash refuses with 429 "daily ratelimit 1000 exceeded" (seen in the staging backend's Railway logs 2026-10-19; 1,199 messages were sent that UTC day). Photos are then only picked up by the 5-minute maintenance job on Modal (dispatch_outbox_jobs / sweep_stuck_jobs), and that job always uses the old photo workers, even for galleries on photo pipeline v2. Nothing is lost, but uploads look slow and cost more. One wedding can pass 1,000 photos. Fix options: (1) move QStash to pay-as-you-go ($1 per 100,000 messages), a setting in the Upstash account; (2) send one message per upload batch instead of per photo (Modal's generate_photo_preview already accepts {"photos": [...]}), which cuts messages ~99% (backend change, flag-gated).
+How to reproduce: Upload more than 1,000 photos in one UTC day (or after others have), then upload 1 more: it shows up only after the next 5-minute maintenance run, and Railway logs show "QStash publish failed with status 429".
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
