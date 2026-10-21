@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 94
+Next test number: 95
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2224,6 +2224,32 @@ How to test:
      Click again: it expands. There is no chevron button.
   7. Clicking Clear, Cancel all uploads or the close X does its own job and doesn't minimize the panel.
   8. Keyboard: Tab to the header, press Enter: it minimizes / expands.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#94 Uploads and the upload panel stay when you go to another page
+Status:    TODO
+Priority:  High
+Platform:  Website (desktop browser)
+Brief:     The upload panel now follows you around the website (issue #78). Leaving the host page while
+           files upload used to hide the panel and the "don't leave" warning.
+How to test:
+  1. Host -> a test gallery -> upload ~20 photos and 1 video.
+  2. While they upload, click Dashboard (or Profile / Home) in the navbar: the panel stays bottom-right and
+     the numbers keep going up.
+  3. On that page press X on one uploading file: it shows "Cancelled". Press X on a "Queued..." file too.
+  4. Still on that page, press the browser refresh button: the browser asks "Leave site?". Press Cancel.
+  5. Go back to Host -> same gallery: the panel is still there; when it finishes, the photos (and the video,
+     once it says "100% · Ready") are in the gallery, minus the cancelled ones. Refresh to double-check.
+  6. With nothing uploading, refresh any page: no "Leave site?" question.
+  7. Repeat step 1-2, but while uploading open a different gallery on the host page: uploads still finish
+     and the panel shows "Indexing..." / Done for the first gallery's files.
 Done by:
 Device / browser:
 Build / version:

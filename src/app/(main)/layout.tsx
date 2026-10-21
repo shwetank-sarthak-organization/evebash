@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { UploadProvider } from "@/context/UploadContext";
 import Footer from "@/components/Footer";
 import MainWrapper from "@/components/MainWrapper";
 import { jsonLd, siteUrl } from "@/lib/seo";
@@ -76,11 +77,13 @@ export default function RootLayout({
         <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(organizationJsonLd)} />
         <AuthProvider>
           <ThemeProvider>
-            <Navbar />
-            <MainWrapper>
-              {children}
-            </MainWrapper>
-            <Footer />
+            <UploadProvider>
+              <Navbar />
+              <MainWrapper>
+                {children}
+              </MainWrapper>
+              <Footer />
+            </UploadProvider>
           </ThemeProvider>
         </AuthProvider>
       </body>
