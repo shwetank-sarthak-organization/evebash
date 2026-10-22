@@ -138,16 +138,24 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
             {/* One footer for the whole page: it also carries the EveBash line and links, so the shared event footer
                 (src/components/Footer.tsx) hides itself on Royal Emerald pages (royal-emerald.css) */}
             <footer className="royal-footer">
-                <Crown className="royal-footer__crown" aria-hidden="true" />
-                {title && <p className="royal-footer__title">{displayCoupleTitle(title)}</p>}
-                <p className="royal-footer__made">
-                    Made with <Link href="/">EveBash</Link>
-                </p>
-                <div className="royal-footer__bar">
-                    <Link href="/login?mode=signup">Create your own event free</Link>
-                    <nav className="royal-footer__legal" aria-label="Legal">
+                <div className="royal-footer__inner">
+                    <nav className="royal-footer__links royal-footer__links--start" aria-label="EveBash">
+                        <Link href="/login?mode=signup" className="royal-footer__cta">Create your own event free</Link>
+                        <Link href="/sample-galleries">Sample Galleries</Link>
+                        <Link href="/pricing">Pricing</Link>
+                    </nav>
+                    <div className="royal-footer__center">
+                        <Crown className="royal-footer__crown" aria-hidden="true" />
+                        {title && <p className="royal-footer__title">{displayCoupleTitle(title)}</p>}
+                        <p className="royal-footer__made">
+                            Made with <Link href="/" className="royal-footer__brand">EveBash</Link>
+                        </p>
+                    </div>
+                    <nav className="royal-footer__links royal-footer__links--end" aria-label="Help and legal">
                         <Link href="/privacy-policy">Privacy</Link>
                         <Link href="/terms-and-conditions">Terms</Link>
+                        <Link href="/contact-us">Contact Us</Link>
+                        <Link href="/cancellation-refund-policy">Cancellation &amp; Refund</Link>
                     </nav>
                 </div>
             </footer>

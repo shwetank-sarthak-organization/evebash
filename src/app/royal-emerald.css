@@ -281,15 +281,23 @@
 /* The fixed event navbar would otherwise cover the top of the gallery after "Explore Gallery" */
 #royal-collection-section { scroll-margin-top: 72px; }
 
-/* One footer: crown, title, "Made with EveBash" right under it, then Create your own event | Privacy Terms */
+/* One footer: EveBash links on the left, crown + title + "Made with EveBash" in the middle, help and legal on the right */
 .royal-footer {
   position: relative;
   z-index: 10;
-  padding: 36px 24px 22px;
+  padding: 34px 24px;
   border-top: 1px solid #ca9c6933;
   background: #021a15;
-  text-align: center;
 }
+.royal-footer__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 24px 40px;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.royal-footer__center { text-align: center; }
 .royal-footer__crown { display: block; width: 20px; height: 20px; margin: 0 auto 6px; color: #ca9c69; }
 .royal-footer__title {
   margin: 0;
@@ -297,24 +305,22 @@
   font: 400 clamp(26px, 4vw, 34px)/1.25 var(--font-royal-script), cursive;
 }
 .royal-footer__made { margin: 6px 0 0; color: #bdc9b9; font-size: 13px; }
+/* EveBash in its own brand font, as on the rest of the website */
+.royal-footer .royal-footer__brand { color: #e9cf96; font-family: var(--font-brand-src), 'Akaya Kanadaka', Georgia, serif; font-size: 17px; letter-spacing: .02em; }
+.royal-footer__links { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.royal-footer__links--start { align-items: flex-start; text-align: left; }
+.royal-footer__links--end { align-items: flex-end; text-align: right; }
 .royal-footer a { color: #bdc9b9; text-underline-offset: 4px; transition: color .2s ease; }
 .royal-footer a:hover { color: #e6c574; text-decoration: underline; }
 .royal-footer a:focus-visible { outline: 2px solid #e6c574; outline-offset: 3px; border-radius: 2px; }
-.royal-footer__made a { font-weight: 600; color: #e9cf96; }
-.royal-footer__bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px 24px;
-  max-width: 1120px;
-  margin: 26px auto 0;
-  padding-top: 16px;
-  border-top: 1px solid #ca9c6926;
-  font-size: 13px;
+.royal-footer .royal-footer__cta { color: #e9cf96; font-weight: 600; }
+@media (max-width: 767px) {
+  /* Phones: title block first, the two link lists side by side under it */
+  .royal-footer__inner { grid-template-columns: 1fr 1fr; grid-template-areas: "center center" "start end"; gap: 22px 16px; }
+  .royal-footer__center { grid-area: center; }
+  .royal-footer__links--start { grid-area: start; }
+  .royal-footer__links--end { grid-area: end; }
 }
-.royal-footer__bar > a { font-weight: 600; }
-.royal-footer__legal { display: flex; gap: 20px; }
 /* The shared event footer would add a second strip under this one */
 body:has(.royal-footer) .event-footer { display: none; }
 
