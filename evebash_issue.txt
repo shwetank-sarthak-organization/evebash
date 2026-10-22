@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 81
+Next issue number: 98
 
 =====================================================================
 ACTIVE ISSUES
@@ -433,6 +433,204 @@ Found in: Photo pipeline v2 health check (2026-10-21)
 Issue: RAW camera files never get a preview, thumbnail or faces. 76 photos uploaded on 2026-10-20 (61 Canon .CR3, 15 Sony .ARW, ~32 MB each, in galleries traditional-1-93df, -8-c3cb, -9-40d8, -10-63c8) failed with "cannot identify image file" and used up their 3 attempts, so they show no preview and aren't in Find You. Both photo workers (old process_photo_preview and PhotoProcessorV2 in modal_engine/main.py) open images with Pillow, which can't read RAW. The upload accepts these files and counts them against storage. Photographers often shoot RAW. Fix options: (1) in the worker, read the full-size JPEG preview every RAW file carries (e.g. rawpy/libraw or exiftool) and use it for the preview, thumbnail and faces; (2) or reject .cr3/.cr2/.nef/.arw/.dng at upload with a clear message. Failed photos then need their attempts reset so the maintenance job retries them.
 Decision 2026-10-22 (Sarthak): support RAW; next photo-pipeline task. Plan: in PhotoProcessorV2 only (old workers unchanged), detect RAW by extension/magic bytes and pull out the camera's built-in full-size JPEG with rawpy (LibRaw: CR3, CR2, ARW, NEF, DNG...), then make the preview, thumbnail and faces exactly as for a JPEG; import rawpy only when a RAW arrives so JPEG photos cost and start the same as today. Don't develop the RAW sensor data (3-5x the CPU for no gain). Estimated Modal cost for RAW: ~+0.5 s and +5-20% per photo (about +₹1-4 per 1,000); the main cost is B2 storage (~3x per photo). Test first on copies of a few of the 76 failed files (read-only, test app), compare JPEG cost before/after, then reset media_attempt on the 76 so the maintenance job reprocesses them.
 How to reproduce: Upload a .CR3 or .ARW file to any gallery: it never shows a preview; photos.media_status = failed, processing_error "cannot identify image file", media_attempt 3.
+
+#81
+Listed: 2026-10-22
+Platform: Website
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: The Royal Emerald guest page shows a typo when the gallery has no date: the line above the title falls back to "NITES • LUXURY WEDDING & CELEBRATION" (src/components/TemplateRoyal.tsx). When there is a date, it shows twice: in that line and again in the date pill below.
+How to reproduce: Open a Royal Emerald gallery with no date: the line above the title reads "NITES • LUXURY WEDDING & CELEBRATION". Add a date: it appears both above the title and in the pill.
+Update 2026-10-22: fixed in the new hero (src/components/TemplateRoyal.tsx (ornaments in src/components/royal/, styles in src/app/royal-emerald.css)). The card shows the date once and nothing when there is no date; the "NITES" fallback is gone.
+
+#82
+Listed: 2026-10-22
+Platform: Website
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Royal Emerald shows made-up text to guests when the host leaves fields empty: title "An Elegant & Timeless Wedding" and a description about "a monumental union of love, heritage, and royal celebrations" (src/components/TemplateRoyal.tsx). It should show nothing (or the gallery name) instead.
+How to reproduce: Open a Royal Emerald gallery with no description: the made-up paragraph appears under the title.
+Update 2026-10-22: fixed in the new hero. No made-up title or description: the card shows the gallery title, and the description stays in the gallery section below (where it was already shown).
+
+#83
+Listed: 2026-10-22
+Platform: Website
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Royal Emerald has wedding-only text fixed in the design: "The Wedding Collection", "Imperial Album" and the footer "Elegantly Captured • Royal Emerald Edition" (src/components/TemplateRoyal.tsx). Anniversary events pre-select this theme, so they also say "Wedding", and the footer shows the theme's name to guests.
+How to reproduce: Create an Anniversary event with Royal Emerald and open it as a guest: it says "The Wedding Collection".
+Update 2026-10-22: fixed in the new hero. "The Wedding Collection" and "Imperial Album" are gone; the line above the names follows the category (The Wedding of / The Anniversary of / The Engagement of / Celebrating) and only shows for "Name & Name" titles on the main gallery; the footer shows the gallery title instead of "Royal Emerald Edition".
+
+#84
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Royal Emerald stacks two section headings: "Treasured Moments / The Wedding Collection" (src/components/TemplateRoyal.tsx) sits right above the shared "Home Gallery · N Photos" heading (src/app/(public)/events/[slug]/page.tsx), with two gold dividers in a row.
+How to reproduce: Open any Royal Emerald gallery and scroll past the hero: two headings in a row.
+Update 2026-10-22: fixed. The theme's own "Treasured Moments / The Wedding Collection" heading was removed; only the shared gallery heading remains.
+
+#85
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Royal Emerald uses three different golds: #cca43b (yellow) in the hero (src/components/TemplateRoyal.tsx), #ca9c69 (bronze) in the theme colours and gallery (src/app/royal-emerald.css, apps/mobile/constants/templates.ts), and gold-400/500/600 in the shared SectionHeader. The hero and the gallery below don't match.
+How to reproduce: Open a Royal Emerald gallery: compare the Explore Gallery button and frame gold with the gold of the gallery controls and liked hearts.
+Update 2026-10-22: hero now uses the bronze gold family (#ca9c69 / #e6c574 gradients) everywhere, no #cca43b left in TemplateRoyal. Still open: the shared SectionHeader keeps gold-400/500/600.
+
+#86
+Listed: 2026-10-22
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: In Royal Emerald, "Load More Media" and the guest "Add photos" button stay near-black (bg-slate-900) on the dark green page (src/app/(public)/events/[slug]/page.tsx). The theme recolours shared controls with CSS overrides in src/app/royal-emerald.css and these two were missed.
+How to reproduce: Open a Royal Emerald gallery with more than one page of photos (Load More appears), or as a guest with Allow Photo Uploads on (Add photos appears).
+
+#87
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: In Royal Emerald, the Favourites switch on the gallery page keeps a light grey icon box and track when off, and turns dark slate when on (src/app/(public)/events/[slug]/page.tsx, role="switch"; src/app/royal-emerald.css only recolours its border and knob). It looks like a control from a light theme.
+How to reproduce: Open a Royal Emerald gallery and toggle Favourites on and off.
+
+#88
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: In Royal Emerald some text is hard to read on the dark green: "Link Copied!" (text-green-600), the guest upload error (text-rose-600) and the empty-gallery message (muted text at opacity-50) (src/app/(public)/events/[slug]/page.tsx).
+How to reproduce: Open a Royal Emerald gallery, press Share Event (green text), and open an empty Royal Emerald gallery (faint message).
+
+#89
+Listed: 2026-10-22
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Guests can see a developer message on the empty gallery state: "Owner: Check Supabase database rules to enable shared access." (src/app/(public)/events/[slug]/page.tsx). Affects every theme, not only Royal Emerald.
+How to reproduce: Open a gallery the visitor can't load photos for (restricted state): the Supabase message shows under "Moments restricted...".
+
+#90
+Listed: 2026-10-22
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: On phones the Royal Emerald hero is at least one screen tall: text first, then a tall 4:5 framed image (src/components/TemplateRoyal.tsx), so guests scroll about two screens before the first photo.
+How to reproduce: Open a Royal Emerald gallery on a phone (or 375 px wide): count the scrolls before the first photo.
+Update 2026-10-22: the new hero (card, then framed photo, then button) is still about 1,200 px tall on a 390 px phone before the first photo, so this stays open.
+
+#91
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: The Royal Emerald hero crops images badly. The default palace image (public/royal_emerald_palace_hero.jpg) is landscape 1376x768 and 1 MB, shown in a portrait 4:5 frame, so most of it is cut off. Host cover photos are always cropped from the centre with no way to pick the focus point (src/components/TemplateRoyal.tsx). Related: #64.
+How to reproduce: Open a Royal Emerald gallery with no cover photo: the palace image is cut down to a narrow middle strip.
+Update 2026-10-22: partly fixed. The rectangular gold frame now follows the cover photo's shape (between 3:4 and 3:2) and applies the host's cover focus point, zoom and fit, so far less is cut off; the default palace image now shows almost whole. next/image already serves it resized. Move to fixed with #101.
+
+#92
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Long Royal Emerald titles have nothing guarding them: the gold gradient title (src/components/TemplateRoyal.tsx) has no line limit or word break, so long couple names can overflow on phones. Its drop-shadow doesn't show on gradient (clipped) text.
+How to reproduce: Give a Royal Emerald gallery a long title with a long single word (e.g. a long hyphenated couple name) and open it at 375 px wide.
+Update 2026-10-22: fixed. Names in gold script get smaller for long names (two steps) and break only between words; checked with "Maharajkumari Rajyalakshmi & Venkatanarayanaswamy" at 390 px and 1376 px.
+
+#93
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: The Royal Emerald double gold frame is fixed at z-40 (src/components/TemplateRoyal.tsx), so it stays on top of photos, the navbar and popups with a lower z-index while scrolling, and takes space at the edges on phones.
+How to reproduce: Open a Royal Emerald gallery and scroll: the gold frame lines cross photos and the navbar.
+Update 2026-10-22: fixed. The fixed double frame is gone; the new gold corners sit inside the hero only and scroll away with it.
+
+#94
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: The Royal Emerald gallery area is always at least one screen tall (min-h-screen in src/components/TemplateRoyal.tsx), so a gallery with few photos has a big empty green block before the footer.
+How to reproduce: Open a Royal Emerald gallery with 1-3 photos: large empty space before the footer.
+
+#95
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Royal Emerald hover effects (hero image zoom, button grow) only work with a mouse, so phones get no feedback (src/components/TemplateRoyal.tsx).
+How to reproduce: Open a Royal Emerald gallery on a phone and tap the hero image and Explore Gallery: no visual response before scrolling.
+Update 2026-10-22: fixed. The hover-only image zoom and button grow are gone; the button has a pressed state that works on touch.
+
+#96
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Royal Emerald mixes serif and sans fonts within small groups (the line above the title, date/location pills and the Imperial Album badge are sans; headings serif) (src/components/TemplateRoyal.tsx). It reads as random rather than designed. Also noted in this review (not separate issues): the fixed 600-800 px blur-3xl glows may make scrolling slow on phones, and recolouring shared controls via [class*="text-stone-"] selectors in src/app/royal-emerald.css means new shared buttons show in light colours under this theme until someone notices (the cause of #86-#88).
+How to reproduce: Open a Royal Emerald gallery and compare the fonts of the hero's small text and headings.
+Update 2026-10-22: hero fonts are now one set (Great Vibes for names, Cinzel for date and button, Cormorant Garamond for "&" and place), loaded only on this page (src/components/royal/royalFonts.ts); the fixed blur-3xl glows were replaced by a plain gradient. Still open: the [class*="text-stone-"] overrides in royal-emerald.css (cause of #86-#88).
+
+#97
+Listed: 2026-10-22
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: The website and app Royal Emerald are two different designs. The website is a split hero (text left, framed image right, Explore Gallery) in src/components/TemplateRoyal.tsx; the app is a full-screen cover photo with the title in the middle, MY PHOTOS and "Delivered by EveBash" (apps/mobile/app/events/[id].tsx, royalHeroOverlay). A guest sees a different page on each.
+How to reproduce: Open the same Royal Emerald gallery on the website and in the app.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

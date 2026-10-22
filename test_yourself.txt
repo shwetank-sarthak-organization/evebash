@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 101
+Next test number: 102
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-10-13
+Last updated: 2026-10-22
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -2401,3 +2401,35 @@ Screenshot / recording:
 Fix ref:
 Feedback:         Website: selfie search compared all 1,459 faces in the gallery (v1 + v2 rows) and returned 106
                   matches in 1.15 s. App not repeated (same backend and Modal function).
+
+#101 Royal Emerald guest page: new invitation-card hero
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     The Royal Emerald (Wedding) guest page has a new top section: an ivory torn-edge card with the gallery
+           title in gold script and a wax seal, a gold filigree frame around the cover photo, and gold corners.
+           Check it looks right on a real phone and a laptop (issues #81-#85, #91-#93, #95, #96).
+How to test:
+  1. Use a gallery with the Royal Emerald design whose title has two names joined by "&" (e.g. "Asha & Raj"),
+     with a date. Open its guest page on a laptop.
+  2. Expect: card on the left, framed cover photo on the right, "Explore Gallery" button below. The card shows
+     "The Wedding of" (Anniversary galleries: "The Anniversary of"), the two names, the date once, and a wax seal
+     with both initials. No made-up text anywhere, no "Treasured Moments / The Wedding Collection" heading.
+  3. Expect: gold corners sit at the 4 corners of the top section only; when you scroll to the photos, nothing
+     gold covers them. The footer shows the gallery title (not "Royal Emerald Edition").
+  4. Press Explore Gallery: the page scrolls to the photos and the top bar doesn't cover the first row.
+  5. Open the same page on a phone: the card comes first, then the photo frame, then the button; nothing is
+     cut off at the sides and the top corners don't sit on the card.
+  6. Open an album inside that gallery (e.g. Haldi): the card shows only the album name and a seal with a
+     fleur-de-lis, no "The Wedding of".
+  7. Rename a test gallery to something long (e.g. "Rajyalakshmi & Venkatanarayanaswamy"): the names get
+     smaller and no word is split across lines.
+  8. Try a landscape cover photo: the frame becomes wider instead of cutting the photo into a tall shape.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
