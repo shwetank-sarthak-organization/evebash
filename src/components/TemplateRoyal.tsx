@@ -2,11 +2,12 @@
 
 import React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Event } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { Crown } from "lucide-react";
 import { royalDisplay, royalScript, royalSerif } from "@/components/royal/royalFonts";
-import { coupleInitials, splitCoupleNames } from "@/components/royal/coupleNames";
+import { coupleInitials, displayCoupleTitle, splitCoupleNames } from "@/components/royal/coupleNames";
 import {
     RoyalDivider,
     RoyalFiligreeFrame,
@@ -134,12 +135,21 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
                 </main>
             )}
 
-            {/* Footer */}
-            <footer className="relative z-10 px-6 py-16 text-center border-t border-[#ca9c69]/20 bg-[#021a15]">
-                <div className="flex items-center justify-center gap-2 mb-3 text-[#ca9c69]">
-                    <Crown className="w-5 h-5" />
+            {/* One footer for the whole page: it also carries the EveBash line and links, so the shared event footer
+                (src/components/Footer.tsx) hides itself on Royal Emerald pages (royal-emerald.css) */}
+            <footer className="royal-footer">
+                <Crown className="royal-footer__crown" aria-hidden="true" />
+                {title && <p className="royal-footer__title">{displayCoupleTitle(title)}</p>}
+                <p className="royal-footer__made">
+                    Made with <Link href="/">EveBash</Link>
+                </p>
+                <div className="royal-footer__bar">
+                    <Link href="/login?mode=signup">Create your own event free</Link>
+                    <nav className="royal-footer__legal" aria-label="Legal">
+                        <Link href="/privacy-policy">Privacy</Link>
+                        <Link href="/terms-and-conditions">Terms</Link>
+                    </nav>
                 </div>
-                {title && <p className="royal-footer__title">{title}</p>}
             </footer>
         </div>
     );

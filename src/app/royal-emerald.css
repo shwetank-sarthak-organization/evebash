@@ -281,11 +281,42 @@
 /* The fixed event navbar would otherwise cover the top of the gallery after "Explore Gallery" */
 #royal-collection-section { scroll-margin-top: 72px; }
 
+/* One footer: crown, title, "Made with EveBash" right under it, then Create your own event | Privacy Terms */
+.royal-footer {
+  position: relative;
+  z-index: 10;
+  padding: 36px 24px 22px;
+  border-top: 1px solid #ca9c6933;
+  background: #021a15;
+  text-align: center;
+}
+.royal-footer__crown { display: block; width: 20px; height: 20px; margin: 0 auto 6px; color: #ca9c69; }
 .royal-footer__title {
   margin: 0;
   color: var(--royal-gold, #ca9c69);
-  font: 400 clamp(26px, 4vw, 34px)/1.3 var(--font-royal-script), cursive;
+  font: 400 clamp(26px, 4vw, 34px)/1.25 var(--font-royal-script), cursive;
 }
+.royal-footer__made { margin: 6px 0 0; color: #bdc9b9; font-size: 13px; }
+.royal-footer a { color: #bdc9b9; text-underline-offset: 4px; transition: color .2s ease; }
+.royal-footer a:hover { color: #e6c574; text-decoration: underline; }
+.royal-footer a:focus-visible { outline: 2px solid #e6c574; outline-offset: 3px; border-radius: 2px; }
+.royal-footer__made a { font-weight: 600; color: #e9cf96; }
+.royal-footer__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 24px;
+  max-width: 1120px;
+  margin: 26px auto 0;
+  padding-top: 16px;
+  border-top: 1px solid #ca9c6926;
+  font-size: 13px;
+}
+.royal-footer__bar > a { font-weight: 600; }
+.royal-footer__legal { display: flex; gap: 20px; }
+/* The shared event footer would add a second strip under this one */
+body:has(.royal-footer) .event-footer { display: none; }
 
 /* Short laptop screens (e.g. 1366x768 with browser bars): shrink the card and frame so the corners,
    the centred pair and the button still fit in one screen */
