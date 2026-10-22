@@ -1285,7 +1285,7 @@
         "blocks": [
           {
             "kind": "paragraph",
-            "text": "You can request deletion of your EveBash account and associated personal data. In the mobile app, open Settings and select Delete Account. On the website, sign in and open Profile to find Delete Account. Follow the identity-verification and confirmation steps displayed there."
+            "text": "You can request deletion of your EveBash account and associated personal data. In the mobile app, open Settings and select Delete Account. On the website, sign in and open Settings to find Delete Account. Follow the identity-verification and confirmation steps displayed there."
           },
           {
             "kind": "paragraph",
@@ -1297,7 +1297,7 @@
           },
           {
             "kind": "paragraph",
-            "text": "Deleting an account does not automatically cancel a subscription billed by Apple or Google. Manage that subscription through the store that billed you. You can still request account deletion while a subscription is active."
+            "text": "EveBash plans are bought on our website, not through Apple or Google. If you ever buy a subscription through an app store, deleting your account does not cancel it; manage it through the store that billed you. You can still request account deletion while a subscription is active."
           }
         ]
       },
