@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 107
+Next test number: 108
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2566,6 +2566,29 @@ How to test (after the flag is turned on):
   1. Account with consent: search on website and app. Expect: works as before.
   2. Give consent in the app, withdraw it on the website, then search from the app screen that
      was already open. Expect: the app shows the consent card again, not results or an error.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#107 RAW camera files (.CR3 / .ARW / .NEF / .DNG) get a preview and faces
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Issue #80. Photo pipeline v2 now reads the full-size JPEG built into RAW files. Test
+           after the Modal deploy that carries the #80 fix.
+How to test:
+  1. On the website, upload 2-3 RAW files (Canon .CR3 or Sony .ARW, one shot in portrait) to a
+     test gallery. Expect: within ~30 s each shows a preview and thumbnail, portrait ones upright,
+     colours like the camera's JPEG.
+  2. Open one full screen. Expect: sharp 1600 px preview, no error.
+  3. Use Find You with a selfie of someone in those RAW photos. Expect: those photos are found.
+  4. Upload a few normal JPEGs to the same gallery. Expect: same as before (preview within seconds).
 Done by:
 Device / browser:
 Build / version:

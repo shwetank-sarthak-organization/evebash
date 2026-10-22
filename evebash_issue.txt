@@ -429,12 +429,13 @@ How to reproduce: Upload more than 1,000 photos in one UTC day (or after others 
 Listed: 2026-10-22
 Platform: Both
 Priority: High
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Photo pipeline v2 health check (2026-10-21)
 Issue: RAW camera files never get a preview, thumbnail or faces. 76 photos uploaded on 2026-10-20 (61 Canon .CR3, 15 Sony .ARW, ~32 MB each, in galleries traditional-1-93df, -8-c3cb, -9-40d8, -10-63c8) failed with "cannot identify image file" and used up their 3 attempts, so they show no preview and aren't in Find You. Both photo workers (old process_photo_preview and PhotoProcessorV2 in modal_engine/main.py) open images with Pillow, which can't read RAW. The upload accepts these files and counts them against storage. Photographers often shoot RAW. Fix options: (1) in the worker, read the full-size JPEG preview every RAW file carries (e.g. rawpy/libraw or exiftool) and use it for the preview, thumbnail and faces; (2) or reject .cr3/.cr2/.nef/.arw/.dng at upload with a clear message. Failed photos then need their attempts reset so the maintenance job retries them.
 Decision 2026-10-22 (Sarthak): support RAW; next photo-pipeline task. Plan: in PhotoProcessorV2 only (old workers unchanged), detect RAW by extension/magic bytes and pull out the camera's built-in full-size JPEG with rawpy (LibRaw: CR3, CR2, ARW, NEF, DNG...), then make the preview, thumbnail and faces exactly as for a JPEG; import rawpy only when a RAW arrives so JPEG photos cost and start the same as today. Don't develop the RAW sensor data (3-5x the CPU for no gain). Estimated Modal cost for RAW: ~+0.5 s and +5-20% per photo (about +₹1-4 per 1,000); the main cost is B2 storage (~3x per photo). Test first on copies of a few of the 76 failed files (read-only, test app), compare JPEG cost before/after, then reset media_attempt on the 76 so the maintenance job reprocesses them.
+Progress 2026-10-22: built in PhotoProcessorV2 (modal_engine/main.py: _open_raw_photo, RAW_EXTENSIONS; v2 uses photo_v2_image = image + rawpy 0.27.1, old workers keep their image). Tested in a temporary Modal app with a fake database and B2: all 76 failed files open (61 CR3 6000x4000, 15 ARW 7008x4672; 7 portrait ones come out upright); 4 copies went through the whole v2 flow in 1.7-2.4 s with 5-19 faces each, peak memory 1.4 GB of 2 GB; 12 JPEGs gave byte-identical previews, thumbnails and faces to the current v2 at the same speed. Test copies deleted. Not deployed yet. Note: the 5-minute maintenance job still uses the old workers, so resetting media_attempt alone would fail the 76 again; after the deploy they must be sent to PhotoProcessorV2 directly (and a RAW photo that falls to the maintenance job on a day over the QStash limit, #79, still fails until the job uses v2). Device test: #107.
 How to reproduce: Upload a .CR3 or .ARW file to any gallery: it never shows a preview; photos.media_status = failed, processing_error "cannot identify image file", media_attempt 3.
 
 #81

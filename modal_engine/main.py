@@ -30,6 +30,10 @@ image = (
     )
 )
 
+# PhotoProcessorV2 only: the same image plus rawpy (LibRaw) for RAW camera files. A separate image so the
+# old workers keep the exact image they run on today.
+photo_v2_image = image.pip_install("rawpy==0.27.1")
+
 # Lightweight image for Fast Media resizing (Zero AI dependencies, instant cold starts)
 media_image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -689,6 +693,34 @@ def _load_two_model_face_app():
     return face_app
 
 
+RAW_EXTENSIONS = (".cr3", ".cr2", ".crw", ".arw", ".srf", ".sr2", ".nef", ".nrw", ".dng", ".raf", ".orf",
+                  ".rw2", ".pef", ".srw", ".3fr", ".iiq", ".rwl", ".x3f")
+
+
+def _open_raw_photo(raw_bytes: bytes):
+    """RAW camera files (Canon .CR3, Sony .ARW, Nikon .NEF, .DNG...): Pillow can't read them, so use the
+    full-size JPEG the camera stores inside every RAW file (6000x4000 on the Canon and 7008x4672 on the Sony
+    files tested 2026-10-22, found in ~0.01 s) instead of developing the sensor data. rawpy is imported here
+    only, so JPEG photos load and cost the same as before."""
+    import rawpy
+    from PIL import Image
+
+    with rawpy.imread(io.BytesIO(raw_bytes)) as raw:
+        thumb = raw.extract_thumb()
+        flip = raw.sizes.flip
+    if thumb.format == rawpy.ThumbFormat.JPEG:
+        img = Image.open(io.BytesIO(thumb.data))
+        img.load()
+    else:
+        img = Image.fromarray(thumb.data)
+    # The built-in JPEG is stored the way the sensor sees it. If it carries no rotation of its own, turn it
+    # the way the camera was held (LibRaw's flip: 3 = 180°, 5 = 90° anticlockwise, 6 = 90° clockwise).
+    if (img.getexif().get(274) or 1) == 1 and flip in (3, 5, 6):
+        img = img.transpose({3: Image.Transpose.ROTATE_180, 5: Image.Transpose.ROTATE_90,
+                             6: Image.Transpose.ROTATE_270}[flip])
+    return img
+
+
 def _media_domain() -> str:
     return (
         os.environ.get("MEDIA_DOMAIN")
@@ -751,8 +783,11 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         original_size = len(raw_bytes)
 
         Image.MAX_IMAGE_PIXELS = 100_000_000
-        pil_img = Image.open(io.BytesIO(raw_bytes))
-        pil_img.load()  # full-size decode, as today (also stops thumbnail() from using JPEG draft mode)
+        if storage_key.lower().endswith(RAW_EXTENSIONS):
+            pil_img = _open_raw_photo(raw_bytes)
+        else:
+            pil_img = Image.open(io.BytesIO(raw_bytes))
+            pil_img.load()  # full-size decode, as today (also stops thumbnail() from using JPEG draft mode)
         del raw_bytes
         try:
             pil_img = ImageOps.exif_transpose(pil_img)
@@ -901,7 +936,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
 
 
 @app.cls(
-    image=image,
+    image=photo_v2_image,
     cpu=1.0,
     memory=2048,
     max_containers=12,
