@@ -8,7 +8,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
 import LoadingScreen from "@/components/LoadingScreen";
 import { getEvent } from "@/lib/events"; // Static Data
-import { getEventPhotosPaginated, getEventById, getSubEvents, visibleGalleries, mergeHomeMedia, Event, Photo as DatabasePhoto, getFavouritePhotosForEvents, getEventFavouritePhotos, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery } from "@/lib/database"; // Live Data
+import { getEventPhotosPaginated, getEventById, getSubEvents, visibleGalleries, mergeHomeMedia, Event, Photo as DatabasePhoto, getFavouritePhotosForEvents, getEventFavouritePhotos, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, getGalleryVideo, type GalleryVideo } from "@/lib/database"; // Live Data
 import { useAuth } from "@/context/AuthContext";
 import { promptLogin } from "@/components/ui/LoginPrompt";
 import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check, Star, Layers3, Lock, Clock, Upload } from "lucide-react";
@@ -186,6 +186,24 @@ function EventPageContent() {
             }).subscribe();
         return () => { void supabase.removeChannel(channel); };
     }, [event?.id, event?.parentId, canUseRealtime]);
+
+    // The video the host chose for the gallery on screen (host page > Video actions > "Use as gallery video"),
+    // shown by designs that have a place for it (Royal Emerald for now)
+    const shownGallery: Event | null = activeGallery || event;
+    const shownGalleryId = shownGallery?.id as string | undefined;
+    const showsGalleryVideo = (shownGallery?.templateId || event?.templateId) === "royal";
+    // null: the gallery's row says it has none; undefined: not known (read-only public view), so ask
+    const wantsGalleryVideo = !!shownGalleryId && showsGalleryVideo && shownGallery?.galleryVideoId !== null;
+    const [loadedGalleryVideo, setLoadedGalleryVideo] = useState<{ galleryId: string; video: GalleryVideo | null } | null>(null);
+    useEffect(() => {
+        if (!wantsGalleryVideo || !shownGalleryId) return;
+        let cancelled = false;
+        void getGalleryVideo(shownGalleryId).then(video => {
+            if (!cancelled) setLoadedGalleryVideo({ galleryId: shownGalleryId, video });
+        });
+        return () => { cancelled = true; };
+    }, [wantsGalleryVideo, shownGalleryId, shownGallery?.galleryVideoId]);
+    const galleryVideo = wantsGalleryVideo && loadedGalleryVideo?.galleryId === shownGalleryId ? loadedGalleryVideo.video : null;
 
     const transformPhotos = (databasePhotos: DatabasePhoto[]) => databasePhotos.map(p => ({
         id: p.id,
@@ -613,6 +631,7 @@ function EventPageContent() {
                         videoCountLabel={displayedVideoCount}
                         activeTab={galleryMediaTab}
                         onTabChange={setGalleryMediaTab}
+                        video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
                     />
                 ) : (
                     <>

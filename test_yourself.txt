@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 103
+Next test number: 104
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2463,6 +2463,34 @@ How to test:
   7. Phone: crest, title, Back and Share on one row, the plaque below, then the switch; nothing cut off.
   8. Open a gallery in another theme: its section looks exactly as before.
   No gallery video shows yet: that comes with the "Gallery video" host setting (next step).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#103 Gallery video: host picks a video, guests see it at the top of the gallery
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     Hosts can choose one of a gallery's own videos (e.g. the photographer's summary film) as its "gallery video".
+           In Royal Emerald it plays in a gold frame at the top of that gallery's photo section. Needs the database
+           change supabase/migrations/20261022000000_gallery_video.sql applied first.
+How to test:
+  1. Host page -> a Royal Emerald event -> a gallery's Videos -> a processed video -> "..." (Video actions) ->
+     "Use as gallery video". Expect: a success message, and the video's tile shows a gold "Gallery video" badge.
+  2. Open that gallery's guest page and press Explore Gallery. Expect: under the gold title, a wide gold-framed
+     video with a gold play button; pressing it plays the video in the frame.
+  3. Do the same for an album (e.g. Haldi) with a different video: each page shows its own video.
+  4. As a guest (approved member), and logged out on a public gallery: the video shows too. Logged out on a
+     private gallery: no video.
+  5. Video actions -> "Remove as gallery video": the badge goes and the guest page shows no video frame.
+  6. Choose it again, then hide the video from guests (eye button): the guest page shows no video; show it again
+     and it's back. Delete the video: the guest page shows no video and nothing breaks.
+  7. A gallery in another theme with a gallery video chosen: its guest page looks exactly as before (no video yet).
 Done by:
 Device / browser:
 Build / version:

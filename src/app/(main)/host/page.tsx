@@ -25,6 +25,7 @@ import {
     LayoutDashboard,
     Eye,
     EyeOff,
+    Clapperboard,
     Settings,
     ShieldCheck,
     LogOut,
@@ -108,6 +109,7 @@ import {
 	    openGallery,
 	    movePhotosToGallery,
 	    setGalleryHidden,
+	    setGalleryVideo,
 	    setMediaHidden,
 	    mergeHomeMedia,
 	getDashboardEventStats,
@@ -1985,6 +1987,33 @@ function DashboardContent() {
         } else {
             setMessage(result.error || "Couldn't update the gallery.");
             setStatus("error");
+        }
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
+    };
+
+    // The gallery a photo or video was uploaded to: the event itself or one of its albums (older uploads may use a legacy id)
+    const galleryOfMedia = (media: Photo): Event | undefined => {
+        const galleries = [...eventDetailGalleries, ...(selectedMainEvent ? [selectedMainEvent] : []), ...userEvents];
+        return galleries.find(gallery => gallery.id === media.eventId || (!!gallery.legacyId && gallery.legacyId === media.eventId));
+    };
+
+    // Plays one of a gallery's own videos at the top of its guest page (designs that show a gallery video), or clears it
+    const handleSetGalleryVideo = async (video: Photo, use: boolean) => {
+        const gallery = galleryOfMedia(video);
+        if (!gallery) {
+            setMessage("Couldn't find this video's gallery. Refresh the page and try again.");
+            setStatus("error");
+        } else {
+            const videoId = use ? video.id : null;
+            const result = await setGalleryVideo(gallery.id, videoId);
+            if (result.success) {
+                syncEventFields(gallery.id, { galleryVideoId: videoId });
+                setMessage(use ? `This video now plays at the top of "${gallery.title}".` : `"${gallery.title}" no longer has a gallery video.`);
+                setStatus("success");
+            } else {
+                setMessage(result.error || "Couldn't update the gallery video.");
+                setStatus("error");
+            }
         }
         setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
     };
@@ -5631,6 +5660,12 @@ function DashboardContent() {
                                                                 shouldBlurMediaForPlan={shouldBlurMediaForPlan} onThumbnailLoaded={handleThumbnailLoaded}
                                                             />
                                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                            {isVideo && galleryOfMedia(photo)?.galleryVideoId === photo.id && (
+                                                                <span className="pointer-events-none absolute left-2.5 top-2.5 z-[1] flex items-center gap-1 rounded-full border border-[#CA9C68]/60 bg-slate-950/80 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#F5E7D4] backdrop-blur-sm">
+                                                                    <Clapperboard className="h-3 w-3 text-[#CA9C68]" aria-hidden="true" />
+                                                                    Gallery video
+                                                                </span>
+                                                            )}
                                                             {photo.isHidden && (
                                                                 <>
                                                                     <div className="pointer-events-none absolute inset-0 bg-slate-950/55" />
@@ -6697,7 +6732,12 @@ function DashboardContent() {
                     }}
                 />
 
-                {videoActionItem && <VideoThumbnailActions ready={videoActionItem.status === "processed"} onClose={() => setVideoActionItem(null)} onChoose={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} onDelete={() => { void handleDeletePhoto(videoActionItem.id); setVideoActionItem(null); }} onMove={canMoveMedia ? () => { setMediaToMove([videoActionItem]); setVideoActionItem(null); } : undefined} onSaveToVault={() => { setMediaToSave([videoActionItem]); setVideoActionItem(null); }} />}
+                {videoActionItem && <VideoThumbnailActions ready={videoActionItem.status === "processed"} galleryVideo={(() => {
+                    const gallery = galleryOfMedia(videoActionItem);
+                    if (!gallery) return undefined;
+                    const isCurrent = gallery.galleryVideoId === videoActionItem.id;
+                    return { isCurrent, galleryTitle: gallery.title, isHidden: !!videoActionItem.isHidden, onToggle: () => { void handleSetGalleryVideo(videoActionItem, !isCurrent); setVideoActionItem(null); } };
+                })()} onClose={() => setVideoActionItem(null)} onChoose={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} onDelete={() => { void handleDeletePhoto(videoActionItem.id); setVideoActionItem(null); }} onMove={canMoveMedia ? () => { setMediaToMove([videoActionItem]); setVideoActionItem(null); } : undefined} onSaveToVault={() => { setMediaToSave([videoActionItem]); setVideoActionItem(null); }} />}
                 {mediaToSave && (
                     <FolderPickerDialog
                         title={`Save ${mediaToSave.length === 1 ? "1 item" : `${mediaToSave.length} items`} to EB Vault`}
