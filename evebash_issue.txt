@@ -419,13 +419,14 @@ How to reproduce: Host -> a gallery -> upload 20 photos -> click Dashboard in th
 Listed: 2026-10-21
 Platform: Both
 Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: Decision: QStash pay-as-you-go, or one message per upload batch
+Status: Blocked
+Owner: Sarthak (decision)
+Blocked by: Payment card on the Upstash account (to be added soon)
 Found in: Photo pipeline v2 website test (#77), 2026-10-19
 Issue: Photos take 2-7 minutes to appear once more than 1,000 are uploaded in a day (UTC). The backend sends one QStash message per photo (publishFastMediaTask in apps/backend/src/routes/media.ts), and our QStash plan allows 1,000 messages a day. After that, QStash refuses with 429 "daily ratelimit 1000 exceeded" (seen in the staging backend's Railway logs 2026-10-19; 1,199 messages were sent that UTC day). Photos are then only picked up by the 5-minute maintenance job on Modal (dispatch_outbox_jobs / sweep_stuck_jobs), and that job always uses the old photo workers, even for galleries on photo pipeline v2. Nothing is lost, but uploads look slow and cost more. One wedding can pass 1,000 photos. Fix options: (1) move QStash to pay-as-you-go ($1 per 100,000 messages), a setting in the Upstash account; (2) send one message per upload batch instead of per photo (Modal's generate_photo_preview already accepts {"photos": [...]}), which cuts messages ~99% (backend change, flag-gated).
 Also (2026-10-22): RAW camera files only work on PhotoProcessorV2 (#80), so a RAW photo picked up by the maintenance job fails; fixing this issue (or making the job use v2) closes that gap.
 How to reproduce: Upload more than 1,000 photos in one UTC day (or after others have), then upload 1 more: it shows up only after the next 5-minute maintenance run, and Railway logs show "QStash publish failed with status 429".
+Decision 2026-10-22 (Sarthak): go with option (1), QStash pay-as-you-go, once a card is added to Upstash. No code change needed. After the switch, check the next >1,000-photo day for no 429s (Railway logs) and that RAW photos still process.
 
 #81
 Listed: 2026-10-22
