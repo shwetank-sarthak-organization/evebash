@@ -214,20 +214,18 @@ export function RoyalScreenCorner({ className }: { className?: string }) {
 const FRAME_SIDES = ["t", "b", "l", "r"] as const;
 const FRAME_CORNERS = ["tl", "tr", "bl", "br"] as const;
 
-/** Rectangular filigree frame. It takes the size of its box, so it fits portrait, landscape and square photos. */
+/** Rectangular filigree frame. The lace bands tile, so the frame works at any size and shape its box is given. */
 export function RoyalFiligreeFrame({
     children,
     className,
     style,
-    shape,
 }: {
     children: React.ReactNode;
     className?: string;
     style?: React.CSSProperties;
-    shape?: "portrait" | "landscape" | "square";
 }) {
     return (
-        <div className={cn("royal-frame", className)} style={style} data-shape={shape}>
+        <div className={cn("royal-frame", className)} style={style}>
             <svg className="royal-frame__lace" aria-hidden="true" focusable="false">
                 <g filter="url(#re-emboss)">
                     <rect x="0" y="0" width="100%" height="30" fill="url(#re-lace-h)" />

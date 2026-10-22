@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Image from "next/image";
 import { Event } from "@/lib/database";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,6 @@ interface TemplateRoyalProps {
 }
 
 const DEFAULT_HERO_IMAGE = "/royal_emerald_palace_hero.jpg";
-const PORTRAIT_RATIO = 4 / 5;
 const SCREEN_CORNERS = ["tl", "tr", "bl", "br"] as const;
 
 /** "Yashvardhan & Gayatri" -> ["Yashvardhan", "Gayatri"]; any other title -> null */
@@ -53,7 +52,8 @@ function nameSizeClass(longest: number, isCouple: boolean) {
     return undefined;
 }
 
-/** Applies the host's cover settings (focus point, zoom, fit), as the dashboard cards do */
+/** Applies the host's cover settings (focus point, zoom, fit), as the dashboard cards do.
+ *  The frame is always portrait, so the focus point decides which part of a landscape cover shows. */
 function coverImageStyle(event: Event): React.CSSProperties {
     if (event.coverMode === "fit") return { objectFit: "contain" };
     const x = Math.max(0, Math.min(100, 50 + (event.coverOffsetX || 0)));
@@ -70,11 +70,6 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
     const initials = couple ? [initialOf(couple[0]), initialOf(couple[1])] as [string, string] : null;
     const sealInitials = initials && initials[0] && initials[1] ? initials : null;
     const longestName = couple ? Math.max(couple[0].length, couple[1].length) : title.length;
-
-    // The frame follows the cover photo's shape (between 3:4 and 3:2), so less of the photo is cropped
-    const [photo, setPhoto] = useState<{ src: string; ratio: number } | null>(null);
-    const photoRatio = photo?.src === heroImageSrc ? photo.ratio : PORTRAIT_RATIO;
-    const frameShape = photoRatio >= 1.15 ? "landscape" : photoRatio >= 0.9 ? "square" : "portrait";
 
     const scrollToContent = () => {
         document.getElementById("royal-collection-section")?.scrollIntoView({ behavior: "smooth" });
@@ -123,19 +118,14 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
                     <RoyalDivider className="royal-hero__divider" />
 
                     <div className="royal-hero__frame-col">
-                        <RoyalFiligreeFrame shape={frameShape} style={{ "--royal-photo-ratio": photoRatio } as React.CSSProperties}>
+                        <RoyalFiligreeFrame>
                             <Image
                                 src={heroImageSrc}
                                 alt={title || "Cover photo"}
                                 fill
                                 priority
-                                sizes="(max-width: 879px) 86vw, 500px"
+                                sizes="(max-width: 879px) 88vw, 520px"
                                 style={coverImageStyle(event)}
-                                onLoad={(loaded) => {
-                                    const { naturalWidth, naturalHeight } = loaded.currentTarget;
-                                    if (!naturalWidth || !naturalHeight) return;
-                                    setPhoto({ src: heroImageSrc, ratio: Math.min(1.5, Math.max(0.75, naturalWidth / naturalHeight)) });
-                                }}
                             />
                         </RoyalFiligreeFrame>
                     </div>
