@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
 import { getWebTemplateComponent } from "@/components/templateRegistry";
 import { RoyalGalleryHeader } from "@/components/royal/RoyalGalleryHeader";
+import { GalleryHighlightVideo } from "@/components/GalleryHighlightVideo";
 import { getWebLightboxTheme, getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { supabase } from "@/lib/supabase";
 import { uploadEventImage } from "@/lib/storage";
@@ -187,13 +188,12 @@ function EventPageContent() {
         return () => { void supabase.removeChannel(channel); };
     }, [event?.id, event?.parentId, canUseRealtime]);
 
-    // The video the host chose for the gallery on screen (host page > Video actions > "Use as gallery video"),
-    // shown by designs that have a place for it (Royal Emerald for now)
+    // The cinematic highlight video the host chose for the gallery on screen (host page > Cinematic Highlight Video),
+    // shown at the top of the gallery in every theme
     const shownGallery: Event | null = activeGallery || event;
     const shownGalleryId = shownGallery?.id as string | undefined;
-    const showsGalleryVideo = (shownGallery?.templateId || event?.templateId) === "royal";
     // null: the gallery's row says it has none; undefined: not known (read-only public view), so ask
-    const wantsGalleryVideo = !!shownGalleryId && showsGalleryVideo && shownGallery?.galleryVideoId !== null;
+    const wantsGalleryVideo = !!shownGalleryId && shownGallery?.galleryVideoId !== null;
     const [loadedGalleryVideo, setLoadedGalleryVideo] = useState<{ galleryId: string; video: GalleryVideo | null } | null>(null);
     useEffect(() => {
         if (!wantsGalleryVideo || !shownGalleryId) return;
@@ -644,6 +644,13 @@ function EventPageContent() {
                             <p className="mx-auto mt-5 max-w-3xl text-center font-sans text-sm font-semibold leading-7 text-stone-600 md:text-base">
                                 {activeGalleryMessage}
                             </p>
+                        )}
+
+                        {galleryVideo && (
+                            <GalleryHighlightVideo
+                                video={{ src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl }}
+                                title={activeGallery ? activeGalleryTitle : "Home Gallery"}
+                            />
                         )}
                     </>
                 )}

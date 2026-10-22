@@ -2472,7 +2472,7 @@ Screenshot / recording:
 Fix ref:
 Feedback:
 
-#103 Gallery video: host picks a video, guests see it at the top of the gallery
+#103 Cinematic highlight video ("gallery video"): host picks a video, guests see it at the top of the gallery
 Status:    TODO
 Priority:  Medium
 Platform:  Website
@@ -2481,17 +2481,19 @@ Brief:     Hosts can choose one of a gallery's own videos (e.g. the photographer
            change supabase/migrations/20261022000000_gallery_video.sql applied first.
 How to test:
   1. Host page -> a Royal Emerald event -> a gallery's Videos -> a processed video -> "..." (Video actions) ->
-     "Use as gallery video". Expect: a success message, and the video's tile shows a gold "Gallery video" badge.
+     "Use as cinematic highlight video". Expect: a success message, and the video's tile shows a gold "Cinematic highlight" badge.
   2. Open that gallery's guest page and press Explore Gallery. Expect: under the gold title, a wide gold-framed
      video with a gold play button; pressing it plays the video in the frame.
   3. Do the same for an album (e.g. Haldi) with a different video: each page shows its own video.
   4. As a guest (approved member), and logged out on a public gallery: the video shows too. Logged out on a
      private gallery: no video.
-  5. Video actions -> "Remove as gallery video": the badge goes and the guest page shows no video frame.
+  5. Video actions -> "Remove as cinematic highlight video": the badge goes and the guest page shows no video frame.
   6. Choose it again, then hide the video from guests (eye button): the guest page shows no video; show it again
      and it's back. Delete the video: the guest page shows no video and nothing breaks.
-  7. A gallery in another theme with a gallery video chosen: its guest page looks exactly as before (no video yet).
-  8. Host page -> a gallery -> under Welcome Message, the "Gallery Video" panel: "Upload video" a new video. Expect:
+  7. Other themes (e.g. Hero, Classic, Pastel): choose a video for a main gallery and an album. Expect: under the
+     gallery title and welcome message, a wide video in the theme's colours with a play button; galleries without
+     one look exactly as before.
+  8. Host page -> a gallery -> under Welcome Message, the "Cinematic Highlight Video" panel: "Upload video" a new video. Expect:
      it uploads into that gallery's Videos, becomes the gallery video (panel shows it as "Processing"), and once
      processed the panel shows its thumbnail with a play button and the guest page plays it.
   9. Same panel: "Choose from this gallery's videos" lists only that gallery's videos; picking one makes it the

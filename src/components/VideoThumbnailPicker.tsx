@@ -118,14 +118,14 @@ export function VideoThumbnailActions({ ready, galleryVideo, onClose, onChoose, 
     <button type="button" disabled={!ready} onClick={onChoose} className={cn(modalStyles.primary, 'w-full')}>Change thumbnail</button>
     {!ready && <p className={cn(modalStyles.body, 'mt-2')}>Available after video processing finishes.</p>}
     {galleryVideo && <>
-      {/* The video that plays at the top of its gallery's guest page, in designs that show one (Royal Emerald for now) */}
+      {/* The cinematic highlight video: plays at the top of its gallery's guest page, in every theme */}
       <button type="button" disabled={!ready && !galleryVideo.isCurrent} onClick={galleryVideo.onToggle} className={cn(modalStyles.secondary, 'mt-3 w-full border-[#CA9C68]/50 text-[#F5E7D4]')}>
-        {galleryVideo.isCurrent ? 'Remove as gallery video' : 'Use as gallery video'}
+        {galleryVideo.isCurrent ? 'Remove as cinematic highlight video' : 'Use as cinematic highlight video'}
       </button>
       <p className={cn(modalStyles.body, 'mt-2')}>
         {galleryVideo.isCurrent
           ? `Plays at the top of "${galleryVideo.galleryTitle}" for guests.`
-          : `Plays at the top of "${galleryVideo.galleryTitle}" for guests, in designs that show a gallery video (Royal Emerald for now).`}
+          : `Plays at the top of "${galleryVideo.galleryTitle}" for guests.`}
         {galleryVideo.isHidden && " This video is hidden from guests, so it won't show until you show it again."}
       </p>
     </>}
