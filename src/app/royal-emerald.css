@@ -335,8 +335,6 @@
   left: 12px;
   right: 12px;
   z-index: 50;
-  max-width: 1040px;
-  margin-inline: auto;
   padding: 7px 8px 7px 26px;
   border: 1px solid #ca9c6966;
   border-radius: 999px;
@@ -348,13 +346,12 @@
   transition: top .35s ease, left .35s ease, right .35s ease;
 }
 /* At the top of the page the bar sits between the two top corners, like the invitation layout;
-   once the guest scrolls it moves up to the top edge */
+   once the guest scrolls it moves up to the top edge and fills the width (12px from each side) */
 @media (min-width: 880px) {
   .royal-nav:not(.royal-nav--scrolled) {
     top: calc(24px + var(--royal-corner) * .24);
     left: calc(28px + var(--royal-corner));
     right: calc(28px + var(--royal-corner));
-    max-width: none;
   }
 }
 .royal-nav__title {
