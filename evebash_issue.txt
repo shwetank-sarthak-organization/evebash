@@ -560,7 +560,7 @@ Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it pa
 Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: The Royal Emerald hero crops images badly. The default palace image (public/royal_emerald_palace_hero.jpg) is landscape 1376x768 and 1 MB, shown in a portrait 4:5 frame, so most of it is cut off. Host cover photos are always cropped from the centre with no way to pick the focus point (src/components/TemplateRoyal.tsx). Related: #64.
 How to reproduce: Open a Royal Emerald gallery with no cover photo: the palace image is cut down to a narrow middle strip.
-Update 2026-10-22: partly fixed. The rectangular gold frame now follows the cover photo's shape (between 3:4 and 3:2) and applies the host's cover focus point, zoom and fit, so far less is cut off; the default palace image now shows almost whole. next/image already serves it resized. Move to fixed with #101.
+Update 2026-10-22: the hero now applies the host's cover focus point, zoom and fit (Host page cover position), so the host picks which part shows. Decision (Sarthak, 2026-10-22): the gold frame stays portrait (4:5) for every cover, so landscape covers are cropped to portrait around that focus point; the default palace image crops to its centred doorway. next/image already serves it resized. Move to fixed with #101.
 
 #92
 Listed: 2026-10-22

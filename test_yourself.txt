@@ -2424,7 +2424,10 @@ How to test:
      fleur-de-lis, no "The Wedding of".
   7. Rename a test gallery to something long (e.g. "Rajyalakshmi & Venkatanarayanaswamy"): the names get
      smaller and no word is split across lines.
-  8. Try a landscape cover photo: the frame becomes wider instead of cutting the photo into a tall shape.
+  8. Try a landscape cover photo: the frame stays portrait and shows the part chosen with the host page's cover
+     position (focus point); change the focus point and check the guest page follows it.
+  9. On a laptop, the card and the framed photo sit in the middle between the top and bottom gold corners,
+     and the corners, card, photo and button all fit on one screen (also on a small laptop, e.g. 1366x768).
 Done by:
 Device / browser:
 Build / version:
