@@ -427,7 +427,7 @@ Issue: Photos take 2-7 minutes to appear once more than 1,000 are uploaded in a 
 Also (2026-10-22): RAW camera files only work on PhotoProcessorV2 (#80), so a RAW photo picked up by the maintenance job fails; fixing this issue (or making the job use v2) closes that gap.
 How to reproduce: Upload more than 1,000 photos in one UTC day (or after others have), then upload 1 more: it shows up only after the next 5-minute maintenance run, and Railway logs show "QStash publish failed with status 429".
 Decision 2026-10-22 (Sarthak): go with option (1), QStash pay-as-you-go, once a card is added to Upstash. No code change needed. After the switch, check the next >1,000-photo day for no 429s (Railway logs) and that RAW photos still process.
-2026-10-23: card added to the Upstash account (Sarthak). Once the plan shows Pay as you go, check the next >1,000-photo UTC day: no "daily ratelimit" 429s in Railway logs, photos and RAW files processed by v2 (scripts/photo_v2_health.py: QStash msgs over 1,000 with 0 photos on v1). Then move to RECENTLY FIXED.
+2026-10-22: card added to the Upstash account (Sarthak). Once the plan shows Pay as you go, check the next >1,000-photo UTC day: no "daily ratelimit" 429s in Railway logs, photos and RAW files processed by v2 (scripts/photo_v2_health.py: QStash msgs over 1,000 with 0 photos on v1). Then move to RECENTLY FIXED.
 
 #81
 Listed: 2026-10-22
