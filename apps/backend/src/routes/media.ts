@@ -454,6 +454,11 @@ async function deleteB2Prefix(auth: BackblazeAuth, bucketId: string, prefix: str
   }
 }
 
+// Issue #76: deleting a video also deletes its streaming copy under hls/<storage_key>/. Off until switched on.
+function isVideoStreamDeleteOn() {
+  return process.env.DELETE_VIDEO_STREAM_ON_DELETE?.trim().toLowerCase() === "true";
+}
+
 async function rollbackB2Upload(storageKey: string, resourceType: string) {
   const backblazeAuth = await getCachedBackblazeAuth();
   const bucketId = requireEnv("B2_BUCKET_ID");
@@ -1548,11 +1553,14 @@ mediaRouter.post("/delete", asyncRoute(async (request, response) => {
 
   const backblazeAuth = await getCachedBackblazeAuth();
   const bucketId = requireEnv("B2_BUCKET_ID");
+  const deleteStreamingCopy = isVideoStreamDeleteOn() && Boolean(savedPhoto.storage_key) && savedPhoto.media_type === "video";
   await Promise.all([
     deleteB2File(backblazeAuth, bucketId, savedPhoto.storage_key),
     deleteB2File(backblazeAuth, bucketId, `${savedPhoto.storage_key}-thumbnail.webp`),
     deleteB2File(backblazeAuth, bucketId, `${savedPhoto.storage_key}-preview.webp`),
     deleteB2Prefix(backblazeAuth, bucketId, `${savedPhoto.storage_key}-hls/`),
+    // The streaming copy Modal makes (playlists, segments, poster), as the admin delete already does
+    ...(deleteStreamingCopy ? [deleteB2Prefix(backblazeAuth, bucketId, `hls/${savedPhoto.storage_key}/`)] : []),
   ]);
 
   await supabaseAdmin.from("photo_faces").delete().eq("photo_id", savedPhoto.id);
