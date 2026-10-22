@@ -45,9 +45,9 @@ insert into public.guests (id, name, phone, event_id, status, can_admin, can_upl
 
 insert into public.likes (photo_id, user_id) values ('step3-p1', '33333333-3333-4333-8333-333333333333');
 insert into public.comments (photo_id, user_id, text) values ('step3-p1', '33333333-3333-4333-8333-333333333333', 'step3 comment');
-insert into public.faces (image_id, descriptor, event_id, image_url, width, height) values ('step3-p1', '{0.1,0.2,0.3}', 'step3-private', 'https://m.test/step3/p1-preview.webp', 100, 100);
+insert into public.faces (image_id, descriptor, event_id, image_url, width, height) values ('step3-p1', array_fill(0.04419417::float8, array[512])::public.vector(512)::public.halfvec(512), 'step3-private', 'https://m.test/step3/p1-preview.webp', 100, 100);
 insert into public.event_favourite_photos (event_id, photo_id, marked_by) values ('step3-private', 'step3-p1', '11111111-1111-4111-8111-111111111111');
-insert into public.faces (image_id, descriptor, event_id, image_url, width, height) values ('step3-p2s', '{0.4}', 'step3-public-sub', 'https://m.test/step3/p2s-preview.webp', 100, 100);
+insert into public.faces (image_id, descriptor, event_id, image_url, width, height) values ('step3-p2s', array_fill(0.04419417::float8, array[512])::public.vector(512)::public.halfvec(512), 'step3-public-sub', 'https://m.test/step3/p2s-preview.webp', 100, 100);
 
 -- Added 2026-10-07 for get_public_gallery_media: cover uploads and uploading rows are left out; a top-level gallery's
 -- Home tab shows the host's favourites from its family (a stray favourite of another gallery's photo must not leak)

@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 98
+Next issue number: 101
 
 =====================================================================
 ACTIVE ISSUES
@@ -627,6 +627,18 @@ Blocked by: -
 Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: The website and app Royal Emerald are two different designs. The website is a split hero (text left, framed image right, Explore Gallery) in src/components/TemplateRoyal.tsx; the app is a full-screen cover photo with the title in the middle, MY PHOTOS and "Delivered by EveBash" (apps/mobile/app/events/[id].tsx, royalHeroOverlay). A guest sees a different page on each.
 How to reproduce: Open the same Royal Emerald gallery on the website and in the app.
+
+#100
+Listed: 2026-10-22
+Platform: Both
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Sarthak's OK for the dry run, then for applying it (staging and production share this database)
+Found in: Photo cost review (#77 follow-up)
+Issue: Face data takes more database space than it needs. faces.descriptor stores each face's 512 numbers as float8[] (8 bytes each): 32,122 faces = 115 MB of the 148 MB database (2026-10-22), growing ~6.5 faces per photo. Measured with temporary copies: halfvec(512) (2 bytes each) = 51 MB (-55%); vector(512) = 98 MB (-15% only, still too big to fit in the row). Find You with halfvec, 300 real faces searched against their galleries: 75,403 photo checks, 6,532 matches either way, 0 results changed, largest score change 0.00009 (threshold 0.40).
+Plan: supabase/migrations/20261022010000_faces_halfvec.sql changes the column and, in the same transaction, replace_photo_faces (photo workers) and match_faces (Find You); no app, backend or Modal change needed. Dry run first (docs/database/faces-halfvec-dryrun.py: applies it in a transaction that always rolls back, re-runs 20 Find You searches before/after, re-saves one photo's faces, checks the REST insert format). Rollback: docs/database/faces-halfvec-rollback.sql. The column change rewrites the table and locks it for a few seconds (face saves and Find You wait).
+How to reproduce: select pg_size_pretty(pg_total_relation_size('public.faces')), avg(pg_column_size(descriptor)) from public.faces;
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
