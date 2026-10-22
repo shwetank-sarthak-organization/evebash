@@ -2328,6 +2328,27 @@ export async function setGalleryVideo(galleryId: string, videoId: string | null)
     };
 }
 
+/**
+ * A gallery's own videos, newest first, for the host's "Gallery video" chooser (includes hidden and still-processing
+ * ones, so the host sees everything they uploaded). Older uploads may be stored under the gallery's legacy id.
+ */
+export async function getGalleryVideos(galleryId: string, legacyId?: string): Promise<Photo[]> {
+    const ids = [galleryId, ...(legacyId && legacyId !== galleryId ? [legacyId] : [])];
+    const { data, error } = await supabase
+        .from('photos')
+        .select('*')
+        .in('event_id', ids)
+        .eq('media_type', 'video')
+        .neq('status', 'uploading')
+        .order('uploaded_at', { ascending: false })
+        .limit(200);
+    if (error) {
+        console.warn("[GalleryVideo] Could not load the gallery's videos:", error.message);
+        return [];
+    }
+    return (data || []).map(mapSqlToPhoto);
+}
+
 export interface GalleryVideo {
     id: string;
     /** HLS stream, never the uploaded original */

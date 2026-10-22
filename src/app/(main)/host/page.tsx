@@ -1,6 +1,7 @@
 "use client";
 
 import { VideoThumbnailPicker, VideoThumbnailActions } from "@/components/VideoThumbnailPicker";
+import { GalleryVideoPanel } from "@/components/GalleryVideoPanel";
 import { MoveToGalleryDialog } from "@/components/MoveToGalleryDialog";
 import { FolderPickerDialog } from "@/components/vault/Dialogs";
 import { vaultApi } from "@/lib/vaultApi";
@@ -1998,23 +1999,24 @@ function DashboardContent() {
     };
 
     // Plays one of a gallery's own videos at the top of its guest page (designs that show a gallery video), or clears it
+    const saveGalleryVideo = async (gallery: Event, videoId: string | null) => {
+        const result = await setGalleryVideo(gallery.id, videoId);
+        if (result.success) {
+            syncEventFields(gallery.id, { galleryVideoId: videoId });
+            setMessage(videoId ? `This video now plays at the top of "${gallery.title}".` : `"${gallery.title}" no longer has a gallery video.`);
+            setStatus("success");
+        } else {
+            setMessage(result.error || "Couldn't update the gallery video.");
+            setStatus("error");
+        }
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
+    };
+
     const handleSetGalleryVideo = async (video: Photo, use: boolean) => {
         const gallery = galleryOfMedia(video);
-        if (!gallery) {
-            setMessage("Couldn't find this video's gallery. Refresh the page and try again.");
-            setStatus("error");
-        } else {
-            const videoId = use ? video.id : null;
-            const result = await setGalleryVideo(gallery.id, videoId);
-            if (result.success) {
-                syncEventFields(gallery.id, { galleryVideoId: videoId });
-                setMessage(use ? `This video now plays at the top of "${gallery.title}".` : `"${gallery.title}" no longer has a gallery video.`);
-                setStatus("success");
-            } else {
-                setMessage(result.error || "Couldn't update the gallery video.");
-                setStatus("error");
-            }
-        }
+        if (gallery) return saveGalleryVideo(gallery, use ? video.id : null);
+        setMessage("Couldn't find this video's gallery. Refresh the page and try again.");
+        setStatus("error");
         setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
     };
 
@@ -2291,16 +2293,19 @@ function DashboardContent() {
             setMessage(err instanceof Error ? err.message : "Failed to create event.");
             return false;
         }
-    };    const uploadFiles = async (files: FileList | File[]) => {
-        if (galleryMediaTab === "videos" && !canPostVideos) {
+    };    // options.kind: upload as photos or videos whatever tab is open (the Gallery Video panel uploads videos);
+    // options.onVideoSaved: called with a video's id once its row is saved (it can then become the gallery video)
+    const uploadFiles = async (files: FileList | File[], options?: { kind?: "photos" | "videos"; onVideoSaved?: (videoId: string) => void }) => {
+        const uploadKind = options?.kind ?? galleryMediaTab;
+        if (uploadKind === "videos" && !canPostVideos) {
             setStatus("error"); setMessage("Only the event owner and event admins can upload videos."); return;
         }
-        const expectedPrefix = galleryMediaTab === "videos" ? "video/" : "image/";
+        const expectedPrefix = uploadKind === "videos" ? "video/" : "image/";
         const selectedFiles = Array.from(files).filter(file => file.type.startsWith(expectedPrefix));
         if (selectedFiles.length === 0 || !selectedEventId) return;
 
         const isFreeUploadUser = !user.delegatedBy && (!user.role || user.role === "user" || user.role === "free" || user.role === "freemium");
-        if (galleryMediaTab === "videos" && isFreeUploadUser) {
+        if (uploadKind === "videos" && isFreeUploadUser) {
             const oversizedVideo = selectedFiles.find(file => file.size > FREE_PLAN_VIDEO_LIMIT_BYTES);
             if (oversizedVideo) {
                 setMessage("Free plan videos can be up to 200 MB. Upgrade to upload larger videos.");
@@ -2311,7 +2316,7 @@ function DashboardContent() {
         }
 
         // Pre-upload format validation for video files
-        if (galleryMediaTab === "videos") {
+        if (uploadKind === "videos") {
             for (const file of selectedFiles) {
                 const validation = validateVideoFile(file);
                 if (!validation.valid) {
@@ -2372,7 +2377,7 @@ function DashboardContent() {
         showUploadPanel();
 
         setStatus("uploading");
-        setMessage(`Uploading ${selectedFiles.length} ${galleryMediaTab === "videos" ? "videos" : "images"}...`);
+        setMessage(`Uploading ${selectedFiles.length} ${uploadKind === "videos" ? "videos" : "images"}...`);
         console.log(`[Dashboard] Starting auto-upload for ${selectedFiles.length} files to event ${selectedEventId}`);
 
         try {
@@ -2432,6 +2437,9 @@ function DashboardContent() {
                     }
 
                     if (res.ok) {
+                        itemsToFlush
+                            .filter(item => item.photo.mediaType === "video" || item.photo.resourceType === "video")
+                            .forEach(item => options?.onVideoSaved?.(item.photo.id));
                         // Immediately prepend new photos to grid state (videos stay hidden until backend transcode completes)
                         setCurrentEventPhotos(prev => {
                             const newPhotos = itemsToFlush
@@ -2534,6 +2542,7 @@ function DashboardContent() {
                     ));
 
                     if (uploadResult.videoSavedByBackend) {
+                        options?.onVideoSaved?.(uniqueId);
                         // /upload/chunk/complete already saved the row and queued the transcode. Saving it again via
                         // save-photo-batch would re-upsert the row (clearing its duration) and notify the host twice.
                         // The video processing poll marks it ready or failed.
@@ -2596,7 +2605,7 @@ function DashboardContent() {
             const currentEvent = userEvents.find(ev => ev.id === selectedEventId);
             const isPlaceholder = !currentEvent?.coverImage || PLACEHOLDER_IMAGES.includes(currentEvent.coverImage);
 
-            if (galleryMediaTab === "photos" && isPlaceholder && firstUploadedUrl) {
+            if (uploadKind === "photos" && isPlaceholder && firstUploadedUrl) {
                 console.log("[Dashboard] Replacing placeholder with first uploaded image as cover");
                 await updateEvent(selectedEventId, { coverImage: firstUploadedUrl });
                 syncCoverImageForEvent(selectedEventId, firstUploadedUrl);
@@ -5339,6 +5348,30 @@ function DashboardContent() {
                                                 </button>
                                             </div>
                                         </div>
+                                    )}
+
+                                    {isInlineEventDetailGalleryEditor && activeEventDetailEvent && activeEventDetailEvent.id === selectedEventId && (
+                                        <GalleryVideoPanel
+                                            gallery={activeEventDetailEvent}
+                                            canUpload={canPostVideos}
+                                            onUpload={(file) => {
+                                                const gallery = activeEventDetailEvent;
+                                                // The upload lands in this gallery's Videos and becomes its gallery video once saved
+                                                void uploadFiles([file], { kind: "videos", onVideoSaved: (videoId) => { void saveGalleryVideo(gallery, videoId); } });
+                                            }}
+                                            onChange={(videoId) => saveGalleryVideo(activeEventDetailEvent, videoId)}
+                                            onPlay={(video) => setViewingPhoto({
+                                                id: video.id,
+                                                src: video.url,
+                                                storageKey: video.storageKey,
+                                                width: video.width,
+                                                height: video.height,
+                                                filename: video.storageKey?.split('/').pop() || "video",
+                                                thumbnailUrl: video.thumbnailUrl,
+                                                mediaType: "video",
+                                                resourceType: "video"
+                                            })}
+                                        />
                                     )}
 
                                     <div className="mb-4 flex rounded-2xl border border-slate-700 bg-slate-900/60 p-1.5">

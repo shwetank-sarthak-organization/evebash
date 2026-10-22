@@ -2491,6 +2491,11 @@ How to test:
   6. Choose it again, then hide the video from guests (eye button): the guest page shows no video; show it again
      and it's back. Delete the video: the guest page shows no video and nothing breaks.
   7. A gallery in another theme with a gallery video chosen: its guest page looks exactly as before (no video yet).
+  8. Host page -> a gallery -> under Welcome Message, the "Gallery Video" panel: "Upload video" a new video. Expect:
+     it uploads into that gallery's Videos, becomes the gallery video (panel shows it as "Processing"), and once
+     processed the panel shows its thumbnail with a play button and the guest page plays it.
+  9. Same panel: "Choose from this gallery's videos" lists only that gallery's videos; picking one makes it the
+     gallery video (the tile badge moves to it). "Remove" clears it.
 Done by:
 Device / browser:
 Build / version:
