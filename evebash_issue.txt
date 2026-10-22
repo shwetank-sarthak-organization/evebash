@@ -424,20 +424,8 @@ Owner: Unassigned
 Blocked by: Decision: QStash pay-as-you-go, or one message per upload batch
 Found in: Photo pipeline v2 website test (#77), 2026-10-19
 Issue: Photos take 2-7 minutes to appear once more than 1,000 are uploaded in a day (UTC). The backend sends one QStash message per photo (publishFastMediaTask in apps/backend/src/routes/media.ts), and our QStash plan allows 1,000 messages a day. After that, QStash refuses with 429 "daily ratelimit 1000 exceeded" (seen in the staging backend's Railway logs 2026-10-19; 1,199 messages were sent that UTC day). Photos are then only picked up by the 5-minute maintenance job on Modal (dispatch_outbox_jobs / sweep_stuck_jobs), and that job always uses the old photo workers, even for galleries on photo pipeline v2. Nothing is lost, but uploads look slow and cost more. One wedding can pass 1,000 photos. Fix options: (1) move QStash to pay-as-you-go ($1 per 100,000 messages), a setting in the Upstash account; (2) send one message per upload batch instead of per photo (Modal's generate_photo_preview already accepts {"photos": [...]}), which cuts messages ~99% (backend change, flag-gated).
+Also (2026-10-22): RAW camera files only work on PhotoProcessorV2 (#80), so a RAW photo picked up by the maintenance job fails; fixing this issue (or making the job use v2) closes that gap.
 How to reproduce: Upload more than 1,000 photos in one UTC day (or after others have), then upload 1 more: it shows up only after the next 5-minute maintenance run, and Railway logs show "QStash publish failed with status 429".
-
-#80
-Listed: 2026-10-22
-Platform: Both
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Photo pipeline v2 health check (2026-10-21)
-Issue: RAW camera files never get a preview, thumbnail or faces. 76 photos uploaded on 2026-10-20 (61 Canon .CR3, 15 Sony .ARW, ~32 MB each, in galleries traditional-1-93df, -8-c3cb, -9-40d8, -10-63c8) failed with "cannot identify image file" and used up their 3 attempts, so they show no preview and aren't in Find You. Both photo workers (old process_photo_preview and PhotoProcessorV2 in modal_engine/main.py) open images with Pillow, which can't read RAW. The upload accepts these files and counts them against storage. Photographers often shoot RAW. Fix options: (1) in the worker, read the full-size JPEG preview every RAW file carries (e.g. rawpy/libraw or exiftool) and use it for the preview, thumbnail and faces; (2) or reject .cr3/.cr2/.nef/.arw/.dng at upload with a clear message. Failed photos then need their attempts reset so the maintenance job retries them.
-Decision 2026-10-22 (Sarthak): support RAW; next photo-pipeline task. Plan: in PhotoProcessorV2 only (old workers unchanged), detect RAW by extension/magic bytes and pull out the camera's built-in full-size JPEG with rawpy (LibRaw: CR3, CR2, ARW, NEF, DNG...), then make the preview, thumbnail and faces exactly as for a JPEG; import rawpy only when a RAW arrives so JPEG photos cost and start the same as today. Don't develop the RAW sensor data (3-5x the CPU for no gain). Estimated Modal cost for RAW: ~+0.5 s and +5-20% per photo (about +₹1-4 per 1,000); the main cost is B2 storage (~3x per photo). Test first on copies of a few of the 76 failed files (read-only, test app), compare JPEG cost before/after, then reset media_attempt on the 76 so the maintenance job reprocesses them.
-Progress 2026-10-22: built in PhotoProcessorV2 (modal_engine/main.py: _open_raw_photo, RAW_EXTENSIONS; v2 uses photo_v2_image = image + rawpy 0.27.1, old workers keep their image). Tested in a temporary Modal app with a fake database and B2: all 76 failed files open (61 CR3 6000x4000, 15 ARW 7008x4672; 7 portrait ones come out upright); 4 copies went through the whole v2 flow in 1.7-2.4 s with 5-19 faces each, peak memory 1.4 GB of 2 GB; 12 JPEGs gave byte-identical previews, thumbnails and faces to the current v2 at the same speed. Test copies deleted. Not deployed yet. Note: the 5-minute maintenance job still uses the old workers, so resetting media_attempt alone would fail the 76 again; after the deploy they must be sent to PhotoProcessorV2 directly (and a RAW photo that falls to the maintenance job on a day over the QStash limit, #79, still fails until the job uses v2). Device test: #107.
-How to reproduce: Upload a .CR3 or .ARW file to any gallery: it never shows a preview; photos.media_status = failed, processing_error "cannot identify image file", media_attempt 3.
 
 #81
 Listed: 2026-10-22
@@ -641,6 +629,20 @@ How to reproduce: Open the same Royal Emerald gallery on the website and in the 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#80
+Listed: 2026-10-22
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Photo pipeline v2 health check (2026-10-21)
+Issue: RAW camera files never get a preview, thumbnail or faces. 76 photos uploaded on 2026-10-20 (61 Canon .CR3, 15 Sony .ARW, ~32 MB each, in galleries traditional-1-93df, -8-c3cb, -9-40d8, -10-63c8) failed with "cannot identify image file" and used up their 3 attempts, so they show no preview and aren't in Find You. Both photo workers (old process_photo_preview and PhotoProcessorV2 in modal_engine/main.py) open images with Pillow, which can't read RAW. The upload accepts these files and counts them against storage. Photographers often shoot RAW. Fix options: (1) in the worker, read the full-size JPEG preview every RAW file carries (e.g. rawpy/libraw or exiftool) and use it for the preview, thumbnail and faces; (2) or reject .cr3/.cr2/.nef/.arw/.dng at upload with a clear message. Failed photos then need their attempts reset so the maintenance job retries them.
+Decision 2026-10-22 (Sarthak): support RAW; next photo-pipeline task. Plan: in PhotoProcessorV2 only (old workers unchanged), detect RAW by extension/magic bytes and pull out the camera's built-in full-size JPEG with rawpy (LibRaw: CR3, CR2, ARW, NEF, DNG...), then make the preview, thumbnail and faces exactly as for a JPEG; import rawpy only when a RAW arrives so JPEG photos cost and start the same as today. Don't develop the RAW sensor data (3-5x the CPU for no gain). Estimated Modal cost for RAW: ~+0.5 s and +5-20% per photo (about +₹1-4 per 1,000); the main cost is B2 storage (~3x per photo). Test first on copies of a few of the 76 failed files (read-only, test app), compare JPEG cost before/after, then reset media_attempt on the 76 so the maintenance job reprocesses them.
+Progress 2026-10-22: built in PhotoProcessorV2 (modal_engine/main.py: _open_raw_photo, RAW_EXTENSIONS; v2 uses photo_v2_image = image + rawpy 0.27.1, old workers keep their image). Tested in a temporary Modal app with a fake database and B2: all 76 failed files open (61 CR3 6000x4000, 15 ARW 7008x4672; 7 portrait ones come out upright); 4 copies went through the whole v2 flow in 1.7-2.4 s with 5-19 faces each, peak memory 1.4 GB of 2 GB; 12 JPEGs gave byte-identical previews, thumbnails and faces to the current v2 at the same speed. Test copies deleted. Not deployed yet. Note: the 5-minute maintenance job still uses the old workers, so resetting media_attempt alone would fail the 76 again; after the deploy they must be sent to PhotoProcessorV2 directly (and a RAW photo that falls to the maintenance job on a day over the QStash limit, #79, still fails until the job uses v2). Device test: #107.
+How to reproduce: Upload a .CR3 or .ARW file to any gallery: it never shows a preview; photos.media_status = failed, processing_error "cannot identify image file", media_attempt 3.
+Fixed in: 5a3b95a (2026-10-22), Modal v120 (15:27 IST). The 76 failed RAW photos were reset and sent straight to PhotoProcessorV2: all 76 ready and indexed on the first try, 633 faces, 7 portrait ones stored upright. Device check: test_yourself #107. Remaining gap: on a day over the QStash limit a RAW photo can fall to the 5-minute maintenance job, which still uses the old workers and fails it (tracked in #79).
 
 #75
 Listed: 2026-10-13
