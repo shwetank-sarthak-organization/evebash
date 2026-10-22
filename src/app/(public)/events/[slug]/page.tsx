@@ -11,7 +11,7 @@ import { getEvent } from "@/lib/events"; // Static Data
 import { getEventPhotosPaginated, getEventById, getSubEvents, visibleGalleries, mergeHomeMedia, Event, Photo as DatabasePhoto, getFavouritePhotosForEvents, getEventFavouritePhotos, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, getGalleryVideo, type GalleryVideo } from "@/lib/database"; // Live Data
 import { useAuth } from "@/context/AuthContext";
 import { promptLogin } from "@/components/ui/LoginPrompt";
-import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check, Star, Layers3, Lock, Clock, Upload } from "lucide-react";
+import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check, Star, Lock, Clock, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
@@ -102,7 +102,6 @@ function EventPageContent() {
     const [galleryMediaTab, setGalleryMediaTab] = useState<"photos" | "videos">("photos");
     const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
     const [favouriteMediaIds, setFavouriteMediaIds] = useState<Set<string>>(new Set());
-    const [sourceGalleryFilter, setSourceGalleryFilter] = useState("all");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
@@ -523,28 +522,10 @@ function EventPageContent() {
     const videoItems = photos.filter(photo => photo.mediaType === "video" || photo.resourceType === "video");
     const selectedMediaItems = galleryMediaTab === "videos" ? videoItems : photoItems;
     const isPrimaryGalleryView = !activeGallery;
-    const sourceGalleryOptions = [event, ...subEvents]
-        .filter((gallery): gallery is Event => !!gallery)
-        .map(gallery => ({
-            id: gallery.id,
-            label: gallery.id === event.id ? "Home (Primary Gallery)" : gallery.title,
-            legacyId: gallery.legacyId,
-            count: selectedMediaItems.filter(photo => photo.eventId === gallery.id || (!!gallery.legacyId && photo.eventId === gallery.legacyId)).length,
-        }))
-        .filter(option => option.count > 0);
-    const effectiveSourceGalleryFilter = sourceGalleryOptions.some(option => option.id === sourceGalleryFilter)
-        ? sourceGalleryFilter
-        : "all";
     const isFavouriteFilterActive = !isPrimaryGalleryView && !isPublicView && showOnlyFavourites;
-    const sourceFilteredMediaItems = isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all"
-        ? selectedMediaItems.filter(photo => {
-            const source = sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter);
-            return photo.eventId === source?.id || (!!source?.legacyId && photo.eventId === source.legacyId);
-        })
-        : selectedMediaItems;
     const activeGalleryItems = isFavouriteFilterActive
-        ? sourceFilteredMediaItems.filter(photo => favouriteMediaIds.has(photo.id))
-        : sourceFilteredMediaItems;
+        ? selectedMediaItems.filter(photo => favouriteMediaIds.has(photo.id))
+        : selectedMediaItems;
     const activeFavouriteCount = selectedMediaItems.filter(photo => favouriteMediaIds.has(photo.id)).length;
     // Public view pages through media without totals, so show "60+" while more can load
     const countSuffix = isPublicView && hasMorePhotos ? "+" : "";
@@ -680,7 +661,7 @@ function EventPageContent() {
                     <p className="mt-6 text-center text-xs font-semibold text-stone-500">Open an album to add your photos.</p>
                 ))}
 
-                {/* Photos / Videos on the left; the Source gallery filter (or Favourites only) on the right, below on phones */}
+                {/* Photos / Videos on the left; Favourites only (in albums, for logged-in guests) on the right, below on phones */}
                 <div className={cn("mt-10 flex flex-wrap items-center gap-4", isRoyalGallery ? "justify-end" : "justify-between")}>
                 {!isRoyalGallery && (
                 <div data-royal-control="segments" className="inline-flex rounded-2xl border border-stone-200 bg-white p-1 shadow-sm">
@@ -706,28 +687,7 @@ function EventPageContent() {
                 </div>
                 )}
                 <div className="w-full sm:w-auto">
-                    {isPrimaryGalleryView ? (
-                    <label data-royal-control="source" className="flex h-[50px] w-full items-center gap-2.5 rounded-2xl border border-stone-200 bg-white pl-1.5 pr-1 shadow-sm sm:w-auto">
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-stone-100 text-stone-700">
-                            <Layers3 className="h-4 w-4" aria-hidden="true" />
-                        </span>
-                        <span className="shrink-0 whitespace-nowrap text-[11px] font-black uppercase tracking-widest text-stone-500">Source</span>
-                        <span className="relative flex min-w-0 flex-1 items-center">
-                            <select
-                                value={effectiveSourceGalleryFilter}
-                                onChange={(event) => setSourceGalleryFilter(event.target.value)}
-                                className="h-10 w-full min-w-0 cursor-pointer appearance-none rounded-xl border-0 bg-transparent pl-2 pr-9 text-sm font-bold text-stone-800 outline-none focus-visible:ring-2 focus-visible:ring-stone-400 sm:min-w-[13rem]"
-                                aria-label="Filter by source gallery"
-                            >
-                                <option value="all">All galleries ({selectedMediaItems.length})</option>
-                                {sourceGalleryOptions.map(option => (
-                                    <option key={option.id} value={option.id}>{option.label} ({option.count})</option>
-                                ))}
-                            </select>
-                            <ChevronDown className="pointer-events-none absolute right-3 h-4 w-4 text-stone-500" aria-hidden="true" />
-                        </span>
-                    </label>
-                    ) : isPublicView ? null : (
+                    {isPrimaryGalleryView || isPublicView ? null : (
                     <button
                         type="button"
                         role="switch"

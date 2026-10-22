@@ -14,17 +14,6 @@
   border-color: var(--royal-line);
   box-shadow: 0 4px 18px #0002;
 }
-.royal-gallery-content [data-royal-control="source"] { flex-wrap: wrap; }
-.royal-gallery-content [data-royal-control="source"] select {
-  min-width: 0;
-  max-width: 100%;
-  flex: 1 1 10rem;
-  background: #123b30;
-  border-color: var(--royal-line);
-  color: var(--royal-ivory);
-  color-scheme: dark;
-}
-.royal-gallery-content [data-royal-control="source"] .bg-stone-100 { background: #ca9c691a; color: var(--royal-gold); }
 .royal-gallery-content [data-royal-control="segments"] { display: inline-flex; max-width: 100%; }
 .royal-gallery-content [data-royal-control="segments"] button { padding-inline: clamp(.75rem, 3vw, 1.25rem); }
 .royal-gallery-content [data-royal-control="segments"] [aria-pressed="true"] {

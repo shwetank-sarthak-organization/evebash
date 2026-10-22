@@ -9,7 +9,6 @@
   border-color: var(--event-template-border);
 }
 .themed-gallery-content [data-royal-control="share"] span { color: var(--event-template-text); }
-.themed-gallery-content [data-royal-control="source"] { flex-wrap: wrap; }
 .themed-gallery-content select {
   min-width: 0; max-width: 100%; flex: 1 1 10rem;
   background: var(--event-template-panel); color: var(--event-template-text);
