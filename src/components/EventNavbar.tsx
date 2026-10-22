@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { ProfileIcon } from "@/components/ProfileIcon";
 import { royalDisplay } from "@/components/royal/royalFonts";
+import { displayCoupleTitle } from "@/components/royal/coupleNames";
 
 interface EventNavbarProps {
     mainEventTitle: string;
@@ -117,6 +118,8 @@ export function EventNavbar({
     const sharedQuery = isShared ? "?shared=true" : "";
     const hasTemplateChrome = Boolean(chromeBackgroundColor);
     const isRoyal = variant === "royal";
+    // Royal Emerald writes a couple's joiner ("and", "AND", "weds", "+") as "&", like the title card
+    const navTitle = isRoyal ? displayCoupleTitle(mainEventTitle) : mainEventTitle;
     const royalLinkClass = (isActive: boolean) => cn("royal-nav__link", isActive && "royal-nav__link--active");
     const navTextColor = chromeTextColor || "#0f172a";
     const navAccentColor = chromeAccentColor || "#0f172a";
@@ -247,18 +250,18 @@ export function EventNavbar({
                                 onSelectGallery(null);
                             }
                         }}
-                        title={isRoyal ? mainEventTitle : undefined}
+                        title={isRoyal ? navTitle : undefined}
                         className={isRoyal ? cn(
                             "royal-nav__title",
                             // Smaller capitals for long titles; anything still too long ends in "…" with the full title on hover
-                            mainEventTitle.length > 36 ? "royal-nav__title--xlong" : mainEventTitle.length > 24 && "royal-nav__title--long"
+                            navTitle.length > 36 ? "royal-nav__title--xlong" : navTitle.length > 24 && "royal-nav__title--long"
                         ) : cn(
                             "text-2xl font-serif font-bold italic tracking-tight transition-colors z-50 relative",
                             hasTemplateChrome ? "" : "text-slate-900"
                         )}
                         style={!isRoyal && hasTemplateChrome ? { color: navTextColor } : undefined}
                     >
-                        {mainEventTitle}
+                        {navTitle}
                     </Link>
 
                     {/* Right: Desktop Navigation */}
@@ -479,7 +482,7 @@ export function EventNavbar({
                                     )}
                                     style={hasTemplateChrome ? { color: navTextColor } : undefined}
                                 >
-                                    <span>{mainEventTitle}</span>
+                                    <span>{navTitle}</span>
                                     <ChevronRight className={cn("transition-colors", hasTemplateChrome ? "" : "text-stone-600 group-hover:text-slate-900")} />
                                 </Link>
                             </div>

@@ -6,6 +6,7 @@ import { Event } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { Crown } from "lucide-react";
 import { royalDisplay, royalScript, royalSerif } from "@/components/royal/royalFonts";
+import { splitCoupleNames } from "@/components/royal/coupleNames";
 import {
     RoyalDivider,
     RoyalFiligreeFrame,
@@ -24,12 +25,6 @@ interface TemplateRoyalProps {
 
 const DEFAULT_HERO_IMAGE = "/royal_emerald_palace_hero.jpg";
 const SCREEN_CORNERS = ["tl", "tr", "bl", "br"] as const;
-
-/** "Yashvardhan & Gayatri" -> ["Yashvardhan", "Gayatri"]; any other title -> null */
-function splitCoupleNames(title: string): [string, string] | null {
-    const parts = title.split("&").map((part) => part.trim());
-    return parts.length === 2 && parts[0] && parts[1] ? [parts[0], parts[1]] : null;
-}
 
 function initialOf(name: string) {
     const first = Array.from(name)[0] || "";
