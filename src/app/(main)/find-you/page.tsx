@@ -8,6 +8,7 @@ import * as faceapi from "face-api.js";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { getApiUrl } from "@/lib/apiBase";
 import { supabase } from "@/lib/supabase";
+import { FindYouConsentGate } from "@/components/FindYouConsentGate";
 
 export default function FindYouPage() {
     const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -103,6 +104,7 @@ export default function FindYouPage() {
             <section className="pt-32 pb-20 px-4">
                 <SectionHeader title="Find You" subtitle="AI-Powered Photo Search" />
 
+                <FindYouConsentGate returnTo="/find-you">
                 <div className="max-w-2xl mx-auto text-center mb-12">
                     <p className="text-stone-600 mb-8">
                         Upload a clear selfie, and our AI will magically find all your photos from the events.
@@ -185,6 +187,7 @@ export default function FindYouPage() {
                         <MasonryGrid photos={matchedPhotos} />
                     </div>
                 )}
+                </FindYouConsentGate>
             </section>
         </main>
     );

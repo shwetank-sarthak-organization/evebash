@@ -1,7 +1,7 @@
 {
   "privacy-policy": {
     "title": "Privacy Policy",
-    "lastUpdated": "October 10, 2026",
+    "lastUpdated": "October 22, 2026",
     "description": "EveBash respects your privacy and is committed to handling personal information responsibly and transparently. This Privacy Policy explains how EveBash collects, uses, stores, processes, shares, and protects personal information when people use our websites, mobile applications, accounts, event galleries, media-sharing features, business features, subscriptions, payment features, find You functionality, and related services. By using EveBash, you acknowledge the practices described in this Privacy Policy. Where consent is required by applicable law, we will request appropriate consent before carrying out the relevant processing.",
     "sections": [
       {
@@ -433,7 +433,7 @@
           },
           {
             "kind": "paragraph",
-            "text": "Where applicable law requires consent or another lawful basis for facial processing, EveBash will implement appropriate notices, controls, or consent mechanisms."
+            "text": "Find You is used only with your consent. Before your first search, EveBash asks you to confirm that you are 18 or older and to agree to the processing described in this section. We record when you agreed, the wording you agreed to and the platform you used. You can withdraw consent at any time in the app (Settings, Withdraw Find You Consent) or on the website (Settings, Withdraw Find You Consent). Find You will then ask again before any further search."
           },
           {
             "kind": "paragraph",
@@ -454,6 +454,14 @@
           {
             "kind": "paragraph",
             "text": "Find You sends the submitted selfie through our backend to Modal for facial matching. Facial representations generated from gallery photographs are stored with gallery media records in Supabase. Matching compares the submitted face with representations from eligible galleries and returns possible matches."
+          },
+          {
+            "kind": "paragraph",
+            "text": "When photos are uploaded to an EveBash gallery, EveBash automatically detects the faces in them and creates face templates, including for people who do not have an EveBash account. These templates are used only to answer Find You searches by people who can open that gallery, and they are deleted when the photo or the gallery is deleted. Anyone who appears in a gallery can ask for their images or face templates to be removed by contacting support@evebash.com."
+          },
+          {
+            "kind": "paragraph",
+            "text": "The selfie you submit is used only for that search and is not saved. We keep only technical records of the search, such as its time, the processing cost and the size of the image."
           },
           {
             "kind": "paragraph",
@@ -785,7 +793,7 @@
           },
           {
             "kind": "paragraph",
-            "text": "Where required by applicable law, EveBash will provide appropriate controls or obtain consent before using non-essential cookies or similar technologies. Additional details may be provided through a separate Cookie Policy."
+            "text": "Where required by applicable law, EveBash will provide appropriate controls or obtain consent before using non-essential cookies or similar technologies."
           }
         ]
       },
@@ -1092,11 +1100,23 @@
           },
           {
             "kind": "bullet",
-            "text": "Razorpay for payment processing; and"
+            "text": "Razorpay for payment processing;"
           },
           {
             "kind": "bullet",
-            "text": "Hostinger for business email services."
+            "text": "Hostinger for business email services;"
+          },
+          {
+            "kind": "bullet",
+            "text": "Expo for delivering push notifications to the mobile apps;"
+          },
+          {
+            "kind": "bullet",
+            "text": "Google for Google sign-in, Android push notification delivery and, on Android, converting a location into an address; and"
+          },
+          {
+            "kind": "bullet",
+            "text": "Apple for Sign in with Apple and iOS push notification delivery."
           },
           {
             "kind": "paragraph",
@@ -1174,11 +1194,11 @@
           },
           {
             "kind": "bullet",
-            "text": "rate limiting;"
+            "text": "rate limiting; and"
           },
           {
             "kind": "bullet",
-            "text": "security updates; and"
+            "text": "security updates."
           },
           {
             "kind": "paragraph",
@@ -1350,6 +1370,10 @@
       {
         "title": "23. Children and Minors",
         "blocks": [
+          {
+            "kind": "paragraph",
+            "text": "EveBash accounts are only for people aged 18 or older. We do not knowingly create accounts for, or accept Find You selfies from, anyone under 18. If you believe someone under 18 has an EveBash account, contact support@evebash.com and we will delete it."
+          },
           {
             "kind": "paragraph",
             "text": "EveBash events and galleries may contain photographs or videos of children."
@@ -1537,11 +1561,11 @@
           },
           {
             "kind": "paragraph",
-            "text": "Foreground location access supports nearby business discovery and location-based features. Location may be used to calculate distances or find relevant listings. A business location that you publish on your business profile may be visible to others."
+            "text": "Foreground location access supports nearby business discovery and location-based features. Location may be used to calculate distances or find relevant listings. A business location that you publish on your business profile may be visible to others. To show a readable address, the app may ask your device's built-in location service (Google on Android, Apple on iOS) to convert your coordinates into an address; that provider processes them under its own privacy terms."
           },
           {
             "kind": "paragraph",
-            "text": "When push notifications are enabled, the app registers a device notification token and associates it with your profile. Expo and the relevant Apple or Google notification services process the token and notification payload to deliver notifications. Depending on your settings, notifications may include event invitations, interactions, business updates, or marketing messages."
+            "text": "When push notifications are enabled, the app registers a device notification token and associates it with your profile. Expo and the relevant Apple or Google notification services process the token and notification payload to deliver notifications. Depending on your settings, notifications may include event invitations, interactions, business updates, or marketing messages. Marketing notifications are off unless you turn them on, and you can turn them off at any time in the app under Settings, Notifications."
           },
           {
             "kind": "paragraph",
@@ -1550,11 +1574,15 @@
         ]
       },
       {
-        "title": "29. Purchases Through App Stores",
+        "title": "29. Purchases and App Stores",
         "blocks": [
           {
             "kind": "paragraph",
-            "text": "Where an EveBash purchase is offered through Apple or Google, the store processes the payment under its own privacy terms. EveBash may receive purchase identifiers, receipts or purchase tokens, product information, payment status and subscription status to validate access, address billing issues and prevent fraud. Availability depends on the app version, region and purchase channel."
+            "text": "The EveBash mobile apps do not currently sell plans or other digital items inside the app. Paid plans are bought on the EveBash website, where Razorpay processes the payment as described in section 10."
+          },
+          {
+            "kind": "paragraph",
+            "text": "If we add purchases through Apple or Google in the future, the store will process the payment under its own privacy terms, EveBash will receive purchase identifiers, receipts or purchase tokens, product information, payment status and subscription status to validate access, address billing issues and prevent fraud, and we will update this policy before that happens."
           }
         ]
       }
@@ -1562,7 +1590,7 @@
   },
   "terms-and-conditions": {
     "title": "Terms & Conditions",
-    "lastUpdated": "October 10, 2026",
+    "lastUpdated": "October 22, 2026",
     "description": "These Terms & Conditions govern your access to and use of EveBash websites, applications, accounts, galleries, event-management features, media-upload and sharing services, business features, subscriptions, find You features, and other services provided through EveBash. By creating an account, accessing EveBash, purchasing a plan, uploading content, creating or joining an event or gallery, or otherwise using the Services, you agree to these Terms & Conditions. If you do not agree to these Terms, you should not use the Services.",
     "sections": [
       {
@@ -1593,6 +1621,10 @@
       {
         "title": "2. Eligibility",
         "blocks": [
+          {
+            "kind": "paragraph",
+            "text": "You must be at least 18 years old to create an EveBash account or use EveBash. EveBash is not intended for children, and we do not knowingly create accounts for anyone under 18."
+          },
           {
             "kind": "paragraph",
             "text": "You may use EveBash only if you are legally capable of entering into a binding agreement under applicable law."

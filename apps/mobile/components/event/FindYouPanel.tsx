@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,23 @@ import {
   ScrollView,
   StyleSheet,
   Dimensions,
+  Linking,
+  Platform,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/lib/supabase';
 import { appAlert } from '@/lib/feedback';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import {
+  FIND_YOU_CONSENT_ADULT,
+  FIND_YOU_CONSENT_AGREE,
+  FIND_YOU_CONSENT_POINTS,
+  FIND_YOU_CONSENT_REQUIRED_CODE,
+  FIND_YOU_CONSENT_TEXT,
+  FIND_YOU_CONSENT_TITLE,
+  FIND_YOU_CONSENT_VERSION,
+} from '../../../../shared/legal/findYouConsent';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GAP = 3;
@@ -32,6 +43,11 @@ interface FindYouPanelProps {
   event?: any;
   viewerIdentity?: any;
 }
+
+type ConsentState = 'checking' | 'needed' | 'given' | 'signed-out' | 'error';
+
+// PostgREST's "function not found": the consent migration isn't applied yet
+const isMissingRpc = (error: { code?: string } | null) => error?.code === 'PGRST202';
 
 interface MatchedPhoto {
   imageId: string;
@@ -57,7 +73,57 @@ export function FindYouPanel({
   const [viewerVisible, setViewerVisible] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
+  const [consent, setConsent] = useState<ConsentState>('checking');
+  const [consentAdult, setConsentAdult] = useState(false);
+  const [consentAgreed, setConsentAgreed] = useState(false);
+  const [consentBusy, setConsentBusy] = useState(false);
+  const [consentError, setConsentError] = useState('');
+  const [consentRetry, setConsentRetry] = useState(0);
+
   const isBusy = status === 'uploading' || status === 'searching';
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        if (active) setConsent('signed-out');
+        return;
+      }
+      const { data, error } = await supabase.rpc('get_find_you_consent');
+      if (!active) return;
+      if (error) {
+        if (isMissingRpc(error)) setConsent('needed');
+        else { setConsent('error'); setConsentError('We could not check your Find You consent. Please retry.'); }
+        return;
+      }
+      if (data?.version !== FIND_YOU_CONSENT_VERSION) {
+        setConsent('error');
+        setConsentError('Please update the app to review the latest Find You consent.');
+        return;
+      }
+      setConsent(data.consented === true ? 'given' : 'needed');
+    })();
+    return () => { active = false; };
+  }, [consentRetry]);
+
+  const giveConsent = async () => {
+    if (!consentAdult || !consentAgreed || consentBusy) return;
+    setConsentBusy(true);
+    setConsentError('');
+    const { error } = await supabase.rpc('give_find_you_consent', {
+      p_version: FIND_YOU_CONSENT_VERSION,
+      p_platform: Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web',
+      p_adult: true,
+      p_text: FIND_YOU_CONSENT_TEXT,
+    });
+    setConsentBusy(false);
+    if (error && !isMissingRpc(error)) {
+      setConsentError('Your consent could not be saved. Please try again.');
+      return;
+    }
+    setConsent('given');
+  };
 
   const pickImage = async (useCamera: boolean) => {
     try {
@@ -169,6 +235,14 @@ export function FindYouPanel({
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
+        if (err.code === FIND_YOU_CONSENT_REQUIRED_CODE) {
+          setStatus('idle');
+          setSelfieUri(null);
+          setConsentAdult(false);
+          setConsentAgreed(false);
+          setConsent('needed');
+          return;
+        }
         throw new Error(err.error || `Server error: ${response.status}`);
       }
 
@@ -233,8 +307,67 @@ export function FindYouPanel({
           </View>
         )}
 
+        {consent !== 'given' && (
+          <View style={[panelStyles.consentCard, { borderColor: selectedTemplate?.accent ? `${selectedTemplate.accent}55` : '#cca43b55' }]}>
+            <Text style={[panelStyles.consentTitle, { color: selectedTemplate?.text || '#111' }]}>{FIND_YOU_CONSENT_TITLE}</Text>
+            {consent === 'checking' && <ActivityIndicator color={selectedTemplate?.accent || '#cca43b'} />}
+            {consent === 'signed-out' && (
+              <Text style={[panelStyles.consentText, { color: selectedTemplate?.muted || '#555' }]}>Log in to your EveBash account to use Find You.</Text>
+            )}
+            {consent === 'error' && (
+              <>
+                <Text accessibilityRole="alert" style={[panelStyles.consentText, { color: '#ef4444' }]}>{consentError}</Text>
+                <TouchableOpacity accessibilityRole="button" onPress={() => { setConsent('checking'); setConsentError(''); setConsentRetry((n) => n + 1); }}>
+                  <Text style={[panelStyles.consentLink, { color: selectedTemplate?.accent || '#cca43b' }]}>Retry</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {consent === 'needed' && (
+              <>
+                {FIND_YOU_CONSENT_POINTS.map((point) => (
+                  <Text key={point} style={[panelStyles.consentText, { color: selectedTemplate?.muted || '#555' }]}>{'\u2022'} {point}</Text>
+                ))}
+                <TouchableOpacity accessibilityRole="link" onPress={() => { void Linking.openURL('https://www.evebash.com/privacy-policy').catch(() => undefined); }}>
+                  <Text style={[panelStyles.consentLink, { color: selectedTemplate?.accent || '#cca43b' }]}>Read the Privacy Policy (section 4)</Text>
+                </TouchableOpacity>
+                {[
+                  { label: FIND_YOU_CONSENT_ADULT, checked: consentAdult, toggle: () => setConsentAdult((v) => !v) },
+                  { label: FIND_YOU_CONSENT_AGREE, checked: consentAgreed, toggle: () => setConsentAgreed((v) => !v) },
+                ].map((box) => (
+                  <TouchableOpacity
+                    key={box.label}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: box.checked, disabled: consentBusy }}
+                    disabled={consentBusy}
+                    onPress={box.toggle}
+                    style={panelStyles.consentCheckRow}
+                  >
+                    <Text style={[panelStyles.consentCheckbox, { color: selectedTemplate?.accent || '#cca43b' }]}>{box.checked ? '\u2611' : '\u2610'}</Text>
+                    <Text style={[panelStyles.consentText, { flex: 1, marginBottom: 0, color: selectedTemplate?.text || '#111' }]}>{box.label}</Text>
+                  </TouchableOpacity>
+                ))}
+                {!!consentError && <Text accessibilityRole="alert" style={[panelStyles.consentText, { color: '#ef4444' }]}>{consentError}</Text>}
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  disabled={!consentAdult || !consentAgreed || consentBusy}
+                  onPress={() => void giveConsent()}
+                  style={[
+                    panelStyles.consentButton,
+                    { backgroundColor: selectedTemplate?.accent || '#cca43b' },
+                    (!consentAdult || !consentAgreed || consentBusy) && { opacity: 0.4 },
+                  ]}
+                >
+                  <Text style={[panelStyles.consentButtonText, { color: selectedTemplate?.background || '#fff' }]}>
+                    {consentBusy ? 'Saving…' : 'Agree and continue'}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        )}
+
         {/* Description / Instructions */}
-        {!selfieUri && (
+        {consent === 'given' && !selfieUri && (
           <View style={panelStyles.descContainer}>
             <View style={panelStyles.descIcon}>
               <IconSymbol name="magnifyingglass" size={40} color={selectedTemplate?.accent || '#cca43b'} />
@@ -246,7 +379,7 @@ export function FindYouPanel({
         )}
 
         {/* Buttons */}
-        <View style={panelStyles.buttonRow}>
+        {consent === 'given' && <View style={panelStyles.buttonRow}>
           <TouchableOpacity
             style={[
               panelStyles.button,
@@ -282,7 +415,7 @@ export function FindYouPanel({
               Take Selfie
             </Text>
           </TouchableOpacity>
-        </View>
+        </View>}
 
         {/* Status Message */}
         {status !== 'idle' && (
@@ -393,6 +526,48 @@ const panelStyles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  consentCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 20,
+  },
+  consentTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  consentText: {
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  consentLink: {
+    fontSize: 13,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+    marginBottom: 12,
+  },
+  consentCheckRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+  },
+  consentCheckbox: {
+    fontSize: 22,
+    lineHeight: 22,
+  },
+  consentButton: {
+    marginTop: 12,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  consentButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   descContainer: {
     alignItems: 'center',

@@ -14,6 +14,7 @@ import {
     Lock,
     Mail,
     MessageSquare,
+    ScanFace,
     Settings,
     Shield,
     Trash2,
@@ -22,7 +23,8 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
 import { cn } from "@/lib/utils";
-import { ModalHeader, modalStyles } from "@/components/ui/Modal";
+import { confirmDialog, ModalHeader, modalStyles } from "@/components/ui/Modal";
+import { withdrawFindYouConsent } from "@/components/FindYouConsentGate";
 
 const SUPPORT_EMAIL = "support@evebash.com";
 
@@ -116,6 +118,22 @@ export default function SettingsPage() {
     const showToast = (message: string) => {
         setToast(message);
         window.setTimeout(() => setToast(""), 2500);
+    };
+
+    // Find You asks for consent again before the next search
+    const handleWithdrawFindYou = async () => {
+        const confirmed = await confirmDialog({
+            title: "Withdraw Find You consent?",
+            message: "Find You will stop using your selfie until you agree again.",
+            confirmLabel: "Withdraw",
+        });
+        if (!confirmed) return;
+        try {
+            await withdrawFindYouConsent();
+            showToast("Find You consent withdrawn.");
+        } catch {
+            showToast("Could not withdraw Find You consent. Please try again.");
+        }
     };
 
     const closePasswordModal = () => {
@@ -232,6 +250,10 @@ export default function SettingsPage() {
                         <div className="border-t border-white/5" />
                         <button type="button" onClick={() => setShowPassword(true)} className={cn(ROW, "hover:bg-white/[0.03]")}>
                             <RowContent icon={Lock} title="Change Password" subtitle="Set a new password for signing in" />
+                        </button>
+                        <div className="border-t border-white/5" />
+                        <button type="button" onClick={() => void handleWithdrawFindYou()} className={cn(ROW, "hover:bg-white/[0.03]")}>
+                            <RowContent icon={ScanFace} title="Withdraw Find You Consent" subtitle="Stop Find You using your selfie" />
                         </button>
                         <div className="border-t border-white/5" />
                         <button type="button" onClick={() => setShowDeleteAccount(true)} className={cn(ROW, "hover:bg-rose-500/5")}>

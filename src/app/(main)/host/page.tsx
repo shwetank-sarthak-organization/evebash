@@ -1,6 +1,7 @@
 "use client";
 
 import { VideoThumbnailPicker, VideoThumbnailActions } from "@/components/VideoThumbnailPicker";
+import { GalleryVideoPanel } from "@/components/GalleryVideoPanel";
 import { MoveToGalleryDialog } from "@/components/MoveToGalleryDialog";
 import { FolderPickerDialog } from "@/components/vault/Dialogs";
 import { vaultApi } from "@/lib/vaultApi";
@@ -18,12 +19,14 @@ import { PublicIcon } from "@/components/PublicIcon";
 import React, { useState, useEffect, Suspense, useTransition, useRef, useCallback } from "react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/context/AuthContext";
+import { useUploads, type UploadQueueItem } from "@/context/UploadContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { downloadGalleryAsZip } from "@/lib/zipDownload";
 import {
     LayoutDashboard,
     Eye,
     EyeOff,
+    Clapperboard,
     Settings,
     ShieldCheck,
     LogOut,
@@ -60,7 +63,6 @@ import {
     Play,
     Video,
     Home,
-    ChevronUp,
     Heart,
     Gift,
     Briefcase,
@@ -70,7 +72,8 @@ import {
     FolderInput,
     CheckSquare,
     Square,
-    HardDrive
+    HardDrive,
+    SlidersHorizontal
 } from "lucide-react";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -107,6 +110,7 @@ import {
 	    openGallery,
 	    movePhotosToGallery,
 	    setGalleryHidden,
+	    setGalleryVideo,
 	    setMediaHidden,
 	    mergeHomeMedia,
 	getDashboardEventStats,
@@ -645,6 +649,76 @@ type EventDetailLog = {
     canComment?: boolean;
 };
 
+// A dropdown for the gallery Filter panel. Its list opens below the button, lined up with the right edge
+// (a native <select> list opens wherever the OS puts it).
+function FilterDropdown({ value, options, onChange, onOpen, ariaLabel }: {
+    value: string;
+    options: { value: string; label: string }[];
+    onChange: (value: string) => void;
+    onOpen?: () => void;
+    ariaLabel: string;
+}) {
+    const [open, setOpen] = useState(false);
+    const rootRef = useRef<HTMLDivElement>(null);
+    const selected = options.find(option => option.value === value) ?? options[0];
+
+    useEffect(() => {
+        if (!open) return;
+        const closeOnOutsideClick = (event: PointerEvent) => {
+            if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+        };
+        // Escape closes only this list, not the whole Filter panel: catch it before the panel's listener
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") { event.stopPropagation(); setOpen(false); }
+        };
+        document.addEventListener("pointerdown", closeOnOutsideClick);
+        window.addEventListener("keydown", closeOnEscape, true);
+        return () => {
+            document.removeEventListener("pointerdown", closeOnOutsideClick);
+            window.removeEventListener("keydown", closeOnEscape, true);
+        };
+    }, [open]);
+
+    return (
+        <div ref={rootRef} className="relative min-w-0">
+            <button
+                type="button"
+                aria-label={ariaLabel}
+                aria-haspopup="listbox"
+                aria-expanded={open}
+                onClick={() => { if (!open) onOpen?.(); setOpen(current => !current); }}
+                className="flex h-8 min-w-0 max-w-[11rem] items-center gap-1 rounded-lg border border-slate-600 bg-slate-950 pl-2 pr-1 text-sm font-semibold text-white outline-none focus:border-[#CA9C68] sm:max-w-[14rem]"
+            >
+                <span className="truncate">{selected?.label}</span>
+                <ChevronDown className={cn("h-4 w-4 shrink-0 text-slate-400 transition-transform", open && "rotate-180")} />
+            </button>
+            {open && (
+                <div role="listbox" aria-label={ariaLabel} className="absolute right-0 top-full z-40 mt-1 max-h-72 min-w-full w-max max-w-[16rem] overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 p-1 shadow-2xl shadow-black/60">
+                    {options.map(option => {
+                        const isSelected = option.value === value;
+                        return (
+                            <button
+                                key={option.value}
+                                type="button"
+                                role="option"
+                                aria-selected={isSelected}
+                                onClick={() => { onChange(option.value); setOpen(false); }}
+                                className={cn(
+                                    "flex w-full items-center justify-end gap-2 rounded-lg px-3 py-2 text-right text-sm font-semibold transition-colors",
+                                    isSelected ? "bg-[#CA9C68]/15 text-[#E2B77F]" : "text-slate-200 hover:bg-slate-800"
+                                )}
+                            >
+                                <span className="truncate">{option.label}</span>
+                                <Check className={cn("h-4 w-4 shrink-0", isSelected ? "text-[#CA9C68]" : "invisible")} />
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
 const DATE_PICKER_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DATE_PICKER_ITEM_HEIGHT = 56;
 
@@ -762,6 +836,22 @@ function DashboardContent() {
     const [mediaToMove, setMediaToMove] = useState<Photo[] | null>(null);
     const [mediaToSave, setMediaToSave] = useState<Photo[] | null>(null);
     const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
+    // The Filter menu next to the grid/list toggle (Source gallery or Favourites only, Uploaded by, Select)
+    const [isGalleryFilterOpen, setIsGalleryFilterOpen] = useState(false);
+    const galleryFilterMenuRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!isGalleryFilterOpen) return;
+        const closeOnOutsideClick = (event: PointerEvent) => {
+            if (!galleryFilterMenuRef.current?.contains(event.target as Node)) setIsGalleryFilterOpen(false);
+        };
+        const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setIsGalleryFilterOpen(false); };
+        document.addEventListener("pointerdown", closeOnOutsideClick);
+        document.addEventListener("keydown", closeOnEscape);
+        return () => {
+            document.removeEventListener("pointerdown", closeOnOutsideClick);
+            document.removeEventListener("keydown", closeOnEscape);
+        };
+    }, [isGalleryFilterOpen]);
     const [sourceGalleryFilter, setSourceGalleryFilter] = useState("all");
     // "Uploaded by" filter: the person's user id, or "all"
     const [uploaderFilter, setUploaderFilter] = useState("all");
@@ -774,39 +864,8 @@ function DashboardContent() {
     const [isNavigating, setIsNavigating] = useState(false);
     const [, startTransition] = useTransition();
 
-    // Upload Manager State (Google Drive style bottom-right widget)
-    interface UploadQueueItem {
-        id: string;
-        fileName: string;
-        status: "pending" | "uploading" | "finalizing" | "cancelling" | "cancelled" | "processing" | "success" | "error";
-        progress: number; // 0 to 100
-        error?: string;
-        mediaType?: "photo" | "video";
-        storageKey?: string;
-        photoId?: string;
-    }
-    const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
-    const uploadControllers = useRef(new Map<string, AbortController>());
-    const cancelUpload = (id: string) => {
-        const controller = uploadControllers.current.get(id);
-        if (!controller || controller.signal.aborted) return;
-        controller.abort();
-        setUploadQueue(previous => previous.map(item => item.id === id ? { ...item, status: "cancelling" } : item));
-    };
-    const cancelAllUploads = () => {
-        for (const id of uploadControllers.current.keys()) cancelUpload(id);
-    };
-    const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
-    const [isUploadPanelMinimized, setIsUploadPanelMinimized] = useState(false);
-    const [indexingStatus, setIndexingStatus] = useState<{
-        total: number;
-        indexed: number;
-        photosWithFaces?: number;
-        photosWithoutFaces?: number;
-        pending: number;
-        percentComplete: number;
-        status: string;
-    } | null>(null);
+    // Upload queue, panel and leave warning live in UploadProvider so they survive page changes
+    const { uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady } = useUploads();
 
     // Helper: show loading screen briefly, then navigate
     const navigateTo = (url: string, message?: string) => {
@@ -1102,115 +1161,20 @@ function DashboardContent() {
         }
     }, [user, loading, router]);
 
-    // Warn user before closing/refreshing tab during active uploads
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            const hasActiveUploads = uploadQueue.some(
-                item => item.status === "uploading" || item.status === "pending" || item.status === "processing" || item.status === "finalizing" || item.status === "cancelling"
-            );
-            if (hasActiveUploads) {
-                e.preventDefault();
-                e.returnValue = "You have active uploads in progress. If you leave or reload now, these uploads will be cancelled.";
-                return e.returnValue;
-            }
-        };
-
-        window.addEventListener("beforeunload", handleBeforeUnload);
-        return () => {
-            window.removeEventListener("beforeunload", handleBeforeUnload);
-        };
-    }, [uploadQueue]);
-
-    // Video readiness comes from its processing record, never thumbnail or face-index completion.
-    const pendingVideoIds = uploadQueue.filter(item => item.mediaType === "video" && item.status === "processing" && item.photoId).map(item => item.photoId!).join(",");
-    useEffect(() => {
-        if (!pendingVideoIds) return;
-        let cancelled = false;
-        let timer: ReturnType<typeof setTimeout>;
-        const checkVideos = async () => {
-            try {
-                const ids = pendingVideoIds.split(",");
-                const records: any[] = [];
-                for (let start = 0; start < ids.length; start += 50) {
-                    const { data, error } = await supabase.from("photos").select("*").in("id", ids.slice(start, start + 50));
-                    if (error) throw error;
-                    records.push(...(data || []));
-                }
-                if (cancelled) return;
-                const byId = new Map(records.map(row => [row.id, row]));
-                setUploadQueue(previous => previous.map(item => {
-                    if (item.mediaType !== "video" || item.status !== "processing") return item;
-                    const row = byId.get(item.photoId);
-                    if (row?.status === "failed") return { ...item, status: "error", progress: 90, error: row.processing_error || "Video processing failed" };
-                    if (row?.status === "processed" && row.url) return { ...item, status: "success", progress: 100 };
-                    return item;
-                }));
-                const ready = records.filter(row => row.status === "processed" && row.url && row.event_id === selectedEventId);
-                if (ready.length) setCurrentEventPhotos(previous => {
-                    const updates = ready.map(row => ({
-                        id: row.id, eventId: row.event_id, storageKey: row.storage_key,
-                        url: row.url, thumbnailUrl: row.thumbnail_url, width: row.width, height: row.height,
-                        mediaType: "video" as const, resourceType: "video" as const, status: "processed" as const,
-                        uploadedAt: row.uploaded_at, size: row.size, tags: row.tags || [], userId: row.user_id,
-                    }));
-                    const updatedIds = new Set(updates.map(row => row.id));
-                    return [...updates, ...previous.filter(row => !updatedIds.has(row.id))];
-                });
-            } catch (error) {
-                console.warn("[VideoProcessing] Waiting for processing status", error);
-            } finally {
-                if (!cancelled) timer = setTimeout(checkVideos, 5000);
-            }
-        };
-        void checkVideos();
-        return () => { cancelled = true; clearTimeout(timer); };
-    }, [pendingVideoIds, selectedEventId]);
-
-    // Poll face indexing status when items are in queue
-    useEffect(() => {
-        if (!selectedEventId || uploadQueue.length === 0) {
-            setIndexingStatus(null);
-            return;
-        }
-
-        let pollInterval: NodeJS.Timeout;
-
-        const checkStatus = async () => {
-            try {
-                const res = await fetch(getApiUrl(`/api/v1/media/indexing-status?eventId=${selectedEventId}`));
-                if (res.ok) {
-                    const data = await res.json();
-                    setIndexingStatus(data);
-
-                    // Check if there are any items still actively uploading or pending in the queue
-                    const hasActiveUploads = uploadQueueRef.current.some(item => item.status === "pending" || item.status === "uploading");
-
-                    // Only stop polling when indexing is fully complete AND all file uploads have finished
-                    if (data.status === "complete" && !hasActiveUploads) {
-                        clearInterval(pollInterval);
-                        // Mark all processing/pending items in the queue as success
-                        setUploadQueue(prev => prev.map(item =>
-                            item.mediaType !== "video" && (item.status === "processing" || item.status === "pending" || item.status === "uploading")
-                                ? { ...item, status: "success", progress: 100 }
-                                : item
-                        ));
-                    }
-                }
-            } catch (err) {
-                console.error("[Dashboard] Error polling indexing status:", err);
-            }
-        };
-
-        // Run immediately
-        checkStatus();
-
-        // Poll every 5 seconds
-        pollInterval = setInterval(checkStatus, 5000);
-
-        return () => {
-            if (pollInterval) clearInterval(pollInterval);
-        };
-    }, [selectedEventId, uploadQueue.length]);
+    // Videos the shared upload queue sees finish processing show up in this event's grid
+    useEffect(() => onVideosReady(records => {
+        const ready = records.filter(row => row.event_id === selectedEventId);
+        if (ready.length) setCurrentEventPhotos(previous => {
+            const updates = ready.map(row => ({
+                id: row.id, eventId: row.event_id, storageKey: row.storage_key,
+                url: row.url, thumbnailUrl: row.thumbnail_url, width: row.width, height: row.height,
+                mediaType: "video" as const, resourceType: "video" as const, status: "processed" as const,
+                uploadedAt: row.uploaded_at, size: row.size, tags: row.tags || [], userId: row.user_id,
+            }));
+            const updatedIds = new Set(updates.map(row => row.id));
+            return [...updates, ...previous.filter(row => !updatedIds.has(row.id))];
+        });
+    }), [onVideosReady, selectedEventId]);
 
     // URL State Synchronization
     useEffect(() => {
@@ -2028,6 +1992,34 @@ function DashboardContent() {
         setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
     };
 
+    // The gallery a photo or video was uploaded to: the event itself or one of its albums (older uploads may use a legacy id)
+    const galleryOfMedia = (media: Photo): Event | undefined => {
+        const galleries = [...eventDetailGalleries, ...(selectedMainEvent ? [selectedMainEvent] : []), ...userEvents];
+        return galleries.find(gallery => gallery.id === media.eventId || (!!gallery.legacyId && gallery.legacyId === media.eventId));
+    };
+
+    // Plays one of a gallery's own videos at the top of its guest page (designs that show a gallery video), or clears it
+    const saveGalleryVideo = async (gallery: Event, videoId: string | null) => {
+        const result = await setGalleryVideo(gallery.id, videoId);
+        if (result.success) {
+            syncEventFields(gallery.id, { galleryVideoId: videoId });
+            setMessage(videoId ? `This video now plays at the top of "${gallery.title}".` : `"${gallery.title}" no longer has a gallery video.`);
+            setStatus("success");
+        } else {
+            setMessage(result.error || "Couldn't update the gallery video.");
+            setStatus("error");
+        }
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
+    };
+
+    const handleSetGalleryVideo = async (video: Photo, use: boolean) => {
+        const gallery = galleryOfMedia(video);
+        if (gallery) return saveGalleryVideo(gallery, use ? video.id : null);
+        setMessage("Couldn't find this video's gallery. Refresh the page and try again.");
+        setStatus("error");
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
+    };
+
     const handleGuestDeny = async (log: { id: string; name?: string | null }): Promise<boolean> => {
         if (!(await confirmDialog({ title: `Deny ${log.name || "this guest"}'s request?`, message: "They'll be notified, and they can ask again later.", confirmLabel: "Deny", tone: "danger" }))) return false;
 
@@ -2301,16 +2293,19 @@ function DashboardContent() {
             setMessage(err instanceof Error ? err.message : "Failed to create event.");
             return false;
         }
-    };    const uploadFiles = async (files: FileList | File[]) => {
-        if (galleryMediaTab === "videos" && !canPostVideos) {
+    };    // options.kind: upload as photos or videos whatever tab is open (the Gallery Video panel uploads videos);
+    // options.onVideoSaved: called with a video's id once its row is saved (it can then become the gallery video)
+    const uploadFiles = async (files: FileList | File[], options?: { kind?: "photos" | "videos"; onVideoSaved?: (videoId: string) => void }) => {
+        const uploadKind = options?.kind ?? galleryMediaTab;
+        if (uploadKind === "videos" && !canPostVideos) {
             setStatus("error"); setMessage("Only the event owner and event admins can upload videos."); return;
         }
-        const expectedPrefix = galleryMediaTab === "videos" ? "video/" : "image/";
+        const expectedPrefix = uploadKind === "videos" ? "video/" : "image/";
         const selectedFiles = Array.from(files).filter(file => file.type.startsWith(expectedPrefix));
         if (selectedFiles.length === 0 || !selectedEventId) return;
 
         const isFreeUploadUser = !user.delegatedBy && (!user.role || user.role === "user" || user.role === "free" || user.role === "freemium");
-        if (galleryMediaTab === "videos" && isFreeUploadUser) {
+        if (uploadKind === "videos" && isFreeUploadUser) {
             const oversizedVideo = selectedFiles.find(file => file.size > FREE_PLAN_VIDEO_LIMIT_BYTES);
             if (oversizedVideo) {
                 setMessage("Free plan videos can be up to 200 MB. Upgrade to upload larger videos.");
@@ -2321,7 +2316,7 @@ function DashboardContent() {
         }
 
         // Pre-upload format validation for video files
-        if (galleryMediaTab === "videos") {
+        if (uploadKind === "videos") {
             for (const file of selectedFiles) {
                 const validation = validateVideoFile(file);
                 if (!validation.valid) {
@@ -2372,17 +2367,17 @@ function DashboardContent() {
                 id: `${Date.now()}-${idx}-${Math.random()}`,
                 fileName: file.name,
                 status: "pending" as const,
+                eventId: selectedEventId,
                 progress: 0,
                 mediaType: isVideo ? ("video" as const) : ("photo" as const),
             };
         });
         newQueueItems.forEach(item => uploadControllers.current.set(item.id, new AbortController()));
         setUploadQueue(prev => [...prev, ...newQueueItems]);
-        setIsUploadPanelOpen(true);
-        setIsUploadPanelMinimized(false);
+        showUploadPanel();
 
         setStatus("uploading");
-        setMessage(`Uploading ${selectedFiles.length} ${galleryMediaTab === "videos" ? "videos" : "images"}...`);
+        setMessage(`Uploading ${selectedFiles.length} ${uploadKind === "videos" ? "videos" : "images"}...`);
         console.log(`[Dashboard] Starting auto-upload for ${selectedFiles.length} files to event ${selectedEventId}`);
 
         try {
@@ -2442,6 +2437,9 @@ function DashboardContent() {
                     }
 
                     if (res.ok) {
+                        itemsToFlush
+                            .filter(item => item.photo.mediaType === "video" || item.photo.resourceType === "video")
+                            .forEach(item => options?.onVideoSaved?.(item.photo.id));
                         // Immediately prepend new photos to grid state (videos stay hidden until backend transcode completes)
                         setCurrentEventPhotos(prev => {
                             const newPhotos = itemsToFlush
@@ -2544,6 +2542,7 @@ function DashboardContent() {
                     ));
 
                     if (uploadResult.videoSavedByBackend) {
+                        options?.onVideoSaved?.(uniqueId);
                         // /upload/chunk/complete already saved the row and queued the transcode. Saving it again via
                         // save-photo-batch would re-upsert the row (clearing its duration) and notify the host twice.
                         // The video processing poll marks it ready or failed.
@@ -2606,7 +2605,7 @@ function DashboardContent() {
             const currentEvent = userEvents.find(ev => ev.id === selectedEventId);
             const isPlaceholder = !currentEvent?.coverImage || PLACEHOLDER_IMAGES.includes(currentEvent.coverImage);
 
-            if (galleryMediaTab === "photos" && isPlaceholder && firstUploadedUrl) {
+            if (uploadKind === "photos" && isPlaceholder && firstUploadedUrl) {
                 console.log("[Dashboard] Replacing placeholder with first uploaded image as cover");
                 await updateEvent(selectedEventId, { coverImage: firstUploadedUrl });
                 syncCoverImageForEvent(selectedEventId, firstUploadedUrl);
@@ -2616,8 +2615,7 @@ function DashboardContent() {
             if (hasVideoUploads) {
                 // Transfer completion is not video completion. Keep the queue visible
                 // until the processing poll marks each video ready or failed.
-                setIsUploadPanelOpen(true);
-                setIsUploadPanelMinimized(false);
+                showUploadPanel();
                 setStatus("idle");
                 setMessage("");
             } else {
@@ -3366,6 +3364,42 @@ function DashboardContent() {
         }
     };
 
+    // Deletes the selected items after a confirm, 4 at a time (one request per item, like the single delete)
+    const handleDeleteSelectedMedia = async () => {
+        const items = activeGalleryItems.filter(item => selectedMediaIds.has(item.id));
+        if (items.length === 0) return;
+        const what = items.length === 1 ? "1 item" : `${items.length} items`;
+        if (!(await confirmDialog({ title: `Delete ${what}?`, message: `${items.length === 1 ? "It" : "They"}'ll be removed from this event for everyone. This can't be undone.`, confirmLabel: "Delete", tone: "danger" }))) return;
+
+        setStatus("uploading");
+        setMessage(`Deleting ${what}...`);
+        const deletedIds = new Set<string>();
+        let next = 0;
+        const worker = async () => {
+            while (next < items.length) {
+                const item = items[next++];
+                if (await deletePhoto(item.id)) deletedIds.add(item.id);
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(4, items.length) }, worker));
+
+        setCurrentEventPhotos(prev => prev.filter(photo => !deletedIds.has(photo.id)));
+        const failed = items.length - deletedIds.size;
+        if (failed === 0) {
+            setStatus("success");
+            setMessage(`Deleted ${deletedIds.size === 1 ? "1 item" : `${deletedIds.size} items`}.`);
+            exitMediaSelection();
+        } else {
+            // Keep the failed ones selected so the host can try again
+            setSelectedMediaIds(new Set(items.filter(item => !deletedIds.has(item.id)).map(item => item.id)));
+            setStatus("error");
+            setMessage(`Deleted ${deletedIds.size} of ${items.length}. ${failed === 1 ? "1 item" : `${failed} items`} couldn't be deleted. Please try again.`);
+        }
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 4000);
+        await fetchStorageStats();
+        await refreshEventFavourites(selectedMainEventId);
+    };
+
     const toggleMediaSelection = (photoId: string) => {
         setSelectedMediaIds(prev => {
             const next = new Set(prev);
@@ -3534,6 +3568,7 @@ function DashboardContent() {
     const activeGalleryItems = isUploaderFilterActive
         ? favouriteFilteredItems.filter(photo => uploaderOf(photo) === effectiveUploaderFilter)
         : favouriteFilteredItems;
+    const activeGalleryFilterCount = [isUploaderFilterActive, isFavouriteFilterActive, isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all"].filter(Boolean).length;
     const isAnyGalleryFilterActive = isUploaderFilterActive || isFavouriteFilterActive || (isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all");
     // Shown once more than one person uploaded here (or more pages could reveal another uploader)
     const showUploaderFilter = new Set(currentEventPhotos.map(uploaderOf)).size > 1 || hasMorePhotos || allMediaLoadedFor === selectedEventId;
@@ -3976,29 +4011,6 @@ function DashboardContent() {
     };
 
 
-
-    const hasUnfinishedUploads = uploadQueue.some(item => item.status === "pending" || item.status === "uploading" || item.status === "processing" || item.status === "finalizing" || item.status === "cancelling");
-    const totalItems = uploadQueue.length;
-    const completedItems = uploadQueue.filter(item => item.status === "success" || item.status === "error" || item.status === "cancelled").length;
-    const processingItems = uploadQueue.filter(item => item.status === "processing").length;
-    const uploadingItems = uploadQueue.filter(item => item.status === "uploading" || item.status === "pending" || item.status === "finalizing" || item.status === "cancelling").length;
-
-    let overallStatusText = "";
-    if (uploadingItems > 0) {
-        overallStatusText = `Uploading ${uploadingItems} of ${totalItems} ${uploadingItems === 1 ? 'file' : 'files'}...`;
-    } else if (processingItems > 0) {
-        overallStatusText = `Processing ${processingItems} ${processingItems === 1 ? 'file' : 'files'}...`;
-    } else if (indexingStatus && indexingStatus.status === "processing") {
-        overallStatusText = `AI Indexing: ${indexingStatus.indexed}/${indexingStatus.total} (${indexingStatus.percentComplete}%)`;
-    } else if (completedItems === totalItems) {
-        const failedItems = uploadQueue.filter(item => item.status === "error").length;
-        const cancelledItems = uploadQueue.filter(item => item.status === "cancelled").length;
-        overallStatusText = failedItems > 0 || cancelledItems > 0
-            ? `${totalItems - failedItems - cancelledItems} ready · ${failedItems} failed · ${cancelledItems} cancelled`
-            : `✓ 100% complete · ${totalItems} files ready`;
-    } else {
-        overallStatusText = "Upload status";
-    }
 
     const shareModalUrl = shareModalEvent ? getEventShareUrl(shareModalEvent.id) : "";
     const shareModalJoinId = shareModalEvent?.joinId || (shareModalEvent ? generateEventJoinId(shareModalEvent.id) : "");
@@ -5338,6 +5350,30 @@ function DashboardContent() {
                                         </div>
                                     )}
 
+                                    {isInlineEventDetailGalleryEditor && activeEventDetailEvent && activeEventDetailEvent.id === selectedEventId && (
+                                        <GalleryVideoPanel
+                                            gallery={activeEventDetailEvent}
+                                            canUpload={canPostVideos}
+                                            onUpload={(file) => {
+                                                const gallery = activeEventDetailEvent;
+                                                // The upload lands in this gallery's Videos and becomes its gallery video once saved
+                                                void uploadFiles([file], { kind: "videos", onVideoSaved: (videoId) => { void saveGalleryVideo(gallery, videoId); } });
+                                            }}
+                                            onChange={(videoId) => saveGalleryVideo(activeEventDetailEvent, videoId)}
+                                            onPlay={(video) => setViewingPhoto({
+                                                id: video.id,
+                                                src: video.url,
+                                                storageKey: video.storageKey,
+                                                width: video.width,
+                                                height: video.height,
+                                                filename: video.storageKey?.split('/').pop() || "video",
+                                                thumbnailUrl: video.thumbnailUrl,
+                                                mediaType: "video",
+                                                resourceType: "video"
+                                            })}
+                                        />
+                                    )}
+
                                     <div className="mb-4 flex rounded-2xl border border-slate-700 bg-slate-900/60 p-1.5">
                                         {mediaTabs.map(({ id, label, icon: Icon }) => {
                                             const active = galleryMediaTab === id;
@@ -5360,23 +5396,43 @@ function DashboardContent() {
                                     </div>
                                     {/* Filter (top left) and view toggle on one line */}
                                     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                                        <div className="flex min-w-0 flex-wrap items-center gap-3">
+                                        <div ref={galleryFilterMenuRef} className="relative">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsGalleryFilterOpen(open => !open)}
+                                            aria-expanded={isGalleryFilterOpen}
+                                            aria-haspopup="dialog"
+                                            className={cn(
+                                                "flex h-11 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors",
+                                                isGalleryFilterOpen || activeGalleryFilterCount > 0
+                                                    ? "border-[#CA9C68]/70 bg-[#CA9C68]/10 text-[#E2B77F]"
+                                                    : "border-slate-700 bg-slate-900/45 text-slate-100 hover:border-slate-500 hover:bg-slate-900/70"
+                                            )}
+                                        >
+                                            <SlidersHorizontal className="h-4 w-4 shrink-0 text-[#CA9C68]" />
+                                            <span>Filter</span>
+                                            {activeGalleryFilterCount > 0 && (
+                                                <span className="min-w-5 rounded-md bg-[#CA9C68] px-1.5 py-0.5 text-center font-sans text-xs font-bold text-slate-950">{activeGalleryFilterCount}</span>
+                                            )}
+                                            <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", isGalleryFilterOpen && "rotate-180")} />
+                                        </button>
+                                        {/* Source gallery (or Favourites only), Uploaded by and Select */}
+                                        {isGalleryFilterOpen && (
+                                        <div role="dialog" aria-label="Gallery filters" className="absolute left-0 top-full z-30 mt-2 flex w-[min(21rem,calc(100vw-2rem))] flex-col gap-3 rounded-2xl border border-slate-700 bg-slate-950 p-3 shadow-2xl shadow-black/50">
                                         {isPrimaryGalleryView ? (
-                                        <label className="flex h-11 min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Filter Primary Gallery media by origin">
+                                        <div className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Filter Primary Gallery media by origin">
                                             <Layers3 className="h-4 w-4 shrink-0 text-[#CA9C68]" />
-                                            <span className="hidden whitespace-nowrap text-sm font-semibold text-slate-100 sm:inline">Source gallery</span>
-                                            <select
+                                            <span className="flex-1 whitespace-nowrap text-sm font-semibold text-slate-100">Source gallery</span>
+                                            <FilterDropdown
                                                 value={effectiveSourceGalleryFilter}
-                                                onChange={(event) => setSourceGalleryFilter(event.target.value)}
-                                                className="h-8 min-w-0 max-w-[9.5rem] rounded-lg border border-slate-600 sm:max-w-[11rem] bg-slate-950 px-2 text-sm font-semibold text-white outline-none focus:border-[#CA9C68]"
-                                                aria-label="Filter by source gallery"
-                                            >
-                                                <option value="all">All galleries ({selectedMediaItems.length})</option>
-                                                {sourceGalleryOptions.map(option => (
-                                                    <option key={option.id} value={option.id}>{option.label} ({option.count})</option>
-                                                ))}
-                                            </select>
-                                        </label>
+                                                onChange={setSourceGalleryFilter}
+                                                ariaLabel="Filter by source gallery"
+                                                options={[
+                                                    { value: "all", label: `All galleries (${selectedMediaItems.length})` },
+                                                    ...sourceGalleryOptions.map(option => ({ value: option.id, label: `${option.label} (${option.count})` })),
+                                                ]}
+                                            />
+                                        </div>
                                         ) : (
                                         <button
                                             type="button"
@@ -5385,7 +5441,7 @@ function DashboardContent() {
                                             onClick={() => setShowOnlyFavourites(current => !current)}
                                             title={`${activeFavouriteCount} in ${galleryMediaTab === "videos" ? "Videos" : "Photos"}`}
                                             className={cn(
-                                                "flex h-11 items-center gap-2 rounded-xl border pl-3 pr-2 text-left transition-colors",
+                                                "flex h-11 w-full items-center gap-2 rounded-xl border pl-3 pr-2 text-left transition-colors",
                                                 showOnlyFavourites
                                                     ? "border-[#CA9C68]/70 bg-[#CA9C68]/10"
                                                     : "border-slate-700 bg-slate-900/45 hover:border-slate-500 hover:bg-slate-900/70"
@@ -5393,7 +5449,7 @@ function DashboardContent() {
                                         >
                                             <Star className={cn("h-4 w-4 shrink-0", showOnlyFavourites ? "fill-current text-[#E2B77F]" : "text-slate-200")} />
                                             <span className={cn("whitespace-nowrap text-sm font-semibold", showOnlyFavourites ? "text-[#E2B77F]" : "text-slate-100")}>
-                                                Favourites<span className="hidden sm:inline"> only</span>
+                                                Favourites only
                                             </span>
                                             <span className={cn(
                                                 "min-w-6 rounded-md px-1.5 py-0.5 text-center font-sans text-xs font-bold",
@@ -5409,25 +5465,39 @@ function DashboardContent() {
 
                                         {/* Uploaded by: owner, admins and guests who uploaded here. Picking someone loads the whole gallery first. */}
                                         {showUploaderFilter && (
-                                        <label className="flex h-11 min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Show only what one person uploaded">
+                                        <div className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Show only what one person uploaded">
                                             {loadingAllMedia
                                                 ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#CA9C68]" />
                                                 : <Users className="h-4 w-4 shrink-0 text-[#CA9C68]" />}
-                                            <span className="hidden whitespace-nowrap text-sm font-semibold text-slate-100 sm:inline">Uploaded by</span>
-                                            <select
+                                            <span className="flex-1 whitespace-nowrap text-sm font-semibold text-slate-100">Uploaded by</span>
+                                            <FilterDropdown
                                                 value={effectiveUploaderFilter}
-                                                onFocus={() => void loadAllEventPhotos()}
-                                                onMouseDown={() => void loadAllEventPhotos()}
-                                                onChange={(event) => setUploaderFilter(event.target.value)}
-                                                className="h-8 min-w-0 max-w-[10rem] rounded-lg border border-slate-600 bg-slate-950 px-2 text-sm font-semibold text-white outline-none focus:border-[#CA9C68] sm:max-w-[14rem]"
-                                                aria-label="Filter by who uploaded"
+                                                onOpen={() => void loadAllEventPhotos()}
+                                                onChange={setUploaderFilter}
+                                                ariaLabel="Filter by who uploaded"
+                                                options={[
+                                                    { value: "all", label: loadingAllMedia ? "Loading everyone…" : `Everyone (${favouriteFilteredItems.length}${hasMorePhotos ? "+" : ""})` },
+                                                    ...uploaderOptions.map(option => ({ value: option.userId, label: `${option.label} · ${option.count}` })),
+                                                ]}
+                                            />
+                                        </div>
+                                        )}
+                                        {galleryViewMode === "grid" && activeGalleryItems.length > 0 && !isSelectingMedia && (
+                                        <div className="border-t border-slate-800 pt-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => { setIsSelectingMedia(true); setIsGalleryFilterOpen(false); }}
+                                                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-4 text-sm font-semibold text-[#CA9C68] hover:bg-[#CA9C68]/20"
                                             >
-                                                <option value="all">{loadingAllMedia ? "Loading everyone…" : `Everyone (${favouriteFilteredItems.length}${hasMorePhotos ? "+" : ""})`}</option>
-                                                {uploaderOptions.map(option => (
-                                                    <option key={option.userId} value={option.userId}>{option.label} · {option.count}</option>
-                                                ))}
-                                            </select>
-                                        </label>
+                                                <CheckSquare className="h-4 w-4" />
+                                                <span>Select</span>
+                                            </button>
+                                            <p className="mt-2 text-xs text-slate-400">
+                                                {canMoveMedia ? "Select items to move them to another gallery or save copies to EB Vault." : "Select items to save copies to your EB Vault."}
+                                            </p>
+                                        </div>
+                                        )}
+                                        </div>
                                         )}
                                         </div>
 
@@ -5462,87 +5532,78 @@ function DashboardContent() {
                                         </div>
                                     </div>
 
-                                    {galleryViewMode === "grid" && activeGalleryItems.length > 0 && (
+                                    {galleryViewMode === "grid" && activeGalleryItems.length > 0 && isSelectingMedia && (
                                         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900/45 px-4 py-3 sm:px-5">
-                                            {isSelectingMedia ? (
-                                                <>
-                                                    <span className="text-sm font-bold text-slate-200" aria-live="polite">
-                                                        {selectedMediaIds.size} selected
-                                                    </span>
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setSelectedMediaIds(
-                                                                selectedMediaIds.size === activeGalleryItems.length
-                                                                    ? new Set()
-                                                                    : new Set(activeGalleryItems.map(item => item.id))
-                                                            )}
-                                                            className="rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400"
-                                                        >
-                                                            {selectedMediaIds.size === activeGalleryItems.length ? "Clear" : "Select all"}
-                                                        </button>
-                                                        {canMoveMedia && (
-                                                            <button
-                                                                type="button"
-                                                                disabled={selectedMediaIds.size === 0}
-                                                                onClick={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
-                                                                className="flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-40"
-                                                            >
-                                                                <FolderInput className="h-4 w-4" />
-                                                                <span>Move to…</span>
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            type="button"
-                                                            disabled={selectedMediaIds.size === 0}
-                                                            onClick={() => setMediaToSave(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
-                                                            className="flex items-center gap-2 rounded-full border border-[#7FA38C]/50 bg-[#7FA38C]/10 px-4 py-2 text-sm font-semibold text-[#A9C9B4] disabled:opacity-40"
-                                                        >
-                                                            <HardDrive className="h-4 w-4" />
-                                                            <span>Save to EB Vault</span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            disabled={selectedMediaIds.size === 0}
-                                                            onClick={() => void handleSetMediaHidden(Array.from(selectedMediaIds), true)}
-                                                            className="flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400 disabled:opacity-40"
-                                                        >
-                                                            <EyeOff className="h-4 w-4" />
-                                                            <span>Hide from guests</span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            disabled={selectedMediaIds.size === 0}
-                                                            onClick={() => void handleSetMediaHidden(Array.from(selectedMediaIds), false)}
-                                                            className="flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400 disabled:opacity-40"
-                                                        >
-                                                            <Eye className="h-4 w-4" />
-                                                            <span>Show to guests</span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={exitMediaSelection}
-                                                            className="rounded-full px-3 py-2 text-sm font-semibold text-slate-400 hover:text-white"
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <span className="text-sm font-semibold text-slate-400">
-                                                        {canMoveMedia ? "Select items to move them to another gallery or save copies to EB Vault." : "Select items to save copies to your EB Vault."}
-                                                    </span>
+                                            <span className="text-sm font-bold text-slate-200" aria-live="polite">
+                                                {selectedMediaIds.size} selected
+                                            </span>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedMediaIds(
+                                                        selectedMediaIds.size === activeGalleryItems.length
+                                                            ? new Set()
+                                                            : new Set(activeGalleryItems.map(item => item.id))
+                                                    )}
+                                                    className="rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400"
+                                                >
+                                                    {selectedMediaIds.size === activeGalleryItems.length ? "Clear" : "Select all"}
+                                                </button>
+                                                {canMoveMedia && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => setIsSelectingMedia(true)}
-                                                        className="flex items-center gap-2 rounded-full border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-4 py-2 text-sm font-semibold text-[#CA9C68] hover:bg-[#CA9C68]/20"
+                                                        disabled={selectedMediaIds.size === 0}
+                                                        onClick={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
+                                                        className="flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-40"
                                                     >
-                                                        <CheckSquare className="h-4 w-4" />
-                                                        <span>Select</span>
+                                                        <FolderInput className="h-4 w-4" />
+                                                        <span>Move to…</span>
                                                     </button>
-                                                </>
-                                            )}
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    disabled={selectedMediaIds.size === 0}
+                                                    onClick={() => setMediaToSave(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
+                                                    className="flex items-center gap-2 rounded-full border border-[#7FA38C]/50 bg-[#7FA38C]/10 px-4 py-2 text-sm font-semibold text-[#A9C9B4] disabled:opacity-40"
+                                                >
+                                                    <HardDrive className="h-4 w-4" />
+                                                    <span>Save to EB Vault</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={selectedMediaIds.size === 0}
+                                                    onClick={() => void handleSetMediaHidden(Array.from(selectedMediaIds), true)}
+                                                    className="flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400 disabled:opacity-40"
+                                                >
+                                                    <EyeOff className="h-4 w-4" />
+                                                    <span>Hide from guests</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={selectedMediaIds.size === 0}
+                                                    onClick={() => void handleSetMediaHidden(Array.from(selectedMediaIds), false)}
+                                                    className="flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400 disabled:opacity-40"
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                    <span>Show to guests</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={selectedMediaIds.size === 0}
+                                                    onClick={() => void handleDeleteSelectedMedia()}
+                                                    className="flex items-center gap-2 rounded-full border border-rose-400/50 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-300 hover:bg-rose-500/20 disabled:opacity-40"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                    <span>Delete</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={exitMediaSelection}
+                                                    className="rounded-full px-3 py-2 text-sm font-semibold text-slate-400 hover:text-white"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
 
@@ -5632,6 +5693,12 @@ function DashboardContent() {
                                                                 shouldBlurMediaForPlan={shouldBlurMediaForPlan} onThumbnailLoaded={handleThumbnailLoaded}
                                                             />
                                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                            {isVideo && galleryOfMedia(photo)?.galleryVideoId === photo.id && (
+                                                                <span className="pointer-events-none absolute left-2.5 top-2.5 z-[1] flex items-center gap-1 rounded-full border border-[#CA9C68]/60 bg-slate-950/80 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#F5E7D4] backdrop-blur-sm">
+                                                                    <Clapperboard className="h-3 w-3 text-[#CA9C68]" aria-hidden="true" />
+                                                                    Gallery video
+                                                                </span>
+                                                            )}
                                                             {photo.isHidden && (
                                                                 <>
                                                                     <div className="pointer-events-none absolute inset-0 bg-slate-950/55" />
@@ -5669,23 +5736,6 @@ function DashboardContent() {
                                                                 </button>
                                                             )}
                                                             <button
-                                                                aria-label={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
-                                                                title={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
-                                                                aria-pressed={isFavourite}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleToggleEventFavourite(photo.id);
-                                                                }}
-                                                                className={cn(
-                                                                    "grid h-9 w-9 place-items-center rounded-lg shadow-lg backdrop-blur-md transition-all active:scale-95",
-                                                                    isFavourite
-                                                                        ? "bg-[#CA9C68] text-slate-950"
-                                                                        : "bg-slate-950/70 text-white hover:bg-[#CA9C68] hover:text-slate-950"
-                                                                )}
-                                                            >
-                                                                <Star className={cn("h-4 w-4", isFavourite && "fill-current")} />
-                                                            </button>
-                                                            <button
                                                                 type="button"
                                                                 aria-label={photo.isHidden ? `Show this ${isVideo ? "video" : "photo"} to guests` : `Hide this ${isVideo ? "video" : "photo"} from guests`}
                                                                 title={photo.isHidden ? "Hidden from guests: click to show it" : "Hide from guests"}
@@ -5702,6 +5752,23 @@ function DashboardContent() {
                                                                 )}
                                                             >
                                                                 {photo.isHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                            </button>
+                                                            <button
+                                                                aria-label={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
+                                                                title={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
+                                                                aria-pressed={isFavourite}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleToggleEventFavourite(photo.id);
+                                                                }}
+                                                                className={cn(
+                                                                    "grid h-9 w-9 place-items-center rounded-lg shadow-lg backdrop-blur-md transition-all active:scale-95",
+                                                                    isFavourite
+                                                                        ? "bg-[#CA9C68] text-slate-950"
+                                                                        : "bg-slate-950/70 text-white hover:bg-[#CA9C68] hover:text-slate-950"
+                                                                )}
+                                                            >
+                                                                <Star className={cn("h-4 w-4", isFavourite && "fill-current")} />
                                                             </button>
                                                             <button
                                                                 aria-label={isVideo ? "Video actions" : "Photo actions"}
@@ -6698,7 +6765,12 @@ function DashboardContent() {
                     }}
                 />
 
-                {videoActionItem && <VideoThumbnailActions ready={videoActionItem.status === "processed"} onClose={() => setVideoActionItem(null)} onChoose={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} onDelete={() => { void handleDeletePhoto(videoActionItem.id); setVideoActionItem(null); }} onMove={canMoveMedia ? () => { setMediaToMove([videoActionItem]); setVideoActionItem(null); } : undefined} onSaveToVault={() => { setMediaToSave([videoActionItem]); setVideoActionItem(null); }} />}
+                {videoActionItem && <VideoThumbnailActions ready={videoActionItem.status === "processed"} galleryVideo={(() => {
+                    const gallery = galleryOfMedia(videoActionItem);
+                    if (!gallery) return undefined;
+                    const isCurrent = gallery.galleryVideoId === videoActionItem.id;
+                    return { isCurrent, galleryTitle: gallery.title, isHidden: !!videoActionItem.isHidden, onToggle: () => { void handleSetGalleryVideo(videoActionItem, !isCurrent); setVideoActionItem(null); } };
+                })()} onClose={() => setVideoActionItem(null)} onChoose={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} onDelete={() => { void handleDeletePhoto(videoActionItem.id); setVideoActionItem(null); }} onMove={canMoveMedia ? () => { setMediaToMove([videoActionItem]); setVideoActionItem(null); } : undefined} onSaveToVault={() => { setMediaToSave([videoActionItem]); setVideoActionItem(null); }} />}
                 {mediaToSave && (
                     <FolderPickerDialog
                         title={`Save ${mediaToSave.length === 1 ? "1 item" : `${mediaToSave.length} items`} to EB Vault`}
@@ -7048,185 +7120,6 @@ function DashboardContent() {
                             )}>
                                 {message}
                             </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                {/* Floating Upload Queue Panel (Google Drive style) */}
-                <AnimatePresence>
-                    {(isUploadPanelOpen || hasUnfinishedUploads) && uploadQueue.length > 0 && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 50, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 50, scale: 0.95 }}
-                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            className="fixed bottom-6 right-6 z-[100] w-96 bg-slate-950/95 border border-slate-800 backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden font-sans"
-                        >
-                            {/* Header */}
-                            <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    {(uploadingItems > 0 || processingItems > 0) ? (
-                                        <Loader2 className="w-4 h-4 animate-spin text-[#CA9C68] shrink-0" />
-                                    ) : (
-                                        <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                                    )}
-                                    <span className="text-xs font-bold text-slate-200 truncate">
-                                        {overallStatusText}
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-1 shrink-0">
-                                    {uploadQueue.some(item => item.status === "pending" || item.status === "uploading") && (
-                                        <button type="button" onClick={cancelAllUploads} className="px-2 py-1 text-xs text-rose-300 hover:text-white">Cancel all uploads</button>
-                                    )}
-                                    {completedItems === totalItems && (
-                                        <button
-                                            onClick={() => setUploadQueue([])}
-                                            className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-slate-800 transition-colors"
-                                        >
-                                            Clear
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={() => setIsUploadPanelMinimized(!isUploadPanelMinimized)}
-                                        className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors"
-                                        title={isUploadPanelMinimized ? "Expand" : "Minimize"}
-                                    >
-                                        {isUploadPanelMinimized ? (
-                                            <ChevronUp className="w-4 h-4" />
-                                        ) : (
-                                            <ChevronDown className="w-4 h-4" />
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => setIsUploadPanelOpen(false)}
-                                        disabled={hasUnfinishedUploads}
-                                        className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                        title={hasUnfinishedUploads ? "Video uploads and processing must finish before closing" : "Close"}
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Overall progress bar at the very bottom of minimized header */}
-                            {isUploadPanelMinimized && (uploadingItems > 0 || processingItems > 0 || (indexingStatus && indexingStatus.status === "processing")) && (
-                                <div className="w-full h-1 bg-slate-900 overflow-hidden relative">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-[#CA9C68] to-sky-500 transition-all duration-300"
-                                        style={{
-                                            width: `${
-                                                processingItems === 0 && uploadingItems === 0 && indexingStatus && indexingStatus.status === "processing"
-                                                    ? indexingStatus.percentComplete
-                                                    : (uploadQueue.reduce((acc, curr) => acc + curr.progress, 0) / (totalItems * 100)) * 100
-                                            }%`
-                                        }}
-                                    ></div>
-                                </div>
-                            )}
-
-                            {/* Body (List of items) */}
-                            <AnimatePresence initial={false}>
-                                {!isUploadPanelMinimized && (
-                                    <motion.div
-                                        initial={{ height: 0 }}
-                                        animate={{ height: "auto" }}
-                                        exit={{ height: 0 }}
-                                        className="overflow-hidden"
-                                    >
-                                        <div className="max-h-72 overflow-y-auto divide-y divide-slate-900">
-                                            {uploadQueue.map((item) => (
-                                                <div
-                                                    key={item.id}
-                                                    className="flex items-center justify-between gap-3 p-3 hover:bg-slate-900/50 transition-colors"
-                                                >
-                                                    {/* File Preview Icon */}
-                                                    <div className="w-10 h-10 rounded-lg border border-slate-800 bg-slate-900 flex items-center justify-center shrink-0">
-                                                        {item.mediaType === "video" ? (
-                                                            <Video className="w-5 h-5 text-sky-400" />
-                                                        ) : (
-                                                            <ImageIcon className="w-5 h-5 text-[#CA9C68]" />
-                                                        )}
-                                                    </div>
-
-                                                    {/* File Details & Progress */}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between gap-2 mb-1">
-                                                            <p className="text-xs font-bold text-slate-300 truncate" title={item.fileName}>
-                                                                {item.fileName}
-                                                            </p>
-                                                            {item.status === "pending" && (
-                                                                <span className="text-[10px] font-bold text-slate-500 shrink-0">
-                                                                    Queued...
-                                                                </span>
-                                                            )}
-                                                            {item.status === "uploading" && (
-                                                                <span className="text-[10px] font-bold text-[#CA9C68] shrink-0">
-                                                                    {item.progress}%
-                                                                </span>
-                                                            )}
-                                                            {(item.status === "finalizing" || item.status === "cancelling" || item.status === "cancelled") && (
-                                                                <span className="text-[10px] text-slate-300">{item.status === "finalizing" ? "Finalizing..." : item.status === "cancelling" ? "Cancelling..." : "Cancelled"}</span>
-                                                            )}
-                                                            {item.status === "processing" && (
-                                                                <span className="text-[10px] font-bold text-sky-400 shrink-0 animate-pulse">
-                                                                    {item.mediaType === "video" ? "Processing video..." : indexingStatus && indexingStatus.status === "processing" ? "Indexing..." : "Resizing..."}
-                                                                </span>
-                                                            )}
-                                                            {item.status === "success" && (
-                                                                <span className="text-[10px] font-bold text-emerald-400 shrink-0">
-                                                                    {item.mediaType === "video" ? "100% · Ready" : "Done"}
-                                                                </span>
-                                                            )}
-                                                            {item.status === "error" && (
-                                                                <span className="text-[10px] font-bold text-rose-400 shrink-0 truncate max-w-[80px]">
-                                                                    Error
-                                                                </span>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Progress bar */}
-                                                        <div className="w-full bg-slate-900 h-1 rounded-full overflow-hidden">
-                                                            <div
-                                                                className={cn(
-                                                                    "h-full rounded-full transition-all duration-300",
-                                                                    item.status === "pending" ? "bg-slate-700" :
-                                                                    item.status === "uploading" ? "bg-[#CA9C68]" :
-                                                                    item.status === "processing" ? "bg-sky-400 animate-pulse" :
-                                                                    item.status === "success" ? "bg-emerald-400" : "bg-rose-400"
-                                                                )}
-                                                                style={{
-                                                                    width: item.status === "pending" ? "0%" : item.status === "processing" ? "90%" : `${item.progress}%`
-                                                                }}
-                                                            ></div>
-                                                        </div>
-                                                    </div>
-
-                                                    {(item.status === "pending" || item.status === "uploading") && (
-                                                        <button type="button" onClick={() => cancelUpload(item.id)} title={`Cancel upload: ${item.fileName}`} aria-label={`Cancel upload: ${item.fileName}`} className="rounded p-2 text-rose-300 hover:bg-rose-500/10"><X className="h-4 w-4" /></button>
-                                                    )}
-                                                    {/* Status Icon */}
-                                                    <div className="shrink-0">
-                                                        {item.status === "uploading" && (
-                                                            <Loader2 className="w-4 h-4 animate-spin text-[#CA9C68]" />
-                                                        )}
-                                                        {item.status === "processing" && (
-                                                            <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
-                                                        )}
-                                                        {item.status === "success" && (
-                                                            <Check className="w-4 h-4 text-emerald-400" />
-                                                        )}
-                                                        {item.status === "error" && (
-                                                            <div title={item.error}>
-                                                                <X className="w-4 h-4 text-rose-400" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
                         </motion.div>
                     )}
                 </AnimatePresence>

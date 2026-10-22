@@ -39,6 +39,8 @@ export interface Event {
     sampleGalleryOrder?: number;
     /** Sub-gallery hidden from guests by the host (managers still see it) */
     isHidden?: boolean;
+    /** The gallery's own video the host shows at the top of its guest page (photos.id); null = none */
+    galleryVideoId?: string | null;
     createdAt?: any;
 }
 
@@ -284,6 +286,8 @@ function mapSqlToEvent(e: any): Event {
         isPublic: !!e.is_public,
         isSampleGallery: !!e.is_sample_gallery,
         isHidden: !!e.is_hidden,
+        // undefined when the row didn't include the column (e.g. open_gallery's read-only view): not known
+        galleryVideoId: e.gallery_video_id === undefined ? undefined : e.gallery_video_id,
         sampleGalleryOrder: e.sample_gallery_order,
         createdAt: e.created_at
     };
@@ -2302,6 +2306,76 @@ export async function setGalleryHidden(galleryId: string, hidden: boolean): Prom
         error: error.code === 'PGRST204'
             ? "Hiding galleries isn't available yet (database update pending)."
             : "Couldn't update the gallery. Please try again.",
+    };
+}
+
+/**
+ * Picks the video shown at the top of a gallery's guest page (one of that gallery's own videos), or clears it with
+ * null. supabase/migrations/20261022000000_gallery_video.sql
+ */
+export async function setGalleryVideo(galleryId: string, videoId: string | null): Promise<{ success: boolean; error?: string }> {
+    const { error } = await supabase.from('events').update({ gallery_video_id: videoId }).eq('id', galleryId);
+    if (!error) {
+        delete eventCache[galleryId];
+        return { success: true };
+    }
+    console.error("Error changing the gallery video:", error);
+    return {
+        success: false,
+        error: error.code === 'PGRST204'
+            ? "Gallery videos aren't available yet (database update pending)."
+            : "Couldn't update the gallery video. Please try again.",
+    };
+}
+
+/**
+ * A gallery's own videos, newest first, for the host's "Gallery video" chooser (includes hidden and still-processing
+ * ones, so the host sees everything they uploaded). Older uploads may be stored under the gallery's legacy id.
+ */
+export async function getGalleryVideos(galleryId: string, legacyId?: string): Promise<Photo[]> {
+    const ids = [galleryId, ...(legacyId && legacyId !== galleryId ? [legacyId] : [])];
+    const { data, error } = await supabase
+        .from('photos')
+        .select('*')
+        .in('event_id', ids)
+        .eq('media_type', 'video')
+        .neq('status', 'uploading')
+        .order('uploaded_at', { ascending: false })
+        .limit(200);
+    if (error) {
+        console.warn("[GalleryVideo] Could not load the gallery's videos:", error.message);
+        return [];
+    }
+    return (data || []).map(mapSqlToPhoto);
+}
+
+export interface GalleryVideo {
+    id: string;
+    /** HLS stream, never the uploaded original */
+    streamUrl: string;
+    posterUrl?: string;
+    width?: number;
+    height?: number;
+}
+
+/**
+ * The gallery's chosen video, for its guest page. Null when none is set, or the viewer can't see it (moved, hidden,
+ * still processing, outside an expired plan). Never throws: a failure just means no video is shown.
+ */
+export async function getGalleryVideo(galleryId: string): Promise<GalleryVideo | null> {
+    const { data, error } = await supabase.rpc('get_gallery_video', { p_event_id: galleryId });
+    if (error) {
+        console.warn("[GalleryVideo] Could not load the gallery video:", error.message);
+        return null;
+    }
+    const row = Array.isArray(data) ? data[0] : null;
+    if (!row?.id || !row.stream_url) return null;
+    return {
+        id: row.id,
+        streamUrl: row.stream_url,
+        posterUrl: row.poster_url || undefined,
+        width: row.width ?? undefined,
+        height: row.height ?? undefined,
     };
 }
 

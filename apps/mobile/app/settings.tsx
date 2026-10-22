@@ -223,6 +223,26 @@ export default function SettingsScreen() {
     }
   };
 
+  // Find You consent: withdrawing means the consent step shows again before the next search
+  const withdrawFindYouConsent = () => {
+    appAlert('Withdraw Find You consent?', 'Find You will stop using your selfie until you agree again.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Withdraw',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase.rpc('withdraw_find_you_consent');
+          // PGRST202: consent table not set up yet, so there is nothing to withdraw
+          if (error && error.code !== 'PGRST202') {
+            appAlert('Error', 'Could not withdraw Find You consent. Please try again.');
+            return;
+          }
+          showToast('Find You consent withdrawn.');
+        },
+      },
+    ]);
+  };
+
   // Delete Account Handler
   const handleDeleteAccount = async () => {
     if (deleteConfirmation !== 'DELETE' || deletingAccount) return;
@@ -375,6 +395,19 @@ export default function SettingsScreen() {
                 <View style={[styles.toggleDot, isDiscoverable && styles.toggleDotActive]} />
               )}
             </View>
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={withdrawFindYouConsent} accessibilityRole="button" accessibilityLabel="Withdraw Find You consent">
+            <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
+              <IconSymbol name="person.fill" size={18} color={MidnightColors.gold} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.actionText}>Withdraw Find You Consent</Text>
+              <Text style={styles.actionSubtext}>Stop Find You using your selfie</Text>
+            </View>
+            <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
           </TouchableOpacity>
         </View>
 

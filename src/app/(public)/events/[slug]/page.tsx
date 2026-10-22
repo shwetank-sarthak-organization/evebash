@@ -8,7 +8,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
 import LoadingScreen from "@/components/LoadingScreen";
 import { getEvent } from "@/lib/events"; // Static Data
-import { getEventPhotosPaginated, getEventById, getSubEvents, visibleGalleries, mergeHomeMedia, Event, Photo as DatabasePhoto, getFavouritePhotosForEvents, getEventFavouritePhotos, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery } from "@/lib/database"; // Live Data
+import { getEventPhotosPaginated, getEventById, getSubEvents, visibleGalleries, mergeHomeMedia, Event, Photo as DatabasePhoto, getFavouritePhotosForEvents, getEventFavouritePhotos, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, getGalleryVideo, type GalleryVideo } from "@/lib/database"; // Live Data
 import { useAuth } from "@/context/AuthContext";
 import { promptLogin } from "@/components/ui/LoginPrompt";
 import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check, Star, Layers3, Lock, Clock, Upload } from "lucide-react";
@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
 import { getWebTemplateComponent } from "@/components/templateRegistry";
+import { RoyalGalleryHeader } from "@/components/royal/RoyalGalleryHeader";
 import { getWebLightboxTheme, getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { supabase } from "@/lib/supabase";
 import { uploadEventImage } from "@/lib/storage";
@@ -185,6 +186,24 @@ function EventPageContent() {
             }).subscribe();
         return () => { void supabase.removeChannel(channel); };
     }, [event?.id, event?.parentId, canUseRealtime]);
+
+    // The video the host chose for the gallery on screen (host page > Video actions > "Use as gallery video"),
+    // shown by designs that have a place for it (Royal Emerald for now)
+    const shownGallery: Event | null = activeGallery || event;
+    const shownGalleryId = shownGallery?.id as string | undefined;
+    const showsGalleryVideo = (shownGallery?.templateId || event?.templateId) === "royal";
+    // null: the gallery's row says it has none; undefined: not known (read-only public view), so ask
+    const wantsGalleryVideo = !!shownGalleryId && showsGalleryVideo && shownGallery?.galleryVideoId !== null;
+    const [loadedGalleryVideo, setLoadedGalleryVideo] = useState<{ galleryId: string; video: GalleryVideo | null } | null>(null);
+    useEffect(() => {
+        if (!wantsGalleryVideo || !shownGalleryId) return;
+        let cancelled = false;
+        void getGalleryVideo(shownGalleryId).then(video => {
+            if (!cancelled) setLoadedGalleryVideo({ galleryId: shownGalleryId, video });
+        });
+        return () => { cancelled = true; };
+    }, [wantsGalleryVideo, shownGalleryId, shownGallery?.galleryVideoId]);
+    const galleryVideo = wantsGalleryVideo && loadedGalleryVideo?.galleryId === shownGalleryId ? loadedGalleryVideo.video : null;
 
     const transformPhotos = (databasePhotos: DatabasePhoto[]) => databasePhotos.map(p => ({
         id: p.id,
@@ -544,13 +563,18 @@ function EventPageContent() {
         : event;
     const activeGalleryMessage = activeGallery ? activeGallery.description : event.description;
 
+    // Royal Emerald draws its own gallery header (crest, title, welcome plaque, Back / Share, Photos / Videos)
+    const isRoyalGallery = displayEvent.templateId === "royal";
+    const goBack = () => {
+        router.push(event?.parentId ? `/events/${event.parentId}${isShared ? "?shared=true" : ""}` : "/dashboard");
+    };
+
     const renderContent = () => (
-        <div className={cn("contents themed-gallery-content", displayEvent.templateId === "royal" && "royal-gallery-content")}>
+        <div className={cn("contents themed-gallery-content", isRoyalGallery && "royal-gallery-content")}>
+            {!isRoyalGallery && (
             <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <button
-                    onClick={() => {
-                        router.push(event?.parentId ? `/events/${event.parentId}${isShared ? "?shared=true" : ""}` : "/dashboard");
-                    }}
+                    onClick={goBack}
                     className="text-stone-700 hover:text-stone-900 transition-colors text-sm font-bold tracking-widest uppercase flex items-center group"
                 >
                     <ChevronLeft className="w-5 h-5 mr-1 group-hover:-translate-x-1 transition-transform" />
@@ -591,17 +615,37 @@ function EventPageContent() {
                     </button>
                 </div>
             </div>
+            )}
 
-            <div className="mt-12">
-                <SectionHeader
-                    title={activeGallery ? activeGalleryTitle : "Home Gallery"}
-                    subtitle={`${displayedPhotoCount} Photos · ${displayedVideoCount} Videos`}
-                />
+            <div className={cn(!isRoyalGallery && "mt-12")}>
+                {isRoyalGallery ? (
+                    <RoyalGalleryHeader
+                        title={activeGallery ? activeGalleryTitle : "Home Gallery"}
+                        message={activeGalleryMessage}
+                        coupleTitle={event?.parentId ? undefined : event?.title}
+                        backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
+                        onBack={goBack}
+                        onShare={handleShare}
+                        copied={copied}
+                        photoCountLabel={displayedPhotoCount}
+                        videoCountLabel={displayedVideoCount}
+                        activeTab={galleryMediaTab}
+                        onTabChange={setGalleryMediaTab}
+                        video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
+                    />
+                ) : (
+                    <>
+                        <SectionHeader
+                            title={activeGallery ? activeGalleryTitle : "Home Gallery"}
+                            subtitle={`${displayedPhotoCount} Photos · ${displayedVideoCount} Videos`}
+                        />
 
-                {activeGalleryMessage && (
-                    <p className="mx-auto mt-5 max-w-3xl text-center font-sans text-sm font-semibold leading-7 text-stone-600 md:text-base">
-                        {activeGalleryMessage}
-                    </p>
+                        {activeGalleryMessage && (
+                            <p className="mx-auto mt-5 max-w-3xl text-center font-sans text-sm font-semibold leading-7 text-stone-600 md:text-base">
+                                {activeGalleryMessage}
+                            </p>
+                        )}
+                    </>
                 )}
 
                 {canGuestUpload && (activeGallery || subEvents.length === 0 ? (
@@ -630,7 +674,8 @@ function EventPageContent() {
                 ))}
 
                 {/* Photos / Videos on the left; the Source gallery filter (or Favourites only) on the right, below on phones */}
-                <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
+                <div className={cn("mt-10 flex flex-wrap items-center gap-4", isRoyalGallery ? "justify-end" : "justify-between")}>
+                {!isRoyalGallery && (
                 <div data-royal-control="segments" className="inline-flex rounded-2xl border border-stone-200 bg-white p-1 shadow-sm">
                     {([
                         { id: "photos", label: `Photos (${displayedPhotoCount})` },
@@ -652,6 +697,7 @@ function EventPageContent() {
                         </button>
                     ))}
                 </div>
+                )}
                 <div className="w-full sm:w-auto">
                     {isPrimaryGalleryView ? (
                     <label data-royal-control="source" className="flex h-[50px] w-full items-center gap-2.5 rounded-2xl border border-stone-200 bg-white pl-1.5 pr-1 shadow-sm sm:w-auto">

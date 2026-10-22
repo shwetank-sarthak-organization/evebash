@@ -30,7 +30,7 @@
       ],
       "package": "com.evebash.app",
       "versionCode": 25,
-      "usesCleartextTraffic": true,
+      "usesCleartextTraffic": false,
       "googleServicesFile": "./google-services.json"
     },
     "web": {

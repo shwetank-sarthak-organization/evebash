@@ -10,6 +10,7 @@ import { getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { getApiUrl } from "@/lib/apiBase";
 import { supabase } from "@/lib/supabase";
 import { RequireLogin } from "../RequireLogin";
+import { FindYouConsentGate } from "@/components/FindYouConsentGate";
 
 type MatchedPhoto = {
     id: string;
@@ -188,6 +189,7 @@ function FindYouContent({ slug }: { slug: string }) {
             <section className="mx-auto max-w-6xl px-4 pt-32 pb-20 sm:px-6 lg:px-8">
                 <SectionHeader title="Find You" subtitle="AI-Powered Photo Search" />
 
+                <FindYouConsentGate returnTo={`/events/${slug}/find-you`}>
                 <div className="max-w-2xl mx-auto text-center mb-12">
                     <p className="text-stone-600 mb-8">
                         Upload a clear selfie to search for matching photos from this event.
@@ -282,6 +284,7 @@ function FindYouContent({ slug }: { slug: string }) {
                         <MasonryGrid photos={matchedPhotos} templateId={templateId} />
                     </div>
                 )}
+                </FindYouConsentGate>
             </section>
         </main>
     );

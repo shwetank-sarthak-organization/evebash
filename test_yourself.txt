@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 93
+Next test number: 107
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-10-13
+Last updated: 2026-10-22
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -2197,6 +2197,375 @@ How to test:
   3. As Samarth: the wedding is under Shared Events / Attended, and Baraat is inside it.
   4. As the owner: Baraat is a sub-gallery of the wedding, as before.
   5. As an admin, create another sub-gallery in someone else's event: it doesn't appear as your own event.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#93 Upload panel: cancel one file, and click the header to minimize
+Status:    TODO
+Priority:  Medium
+Platform:  Website (desktop browser)
+Brief:     Each queued or uploading file has a cancel (X) button. The panel's chevron is gone: clicking the
+           header bar (status text / Clear / close row) minimizes and expands the panel.
+How to test:
+  1. Host -> a test gallery -> upload ~20 photos and 1 large video (over 20 MB).
+  2. While it runs, press X on one file that is uploading: "Cancelling..." then "Cancelled". The other files
+     keep uploading and finish as Done.
+  3. Press X on a file that is still "Queued...": it shows "Cancelled" straight away and is never uploaded.
+  4. Press X on the large video mid-upload: it shows "Cancelled"; it never appears in the gallery.
+  5. When everything is done: the header reads "N ready · 0 failed · M cancelled"; the gallery has only the
+     files that weren't cancelled (refresh the page to check).
+  6. Click anywhere on the header bar: the list collapses (a thin progress bar shows while uploading).
+     Click again: it expands. There is no chevron button.
+  7. Clicking Clear, Cancel all uploads or the close X does its own job and doesn't minimize the panel.
+  8. Keyboard: Tab to the header, press Enter: it minimizes / expands.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#94 Uploads and the upload panel stay when you go to another page
+Status:    TODO
+Priority:  High
+Platform:  Website (desktop browser)
+Brief:     The upload panel now follows you around the website (issue #78). Leaving the host page while
+           files upload used to hide the panel and the "don't leave" warning.
+How to test:
+  1. Host -> a test gallery -> upload ~20 photos and 1 video.
+  2. While they upload, click Dashboard (or Profile / Home) in the navbar: the panel stays bottom-right and
+     the numbers keep going up.
+  3. On that page press X on one uploading file: it shows "Cancelled". Press X on a "Queued..." file too.
+  4. Still on that page, press the browser refresh button: the browser asks "Leave site?". Press Cancel.
+  5. Go back to Host -> same gallery: the panel is still there; when it finishes, the photos (and the video,
+     once it says "100% · Ready") are in the gallery, minus the cancelled ones. Refresh to double-check.
+  6. With nothing uploading, refresh any page: no "Leave site?" question.
+  7. Repeat step 1-2, but while uploading open a different gallery on the host page: uploads still finish
+     and the panel shows "Indexing..." / Done for the first gallery's files.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#95 Host gallery: one Filter button holds Source gallery, Uploaded by and Select
+Status:    TODO
+Priority:  Medium
+Platform:  Website (desktop browser and phone browser)
+Brief:     Above the photos, the Source gallery (or Favourites only) and Uploaded by filters and the Select
+           button are now inside a "Filter" button, on the same line as the grid/list toggle (opposite side).
+How to test:
+  1. Host -> open an event's Primary Gallery. Left of the grid/list toggle there is only a "Filter" button;
+     the old Select bar under it is gone.
+  2. Click Filter: a panel opens with Source gallery, Uploaded by (when more than one person uploaded) and
+     Select. Pick a sub-gallery in Source gallery: the grid filters, and Filter shows a gold "1" badge.
+  3. Pick a person in Uploaded by: the grid filters further and the badge shows "2". Set both back to all:
+     the badge goes away.
+  4. Open a sub-gallery: the panel shows Favourites only instead of Source gallery; turning it on counts as 1.
+  5. Click Select in the panel: the panel closes and the bar with "N selected", Move to..., Save to EB Vault,
+     Hide/Show and Cancel appears. Move and Save still work; Cancel removes the bar.
+  6. Switch to list view: the panel has no Select button (as before, selecting is grid-only).
+  7. Click outside the panel or press Escape: it closes.
+  8. The Source gallery and Uploaded by lists open below their box, lined up with its right edge, text
+     right-aligned, a tick on the current choice. Escape closes just the open list; a second Escape closes
+     the panel.
+  9. Phone browser: the panel fits the screen (no sideways scroll) and the lists open normally.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#96 Host gallery: delete several photos and videos at once
+Status:    TODO
+Priority:  High
+Platform:  Website (desktop browser)
+Brief:     The selection bar (Filter > Select) now has a red Delete button. It asks first, then deletes every
+           selected item.
+How to test:
+  Use a test gallery with media you don't need.
+  1. Host -> test gallery -> Filter -> Select. Pick 3 photos and 1 video: the bar shows Delete.
+  2. Press Delete: a dialog asks "Delete 4 items?". Press Cancel: nothing is deleted, the 4 stay selected.
+  3. Press Delete again, then Delete in the dialog: "Deleting 4 items..." then "Deleted 4 items."; they
+     vanish from the grid, select mode ends, and the Photos / Videos counts go down.
+  4. Refresh the page: the 4 are still gone. Open the guest page of the gallery: they're gone there too.
+  5. Storage used (host page) goes down after the delete.
+  6. Select 1 item and delete it: the dialog says "Delete 1 item?" / "It'll be removed...".
+  7. With nothing selected, Delete is greyed out.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#97 Photo pipeline v2: website bulk upload
+Status:    PASS
+Priority:  High
+Platform:  Website
+Brief:     Galleries on photo pipeline v2 (issue #77) make the preview and find faces in one Modal worker.
+           Photos must show up and be searchable exactly as before, only cheaper.
+Detail:    v2 is on per gallery via the Modal Dict switch (modal_engine/photo_pipeline_switch.py). Check which
+           worker ran in modal_cost_logs: function_name process_photo_v2 = v2.
+How to test:
+  1. Put a test gallery on v2 (photo_pipeline_switch.py add-gallery <id>).
+  2. Host -> that gallery -> Home (Primary Gallery) -> upload ~50 camera photos with people in them.
+  3. Expect: every photo shows a preview and thumbnail within ~20 s, none stuck or failed.
+  4. Expect: cost logs show process_photo_v2 for every photo, and face counts per photo match the same
+     photos uploaded on v1.
+Done by:          Sarthak (with Claude)
+Device / browser: Mac browser, staging.evebash.com
+Build / version:  Modal v118 (3034f8c)
+Date tested:      2026-10-21
+Account used:     host, gallery test-v2-358c
+Screenshot / recording:
+Fix ref:
+Feedback:         55/55 on v2, 0 failures, preview + faces done 7 s median (18 s max) after upload. Faces 434 = v1's 434,
+                  same count on every file. Real Modal bill ₹0.018 per photo vs ₹0.064 on v1 (same photos, clean hours).
+
+#98 Photo pipeline v2: app upload, including portrait phone photos
+Status:    PASS
+Priority:  High
+Platform:  App (Android/iOS)
+Brief:     App uploads into a v2 gallery go through the new worker; phone photos (often rotated by EXIF)
+           must come out upright.
+How to test:
+  1. With a test gallery on v2: app -> that event -> Home (Primary Gallery) -> add 10 photos taken with the
+     phone's own camera, at least one portrait, some with people.
+  2. Expect: all appear, upright (portrait stays portrait), none failed.
+  3. Expect: people photos get faces; photos without people get none.
+Done by:          Sarthak (with Claude)
+Device / browser: Sarthak's phone, staging app
+Build / version:  Modal v118 (3034f8c)
+Date tested:      2026-10-21
+Account used:     host, gallery test-v2-358c
+Screenshot / recording:
+Fix ref:
+Feedback:         18/18 on v2 (8 camera files + 10 phone photos), 0 failures, done 5 s median after upload. Both portrait
+                  photos and the selfies upright; faces found on people photos, none on wallpapers. Camera files:
+                  same face counts as v1.
+
+#99 Photo pipeline v2: guest upload
+Status:    PASS
+Priority:  Medium
+Platform:  Website + App
+Brief:     A guest adding photos to a v2 gallery (one or two at a time) gets them processed like before.
+How to test:
+  1. With a test gallery on v2 and guest uploads allowed: as a different account, open the gallery's guest
+     page and add 2 photos (website), then 2 from the app.
+  2. Expect: they show up within ~20 s with a preview and thumbnail; the host sees them; none failed.
+  3. Developer check: modal_cost_logs shows process_photo_v2 for them.
+Done by:          Sarthak (with Claude)
+Device / browser: Second (guest) account, Mac browser, staging.evebash.com
+Build / version:  Modal v118 (3034f8c)
+Date tested:      2026-10-21
+Account used:     guest, gallery test-v2-358c
+Screenshot / recording:
+Fix ref:
+Feedback:         Website only (app path already covered by #98). 15/15 ready and faces indexed; 14 on v2, 1 failed
+                  once with "Server disconnected" (database connection dropped after its preview was saved) and the
+                  5-minute recovery job redid it ~6 min later. Faces identical to v1 on 15/15.
+
+#100 Photo pipeline v2: Find You after v2
+Status:    PASS
+Priority:  High
+Platform:  Website + App
+Brief:     Faces saved by the v2 worker must work in Find You exactly like before.
+How to test:
+  1. In a v2 gallery that has photos of you (uploaded while it was on v2), open Find You and take or upload
+     a selfie.
+  2. Expect: your photos are found, and the same ones as for the same photos uploaded on v1 (if you have both).
+  3. Repeat in the app.
+Done by:          Sarthak (with Claude)
+Device / browser: Mac browser, staging.evebash.com
+Build / version:  Modal v118 (3034f8c)
+Date tested:      2026-10-21
+Account used:     host, gallery test-v2-358c
+Screenshot / recording:
+Fix ref:
+Feedback:         Website: selfie search compared all 1,459 faces in the gallery (v1 + v2 rows) and returned 106
+                  matches in 1.15 s. App not repeated (same backend and Modal function).
+
+#101 Royal Emerald guest page: new invitation-card hero
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     The Royal Emerald (Wedding) guest page has a new top section: an ivory torn-edge card with the gallery
+           title in gold script and a wax seal, a gold filigree frame around the cover photo, and gold corners.
+           Check it looks right on a real phone and a laptop (issues #81-#85, #91-#93, #95, #96).
+How to test:
+  1. Use a gallery with the Royal Emerald design whose title has two names joined by "&" (e.g. "Asha & Raj"),
+     with a date. Open its guest page on a laptop.
+  2. Expect: card on the left, framed cover photo on the right, "Explore Gallery" button below. The card shows
+     "The Wedding of" (Anniversary galleries: "The Anniversary of"), the two names, the date once, and a wax seal
+     with both initials. No made-up text anywhere, no "Treasured Moments / The Wedding Collection" heading.
+  3. Expect: gold corners sit at the 4 corners of the top section only; when you scroll to the photos, nothing
+     gold covers them. The footer shows the gallery title (not "Royal Emerald Edition").
+  4. Press Explore Gallery: the page scrolls to the photos and the top bar doesn't cover the first row.
+  5. Open the same page on a phone: the card comes first, then the photo frame, then the button; nothing is
+     cut off at the sides and the top corners don't sit on the card.
+  6. Open an album inside that gallery (e.g. Haldi): the card shows only the album name and a seal with a
+     fleur-de-lis, no "The Wedding of".
+  7. Rename a test gallery to something long (e.g. "Rajyalakshmi & Venkatanarayanaswamy"): the names get
+     smaller and no word is split across lines.
+  8. Try a landscape cover photo: the frame stays portrait and shows the part chosen with the host page's cover
+     position (focus point); change the focus point and check the guest page follows it.
+  9. On a laptop, the card and the framed photo sit in the middle between the top and bottom gold corners,
+     and the corners, card, photo and button all fit on one screen (also on a small laptop, e.g. 1366x768).
+ 10. Navbar on a laptop: a rounded bar with a thin gold edge sits between the two top gold corners and never
+     touches the photo frame; after scrolling a little it moves up to the top edge. No profile button in it
+     (a guest who joined without an account still sees the round log-out button).
+ 11. Rename the gallery "Asha and Raj", then "Asha AND Raj", "Asha weds Raj", "Asha + Raj": the navbar shows
+     "ASHA & RAJ" and the card shows "The Wedding of", Asha, &, Raj and a seal with A & R each time.
+ 12. Give it a long title (over 25 letters): the navbar title gets smaller; if it still doesn't fit it ends in "..."
+     and hovering it shows the full title.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#102 Royal Emerald gallery section: crest, welcome plaque, Back / Share, Photos / Videos
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     The top of the photo section in Royal Emerald galleries is redesigned: a gold crest, the gallery title
+           between gold lines, the gallery description on an emerald plaque with gold corners, Back and Share
+           beside it, and a gold Photos / Videos switch. Other themes are unchanged.
+How to test:
+  1. Open a Royal Emerald gallery titled "Name & Name" (or "and" / "weds") that has a description, on a laptop.
+     Press Explore Gallery. Expect: crest with both initials, "Home Gallery" in gold between gold lines, the
+     description on the plaque with Back on its left and Share on its right, then the Photos / Videos switch.
+  2. Press Share: it changes to "Link copied" in gold for a moment and the link is in the clipboard.
+  3. Press Back: same as before (main gallery -> Dashboard; album -> the main gallery).
+  4. Switch Photos / Videos: the grid below changes; the counts match the old ones.
+  5. Open an album (e.g. Haldi): the title is the album name and the crest shows a fleur-de-lis.
+  6. A gallery with no description: no plaque; Back and Share sit side by side in the middle.
+  7. Phone: crest, title, Back and Share on one row, the plaque below, then the switch; nothing cut off.
+  8. Open a gallery in another theme: its section looks exactly as before.
+  No gallery video shows yet: that comes with the "Gallery video" host setting (next step).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#103 Gallery video: host picks a video, guests see it at the top of the gallery
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     Hosts can choose one of a gallery's own videos (e.g. the photographer's summary film) as its "gallery video".
+           In Royal Emerald it plays in a gold frame at the top of that gallery's photo section. Needs the database
+           change supabase/migrations/20261022000000_gallery_video.sql applied first.
+How to test:
+  1. Host page -> a Royal Emerald event -> a gallery's Videos -> a processed video -> "..." (Video actions) ->
+     "Use as gallery video". Expect: a success message, and the video's tile shows a gold "Gallery video" badge.
+  2. Open that gallery's guest page and press Explore Gallery. Expect: under the gold title, a wide gold-framed
+     video with a gold play button; pressing it plays the video in the frame.
+  3. Do the same for an album (e.g. Haldi) with a different video: each page shows its own video.
+  4. As a guest (approved member), and logged out on a public gallery: the video shows too. Logged out on a
+     private gallery: no video.
+  5. Video actions -> "Remove as gallery video": the badge goes and the guest page shows no video frame.
+  6. Choose it again, then hide the video from guests (eye button): the guest page shows no video; show it again
+     and it's back. Delete the video: the guest page shows no video and nothing breaks.
+  7. A gallery in another theme with a gallery video chosen: its guest page looks exactly as before (no video yet).
+  8. Host page -> a gallery -> under Welcome Message, the "Gallery Video" panel: "Upload video" a new video. Expect:
+     it uploads into that gallery's Videos, becomes the gallery video (panel shows it as "Processing"), and once
+     processed the panel shows its thumbnail with a play button and the guest page plays it.
+  9. Same panel: "Choose from this gallery's videos" lists only that gallery's videos; picking one makes it the
+     gallery video (the tile badge moves to it). "Remove" clears it.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#104 Website asks for Find You consent before the first selfie
+Status:    TODO
+Priority:  High
+Platform:  Website
+Brief:     Find You now shows a consent step (18+ and face data) before the selfie buttons.
+Detail:    Migration 20261011000000_find_you_consent.sql applied 2026-10-22, so consent is saved.
+How to test (account that has never used Find You):
+  1. Open a gallery's Find You page. Expect: "Before you use Find You" with 4 points, a
+     Privacy Policy link and two checkboxes. No selfie buttons yet.
+  2. Tick only one box. Expect: "Agree and continue" stays disabled.
+  3. Tick both, press "Agree and continue". Expect: selfie buttons appear; a search works.
+  4. Reload the page. Expect: no consent step this time.
+  5. Settings > "Withdraw Find You Consent" > Withdraw. Expect: "Find You consent withdrawn."
+     Open Find You again: the consent step is back.
+  6. Logged out, open /find-you. Expect: "Find You needs an EveBash account" with a login link.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#105 App asks for Find You consent before the first selfie
+Status:    TODO
+Priority:  High
+Platform:  App (new build from staging with the Find You consent commit)
+Brief:     Same consent step inside the gallery's Find You tab, and a withdraw row in Settings.
+How to test (account that has never used Find You, or withdraw first):
+  1. Open a gallery > Find You. Expect: consent card instead of "Upload Photo" / "Take Selfie".
+  2. "Read the Privacy Policy (section 4)" opens the policy in the browser.
+  3. Tick both boxes, "Agree and continue". Expect: the two buttons appear; a search works.
+  4. Close and reopen the app, open Find You. Expect: no consent card.
+  5. Settings > Privacy > "Withdraw Find You Consent" > Withdraw. Expect: toast "Find You
+     consent withdrawn." Find You shows the consent card again.
+  6. Everything else that talks to the server still works in this build (login, gallery,
+     uploads, video playback): plain-HTTP traffic is now off in release builds.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#106 Backend refuses Find You searches without consent
+Status:    BLOCKED
+Priority:  Medium
+Platform:  Website + App
+Brief:     With FIND_YOU_REQUIRE_CONSENT=true on Railway the backend refuses a search from anyone
+           who hasn't agreed. Blocked until the app build from #105 is what testers and users have;
+           older app builds have no consent step and would be refused.
+How to test (after the flag is turned on):
+  1. Account with consent: search on website and app. Expect: works as before.
+  2. Give consent in the app, withdraw it on the website, then search from the app screen that
+     was already open. Expect: the app shows the consent card again, not results or an error.
 Done by:
 Device / browser:
 Build / version:

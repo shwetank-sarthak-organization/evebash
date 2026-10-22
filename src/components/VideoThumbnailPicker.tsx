@@ -108,13 +108,27 @@ export function VideoThumbnailPicker({ video, onClose, onSaved }: Props) {
   </dialog>;
 }
 
-export function VideoThumbnailActions({ ready, onClose, onChoose, onDelete, onMove, onSaveToVault }: { ready: boolean; onClose: () => void; onChoose: () => void; onDelete: () => void; onMove?: () => void; onSaveToVault?: () => void }) {
+type GalleryVideoAction = { isCurrent: boolean; galleryTitle: string; isHidden: boolean; onToggle: () => void };
+
+export function VideoThumbnailActions({ ready, galleryVideo, onClose, onChoose, onDelete, onMove, onSaveToVault }: { ready: boolean; galleryVideo?: GalleryVideoAction; onClose: () => void; onChoose: () => void; onDelete: () => void; onMove?: () => void; onSaveToVault?: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { const focused = document.activeElement as HTMLElement | null; ref.current?.showModal(); return () => focused?.focus(); }, []);
   return <dialog ref={ref} onCancel={e => { e.preventDefault(); onClose(); }} aria-labelledby="video-actions-title" className={cn(modalStyles.dialog, 'max-w-sm')}>
     <ModalHeader titleId="video-actions-title" title="Video actions" onClose={onClose} />
     <button type="button" disabled={!ready} onClick={onChoose} className={cn(modalStyles.primary, 'w-full')}>Change thumbnail</button>
     {!ready && <p className={cn(modalStyles.body, 'mt-2')}>Available after video processing finishes.</p>}
+    {galleryVideo && <>
+      {/* The video that plays at the top of its gallery's guest page, in designs that show one (Royal Emerald for now) */}
+      <button type="button" disabled={!ready && !galleryVideo.isCurrent} onClick={galleryVideo.onToggle} className={cn(modalStyles.secondary, 'mt-3 w-full border-[#CA9C68]/50 text-[#F5E7D4]')}>
+        {galleryVideo.isCurrent ? 'Remove as gallery video' : 'Use as gallery video'}
+      </button>
+      <p className={cn(modalStyles.body, 'mt-2')}>
+        {galleryVideo.isCurrent
+          ? `Plays at the top of "${galleryVideo.galleryTitle}" for guests.`
+          : `Plays at the top of "${galleryVideo.galleryTitle}" for guests, in designs that show a gallery video (Royal Emerald for now).`}
+        {galleryVideo.isHidden && " This video is hidden from guests, so it won't show until you show it again."}
+      </p>
+    </>}
     {onMove && <button type="button" onClick={onMove} className={cn(modalStyles.secondary, 'mt-3 w-full')}>Move to another gallery</button>}
     {onSaveToVault && <button type="button" onClick={onSaveToVault} className={cn(modalStyles.secondary, 'mt-3 w-full border-[#7FA38C]/40 text-[#A9C9B4]')}>Save to EB Vault</button>}
     <button type="button" onClick={onDelete} className={cn(modalStyles.secondary, 'mt-3 w-full border-rose-400/40 text-rose-300 hover:bg-rose-400/10')}>Delete video</button>

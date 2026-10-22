@@ -71,3 +71,552 @@
 .royal-masonry :is(.gallery-card-overlay, .gallery-card-counts) .fill-rose-500 { fill: var(--royal-gold); color: var(--royal-gold); }
 
 .royal-masonry .gallery-media-card video { object-fit: contain; }
+
+/* ---------- Guest page hero (src/components/TemplateRoyal.tsx, ornaments in src/components/royal) ---------- */
+/* Padding matches the corners' outer edges (24px from the top and bottom), and the two equal 1fr rows
+   centre the card and frame between them; the button sits in the lower row. The navbar floats between the
+   top corners (.royal-nav below), so it uses the same corner size. */
+.royal-hero, .royal-nav { --royal-corner: clamp(72px, 12.5vw, 190px); }
+.royal-hero {
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  justify-items: center;
+  min-height: 100svh;
+  padding: 24px 16px;
+  background: radial-gradient(ellipse at 50% 35%, #0b3d30 0%, #02231c 55%, #011510 100%);
+}
+/* Fine grain over the emerald */
+.royal-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+}
+/* Corners sit in the hero only, so they never cover the photos below */
+.royal-hero__corner {
+  position: absolute;
+  width: var(--royal-corner);
+  aspect-ratio: 1;
+  pointer-events: none;
+}
+.royal-hero__corner--tl { top: 24px; left: 24px; }
+.royal-hero__corner--tr { top: 24px; right: 24px; transform: scaleX(-1); }
+.royal-hero__corner--bl { bottom: 24px; left: 24px; transform: scaleY(-1); }
+.royal-hero__corner--br { bottom: 24px; right: 24px; transform: scale(-1, -1); }
+
+.royal-hero__grid {
+  position: relative;
+  grid-row: 2;
+  width: min(1240px, 100%);
+  display: grid;
+  /* 40 / 60: the photo frame gets the larger side */
+  grid-template-columns: minmax(0, 2fr) auto minmax(0, 3fr);
+  align-items: center;
+  gap: clamp(28px, 4vw, 60px);
+}
+.royal-hero__card-col, .royal-hero__frame-col { display: flex; width: 100%; }
+.royal-hero__card-col { justify-content: flex-end; }
+.royal-hero__frame-col { justify-content: flex-start; padding-left: clamp(0px, 8vw - 60px, 64px); }
+.royal-hero__divider { width: 40px; height: 300px; }
+
+/* Ivory invitation card */
+.royal-card {
+  position: relative;
+  width: min(100%, 380px);
+  min-height: 430px;
+  padding: 58px 38px 92px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  isolation: isolate;
+}
+/* The paper is its own layer so only the paper gets the torn edge, not the lettering */
+.royal-card__paper {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .25 0 0 0 .3 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 45% 40%, #fffefa 0%, #faf5e8 62%, #efe4ca 100%);
+  background-blend-mode: multiply, normal;
+  box-shadow: inset 0 0 26px #b8975a40;
+  filter: url(#re-deckle) drop-shadow(0 22px 28px #000000a6) drop-shadow(0 3px 4px #00000066);
+}
+.royal-card__rules {
+  position: absolute;
+  inset: 18px;
+  border: 1px solid #c9a46a80;
+  pointer-events: none;
+}
+.royal-card__rules::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1px solid #c9a46a40;
+}
+/* Gold foil pressed into the paper: light lip below, faint dark edge above */
+.royal-foil {
+  background: linear-gradient(100deg, #8a5f1f 0%, #c99a46 20%, #f2d993 36%, #a8782b 54%, #e3c06f 72%, #8a5f1f 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 0 #ffffffcc) drop-shadow(0 -0.5px 0 #5a3c0a55);
+}
+.royal-card__lead {
+  margin: 0 0 6px;
+  padding-inline: .2em;
+  font: 400 clamp(24px, 3.2vw, 30px)/1.3 var(--font-royal-script), cursive;
+}
+.royal-card__names {
+  margin: 0;
+  max-width: 100%;
+  padding: 0 .15em .08em;
+  font: 400 clamp(46px, 6.2vw, 66px)/1.12 var(--font-royal-script), cursive;
+  overflow-wrap: anywhere;
+}
+.royal-card__names--long { font-size: clamp(38px, 5vw, 52px); }
+.royal-card__names--xlong { font-size: clamp(28px, 3.6vw, 34px); }
+.royal-card__amp {
+  display: block;
+  margin: 2px 0;
+  font: italic 500 clamp(26px, 3.4vw, 34px)/1.1 var(--font-royal-serif), Georgia, serif;
+}
+.royal-card__flourish { width: 120px; height: 16px; margin: 18px 0 14px; }
+.royal-card__date {
+  margin: 0;
+  color: #8a6a36;
+  font: 600 12px/1.6 var(--font-royal-display), Georgia, serif;
+  letter-spacing: .34em;
+  text-transform: uppercase;
+}
+.royal-card__place {
+  margin: 4px 0 0;
+  color: #7a6646;
+  font: italic 500 17px/1.4 var(--font-royal-serif), Georgia, serif;
+}
+.royal-card__seal {
+  position: absolute;
+  left: 50%;
+  bottom: -66px;
+  width: 144px;
+  height: 144px;
+  transform: translateX(-50%) rotate(-6deg);
+  overflow: visible;
+}
+
+/* Rectangular filigree frame around the cover photo */
+/* Always portrait: landscape covers are cropped around the host's focus point */
+.royal-frame {
+  position: relative;
+  width: min(100%, 520px);
+  aspect-ratio: 4 / 5;
+  padding: 30px;
+  background: #2b1d07;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px #00000066, 0 28px 60px #000000a0, 0 0 80px #ca9c6922;
+}
+.royal-frame__lace { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.royal-frame__photo {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 5px;
+  background: linear-gradient(135deg, #fff1c4 0%, #c99a46 28%, #7a5418 50%, #ecd08a 72%, #8d6421 100%);
+  box-shadow: 0 0 0 1px #3a2708;
+}
+.royal-frame__window { position: relative; width: 100%; height: 100%; overflow: hidden; background: #021a15; }
+.royal-frame__window::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 22px #000000b0, inset 0 0 0 1px #00000080;
+}
+.royal-frame__corner { position: absolute; width: 100px; height: 100px; pointer-events: none; }
+.royal-frame__corner--tl { top: -16px; left: -16px; }
+.royal-frame__corner--tr { top: -16px; right: -16px; transform: scaleX(-1); }
+.royal-frame__corner--bl { bottom: -16px; left: -16px; transform: scaleY(-1); }
+.royal-frame__corner--br { bottom: -16px; right: -16px; transform: scale(-1, -1); }
+.royal-frame__crest { position: absolute; width: 92px; height: 46px; pointer-events: none; }
+.royal-frame__crest--t { top: -9px; left: 50%; transform: translateX(-50%); }
+.royal-frame__crest--b { bottom: -9px; left: 50%; transform: translateX(-50%) scaleY(-1); }
+.royal-frame__crest--l { left: -32px; top: 50%; transform: translateY(-50%) rotate(-90deg); }
+.royal-frame__crest--r { right: -32px; top: 50%; transform: translateY(-50%) rotate(90deg); }
+
+/* Brushed-gold button with an emerald inset ring */
+.royal-cta {
+  position: relative;
+  grid-row: 3;
+  align-self: start;
+  /* the frame is taller than the card, so the wax seal never reaches below it */
+  margin-top: 48px;
+  padding: 18px 40px;
+  border: 0;
+  border-radius: 999px;
+  color: #02231c;
+  font: 600 13px/1 var(--font-royal-display), Georgia, serif;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  cursor: pointer;
+  background:
+    repeating-linear-gradient(90deg, #ffffff10 0 1px, #00000008 1px 3px),
+    linear-gradient(180deg, #f6dc9a 0%, #d6ac5c 45%, #b8873a 55%, #e6c574 100%);
+  box-shadow:
+    inset 0 0 0 3px #e9cd86,
+    inset 0 0 0 4.5px #02231c,
+    0 10px 26px #00000080,
+    0 0 30px #ca9c6930;
+  transition: transform .2s ease, filter .2s ease;
+}
+.royal-cta:hover { filter: brightness(1.06); }
+.royal-cta:active { transform: translateY(1px); }
+.royal-cta:focus-visible { outline: 2px solid #f3d68f; outline-offset: 4px; }
+
+/* The fixed event navbar would otherwise cover the top of the gallery after "Explore Gallery" */
+#royal-collection-section { scroll-margin-top: 72px; }
+
+.royal-footer__title {
+  margin: 0;
+  color: var(--royal-gold, #ca9c69);
+  font: 400 clamp(26px, 4vw, 34px)/1.3 var(--font-royal-script), cursive;
+}
+
+/* Short laptop screens (e.g. 1366x768 with browser bars): shrink the card and frame so the corners,
+   the centred pair and the button still fit in one screen */
+@media (min-width: 880px) {
+  /* The navbar floats between the top corners, so both outer rows keep at least its height plus a gap:
+     the card and frame stay centred between the corners and never slide under the bar. */
+  .royal-hero {
+    grid-template-rows:
+      minmax(calc(var(--royal-corner) * .24 + 72px), 1fr)
+      auto
+      minmax(calc(var(--royal-corner) * .24 + 72px), 1fr);
+  }
+}
+/* Each step keeps hero = corners + navbar room (about 280px) + frame (650px x zoom) within the screen height */
+@media (min-width: 880px) and (max-height: 930px) { .royal-hero__grid { zoom: .92; } }
+@media (min-width: 880px) and (max-height: 878px) { .royal-hero__grid { zoom: .84; } }
+@media (min-width: 880px) and (max-height: 826px) { .royal-hero__grid { zoom: .76; } }
+@media (min-width: 880px) and (max-height: 774px) { .royal-hero__grid { zoom: .7; } }
+@media (min-width: 880px) and (max-height: 735px) { .royal-hero__grid { zoom: .64; } }
+@media (min-width: 880px) and (max-height: 696px) { .royal-hero__grid { zoom: .58; } }
+@media (min-width: 880px) and (max-height: 657px) { .royal-hero__grid { zoom: .54; } }
+
+@media (max-width: 879px) {
+  /* Stacked on phones: no equal rows to centre between, so no empty space above the card */
+  .royal-hero { min-height: 0; grid-template-rows: auto auto auto; padding: 148px 16px 14px; }
+  .royal-hero__corner { width: 60px; }
+  .royal-hero__corner--tl { top: 72px; left: 14px; }
+  .royal-hero__corner--tr { top: 72px; right: 14px; }
+  .royal-hero__corner--bl { bottom: 14px; left: 14px; }
+  .royal-hero__corner--br { bottom: 14px; right: 14px; }
+  .royal-hero__grid { grid-template-columns: minmax(0, 1fr); gap: 100px; }
+  .royal-hero__card-col, .royal-hero__frame-col { justify-content: center; padding-left: 0; }
+  .royal-hero__divider { display: none; }
+  .royal-card { width: min(100%, 84vw, 380px); min-height: 0; padding: 52px 26px 88px; }
+  .royal-frame { width: min(100%, 88vw, 440px); }
+  .royal-cta { margin-top: 48px; margin-bottom: 86px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .royal-cta { transition: none; }
+}
+
+/* ---------- Event navbar in the Royal Emerald design (EventNavbar variant="royal") ---------- */
+/* A floating rounded bar with a thin gold edge, inside the hero's gold corners */
+.royal-nav {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 50;
+  padding: 7px 8px 7px 26px;
+  border: 1px solid #ca9c6966;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #073328e6 0%, #021a15ee 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 12px 32px #00000070, inset 0 1px 0 #f3d68f22;
+  color: #e6c574;
+  transition: top .35s ease, left .35s ease, right .35s ease;
+}
+/* At the top of the page the bar sits between the two top corners, like the invitation layout;
+   once the guest scrolls it moves up to the top edge and fills the width (12px from each side) */
+@media (min-width: 880px) {
+  .royal-nav:not(.royal-nav--scrolled) {
+    top: calc(24px + var(--royal-corner) * .24);
+    left: calc(28px + var(--royal-corner));
+    right: calc(28px + var(--royal-corner));
+  }
+}
+.royal-nav__title {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #f1dca6;
+  font: 400 clamp(15px, 1.5vw, 20px)/1.2 var(--font-royal-display), Georgia, serif;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.royal-nav__title--long { font-size: clamp(13px, 1.2vw, 16px); letter-spacing: .04em; }
+.royal-nav__title--xlong { font-size: clamp(12px, 1vw, 14px); letter-spacing: .03em; }
+.royal-nav__link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #d9b66f;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .2s ease;
+}
+.royal-nav__link:hover { color: #f6e3b0; }
+.royal-nav__link:disabled { opacity: .55; cursor: default; }
+.royal-nav__link--active { color: #fcfbf7; }
+/* Active page: a short gold rule under the label instead of a filled pill */
+.royal-nav__link--active::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 4px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #e6c574, transparent);
+}
+.royal-nav__link:focus-visible, .royal-nav__avatar:focus-visible, .royal-nav__title:focus-visible {
+  outline: 2px solid #e6c574;
+  outline-offset: 2px;
+}
+.royal-nav__menu-item { display: flex; width: 100%; padding: 12px 14px; text-align: left; }
+.royal-nav__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-left: 8px;
+  overflow: hidden;
+  border: 1.5px solid #ca9c69;
+  border-radius: 999px;
+  background: #021a15;
+  color: #e6c574;
+  transition: border-color .2s ease;
+}
+.royal-nav__avatar:hover { border-color: #f3d68f; }
+@media (max-width: 767px) {
+  .royal-nav { top: 10px; left: 10px; right: 10px; padding: 6px 6px 6px 20px; }
+}
+
+/* ---------- Gallery section header (src/components/royal/RoyalGalleryHeader.tsx) ---------- */
+.royal-gh { padding-top: 8px; text-align: center; }
+.royal-gh__crest { display: block; width: 172px; height: 79px; margin: 0 auto 2px; overflow: visible; }
+.royal-gh__title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  max-width: 880px;
+  margin: 0 auto;
+}
+.royal-gh__rule { width: 100%; height: 14px; }
+.royal-gh__rule--right { transform: scaleX(-1); }
+/* Doubled class beats the theme's generic h2 colour override above */
+.royal-gallery-content .royal-gh__title.royal-gh__title {
+  margin: 0;
+  max-width: 62vw;
+  padding: 0 .06em .08em;
+  overflow-wrap: anywhere;
+  background: linear-gradient(180deg, #f8e7b8 0%, #e2bd72 55%, #b98a3a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 8px #00000099);
+  font: 500 clamp(34px, 4.6vw, 58px)/1.15 var(--font-playfair-src), var(--font-royal-serif), Georgia, serif;
+}
+
+/* Gallery video: a wide rectangle in a polished gold edge with a soft glow */
+.royal-video {
+  width: min(100%, 780px);
+  margin: 34px auto 0;
+  padding: 4px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #fff1c4 0%, #c99a46 28%, #7a5418 50%, #ecd08a 72%, #8d6421 100%);
+  box-shadow: 0 0 0 1px #3a2708, 0 0 46px #ca9c6955, 0 24px 50px #000000aa;
+}
+.royal-video__screen { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 2px; background: #010d0a; }
+.royal-video__screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 26px #000000b0;
+}
+.royal-video__player { position: absolute; inset: 0; width: 100%; height: 100%; }
+.royal-video__start {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: radial-gradient(ellipse at 50% 40%, #0f4535 0%, #021a15 75%);
+  cursor: pointer;
+}
+.royal-video__poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.royal-video__play {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 78px;
+  height: 78px;
+  border: 2px solid #f6e3b0b3;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #f3dc9ae6 0%, #b8873acc 72%);
+  box-shadow: 0 8px 24px #000000aa, inset 0 1px 0 #ffffff66;
+  transition: transform .2s ease, filter .2s ease;
+}
+.royal-video__play-icon { width: 30px; height: 30px; margin-left: 4px; color: #1c1406; fill: #1c1406; }
+.royal-video__start:hover .royal-video__play { filter: brightness(1.08); }
+.royal-video__start:active .royal-video__play { transform: scale(.96); }
+.royal-video__start:focus-visible { outline: 2px solid #f3d68f; outline-offset: -6px; }
+
+/* Back | welcome plaque | Share */
+.royal-gh__bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 640px) minmax(0, 1fr);
+  grid-template-areas: "back plaque share";
+  align-items: center;
+  gap: 22px;
+  max-width: 1000px;
+  margin: 34px auto 0;
+}
+.royal-gh__bar--no-message { grid-template-columns: 1fr 1fr; grid-template-areas: "back share"; gap: 12px; }
+.royal-gh__back { grid-area: back; justify-self: end; }
+.royal-gh__share { grid-area: share; justify-self: start; }
+.royal-gh__side {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid #ca9c6947;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #0c3328 0%, #072920 100%);
+  box-shadow: 0 6px 16px #00000066;
+  color: #e9cf96;
+  font: 600 12px/1 var(--font-royal-display), Georgia, serif;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .2s ease, color .2s ease;
+}
+.royal-gh__side:hover { border-color: #ca9c69b3; color: #f6e3b0; }
+.royal-gh__side:focus-visible { outline: 2px solid #e6c574; outline-offset: 3px; }
+
+/* Welcome plaque: emerald velvet with a double gold edge, filigree corners and diamond points at the sides */
+.royal-plaque { position: relative; grid-area: plaque; padding: 28px 52px; }
+.royal-plaque__panel {
+  position: absolute;
+  inset: 0;
+  border: 2px solid #d9b46a;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E"),
+    linear-gradient(115deg, transparent 30%, #ffffff0b 46%, transparent 62%),
+    radial-gradient(ellipse at 50% 40%, #0f4535 0%, #073026 55%, #04211a 100%);
+  background-blend-mode: overlay, normal, normal;
+  box-shadow: inset 0 0 0 3px #062a20, inset 0 0 0 4px #ca9c6999, inset 0 0 40px #00000088;
+}
+.royal-plaque__corner { position: absolute; width: 56px; height: 56px; pointer-events: none; overflow: visible; }
+.royal-plaque__corner--tl { top: -13px; left: -13px; }
+.royal-plaque__corner--tr { top: -13px; right: -13px; transform: scaleX(-1); }
+.royal-plaque__corner--bl { bottom: -13px; left: -13px; transform: scaleY(-1); }
+.royal-plaque__corner--br { bottom: -13px; right: -13px; transform: scale(-1, -1); }
+/* Diamond points at the middle of the left and right sides */
+.royal-plaque::before, .royal-plaque::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #d9b46a;
+  background: #073026;
+  box-shadow: 0 0 0 2px #04211a, 0 2px 6px #00000080;
+  transform: translateY(-50%) rotate(45deg);
+  z-index: 1;
+}
+.royal-plaque::before { left: -8px; }
+.royal-plaque::after { right: -8px; }
+.royal-gallery-content .royal-plaque__text.royal-plaque__text {
+  position: relative;
+  margin: 0;
+  color: #f3eee2;
+  font: 500 clamp(16px, 1.6vw, 19px)/1.55 var(--font-royal-serif), Georgia, serif;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+/* Photos / Videos */
+.royal-gh__tabs {
+  display: inline-flex;
+  gap: 4px;
+  margin-top: 30px;
+  padding: 4px;
+  border: 1px solid #ca9c6999;
+  border-radius: 999px;
+  background: #04211acc;
+}
+.royal-gh__tab {
+  padding: 11px 22px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #e9cf96;
+  font: 600 12.5px/1 var(--font-royal-display), Georgia, serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color .2s ease;
+}
+.royal-gh__tab:hover { color: #f6e3b0; }
+.royal-gh__tab[aria-pressed="true"] {
+  background: linear-gradient(180deg, #f6dc9a 0%, #d6ac5c 50%, #b8873a 100%);
+  box-shadow: inset 0 1px 0 #ffffff55, 0 2px 8px #00000066;
+  color: #1c1406;
+}
+.royal-gh__tab:focus-visible { outline: 2px solid #e6c574; outline-offset: 2px; }
+
+@media (max-width: 767px) {
+  .royal-gh__crest { width: 138px; height: 63px; }
+  .royal-gh__title-row { gap: 10px; }
+  .royal-gh__bar, .royal-gh__bar--no-message {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "back share" "plaque plaque";
+    gap: 30px 12px;
+  }
+  .royal-gh__back { justify-self: start; }
+  .royal-gh__share { justify-self: end; }
+  .royal-gh__bar--no-message { grid-template-areas: "back share"; }
+  .royal-gh__bar--no-message .royal-gh__back { justify-self: end; }
+  .royal-gh__bar--no-message .royal-gh__share { justify-self: start; }
+  .royal-plaque { padding: 24px 30px; }
+  .royal-gh__tab { padding: 10px 16px; font-size: 11.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .royal-gh__side, .royal-gh__tab, .royal-video__play { transition: none; }
+}
