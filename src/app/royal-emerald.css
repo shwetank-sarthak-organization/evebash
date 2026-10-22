@@ -420,3 +420,203 @@
 @media (max-width: 767px) {
   .royal-nav { top: 10px; left: 10px; right: 10px; padding: 6px 6px 6px 20px; }
 }
+
+/* ---------- Gallery section header (src/components/royal/RoyalGalleryHeader.tsx) ---------- */
+.royal-gh { padding-top: 8px; text-align: center; }
+.royal-gh__crest { display: block; width: 172px; height: 79px; margin: 0 auto 2px; overflow: visible; }
+.royal-gh__title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  max-width: 880px;
+  margin: 0 auto;
+}
+.royal-gh__rule { width: 100%; height: 14px; }
+.royal-gh__rule--right { transform: scaleX(-1); }
+/* Doubled class beats the theme's generic h2 colour override above */
+.royal-gallery-content .royal-gh__title.royal-gh__title {
+  margin: 0;
+  max-width: 62vw;
+  padding: 0 .06em .08em;
+  overflow-wrap: anywhere;
+  background: linear-gradient(180deg, #f8e7b8 0%, #e2bd72 55%, #b98a3a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 8px #00000099);
+  font: 500 clamp(34px, 4.6vw, 58px)/1.15 var(--font-playfair-src), var(--font-royal-serif), Georgia, serif;
+}
+
+/* Gallery video: a wide rectangle in a polished gold edge with a soft glow */
+.royal-video {
+  width: min(100%, 780px);
+  margin: 34px auto 0;
+  padding: 4px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #fff1c4 0%, #c99a46 28%, #7a5418 50%, #ecd08a 72%, #8d6421 100%);
+  box-shadow: 0 0 0 1px #3a2708, 0 0 46px #ca9c6955, 0 24px 50px #000000aa;
+}
+.royal-video__screen { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 2px; background: #010d0a; }
+.royal-video__screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 26px #000000b0;
+}
+.royal-video__player { position: absolute; inset: 0; width: 100%; height: 100%; }
+.royal-video__start {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: radial-gradient(ellipse at 50% 40%, #0f4535 0%, #021a15 75%);
+  cursor: pointer;
+}
+.royal-video__poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.royal-video__play {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 78px;
+  height: 78px;
+  border: 2px solid #f6e3b0b3;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #f3dc9ae6 0%, #b8873acc 72%);
+  box-shadow: 0 8px 24px #000000aa, inset 0 1px 0 #ffffff66;
+  transition: transform .2s ease, filter .2s ease;
+}
+.royal-video__play-icon { width: 30px; height: 30px; margin-left: 4px; color: #1c1406; fill: #1c1406; }
+.royal-video__start:hover .royal-video__play { filter: brightness(1.08); }
+.royal-video__start:active .royal-video__play { transform: scale(.96); }
+.royal-video__start:focus-visible { outline: 2px solid #f3d68f; outline-offset: -6px; }
+
+/* Back | welcome plaque | Share */
+.royal-gh__bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 640px) minmax(0, 1fr);
+  grid-template-areas: "back plaque share";
+  align-items: center;
+  gap: 22px;
+  max-width: 1000px;
+  margin: 34px auto 0;
+}
+.royal-gh__bar--no-message { grid-template-columns: 1fr 1fr; grid-template-areas: "back share"; gap: 12px; }
+.royal-gh__back { grid-area: back; justify-self: end; }
+.royal-gh__share { grid-area: share; justify-self: start; }
+.royal-gh__side {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid #ca9c6947;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #0c3328 0%, #072920 100%);
+  box-shadow: 0 6px 16px #00000066;
+  color: #e9cf96;
+  font: 600 12px/1 var(--font-royal-display), Georgia, serif;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .2s ease, color .2s ease;
+}
+.royal-gh__side:hover { border-color: #ca9c69b3; color: #f6e3b0; }
+.royal-gh__side:focus-visible { outline: 2px solid #e6c574; outline-offset: 3px; }
+
+/* Welcome plaque: emerald velvet with a double gold edge, filigree corners and diamond points at the sides */
+.royal-plaque { position: relative; grid-area: plaque; padding: 28px 52px; }
+.royal-plaque__panel {
+  position: absolute;
+  inset: 0;
+  border: 2px solid #d9b46a;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E"),
+    linear-gradient(115deg, transparent 30%, #ffffff0b 46%, transparent 62%),
+    radial-gradient(ellipse at 50% 40%, #0f4535 0%, #073026 55%, #04211a 100%);
+  background-blend-mode: overlay, normal, normal;
+  box-shadow: inset 0 0 0 3px #062a20, inset 0 0 0 4px #ca9c6999, inset 0 0 40px #00000088;
+}
+.royal-plaque__corner { position: absolute; width: 56px; height: 56px; pointer-events: none; overflow: visible; }
+.royal-plaque__corner--tl { top: -13px; left: -13px; }
+.royal-plaque__corner--tr { top: -13px; right: -13px; transform: scaleX(-1); }
+.royal-plaque__corner--bl { bottom: -13px; left: -13px; transform: scaleY(-1); }
+.royal-plaque__corner--br { bottom: -13px; right: -13px; transform: scale(-1, -1); }
+/* Diamond points at the middle of the left and right sides */
+.royal-plaque::before, .royal-plaque::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #d9b46a;
+  background: #073026;
+  box-shadow: 0 0 0 2px #04211a, 0 2px 6px #00000080;
+  transform: translateY(-50%) rotate(45deg);
+  z-index: 1;
+}
+.royal-plaque::before { left: -8px; }
+.royal-plaque::after { right: -8px; }
+.royal-gallery-content .royal-plaque__text.royal-plaque__text {
+  position: relative;
+  margin: 0;
+  color: #f3eee2;
+  font: 500 clamp(16px, 1.6vw, 19px)/1.55 var(--font-royal-serif), Georgia, serif;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+/* Photos / Videos */
+.royal-gh__tabs {
+  display: inline-flex;
+  gap: 4px;
+  margin-top: 30px;
+  padding: 4px;
+  border: 1px solid #ca9c6999;
+  border-radius: 999px;
+  background: #04211acc;
+}
+.royal-gh__tab {
+  padding: 11px 22px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #e9cf96;
+  font: 600 12.5px/1 var(--font-royal-display), Georgia, serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color .2s ease;
+}
+.royal-gh__tab:hover { color: #f6e3b0; }
+.royal-gh__tab[aria-pressed="true"] {
+  background: linear-gradient(180deg, #f6dc9a 0%, #d6ac5c 50%, #b8873a 100%);
+  box-shadow: inset 0 1px 0 #ffffff55, 0 2px 8px #00000066;
+  color: #1c1406;
+}
+.royal-gh__tab:focus-visible { outline: 2px solid #e6c574; outline-offset: 2px; }
+
+@media (max-width: 767px) {
+  .royal-gh__crest { width: 138px; height: 63px; }
+  .royal-gh__title-row { gap: 10px; }
+  .royal-gh__bar, .royal-gh__bar--no-message {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "back share" "plaque plaque";
+    gap: 30px 12px;
+  }
+  .royal-gh__back { justify-self: start; }
+  .royal-gh__share { justify-self: end; }
+  .royal-gh__bar--no-message { grid-template-areas: "back share"; }
+  .royal-gh__bar--no-message .royal-gh__back { justify-self: end; }
+  .royal-gh__bar--no-message .royal-gh__share { justify-self: start; }
+  .royal-plaque { padding: 24px 30px; }
+  .royal-gh__tab { padding: 10px 16px; font-size: 11.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .royal-gh__side, .royal-gh__tab, .royal-video__play { transition: none; }
+}

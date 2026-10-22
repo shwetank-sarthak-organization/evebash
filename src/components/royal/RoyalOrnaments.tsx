@@ -197,6 +197,38 @@ export function RoyalOrnamentDefs() {
                     <stop offset="0.5" stopColor="#e6c574" />
                     <stop offset="1" stopColor="#ca9c69" stopOpacity="0" />
                 </linearGradient>
+
+                {/* Gallery section: crest above the title, rules beside it, corners of the welcome plaque */}
+                <linearGradient id="re-gold-crest-lg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="200" y2="92">{gradientStops(CREST_GOLD)}</linearGradient>
+                <linearGradient id="re-rule-fade" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="206" y2="0">
+                    <stop offset="0" stopColor="#ca9c69" stopOpacity="0" />
+                    <stop offset="1" stopColor="#e6c574" />
+                </linearGradient>
+                <g id="re-crest-side">
+                    <path d="M76 56 C62 64 44 62 40 50 C36 38 50 30 57 39 C61 45 55 50 51 46" fill="none" strokeWidth={3} />
+                    <circle cx={51} cy={46} r={2} stroke="none" />
+                    <path d="M77 36 C65 30 57 20 61 12 C64 6 72 9 70 15" fill="none" strokeWidth={2.4} />
+                    <circle cx={70} cy={15} r={1.8} stroke="none" />
+                    <path d="M98 86 C86 82 70 82 56 86 C48 88 42 84 46 80" fill="none" strokeWidth={2.2} />
+                    <g stroke="none">
+                        <use href="#re-leaf" transform="translate(62 50) rotate(200) scale(.7)" />
+                        <use href="#re-leaf" transform="translate(66 27) rotate(-130) scale(.6)" />
+                        <use href="#re-leaf" transform="translate(72 84) rotate(175) scale(.55)" />
+                        <use href="#re-leaf" transform="translate(42 61) rotate(140) scale(.5)" />
+                    </g>
+                </g>
+                <g id="re-plaque-curl">
+                    <path d="M9 0 C16 -8 28 -9 33 -3 C37 2 31 7 27 3" fill="none" strokeWidth={2} />
+                    <circle cx={27} cy={3} r={1.6} stroke="none" />
+                    <use href="#re-leaf" transform="translate(18 -5) rotate(-15) scale(.42)" stroke="none" />
+                </g>
+                <g id="re-plaque-corner">
+                    {/* A gold diamond on the corner with a curl running along each edge */}
+                    <use href="#re-plaque-curl" />
+                    <use href="#re-plaque-curl" transform={MIRROR_DIAGONAL} />
+                    <path d="M0 -7.5 L7.5 0 L0 7.5 L-7.5 0 Z" stroke="none" />
+                    <circle cx={0} cy={0} r={2} fill="#3a2709" stroke="none" />
+                </g>
             </defs>
         </svg>
     );
@@ -303,6 +335,70 @@ export function RoyalDivider({ className }: { className?: string }) {
                 <use href="#re-fleur" transform="translate(20 128) scale(.75)" />
                 <use href="#re-fleur" transform="translate(20 172) rotate(180) scale(.75)" />
                 <path d="M20 142 L28 150 L20 158 L12 150 Z" />
+            </g>
+        </svg>
+    );
+}
+
+/** Crest above the gallery title: crowned shield with the couple's initials (or a fleur-de-lis) between gold scrolls. */
+export function RoyalCrest({ initials, className }: { initials?: [string, string] | null; className?: string }) {
+    return (
+        <svg className={className} viewBox="0 0 200 92" role="img" aria-label={initials ? `Crest with the initials ${initials[0]} and ${initials[1]}` : "Crest"}>
+            <g filter="url(#re-emboss)" fill="url(#re-gold-crest-lg)" stroke="url(#re-gold-crest-lg)" strokeLinecap="round">
+                <g fill="none">
+                    <use href="#re-crest-side" fill="url(#re-gold-crest-lg)" />
+                    <use href="#re-crest-side" fill="url(#re-gold-crest-lg)" transform="matrix(-1 0 0 1 200 0)" />
+                </g>
+                <path d="M84 18 L82 6 L91 12 L100 2 L109 12 L118 6 L116 18 Z" stroke="none" />
+                <rect x="84" y="18" width="32" height="5" rx="1.5" stroke="none" />
+                <circle cx={82} cy={6} r={2.2} stroke="none" />
+                <circle cx={100} cy={2.5} r={2.4} stroke="none" />
+                <circle cx={118} cy={6} r={2.2} stroke="none" />
+                <path d="M78 26 H122 V50 C122 66 110 76 100 82 C90 76 78 66 78 50 Z" stroke="none" />
+                <path d="M82.5 30 H117.5 V50 C117.5 63.5 108 72 100 77 C92 72 82.5 63.5 82.5 50 Z" fill="#0a2a22" strokeWidth={1.2} />
+            </g>
+            <circle cx={100} cy={20.5} r={1.5} fill="#3a2709" />
+            {initials ? (
+                <text
+                    x={100}
+                    y={60}
+                    textAnchor="middle"
+                    fontSize={16}
+                    fontWeight={600}
+                    fill="url(#re-gold-crest-lg)"
+                    style={{ fontFamily: "var(--font-royal-display), Georgia, serif" }}
+                >
+                    {initials[0]}
+                    <tspan fontSize={11} fontStyle="italic" dy={-1} style={{ fontFamily: "var(--font-royal-serif), Georgia, serif" }}>&amp;</tspan>
+                    <tspan dy={1}>{initials[1]}</tspan>
+                </text>
+            ) : (
+                <use href="#re-fleur" transform="translate(100 52) scale(.62)" fill="url(#re-gold-crest-lg)" />
+            )}
+        </svg>
+    );
+}
+
+/** Gold line fading in towards the title, ending in two small diamonds. Drawn for the left side; flip it for the right. */
+export function RoyalTitleRule({ className }: { className?: string }) {
+    return (
+        <svg className={className} viewBox="0 0 240 14" preserveAspectRatio="xMaxYMid meet" aria-hidden="true" focusable="false">
+            <path d="M0 7 H206" stroke="url(#re-rule-fade)" strokeWidth={1.2} />
+            <g fill="none" stroke="#e6c574" strokeWidth={1.2}>
+                <path d="M211 7 L215.5 2.5 L220 7 L215.5 11.5 Z" />
+                <path d="M222 7 L226.5 2.5 L231 7 L226.5 11.5 Z" />
+            </g>
+            <circle cx={236} cy={7} r={1.4} fill="#e6c574" />
+        </svg>
+    );
+}
+
+/** One corner of the welcome plaque (top-left as drawn; flip with CSS for the others). */
+export function RoyalPlaqueCorner({ className }: { className?: string }) {
+    return (
+        <svg className={className} viewBox="-14 -14 56 56" aria-hidden="true" focusable="false">
+            <g filter="url(#re-emboss)" fill="url(#re-gold-frame)" stroke="url(#re-gold-frame)" strokeLinecap="round">
+                <use href="#re-plaque-corner" />
             </g>
         </svg>
     );

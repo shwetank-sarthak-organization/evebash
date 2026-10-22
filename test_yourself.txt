@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 102
+Next test number: 103
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2435,6 +2435,34 @@ How to test:
      "ASHA & RAJ" and the card shows "The Wedding of", Asha, &, Raj and a seal with A & R each time.
  12. Give it a long title (over 25 letters): the navbar title gets smaller; if it still doesn't fit it ends in "..."
      and hovering it shows the full title.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#102 Royal Emerald gallery section: crest, welcome plaque, Back / Share, Photos / Videos
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     The top of the photo section in Royal Emerald galleries is redesigned: a gold crest, the gallery title
+           between gold lines, the gallery description on an emerald plaque with gold corners, Back and Share
+           beside it, and a gold Photos / Videos switch. Other themes are unchanged.
+How to test:
+  1. Open a Royal Emerald gallery titled "Name & Name" (or "and" / "weds") that has a description, on a laptop.
+     Press Explore Gallery. Expect: crest with both initials, "Home Gallery" in gold between gold lines, the
+     description on the plaque with Back on its left and Share on its right, then the Photos / Videos switch.
+  2. Press Share: it changes to "Link copied" in gold for a moment and the link is in the clipboard.
+  3. Press Back: same as before (main gallery -> Dashboard; album -> the main gallery).
+  4. Switch Photos / Videos: the grid below changes; the counts match the old ones.
+  5. Open an album (e.g. Haldi): the title is the album name and the crest shows a fleur-de-lis.
+  6. A gallery with no description: no plaque; Back and Share sit side by side in the middle.
+  7. Phone: crest, title, Back and Share on one row, the plaque below, then the switch; nothing cut off.
+  8. Open a gallery in another theme: its section looks exactly as before.
+  No gallery video shows yet: that comes with the "Gallery video" host setting (next step).
 Done by:
 Device / browser:
 Build / version:

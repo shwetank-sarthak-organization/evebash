@@ -6,7 +6,7 @@ import { Event } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { Crown } from "lucide-react";
 import { royalDisplay, royalScript, royalSerif } from "@/components/royal/royalFonts";
-import { splitCoupleNames } from "@/components/royal/coupleNames";
+import { coupleInitials, splitCoupleNames } from "@/components/royal/coupleNames";
 import {
     RoyalDivider,
     RoyalFiligreeFrame,
@@ -25,11 +25,6 @@ interface TemplateRoyalProps {
 
 const DEFAULT_HERO_IMAGE = "/royal_emerald_palace_hero.jpg";
 const SCREEN_CORNERS = ["tl", "tr", "bl", "br"] as const;
-
-function initialOf(name: string) {
-    const first = Array.from(name)[0] || "";
-    return /\p{L}/u.test(first) ? first.toLocaleUpperCase() : "";
-}
 
 function coupleLead(category?: string) {
     const type = (category || "").toLowerCase();
@@ -62,8 +57,7 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
     const title = (event.title || "").trim();
     // Albums show their own name; the couple line and initials belong to the main gallery
     const couple = hasParent ? null : splitCoupleNames(title);
-    const initials = couple ? [initialOf(couple[0]), initialOf(couple[1])] as [string, string] : null;
-    const sealInitials = initials && initials[0] && initials[1] ? initials : null;
+    const sealInitials = couple ? coupleInitials(title) : null;
     const longestName = couple ? Math.max(couple[0].length, couple[1].length) : title.length;
 
     const scrollToContent = () => {

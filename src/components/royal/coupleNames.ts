@@ -12,6 +12,19 @@ export function splitCoupleNames(title: string): [string, string] | null {
     return tooLong ? null : [parts[0], parts[1]];
 }
 
+function initialOf(name: string) {
+    const first = Array.from(name)[0] || "";
+    return /\p{L}/u.test(first) ? first.toLocaleUpperCase() : "";
+}
+
+/** "Asha and Raj" -> ["A", "R"] for the wax seal and crest; null unless both names start with a letter */
+export function coupleInitials(title: string): [string, string] | null {
+    const couple = splitCoupleNames(title);
+    if (!couple) return null;
+    const initials: [string, string] = [initialOf(couple[0]), initialOf(couple[1])];
+    return initials[0] && initials[1] ? initials : null;
+}
+
 /** The title with its joiner written as "&" ("Asha AND Raj" -> "Asha & Raj"); other titles unchanged */
 export function displayCoupleTitle(title: string): string {
     const couple = splitCoupleNames(title);

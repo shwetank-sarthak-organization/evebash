@@ -526,6 +526,7 @@ Blocked by: -
 Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: In Royal Emerald some text is hard to read on the dark green: "Link Copied!" (text-green-600), the guest upload error (text-rose-600) and the empty-gallery message (muted text at opacity-50) (src/app/(public)/events/[slug]/page.tsx).
 How to reproduce: Open a Royal Emerald gallery, press Share Event (green text), and open an empty Royal Emerald gallery (faint message).
+Update 2026-10-22: "Link copied" is now gold in Royal Emerald (new gallery header, test_yourself #102). The guest upload error and the empty-gallery message are still hard to read.
 
 #89
 Listed: 2026-10-22
