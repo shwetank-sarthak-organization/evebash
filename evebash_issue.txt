@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 101
+Next issue number: 102
 
 =====================================================================
 ACTIVE ISSUES
@@ -627,6 +627,18 @@ Blocked by: -
 Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: The website and app Royal Emerald are two different designs. The website is a split hero (text left, framed image right, Explore Gallery) in src/components/TemplateRoyal.tsx; the app is a full-screen cover photo with the title in the middle, MY PHOTOS and "Delivered by EveBash" (apps/mobile/app/events/[id].tsx, royalHeroOverlay). A guest sees a different page on each.
 How to reproduce: Open the same Royal Emerald gallery on the website and in the app.
+
+#101
+Listed: 2026-10-22
+Platform: Both
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Modal deploy (Sarthak's OK), then turning the filter on with the switch
+Found in: Photo cost review (#77 follow-up)
+Issue: The photo workers save every face the detector finds at a very low bar (det_thresh 0.25), including blurry, half-hidden and tiny background faces. Measured 2026-10-22 by re-running v2's face models on 796 real previews (keertan-1659, traditional-4-ea0c, rec-8-3d4d): 6,220 faces, of which 1,399 (22.5%) have a detection score below 0.5 or a box under 24 px on the 1600 px preview. In a Find You simulation (1,513 clear faces as selfies, 34,974 photo matches) those faces took part in only 34 matches (0.1%), and by eye almost all were wrong: one blurry, half-hidden face "matched" 5-6 different women. A random sample of them is mostly dark blur, cloth, lights or a painted face; the few real ones are ~20 px.
+Fix: PhotoProcessorV2 skips such faces when the switch's face_filter is set (modal_engine/photo_pipeline_switch.py face-filter 0.5 24; face-filter off to undo, applies within a minute, no deploy). Off by default, so nothing changes until it is turned on. Tested with a fake database on 12 photos: filter off = byte-identical to today's v2; filter on = 97 -> 75 faces, previews and kept faces unchanged. Effect: ~22% fewer face rows (database space and Find You work) and fewer false Find You matches. Faces already saved are not changed (only new uploads).
+How to reproduce: Upload a crowded or dark photo; faces of people far in the background or blurry shapes are saved and can show up in someone's Find You results.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

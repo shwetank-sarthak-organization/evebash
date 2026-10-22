@@ -671,6 +671,18 @@ def _read_photo_pipeline_switch():
         return "v1", []
 
 
+def _read_face_filter():
+    """The junk-face filter for PhotoProcessorV2 (issue #101), from the switch's "face_filter" key:
+    {"min_score": 0.5, "min_px": 24} drops faces the detector is unsure of or whose box is smaller than that
+    on the 1600 px preview. Missing or unreadable = off, so every detected face is saved as before."""
+    try:
+        value = modal.Dict.from_name(PHOTO_PIPELINE_SWITCH, create_if_missing=True).get("face_filter")
+        return value if isinstance(value, dict) else None
+    except Exception as err:
+        print(f"[PhotoV2] Could not read the face filter, saving every face: {err}")
+        return None
+
+
 def _spawn_photo_job(item: dict, mode, v2_events):
     if _pick_photo_pipeline(item.get("event_id"), mode, v2_events) == "v2":
         PhotoProcessorV2().process.spawn(item)
@@ -742,7 +754,7 @@ def _db_execute(query):
         return query.execute()
 
 
-def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_name: str, media_domain: str, photos_in_container=lambda: 1):
+def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_name: str, media_domain: str, photos_in_container=lambda: 1, face_filter=None):
     """
     One photo start to finish, making the same database calls in the same order as process_photo_preview
     followed by FaceIndexer.process: claim_media_job, complete_media_job (the photo shows in the gallery),
@@ -872,9 +884,17 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
 
         faces = face_app.get(img_bgr)
         face_records = []
+        min_score = (face_filter or {}).get("min_score")
+        min_px = (face_filter or {}).get("min_px")
+        skipped = 0
         for face in faces:
             embedding = face.normed_embedding
-            if embedding is not None:
+            if embedding is not None and (min_score is not None and float(face.det_score) < min_score
+                                          or min_px is not None and min(face.bbox[2] - face.bbox[0], face.bbox[3] - face.bbox[1]) < min_px):
+                # Blurry, hidden or tiny faces: their numbers are unreliable and caused false Find You matches
+                # (measured 2026-10-22 on 796 previews: 22.5% of faces, 0.1% of matches, mostly wrong ones)
+                skipped += 1
+            elif embedding is not None:
                 face_records.append({
                     "event_id": event_id,
                     "image_url": preview_url,
@@ -919,7 +939,8 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         except Exception as log_err:
             print(f"[{photo_id}] Cost logging failed: {log_err}")
 
-        print(f"[{photo_id}] Photo v2 finished: preview + {len(face_records)} faces in {duration:.2f}s (₹{cost_inr:.5f})")
+        skipped_note = f", {skipped} unclear faces skipped" if skipped else ""
+        print(f"[{photo_id}] Photo v2 finished: preview + {len(face_records)} faces{skipped_note} in {duration:.2f}s (₹{cost_inr:.5f})")
         return {"status": "success", "photo_id": photo_id, "preview_url": preview_url, "faces": len(face_records)}
 
     except Exception as e:
@@ -952,7 +973,16 @@ class PhotoProcessorV2:
         self.face_app = _load_two_model_face_app()
         self._lock = threading.Lock()
         self._in_flight = 0
+        self._face_filter, self._face_filter_read_at = None, 0.0
         print("[PhotoV2] AuraFace (detection + recognition) warm and ready.")
+
+    def face_filter(self):
+        """Read from the switch at most once a minute per container, so a change applies within a minute."""
+        import time
+        with self._lock:
+            if time.time() - self._face_filter_read_at > 60:
+                self._face_filter, self._face_filter_read_at = _read_face_filter(), time.time()
+            return self._face_filter
 
     @modal.method()
     def process(self, photo_data: dict):
@@ -977,7 +1007,7 @@ class PhotoProcessorV2:
             )
             return _process_photo_v2(
                 photo_data, self.face_app, supabase, b2_client, os.environ.get('B2_BUCKET_NAME'),
-                _media_domain(), photos_in_container=lambda: self._in_flight,
+                _media_domain(), photos_in_container=lambda: self._in_flight, face_filter=self.face_filter(),
             )
         finally:
             with self._lock:
