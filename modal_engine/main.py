@@ -754,7 +754,50 @@ def _db_execute(query):
         return query.execute()
 
 
-def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_name: str, media_domain: str, photos_in_container=lambda: 1, face_filter=None):
+class _PhotoProgress:
+    """Remembers which step a v2 photo is on. If the photo is still running after V2_SLOW_WARNING_SECONDS it prints
+    the step, the time spent and where the worker's code is waiting, so a stalled photo shows its cause in the
+    logs before the time limit stops it (2026-10-22: two photos stalled with nothing in the logs)."""
+
+    def __init__(self, photo_id, photos_in_container):
+        import threading
+        import time
+        self.photo_id, self.photos_in_container = photo_id, photos_in_container
+        self.thread_id = threading.get_ident()
+        self.started = self.step_started = time.time()
+        self.current = "start"
+        self.timer = threading.Timer(V2_SLOW_WARNING_SECONDS, self.warn)
+        self.timer.daemon = True
+        self.timer.start()
+
+    def step(self, name):
+        import time
+        self.current, self.step_started = name, time.time()
+
+    def warn(self):
+        import sys
+        import time
+        import traceback
+        frame = sys._current_frames().get(self.thread_id)
+        where = "".join(traceback.format_stack(frame)[-4:]) if frame else "(thread not found)"
+        now = time.time()
+        print(f"[PhotoV2] SLOW [{self.photo_id}] still running after {now - self.started:.0f}s, "
+              f"{now - self.step_started:.0f}s in step '{self.current}', {self.photos_in_container()} photos in this "
+              f"container. Waiting at:\n{where}", flush=True)
+
+    def stop(self):
+        self.timer.cancel()
+
+
+# A v2 photo normally takes 1-6 s. The worker gives up after V2_TIME_LIMIT_SECONDS, and its claim on the photo
+# lasts V2_LEASE_SECONDS, so the maintenance job can retry a stuck photo ~2.5 min after it started instead of 5
+# (it runs every 5 minutes). The lease must stay longer than the time limit, or two workers could hold one photo.
+V2_TIME_LIMIT_SECONDS = 120
+V2_LEASE_SECONDS = 150
+V2_SLOW_WARNING_SECONDS = 60
+
+
+def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_name: str, media_domain: str, photos_in_container=lambda: 1, face_filter=None, on_step=lambda step: None):
     """
     One photo start to finish, making the same database calls in the same order as process_photo_preview
     followed by FaceIndexer.process: claim_media_job, complete_media_job (the photo shows in the gallery),
@@ -780,20 +823,24 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
 
     # ---- Preview and thumbnail (as process_photo_preview) ----
     media_token = str(uuid.uuid4())
+    on_step("claim_media_job")
     claimed = _db_execute(supabase.rpc("claim_media_job", {
         "p_photo_id": photo_id,
         "p_token": media_token,
-        "p_asset_version": asset_version
+        "p_asset_version": asset_version,
+        "p_lease_duration_seconds": V2_LEASE_SECONDS
     }))
     if not claimed.data:
         print(f"[{photo_id}] Media job already claimed or exceeded max retries. Skipping.")
         return {"status": "skipped", "photo_id": photo_id}
 
     try:
+        on_step("download original")
         resp = b2_client.get_object(Bucket=bucket_name, Key=storage_key)
         raw_bytes = resp['Body'].read()
         original_size = len(raw_bytes)
 
+        on_step("make preview and thumbnail")
         Image.MAX_IMAGE_PIXELS = 100_000_000
         if storage_key.lower().endswith(RAW_EXTENSIONS):
             pil_img = _open_raw_photo(raw_bytes)
@@ -827,12 +874,14 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
 
         preview_key = f"{storage_key}-preview.webp"
         thumb_key = f"{storage_key}-thumbnail.webp"
+        on_step("upload preview and thumbnail")
         b2_client.put_object(Bucket=bucket_name, Key=preview_key, Body=preview_bytes, ContentType="image/webp")
         b2_client.put_object(Bucket=bucket_name, Key=thumb_key, Body=thumb_bytes, ContentType="image/webp")
 
         preview_url = f"https://{media_domain}/{preview_key}"
         thumbnail_url = f"https://{media_domain}/{thumb_key}"
 
+        on_step("complete_media_job")
         _db_execute(supabase.rpc("complete_media_job", {
             "p_photo_id": photo_id,
             "p_token": media_token,
@@ -864,10 +913,12 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
 
     # ---- Faces (as FaceIndexer.process, on the preview already in memory) ----
     face_token = str(uuid.uuid4())
+    on_step("claim_face_job")
     claimed = _db_execute(supabase.rpc("claim_face_job", {
         "p_photo_id": photo_id,
         "p_token": face_token,
-        "p_asset_version": asset_version
+        "p_asset_version": asset_version,
+        "p_lease_duration_seconds": V2_LEASE_SECONDS
     }))
     if not claimed.data:
         print(f"[{photo_id}] Face indexing job already claimed or max attempts reached.")
@@ -882,6 +933,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         img_bgr = cv2.cvtColor(np.array(face_img), cv2.COLOR_RGB2BGR)
         h, w, _ = img_bgr.shape
 
+        on_step("find faces")
         faces = face_app.get(img_bgr)
         face_records = []
         min_score = (face_filter or {}).get("min_score")
@@ -903,6 +955,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
                     "descriptor": embedding.tolist()
                 })
 
+        on_step("replace_photo_faces")
         _db_execute(supabase.rpc("replace_photo_faces", {
             "p_photo_id": photo_id,
             "p_token": face_token,
@@ -918,6 +971,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         memory_gb = 2.0
         rate_per_sec = (cpu_cores * 0.0000131) + (memory_gb * 0.00000222)
         cost_inr = duration / sharing * rate_per_sec * 100.0
+        on_step("cost log")
         try:
             log_payload = {
                 "photo_id": photo_id,
@@ -963,6 +1017,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
     max_containers=12,
     scaledown_window=15,
     retries=0,
+    timeout=V2_TIME_LIMIT_SECONDS,
     secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 )
 @modal.concurrent(max_inputs=4)
@@ -991,6 +1046,7 @@ class PhotoProcessorV2:
 
         with self._lock:
             self._in_flight += 1
+        progress = _PhotoProgress(photo_data.get("id") or photo_data.get("photo_id"), lambda: self._in_flight)
         try:
             # 20 s instead of the client's 120 s default, so a hanging database can't keep the container
             # (billed per second) waiting for minutes; the maintenance job retries the photo later
@@ -1008,8 +1064,10 @@ class PhotoProcessorV2:
             return _process_photo_v2(
                 photo_data, self.face_app, supabase, b2_client, os.environ.get('B2_BUCKET_NAME'),
                 _media_domain(), photos_in_container=lambda: self._in_flight, face_filter=self.face_filter(),
+                on_step=progress.step,
             )
         finally:
+            progress.stop()
             with self._lock:
                 self._in_flight -= 1
 
