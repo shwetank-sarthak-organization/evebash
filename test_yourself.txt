@@ -2428,6 +2428,13 @@ How to test:
      position (focus point); change the focus point and check the guest page follows it.
   9. On a laptop, the card and the framed photo sit in the middle between the top and bottom gold corners,
      and the corners, card, photo and button all fit on one screen (also on a small laptop, e.g. 1366x768).
+ 10. Navbar on a laptop: a rounded bar with a thin gold edge sits between the two top gold corners and never
+     touches the photo frame; after scrolling a little it moves up to the top edge. No profile button in it
+     (a guest who joined without an account still sees the round log-out button).
+ 11. Rename the gallery "Asha and Raj", then "Asha AND Raj", "Asha weds Raj", "Asha + Raj": the navbar shows
+     "ASHA & RAJ" and the card shows "The Wedding of", Asha, &, Raj and a seal with A & R each time.
+ 12. Give it a long title (over 25 letters): the navbar title gets smaller; if it still doesn't fit it ends in "..."
+     and hovering it shows the full title.
 Done by:
 Device / browser:
 Build / version:
