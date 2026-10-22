@@ -2323,8 +2323,8 @@ export async function setGalleryVideo(galleryId: string, videoId: string | null)
     return {
         success: false,
         error: error.code === 'PGRST204'
-            ? "Gallery videos aren't available yet (database update pending)."
-            : "Couldn't update the gallery video. Please try again.",
+            ? "Cinematic highlight videos aren't available yet (database update pending)."
+            : "Couldn't update the cinematic highlight video. Please try again.",
     };
 }
 

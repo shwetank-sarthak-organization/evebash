@@ -2003,10 +2003,10 @@ function DashboardContent() {
         const result = await setGalleryVideo(gallery.id, videoId);
         if (result.success) {
             syncEventFields(gallery.id, { galleryVideoId: videoId });
-            setMessage(videoId ? `This video now plays at the top of "${gallery.title}".` : `"${gallery.title}" no longer has a gallery video.`);
+            setMessage(videoId ? `This video now plays at the top of "${gallery.title}".` : `"${gallery.title}" no longer has a cinematic highlight video.`);
             setStatus("success");
         } else {
-            setMessage(result.error || "Couldn't update the gallery video.");
+            setMessage(result.error || "Couldn't update the cinematic highlight video.");
             setStatus("error");
         }
         setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
@@ -2293,7 +2293,9 @@ function DashboardContent() {
             setMessage(err instanceof Error ? err.message : "Failed to create event.");
             return false;
         }
-    };    // options.kind: upload as photos or videos whatever tab is open (the Gallery Video panel uploads videos);
+    };
+
+    // options.kind: upload as photos or videos whatever tab is open (the Cinematic Highlight Video panel uploads videos);
     // options.onVideoSaved: called with a video's id once its row is saved (it can then become the gallery video)
     const uploadFiles = async (files: FileList | File[], options?: { kind?: "photos" | "videos"; onVideoSaved?: (videoId: string) => void }) => {
         const uploadKind = options?.kind ?? galleryMediaTab;
@@ -5696,7 +5698,7 @@ function DashboardContent() {
                                                             {isVideo && galleryOfMedia(photo)?.galleryVideoId === photo.id && (
                                                                 <span className="pointer-events-none absolute left-2.5 top-2.5 z-[1] flex items-center gap-1 rounded-full border border-[#CA9C68]/60 bg-slate-950/80 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#F5E7D4] backdrop-blur-sm">
                                                                     <Clapperboard className="h-3 w-3 text-[#CA9C68]" aria-hidden="true" />
-                                                                    Gallery video
+                                                                    Cinematic highlight
                                                                 </span>
                                                             )}
                                                             {photo.isHidden && (

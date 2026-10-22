@@ -46,7 +46,7 @@ function GalleryVideoChooser({ videos, currentId, onChoose, onClose }: {
     useEffect(() => { const focused = document.activeElement as HTMLElement | null; ref.current?.showModal(); return () => focused?.focus(); }, []);
     return (
         <dialog ref={ref} onCancel={e => { e.preventDefault(); onClose(); }} aria-labelledby="gallery-video-chooser-title" className={cn(modalStyles.dialog, "max-w-2xl")}>
-            <ModalHeader titleId="gallery-video-chooser-title" title="Choose the gallery video" onClose={onClose} />
+            <ModalHeader titleId="gallery-video-chooser-title" title="Choose the cinematic highlight video" onClose={onClose} />
             <p className={cn(modalStyles.body, "mb-4")}>Videos uploaded to this gallery, newest first.</p>
             <div className="grid max-h-[60vh] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3">
                 {videos.map((video) => (
@@ -62,7 +62,7 @@ function GalleryVideoChooser({ videos, currentId, onChoose, onClose }: {
                     >
                         <VideoThumb video={video} />
                         <span className="mt-1.5 block truncate px-1 text-xs text-slate-300">
-                            {video.id === currentId ? "Current gallery video" : video.storageKey?.split("/").pop() || "Video"}
+                            {video.id === currentId ? "Current cinematic highlight video" : video.storageKey?.split("/").pop() || "Video"}
                         </span>
                     </button>
                 ))}
@@ -122,10 +122,10 @@ export function GalleryVideoPanel({ gallery, canUpload, onUpload, onChange, onPl
 
     return (
         <div className="mb-6 rounded-2xl border border-[#CA9C68]/55 bg-slate-950/40 p-4 sm:p-5">
-            <p className="text-base font-semibold text-white">Gallery Video</p>
+            <p className="text-base font-semibold text-white">Cinematic Highlight Video</p>
             <p className="mb-4 mt-1 text-sm text-slate-400">
-                Plays at the top of this gallery for guests, in designs that show a gallery video (Royal Emerald for now).
-                Usually the photographer&apos;s summary film.
+                Plays at the top of this gallery for guests. Usually the photographer&apos;s 3-6 minute summary film of the
+                event.
             </p>
 
             {chosenId ? (
@@ -134,7 +134,7 @@ export function GalleryVideoPanel({ gallery, canUpload, onUpload, onChange, onPl
                         type="button"
                         disabled={!chosenReady}
                         onClick={() => chosen && onPlay(chosen)}
-                        aria-label="Play the gallery video"
+                        aria-label="Play the cinematic highlight video"
                         className="group relative w-full shrink-0 sm:w-60"
                     >
                         <VideoThumb video={chosen} />
@@ -179,7 +179,7 @@ export function GalleryVideoPanel({ gallery, canUpload, onUpload, onChange, onPl
             ) : (
                 <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-[#CA9C68]/40 px-4 py-6 text-center">
                     <Clapperboard className="h-7 w-7 text-[#CA9C68]" aria-hidden="true" />
-                    <p className="text-sm text-slate-300">No gallery video yet.</p>
+                    <p className="text-sm text-slate-300">No cinematic highlight video yet.</p>
                     <div className="flex flex-wrap justify-center gap-2">
                         {canUpload && (
                             <button type="button" disabled={isUploading} onClick={pickFile} className={goldButton}>
@@ -199,7 +199,7 @@ export function GalleryVideoPanel({ gallery, canUpload, onUpload, onChange, onPl
                 <p className="mt-3 flex items-center gap-2 text-sm text-[#E2B77F]">
                     <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
                     <span className="min-w-0 flex-1">
-                        Uploading &quot;{pendingUpload?.fileName}&quot;. It becomes the gallery video once it&apos;s saved; progress shows in the upload panel.
+                        Uploading &quot;{pendingUpload?.fileName}&quot;. It becomes the cinematic highlight video once it&apos;s saved; progress shows in the upload panel.
                     </span>
                     <button type="button" onClick={() => setPendingUpload(null)} aria-label="Hide this note" className="rounded p-1 text-slate-400 hover:text-white">
                         <X className="h-4 w-4" aria-hidden="true" />
