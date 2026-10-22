@@ -335,7 +335,7 @@
   left: 12px;
   right: 12px;
   z-index: 50;
-  padding: 7px 8px 7px 26px;
+  padding: 7px 10px 7px 22px;
   border: 1px solid #ca9c6966;
   border-radius: 999px;
   background: linear-gradient(180deg, #073328e6 0%, #021a15ee 100%);
@@ -360,24 +360,25 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   color: #f1dca6;
-  font: 400 clamp(15px, 1.5vw, 20px)/1.2 var(--font-royal-display), Georgia, serif;
-  letter-spacing: .06em;
+  font: 600 clamp(16px, 1.6vw, 21px)/1.2 var(--font-royal-display), Georgia, serif;
+  letter-spacing: .05em;
   text-transform: uppercase;
 }
-.royal-nav__title--long { font-size: clamp(13px, 1.2vw, 16px); letter-spacing: .04em; }
-.royal-nav__title--xlong { font-size: clamp(12px, 1vw, 14px); letter-spacing: .03em; }
+.royal-nav__title--long { font-size: clamp(14px, 1.25vw, 17px); letter-spacing: .04em; }
+.royal-nav__title--xlong { font-size: clamp(13px, 1.05vw, 15px); letter-spacing: .03em; }
 .royal-nav__link {
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 12px;
+  padding: 10px 13px;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: #d9b66f;
-  font-size: 12.5px;
-  font-weight: 500;
+  font-family: var(--font-inter-src), ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
   letter-spacing: .1em;
   text-transform: uppercase;
   white-space: nowrap;

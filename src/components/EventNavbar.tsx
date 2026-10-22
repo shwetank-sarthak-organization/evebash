@@ -240,7 +240,7 @@ export function EventNavbar({
                     color: navTextColor,
                 } : undefined}
             >
-                <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+                <div className={cn("flex items-center justify-between gap-4", isRoyal ? "w-full" : "max-w-7xl mx-auto")}>
                     {/* Left: Main Event Title */}
                     <Link
                         href={`${basePath}${sharedQuery}`}
