@@ -20,6 +20,10 @@ import { createSignupRouter } from "./routes/signup.js";
 import { accountRouter } from "./routes/account.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { createVaultRouter } from "./routes/vault.js";
+import { createAlbumRouter, startAlbumFileCleanup } from "./routes/albums.js";
+import { isAlbumProofingEnabled } from "./albums/config.js";
+import { createB2AlbumFiles } from "./albums/files.js";
+import { createSupabaseAlbumRepository } from "./albums/repository.js";
 import { getVaultBucketSettings, getVaultCopySettings, isVaultEnabled } from "./vault/config.js";
 import { createS3EventToVaultCopier } from "./vault/eventCopier.js";
 import { createSupabaseVaultRepository } from "./vault/repository.js";
@@ -130,6 +134,19 @@ const vaultLimiter = rateLimit({
   message: { success: false, code: "rate_limited", error: "Too many requests. Please slow down and try again." },
 });
 app.use("/api/v1/vault", vaultLimiter, createVaultRouter({ repo: vaultRepository, storage: vaultStorage, copier: vaultCopier }));
+
+// Album proofing: off until ALBUM_PROOFING=true (the router answers 503 "disabled" until then)
+const albumRepository = createSupabaseAlbumRepository();
+const albumFiles = createB2AlbumFiles();
+const albumLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 3000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, code: "rate_limited", error: "Too many requests. Please slow down and try again." },
+});
+app.use("/api/v1/albums", albumLimiter, createAlbumRouter({ repo: albumRepository, files: albumFiles }));
+if (isAlbumProofingEnabled()) startAlbumFileCleanup(albumRepository, albumFiles);
 
 app.use((_request, response) => {
   response.status(404).json({ success: false, error: "Route not found." });

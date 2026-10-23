@@ -120,6 +120,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       const data = response.notification.request.content.data as Record<string, string>;
       if (data?.roomId) {
         router.push(`/chat/${data.roomId}` as any);
+      } else if (data?.type === 'album_proof' && data.eventId) {
+        router.push(`/events/${data.eventId}?tab=album${data.albumId ? `&album=${data.albumId}` : ''}` as any);
       } else if (data?.eventId) {
         router.push(`/events/${data.eventId}` as any);
       } else if (data?.enquiryId) {
@@ -133,6 +135,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       const data = response.notification.request.content.data as Record<string, string>;
       if (data?.roomId) {
         router.push(`/chat/${data.roomId}` as any);
+      } else if (data?.type === 'album_proof' && data.eventId) {
+        router.push(`/events/${data.eventId}?tab=album${data.albumId ? `&album=${data.albumId}` : ''}` as any);
       } else if (data?.eventId) {
         router.push(`/events/${data.eventId}` as any);
       } else if (data?.enquiryId) {

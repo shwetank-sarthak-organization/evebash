@@ -8,6 +8,8 @@ import { vaultApi } from "@/lib/vaultApi";
 import { GalleriesIcon, GalleryChaptersIcon } from "@/components/GalleriesIcon";
 import { PermissionsIcon } from "@/components/PermissionsIcon";
 import { DesignIcon } from "@/components/DesignIcon";
+import { AlbumProofsPanel } from "@/components/album/AlbumProofsPanel";
+import { albumApi } from "@/lib/albumApi";
 import { EventDesignPreview } from "@/components/EventDesignPreview";
 import { PartnersIcon } from "@/components/PartnersIcon";
 import { GalleryTypesInfo } from "@/components/GalleryTypesInfo";
@@ -73,7 +75,8 @@ import {
     CheckSquare,
     Square,
     HardDrive,
-    SlidersHorizontal
+    SlidersHorizontal,
+    BookImage,
 } from "lucide-react";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -996,7 +999,14 @@ function DashboardContent() {
     const [totalMainEvents, setTotalMainEvents] = useState<number>(0);
     const [workspaceOwner, setWorkspaceOwner] = useState<any | null>(null);
     const [eventOwners, setEventOwners] = useState<Record<string, { email?: string; name?: string; username?: string }>>({});
-    const [activeEventDetailTab, setActiveEventDetailTab] = useState<"galleries" | "permissions" | "design" | "partners">("galleries");
+    const [activeEventDetailTab, setActiveEventDetailTab] = useState<"galleries" | "permissions" | "design" | "album" | "partners">("galleries");
+    // The Album tab shows once the backend has album proofing switched on (ALBUM_PROOFING)
+    const [albumProofingEnabled, setAlbumProofingEnabled] = useState(false);
+    useEffect(() => {
+        let cancelled = false;
+        void albumApi.enabled().then((enabled) => { if (!cancelled) setAlbumProofingEnabled(enabled); });
+        return () => { cancelled = true; };
+    }, []);
     const [eventDetailGalleries, setEventDetailGalleries] = useState<Event[]>([]);
     const [eventDetailLogs, setEventDetailLogs] = useState<EventDetailLog[]>([]);
     const [loadingEventDetail, setLoadingEventDetail] = useState(false);
@@ -4424,12 +4434,13 @@ function DashboardContent() {
                                         </div>
                                     </div>
 
-                                    {/* sm:grid-cols-4 again when the Partners tab comes back */}
-                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                                    {/* One more column when the Partners tab comes back */}
+                                    <div className={cn("grid grid-cols-2 gap-3", albumProofingEnabled ? "sm:grid-cols-4" : "sm:grid-cols-3")}>
                                         {([
                                             { id: "galleries", label: "Galleries", subtitle: "Photos and Videos", Icon: GalleriesIcon },
                                             { id: "permissions", label: "Permissions", subtitle: "Event access control", Icon: PermissionsIcon },
                                             { id: "design", label: "Design", subtitle: "Theme and style", Icon: DesignIcon },
+                                            ...(albumProofingEnabled ? [{ id: "album", label: "Album", subtitle: "Page proofs and approval", Icon: BookImage }] as const : []),
                                             // Hidden until Phase 2 (comes with EB Business and EB Network). To restore, uncomment:
                                             // { id: "partners", label: "Partners", subtitle: "Linked vendors", Icon: PartnersIcon },
                                         ] as const).map(({ id, label, subtitle, Icon }) => {
@@ -4777,6 +4788,10 @@ function DashboardContent() {
                                                     />
                                                 </div>
                                             </div>
+                                        )}
+
+                                        {activeEventDetailTab === "album" && albumProofingEnabled && (
+                                            <AlbumProofsPanel eventId={selectedMainEvent.id} />
                                         )}
 
                                         {activeEventDetailTab === "partners" && (

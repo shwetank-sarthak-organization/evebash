@@ -66,15 +66,22 @@
         {
           "photosPermission": "EveBash uses your photo library so you can add photos and videos to event galleries and choose a profile picture.",
           "cameraPermission": "EveBash uses your camera to scan event QR codes and to take a selfie for Find You.",
-          "microphonePermission": false
+          "microphonePermission": "EveBash uses your microphone to record voice notes on album pages."
         }
       ],
       [
         "expo-camera",
         {
           "cameraPermission": "EveBash uses your camera to scan event QR codes and to take a selfie for Find You.",
-          "microphonePermission": false,
+          "microphonePermission": "EveBash uses your microphone to record voice notes on album pages.",
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "EveBash uses your microphone to record voice notes on album pages.",
+          "enableBackgroundPlayback": false
         }
       ],
       [

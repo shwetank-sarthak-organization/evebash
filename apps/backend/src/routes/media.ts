@@ -115,7 +115,7 @@ function requireEnv(name: string) {
   return value;
 }
 
-function getMediaDomain() {
+export function getMediaDomain() {
   const value = (
     process.env.MEDIA_DOMAIN ||
     process.env.CLOUDFLARE_DOMAIN ||
@@ -345,7 +345,7 @@ function background(label: string, task: () => Promise<unknown>) {
   }, 0);
 }
 
-async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) {
+export async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) {
   const listResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
     method: "POST",
     headers: {
@@ -493,7 +493,7 @@ async function fetchB2WithRetries(url: string, init: RequestInit, label: string,
   throw lastError instanceof Error ? lastError : new Error(`${label} failed`);
 }
 
-async function uploadBufferToB2(auth: BackblazeAuth, bucketId: string, buffer: Buffer, key: string, contentType: string) {
+export async function uploadBufferToB2(auth: BackblazeAuth, bucketId: string, buffer: Buffer, key: string, contentType: string) {
   const maxAttempts = B2_UPLOAD_RETRY_DELAYS_MS.length + 1;
   let lastError: unknown;
 

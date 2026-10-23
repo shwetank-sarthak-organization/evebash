@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 107
+Next issue number: 109
 
 =====================================================================
 ACTIVE ISSUES
@@ -718,6 +718,28 @@ Issue: The photo workers save every face the detector finds at a very low bar (d
 Fix: PhotoProcessorV2 skips such faces when the switch's face_filter is set (modal_engine/photo_pipeline_switch.py face-filter 0.5 24; face-filter off to undo, applies within a minute, no deploy). Off by default, so nothing changes until it is turned on. Tested with a fake database on 12 photos: filter off = byte-identical to today's v2; filter on = 97 -> 75 faces, previews and kept faces unchanged. Effect: ~22% fewer face rows (database space and Find You work) and fewer false Find You matches. Faces already saved are not changed (only new uploads).
 How to reproduce: Upload a crowded or dark photo; faces of people far in the background or blurry shapes are saved and can show up in someone's Find You results.
 Live 2026-10-22 21:03 IST: Modal v121 (4e9d37a); switch face_filter = min_score 0.4, min_px 24 (Sarthak chose 0.4 over 0.5 to start gently; in the study, scores below 0.4 were 879 of 6,220 faces, 14.1%, before the size rule). Each v2 log line says how many unclear faces were skipped.
+
+#107
+Listed: 2026-10-23
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Album proofing build (2026-10-23, branch feat/album-proofing)
+Issue: Album voice notes recorded in Firefox are saved as WebM/Opus (Firefox can't record AAC), and the iPhone app can't play WebM. Chrome, Edge and Safari record AAC (.m4a), which plays everywhere, and so does the app. The backend stores what the browser sends (apps/backend/src/routes/albums.ts, PUT .../voice). Fix: convert WebM to AAC on upload (needs ffmpeg, which the Railway backend doesn't have), or ask Firefox users to type or use another browser.
+How to reproduce: Record an album voice note in Firefox on the website, then try to play it in the iPhone app.
+
+#108
+Listed: 2026-10-23
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Album proofing build (2026-10-23, branch feat/album-proofing)
+Issue: Album proof files (page previews, thumbnails, voice notes) count towards the gallery owner's plan storage (vault_event_storage_bytes, migration 20261022010000), but the plan-expiry rules don't know about them: when a paid plan expires they stay visible and aren't part of the retained 1 GB (eb_private.media_plan_limit, vault_retained_item_ids). They're small (about 1 MB per page version), so this only matters for consistency.
+How to reproduce: Let a paid plan with album proofs expire past the grace period: gallery media gets hidden, album pages stay visible.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

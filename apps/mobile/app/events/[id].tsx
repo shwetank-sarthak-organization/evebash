@@ -16,6 +16,9 @@ import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDe
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { AlbumProofsPanel } from '../../components/album/AlbumProofsPanel';
+import { albumApi } from '../../lib/albumApi';
 import PhotoViewer from '../../components/PhotoViewer';
 import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../../constants/templates';
 import * as ImagePicker from 'expo-image-picker';
@@ -590,7 +593,7 @@ export default function EventDetailScreen() {
   }, [tempCoverScale]);
   const { width } = useWindowDimensions();
   // findYou=1: opened from a website Find You link (lib/deepLinks.ts); shows the Find You tab once loaded
-  const { id, shared, guestView, tab, share, mode, findYou } = useLocalSearchParams<{ id: string; shared?: string; guestView?: string; tab?: string; share?: string; mode?: 'admin' | 'visitor'; findYou?: string }>();
+  const { id, shared, guestView, tab, share, mode, findYou, album: albumParam } = useLocalSearchParams<{ id: string; shared?: string; guestView?: string; tab?: string; share?: string; mode?: 'admin' | 'visitor'; findYou?: string; album?: string }>();
   const router = useRouter();
   const { user } = useAuth();
   const subscriptionStatus = React.useMemo(() => getSubscriptionStatus({
@@ -763,9 +766,20 @@ export default function EventDetailScreen() {
   const canViewContent = isOwner || isPrivilegedViewer || hasMemberAccess || isPublicView;
   const isFreePlanUser = !user?.delegatedBy && isFreePlanRole(user?.role);
 
-  const [activeTab, setActiveTab] = useState<'galleries' | 'permissions' | 'design' | 'partners'>(
+  const [activeTab, setActiveTab] = useState<'galleries' | 'permissions' | 'design' | 'album' | 'partners'>(
     // A link to the hidden Partners tab opens Galleries instead
     (tab === 'partners' && !SHOW_EVENT_PARTNERS ? 'galleries' : (tab as any)) || 'galleries');
+  // The Album tab shows once the backend has album proofing switched on (ALBUM_PROOFING)
+  const [albumProofingEnabled, setAlbumProofingEnabled] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void albumApi.enabled().then((enabled) => {
+      if (cancelled) return;
+      setAlbumProofingEnabled(enabled);
+      if (!enabled) setActiveTab((current) => (current === 'album' ? 'galleries' : current));
+    });
+    return () => { cancelled = true; };
+  }, []);
   const [linkingVendor, setLinkingVendor] = useState(false);
   const [vendorCode, setVendorCode] = useState('');
   const [linkedVendors, setLinkedVendors] = useState<Business[]>([]);
@@ -4937,6 +4951,15 @@ export default function EventDetailScreen() {
                   <DesignIcon size={18} color={activeTab === 'design' ? MidnightColors.gold : MidnightColors.slate400} />
                   <Text style={[styles.tabText, activeTab === 'design' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Design</Text>
                 </TouchableOpacity>
+                {albumProofingEnabled && (
+                <TouchableOpacity
+                  style={[styles.tab, activeTab === 'album' && styles.activeTab]}
+                  onPress={() => { setActiveTab('album'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
+                >
+                  <MaterialIcons name="photo-album" size={18} color={activeTab === 'album' ? MidnightColors.gold : MidnightColors.slate400} />
+                  <Text style={[styles.tabText, activeTab === 'album' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Album</Text>
+                </TouchableOpacity>
+                )}
                 {/* Partners: hidden until Phase 2 (SHOW_EVENT_PARTNERS in components/event/ThemeHeader.tsx) */}
                 {SHOW_EVENT_PARTNERS && (
                 <TouchableOpacity
@@ -6119,6 +6142,12 @@ export default function EventDetailScreen() {
                   </View>
                 </View>
               </Modal>
+
+              {activeTab === 'album' && albumProofingEnabled && (
+                <View style={styles.section}>
+                  <AlbumProofsPanel eventId={event.id} initialAlbumId={albumParam} />
+                </View>
+              )}
 
               {activeTab === 'design' && (
                 <View style={styles.section}>
