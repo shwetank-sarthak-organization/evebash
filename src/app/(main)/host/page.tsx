@@ -868,7 +868,7 @@ function DashboardContent() {
     const [, startTransition] = useTransition();
 
     // Upload queue, panel and leave warning live in UploadProvider so they survive page changes
-    const { uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady, runDeletes, deletingIds } = useUploads();
+    const { uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady, onUploadCancelled, runDeletes, deletingIds } = useUploads();
 
     // Helper: show loading screen briefly, then navigate
     const navigateTo = (url: string, message?: string) => {
@@ -1185,6 +1185,12 @@ function DashboardContent() {
             return [...updates, ...previous.filter(row => !updatedIds.has(row.id))];
         });
     }), [onVideosReady, selectedEventId]);
+
+    // An upload cancelled after it was saved has been deleted: take it out of the grid and the storage total
+    useEffect(() => onUploadCancelled(photoId => {
+        setCurrentEventPhotos(previous => previous.filter(row => row.id !== photoId));
+        void fetchStorageStats();
+    }), [onUploadCancelled]);
 
     // URL State Synchronization
     useEffect(() => {

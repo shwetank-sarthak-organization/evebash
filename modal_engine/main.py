@@ -2005,7 +2005,20 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
         # A retry must preserve a frame explicitly chosen by the video owner.
         # Atomic null check also protects a concurrent custom-thumbnail save.
         supabase.table("photos").update({"thumbnail_url": poster_url}).eq("id", photo_id).is_("thumbnail_url", "null").execute()
-        supabase.table("photos").update(update_data).eq("id", photo_id).execute()
+        saved = supabase.table("photos").update(update_data).eq("id", photo_id).execute()
+        if not saved.data:
+            # The video was deleted (or its upload cancelled) while it was being converted: the delete already
+            # removed hls/<storage_key>/, but this run uploaded the streaming copy after that. Remove it again
+            # so it isn't left in B2 with nothing pointing at it.
+            removed = 0
+            # Every version, not just the latest: a plain delete only hides a file in B2 and it stays billed
+            for page in b2_client.get_paginator("list_object_versions").paginate(Bucket=bucket_name, Prefix=f"{hls_prefix}/"):
+                keys = [{"Key": v["Key"], "VersionId": v["VersionId"]} for v in page.get("Versions", []) + page.get("DeleteMarkers", [])]
+                if keys:
+                    b2_client.delete_objects(Bucket=bucket_name, Delete={"Objects": keys, "Quiet": True})
+                    removed += len(keys)
+            print(f"[TranscodeVideo-{hardware.upper()}] Video {photo_id} was deleted during processing; removed {removed} streaming files.")
+            return {"status": "cancelled", "photo_id": photo_id}
         _notify_video_processed(photo_id)
 
         # 7. Log infrastructure cost

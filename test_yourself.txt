@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 125
+Next test number: 126
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3084,6 +3084,35 @@ How to test:
   6. Delete a photo. Expect: the same with "Photo".
   7. Turn on airplane mode and delete a photo. Expect: an error "Couldn't delete the photo.",
      the photo stays, the card shows it couldn't be deleted.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#125 Cancel a video or photo upload at any stage (website)
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     Every unfinished upload has a cancel (X) button, also while a video is "Processing video...",
+           and the header has "Cancel all". Cancelling something already uploaded deletes it
+           completely (original, previews, streaming copy), after a confirm.
+How to test (host page, a test gallery; use 2-3 videos of 50 MB or more so there is time):
+  1. Start uploading 3 videos. While one is still uploading (percent showing), press its X.
+     Expect: "Cancelling..." then "Cancelled"; it never appears in the gallery.
+  2. Wait until another shows "Processing video...". Press its X. Expect: a confirm saying it was
+     already uploaded and will be deleted. Confirm. Expect: "Cancelling and deleting..." then
+     "Cancelled · deleted"; it disappears from the gallery; storage used goes down.
+  3. Upload 3 more videos, and while some upload and some process press "Cancel all" in the panel
+     header. Expect: a confirm naming how many are already uploaded; all end as cancelled.
+  4. Refresh the gallery: none of the cancelled videos are there.
+  5. (Claude checks B2 afterwards: no leftover files for the cancelled videos.)
+  6. Photos: upload 20 photos and press X on one showing "Processing"/"Indexing". Expect: same as
+     step 2 for that photo.
 Done by:
 Device / browser:
 Build / version:

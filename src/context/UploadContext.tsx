@@ -6,6 +6,7 @@ import { Check, Image as ImageIcon, Loader2, Trash2, Video, X } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
+import { deletePhoto } from "@/lib/database";
 
 // Event uploads live here, above the pages, so moving to another page of the website doesn't
 // lose the queue, the panel, the Cancel buttons or the "don't leave" warning (issue #78).
@@ -22,6 +23,8 @@ export interface UploadQueueItem {
     storageKey?: string;
     photoId?: string;
     eventId?: string;
+    /** Cancelled after the file reached storage: it is deleted (original, previews, streaming copy) instead */
+    cancelRequested?: boolean;
 }
 
 export interface IndexingStatus {
@@ -60,6 +63,8 @@ interface UploadContextType {
     showUploadPanel: () => void;
     // Called with the processing records of uploaded videos once they are ready; returns an unsubscribe
     onVideosReady: (listener: VideoReadyListener) => () => void;
+    /** Called with the photo id of an upload that was cancelled after it was saved, once it is deleted */
+    onUploadCancelled: (listener: (photoId: string) => void) => () => void;
     /** Deletes the items 4 at a time with deleteOne, showing them in the delete panel; resolves with the ids deleted */
     runDeletes: (items: Omit<DeleteQueueItem, "status">[], deleteOne: (id: string) => Promise<boolean>) => Promise<Set<string>>;
     /** Ids being deleted right now, so the gallery can show "Deleting..." over them */
@@ -72,7 +77,21 @@ const isUnfinished = (item: UploadQueueItem) =>
     item.status === "pending" || item.status === "uploading" || item.status === "processing" || item.status === "finalizing" || item.status === "cancelling";
 
 export function UploadProvider({ children }: { children: React.ReactNode }) {
-    const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
+    const [uploadQueue, setUploadQueueRaw] = useState<UploadQueueItem[]>([]);
+    // Once a saved upload is cancelled, nothing else (realtime, polling, the host page) may turn it back into
+    // "processing" or "success"; only the cancel itself moves it on, through setUploadQueueRaw
+    const setUploadQueue = useCallback<React.Dispatch<React.SetStateAction<UploadQueueItem[]>>>(action => {
+        setUploadQueueRaw(previous => {
+            const next = typeof action === "function" ? action(previous) : action;
+            const before = new Map(previous.map(item => [item.id, item]));
+            return next.map(item => {
+                const old = before.get(item.id);
+                return old?.cancelRequested ? { ...item, status: old.status, progress: old.progress, error: old.error, cancelRequested: true } : item;
+            });
+        });
+    }, []);
+    const cancelledListeners = useRef(new Set<(photoId: string) => void>());
+    const cancelDeletesStarted = useRef(new Set<string>());
     const uploadControllers = useRef(new Map<string, AbortController>());
     const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
     const [isUploadPanelMinimized, setIsUploadPanelMinimized] = useState(false);
@@ -87,16 +106,53 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         uploadQueueRef.current = uploadQueue;
     }, [uploadQueue]);
 
-    const cancelUpload = (id: string) => {
+    // Still uploading: stop the transfer (storage.ts removes the unfinished file). Already in storage
+    // (finishing or processing): delete it like any other photo or video, streaming copy included.
+    // "finalizing" (a few seconds) has no cancel: a photo's row may not be saved yet, so a delete then would miss
+    // it. From "processing" on, the row exists and the delete removes everything.
+    const isCancellable = (item: UploadQueueItem) =>
+        item.status === "pending" || item.status === "uploading" || item.status === "processing";
+    const isSaved = (item: UploadQueueItem) => item.status === "processing";
+
+    const cancelUpload = (id: string, confirmed = false) => {
+        const item = uploadQueueRef.current.find(entry => entry.id === id);
         const controller = uploadControllers.current.get(id);
-        if (!controller || controller.signal.aborted) return;
-        controller.abort();
-        // A queued file has nothing in flight, so it is cancelled at once; its worker skips it when it gets there
-        setUploadQueue(previous => previous.map(item => item.id === id ? { ...item, status: item.status === "pending" ? "cancelled" : "cancelling" } : item));
+        if (controller && !controller.signal.aborted) {
+            controller.abort();
+            // A queued file has nothing in flight, so it is cancelled at once; its worker skips it when it gets there
+            setUploadQueueRaw(previous => previous.map(entry => entry.id === id ? { ...entry, status: entry.status === "pending" ? "cancelled" : "cancelling" } : entry));
+            return;
+        }
+        if (!item || !isSaved(item)) return;
+        if (!confirmed && !window.confirm(`Cancel "${item.fileName}"? It has already been uploaded, so it will be deleted.`)) return;
+        setUploadQueueRaw(previous => previous.map(entry => entry.id === id ? { ...entry, status: "cancelling", cancelRequested: true } : entry));
     };
     const cancelAllUploads = () => {
-        for (const id of uploadControllers.current.keys()) cancelUpload(id);
+        const open = uploadQueueRef.current.filter(isCancellable);
+        const saved = open.filter(isSaved).length;
+        if (saved > 0 && !window.confirm(`Cancel ${open.length === 1 ? "this upload" : `all ${open.length} unfinished uploads`}? ${saved === 1 ? "1 file has" : `${saved} files have`} already been uploaded and will be deleted.`)) return;
+        for (const item of open) cancelUpload(item.id, true);
     };
+
+    // Deletes saved uploads that were cancelled
+    useEffect(() => {
+        for (const item of uploadQueue) {
+            if (!item.cancelRequested || item.status !== "cancelling" || !item.photoId || cancelDeletesStarted.current.has(item.id)) continue;
+            cancelDeletesStarted.current.add(item.id);
+            const photoId = item.photoId;
+            void deletePhoto(photoId).then(ok => {
+                setUploadQueueRaw(previous => previous.map(entry => entry.id === item.id
+                    ? { ...entry, status: ok ? "cancelled" : "error", error: ok ? undefined : "Couldn't cancel: the file is still in the gallery. Delete it from there." }
+                    : entry));
+                if (ok) cancelledListeners.current.forEach(listener => listener(photoId));
+            });
+        }
+    }, [uploadQueue]);
+
+    const onUploadCancelled = useCallback((listener: (photoId: string) => void) => {
+        cancelledListeners.current.add(listener);
+        return () => { cancelledListeners.current.delete(listener); };
+    }, []);
 
     const showUploadPanel = useCallback(() => {
         setIsUploadPanelOpen(true);
@@ -263,7 +319,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <UploadContext.Provider value={{ uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady, runDeletes, deletingIds }}>
+        <UploadContext.Provider value={{ uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady, onUploadCancelled, runDeletes, deletingIds }}>
             {children}
 
             {/* Upload and delete panels share the bottom-right corner, the delete panel above */}
@@ -402,8 +458,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                             </div>
                             {/* Buttons here act on their own and don't minimize the panel */}
                             <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                {uploadQueue.some(item => item.status === "pending" || item.status === "uploading") && (
-                                    <button type="button" onClick={cancelAllUploads} className="px-2 py-1 text-xs text-rose-300 hover:text-white">Cancel all uploads</button>
+                                {uploadQueue.some(isCancellable) && (
+                                    <button type="button" onClick={cancelAllUploads} className="px-2 py-1 text-xs text-rose-300 hover:text-white">Cancel all</button>
                                 )}
                                 {completedItems === totalItems && (
                                     <button
@@ -481,7 +537,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                                                             </span>
                                                         )}
                                                         {(item.status === "finalizing" || item.status === "cancelling" || item.status === "cancelled") && (
-                                                            <span className="text-[10px] text-slate-300">{item.status === "finalizing" ? "Finalizing..." : item.status === "cancelling" ? "Cancelling..." : "Cancelled"}</span>
+                                                            <span className="text-[10px] text-slate-300">{item.status === "finalizing" ? "Finalizing..." : item.status === "cancelling" ? (item.cancelRequested ? "Cancelling and deleting..." : "Cancelling...") : item.cancelRequested ? "Cancelled · deleted" : "Cancelled"}</span>
                                                         )}
                                                         {item.status === "processing" && (
                                                             <span className="text-[10px] font-bold text-sky-400 shrink-0 animate-pulse">
@@ -517,8 +573,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                                                     </div>
                                                 </div>
 
-                                                {(item.status === "pending" || item.status === "uploading") && (
-                                                    <button type="button" onClick={() => cancelUpload(item.id)} title={`Cancel upload: ${item.fileName}`} aria-label={`Cancel upload: ${item.fileName}`} className="rounded p-2 text-rose-300 hover:bg-rose-500/10"><X className="h-4 w-4" /></button>
+                                                {isCancellable(item) && (
+                                                    <button type="button" onClick={() => cancelUpload(item.id)} title={isSaved(item) ? `Cancel and delete: ${item.fileName}` : `Cancel upload: ${item.fileName}`} aria-label={isSaved(item) ? `Cancel and delete: ${item.fileName}` : `Cancel upload: ${item.fileName}`} className="rounded p-2 text-rose-300 hover:bg-rose-500/10"><X className="h-4 w-4" /></button>
                                                 )}
                                                 {/* Status Icon */}
                                                 <div className="shrink-0">
