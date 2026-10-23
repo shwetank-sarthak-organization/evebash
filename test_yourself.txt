@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 108
+Next test number: 113
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2598,4 +2598,25 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#112 Business enquiry doesn't read location; Audience Reach shows no fake city
+Status:    TODO
+Priority:  Medium
+Platform:  App (new build from staging with 7e65b4b)
+Brief:     Sending an enquiry used to read your location silently and vendors always saw "Mumbai 100%".
+How to test:
+  1. With location allowed for EveBash, open a business page and send an enquiry.
+     Expect: it sends as before; no location prompt or location indicator while sending.
+  2. Log in as that business's owner > Manage Business > analytics, Audience Reach.
+     Expect: "No location details for this period." (no Mumbai or other made-up city).
+  3. "Near me" distances on business pages still work (they use location on the phone only).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   7e65b4b (2026-10-23)
 Feedback:

@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 102
+Next issue number: 104
 
 =====================================================================
 ACTIVE ISSUES
@@ -647,6 +647,18 @@ Live 2026-10-22 21:03 IST: Modal v121 (4e9d37a); switch face_filter = min_score 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#103
+Listed: 2026-10-23
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Google Play Data safety review (2026-10-23)
+Issue: Sending a business enquiry silently read the user's location and sent it to the phone's reverse-geocoder (Google on Android) to get a city, and picked a random Indian city ("mock data diversity") when that failed. addEnquiry never saved the city, so the lookup only leaked location for nothing. The vendor's Audience Reach chart (manage-business) counted every enquiry without a city as Mumbai, so vendors always saw "Mumbai 100%".
+How to reproduce: Before the fix: send an enquiry with location allowed (location is read without notice); open Manage Business > analytics: Audience Reach shows Mumbai 100%.
+Fixed in: 7e65b4b (2026-10-23). Enquiries no longer read location; Audience Reach leaves out enquiries without a real city and shows "No location details for this period." App only: needs the next app build (test_yourself #112).
 
 #100
 Listed: 2026-10-22
