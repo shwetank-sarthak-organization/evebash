@@ -10,7 +10,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, GuestProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery } from '@/lib/database';
+import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, GuestProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery, getGalleryVideo, setGalleryVideo, type GalleryVideo } from '@/lib/database';
 import { confirmDenyRequest } from '@/lib/denyRequest';
 import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDetails } from '@/lib/uploaders';
 import { useAuth } from '@/context/AuthContext';
@@ -41,6 +41,12 @@ import { SubEventModal } from '../../components/event/modals/SubEventModal';
 import { TemplateSelectionModal } from '../../components/event/modals/TemplateSelectionModal';
 import { GalleryDescriptionModal } from '../../components/event/modals/GalleryDescriptionModal';
 import { FindYouPanel } from '../../components/event/FindYouPanel';
+import { GalleryHighlightVideo } from '../../components/event/GalleryHighlightVideo';
+import { GalleryVideoPanel } from '../../components/event/GalleryVideoPanel';
+import { RoyalHero } from '../../components/royal/RoyalHero';
+import { RoyalGalleryHeader } from '../../components/royal/RoyalGalleryHeader';
+import { RoyalFooter } from '../../components/royal/RoyalFooter';
+import { useRoyalFonts } from '../../components/royal/royalFonts';
 import GalleriesIcon from '../../components/icons/GalleriesIcon';
 import PermissionsIcon from '../../components/icons/PermissionsIcon';
 import DesignIcon from '../../components/icons/DesignIcon';
@@ -63,7 +69,7 @@ const PHOTO_PAGE_SIZE = 20;
 // Logged-out public view pages through previews (get_public_gallery_media)
 const PUBLIC_PAGE_SIZE = 60;
 // Visitor templates that draw their own back/share buttons inside the hero instead of the native header
-const NATIVE_HEADER_HIDDEN_TEMPLATES = ['classic', 'hero', 'pop', 'ethereal', 'cyber_tech', 'retro_arcade', 'academic_editorial', 'neon_carnival', 'garden', 'bohemian', 'tech_sleek', 'executive'];
+const NATIVE_HEADER_HIDDEN_TEMPLATES = ['royal', 'classic', 'hero', 'pop', 'ethereal', 'cyber_tech', 'retro_arcade', 'academic_editorial', 'neon_carnival', 'garden', 'bohemian', 'tech_sleek', 'executive'];
 const FREE_PLAN_VIDEO_LIMIT_BYTES = 200 * 1024 * 1024;
 const SPORTS_TEMPLATE_IDS = [
   'bohemian',
@@ -613,7 +619,7 @@ export default function EventDetailScreen() {
       if (h > 0) setFloatingButtonsBottom(prev => Math.max(prev ?? 0, Math.round(y + h)));
     });
   }, []);
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -1708,7 +1714,15 @@ export default function EventDetailScreen() {
     }
   };
 
-  const handleUploadGalleryMedia = async (mediaType: 'photo' | 'video' = 'photo') => {
+  // A video picked in the Cinematic Highlight Video panel: it becomes that gallery's highlight video once its row is saved
+  const [pendingHighlightUpload, setPendingHighlightUpload] = useState<{ galleryId: string; since: number } | null>(null);
+  const pendingHighlightUploadRef = React.useRef<{ galleryId: string; since: number } | null>(null);
+  const changePendingHighlightUpload = (pending: { galleryId: string; since: number } | null) => {
+    pendingHighlightUploadRef.current = pending;
+    setPendingHighlightUpload(pending);
+  };
+
+  const handleUploadGalleryMedia = async (mediaType: 'photo' | 'video' = 'photo', options?: { highlight?: boolean }) => {
     if (!event) return;
     if (mediaType === 'video' && !canManageEvent && !isOwner) {
       appAlert('Photos only', 'Only the event owner and event admins can upload videos.');
@@ -1745,7 +1759,7 @@ export default function EventDetailScreen() {
       result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: mediaType === 'video' ? ['videos'] : ['images'],
         allowsEditing: false,
-        allowsMultipleSelection: true,
+        allowsMultipleSelection: !options?.highlight,
         quality: 1.0,
         exif: false,
       });
@@ -1807,8 +1821,10 @@ export default function EventDetailScreen() {
           };
         });
 
+        if (options?.highlight) changePendingHighlightUpload({ galleryId: activeId, since: Date.now() });
         await addToUploadQueue(files, activeId, user.uid, mediaType);
       } catch (err: any) {
+        if (options?.highlight) changePendingHighlightUpload(null);
         console.error('[UploadMedia] Error queueing uploads:', err);
         appAlert("Error", `Failed to start upload: ${err.message || err}`);
       }
@@ -1817,6 +1833,23 @@ export default function EventDetailScreen() {
 
   const handleUploadGalleryPhoto = () => handleUploadGalleryMedia('photo');
   const handleUploadGalleryVideo = () => handleUploadGalleryMedia('video');
+
+  /** Sets (or clears) a gallery's cinematic highlight video and updates every copy of that gallery on this screen */
+  const saveGalleryVideo = async (galleryId: string, videoId: string | null) => {
+    const result = await setGalleryVideo(galleryId, videoId);
+    if (!result.success) {
+      appAlert('Error', result.error || "Couldn't update the cinematic highlight video.");
+      return false;
+    }
+    const apply = <T extends DatabaseEvent | null | undefined>(gallery: T): T =>
+      gallery && gallery.id === galleryId ? { ...gallery, galleryVideoId: videoId } : gallery;
+    setEvent(prev => apply(prev));
+    setSubEvents(prev => prev.map(sub => apply(sub)));
+    setActiveSubEvent(prev => apply(prev));
+    setSelectedAdminGallery(prev => apply(prev));
+    showToast(videoId ? 'Cinematic highlight video updated.' : 'Cinematic highlight video removed.');
+    return true;
+  };
 
   const handleReorderPhotos = async (newOrder: any[]) => {
     const reorderedIds = newOrder.map((p: any) => p.id);
@@ -2114,8 +2147,43 @@ export default function EventDetailScreen() {
     loadEvent();
   }, [id, user]);
 
+  // Royal Emerald guest view: the website's design (components/royal); its fonts load only for this theme
+  const isRoyalGuest = !showAdminView && event?.templateId === 'royal';
+  const royalFonts = useRoyalFonts(event?.templateId === 'royal');
+
+  // Cinematic highlight video of the gallery being shown (Home or an album), under the welcome message
+  // (Find You and Event partners are pages, not galleries: no video there)
+  const onGalleryPage = activeSubEvent?.id !== 'find-you' && activeSubEvent?.id !== 'event-partners';
+  const shownGallery = activeSubEvent || event;
+  const shownGalleryId = shownGallery?.id;
+  const shownGalleryVideoId = shownGallery?.galleryVideoId;
+  const wantsGalleryVideo = onGalleryPage && !!shownGalleryId && shownGalleryVideoId !== null;
+  const [loadedGalleryVideo, setLoadedGalleryVideo] = useState<{ galleryId: string; video: GalleryVideo | null } | null>(null);
+  useEffect(() => {
+    if (!wantsGalleryVideo || !shownGalleryId) return;
+    let cancelled = false;
+    void getGalleryVideo(shownGalleryId).then((video) => {
+      if (!cancelled) setLoadedGalleryVideo({ galleryId: shownGalleryId, video });
+    });
+    return () => { cancelled = true; };
+  }, [wantsGalleryVideo, shownGalleryId, shownGalleryVideoId]);
+  const galleryVideo = wantsGalleryVideo && loadedGalleryVideo?.galleryId === shownGalleryId ? loadedGalleryVideo.video : null;
+
   useEffect(() => {
     const unsubscribe = subscribeToUploadQueue((items) => {
+      const pendingHighlight = pendingHighlightUploadRef.current;
+      if (pendingHighlight) {
+        const mine = items.filter(item =>
+          item.eventId === pendingHighlight.galleryId && item.mediaType === 'video' && item.addedAt >= pendingHighlight.since);
+        // The backend saved the row: photos.id comes from the storage key (same rule as the backend)
+        const saved = mine.find(item => item.storageKey && (item.status === 'processing' || item.status === 'completed'));
+        if (saved?.storageKey) {
+          changePendingHighlightUpload(null);
+          void saveGalleryVideo(pendingHighlight.galleryId, saved.storageKey.replace(/\//g, '_'));
+        } else if (mine.length > 0 && mine.every(item => item.status === 'failed')) {
+          changePendingHighlightUpload(null);
+        }
+      }
       const currentActiveId = selectedAdminGallery !== undefined
         ? (selectedAdminGallery ? selectedAdminGallery.id : event?.id)
         : (activeSubEvent ? activeSubEvent.id : event?.id);
@@ -3137,6 +3205,18 @@ export default function EventDetailScreen() {
                 </View>
               </Animated.View>
             </View>
+          ) : isRoyalGuest ? (
+            <RoyalHero
+              gallery={currentActiveEvent || event!}
+              isAlbum={!!activeSubEvent}
+              coverSource={activeCoverSource}
+              width={windowWidth}
+              height={heroHeight}
+              insetTop={insets.top}
+              // The pinned album tabs start this far above the hero's bottom edge, with a solid background
+              insetBottom={Math.max(insets.bottom, stickyTabsTopInset)}
+              fonts={royalFonts}
+            />
           ) : !showAdminView && isBohemianTemplate ? (
             <View style={[StyleSheet.absoluteFillObject, { backgroundColor: selectedTemplate.background, paddingTop: insets.top }]}>
               {/* Sunset / Dusk Gradient Background */}
@@ -3820,7 +3900,7 @@ export default function EventDetailScreen() {
               blurRadius={isGoldenYearsTemplate ? 0.8 : (isVintageTemplate ? 1.1 : 0)}
             />
           )}
-          {!isSportsTemplate && selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && selectedTemplate.id !== 'garden' && selectedTemplate.id !== 'bohemian' && selectedTemplate.id !== 'museum' && selectedTemplate.id !== 'brutalist' && selectedTemplate.id !== 'tech_sleek' && selectedTemplate.id !== 'executive' && (
+          {!isSportsTemplate && !isRoyalGuest && selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && selectedTemplate.id !== 'garden' && selectedTemplate.id !== 'bohemian' && selectedTemplate.id !== 'museum' && selectedTemplate.id !== 'brutalist' && selectedTemplate.id !== 'tech_sleek' && selectedTemplate.id !== 'executive' && (
             <LinearGradient
               colors={selectedTemplate.overlay as any}
               style={styles.heroGradient}
@@ -3936,47 +4016,7 @@ export default function EventDetailScreen() {
           )}
 
 
-          {(!showAdminView && (isSportsTemplate || event?.templateId === 'academic_editorial' || event?.templateId === 'bohemian' || event?.templateId === 'museum' || event?.templateId === 'brutalist' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (!showAdminView && event?.templateId === 'royal') ? (
-            <View style={styles.royalHeroOverlay}>
-              {/* 1. Elegant Thin Inset Frame */}
-              <View style={[styles.royalFrame, { borderColor: selectedTemplate.accent }]} />
-
-              {/* 2. Centered Text & Button */}
-              <View style={styles.royalCenterContent}>
-                <Text style={[styles.royalTitle, { color: '#fff' }]}>
-                  {(currentActiveEvent?.title || event.title).toUpperCase()}
-                </Text>
-
-                <Text style={[styles.royalDateText, { color: selectedTemplate.accent }]}>
-                  {(currentActiveEvent?.date || event.date || '').toUpperCase()}
-                </Text>
-
-                <TouchableOpacity
-                  style={[styles.royalButton, { borderColor: selectedTemplate.accent }]}
-                  onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
-                >
-                  <Text style={[styles.royalButtonText, { color: selectedTemplate.text }]}>MY PHOTOS</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* 3. Bottom Brand/Logo and Chevron */}
-              <View style={styles.royalBottomContent}>
-                <View style={styles.brandLogoContainer}>
-                  <Text style={[styles.royalBrandLogoScript, { color: '#fff', fontSize: 13, opacity: 0.8 }]}>Delivered by</Text>
-                  <Text style={[styles.royalBrandSubText, { color: selectedTemplate.accent, fontSize: 16, marginTop: 2, letterSpacing: 2 }]}>EveBash</Text>
-                  <Text style={[styles.royalBrandLogoScript, { color: '#fff', fontSize: 12, marginTop: 4, opacity: 0.8, fontStyle: 'normal' }]}>with love ❤️</Text>
-                </View>
-
-                {/* Downward Chevron */}
-                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Scroll to gallery"
-                  onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
-                  style={styles.royalChevron}
-                >
-                  <IconSymbol name="chevron.down" size={24} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (!showAdminView && event?.templateId === 'classic') ? (
+          {(!showAdminView && (isSportsTemplate || event?.templateId === 'academic_editorial' || event?.templateId === 'bohemian' || event?.templateId === 'museum' || event?.templateId === 'brutalist' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : isRoyalGuest ? null : (!showAdminView && event?.templateId === 'classic') ? (
             <View style={styles.classicHeroOverlay}>
               {/* 1. Elegant Thin Matte Frame */}
               <View style={[styles.classicFrame, { borderColor: 'rgba(202, 156, 104, 0.15)' }]} />
@@ -4836,7 +4876,7 @@ export default function EventDetailScreen() {
           // It overlaps the hero while scrolling (transparent, touch-through) and gets an opaque background once pinned.
           <View
             pointerEvents="box-none"
-            style={{ marginTop: -stickyTabsTopInset, paddingTop: stickyTabsTopInset }}
+            style={{ marginTop: -stickyTabsTopInset, paddingTop: stickyTabsTopInset, backgroundColor: isRoyalGuest ? '#021a15' : undefined }}
             onLayout={(e) => setStickyTabsY(e.nativeEvent.layout.y)}
           >
             <RNAnimated.View
@@ -4860,6 +4900,7 @@ export default function EventDetailScreen() {
               subEvents={guestSubEvents}
               handleSubEventChange={handleSubEventChange}
               styles={styles}
+              royalFontFamily={isRoyalGuest ? royalFonts.displayBold : undefined}
             />
           </View>
         )}
@@ -5186,6 +5227,20 @@ export default function EventDetailScreen() {
                           </View>
                         </View>
                       </View>
+
+                      {/* Cinematic Highlight Video (same as the website's panel under the Welcome Message) */}
+                      {(() => {
+                        const gallery = selectedAdminGallery === null ? event! : selectedAdminGallery;
+                        return (
+                          <GalleryVideoPanel
+                            gallery={gallery}
+                            canUpload={canManageEvent || isOwner}
+                            uploading={pendingHighlightUpload?.galleryId === gallery.id}
+                            onUpload={() => void handleUploadGalleryMedia('video', { highlight: true })}
+                            onChange={async (videoId) => { await saveGalleryVideo(gallery.id, videoId); }}
+                          />
+                        );
+                      })()}
 
                       {/* Storage Quota Card (Admin View Only) */}
                       {showAdminView && storageStats && (
@@ -6171,7 +6226,23 @@ export default function EventDetailScreen() {
             <>
                   {/* ── VISITOR IMMERSIVE CONTENT ── (the link check in loadEvent decides who gets here) */}
                   <View style={[styles.visitorContent, { backgroundColor: pageBackground }]}>
-                {(event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
+                {isRoyalGuest && onGalleryPage && (
+                  <RoyalGalleryHeader
+                    title={activeSubEvent ? activeSubEvent.title : 'Highlights'}
+                    message={(event as any).showWelcomeCard !== false ? (activeSubEvent ? activeSubEvent.description : event.description) : undefined}
+                    coupleTitle={activeSubEvent ? undefined : event.title}
+                    video={galleryVideo}
+                    selectedTemplate={selectedTemplate}
+                    fonts={royalFonts}
+                    onBack={handleEventBack}
+                    onShare={() => setShowShareModal(true)}
+                    tabs={mediaTabs}
+                    activeTab={galleryMediaTab}
+                    onTabChange={setGalleryMediaTab}
+                  />
+                )}
+
+                {!isRoyalGuest && (event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
                   <View style={[
                     styles.mainInfoBox,
                     {
@@ -6490,6 +6561,14 @@ export default function EventDetailScreen() {
                   </View>
                 )}
 
+                {galleryVideo && !isRoyalGuest && (
+                  <GalleryHighlightVideo
+                    video={galleryVideo}
+                    title={shownGallery?.title || event.title}
+                    selectedTemplate={selectedTemplate}
+                  />
+                )}
+
                 {galleryAccess === 'member' && memberCanUpload && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
                   activeSubEvent || guestSubEvents.length === 0 ? (
                     <TouchableOpacity
@@ -6673,6 +6752,7 @@ export default function EventDetailScreen() {
                   </View>
                 ) : (
                   <>
+                {!isRoyalGuest && (<>
                 <View style={[
                   styles.galleryHeader,
                   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 16 },
@@ -6946,26 +7026,9 @@ export default function EventDetailScreen() {
                     );
                   })}
                 </View>
-                {isPrimaryGalleryView ? (
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  onPress={() => setSourceGalleryMenuVisible(true)}
-                  style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4, marginBottom: 14, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(148,163,184,0.22)', backgroundColor: 'rgba(27,33,31,0.06)', paddingHorizontal: 12, paddingVertical: 10 }}
-                >
-                  <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: selectedTemplate.accentBg }}>
-                    <IconSymbol name="square.grid.2x2.fill" size={16} color={selectedTemplate.accent} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: selectedTemplate.text, fontSize: 13, fontFamily: Fonts.inter.bold }}>Source gallery</Text>
-                    <Text style={{ color: selectedTemplate.muted, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
-                      {effectiveSourceGalleryFilter === 'all'
-                        ? `All galleries · ${selectedMediaItems.length}`
-                        : `${sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter)?.label || 'All galleries'} · ${activeGalleryItems.length}`}
-                    </Text>
-                  </View>
-                  <IconSymbol name="chevron.down" size={16} color={selectedTemplate.muted} />
-                </TouchableOpacity>
-                ) : isPublicView ? null : (
+                </>)}
+                {/* Guests get no Source filter on Home, same as the website; albums keep Favourites */}
+                {isPrimaryGalleryView || isPublicView ? null : (
                 <TouchableOpacity
                   accessibilityRole="switch"
                   accessibilityState={{ checked: showOnlyFavourites }}
@@ -7488,6 +7551,7 @@ export default function EventDetailScreen() {
                   </View>
                 )}
                   </View>
+                {isRoyalGuest && <RoyalFooter title={event.title} fonts={royalFonts} bottomInset={insets.bottom} />}
             </>
           )}
         </View>

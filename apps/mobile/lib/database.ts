@@ -79,6 +79,8 @@ export interface Event {
     sampleGalleryOrder?: number;
     /** Sub-gallery hidden from guests by the host (managers still see it) */
     isHidden?: boolean;
+    /** Cinematic highlight video (photos.id) shown under the welcome message; null = none, undefined = column not there yet */
+    galleryVideoId?: string | null;
 }
 
 export interface Photo {
@@ -330,7 +332,8 @@ function mapSqlToEvent(e: any): Event {
         hostName: e.host_name,
         isSampleGallery: !!e.is_sample_gallery,
         isHidden: !!e.is_hidden,
-        sampleGalleryOrder: e.sample_gallery_order
+        sampleGalleryOrder: e.sample_gallery_order,
+        galleryVideoId: e.gallery_video_id === undefined ? undefined : e.gallery_video_id
     };
 }
 
@@ -2264,6 +2267,70 @@ export async function setGalleryHidden(galleryId: string, hidden: boolean): Prom
  */
 export function visibleGalleries<T extends { isHidden?: boolean }>(galleries: T[]): T[] {
     return galleries.filter(gallery => !gallery.isHidden);
+}
+
+/**
+ * Sets (or clears, with null) the gallery's cinematic highlight video, one of its own videos. Same as the website's
+ * setGalleryVideo; supabase/migrations/20261022000000_gallery_video.sql
+ */
+export async function setGalleryVideo(galleryId: string, videoId: string | null): Promise<{ success: boolean; error?: string }> {
+    const { error } = await supabase.from('events').update({ gallery_video_id: videoId }).eq('id', galleryId);
+    if (!error) return { success: true };
+    console.error('Error changing the gallery video:', error);
+    return {
+        success: false,
+        error: error.code === 'PGRST204'
+            ? "Cinematic highlight videos aren't available yet (database update pending)."
+            : "Couldn't update the cinematic highlight video. Please try again.",
+    };
+}
+
+/**
+ * A gallery's own videos, newest first, for the host's cinematic highlight chooser (includes hidden and
+ * still-processing ones). Older uploads may be stored under the gallery's legacy id.
+ */
+export async function getGalleryVideos(galleryId: string, legacyId?: string): Promise<Photo[]> {
+    const ids = [galleryId, ...(legacyId && legacyId !== galleryId ? [legacyId] : [])];
+    const { data, error } = await supabase
+        .from('photos')
+        .select('*')
+        .in('event_id', ids)
+        .eq('media_type', 'video')
+        .neq('status', 'uploading')
+        .order('uploaded_at', { ascending: false })
+        .limit(200);
+    if (error) {
+        console.warn("[GalleryVideo] Could not load the gallery's videos:", error.message);
+        return [];
+    }
+    return (data || []).map(mapSqlToPhoto);
+}
+
+export interface GalleryVideo {
+    id: string;
+    /** HLS stream, never the uploaded original */
+    streamUrl: string;
+    posterUrl?: string;
+    width?: number;
+    height?: number;
+}
+
+/** What a guest page needs to play the gallery's cinematic highlight video, or null when there's none to show. */
+export async function getGalleryVideo(galleryId: string): Promise<GalleryVideo | null> {
+    const { data, error } = await supabase.rpc('get_gallery_video', { p_event_id: galleryId });
+    if (error) {
+        console.warn('[GalleryVideo] Could not load the gallery video:', error.message);
+        return null;
+    }
+    const row = Array.isArray(data) ? data[0] : null;
+    if (!row?.id || !row.stream_url) return null;
+    return {
+        id: row.id,
+        streamUrl: row.stream_url,
+        posterUrl: row.poster_url || undefined,
+        width: row.width ?? undefined,
+        height: row.height ?? undefined,
+    };
 }
 
 export async function updateEvent(eventId: string, data: Partial<Event>): Promise<boolean> {

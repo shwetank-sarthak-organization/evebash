@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, useWindowDimensions, type GestureResponderEvent } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Fonts } from '../../constants/theme';
 import { BohemianEqualizer } from './BohemianEqualizer';
@@ -11,6 +11,8 @@ interface ThemeHeaderProps {
   subEvents: any[];
   handleSubEventChange: (sub: any) => void;
   styles: any;
+  /** Royal Emerald: its Cinzel font, loaded by the event screen (components/royal/royalFonts.ts) */
+  royalFontFamily?: string;
 }
 
 /** Event Partners is hidden until Phase 2 (it comes with EB Business and EB Network). */
@@ -46,6 +48,9 @@ const SPORTS_HEADER_THEMES: Record<string, any> = {
   zen: { background: '#f1eee6', text: '#44403c', muted: '#78716c', accent: '#66785f', activeText: '#fffaf2', tabBg: 'rgba(255,252,246,0.82)', border: 'rgba(102,120,95,0.22)' },
 };
 
+// Height of a tab in the Royal Emerald bar, so the Collections menu opens below it
+const COLLECTIONS_TAB_HEIGHT = 40;
+
 const getSportsHeaderTheme = (templateId?: string) => SPORTS_HEADER_THEMES[templateId || ''] || SPORTS_HEADER_THEMES.bohemian;
 
 export function ThemeHeader({
@@ -55,9 +60,16 @@ export function ThemeHeader({
   subEvents,
   handleSubEventChange,
   styles,
+  royalFontFamily,
 }: ThemeHeaderProps) {
+  // Website navbar links: Cinzel, gold when chosen
+  const royalTabText = (active: boolean) => isRoyalFont && { fontFamily: royalFontFamily, fontWeight: 'normal' as const, letterSpacing: 1.6, color: active ? '#f3d68f' : '#cdb48a' };
   const templateId = event?.templateId;
   const isRoyal = templateId === 'royal';
+  const isRoyalFont = isRoyal && !!royalFontFamily;
+  const { width: windowWidth } = useWindowDimensions();
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
+  const [collectionsAnchor, setCollectionsAnchor] = useState<{ x: number; y: number } | null>(null);
   const isClassic = templateId === 'classic';
   const isHero = templateId === 'hero';
   const isEthereal = templateId === 'ethereal';
@@ -181,6 +193,7 @@ export function ThemeHeader({
         isExecutive && styles.executiveVisitorTabText,
         isSportsTemplate && [styles.sportsVisitorTabText, { color: sportsHeaderTheme.text }],
         !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+        royalTabText(isActive),
         isAcademicEditorial && {
           fontFamily: selectedTemplate.serifBold,
           fontSize: 13,
@@ -207,7 +220,7 @@ export function ThemeHeader({
     if (isRoyal && isActive) return (
       <View style={{ alignItems: 'center', marginTop: 3 }}>
         <View style={{ width: 28, height: 1.5, backgroundColor: selectedTemplate.accent }} />
-        <Text style={{ fontSize: 6, color: selectedTemplate.accent, marginTop: 1 }}>♦</Text>
+        <View style={{ width: 4, height: 4, marginTop: 2, backgroundColor: selectedTemplate.accent, transform: [{ rotate: '45deg' }] }} />
       </View>
     );
     if (isClassic && isActive) return (
@@ -268,11 +281,21 @@ export function ThemeHeader({
 
   const isPartnersActive = activeSubEvent?.id === 'event-partners';
   const isFindYouActive = activeSubEvent?.id === 'find-you';
+  const isCollectionActive = !!activeSubEvent && subEvents.some((sub) => sub.id === activeSubEvent.id);
+  // The menu opens just under the tapped tab. The touch point is used because the pinned bar is moved by a native
+  // animation, which measuring the tab on Android doesn't include.
+  const openCollections = (event: GestureResponderEvent) => {
+    const { pageX, pageY, locationY } = event.nativeEvent;
+    setCollectionsAnchor({ x: pageX, y: pageY - locationY + COLLECTIONS_TAB_HEIGHT });
+    setCollectionsOpen(true);
+  };
 
   return (
     <View style={[
       styles.visitorHeaderContainer,
-      isRoyal && { height: 70, marginTop: 12, marginBottom: 0 },
+      isRoyal && (isRoyalFont
+        ? { height: 60, marginTop: 0, marginBottom: 0, backgroundColor: '#021a15', borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(202,156,105,0.3)' }
+        : { height: 70, marginTop: 12, marginBottom: 0 }),
       isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#F7F2EB' },
       isHero && { height: 64, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', backgroundColor: '#000000' },
       isEthereal && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.accent + '26', backgroundColor: selectedTemplate.background },
@@ -325,13 +348,28 @@ export function ThemeHeader({
           isAcademicEditorial && { paddingHorizontal: 12 },
           isGarden && { flexGrow: 1, flexDirection: 'row' as const, justifyContent: 'center' as const, alignItems: 'center' as const, paddingHorizontal: 4, gap: 4 },
           isBohemian && { paddingHorizontal: 16, gap: 8, alignItems: 'center' as const },
+          isRoyalFont && { flexGrow: 1, justifyContent: 'space-evenly' as const, alignItems: 'center' as const },
         ]}
       >
         {/* Home Tab */}
         {renderTab(null, !activeSubEvent)}
 
-        {/* Sub-event Tabs */}
-        {subEvents.map((sub, idx) =>
+        {/* Sub-event Tabs; Royal Emerald groups them under Collections, like the website's navbar */}
+        {isRoyalFont ? subEvents.length > 0 && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Collections"
+            accessibilityState={{ expanded: collectionsOpen }}
+            style={[styles.visitorTab, themeHeaderTab(isCollectionActive)]}
+            onPress={openCollections}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <Text style={[styles.visitorTabText, royalTabText(isCollectionActive)]}>COLLECTIONS</Text>
+              <IconSymbol name="chevron.down" size={12} color={isCollectionActive ? '#f3d68f' : '#cdb48a'} />
+            </View>
+            {renderUnderline(isCollectionActive)}
+          </TouchableOpacity>
+        ) : subEvents.map((sub, idx) =>
           renderTab(sub, activeSubEvent?.id === sub.id, idx)
         )}
 
@@ -382,6 +420,7 @@ export function ThemeHeader({
               isExecutive && styles.executiveVisitorTabText,
               isSportsTemplate && [styles.sportsVisitorTabText, { color: sportsHeaderTheme.text }],
               !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+              royalTabText(isPartnersActive),
               isAcademicEditorial && {
                 fontFamily: selectedTemplate.serifBold,
                 fontSize: 13,
@@ -450,6 +489,7 @@ export function ThemeHeader({
               isExecutive && styles.executiveVisitorTabText,
               isSportsTemplate && [styles.sportsVisitorTabText, { color: sportsHeaderTheme.text }],
               !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+              royalTabText(isFindYouActive),
               isAcademicEditorial && {
                 fontFamily: selectedTemplate.serifBold,
                 fontSize: 13,
@@ -462,7 +502,7 @@ export function ThemeHeader({
               {(isCyberTech || isNeonCarnival) ? (isFindYouActive ? '[ FIND YOU ]' : '  FIND YOU  ') : (
                 isRetroArcade ? 'FIND YOU 📸' : (
                   isAcademicEditorial ? `${String(subEvents.length + 4).padStart(2, '0')} / FIND YOU` : (
-                    (isSportsTemplate || isMuseum || isBrutalist || isTechSleek || isExecutive) ? 'Find You' : <>Find You <Text style={{ fontSize: 10 }}>📸</Text></>
+                    (isSportsTemplate || isMuseum || isBrutalist || isTechSleek || isExecutive || isRoyalFont) ? 'Find You' : <>Find You <Text style={{ fontSize: 10 }}>📸</Text></>
                   )
                 )
               )}
@@ -471,6 +511,60 @@ export function ThemeHeader({
           {renderUnderline(isFindYouActive)}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Royal Emerald Collections menu: the albums, under the Collections tab */}
+      {isRoyalFont && collectionsOpen && (
+        // statusBarTranslucent: the modal then uses the same coordinates as the touch
+        <Modal transparent visible statusBarTranslucent animationType="fade" onRequestClose={() => setCollectionsOpen(false)}>
+          <Pressable style={{ flex: 1 }} onPress={() => setCollectionsOpen(false)} accessibilityLabel="Close collections">
+            <View
+              style={{
+                position: 'absolute',
+                top: (collectionsAnchor?.y ?? 100) + 6,
+                left: Math.min(Math.max(12, (collectionsAnchor?.x ?? 0) - 120), windowWidth - 252),
+                width: 240,
+                maxHeight: 360,
+                paddingVertical: 6,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: 'rgba(202,156,105,0.55)',
+                backgroundColor: '#021a15',
+                shadowColor: '#000',
+                shadowOpacity: 0.5,
+                shadowRadius: 16,
+                shadowOffset: { width: 0, height: 8 },
+                elevation: 12,
+              }}
+            >
+              <ScrollView>
+                {subEvents.map((sub) => {
+                  const active = activeSubEvent?.id === sub.id;
+                  return (
+                    <TouchableOpacity
+                      key={sub.id}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      onPress={() => {
+                        setCollectionsOpen(false);
+                        handleSubEventChange(sub);
+                      }}
+                      style={{
+                        marginHorizontal: 6,
+                        paddingVertical: 12,
+                        paddingHorizontal: 14,
+                        borderRadius: 10,
+                        backgroundColor: active ? 'rgba(202,156,105,0.16)' : 'transparent',
+                      }}
+                    >
+                      <Text numberOfLines={1} style={[{ fontSize: 13, textTransform: 'uppercase' }, royalTabText(active)]}>{sub.title}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Modal>
+      )}
 
       {/* Bohemian Guitar String Divider */}
       {isBohemian && (

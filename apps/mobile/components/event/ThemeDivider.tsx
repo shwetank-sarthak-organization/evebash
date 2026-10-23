@@ -12,7 +12,8 @@ export function ThemeDivider({ selectedTemplate, styles }: ThemeDividerProps) {
     return (
       <View style={styles.royalDividerContainer}>
         <View style={[styles.royalDividerLine, { backgroundColor: selectedTemplate.accent }]} />
-        <Text style={[styles.royalDividerDiamond, { color: selectedTemplate.accent }]}>♦</Text>
+        {/* Drawn, not the "♦" character: Android shows that as a red emoji */}
+        <View style={{ width: 7, height: 7, marginHorizontal: 10, backgroundColor: selectedTemplate.accent, transform: [{ rotate: '45deg' }] }} />
         <View style={[styles.royalDividerLine, { backgroundColor: selectedTemplate.accent }]} />
       </View>
     );
