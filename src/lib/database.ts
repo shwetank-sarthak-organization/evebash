@@ -2526,7 +2526,10 @@ export async function updateSubEventsOrder(orderedIds: string[]): Promise<boolea
  */
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export type StorageBreakdown = { events: number; vault: number; total: number };
+/** Event storage by kind; the four parts add up to `events`. */
+export type EventStorageParts = { photos: number; videos: number; albumDesigns: number; voiceNotes: number };
+
+export type StorageBreakdown = { events: number; vault: number; total: number; eventParts?: EventStorageParts | null };
 
 /** Bytes used by event media (originals plus streaming/preview assets). */
 export async function getUserEventStorage(identifiers: string | string[]): Promise<number> {
@@ -2566,6 +2569,17 @@ export async function getUserVaultStorage(identifiers: string | string[]): Promi
     }
 }
 
+/** The server's event storage split; null from older backends or before its migration, so the card doesn't expand. */
+function readEventParts(parts: any): EventStorageParts | null {
+    if (!parts || typeof parts !== "object") return null;
+    return {
+        photos: Number(parts.photos) || 0,
+        videos: Number(parts.videos) || 0,
+        albumDesigns: Number(parts.albumDesigns) || 0,
+        voiceNotes: Number(parts.voiceNotes) || 0,
+    };
+}
+
 /**
  * The signed-in user's storage as the server counts it for upload limits: everything in galleries they own (whoever
  * uploaded it, previews and streaming copies included) plus EB Vault. Null when it isn't about the signed-in user or
@@ -2582,7 +2596,7 @@ async function getOwnStorageFromServer(identifiers: string | string[]): Promise<
         if (!response.ok) return null;
         const data = await response.json();
         if (typeof data?.total !== "number") return null;
-        return { events: Number(data.events) || 0, vault: Number(data.vault) || 0, total: data.total };
+        return { events: Number(data.events) || 0, vault: Number(data.vault) || 0, total: data.total, eventParts: readEventParts(data.eventParts) };
     } catch {
         return null;
     }

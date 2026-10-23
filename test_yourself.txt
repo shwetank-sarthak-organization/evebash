@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 126
+Next test number: 127
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3113,6 +3113,36 @@ How to test (host page, a test gallery; use 2-3 videos of 50 MB or more so there
   5. (Claude checks B2 afterwards: no leftover files for the cancelled videos.)
   6. Photos: upload 20 photos and press X on one showing "Processing"/"Indexing". Expect: same as
      step 2 for that photo.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#126 Profile storage: tap Event Storage to see photos, videos and voice notes
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Tapping "Event Storage" on the profile's Storage card opens a list of how much
+           Photos, Videos and Voice notes (and Album designs, once you have any) take; tapping
+           again closes it.
+Detail:    Needs migration 20261023020000_event_storage_breakdown.sql applied and the backend with
+           the new /media/storage-usage field deployed. Before that, the row looks and works exactly
+           as before (no arrow, nothing to open). Old app builds also stay as before.
+How to test:
+  1. Website, logged in as a host with photos and videos in their own galleries: open Profile.
+     In the Storage Usage card (right column) the Event Storage row has a small down arrow.
+  2. Click Event Storage. Expect: Photos, Videos, Voice notes listed under it with sizes; the four
+     numbers add up to the Event Storage number (allow rounding). Click again: the list closes.
+  3. Plan tab -> Live Storage Meter: same open/close works there.
+  4. Make a voice note in an album (album proofing) and refresh: Voice notes grows.
+  5. Phone app (new build): Profile -> Storage card, tap Event Storage. Expect the same list, arrow
+     flips up/down, tap again closes it.
+  6. A host with no videos/voice notes: those lines show 0 B, nothing breaks.
 Done by:
 Device / browser:
 Build / version:

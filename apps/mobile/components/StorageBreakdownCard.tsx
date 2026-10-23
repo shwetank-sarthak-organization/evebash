@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppTheme } from '@/context/ThemeContext';
 import { formatStorageSize, getUsagePercent } from '@/lib/planLimits';
@@ -26,10 +26,16 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel }: StorageBre
   const eventShare = totals.total > 0 ? (totals.events / totals.total) * percent : 0;
   const vaultShare = totals.total > 0 ? (totals.vault / totals.total) * percent : 0;
 
-  const rows = [
-    { label: 'Event Storage', bytes: totals.events, color: EVENT_COLOR, icon: 'calendar' },
-    { label: 'Vault Storage', bytes: totals.vault, color: VAULT_COLOR, icon: 'lock.fill' },
-  ] as const;
+  const [eventsOpen, setEventsOpen] = useState(false);
+  const parts = usage?.eventParts;
+  // Album designs only exist with album proofing, so that line shows up only once there are some.
+  const eventParts = parts ? [
+    { label: 'Photos', bytes: parts.photos, icon: 'photo' },
+    { label: 'Videos', bytes: parts.videos, icon: 'video.fill' },
+    { label: 'Voice notes', bytes: parts.voiceNotes, icon: 'mic.fill' },
+    ...(parts.albumDesigns > 0 ? [{ label: 'Album designs', bytes: parts.albumDesigns, icon: 'book.fill' }] : []),
+  ] : [];
+  const canExpand = eventParts.length > 0;
 
   return (
     <View style={[styles.card, { borderColor: colors.border }]}>
@@ -55,16 +61,47 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel }: StorageBre
         </View>
       )}
 
-      {rows.map((row) => (
-        <View key={row.label} style={styles.row}>
-          <View style={styles.rowLabel}>
-            <View style={[styles.swatch, { backgroundColor: row.color }]} />
-            <IconSymbol name={row.icon as any} size={14} color={colors.slate400} />
-            <Text style={[styles.rowText, { color: colors.text }]}>{row.label}</Text>
-          </View>
-          <Text style={[styles.rowValue, { color: colors.text }]}>{loading ? '…' : formatStorageSize(row.bytes)}</Text>
+      <Pressable
+        style={styles.row}
+        disabled={!canExpand}
+        onPress={() => setEventsOpen((open) => !open)}
+        accessibilityRole={canExpand ? 'button' : undefined}
+        accessibilityState={canExpand ? { expanded: eventsOpen } : undefined}
+        hitSlop={6}
+      >
+        <View style={styles.rowLabel}>
+          <View style={[styles.swatch, { backgroundColor: EVENT_COLOR }]} />
+          <IconSymbol name="calendar" size={14} color={colors.slate400} />
+          <Text style={[styles.rowText, { color: colors.text }]}>Event Storage</Text>
         </View>
-      ))}
+        <View style={styles.rowLabel}>
+          <Text style={[styles.rowValue, { color: colors.text }]}>{loading ? '…' : formatStorageSize(totals.events)}</Text>
+          {canExpand && <IconSymbol name={eventsOpen ? 'chevron.up' : 'chevron.down'} size={16} color={colors.slate400} />}
+        </View>
+      </Pressable>
+
+      {eventsOpen && canExpand && (
+        <View style={[styles.parts, { borderColor: colors.border }]}>
+          {eventParts.map((part) => (
+            <View key={part.label} style={styles.row}>
+              <View style={styles.rowLabel}>
+                <IconSymbol name={part.icon as any} size={13} color={colors.slate400} />
+                <Text style={[styles.partText, { color: colors.slate400 }]}>{part.label}</Text>
+              </View>
+              <Text style={[styles.partValue, { color: colors.text }]}>{formatStorageSize(part.bytes)}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      <View style={styles.row}>
+        <View style={styles.rowLabel}>
+          <View style={[styles.swatch, { backgroundColor: VAULT_COLOR }]} />
+          <IconSymbol name="lock.fill" size={14} color={colors.slate400} />
+          <Text style={[styles.rowText, { color: colors.text }]}>Vault Storage</Text>
+        </View>
+        <Text style={[styles.rowValue, { color: colors.text }]}>{loading ? '…' : formatStorageSize(totals.vault)}</Text>
+      </View>
 
       <Text style={[styles.note, { color: overLimit ? '#fca5a5' : colors.slate400 }]}>
         {overLimit
@@ -90,5 +127,8 @@ const styles = StyleSheet.create({
   swatch: { width: 10, height: 10, borderRadius: 5 },
   rowText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   rowValue: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  parts: { borderLeftWidth: 1, marginLeft: 4, paddingLeft: 14, gap: 8 },
+  partText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  partValue: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   note: { fontSize: 11, fontFamily: 'Inter_400Regular', lineHeight: 16 },
 });

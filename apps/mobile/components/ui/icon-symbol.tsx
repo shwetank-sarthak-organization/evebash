@@ -112,6 +112,8 @@ const MAPPING = {
   'play.fill': 'play-arrow',
   'play.rectangle.fill': 'smart-display',
   'video.fill': 'videocam',
+  'mic.fill': 'mic',
+  'book.fill': 'menu-book',
   'fork.knife': 'restaurant',
   'tshirt.fill': 'checkroom',
   'pause.fill': 'pause',

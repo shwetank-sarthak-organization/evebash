@@ -38,7 +38,7 @@ import {
 } from "../uploadNotifications.js";
 import { runMediaWatchdog } from "../services/watchdog.js";
 import { checkEventUpload, isEventUploadLimitEnabled } from "../services/eventUploadLimits.js";
-import { getStorageContext } from "../vault/access.js";
+import { getStorageContext, ownerIdentifiers } from "../vault/access.js";
 import { createSupabaseVaultRepository } from "../vault/repository.js";
 
 export const mediaRouter = Router();
@@ -607,7 +607,10 @@ mediaRouter.get("/storage-usage", asyncRoute(async (request, response) => {
   const verified = await verifyRequestUser(request);
   if (!verified) return jsonError(response, 401, "Authorization required");
   const { id, email, phone } = verified.user;
-  const context = await getStorageContext(createSupabaseVaultRepository(), { id, email, phone });
+  const [context, eventParts] = await Promise.all([
+    getStorageContext(createSupabaseVaultRepository(), { id, email, phone }),
+    getEventStorageParts(ownerIdentifiers({ id, email, phone })),
+  ]);
   response.json({
     success: true,
     events: context.eventBytes,
@@ -616,8 +619,27 @@ mediaRouter.get("/storage-usage", asyncRoute(async (request, response) => {
     limitBytes: context.limitBytes,
     uploadsBlocked: context.uploadsBlocked,
     planState: context.lifecycle.state,
+    eventParts,
   });
 }));
+
+// Event storage split by kind for the profile's Storage card. Null (the card just doesn't expand) if it can't be read,
+// e.g. before the 20261023020000 migration is applied, so it never breaks the totals above.
+async function getEventStorageParts(identifiers: string[]) {
+  try {
+    const { data, error } = await getSupabaseAdminClient().rpc("vault_event_storage_breakdown", { p_identifiers: identifiers });
+    const row = Array.isArray(data) ? data[0] : data;
+    if (error || !row) return null;
+    return {
+      photos: Number(row.photos) || 0,
+      videos: Number(row.videos) || 0,
+      albumDesigns: Number(row.album_designs) || 0,
+      voiceNotes: Number(row.voice_notes) || 0,
+    };
+  } catch {
+    return null;
+  }
+}
 
 mediaRouter.post("/get-upload-url", asyncRoute(async (request, response) => {
   const body = request.body || {};

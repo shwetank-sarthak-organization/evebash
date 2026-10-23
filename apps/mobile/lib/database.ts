@@ -813,7 +813,10 @@ export async function getGuestProfile(log: { userId?: string; email?: string; ph
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export type StorageBreakdown = { events: number; vault: number; total: number };
+/** Event storage by kind; the four parts add up to `events`. */
+export type EventStorageParts = { photos: number; videos: number; albumDesigns: number; voiceNotes: number };
+
+export type StorageBreakdown = { events: number; vault: number; total: number; eventParts?: EventStorageParts | null };
 
 /** Bytes used by event media. */
 export async function getUserEventStorage(identifiers: string[]): Promise<number> {
@@ -853,12 +856,23 @@ export async function getUserVaultStorage(identifiers: string[]): Promise<number
 }
 
 
+/** The server's event storage split; null from older backends or before its migration, so the card doesn't expand. */
+function readEventParts(parts: any): EventStorageParts | null {
+    if (!parts || typeof parts !== 'object') return null;
+    return {
+        photos: Number(parts.photos) || 0,
+        videos: Number(parts.videos) || 0,
+        albumDesigns: Number(parts.albumDesigns) || 0,
+        voiceNotes: Number(parts.voiceNotes) || 0,
+    };
+}
+
 /**
  * The signed-in user's storage as the server counts it for upload limits: everything in galleries they own (whoever
  * uploaded it, previews and streaming copies included) plus EB Vault. Null when it isn't about the signed-in user or
  * the server can't be reached, so callers fall back to adding it up on the device.
  */
-async function getOwnStorageFromServer(identifiers: string[]): Promise<{ events: number; vault: number; total: number } | null> {
+async function getOwnStorageFromServer(identifiers: string[]): Promise<StorageBreakdown | null> {
     try {
         const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
         const { data: { session } } = await supabase.auth.getSession();
@@ -869,7 +883,7 @@ async function getOwnStorageFromServer(identifiers: string[]): Promise<{ events:
         if (!response.ok) return null;
         const data = await response.json();
         if (typeof data?.total !== 'number') return null;
-        return { events: Number(data.events) || 0, vault: Number(data.vault) || 0, total: data.total };
+        return { events: Number(data.events) || 0, vault: Number(data.vault) || 0, total: data.total, eventParts: readEventParts(data.eventParts) };
     } catch {
         return null;
     }
