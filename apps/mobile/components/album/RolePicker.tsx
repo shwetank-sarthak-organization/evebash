@@ -63,8 +63,12 @@ export function RolePicker({ eventId, value, onChange }: {
   if (!candidates) return <ActivityIndicator color={MidnightColors.gold} style={{ marginVertical: 16 }} />;
 
   const clients = value.clientIds ?? [];
+  // Picking someone for one role takes them out of the other, so roles can be swapped in one go
   const toggleClient = (id: string) =>
-    onChange({ ...value, clientIds: clients.includes(id) ? clients.filter((c) => c !== id) : [...clients, id] });
+    onChange(clients.includes(id)
+      ? { ...value, clientIds: clients.filter((c) => c !== id) }
+      : { photographerId: value.photographerId === id ? undefined : value.photographerId, clientIds: [...clients, id] });
+  const pickPhotographer = (id: string) => onChange({ photographerId: id, clientIds: clients.filter((c) => c !== id) });
 
   return (
     <View style={{ gap: 16 }}>
@@ -75,8 +79,7 @@ export function RolePicker({ eventId, value, onChange }: {
             key={person.id}
             person={person}
             selected={value.photographerId === person.id}
-            disabled={clients.includes(person.id)}
-            onPress={() => onChange({ ...value, photographerId: person.id })}
+            onPress={() => pickPhotographer(person.id)}
           />
         ))}
       </View>
@@ -88,11 +91,15 @@ export function RolePicker({ eventId, value, onChange }: {
             person={person}
             multi
             selected={clients.includes(person.id)}
-            disabled={value.photographerId === person.id}
             onPress={() => toggleClient(person.id)}
           />
         ))}
       </View>
+      {(!value.photographerId || !clients.length) && (
+        <Text style={[albumStyles.small, { color: '#E8C9A0' }]}>
+          {!value.photographerId ? 'Choose the photographer.' : 'Choose at least one client.'}
+        </Text>
+      )}
       {candidates.length < 2 && (
         <Text style={styles.hint}>
           Only the host can be picked right now. Add the photographer or the client as guests and turn on Admin Access in Permissions, then come back.

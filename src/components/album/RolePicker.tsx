@@ -73,8 +73,12 @@ export function RolePicker({ eventId, value, onChange }: {
     if (!candidates) return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-[#CA9C68]" /></div>;
 
     const clients = value.clientIds ?? [];
+    // Picking someone for one role takes them out of the other, so roles can be swapped in one go
     const toggleClient = (id: string) =>
-        onChange({ ...value, clientIds: clients.includes(id) ? clients.filter((c) => c !== id) : [...clients, id] });
+        onChange(clients.includes(id)
+            ? { ...value, clientIds: clients.filter((c) => c !== id) }
+            : { photographerId: value.photographerId === id ? undefined : value.photographerId, clientIds: [...clients, id] });
+    const pickPhotographer = (id: string) => onChange({ photographerId: id, clientIds: clients.filter((c) => c !== id) });
 
     return (
         <div className="space-y-5">
@@ -89,8 +93,7 @@ export function RolePicker({ eventId, value, onChange }: {
                             key={person.id}
                             person={person}
                             selected={value.photographerId === person.id}
-                            disabled={clients.includes(person.id)}
-                            onClick={() => onChange({ ...value, photographerId: person.id })}
+                            onClick={() => pickPhotographer(person.id)}
                         />
                     ))}
                 </div>
@@ -107,12 +110,14 @@ export function RolePicker({ eventId, value, onChange }: {
                             person={person}
                             multi
                             selected={clients.includes(person.id)}
-                            disabled={value.photographerId === person.id}
                             onClick={() => toggleClient(person.id)}
                         />
                     ))}
                 </div>
             </div>
+            {(!value.photographerId || !clients.length) && (
+                <p className="text-xs font-bold text-[#E8C9A0]">{!value.photographerId ? "Choose the photographer." : "Choose at least one client."}</p>
+            )}
             {candidates.length < 2 && (
                 <p className="rounded-2xl border border-[#CA9C68]/25 bg-[#CA9C68]/[0.06] p-3 text-xs font-semibold leading-5 text-[#E8C9A0]">
                     Only the host can be picked right now. Add the photographer or the client as guests and turn on
