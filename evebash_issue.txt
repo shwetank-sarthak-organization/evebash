@@ -388,19 +388,6 @@ Issue: The website footer (src/components/Footer.tsx) leaves out key pages and w
 How to reproduce: Open www.evebash.com on a phone (or 375 px wide) and scroll to the bottom. Look for Find You, Host, Delete account and YouTube links: none.
 Note 2026-10-23: the phone-layout part matters less once the phone/tablet download screen is on for www.evebash.com (#109): phones only see contact-us and the policy pages then. The missing links still matter on computers.
 
-#77
-Listed: 2026-10-19
-Platform: Both
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: 2-3 days of watching after switching every gallery to v2 (2026-10-21 23:54 IST, Modal v119); then move to RECENTLY FIXED
-Found in: Photo cost review and Modal benchmark (2026-10-13), plan agreed 2026-10-19
-Issue: Photo processing on Modal costs about 4x more than it needs to, and it is our second-biggest cost after B2 storage (about 31% of the infra bill at scale). Each photo runs through two workers (process_photo_preview, then FaceIndexer in modal_engine/main.py): two container start-ups, two idle windows (60 s and 45 s, both billed), the preview downloaded and decoded twice, and all 5 AuraFace models run on every face although only detection and recognition are used. Measured on 40 real 24 MP photos (2026-10-13 Modal bills): ₹0.0303 per photo for bulk uploads and ₹0.1695 for guest uploads (a few photos at a time). A merged worker with only the 2 models we use, a 15 s idle window and up to 4 photos per container cost ₹0.0076 and ₹0.0229 (-75% / -86%) with identical faces. Fix: add PhotoProcessorV2 (Modal only) behind a runtime switch (Modal Dict, default v1 = today), keep process_photo_preview and FaceIndexer deployed and unchanged for instant switch-back, test on one gallery, then switch everyone.
-How to reproduce: Upload 1-3 photos to any gallery, then run modal billing report for that hour: both process_photo_preview and FaceIndexer containers start and stay up after the work; the cost per photo is far above the logged execution cost.
-2026-10-22 21:07 IST: 2 of 35 test photos (test-face-new-155c) stalled in v2's face step with nothing in the logs; the 5-minute claim then the maintenance job recovered them after ~8 min, nothing lost. Fix (not deployed yet): v2 now has a 2-minute time limit (was Modal's 5-minute default) and claims a photo for 150 s instead of 300 s, so a stuck photo is retried ~2.5 min earlier; a photo still running after 60 s prints which step it is on and the code line it is waiting at. Tested with fakes: normal output identical; the time limit stopped a stuck input while another photo in the same container finished.
-2026-10-23: the 5-minute maintenance job (sweep_stuck_jobs and dispatch_outbox_jobs) sent every retry to the old workers, so retried photos cost ~4x more, skipped the face filter (#101) and failed if RAW (#80). Fix (not deployed yet): retries follow the same switch as new uploads; previews go to PhotoProcessorV2.process, face-only retries to the new PhotoProcessorV2.index_faces (v2's face step on the saved preview, cost-log function index_faces_v2). Tested with fakes: normal v2 output identical to v122; face-only retries give the same faces; a missing preview marks the faces failed; routing follows the switch (mode v1 still uses the old workers).
-
 #78
 Listed: 2026-10-21
 Platform: Website
@@ -742,6 +729,20 @@ How to reproduce: Find You on wedding-fdd8 with Sarthak's selfie: 44 results, mo
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#77
+Listed: 2026-10-19
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Photo cost review and Modal benchmark (2026-10-13), plan agreed 2026-10-19
+Issue: Photo processing on Modal costs about 4x more than it needs to, and it is our second-biggest cost after B2 storage (about 31% of the infra bill at scale). Each photo runs through two workers (process_photo_preview, then FaceIndexer in modal_engine/main.py): two container start-ups, two idle windows (60 s and 45 s, both billed), the preview downloaded and decoded twice, and all 5 AuraFace models run on every face although only detection and recognition are used. Measured on 40 real 24 MP photos (2026-10-13 Modal bills): ₹0.0303 per photo for bulk uploads and ₹0.1695 for guest uploads (a few photos at a time). A merged worker with only the 2 models we use, a 15 s idle window and up to 4 photos per container cost ₹0.0076 and ₹0.0229 (-75% / -86%) with identical faces. Fix: add PhotoProcessorV2 (Modal only) behind a runtime switch (Modal Dict, default v1 = today), keep process_photo_preview and FaceIndexer deployed and unchanged for instant switch-back, test on one gallery, then switch everyone.
+How to reproduce: Upload 1-3 photos to any gallery, then run modal billing report for that hour: both process_photo_preview and FaceIndexer containers start and stay up after the work; the cost per photo is far above the logged execution cost.
+2026-10-22 21:07 IST: 2 of 35 test photos (test-face-new-155c) stalled in v2's face step with nothing in the logs; the 5-minute claim then the maintenance job recovered them after ~8 min, nothing lost. Fix (not deployed yet): v2 now has a 2-minute time limit (was Modal's 5-minute default) and claims a photo for 150 s instead of 300 s, so a stuck photo is retried ~2.5 min earlier; a photo still running after 60 s prints which step it is on and the code line it is waiting at. Tested with fakes: normal output identical; the time limit stopped a stuck input while another photo in the same container finished.
+2026-10-23: the 5-minute maintenance job (sweep_stuck_jobs and dispatch_outbox_jobs) sent every retry to the old workers, so retried photos cost ~4x more, skipped the face filter (#101) and failed if RAW (#80). Fix (not deployed yet): retries follow the same switch as new uploads; previews go to PhotoProcessorV2.process, face-only retries to the new PhotoProcessorV2.index_faces (v2's face step on the saved preview, cost-log function index_faces_v2). Tested with fakes: normal v2 output identical to v122; face-only retries give the same faces; a missing preview marks the faces failed; routing follows the switch (mode v1 still uses the old workers).
+Fixed in: 3034f8c (v2 worker, Modal v118) and 09c320c (v119), every gallery on v2 since 2026-10-21 23:54 IST; follow-ups RAW 5a3b95a (v120), face filter 4e9d37a (v121), stall limits c8fa9f3 (v122), retries on v2 f6c3b2e (v123). Measured: ₹0.018 vs ₹0.064 per photo on the same 55-photo upload (-72%), one-at-a-time ₹0.037 vs ₹0.165 (-78%), faces identical, median upload-to-done 7 s. Health check 2026-10-21..23 (scripts/photo_v2_health.py): 223 photos on v2, 0 on v1 after the switch, 0 failed (the 76 RAW failures reprocessed), 0 stuck. Rollback stays available: modal_engine/photo_pipeline_switch.py mode v1.
 
 #110
 Listed: 2026-10-23
