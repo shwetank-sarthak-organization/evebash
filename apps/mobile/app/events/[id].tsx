@@ -2827,6 +2827,7 @@ export default function EventDetailScreen() {
                   style: 'destructive',
                   onPress: () => {
                     deleteGuest(log.id).then((removed) => {
+                      if (removed === null) return; // has an album role: warning already shown
                       if (!removed) {
                         appAlert('Could not remove guest', 'Please check your connection and try again.');
                         return;
@@ -5992,7 +5993,8 @@ export default function EventDetailScreen() {
                                     ? { canAdmin: true, canUpload: true, canComment: true }
                                     : { [perm.id]: nextValue };
                                   const applyPermissionUpdate = () => {
-                                    updateGuestPermissions(selectedGuest.id, newPerms).then(() => {
+                                    updateGuestPermissions(selectedGuest.id, newPerms).then((saved) => {
+                                      if (saved !== true) return; // not saved (e.g. an album role): keep the switch as it was
                                       setSelectedGuest({
                                         ...selectedGuest,
                                         ...(perm.id === 'canAdmin' && nextValue ? { status: 'approved' as GuestLog['status'] } : {}),

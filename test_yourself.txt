@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 121
+Next test number: 122
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2951,6 +2951,32 @@ How to test:
   5. Sign in as an admin without a role: "View only", sees pages and comments, no buttons.
   6. ... > Change roles: swap the photographer. Expect: the new person gets the upload buttons, the old
      one becomes view only.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#121 Someone with an album role can't lose Admin Access
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     An album's photographer or client must stay an event admin. Turning off their Admin Access,
+           rejecting them or removing them from the guest list shows "Change the album roles first" and
+           nothing changes. Needs migration 20261023010000_album_role_guard.sql.
+How to test:
+  1. Make an album with a guest admin as photographer and another as client.
+  2. Website, Permissions: open the photographer, turn off Admin Access. Expect: a dialog "Change the
+     album roles first" naming the album; the switch stays on.
+  3. Same for the client: Remove them from the guest list. Expect: the same dialog; they stay.
+  4. App, event > Permissions: try both again. Expect: an alert with the same text; nothing changes.
+  5. In the album, ... > Change roles: give the role to someone else. Then turn off Admin Access for the
+     first person. Expect: it works.
+  6. Turn off Admin Access for an admin with no album role. Expect: works as before.
 Done by:
 Device / browser:
 Build / version:

@@ -1877,6 +1877,13 @@ function DashboardContent() {
         };
     };
 
+    // Someone who is an album's photographer or client keeps Admin Access until the album's roles change
+    const showAlbumRoleBlock = (result: { code?: string; error?: string }) => {
+        if (result.code !== "album_role_assigned") return false;
+        void alertDialog({ title: "Change the album roles first", message: result.error || "This person has a role in an album." });
+        return true;
+    };
+
     const updateGuestStatusAction = async (logId: string, status: string, requester: any) => {
         try {
             const url = getApiUrl("/api/v1/permissions/update-guest-status");
@@ -1895,7 +1902,7 @@ function DashboardContent() {
                     body: JSON.stringify({ guestId: logId }),
                 }).catch(() => {});
             }
-            return res.ok && data.success ? { success: true } : { success: false, error: data.error };
+            return res.ok && data.success ? { success: true } : { success: false, error: data.error, code: data.code as string | undefined };
         } catch (err: any) {
             return { success: false, error: err.message };
         }
@@ -1910,7 +1917,7 @@ function DashboardContent() {
                 body: JSON.stringify({ logId, requester }),
             });
             const data = await res.json().catch(() => ({}));
-            return res.ok && data.success ? { success: true } : { success: false, error: data.error };
+            return res.ok && data.success ? { success: true } : { success: false, error: data.error, code: data.code as string | undefined };
         } catch (err: any) {
             return { success: false, error: err.message };
         }
@@ -1940,7 +1947,7 @@ function DashboardContent() {
                 body: JSON.stringify({ logId, permissions, requester }),
             });
             const data = await res.json().catch(() => ({}));
-            return res.ok && data.success ? { success: true } : { success: false, error: data.error };
+            return res.ok && data.success ? { success: true } : { success: false, error: data.error, code: data.code as string | undefined };
         } catch (err: any) {
             return { success: false, error: err.message };
         }
@@ -1960,6 +1967,8 @@ function DashboardContent() {
             setTrafficLogs(prev => prev.map(updateLog as any));
             setSelectedGuestLog(prev => prev?.id === logId ? updateLog(prev) : prev);
             fetchTrafficLogs();
+        } else if (showAlbumRoleBlock(result)) {
+            return false;
         } else {
             setMessage(result.error || "Failed to update guest.");
             setStatus("error");
@@ -2066,6 +2075,8 @@ function DashboardContent() {
             setMessage("Guest removed successfully.");
             setStatus("success");
             fetchTrafficLogs();
+        } else if (showAlbumRoleBlock(result)) {
+            return false;
         } else {
             setMessage(result.error || "Failed to remove guest.");
             setStatus("error");
@@ -2115,6 +2126,8 @@ function DashboardContent() {
                 : prev);
             setMessage("Guest permissions updated.");
             setStatus("success");
+        } else if (showAlbumRoleBlock(result)) {
+            return;
         } else {
             setMessage(result.error || "Failed to update permissions.");
             setStatus("error");

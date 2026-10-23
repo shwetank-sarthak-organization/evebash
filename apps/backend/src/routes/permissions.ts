@@ -1,4 +1,4 @@
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { Router } from "express";
 import { getAdminClient } from "../adminAuth.js";
 import { verifySupabaseUser } from "../auth.js";
@@ -23,6 +23,13 @@ const SUPER_ADMIN_EMAILS = [
 ];
 
 // Old check, used only when the kill switch is off
+/** The database refuses (SQLSTATE EBA01) to take Admin Access from someone who has an album role; its message says why. */
+function albumRoleBlocked(response: Response, error: any) {
+  if (error?.code !== "EBA01") return false;
+  response.status(409).json({ success: false, code: "album_role_assigned", error: error.message });
+  return true;
+}
+
 async function canManageGuestLog(logId: string, requester: { uid?: string; email?: string }) {
   if (!requester.uid && !requester.email) return false;
   const requesterEmail = (requester.email || "").toLowerCase().trim();
@@ -146,6 +153,7 @@ export function createPermissionsRouter(
       if (error) throw error;
       return response.json({ success: true });
     } catch (error: any) {
+      if (albumRoleBlocked(response, error)) return;
       console.error("[BackendPermissions] Error in update-guest-status:", error);
       return response.status(500).json({ success: false, error: error.message });
     }
@@ -173,6 +181,7 @@ export function createPermissionsRouter(
       if (error) throw error;
       return response.json({ success: true });
     } catch (error: any) {
+      if (albumRoleBlocked(response, error)) return;
       console.error("[BackendPermissions] Error in delete-guest:", error);
       return response.status(500).json({ success: false, error: error.message });
     }
@@ -286,6 +295,7 @@ export function createPermissionsRouter(
       if (error) throw error;
       return response.json({ success: true });
     } catch (error: any) {
+      if (albumRoleBlocked(response, error)) return;
       console.error("[BackendPermissions] Error in update-guest-permissions:", error);
       return response.status(500).json({ success: false, error: error.message });
     }

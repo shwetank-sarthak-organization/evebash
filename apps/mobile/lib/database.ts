@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import { sendPushNotificationDirectly } from "./notifications";
 import { DEFAULT_EVENT_COVER_IMAGE } from "./eventCovers";
+import { appAlert } from "./feedback";
 
 const COVER_USAGE_TAG = "__cover_usage__";
 const BUSINESS_PORTFOLIO_EVENTS_KEY = "__portfolio_events__";
@@ -1942,6 +1943,17 @@ export async function getEventLogs(eventId: string): Promise<GuestLog[]> {
     }
 }
 
+/**
+ * An album's photographer or client keeps Admin Access until the album's roles change: the database refuses
+ * (SQLSTATE EBA01) and says which album. Shows that as a warning; true when it was this refusal.
+ */
+function warnIfAlbumRole(error: unknown) {
+    const e = error as { code?: string; message?: string } | null;
+    if (e?.code !== 'EBA01') return false;
+    appAlert('Change the album roles first', e.message || 'This person has a role in an album.');
+    return true;
+}
+
 export async function updateGuestStatus(logId: string, status: 'pending' | 'approved' | 'rejected') {
     try {
         // Approving doesn't turn on uploads or comments: the host switches those on per guest
@@ -1956,12 +1968,14 @@ export async function updateGuestStatus(logId: string, status: 'pending' | 'appr
         if (status !== 'pending') void notifyGalleryDecision(logId);
         return true;
     } catch (error) {
+        if (warnIfAlbumRole(error)) return false;
         console.error("Error updating guest status:", error);
         return false;
     }
 }
 
-export async function updateGuestPermissions(logId: string, permissions: Partial<{ canAdmin: boolean, canUpload: boolean, canComment: boolean }>) {
+/** true when saved; null when refused because the person has an album role (the warning is already shown). */
+export async function updateGuestPermissions(logId: string, permissions: Partial<{ canAdmin: boolean, canUpload: boolean, canComment: boolean }>): Promise<boolean | null> {
     try {
         const updateData: any = {};
         if (permissions.canAdmin !== undefined) updateData.can_admin = permissions.canAdmin;
@@ -1976,6 +1990,7 @@ export async function updateGuestPermissions(logId: string, permissions: Partial
         if (error) throw error;
         return true;
     } catch (error) {
+        if (warnIfAlbumRole(error)) return null;
         console.error("Error updating guest permissions:", error);
         return false;
     }
@@ -3050,7 +3065,8 @@ export function generateEventJoinId(eventId: string): string {
     return `${prefix}-${randomSuffix}`;
 }
 
-export async function deleteGuest(logId: string) {
+/** true when removed; null when refused because the person has an album role (the warning is already shown). */
+export async function deleteGuest(logId: string): Promise<boolean | null> {
     try {
         const { error } = await supabase
             .from('guests')
@@ -3059,6 +3075,7 @@ export async function deleteGuest(logId: string) {
         if (error) throw error;
         return true;
     } catch (error) {
+        if (warnIfAlbumRole(error)) return null;
         console.error("Error deleting guest:", error);
         return false;
     }
