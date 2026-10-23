@@ -21,7 +21,7 @@ import { PublicIcon } from "@/components/PublicIcon";
 import React, { useState, useEffect, Suspense, useTransition, useRef, useCallback } from "react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/context/AuthContext";
-import { useUploads, type UploadQueueItem } from "@/context/UploadContext";
+import { describeMediaCount, useUploads, type UploadQueueItem } from "@/context/UploadContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { downloadGalleryAsZip } from "@/lib/zipDownload";
 import {
@@ -868,7 +868,7 @@ function DashboardContent() {
     const [, startTransition] = useTransition();
 
     // Upload queue, panel and leave warning live in UploadProvider so they survive page changes
-    const { uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady } = useUploads();
+    const { uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady, runDeletes, deletingIds } = useUploads();
 
     // Helper: show loading screen briefly, then navigate
     const navigateTo = (url: string, message?: string) => {
@@ -3368,24 +3368,33 @@ function DashboardContent() {
         }
     };
 
+    // Name and kind shown in the delete panel ("IMG_0042.JPG", video or photo)
+    const deleteQueueEntry = (photo: Photo) => ({
+        id: photo.id,
+        name: (photo.storageKey || "").split("/").pop()?.replace(/^[0-9a-f-]{36}-\d+-[0-9a-f-]{36}-/i, "") || (photo.mediaType === "video" ? "Video" : "Photo"),
+        mediaType: (photo.mediaType === "video" || photo.resourceType === "video" ? "video" : "photo") as "photo" | "video",
+    });
+
     const handleDeletePhoto = async (photoId: string) => {
+        const photo = currentEventPhotos.find(p => p.id === photoId);
+        const entry = photo ? deleteQueueEntry(photo) : { id: photoId, name: "Photo", mediaType: "photo" as const };
         try {
-            const success = await deletePhoto(photoId);
-            if (success) {
+            const deleted = await runDeletes([entry], deletePhoto);
+            if (deleted.has(photoId)) {
                 setCurrentEventPhotos(prev => prev.filter(p => p.id !== photoId));
                 setStatus("success");
-                setMessage("Photo removed.");
+                setMessage(entry.mediaType === "video" ? "Video deleted." : "Photo deleted.");
                 setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
             } else {
                 setStatus("error");
-                setMessage("Failed to delete photo.");
+                setMessage(`Couldn't delete the ${entry.mediaType}. Please try again.`);
             }
             await fetchStorageStats();
             await refreshEventFavourites(selectedMainEventId);
         } catch (error) {
-            console.error("Error deleting photo:", error);
+            console.error("Error deleting media:", error);
             setStatus("error");
-            setMessage("Error removing photo.");
+            setMessage(`Couldn't delete the ${entry.mediaType}. Please try again.`);
         }
     };
 
@@ -3393,32 +3402,25 @@ function DashboardContent() {
     const handleDeleteSelectedMedia = async () => {
         const items = activeGalleryItems.filter(item => selectedMediaIds.has(item.id));
         if (items.length === 0) return;
-        const what = items.length === 1 ? "1 item" : `${items.length} items`;
+        const entries = items.map(deleteQueueEntry);
+        const what = describeMediaCount(entries);
         if (!(await confirmDialog({ title: `Delete ${what}?`, message: `${items.length === 1 ? "It" : "They"}'ll be removed from this event for everyone. This can't be undone.`, confirmLabel: "Delete", tone: "danger" }))) return;
 
         setStatus("uploading");
         setMessage(`Deleting ${what}...`);
-        const deletedIds = new Set<string>();
-        let next = 0;
-        const worker = async () => {
-            while (next < items.length) {
-                const item = items[next++];
-                if (await deletePhoto(item.id)) deletedIds.add(item.id);
-            }
-        };
-        await Promise.all(Array.from({ length: Math.min(4, items.length) }, worker));
+        const deletedIds = await runDeletes(entries, deletePhoto);
 
         setCurrentEventPhotos(prev => prev.filter(photo => !deletedIds.has(photo.id)));
         const failed = items.length - deletedIds.size;
         if (failed === 0) {
             setStatus("success");
-            setMessage(`Deleted ${deletedIds.size === 1 ? "1 item" : `${deletedIds.size} items`}.`);
+            setMessage(`Deleted ${describeMediaCount(entries)}.`);
             exitMediaSelection();
         } else {
             // Keep the failed ones selected so the host can try again
             setSelectedMediaIds(new Set(items.filter(item => !deletedIds.has(item.id)).map(item => item.id)));
             setStatus("error");
-            setMessage(`Deleted ${deletedIds.size} of ${items.length}. ${failed === 1 ? "1 item" : `${failed} items`} couldn't be deleted. Please try again.`);
+            setMessage(`Deleted ${deletedIds.size} of ${items.length}. ${describeMediaCount(entries.filter(entry => !deletedIds.has(entry.id)))} couldn't be deleted. Please try again.`);
         }
         setTimeout(() => { setStatus("idle"); setMessage(""); }, 4000);
         await fetchStorageStats();
@@ -5746,6 +5748,17 @@ function DashboardContent() {
                                                             )}
                                                         </div>
 
+                                                        {deletingIds.has(photo.id) && (
+                                                            // Covers the tile while it is being deleted, and stops clicks on it
+                                                            <div
+                                                                role="status"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="absolute inset-0 z-30 flex cursor-wait flex-col items-center justify-center gap-2 rounded-2xl bg-slate-950/75 text-rose-200 backdrop-blur-[2px]"
+                                                            >
+                                                                <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+                                                                <span className="text-[11px] font-bold uppercase tracking-[0.12em]">Deleting {isVideo ? "video" : "photo"}...</span>
+                                                            </div>
+                                                        )}
                                                         {isSelectingMedia ? (
                                                             <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-lg bg-slate-950/80 p-1.5 text-[#CA9C68] shadow-lg">
                                                                 {selectedMediaIds.has(photo.id) ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5 text-white" />}
@@ -5933,7 +5946,7 @@ function DashboardContent() {
                                                                 };
 
                                                                 return (
-                                                                    <tr key={photo.id} className="hover:bg-slate-900/50/50 transition-colors group">
+                                                                    <tr key={photo.id} aria-busy={deletingIds.has(photo.id) || undefined} className={cn("hover:bg-slate-900/50/50 transition-colors group", deletingIds.has(photo.id) && "pointer-events-none animate-pulse opacity-40")}>
                                                                         <td className="px-8 py-6">
                                                                             <div
                                                                                 className="w-32 h-32 rounded-[1.5rem] overflow-hidden cursor-zoom-in shadow-md border border-slate-700 group-hover:scale-105 transition-transform"

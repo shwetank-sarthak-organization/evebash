@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 124
+Next test number: 125
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3049,6 +3049,41 @@ How to test:
   8. A computer (Mac and Windows): every page shows the website, no download screen.
   9. Google's Mobile-Friendly / URL Inspection test (Search Console) on the homepage: expect the website,
      not the download screen.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#124 Deleting photos and videos shows the right words and a "Deleting..." progress
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Deleting a video used to say "Photo removed". Now the message names what was deleted,
+           the tile shows "Deleting..." while it goes, and a panel/card shows the progress like
+           the upload panel. The app also no longer says "removed" when the delete failed.
+How to test:
+  Website (host page, a test gallery with a few photos and 1-2 videos):
+  1. Delete one video with its trash button. Expect: the tile shows "Deleting video..." with a
+     spinner, a panel at the bottom right says "Deleting 1 video... 0 of 1 done" with a bar,
+     then "✓ 1 video deleted"; the message says "Video deleted." The panel closes by itself.
+  2. Delete one photo. Expect: the same, with "photo" / "Photo deleted.".
+  3. Select 3 photos and 1 video, Delete. Expect: the confirm says "Delete 3 photos and 1 video?",
+     every selected tile shows "Deleting...", the panel lists all 4 and its bar fills up, then
+     "Deleted 3 photos and 1 video.".
+  4. Start an upload, then delete something while it runs. Expect: both panels show, the delete
+     panel above the upload panel.
+  App (gallery of an event you host):
+  5. On the All tab, delete a video. Expect: the confirm says "Delete Video", the tile shows
+     "DELETING..." with a spinner, a card at the bottom says "Deleting 1 video..." then
+     "1 video deleted", and the toast says "Video deleted.".
+  6. Delete a photo. Expect: the same with "Photo".
+  7. Turn on airplane mode and delete a photo. Expect: an error "Couldn't delete the photo.",
+     the photo stays, the card shows it couldn't be deleted.
 Done by:
 Device / browser:
 Build / version:

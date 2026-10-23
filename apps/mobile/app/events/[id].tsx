@@ -1085,6 +1085,9 @@ export default function EventDetailScreen() {
 
   const [activeSubEvent, setActiveSubEvent] = useState<DatabaseEvent | null>(null);
   const [photos, setPhotos] = useState<any[]>([]);
+  // Photos and videos being deleted: the card at the bottom and the "Deleting..." cover on their tiles
+  const [deleteJobs, setDeleteJobs] = useState<{ id: string; name: string; mediaType: 'photo' | 'video'; status: 'deleting' | 'deleted' | 'error' }[]>([]);
+  const deleteJobsClearTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const photosRef = React.useRef<any[]>([]);
   photosRef.current = photos;
   const [videoActionItem, setVideoActionItem] = useState<(ThumbnailVideo & { isHidden?: boolean }) | null>(null);
@@ -1995,20 +1998,31 @@ export default function EventDetailScreen() {
   };
 
   const handleDeleteGalleryPhoto = async (photoId: string) => {
-    const selectedMediaLabel = galleryMediaTab === 'videos' ? 'video' : 'photo';
+    const media = photos.find(p => p.id === photoId);
+    // The item's own type, not the open tab: on the All tab a video was called a photo
+    const mediaLabel: 'photo' | 'video' = media
+      ? (media.mediaType === 'video' || media.resourceType === 'video' ? 'video' : 'photo')
+      : (galleryMediaTab === 'videos' ? 'video' : 'photo');
+    const title = mediaLabel === 'video' ? 'Video' : 'Photo';
+    const name = String(media?.storageKey || '').split('/').pop()?.replace(/^[0-9a-f-]{36}-\d+-[0-9a-f-]{36}-/i, '') || title;
     appAlert(
-      `Delete ${selectedMediaLabel === 'video' ? 'Video' : 'Photo'}`,
-      `Are you sure you want to permanently delete this ${selectedMediaLabel} from the gallery?`,
+      `Delete ${title}`,
+      `Are you sure you want to permanently delete this ${mediaLabel} from the gallery?`,
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            setUpdating(true);
+            if (deleteJobsClearTimer.current) clearTimeout(deleteJobsClearTimer.current);
+            setDeleteJobs(prev => [...prev.filter(job => job.status === 'deleting' && job.id !== photoId), { id: photoId, name, mediaType: mediaLabel, status: 'deleting' }]);
+            const setJobStatus = (status: 'deleted' | 'error') =>
+              setDeleteJobs(prev => prev.map(job => job.id === photoId ? { ...job, status } : job));
             try {
               const { deletePhoto } = await import('@/lib/database');
-              await deletePhoto(photoId);
+              // deletePhoto reports failure by returning false; it used to be shown as removed anyway
+              if (!(await deletePhoto(photoId))) throw new Error('Delete failed');
+              setJobStatus('deleted');
               setEventFavouritePhotoIds(prev => {
                 const next = new Set(prev);
                 next.delete(photoId);
@@ -2027,16 +2041,58 @@ export default function EventDetailScreen() {
               } else {
                 loadPhotos(activeId, activeLegacyId);
               }
-              showToast(`${selectedMediaLabel === 'video' ? 'Video' : 'Photo'} removed from gallery.`);
+              showToast(`${title} deleted.`);
             } catch (err) {
               console.error('[DeletePhoto] Error:', err);
-              appAlert("Error", "Failed to delete photo.");
+              setJobStatus('error');
+              appAlert("Error", `Couldn't delete the ${mediaLabel}. Please try again.`);
             } finally {
-              setUpdating(false);
+              // The card closes itself a few seconds after the last delete finishes
+              deleteJobsClearTimer.current = setTimeout(() => setDeleteJobs(prev => prev.filter(job => job.status === 'deleting')), 4000);
             }
           }
         }
       ]
+    );
+  };
+
+  const renderDeleteProgressCard = () => {
+    if (deleteJobs.length === 0) return null;
+    const deleting = deleteJobs.filter(job => job.status === 'deleting');
+    const failed = deleteJobs.filter(job => job.status === 'error').length;
+    const done = deleteJobs.length - deleting.length;
+    const kind = (jobs: typeof deleteJobs) => {
+      const videos = jobs.filter(job => job.mediaType === 'video').length;
+      const photosCount = jobs.length - videos;
+      const part = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
+      if (videos && photosCount) return `${part(photosCount, 'photo')} and ${part(videos, 'video')}`;
+      return videos ? part(videos, 'video') : part(photosCount, 'photo');
+    };
+    const bottomPosition = showAdminView ? 70 + insets.bottom : 20 + insets.bottom;
+    return (
+      <View
+        accessibilityLiveRegion="polite"
+        style={[localStyles.progressCard, { bottom: bottomPosition, backgroundColor: selectedTemplate.panel, borderColor: selectedTemplate.accentBg }]}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {deleting.length > 0 ? <ActivityIndicator size="small" color="#fca5a5" /> : <IconSymbol name={failed ? 'xmark.circle.fill' : 'checkmark.circle.fill'} size={18} color={failed ? '#f87171' : '#34d399'} />}
+          <View style={{ flex: 1 }}>
+            <Text style={localStyles.progressCardTitle}>
+              {deleting.length > 0
+                ? `Deleting ${kind(deleting)}...`
+                : failed
+                  ? `${done - failed} deleted · ${failed} couldn't be deleted`
+                  : `${kind(deleteJobs)} deleted`}
+            </Text>
+            <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
+              {deleting.length > 0 ? `${deleting[0].name} · ${done} of ${deleteJobs.length} done` : 'Removed from the gallery for everyone'}
+            </Text>
+          </View>
+        </View>
+        <View style={localStyles.progressBarBg}>
+          <View style={[localStyles.progressBarFill, { width: `${(done / deleteJobs.length) * 100}%`, backgroundColor: failed && deleting.length === 0 ? '#f87171' : deleting.length ? '#fca5a5' : '#34d399' }]} />
+        </View>
+      </View>
     );
   };
 
@@ -5716,7 +5772,17 @@ export default function EventDetailScreen() {
                                     color={isFavouritePhoto ? '#13191F' : '#fff'}
                                   />
                                 </TouchableOpacity>
-	                                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Delete photo"
+                                {deleteJobs.some(job => job.id === item.id && job.status === 'deleting') && (
+                                  <View
+                                    accessibilityRole="progressbar"
+                                    accessibilityLabel={`Deleting ${item.mediaType === 'video' ? 'video' : 'photo'}`}
+                                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20, backgroundColor: 'rgba(2,6,23,0.72)', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                                  >
+                                    <ActivityIndicator size="small" color="#fecaca" />
+                                    <Text style={{ color: '#fecaca', fontSize: 9, fontWeight: '800', letterSpacing: 0.6 }}>DELETING...</Text>
+                                  </View>
+                                )}
+	                                <TouchableOpacity accessibilityRole="button" accessibilityLabel={item.mediaType === 'video' ? 'Delete video' : 'Delete photo'}
 	                                  style={{
 	                                    position: 'absolute',
                                     top: 4,
@@ -8692,6 +8758,7 @@ export default function EventDetailScreen() {
           </View>
         </View>
       </Modal>
+      {renderDeleteProgressCard()}
     </View>
   );
 }

@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Image as ImageIcon, Loader2, Video, X } from "lucide-react";
+import { Check, Image as ImageIcon, Loader2, Trash2, Video, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
@@ -36,6 +36,23 @@ export interface IndexingStatus {
 
 type VideoReadyListener = (rows: any[]) => void;
 
+/** One photo or video being deleted, shown in the delete panel next to the upload panel */
+export interface DeleteQueueItem {
+    id: string;
+    name: string;
+    mediaType: "photo" | "video";
+    status: "deleting" | "deleted" | "error";
+}
+
+/** "1 photo", "3 videos", "2 photos and 1 video" */
+export function describeMediaCount(items: { mediaType: "photo" | "video" }[]) {
+    const photos = items.filter(item => item.mediaType !== "video").length;
+    const videos = items.length - photos;
+    const part = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+    if (photos && videos) return `${part(photos, "photo")} and ${part(videos, "video")}`;
+    return videos ? part(videos, "video") : part(photos, "photo");
+}
+
 interface UploadContextType {
     uploadQueue: UploadQueueItem[];
     setUploadQueue: React.Dispatch<React.SetStateAction<UploadQueueItem[]>>;
@@ -43,6 +60,10 @@ interface UploadContextType {
     showUploadPanel: () => void;
     // Called with the processing records of uploaded videos once they are ready; returns an unsubscribe
     onVideosReady: (listener: VideoReadyListener) => () => void;
+    /** Deletes the items 4 at a time with deleteOne, showing them in the delete panel; resolves with the ids deleted */
+    runDeletes: (items: Omit<DeleteQueueItem, "status">[], deleteOne: (id: string) => Promise<boolean>) => Promise<Set<string>>;
+    /** Ids being deleted right now, so the gallery can show "Deleting..." over them */
+    deletingIds: Set<string>;
 }
 
 const UploadContext = createContext<UploadContextType | undefined>(undefined);
@@ -58,6 +79,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     const [indexingStatus, setIndexingStatus] = useState<IndexingStatus | null>(null);
     const uploadQueueRef = useRef<UploadQueueItem[]>([]);
     const videoReadyListeners = useRef(new Set<VideoReadyListener>());
+    const [deleteQueue, setDeleteQueue] = useState<DeleteQueueItem[]>([]);
+    const [isDeletePanelMinimized, setIsDeletePanelMinimized] = useState(false);
+    const deleteClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         uploadQueueRef.current = uploadQueue;
@@ -79,6 +103,38 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         setIsUploadPanelMinimized(false);
     }, []);
 
+    const runDeletes = useCallback(async (items: Omit<DeleteQueueItem, "status">[], deleteOne: (id: string) => Promise<boolean>) => {
+        const deleted = new Set<string>();
+        if (items.length === 0) return deleted;
+        if (deleteClearTimer.current) clearTimeout(deleteClearTimer.current);
+        setIsDeletePanelMinimized(false);
+        // A new batch replaces finished rows but keeps any still being deleted
+        setDeleteQueue(previous => [
+            ...previous.filter(item => item.status === "deleting" && !items.some(next => next.id === item.id)),
+            ...items.map(item => ({ ...item, status: "deleting" as const })),
+        ]);
+        const setStatus = (id: string, status: DeleteQueueItem["status"]) =>
+            setDeleteQueue(previous => previous.map(item => item.id === id ? { ...item, status } : item));
+        let next = 0;
+        const worker = async () => {
+            while (next < items.length) {
+                const item = items[next++];
+                let ok = false;
+                try { ok = await deleteOne(item.id); } catch { ok = false; }
+                if (ok) deleted.add(item.id);
+                setStatus(item.id, ok ? "deleted" : "error");
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(4, items.length) }, worker));
+        // A clean batch closes itself after a few seconds; failures stay until the host closes the panel
+        if (deleted.size === items.length) {
+            deleteClearTimer.current = setTimeout(() => setDeleteQueue(previous => previous.filter(item => item.status === "deleting")), 5000);
+        }
+        return deleted;
+    }, []);
+
+    const deletingIds = React.useMemo(() => new Set(deleteQueue.filter(item => item.status === "deleting").map(item => item.id)), [deleteQueue]);
+
     const onVideosReady = useCallback((listener: VideoReadyListener) => {
         videoReadyListeners.current.add(listener);
         return () => { videoReadyListeners.current.delete(listener); };
@@ -87,7 +143,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     // Warn user before closing/refreshing tab during active uploads
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (uploadQueue.some(isUnfinished)) {
+            if (uploadQueue.some(isUnfinished) || deleteQueue.some(item => item.status === "deleting")) {
                 e.preventDefault();
                 e.returnValue = "You have active uploads in progress. If you leave or reload now, these uploads will be cancelled.";
                 return e.returnValue;
@@ -98,7 +154,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         return () => {
             window.removeEventListener("beforeunload", handleBeforeUnload);
         };
-    }, [uploadQueue]);
+    }, [uploadQueue, deleteQueue]);
 
     // Video readiness comes from its processing record, never thumbnail or face-index completion.
     const pendingVideoIds = uploadQueue.filter(item => item.mediaType === "video" && item.status === "processing" && item.photoId).map(item => item.photoId!).join(",");
@@ -207,8 +263,107 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <UploadContext.Provider value={{ uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady }}>
+        <UploadContext.Provider value={{ uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady, runDeletes, deletingIds }}>
             {children}
+
+            {/* Upload and delete panels share the bottom-right corner, the delete panel above */}
+            <div className="pointer-events-none fixed bottom-6 right-6 z-[100] flex w-96 max-w-[calc(100vw-2rem)] flex-col items-stretch gap-3">
+            <AnimatePresence>
+                {deleteQueue.length > 0 && (() => {
+                    const deleting = deleteQueue.filter(item => item.status === "deleting").length;
+                    const failed = deleteQueue.filter(item => item.status === "error").length;
+                    const done = deleteQueue.length - deleting;
+                    const headline = deleting > 0
+                        ? `Deleting ${describeMediaCount(deleteQueue)}... ${done} of ${deleteQueue.length} done`
+                        : failed > 0
+                            ? `${deleteQueue.length - failed} deleted · ${failed} couldn't be deleted`
+                            : `✓ ${describeMediaCount(deleteQueue)} deleted`;
+                    return (
+                        <motion.div
+                            key="delete-panel"
+                            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            role="status"
+                            aria-live="polite"
+                            className="pointer-events-auto bg-slate-950/95 border border-slate-800 backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden font-sans"
+                        >
+                            <div
+                                role="button"
+                                tabIndex={0}
+                                aria-expanded={!isDeletePanelMinimized}
+                                title={isDeletePanelMinimized ? "Expand" : "Minimize"}
+                                onClick={() => setIsDeletePanelMinimized(!isDeletePanelMinimized)}
+                                onKeyDown={(e) => {
+                                    if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                                        e.preventDefault();
+                                        setIsDeletePanelMinimized(!isDeletePanelMinimized);
+                                    }
+                                }}
+                                className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 cursor-pointer select-none hover:bg-slate-800/70 transition-colors"
+                            >
+                                <div className="flex items-center gap-2 min-w-0">
+                                    {deleting > 0 ? (
+                                        <Loader2 className="w-4 h-4 animate-spin text-rose-300 shrink-0" />
+                                    ) : failed > 0 ? (
+                                        <X className="w-4 h-4 text-rose-400 shrink-0" />
+                                    ) : (
+                                        <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                                    )}
+                                    <span className="text-xs font-bold text-slate-200 truncate">{headline}</span>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                        onClick={() => setDeleteQueue(previous => previous.filter(item => item.status === "deleting"))}
+                                        disabled={deleting > 0}
+                                        className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                        title={deleting > 0 ? "Wait for the deletes to finish" : "Close"}
+                                        aria-label="Close"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Overall progress: items finished out of all items */}
+                            <div className="w-full h-1 bg-slate-900 overflow-hidden">
+                                <div
+                                    className={cn("h-full transition-all duration-300", failed > 0 && deleting === 0 ? "bg-rose-400" : deleting === 0 ? "bg-emerald-400" : "bg-rose-300")}
+                                    style={{ width: `${(done / deleteQueue.length) * 100}%` }}
+                                ></div>
+                            </div>
+
+                            <AnimatePresence initial={false}>
+                                {!isDeletePanelMinimized && (
+                                    <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
+                                        <div className="max-h-56 overflow-y-auto divide-y divide-slate-900">
+                                            {deleteQueue.map(item => (
+                                                <div key={item.id} className="flex items-center justify-between gap-3 p-3">
+                                                    <div className="w-10 h-10 rounded-lg border border-slate-800 bg-slate-900 flex items-center justify-center shrink-0">
+                                                        {item.mediaType === "video" ? <Video className="w-5 h-5 text-sky-400" /> : <ImageIcon className="w-5 h-5 text-[#CA9C68]" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-bold text-slate-300 truncate" title={item.name}>{item.name}</p>
+                                                        <p className={cn("text-[10px] font-bold", item.status === "deleting" ? "text-rose-300 animate-pulse" : item.status === "deleted" ? "text-emerald-400" : "text-rose-400")}>
+                                                            {item.status === "deleting" ? `Deleting ${item.mediaType}...` : item.status === "deleted" ? "Deleted" : "Couldn't delete. Please try again."}
+                                                        </p>
+                                                    </div>
+                                                    <div className="shrink-0">
+                                                        {item.status === "deleting" && <Trash2 className="w-4 h-4 text-rose-300 animate-pulse" />}
+                                                        {item.status === "deleted" && <Check className="w-4 h-4 text-emerald-400" />}
+                                                        {item.status === "error" && <X className="w-4 h-4 text-rose-400" />}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </motion.div>
+                    );
+                })()}
+            </AnimatePresence>
 
             {/* Floating Upload Queue Panel (Google Drive style) */}
             <AnimatePresence>
@@ -218,7 +373,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 50, scale: 0.95 }}
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        className="fixed bottom-6 right-6 z-[100] w-96 bg-slate-950/95 border border-slate-800 backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden font-sans"
+                        className="pointer-events-auto bg-slate-950/95 border border-slate-800 backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden font-sans"
                     >
                         {/* Header */}
                         <div
@@ -391,6 +546,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                     </motion.div>
                 )}
             </AnimatePresence>
+            </div>
         </UploadContext.Provider>
     );
 }
