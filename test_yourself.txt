@@ -2878,7 +2878,7 @@ How to test:
   2. App (iPhone and Android, new build): record one, save, play it back. Allow the microphone
      when asked; check the permission text mentions album voice notes.
   3. Play each recording on the other platforms (website notes in the app, app notes on website).
-     Expect: all play, except Firefox recordings in the iPhone app (known: issue #107).
+     Expect: all play, Firefox recordings too (Firefox saves WAV since the #107 fix).
   4. Record for over 2 minutes. Expect: it stops by itself at 2:00 and keeps the recording.
 Done by:
 Device / browser:
