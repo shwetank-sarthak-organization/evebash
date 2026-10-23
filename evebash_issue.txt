@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 109
+Next issue number: 110
 
 =====================================================================
 ACTIVE ISSUES
@@ -120,6 +120,7 @@ Blocked by: Real gallery photos with permission (Sarthak)
 Found in: Website UI re-check (2026-10-11)
 Issue: The new homepage phone mockup and the Find You visual use coloured gradient squares instead of real photos, which looks unfinished for a photo product. src/components/home/GalleryPreview.tsx and FindYouFeature.tsx.
 How to reproduce: Open the homepage: the "gallery" grid in the hero is plain gradients.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
 
 #29
 Listed: 2026-10-11
@@ -131,6 +132,7 @@ Blocked by: -
 Found in: Website UI re-check (2026-10-11)
 Issue: On phones the homepage headline (the LCP element) appears at 4.3 s; Lighthouse puts 81% of it in render delay. Likely cause: three self-hosted font families with italic styles (Inter, Playfair Display, Akaya Kanadaka in src/app/fonts.ts), with the headline waiting on Playfair. Lighthouse phone performance is 80.
 How to reproduce: npx -y lighthouse@12 https://staging.evebash.com/ --only-categories=performance and check largest-contentful-paint-element.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor. Google still crawls the phone version after that too, so the search-ranking part stays.
 
 #32
 Listed: 2026-10-11
@@ -350,6 +352,7 @@ Blocked by: -
 Found in: Navbar font comparison (2026-10-13)
 Issue: On phones, the signed-in navbar menu cuts off its bottom part, so Logout can't be seen or tapped. src/components/Navbar.tsx caps the open menu at max-h-96 (384px) with overflow-hidden, but the signed-in menu (4 links, profile card, Profile, Logout) is 487px tall (measured at 375x812). Profile is half cut off and Logout is fully hidden. The signed-out menu is shorter and fits. Fix idea: raise the cap (for example max-h-[calc(100vh-5rem)]) and let the menu scroll (overflow-y-auto), keeping the open/close animation.
 How to reproduce: Sign in on the website on a phone (or a 375px-wide window), tap the menu button at the top right: the menu ends at "Profile" and there is no Logout.
+Note 2026-10-23: still matters after the phone/tablet download screen goes live (#109): Profile, Pricing and Contact us stay open on phones and show this navbar. The download screen has its own Log out, but anyone on Profile still hits this.
 
 #71
 Listed: 2026-10-13
@@ -383,6 +386,7 @@ Blocked by: -
 Found in: Footer review vs Samaro (2026-10-13)
 Issue: The website footer (src/components/Footer.tsx) leaves out key pages and wastes space on phones. (1) No link to Find You or Host / create an event, the product's main features. (2) No page on the site links to /delete-account (only the privacy policy text names it). (3) The YouTube channel listed in the site's structured data (src/app/(main)/layout.tsx, sameAs @EveBashApp) has no footer link. (4) On a 375 px phone the footer is 1110 px tall (taller than the screen) for 12 links, because every column stacks one under another. Samaro fits 36 links in 1257 px with two columns. (5) On phones the copyright line is centred while everything above it is left-aligned. (6) The right side of the bottom bar only says "Designed with ♥".
 How to reproduce: Open www.evebash.com on a phone (or 375 px wide) and scroll to the bottom. Look for Find You, Host, Delete account and YouTube links: none.
+Note 2026-10-23: the phone-layout part matters less once the phone/tablet download screen is on for www.evebash.com (#109): phones only see contact-us and the policy pages then. The missing links still matter on computers.
 
 #76
 Listed: 2026-10-13
@@ -559,6 +563,7 @@ Issue: On phones the Royal Emerald hero is at least one screen tall: text first,
 How to reproduce: Open a Royal Emerald gallery on a phone (or 375 px wide): count the scrolls before the first photo.
 Update 2026-10-22: the new hero (card, then framed photo, then button) is still about 1,200 px tall on a 390 px phone before the first photo, so this stays open.
 Update 2026-10-22 (later): fixed in 3b40188 (on staging). Phones now use the app's layout: framed photo first, a narrower card under it with the names on one line, smaller seal, no Explore Gallery button. About 807 px tall at 390x844, so the hero fits one screen. Desktop unchanged. Device test #113.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
 
 #91
 Listed: 2026-10-22
@@ -583,6 +588,7 @@ Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: Long Royal Emerald titles have nothing guarding them: the gold gradient title (src/components/TemplateRoyal.tsx) has no line limit or word break, so long couple names can overflow on phones. Its drop-shadow doesn't show on gradient (clipped) text.
 How to reproduce: Give a Royal Emerald gallery a long title with a long single word (e.g. a long hyphenated couple name) and open it at 375 px wide.
 Update 2026-10-22: fixed. Names in gold script get smaller for long names (two steps) and break only between words; checked with "Maharajkumari Rajyalakshmi & Venkatanarayanaswamy" at 390 px and 1376 px.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
 
 #93
 Listed: 2026-10-22
@@ -595,6 +601,7 @@ Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: The Royal Emerald double gold frame is fixed at z-40 (src/components/TemplateRoyal.tsx), so it stays on top of photos, the navbar and popups with a lower z-index while scrolling, and takes space at the edges on phones.
 How to reproduce: Open a Royal Emerald gallery and scroll: the gold frame lines cross photos and the navbar.
 Update 2026-10-22: fixed. The fixed double frame is gone; the new gold corners sit inside the hero only and scroll away with it.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
 
 #94
 Listed: 2026-10-22
@@ -619,6 +626,7 @@ Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: Royal Emerald hover effects (hero image zoom, button grow) only work with a mouse, so phones get no feedback (src/components/TemplateRoyal.tsx).
 How to reproduce: Open a Royal Emerald gallery on a phone and tap the hero image and Explore Gallery: no visual response before scrolling.
 Update 2026-10-22: fixed. The hover-only image zoom and button grow are gone; the button has a pressed state that works on touch.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
 
 #96
 Listed: 2026-10-22
@@ -655,6 +663,7 @@ Blocked by: -
 Found in: Unused code and assets scan (2026-10-22)
 Issue: The guest Find You page (src/app/(public)/events/[slug]/find-you/page.tsx) downloads about 12 MB of face-api.js models from public/models (ssdMobilenetv1, faceLandmark68Net, faceRecognitionNet) on every visit, but never uses them: the selfie is sent to the backend (/api/find-you), which does the matching. The models only decide when the Upload/Camera buttons turn on, so phone guests wait for 12 MB before they can search (measured 12.5 MB of models plus about 160 KB gzipped of face-api.js code: about 10 s on 10 Mbps 4G, about 35 s on 3 Mbps, about 2 s on fast Wi-Fi, and 12.5 MB of mobile data per guest). src/app/(main)/find-you/page.tsx also imports face-api.js without using it, which puts the library in that page's bundle. public/models/tiny_face_detector_* is not loaded by anything. Fix: drop the model loading and the face-api.js imports (buttons enabled straight away), then delete public/models and the face-api.js dependency.
 How to reproduce: Open /events/<id>/find-you with the browser network tab open: the *_model-shard* files load (about 12 MB); grep the page for faceapi. - only loadFromUri calls.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
 
 #99
 Listed: 2026-10-22
@@ -736,6 +745,18 @@ Issue: Album voice notes recorded in Firefox are saved as WebM/Opus (Firefox can
 How to reproduce: Record an album voice note in Firefox on the website, then try to play it in the iPhone app.
 
 =====================================================================
+
+#109
+Listed: 2026-10-23
+Platform: Website
+Priority: High
+Status: Blocked
+Owner: Sarthak
+Blocked by: App launch (app live on Google Play and the App Store)
+Found in: Chat with Sarthak about sending phone visitors to the app (2026-10-23)
+Issue: The phone/tablet "Get the EveBash app" screen (src/components/MobileAppGate.tsx, rules in src/lib/appGate.ts, commits 7b51ef0 and b227345) is only on for staging.evebash.com: NEXT_PUBLIC_MOBILE_APP_GATE=true is set in Vercel for Preview (staging branch) only. www.evebash.com still shows the normal website on phones, and both sites' store buttons say "coming soon" because the store links are empty. At launch: (1) in Vercel > Settings > Environment Variables, add for Production (type Config): NEXT_PUBLIC_MOBILE_APP_GATE=true, NEXT_PUBLIC_PLAY_STORE_URL=<Play Store page> and NEXT_PUBLIC_APP_STORE_URL=<App Store page>; add the two store links for Preview too. (2) Redeploy production (the values are read at build). (3) Run device test #123 on www.evebash.com (iPhone, iPad, Android phone and tablet, payment on Pricing, password reset from a phone, Google URL Inspection). Optional: NEXT_PUBLIC_OPEN_IN_APP_BANNER=true turns on the small "Get the app" bar for the pages that stay open on phones (device test #122). App Links / Universal Links stay in #67.
+How to reproduce: Open https://www.evebash.com on a phone: the normal website shows, not the download screen.
+
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
 
