@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 104
+Next issue number: 107
 
 =====================================================================
 ACTIVE ISSUES
@@ -491,63 +491,69 @@ Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: Royal Emerald uses three different golds: #cca43b (yellow) in the hero (src/components/TemplateRoyal.tsx), #ca9c69 (bronze) in the theme colours and gallery (src/app/royal-emerald.css, apps/mobile/constants/templates.ts), and gold-400/500/600 in the shared SectionHeader. The hero and the gallery below don't match.
 How to reproduce: Open a Royal Emerald gallery: compare the Explore Gallery button and frame gold with the gold of the gallery controls and liked hearts.
 Update 2026-10-22: hero now uses the bronze gold family (#ca9c69 / #e6c574 gradients) everywhere, no #cca43b left in TemplateRoyal. Still open: the shared SectionHeader keeps gold-400/500/600.
+Update 2026-10-22 (later): no longer applies. Royal Emerald galleries now use their own header (src/components/royal/RoyalGalleryHeader.tsx) instead of SectionHeader, all in the bronze gold family. Waiting only on device test #101/#102.
 
 #86
 Listed: 2026-10-22
 Platform: Website
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: In Royal Emerald, "Load More Media" and the guest "Add photos" button stay near-black (bg-slate-900) on the dark green page (src/app/(public)/events/[slug]/page.tsx). The theme recolours shared controls with CSS overrides in src/app/royal-emerald.css and these two were missed.
 How to reproduce: Open a Royal Emerald gallery with more than one page of photos (Load More appears), or as a guest with Allow Photo Uploads on (Add photos appears).
+Update 2026-10-22: fixed in 3b40188 (on staging). In Royal Emerald both are gold buttons (royal-button in src/app/royal-emerald.css, set by the event page). Device test #113.
 
 #87
 Listed: 2026-10-22
 Platform: Website
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: In Royal Emerald, the Favourites switch on the gallery page keeps a light grey icon box and track when off, and turns dark slate when on (src/app/(public)/events/[slug]/page.tsx, role="switch"; src/app/royal-emerald.css only recolours its border and knob). It looks like a control from a light theme.
 How to reproduce: Open a Royal Emerald gallery and toggle Favourites on and off.
+Update 2026-10-22: fixed in 3b40188 (on staging). Royal Emerald gives the switch its own classes (royal-switch): emerald box with a gold star, count and track when off; gold star box and gold track when on. Device test #113.
 
 #88
 Listed: 2026-10-22
 Platform: Website
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: In Royal Emerald some text is hard to read on the dark green: "Link Copied!" (text-green-600), the guest upload error (text-rose-600) and the empty-gallery message (muted text at opacity-50) (src/app/(public)/events/[slug]/page.tsx).
 How to reproduce: Open a Royal Emerald gallery, press Share Event (green text), and open an empty Royal Emerald gallery (faint message).
 Update 2026-10-22: "Link copied" is now gold in Royal Emerald (new gallery header, test_yourself #102). The guest upload error and the empty-gallery message are still hard to read.
+Update 2026-10-22: fixed in 3b40188 (on staging). The guest upload error is a light rose (royal-error) and the empty-gallery message is ivory and sage at full strength (royal-empty, no opacity-50). Device test #113.
 
 #89
 Listed: 2026-10-22
 Platform: Website
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: Guests can see a developer message on the empty gallery state: "Owner: Check Supabase database rules to enable shared access." (src/app/(public)/events/[slug]/page.tsx). Affects every theme, not only Royal Emerald.
 How to reproduce: Open a gallery the visitor can't load photos for (restricted state): the Supabase message shows under "Moments restricted...".
+Update 2026-10-22: fixed in 3b40188 (on staging), every theme: guests now read "You don't have access to these photos yet. Ask the host to share the gallery with you." Device test #113.
 
 #90
 Listed: 2026-10-22
 Platform: Website
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: On phones the Royal Emerald hero is at least one screen tall: text first, then a tall 4:5 framed image (src/components/TemplateRoyal.tsx), so guests scroll about two screens before the first photo.
 How to reproduce: Open a Royal Emerald gallery on a phone (or 375 px wide): count the scrolls before the first photo.
 Update 2026-10-22: the new hero (card, then framed photo, then button) is still about 1,200 px tall on a 390 px phone before the first photo, so this stays open.
+Update 2026-10-22 (later): fixed in 3b40188 (on staging). Phones now use the app's layout: framed photo first, a narrower card under it with the names on one line, smaller seal, no Explore Gallery button. About 807 px tall at 390x844, so the hero fits one screen. Desktop unchanged. Device test #113.
 
 #91
 Listed: 2026-10-22
@@ -589,12 +595,13 @@ Update 2026-10-22: fixed. The fixed double frame is gone; the new gold corners s
 Listed: 2026-10-22
 Platform: Website
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: The Royal Emerald gallery area is always at least one screen tall (min-h-screen in src/components/TemplateRoyal.tsx), so a gallery with few photos has a big empty green block before the footer.
 How to reproduce: Open a Royal Emerald gallery with 1-3 photos: large empty space before the footer.
+Update 2026-10-22: fixed in 3b40188 (on staging). The gallery area no longer has min-h-screen (src/components/TemplateRoyal.tsx), so a small gallery goes straight to the footer. Device test #113.
 
 #95
 Listed: 2026-10-22
@@ -619,17 +626,85 @@ Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: Royal Emerald mixes serif and sans fonts within small groups (the line above the title, date/location pills and the Imperial Album badge are sans; headings serif) (src/components/TemplateRoyal.tsx). It reads as random rather than designed. Also noted in this review (not separate issues): the fixed 600-800 px blur-3xl glows may make scrolling slow on phones, and recolouring shared controls via [class*="text-stone-"] selectors in src/app/royal-emerald.css means new shared buttons show in light colours under this theme until someone notices (the cause of #86-#88).
 How to reproduce: Open a Royal Emerald gallery and compare the fonts of the hero's small text and headings.
 Update 2026-10-22: hero fonts are now one set (Great Vibes for names, Cinzel for date and button, Cormorant Garamond for "&" and place), loaded only on this page (src/components/royal/royalFonts.ts); the fixed blur-3xl glows were replaced by a plain gradient. Still open: the [class*="text-stone-"] overrides in royal-emerald.css (cause of #86-#88).
+Update 2026-10-22 (later): fixed in 3b40188 (on staging). Royal Emerald no longer recolours shared controls by matching class names: its [class*="text-stone-"] and [role="switch"] overrides are gone, and the event page gives the Royal controls named classes (royal-button, royal-switch, royal-error, royal-muted, royal-empty). Shared text colours still come from the theme colours in gallery-refinements.css, like every theme. Device test #113.
 
 #97
 Listed: 2026-10-22
 Platform: Both
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: The website and app Royal Emerald are two different designs. The website is a split hero (text left, framed image right, Explore Gallery) in src/components/TemplateRoyal.tsx; the app is a full-screen cover photo with the title in the middle, MY PHOTOS and "Delivered by EveBash" (apps/mobile/app/events/[id].tsx, royalHeroOverlay). A guest sees a different page on each.
 How to reproduce: Open the same Royal Emerald gallery on the website and in the app.
+Note (2026-10-22): the app now uses the website design, adapted for phones (apps/mobile/components/royal): gold corners, the cover in the gold filigree frame (portrait 4:5) with the ivory title card and wax seal under it, a top bar with Back, the title and Share, then the crest / title / highlight video / plaque / Back and Share / Photos-Videos header and the crown footer. Not committed yet; waiting for the user's app mockup. Device test #109.
+
+#98
+Listed: 2026-10-22
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Unused code and assets scan (2026-10-22)
+Issue: The guest Find You page (src/app/(public)/events/[slug]/find-you/page.tsx) downloads about 12 MB of face-api.js models from public/models (ssdMobilenetv1, faceLandmark68Net, faceRecognitionNet) on every visit, but never uses them: the selfie is sent to the backend (/api/find-you), which does the matching. The models only decide when the Upload/Camera buttons turn on, so phone guests wait for 12 MB before they can search (measured 12.5 MB of models plus about 160 KB gzipped of face-api.js code: about 10 s on 10 Mbps 4G, about 35 s on 3 Mbps, about 2 s on fast Wi-Fi, and 12.5 MB of mobile data per guest). src/app/(main)/find-you/page.tsx also imports face-api.js without using it, which puts the library in that page's bundle. public/models/tiny_face_detector_* is not loaded by anything. Fix: drop the model loading and the face-api.js imports (buttons enabled straight away), then delete public/models and the face-api.js dependency.
+How to reproduce: Open /events/<id>/find-you with the browser network tab open: the *_model-shard* files load (about 12 MB); grep the page for faceapi. - only loadFromUri calls.
+
+#99
+Listed: 2026-10-22
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Unused code and assets scan (2026-10-22)
+Issue: The website and app carry files, assets and packages nothing uses. App: 7 fonts in apps/mobile/assets/fonts (all but AkayaKanadaka; about 0.7 MB), 9 images in apps/mobile/assets/images (memories_bg, marketplace_bg, react-logo x3, partial-react-logo, splash-icon, android-icon-foreground, android-icon-monochrome; about 1.6 MB), 13 @expo-google-fonts packages (every name except Inter is mapped to Inter in app/_layout.tsx), Expo starter leftovers (app/modal.tsx, components/themed-text, themed-view, hello-wave, parallax-scroll-view, external-link, ui/collapsible, hooks/use-color-scheme*, hooks/use-theme-color, scripts/reset-project.js), components/event/index.ts. Website: components DashboardHeader, FindYouSection, RouteGuard, SubEventsGrid, page-flip/CoverFlowMediaViewer, ui/Hero, ui/JharokhaCard and lib/fmp4Chunker, lib/seed; public/file.svg, globe.svg, next.svg, vercel.svg, window.svg, _redirects; API routes media/process-thumbnail, media/trigger-modal-batch, debug/video-trigger, the empty api/test-deploy folder; root packages @tensorflow/tfjs-node, canvas, sharp, razorpay, expo, react-native, file-saver, @types/file-saver, @types/jszip. Repo root: one-off scripts (check-*.js, query_events*.js, replace_*_theme.js, parse/update/tmp_templates.js, templates_str.txt, parsed_templates.json, test-faceapi-block.js), logs (modal_logs*.txt, backend_error.log, .next_log), netlify.toml + netlify/ + vercel.json (Railway deploys). Unused functions: website src/lib/database.ts (getEvents, getUserPendingVisits, getPendingSharedEventsForUser, saveFaceToIndex, updateGuestStatus, updateGuestPermissions, deleteGuest, getPublishedBusinesses, updateUserPrivacy, getUserVisits, findGuestNameByPhone, getUserLikes, serializeDatabaseData, followUser, unfollowUser, getFollowing, getFollowersCount, getFollowingCount), src/lib/razorpayPricing.ts (normalizeBillingDuration, getPricingPlanAmount, getBillingDurationLabel), src/lib/events.ts getAllEvents, src/lib/imageUrl.ts getSmallThumbnail, src/lib/subscriptionStatus.ts formatSubscriptionDate, page-flip resolvePageFlipTransition, templateRegistry WEB_TEMPLATE_IDS; app apps/mobile/lib/database.ts (getSharedEvents, updateUserPrivacy, getPendingFollowRequests, approveFollowRequest, rejectFollowRequest, getFollowersCount, getFollowingCount, getBusinessActivities, updateUserProfileImage, serializeDatabaseData), uploadQueue getIndexingStatusForEvent, chunkUpload isNonRetryableUploadError, imageUrl getSmallThumbnail, subscriptionStatus formatSubscriptionDate, constants/theme RoyalColors; shared/legal POLICY_ACCEPTANCE_TEXT and FIND_YOU_CONSENT_REQUIRED_CODE. Unused CSS in src/app/globals.css: .glass-nav, the .via-slate-950 / .to-slate-950 / .bg-sky-900/30 overrides, the --font-lato alias. Size and speed: none of these items are in the built app or website pages (the build leaves unused files out), so deleting them doesn't change app size or load speed; it removes about 750 MB from the root node_modules (faster installs and builds) and keeps searches clean. The real size and speed wins are #98 and #105. Overlaps #43 (root android/), #55 (unused database.ts functions) and #68 (root APKs).
+How to reproduce: grep the repo for each file or package name: only its own file (or package.json) mentions it.
+
+#104
+Listed: 2026-10-22
+Platform: App
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Retesting the #47 access-request push (2026-10-22)
+Issue: Pushes go to the wrong phone when people switch accounts. Signing in to the app saves the phone's push token on that account (registerDeviceForPushNotifications, apps/mobile/lib/notifications.ts), but logging out (apps/mobile/context/AuthContext.tsx, logout) leaves it there, and nothing removes it from accounts that used the phone before. Each account also holds only one token, the last phone it signed in on. Result: a phone gets the pushes of every account that ever signed in on it, and a user's own phone stops getting pushes once they sign in anywhere else. Seen 2026-10-22: the Android emulator's token is on 3 profiles ("New" e8848fc1..., "Sarthak Chauhan" b7ab6182..., "Sarthak " f78d1089...). On 2026-10-21 b7ab6182 asked to join "Samarth and Jyoti" (owned by f78d1089) from the emulator, and the owner's "New access request" push arrived on that same emulator instead of the owner's phone. The server side (#47) works. Fix idea: on logout, clear the account's push_token when it is this phone's token; on sign-in, remove this token from every other profile (needs the server or a database function, since other profiles aren't writable once RLS part 2 is on); later, allow several phones per account (a push_tokens table). Needs a new app build. Related: the website and app both push via the backend (#47, #58).
+How to reproduce: Phone with the app: sign in as A, log out, sign in as B. Another account asks to join A's private gallery: the push arrives on this phone (signed in as B), and A's own phone gets nothing if A last signed in here.
+
+#105
+Listed: 2026-10-22
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App size check with expo export (2026-10-22)
+Issue: The app bundle ships about 15 MB of font files it never loads. Importing from a @expo-google-fonts package's root (import { Inter_400Regular } from '@expo-google-fonts/inter') pulls in every weight, because the package index require()s all of them. (1) apps/mobile/app/_layout.tsx uses 6 Inter weights but ships all 18 (about 4.1 MB extra). (2) The in-progress Royal Emerald work, apps/mobile/components/royal/royalFonts.ts, uses 2 Cinzel and 2 Cormorant Garamond faces but ships 6 and 10 (about 4.6 MB extra). (3) All 7 Material Symbols weights (about 6.7 MB) come in through expo-symbols (expo-router native tabs and components/ui/icon-symbol*.tsx); the app draws its Android icons with MaterialIcons, so these may not be needed - test before removing. Fix for (1) and (2): import each face from its own file, e.g. require('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'). Fonts that aren't loaded don't slow startup; this is download and install size only.
+How to reproduce: cd apps/mobile && npx expo export --platform android --output-dir /tmp/x: the Assets list shows all Inter, Cinzel, Cormorant Garamond and Material Symbols weights.
+
+#102
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: Checking the analytics dashboard's VITE_API_BASE_URL on its live host
+Found in: Unused code and assets scan (2026-10-22)
+Issue: Most of the 34 website API routes in src/app/api are copies that forward to the backend, and nothing in production calls them. The website pages send their requests straight to the backend (getApiUrl in src/lib/apiBase.ts defaults to https://api-staging.evebash.com), and the app does too; the backend (apps/backend/src/server.ts) serves the same paths. The website only calls its own create-order, verify-payment, log-payment-failure, v1/pricing-plans and v1/subscriptions/apply-pending, and the app opens the /vault-pdf page. The others (media upload, find-you, contact-messages, account, the v1 copies, admin/*-billing, admin/backblaze-usage, admin/control) are reached only by the app's port-3000 fallback in dev builds (apps/mobile/lib/storage.ts, getEndpointsForPath) and by the analytics dashboard if VITE_API_BASE_URL is unset and it falls back to VITE_NEXT_PUBLIC_SITE_URL. The definitely dead ones (media/process-thumbnail, media/trigger-modal-batch, debug/video-trigger, test-deploy) are listed in #99. Two copies of each route can drift apart (a fix lands in one, not the other). Fix: confirm the dashboard's live setting points at the backend, then delete the copies that aren't used, keeping the five routes the website calls and /vault-pdf.
+How to reproduce: grep src (outside src/app/api) for fetch(" and fetch(getApiUrl: only the five routes above use a relative /api path.
+
+#106
+Listed: 2026-10-22
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Unused code and assets scan (2026-10-22)
+Issue: The app has a Shipping & Delivery Policy screen (apps/mobile/app/shipping-delivery-policy.tsx), but nothing links to it. The Home footer (apps/mobile/app/(tabs)/index.tsx) links only Privacy, Terms, Cancellation & Refund, and Digital Service Delivery; the website links all five. Fix: add it to the footer, or delete the screen if the Digital Service Delivery policy replaces it in the app.
+How to reproduce: In the app, look for a way to open the Shipping & Delivery Policy: there is none (only the deep link /shipping-delivery-policy).
 
 #101
 Listed: 2026-10-22

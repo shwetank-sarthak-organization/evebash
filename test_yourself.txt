@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 113
+Next test number: 114
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2619,4 +2619,177 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:   7e65b4b (2026-10-23)
+Feedback:
+
+
+#108 App: cinematic highlight video under the welcome message (guest view and host panel)
+Status:    TODO
+Priority:  Medium
+Platform:  App (Android and iOS)
+Brief:     The app now shows a gallery's cinematic highlight video like the website (#103), under the welcome
+           message, and hosts can set it from the app. Same database change as #103 (already applied).
+How to test:
+  1. On the website, set a cinematic highlight video for a Royal Emerald gallery and for one of its albums.
+     Open the event in the app as a guest. Expect: under the welcome message, a wide video with a gold double
+     frame and a gold play button; tapping it plays the video in place with the phone's video controls
+     (fullscreen works).
+  2. Open the album: it shows its own video. Find You and Event partners pages show no video.
+  3. Another theme (e.g. Classic, Pastel): the video shows under the welcome message in the theme's colours.
+     A gallery without a video looks exactly as before.
+  4. Host: event -> Galleries -> a gallery -> under Welcome Message, the "Cinematic Highlight Video" panel.
+     "Choose from this gallery's videos" lists only that gallery's videos; pick one. Expect: "Cinematic highlight
+     video updated.", the panel shows its thumbnail, and the website guest page shows the same video.
+  5. Same panel: "Upload video" (or "Upload new"), pick one video. Expect: it uploads into that gallery, the
+     panel says it is uploading, then shows it as "Processing", and once processed guests see it.
+  6. "Remove": the panel goes back to "No cinematic highlight video yet" and guests see no video (app and website).
+  7. Hide the chosen video from guests: the panel says it's hidden and guests see no video.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#109 App: Royal Emerald guest page in the website's design
+Status:    TODO
+Priority:  Medium
+Platform:  App (Android and iOS)
+Brief:     The app's Royal Emerald gallery now matches the website (issue #97), arranged for a phone. Compare
+           it with the same gallery on the website.
+How to test:
+  1. Open a Royal Emerald wedding gallery titled like "Asha & Raj" (also try "Asha and Raj", "Asha weds Raj").
+     Expect, on one screen (no bar with Back / title / Share at the top): four gold corners;
+     the cover in a large gold filigree frame (portrait, even for a landscape cover); under it, not touching
+     it, a narrower ivory torn-edge card with "The Wedding of", "Asha & Raj" in gold script on one line and
+     the date; a gold wax seal with "A & R" centred. The frame takes about 70% of the height, the card 30%.
+     No Explore Gallery button. Nothing is cut off, on a small phone too.
+  2. A long couple name (e.g. "Venkataraman & Bhagyalakshmi"): the names shrink to fit on one line and stay
+     readable. A long title and a title that isn't two names (e.g. "Sharma Family Reunion"): the card shows
+     the whole title on up to two lines, no "The Wedding of", and the seal shows a fleur-de-lis.
+  3. Scroll down. Expect: a bar pins at the top with HOME, COLLECTIONS and FIND YOU (gold Cinzel text, solid
+     bar, no hero showing through above it). Tap COLLECTIONS: a menu opens under it listing every album; tap
+     one and it opens, with COLLECTIONS shown as the active tab. Tap outside the menu (or Back) to close it.
+     Then a crest with the initials, the gallery title between gold rules, the highlight
+     video in a gold frame (if set), the welcome message on a framed green plaque, Back and Share, and a gold
+     Photos / Videos switch. No "Source gallery" button on Home.
+  4. Open an album: the hero card shows the album name with a fleur-de-lis seal; the crest shows a fleur-de-lis.
+     Back goes to Home, then out of the event.
+  5. Scroll to the end: crown, the couple's names in script and "Made with EveBash" (no other links).
+     The phone's back button/gesture leaves the event from the hero.
+  6. Other themes (e.g. Classic, Hero, Pastel) look the same as before, except Home no longer shows the
+     "Source gallery" button to guests (same as the website).
+  7. Host view of a Royal Emerald event is unchanged.
+  8. Log out and open a public Royal Emerald gallery (share link): the hero, the gallery header, the
+     Collections menu and the footer look the same as when logged in; the "log in to join" prompt shows
+     at the end.
+  9. Do steps 1, 3 and 5 on an iPhone and on a small Android phone (about 5.5 inch). Only checked on an
+     Android emulator so far: look for wrong fonts, cut-off script letters, the seal initials off centre,
+     the hero not fitting one screen, or the Collections menu opening in the wrong place.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#110 Comments on photos (website and app)
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App (Android and iOS)
+Brief:     Posting, reading and deleting comments works the same on the website and the app, and only people
+           the host allows can post.
+How to test:
+  Use one gallery, a host account and two guest accounts (A and B). As host, turn "Allow Comments" ON for A
+  and OFF for B (guest list).
+  1. Website, guest A: open a photo full screen, open comments, write "web test 1" and send.
+     Expect: it shows straight away at the top with A's name and picture and a time ("just now").
+  2. App, guest A: open the same photo. Expect: "web test 1" is there with the same name and picture.
+     Write "app test 1" and send. Expect: it shows at the top straight away.
+  3. Website: reopen the photo (or refresh). Expect: "app test 1" is there. Note: comments from another
+     device only show after reopening the photo (Realtime is off, issue #49).
+  4. Guest B (website and app): B can read both comments but sees "The host hasn't turned on comments
+     for you." instead of the text box, and no Reply buttons.
+  5. Logged out on the website: the comments are not shown or the box says "Log in to comment."; nothing
+     can be posted.
+  6. Host (website and app): the host can always comment, even with no switch on.
+  7. Delete: A sees Delete on their own comments only, not on the host's or other people's. Delete
+     "web test 1" on the app; expect it disappears, and after reopening it is gone on the website too.
+  8. Empty, very long (300+ characters), emoji and a comment with a line of only spaces: empty/space-only
+     can't be sent; long and emoji ones show in full without breaking the layout.
+  9. Try in at least two themes (e.g. Royal Emerald and Classic): comment text and buttons are readable.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#111 Comment threads (replies) on photos (website and app)
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App (Android and iOS)
+Brief:     Replies sit under the comment they answer, on both the website and the app, and show the same on both.
+How to test:
+  Same setup as #110 (host, guest A with comments ON). Start with one comment from the host on a photo.
+  1. Website, guest A: tap Reply under the host's comment. Expect: a "Replying to <host name>" bar with an X
+     and the box hint "Write a reply...". Send "web reply 1". Expect: it shows indented under the host's
+     comment (not as a new top comment), with A's name and picture.
+  2. Tap X on the "Replying to" bar before sending. Expect: the next message is a normal top comment.
+  3. App, guest A: open the same photo. Expect: "web reply 1" is under the host's comment. Tap REPLY,
+     send "app reply 1". Expect: it is under the same comment, below or above "web reply 1" in the same
+     order as the website shows them.
+  4. Website: reopen the photo. Expect: both replies under the host's comment, same order as the app.
+  5. Replies have no Reply button of their own (threads are one level deep). Check on website and app.
+  6. Two comments on the same photo, reply to the second one: the reply goes under the second, not the first.
+  7. Move to the next photo and back while "Replying to" is open: the reply bar is cleared and nothing is
+     posted to the wrong photo.
+  8. Delete: A can delete their own reply (gone on both website and app after reopening). Then the host
+     deletes their own comment that has replies: write down what happens to the replies (disappear, or
+     stay without a parent) on website and app; both should behave the same.
+  9. Guest B (comments OFF): sees the thread but no Reply buttons.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#113 Website: Royal Emerald gallery controls and phone hero (issues #86-#90, #94, #96)
+Status:    TODO
+Priority:  Medium
+Platform:  Website (phone and desktop browsers)
+Brief:     Royal Emerald controls that stayed in light-theme colours are now emerald and gold, the phone hero
+           matches the app and fits one screen, and the developer message is gone for guests (every theme).
+How to test:
+  1. On a phone (or 390 px wide), open a Royal Emerald gallery. Expect: the framed photo first, then a
+     narrower ivory card under it (not touching) with "Asha & Raj" on one line, the seal with centred
+     initials, and no Explore Gallery button. The whole hero fits one screen. On desktop the hero looks as
+     before (card left, frame right, Explore Gallery button).
+  2. As a guest with photo uploads allowed, open an album: "Add photos" is a gold button. Make an upload
+     fail (e.g. a very large file): the error text is light rose and easy to read on the green.
+  3. Open a gallery with more than one page of photos: "Load More Media" is a gold button.
+  4. Signed in, open an album: the Favourites switch is emerald with gold parts when off and has a gold star
+     box and gold track when on (no light grey or white parts).
+  5. Open an empty Royal Emerald album: the "No photos yet" message is clear ivory and sage, not faded.
+  6. Open a gallery you have no access to (any theme): it says "You don't have access to these photos yet.
+     Ask the host to share the gallery with you." with no mention of Supabase.
+  7. Open a Royal Emerald gallery with only 1-3 photos: the footer follows the photos, no big empty block.
+  8. Another theme (e.g. Classic): Add photos, Load More, Favourites and the empty message look as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
 Feedback:
