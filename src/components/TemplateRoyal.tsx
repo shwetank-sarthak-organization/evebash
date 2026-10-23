@@ -128,7 +128,7 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
 
             {/* Content Area for Gallery & Photos */}
             {children && (
-                <main id="royal-collection-section" className="relative z-10 bg-[#021a15]/60 min-h-screen border-t border-[#ca9c69]/15 py-8">
+                <main id="royal-collection-section" className="relative z-10 bg-[#021a15]/60 border-t border-[#ca9c69]/15 py-8">
                     <div className="max-w-[1600px] mx-auto px-6 sm:px-8 lg:px-12">
                         {children}
                     </div>

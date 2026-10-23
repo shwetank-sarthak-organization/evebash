@@ -6,25 +6,52 @@
   --royal-line: #ca9c694d;
   --royal-surface: #0a3027;
 }
-.royal-gallery-content :is([class*="text-stone-"], [class*="text-gold-"]) { color: var(--royal-muted); }
-.royal-gallery-content :is(h2, [class*="text-stone-800"], [class*="text-stone-900"]) { color: var(--royal-ivory); }
-.royal-gallery-content [data-royal-control] {
-  background: #082b23e8;
-  color: var(--royal-ivory);
-  border-color: var(--royal-line);
-  box-shadow: 0 4px 18px #0002;
+/* Shared gallery controls get Royal classes from the event page instead of being recoloured by class-name matching
+   (that missed new controls, issues #86-#88, #96). Text colours come from the shared theme colours
+   (gallery-refinements.css, --event-template-*), which are the same ivory and sage for this theme. */
+
+/* Gold buttons: guest "Add photos" and "Load More Media" */
+.royal-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 26px;
+  border: 1px solid #f6e3b080;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f6dc9a 0%, #d6ac5c 50%, #b8873a 100%);
+  color: #1c1406;
+  font: 600 12px/1 var(--font-royal-display), Georgia, serif;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  box-shadow: 0 8px 22px #0000007a, inset 0 1px 0 #ffffff66;
+  cursor: pointer;
+  transition: filter .2s ease, transform .1s ease;
 }
-.royal-gallery-content [data-royal-control="segments"] { display: inline-flex; max-width: 100%; }
-.royal-gallery-content [data-royal-control="segments"] button { padding-inline: clamp(.75rem, 3vw, 1.25rem); }
-.royal-gallery-content [data-royal-control="segments"] [aria-pressed="true"] {
-  background: #ca9c69;
-  color: #021a15;
-}
-.royal-gallery-content [data-royal-control="share"]:hover { background: #123b30; border-color: var(--royal-gold); }
-.royal-gallery-content [data-royal-control="share"] span { color: var(--royal-ivory); }
-.royal-gallery-content [role="switch"] { background: #082b23; border-color: var(--royal-line); }
-.royal-gallery-content [role="switch"][aria-checked="true"] { border-color: var(--royal-gold); }
-.royal-gallery-content [role="switch"] .bg-white { background: #ca9c69; }
+.royal-button--large { padding: 16px 32px; font-size: 13px; }
+.royal-button:hover { filter: brightness(1.06); }
+.royal-button:active { transform: translateY(1px); }
+.royal-button:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Favourites switch: emerald with gold, off and on (scoped so it beats the shared [role="switch"] colours) */
+.royal-gallery-content [role="switch"].royal-switch { border-color: var(--royal-line); background: #082b23; }
+.royal-gallery-content [role="switch"].royal-switch:hover { border-color: #ca9c69b3; }
+.royal-gallery-content [role="switch"].royal-switch[aria-checked="true"] { border-color: var(--royal-gold); background: #0f3a2f; }
+.royal-gallery-content [role="switch"].royal-switch .royal-switch__icon { background: #ca9c6926; color: var(--royal-gold); }
+.royal-gallery-content [role="switch"].royal-switch[aria-checked="true"] .royal-switch__icon { background: var(--royal-gold); color: #1c1406; }
+.royal-gallery-content [role="switch"].royal-switch .royal-switch__label { color: var(--royal-ivory); }
+.royal-gallery-content [role="switch"].royal-switch .royal-switch__count { background: #ca9c6926; color: #e9cf96; }
+.royal-gallery-content [role="switch"].royal-switch .royal-switch__track { background: #ffffff1f; }
+.royal-gallery-content [role="switch"].royal-switch[aria-checked="true"] .royal-switch__track { background: #ca9c6973; }
+.royal-gallery-content [role="switch"].royal-switch .royal-switch__knob { background: #e9cf96; }
+.royal-gallery-content [role="switch"].royal-switch[aria-checked="true"] .royal-switch__knob { background: #f6e3b0; }
+
+/* Readable on the dark green */
+.royal-error { color: #f6b4ac; }
+.royal-muted { color: var(--royal-muted); }
+.royal-empty { color: var(--royal-muted); }
+.royal-empty h2 { color: var(--royal-ivory); }
+.royal-empty svg { color: var(--royal-gold); opacity: .7; }
+
 .royal-gallery-content :is(button, select):focus-visible,
 .royal-masonry button:focus-visible,
 [data-viewer-theme="royal-emerald"] :is(button, textarea):focus-visible {
@@ -335,19 +362,28 @@ body:has(.royal-footer) .event-footer { display: none; }
 @media (min-width: 880px) and (max-height: 657px) { .royal-hero__grid { zoom: .54; } }
 
 @media (max-width: 879px) {
-  /* Stacked on phones: no equal rows to centre between, so no empty space above the card */
-  .royal-hero { min-height: 0; grid-template-rows: auto auto auto; padding: 148px 16px 14px; }
+  /* Phones, the same as the app (apps/mobile/components/royal/RoyalHero.tsx): the framed photo first, the
+     narrower card under it (not touching), names on one line and no Explore Gallery button, so the hero is
+     about one screen (#90). The corners sit below the floating navbar. */
+  .royal-hero { min-height: 0; grid-template-rows: auto auto auto; padding: 136px 16px 44px; }
   .royal-hero__corner { width: 60px; }
   .royal-hero__corner--tl { top: 72px; left: 14px; }
   .royal-hero__corner--tr { top: 72px; right: 14px; }
   .royal-hero__corner--bl { bottom: 14px; left: 14px; }
   .royal-hero__corner--br { bottom: 14px; right: 14px; }
-  .royal-hero__grid { grid-template-columns: minmax(0, 1fr); gap: 100px; }
+  .royal-hero__grid { grid-template-columns: minmax(0, 1fr); gap: 22px; }
   .royal-hero__card-col, .royal-hero__frame-col { justify-content: center; padding-left: 0; }
+  .royal-hero__frame-col { order: -1; }
   .royal-hero__divider { display: none; }
-  .royal-card { width: min(100%, 84vw, 380px); min-height: 0; padding: 52px 26px 88px; }
-  .royal-frame { width: min(100%, 88vw, 440px); }
-  .royal-cta { margin-top: 48px; margin-bottom: 86px; }
+  .royal-frame { width: min(100%, 80vw, 340px); padding: 24px; }
+  .royal-card { width: min(100%, 70vw, 280px); min-height: 0; padding: 40px 20px 50px; }
+  .royal-card__lead { font-size: 19px; margin-bottom: 2px; }
+  .royal-card__names, .royal-card__names--long { font-size: 34px; line-height: 1.2; }
+  .royal-card__names--xlong { font-size: 26px; }
+  .royal-card__amp { display: inline; margin: 0 .12em; font-size: 22px; }
+  .royal-card__flourish { width: 90px; margin: 10px 0; }
+  .royal-card__seal { width: 76px; height: 76px; bottom: -38px; }
+  .royal-cta { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .royal-cta { transition: none; }

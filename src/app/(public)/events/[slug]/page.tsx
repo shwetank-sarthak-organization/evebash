@@ -650,15 +650,17 @@ function EventPageContent() {
                             type="button"
                             disabled={!!guestUpload}
                             onClick={() => guestFileInputRef.current?.click()}
-                            className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800 disabled:opacity-60"
+                            className={isRoyalGallery
+                                ? "royal-button"
+                                : "inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800 disabled:opacity-60"}
                         >
                             {guestUpload ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                             {guestUpload ? `Uploading ${guestUpload.done}/${guestUpload.total}` : "Add photos"}
                         </button>
-                        {guestUploadError && <p className="max-w-md text-center text-xs font-semibold text-rose-600">{guestUploadError}</p>}
+                        {guestUploadError && <p className={cn("max-w-md text-center text-xs font-semibold", isRoyalGallery ? "royal-error" : "text-rose-600")}>{guestUploadError}</p>}
                     </div>
                 ) : (
-                    <p className="mt-6 text-center text-xs font-semibold text-stone-500">Open an album to add your photos.</p>
+                    <p className={cn("mt-6 text-center text-xs font-semibold", isRoyalGallery ? "royal-muted" : "text-stone-500")}>Open an album to add your photos.</p>
                 ))}
 
                 {/* Photos / Videos on the left; Favourites only (in albums, for logged-in guests) on the right, below on phones */}
@@ -695,25 +697,28 @@ function EventPageContent() {
                         onClick={() => setShowOnlyFavourites(current => !current)}
                         className={cn(
                             "flex h-[50px] w-full items-center gap-2.5 rounded-2xl border pl-1.5 pr-3 text-left shadow-sm transition-colors sm:w-auto",
-                            showOnlyFavourites
-                                ? "border-slate-900 bg-slate-900"
-                                : "border-stone-200 bg-white hover:border-stone-400"
+                            isRoyalGallery
+                                ? "royal-switch"
+                                : showOnlyFavourites
+                                    ? "border-slate-900 bg-slate-900"
+                                    : "border-stone-200 bg-white hover:border-stone-400"
                         )}
                     >
-                        <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl", showOnlyFavourites ? "bg-white text-slate-900" : "bg-stone-100 text-stone-600")}>
+                        {/* Royal Emerald styles the parts itself (royal-switch in royal-emerald.css), by aria-checked */}
+                        <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl", isRoyalGallery ? "royal-switch__icon" : showOnlyFavourites ? "bg-white text-slate-900" : "bg-stone-100 text-stone-600")}>
                             <Star className={cn("h-4 w-4", showOnlyFavourites && "fill-current")} aria-hidden="true" />
                         </span>
-                        <span className={cn("min-w-0 flex-1 whitespace-nowrap text-xs font-black uppercase tracking-widest", showOnlyFavourites ? "text-white" : "text-stone-800")}>
+                        <span className={cn("min-w-0 flex-1 whitespace-nowrap text-xs font-black uppercase tracking-widest", isRoyalGallery ? "royal-switch__label" : showOnlyFavourites ? "text-white" : "text-stone-800")}>
                             Favourites only
                         </span>
                         <span
                             title={`${activeFavouriteCount} in ${galleryMediaTab === "videos" ? "Videos" : "Photos"}`}
-                            className={cn("min-w-7 rounded-lg px-2 py-0.5 text-center text-xs font-bold", showOnlyFavourites ? "bg-white/20 text-white" : "bg-stone-100 text-stone-600")}
+                            className={cn("min-w-7 rounded-lg px-2 py-0.5 text-center text-xs font-bold", isRoyalGallery ? "royal-switch__count" : showOnlyFavourites ? "bg-white/20 text-white" : "bg-stone-100 text-stone-600")}
                         >
                             {activeFavouriteCount}
                         </span>
-                        <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", showOnlyFavourites ? "bg-white/35" : "bg-stone-200")}>
-                            <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", showOnlyFavourites ? "translate-x-5" : "translate-x-0.5")} />
+                        <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", isRoyalGallery ? "royal-switch__track" : showOnlyFavourites ? "bg-white/35" : "bg-stone-200")}>
+                            <span className={cn("absolute top-0.5 h-5 w-5 rounded-full shadow-sm transition-transform", isRoyalGallery ? "royal-switch__knob" : "bg-white", showOnlyFavourites ? "translate-x-5" : "translate-x-0.5")} />
                         </span>
                     </button>
                     )}
@@ -733,21 +738,21 @@ function EventPageContent() {
                         />
                     </div>
                 ) : (
-                    <div className="text-center py-32 opacity-50">
-                        <ImageIcon className="w-16 h-16 mx-auto mb-6 text-stone-600" />
+                    <div className={cn("text-center py-32", isRoyalGallery ? "royal-empty" : "opacity-50")}>
+                        <ImageIcon className={cn("w-16 h-16 mx-auto mb-6", !isRoyalGallery && "text-stone-600")} />
                         {error === "permissions" ? (
                             <>
-                                <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Moments restricted...</h2>
-                                <p className="font-sans text-stone-600 text-sm">Owner: Check Supabase database rules to enable shared access.</p>
+                                <h2 className={cn("text-2xl font-serif italic mb-2", !isRoyalGallery && "text-stone-600")}>Moments restricted...</h2>
+                                <p className={cn("font-sans text-sm", !isRoyalGallery && "text-stone-600")}>You don&apos;t have access to these photos yet. Ask the host to share the gallery with you.</p>
                             </>
                         ) : (
                             <>
-                                <h2 className="text-2xl font-serif italic text-stone-600 mb-2">
+                                <h2 className={cn("text-2xl font-serif italic mb-2", !isRoyalGallery && "text-stone-600")}>
                                     {isFavouriteFilterActive
                                         ? `No favourite ${galleryMediaTab === "videos" ? "videos" : "photos"} in this gallery yet.`
                                         : galleryMediaTab === "videos" ? "No videos yet." : "No photos yet."}
                                 </h2>
-                                <p className="font-sans text-stone-600 text-sm">Check back soon to see the captured memories.</p>
+                                <p className={cn("font-sans text-sm", !isRoyalGallery && "text-stone-600")}>Check back soon to see the captured memories.</p>
                             </>
                         )}
                     </div>
@@ -759,12 +764,14 @@ function EventPageContent() {
                         <button
                             onClick={loadMorePhotos}
                             disabled={loadingMorePhotos}
-                            className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-full font-bold shadow-xl flex items-center space-x-3 transition-all hover:scale-105 active:scale-95"
+                            className={isRoyalGallery
+                                ? "royal-button royal-button--large"
+                                : "px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-full font-bold shadow-xl flex items-center space-x-3 transition-all hover:scale-105 active:scale-95"}
                         >
                             {loadingMorePhotos ? (
-                                <Loader2 className="w-5 h-5 animate-spin text-white/70" />
+                                <Loader2 className={cn("w-5 h-5 animate-spin", !isRoyalGallery && "text-white/70")} />
                             ) : (
-                                <ChevronDown className="w-5 h-5 text-white/70" />
+                                <ChevronDown className={cn("w-5 h-5", !isRoyalGallery && "text-white/70")} />
                             )}
                             <span className="tracking-widest uppercase text-sm">
                                 {loadingMorePhotos ? "Loading..." : "Load More Media"}
