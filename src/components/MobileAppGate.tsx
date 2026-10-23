@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { EveBashLogo } from "@/components/EveBashLogo";
+import { useAuth } from "@/context/AuthContext";
 import {
     APP_GATE_ATTRIBUTE,
     APP_GATE_OPEN_PATHS,
@@ -35,10 +36,13 @@ function StoreButton({ url, store, cta }: { url: string; store: string; cta: str
  * Full-screen "download the app" screen for phones and tablets (src/lib/appGate.ts).
  * Always in the HTML but hidden; the <head> script and this component turn it on with the
  * data-app-gate attribute, and globals.css then hides the rest of the page.
- * Must be a direct child of <body>.
+ * Must render as a direct child of <body>: place it first inside AuthProvider (which adds no element).
  */
 export function MobileAppGate() {
     const pathname = usePathname();
+    const { user, loading, logout } = useAuth();
+    // Phone sign-ups have a made-up email; show their phone instead
+    const contact = user?.email && !user.email.endsWith("@phone-login.local") ? user.email : user?.phone !== "No Phone" ? user?.phone : null;
 
     // Client-side navigation doesn't rerun the <head> script
     useEffect(() => {
@@ -69,14 +73,36 @@ export function MobileAppGate() {
                 </div>
                 <div className="mt-10 w-full border-t border-[var(--site-border)] pt-6">
                     <p className="text-xs uppercase tracking-widest text-[var(--site-muted)]">Your account</p>
-                    <div className="mt-4 flex justify-center gap-6 text-sm font-semibold">
-                        <a href="/login" className="text-[#CA9C68] hover:text-[#d8ad7c]">
-                            Log in
-                        </a>
-                        <a href="/profile?tab=plan" className="text-[#CA9C68] hover:text-[#d8ad7c]">
-                            Activate a plan
-                        </a>
-                    </div>
+                    {user ? (
+                        <>
+                            <p className="mt-3 truncate text-sm">
+                                Signed in as <strong className="font-semibold">{user.name}</strong>
+                            </p>
+                            {contact && <p className="mt-0.5 truncate text-xs text-[var(--site-muted)]">{contact}</p>}
+                            <div className="mt-4 flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm font-semibold">
+                                <a href="/profile" className="text-[#CA9C68] hover:text-[#d8ad7c]">
+                                    Profile
+                                </a>
+                                <a href="/profile?tab=plan" className="text-[#CA9C68] hover:text-[#d8ad7c]">
+                                    Activate a plan
+                                </a>
+                                <button type="button" onClick={logout} className="text-[var(--site-muted)] hover:text-[var(--site-text)]">
+                                    Log out
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        !loading && (
+                            <div className="mt-4 flex justify-center gap-6 text-sm font-semibold">
+                                <a href="/login" className="text-[#CA9C68] hover:text-[#d8ad7c]">
+                                    Log in
+                                </a>
+                                <a href="/profile?tab=plan" className="text-[#CA9C68] hover:text-[#d8ad7c]">
+                                    Activate a plan
+                                </a>
+                            </div>
+                        )
+                    )}
                 </div>
             </div>
         </div>

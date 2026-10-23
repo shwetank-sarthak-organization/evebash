@@ -3038,7 +3038,9 @@ How to test:
   2. With the flag, Android phone: open the homepage, a gallery link (/events/<id>), sample galleries, Find You.
      Expect: only the download screen, nothing of the website shows (not even for a moment), the page can't
      be scrolled behind it.
-  3. Tap Log in. Expect: the normal login page. Sign in. Expect: the download screen again (dashboard).
+  3. Signed out, tap Log in. Expect: the normal login page. Sign in. Expect: the download screen again, now
+     saying "Signed in as <your name>" with your email (or phone), and Profile / Activate a plan / Log out
+     instead of Log in. Tap Profile: your profile opens. Tap Log out: you're signed out and see the login page.
   4. Tap Activate a plan. Expect: the profile page on the Plan tab. Tap Extend / Upgrade. Expect: pricing
      opens; buying a plan works as before.
   5. Open the privacy policy, terms, delete-account and contact-us pages directly. Expect: they open normally.

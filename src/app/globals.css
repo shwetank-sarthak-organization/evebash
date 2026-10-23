@@ -470,7 +470,8 @@ video::-webkit-media-controls-picture-in-picture-button {
 html[data-app-gate] .app-gate {
   display: flex;
 }
-html[data-app-gate] body > :not(.app-gate) {
+/* dialog: the policy acceptance popup (PolicyAcceptanceGate) must stay usable */
+html[data-app-gate] body > :not(.app-gate):not(dialog) {
   display: none !important;
 }
 html[data-app-gate] body {

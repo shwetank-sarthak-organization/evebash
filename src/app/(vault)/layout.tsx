@@ -31,8 +31,8 @@ export default function VaultLayout({ children }: Readonly<{ children: React.Rea
         <html lang="en" suppressHydrationWarning className={`${inter.variable} ${playfair.variable}`}>
             <head>{APP_GATE_ENABLED && <script dangerouslySetInnerHTML={{ __html: appGateHeadScript }} />}</head>
             <body className="antialiased font-sans bg-[#0E1318] text-[var(--site-text)]">
-                {APP_GATE_ENABLED && <MobileAppGate />}
                 <AuthProvider>
+                    {APP_GATE_ENABLED && <MobileAppGate />}
                     <ThemeProvider>{children}</ThemeProvider>
                 </AuthProvider>
             </body>

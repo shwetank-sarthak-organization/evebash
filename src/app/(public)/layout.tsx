@@ -50,8 +50,8 @@ export default function PublicLayout({
                 {APP_GATE_ENABLED && <script dangerouslySetInnerHTML={{ __html: appGateHeadScript }} />}
             </head>
             <body className="antialiased font-sans">
-                {APP_GATE_ENABLED && <MobileAppGate />}
                 <AuthProvider>
+                    {APP_GATE_ENABLED && <MobileAppGate />}
                     <ThemeProvider>
                         {/* No global Navbar here */}
                         <main className="min-h-screen">

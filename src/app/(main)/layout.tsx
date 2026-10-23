@@ -79,9 +79,9 @@ export default function RootLayout({
         {APP_GATE_ENABLED && <script dangerouslySetInnerHTML={{ __html: appGateHeadScript }} />}
       </head>
       <body className="antialiased font-sans">
-        {APP_GATE_ENABLED && <MobileAppGate />}
         <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(organizationJsonLd)} />
         <AuthProvider>
+          {APP_GATE_ENABLED && <MobileAppGate />}
           <ThemeProvider>
             <UploadProvider>
               <Navbar />
