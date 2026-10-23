@@ -388,20 +388,6 @@ Issue: The website footer (src/components/Footer.tsx) leaves out key pages and w
 How to reproduce: Open www.evebash.com on a phone (or 375 px wide) and scroll to the bottom. Look for Find You, Host, Delete account and YouTube links: none.
 Note 2026-10-23: the phone-layout part matters less once the phone/tablet download screen is on for www.evebash.com (#109): phones only see contact-us and the policy pages then. The missing links still matter on computers.
 
-#76
-Listed: 2026-10-13
-Platform: Both
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Confirm on a real video delete that the flag (set on Railway api-staging 2026-10-23) removes hls/<storage_key>/
-Found in: Cost analysis chat, checking what deleting a gallery removes (2026-10-13)
-Issue: When a host deletes a video (or a whole gallery) from the website or app, the streaming copy stays in B2 and we keep paying for it. Modal writes the transcoded video under hls/<storage_key>/ (modal_engine/main.py, hls_prefix), but the user delete route only removes <storage_key>-hls/ (custom thumbnails), plus the original, preview and thumbnail (apps/backend/src/routes/media.ts, POST /delete). The admin delete paths (apps/backend/src/deleteGalleryMedia.ts, routes/admin.ts) already remove both prefixes. The HLS copy counts toward overhead_size, so it can be a large share of each video's storage, and every video deleted this way so far has probably left one behind (not checked in B2 yet). Fix: also delete the hls/<storage_key>/ prefix in the user route, and sweep the orphaned hls/ folders whose photos row no longer exists (backend change: flag-gate per change-safety rules).
-How to reproduce: Upload a video to a test gallery, wait for it to play, note its storage_key, delete the gallery, then list B2 files with prefix hls/<storage_key>/: the playlist and segments are still there.
-Checked 2026-10-22 (read-only B2 scan): hls/ holds 144 streaming folders, 31.05 GB; 78 of them (10.6 GB, ~a third) belong to videos no longer in the photos table (45 in deleted galleries, 33 deleted one by one from galleries that still exist); every existing video has its folder. At B2's $6/TB-month that's ~₹6/month now, growing with each deleted video. Both the website and the app delete through the backend POST /api/v1/media/delete (gallery delete calls it per item), so one fix covers both.
-Fix (code, flag off): media.ts POST /delete also deletes hls/<storage_key>/ for videos when DELETE_VIDEO_STREAM_ON_DELETE=true on Railway. Still to do: remove the 78 leftover folders (list-and-delete script was not written: deleting needs Sarthak's go-ahead).
-2026-10-23: DELETE_VIDEO_STREAM_ON_DELETE=true added on Railway api-staging (Sarthak). Leftovers deleted with Sarthak's OK by scripts/b2_hls_orphan_sweep.py (list by default, --delete to remove; skips folders changed in the last 2 days and anything inside an existing video's folder): 30 deleted videos' folders, 7,352 file versions, 10.4 GB. Correction to the 2026-10-22 count: there were 30 such videos, not 78; the first count also split each video's audio/ sub-folder into a separate entry (27 of them belonged to existing videos; the fixed script keeps them). Checked after: 66 existing videos, all 66 folders still in B2 (20.65 GB), audio files in place, a sample video's playlists load (HTTP 200).
-
 #77
 Listed: 2026-10-19
 Platform: Both
@@ -748,6 +734,21 @@ How to reproduce: Open https://www.evebash.com on a phone: the normal website sh
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#76
+Listed: 2026-10-13
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Cost analysis chat, checking what deleting a gallery removes (2026-10-13)
+Issue: When a host deletes a video (or a whole gallery) from the website or app, the streaming copy stays in B2 and we keep paying for it. Modal writes the transcoded video under hls/<storage_key>/ (modal_engine/main.py, hls_prefix), but the user delete route only removes <storage_key>-hls/ (custom thumbnails), plus the original, preview and thumbnail (apps/backend/src/routes/media.ts, POST /delete). The admin delete paths (apps/backend/src/deleteGalleryMedia.ts, routes/admin.ts) already remove both prefixes. The HLS copy counts toward overhead_size, so it can be a large share of each video's storage, and every video deleted this way so far has probably left one behind (not checked in B2 yet). Fix: also delete the hls/<storage_key>/ prefix in the user route, and sweep the orphaned hls/ folders whose photos row no longer exists (backend change: flag-gate per change-safety rules).
+How to reproduce: Upload a video to a test gallery, wait for it to play, note its storage_key, delete the gallery, then list B2 files with prefix hls/<storage_key>/: the playlist and segments are still there.
+Checked 2026-10-22 (read-only B2 scan): hls/ holds 144 streaming folders, 31.05 GB; 78 of them (10.6 GB, ~a third) belong to videos no longer in the photos table (45 in deleted galleries, 33 deleted one by one from galleries that still exist); every existing video has its folder. At B2's $6/TB-month that's ~₹6/month now, growing with each deleted video. Both the website and the app delete through the backend POST /api/v1/media/delete (gallery delete calls it per item), so one fix covers both.
+Fix (code, flag off): media.ts POST /delete also deletes hls/<storage_key>/ for videos when DELETE_VIDEO_STREAM_ON_DELETE=true on Railway. Still to do: remove the 78 leftover folders (list-and-delete script was not written: deleting needs Sarthak's go-ahead).
+2026-10-23: DELETE_VIDEO_STREAM_ON_DELETE=true added on Railway api-staging (Sarthak). Leftovers deleted with Sarthak's OK by scripts/b2_hls_orphan_sweep.py (list by default, --delete to remove; skips folders changed in the last 2 days and anything inside an existing video's folder): 30 deleted videos' folders, 7,352 file versions, 10.4 GB. Correction to the 2026-10-22 count: there were 30 such videos, not 78; the first count also split each video's audio/ sub-folder into a separate entry (27 of them belonged to existing videos; the fixed script keeps them). Checked after: 66 existing videos, all 66 folders still in B2 (20.65 GB), audio files in place, a sample video's playlists load (HTTP 200).
+Fixed in: 4e9d37a (2026-10-22) + Railway api-staging DELETE_VIDEO_STREAM_ON_DELETE=true (2026-10-23); leftovers removed with 14dce93. Checked 2026-10-23: a 4K video uploaded to wedding-2-77d4, its 32 streaming files in hls/<storage_key>/, deleted from the website: 0 files left in B2.
 
 #107
 Listed: 2026-10-23
