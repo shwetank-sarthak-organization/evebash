@@ -5,6 +5,8 @@ import { brand, inter, playfair } from "../fonts";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import Footer from "@/components/Footer";
+import { MobileAppGate } from "@/components/MobileAppGate";
+import { APP_GATE_ENABLED, appGateHeadScript } from "@/lib/appGate";
 
 export const metadata: Metadata = {
     metadataBase: new URL("https://www.evebash.com"),
@@ -45,8 +47,10 @@ export default function PublicLayout({
                 <link rel="icon" href="/evebash-logo-gold.svg" type="image/svg+xml" />
                 <link rel="alternate icon" href="/evebash-logo-gold.png" type="image/png" />
                 <link rel="apple-touch-icon" href="/evebash-logo-gold.png" />
+                {APP_GATE_ENABLED && <script dangerouslySetInnerHTML={{ __html: appGateHeadScript }} />}
             </head>
             <body className="antialiased font-sans">
+                {APP_GATE_ENABLED && <MobileAppGate />}
                 <AuthProvider>
                     <ThemeProvider>
                         {/* No global Navbar here */}

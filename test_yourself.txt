@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 122
+Next test number: 124
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1682,6 +1682,8 @@ How to test:
   5. Tap X. Expect: the bar goes away. Reload, and open another gallery and its Find You page. Expect: no bar.
      (Clear the site's data in Chrome to see it again.)
   6. Homepage, pricing, dashboard, login: no bar. iPhone Safari, Android tablet and a computer: no bar on event pages.
+  Changed 2026-10-23: the bar now shows on every page and on iPhones and tablets too, and X hides it for 7 days.
+  Skip steps 5 and 6 here; test #122 covers them.
 Done by:
 Device / browser:
 Build / version:
@@ -2977,6 +2979,74 @@ How to test:
   5. In the album, ... > Change roles: give the role to someone else. Then turn off Admin Access for the
      first person. Expect: it works.
   6. Turn off Admin Access for an admin with no album role. Expect: works as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#122 Website: "Get the app" bar on phones and tablets (behind a flag)
+Status:    TODO
+Priority:  Medium
+Platform:  Website (Android phone, iPhone, iPad, Android tablet, and a computer for the "not shown" check)
+Brief:     On phones and tablets every website page shows a small dark bar at the bottom: "EveBash app" with
+           "Coming soon to Google Play" (Android) or "Coming soon to the App Store" (iPhone/iPad) and an X.
+           Once the store links are set it says "Get it on ..." with a Get button. Android event pages also keep
+           the Open button from #72. Only shows when NEXT_PUBLIC_OPEN_IN_APP_BANNER=true was set for that deploy
+           (issue #67). Store links: NEXT_PUBLIC_PLAY_STORE_URL and NEXT_PUBLIC_APP_STORE_URL, empty for now.
+Setup:     Set NEXT_PUBLIC_OPEN_IN_APP_BANNER=true for the staging website and REDEPLOY (the value is read at build).
+How to test:
+  1. Without the flag (or on www.evebash.com): open the homepage on a phone. Expect: no bar, as before.
+  2. With the flag on, Android phone: open the homepage, pricing, login and an event gallery.
+     Expect: the bar on each, saying "Coming soon to Google Play", no Get button. The footer can still be
+     scrolled fully into view above it.
+  3. iPhone Safari and an iPad (Safari, normal "desktop website" mode): same pages. Expect: the bar, saying
+     "Coming soon to the App Store", and no Open button on event pages.
+  4. Android tablet: expect the bar like the Android phone.
+  5. A computer (Mac or Windows, even a touch-screen laptop): expect no bar on any page.
+  6. Tap X. Expect: the bar goes away and stays away on other pages and after a reload. It comes back after
+     7 days (or clear the site's data).
+  7. After the store links are set and redeployed: the text says "Get it on ..." and Get opens the store page
+     in a new tab.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#123 Website: phones and tablets see "Get the EveBash app" instead of the website (behind a flag)
+Status:    TODO
+Priority:  High
+Platform:  Website (Android phone, iPhone, iPad, Android tablet, and a computer)
+Brief:     On phones and tablets every page is replaced by a full-screen "Get the EveBash app" screen with
+           Google Play / App Store buttons ("coming soon" until the store links are set) and Log in /
+           Activate a plan links. These pages still open normally: login, forgot/reset password, profile
+           (plan), pricing, contact us and the policy pages (privacy, terms, refund, shipping, digital
+           delivery, delete account). Computers see the website as before. Only when
+           NEXT_PUBLIC_MOBILE_APP_GATE=true was set for that deploy (issue #67).
+Setup:     Set NEXT_PUBLIC_MOBILE_APP_GATE=true for the staging website and REDEPLOY (the value is read at build).
+How to test:
+  1. Without the flag (or on www.evebash.com): open the homepage on a phone. Expect: the website, as before.
+  2. With the flag, Android phone: open the homepage, a gallery link (/events/<id>), sample galleries, Find You.
+     Expect: only the download screen, nothing of the website shows (not even for a moment), the page can't
+     be scrolled behind it.
+  3. Tap Log in. Expect: the normal login page. Sign in. Expect: the download screen again (dashboard).
+  4. Tap Activate a plan. Expect: the profile page on the Plan tab. Tap Extend / Upgrade. Expect: pricing
+     opens; buying a plan works as before.
+  5. Open the privacy policy, terms, delete-account and contact-us pages directly. Expect: they open normally.
+  6. Forgot password: request a reset email and open its link on the phone. Expect: the reset page opens.
+  7. Repeat 2-4 on an iPhone (Safari), an iPad (Safari in its normal desktop mode) and an Android tablet.
+  8. A computer (Mac and Windows): every page shows the website, no download screen.
+  9. Google's Mobile-Friendly / URL Inspection test (Search Console) on the homepage: expect the website,
+     not the download screen.
 Done by:
 Device / browser:
 Build / version:

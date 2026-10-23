@@ -3,6 +3,8 @@ import "../globals.css";
 import { inter, playfair } from "../fonts";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { MobileAppGate } from "@/components/MobileAppGate";
+import { APP_GATE_ENABLED, appGateHeadScript } from "@/lib/appGate";
 
 export const metadata: Metadata = {
     metadataBase: new URL("https://www.evebash.com"),
@@ -27,7 +29,9 @@ export const viewport: Viewport = {
 export default function VaultLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
         <html lang="en" suppressHydrationWarning className={`${inter.variable} ${playfair.variable}`}>
+            <head>{APP_GATE_ENABLED && <script dangerouslySetInnerHTML={{ __html: appGateHeadScript }} />}</head>
             <body className="antialiased font-sans bg-[#0E1318] text-[var(--site-text)]">
+                {APP_GATE_ENABLED && <MobileAppGate />}
                 <AuthProvider>
                     <ThemeProvider>{children}</ThemeProvider>
                 </AuthProvider>

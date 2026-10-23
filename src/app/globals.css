@@ -462,3 +462,17 @@ video::-webkit-media-controls-picture-in-picture-button {
   height: 0 !important;
   visibility: hidden !important;
 }
+
+/* Phones and tablets: "download the app" screen instead of the website (src/lib/appGate.ts) */
+.app-gate {
+  display: none;
+}
+html[data-app-gate] .app-gate {
+  display: flex;
+}
+html[data-app-gate] body > :not(.app-gate) {
+  display: none !important;
+}
+html[data-app-gate] body {
+  overflow: hidden;
+}

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import "../globals.css";
 import { brand, inter, playfair } from "../fonts";
 import Navbar from "@/components/Navbar";
@@ -8,6 +9,9 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { UploadProvider } from "@/context/UploadContext";
 import Footer from "@/components/Footer";
 import MainWrapper from "@/components/MainWrapper";
+import { OpenInAppBanner } from "@/components/OpenInAppBanner";
+import { MobileAppGate } from "@/components/MobileAppGate";
+import { APP_GATE_ENABLED, appGateHeadScript } from "@/lib/appGate";
 import { jsonLd, siteUrl } from "@/lib/seo";
 
 // Who EveBash is, for search engines (brand result, logo, contact).
@@ -72,8 +76,10 @@ export default function RootLayout({
         <link rel="icon" href="/evebash-logo-gold.svg" type="image/svg+xml" />
         <link rel="alternate icon" href="/evebash-logo-gold.png" type="image/png" />
         <link rel="apple-touch-icon" href="/evebash-logo-gold.png" />
+        {APP_GATE_ENABLED && <script dangerouslySetInnerHTML={{ __html: appGateHeadScript }} />}
       </head>
       <body className="antialiased font-sans">
+        {APP_GATE_ENABLED && <MobileAppGate />}
         <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(organizationJsonLd)} />
         <AuthProvider>
           <ThemeProvider>
@@ -83,6 +89,9 @@ export default function RootLayout({
                 {children}
               </MainWrapper>
               <Footer />
+              <Suspense fallback={null}>
+                <OpenInAppBanner />
+              </Suspense>
             </UploadProvider>
           </ThemeProvider>
         </AuthProvider>
