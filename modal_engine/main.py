@@ -690,6 +690,14 @@ def _spawn_photo_job(item: dict, mode, v2_events):
         process_photo_preview.spawn(item)
 
 
+def _spawn_face_job(item: dict, mode, v2_events):
+    """Faces only (the preview is done): v2's face step for galleries on v2, else the old FaceIndexer."""
+    if _pick_photo_pipeline(item.get("event_id"), mode, v2_events) == "v2":
+        PhotoProcessorV2().index_faces.spawn(item)
+    else:
+        FaceIndexer().process.spawn(item)
+
+
 def _load_two_model_face_app():
     """AuraFace with only the models whose output we save: detection (boxes + 5 key points, also used to
     align each face) and recognition (the 512 numbers). The pack's 3D landmark, 2D landmark and gender/age
@@ -912,6 +920,48 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         return {"status": "error", "photo_id": photo_id, "error": str(e)}
 
     # ---- Faces (as FaceIndexer.process, on the preview already in memory) ----
+    return _save_faces_v2(photo_id, asset_version, event_id, user_id, preview_url, lambda: preview_bytes, face_app,
+                          supabase, start_time, sharing_at_start, photos_in_container, original_size, face_filter,
+                          on_step)
+
+def _index_faces_v2(photo_data: dict, face_app, supabase, b2_client, bucket_name: str, media_domain: str,
+                    photos_in_container=lambda: 1, face_filter=None, on_step=lambda step: None):
+    """Faces only, for a photo whose preview is already in B2 (the maintenance job's retries of stuck or failed
+    face jobs, which went to the old FaceIndexer before). Same models, filter and database calls as v2's face
+    step; reads the saved preview instead of making one."""
+    import time
+    start_time = time.time()
+    photo_id = photo_data.get("id") or photo_data.get("photo_id")
+    asset_version = int(photo_data.get("asset_version") or 1)
+    storage_key = photo_data.get("storage_key") or photo_data.get("object_key")
+    if not photo_id or not storage_key:
+        print(f"[PhotoV2] Missing required parameters: photo_id={photo_id}, storage_key={storage_key}")
+        return {"status": "error", "error": "Missing photo_id or storage_key"}
+    preview_key = f"{storage_key}-preview.webp"
+    preview_url = photo_data.get("preview_url") or f"https://{media_domain}/{preview_key}"
+
+    def load_preview():
+        on_step("download preview")
+        return b2_client.get_object(Bucket=bucket_name, Key=preview_key)["Body"].read()
+
+    return _save_faces_v2(photo_id, asset_version, photo_data.get("event_id"), photo_data.get("user_id"), preview_url,
+                          load_preview, face_app, supabase, start_time, photos_in_container(), photos_in_container,
+                          None, face_filter, on_step, function_name="index_faces_v2",
+                          finished_label="Photo v2 faces finished: ")
+
+
+def _save_faces_v2(photo_id, asset_version, event_id, user_id, preview_url, load_preview, face_app, supabase,
+                   start_time, sharing_at_start, photos_in_container, original_size, face_filter, on_step,
+                   function_name="process_photo_v2", finished_label="Photo v2 finished: preview + "):
+    """v2's face step (claim_face_job, find faces on the 1600 px preview, replace_photo_faces, one cost-log row).
+    Used right after the preview in _process_photo_v2, and on its own by _index_faces_v2 when the maintenance
+    job retries a photo whose preview is done but whose faces are not."""
+    import time
+    import uuid
+    import numpy as np
+    import cv2
+    from PIL import Image
+
     face_token = str(uuid.uuid4())
     on_step("claim_face_job")
     claimed = _db_execute(supabase.rpc("claim_face_job", {
@@ -925,6 +975,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         return {"status": "success", "photo_id": photo_id, "preview_url": preview_url, "faces": None}
 
     try:
+        preview_bytes = load_preview()
         # Decoding the WebP bytes, not using the resized image directly, gives the face model exactly the
         # pixels FaceIndexer gets when it downloads the preview, so faces match today's
         face_img = Image.open(io.BytesIO(preview_bytes))
@@ -976,7 +1027,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
             log_payload = {
                 "photo_id": photo_id,
                 "event_id": event_id,
-                "function_name": "process_photo_v2",
+                "function_name": function_name,
                 "worker_type": "Modal Photo Worker v2 (1 vCPU • 2GB RAM • up to 4 photos)",
                 "media_type": "photo",
                 "media_size": original_size,
@@ -994,7 +1045,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
             print(f"[{photo_id}] Cost logging failed: {log_err}")
 
         skipped_note = f", {skipped} unclear faces skipped" if skipped else ""
-        print(f"[{photo_id}] Photo v2 finished: preview + {len(face_records)} faces{skipped_note} in {duration:.2f}s (₹{cost_inr:.5f})")
+        print(f"[{photo_id}] {finished_label}{len(face_records)} faces{skipped_note} in {duration:.2f}s (₹{cost_inr:.5f})")
         return {"status": "success", "photo_id": photo_id, "preview_url": preview_url, "faces": len(face_records)}
 
     except Exception as e:
@@ -1008,6 +1059,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         except Exception:
             pass
         return {"status": "error", "photo_id": photo_id, "preview_url": preview_url, "error": str(e)}
+
 
 
 @app.cls(
@@ -1041,6 +1093,14 @@ class PhotoProcessorV2:
 
     @modal.method()
     def process(self, photo_data: dict):
+        return self._run(_process_photo_v2, photo_data)
+
+    @modal.method()
+    def index_faces(self, photo_data: dict):
+        """Faces only, for the maintenance job's retries (the preview is already done)."""
+        return self._run(_index_faces_v2, photo_data)
+
+    def _run(self, worker, photo_data: dict):
         import boto3
         from supabase import create_client, ClientOptions
 
@@ -1061,7 +1121,7 @@ class PhotoProcessorV2:
                 aws_access_key_id=os.environ.get('B2_KEY_ID'),
                 aws_secret_access_key=os.environ.get('B2_APPLICATION_KEY')
             )
-            return _process_photo_v2(
+            return worker(
                 photo_data, self.face_app, supabase, b2_client, os.environ.get('B2_BUCKET_NAME'),
                 _media_domain(), photos_in_container=lambda: self._in_flight, face_filter=self.face_filter(),
                 on_step=progress.step,
@@ -1136,6 +1196,8 @@ def sweep_stuck_jobs():
     recovered_media = 0
     recovered_face = 0
     recovered_outbox = 0
+    # Retries go to the same pipeline as new uploads (issue #77): v2 for galleries on v2
+    mode, v2_events = _read_photo_pipeline_switch()
 
     # 1. Sweep stuck media jobs
     try:
@@ -1154,14 +1216,14 @@ def sweep_stuck_jobs():
             is_expired = lease is None or lease < now.isoformat()
             if p.get("media_status") in ["pending", "failed"] or is_expired:
                 print(f"[Reconciler] Recovering stuck media job for photo: {p['id']}")
-                process_photo_preview.spawn({
+                _spawn_photo_job({
                     "id": p["id"],
                     "photo_id": p["id"],
                     "storage_key": p.get("storage_key"),
                     "event_id": p.get("event_id"),
                     "user_id": p.get("user_id"),
                     "asset_version": p.get("asset_version", 1)
-                })
+                }, mode, v2_events)
                 recovered_media += 1
     except Exception as err:
         print(f"[Reconciler] Media sweep error: {err}")
@@ -1183,7 +1245,7 @@ def sweep_stuck_jobs():
             is_expired = lease is None or lease < now.isoformat()
             if p.get("face_status") in ["pending", "failed"] or is_expired:
                 print(f"[Reconciler] Recovering stuck face job for photo: {p['id']}")
-                FaceIndexer().process.spawn({
+                _spawn_face_job({
                     "id": p["id"],
                     "photo_id": p["id"],
                     "storage_key": p.get("storage_key"),
@@ -1191,7 +1253,7 @@ def sweep_stuck_jobs():
                     "user_id": p.get("user_id"),
                     "asset_version": p.get("asset_version", 1),
                     "preview_url": p.get("preview_url")
-                })
+                }, mode, v2_events)
                 recovered_face += 1
     except Exception as err:
         print(f"[Reconciler] Face sweep error: {err}")
@@ -1266,6 +1328,7 @@ def dispatch_outbox_jobs():
 
     dispatched = 0
     two_min_ago = datetime.now(timezone.utc) - timedelta(minutes=2)
+    mode, v2_events = _read_photo_pipeline_switch()
     for row in rows:
         photo_id = row.get("photo_id")
         job_type = row.get("job_type")
@@ -1298,10 +1361,10 @@ def dispatch_outbox_jobs():
         }
 
         if job_type == "media_preview":
-            process_photo_preview.spawn(payload)
+            _spawn_photo_job(payload, mode, v2_events)
             dispatched += 1
         elif job_type == "face_index":
-            FaceIndexer().process.spawn(payload)
+            _spawn_face_job(payload, mode, v2_events)
             dispatched += 1
 
     print(f"[OutboxDispatcher] Dispatched {dispatched} queued jobs.")
