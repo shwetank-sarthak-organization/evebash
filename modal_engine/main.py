@@ -1988,8 +1988,12 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 ExtraArgs={"ContentType": "application/x-mpegURL", "CacheControl": "public, max-age=3600"}
             )
 
-        # 6. Calculate exact HLS overhead size & update Supabase record
-        total_hls_bytes = sum(f.stat().st_size for f in tmp_path.glob("**/*") if f.is_file())
+        # 6. Streaming copy size, from what is now in B2. It used to be summed from the temporary folder after
+        # that folder had been deleted, so every video was saved with overhead_size 0 and its streaming copy
+        # (often more than half the original's size) never counted toward the host's storage.
+        total_hls_bytes = 0
+        for page in b2_client.get_paginator("list_objects_v2").paginate(Bucket=bucket_name, Prefix=f"{hls_prefix}/"):
+            total_hls_bytes += sum(obj["Size"] for obj in page.get("Contents", []))
         print(f"[TranscodeVideo-{hardware.upper()}] Calculated exact HLS streaming overhead: {total_hls_bytes} bytes (~{total_hls_bytes / (1024 * 1024):.2f} MB)")
 
         update_data = {

@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 110
+Next issue number: 111
 
 =====================================================================
 ACTIVE ISSUES
@@ -730,6 +730,18 @@ Blocked by: App launch (app live on Google Play and the App Store)
 Found in: Chat with Sarthak about sending phone visitors to the app (2026-10-23)
 Issue: The phone/tablet "Get the EveBash app" screen (src/components/MobileAppGate.tsx, rules in src/lib/appGate.ts, commits 7b51ef0 and b227345) is only on for staging.evebash.com: NEXT_PUBLIC_MOBILE_APP_GATE=true is set in Vercel for Preview (staging branch) only. www.evebash.com still shows the normal website on phones, and both sites' store buttons say "coming soon" because the store links are empty. At launch: (1) in Vercel > Settings > Environment Variables, add for Production (type Config): NEXT_PUBLIC_MOBILE_APP_GATE=true, NEXT_PUBLIC_PLAY_STORE_URL=<Play Store page> and NEXT_PUBLIC_APP_STORE_URL=<App Store page>; add the two store links for Preview too. (2) Redeploy production (the values are read at build). (3) Run device test #123 on www.evebash.com (iPhone, iPad, Android phone and tablet, payment on Pricing, password reset from a phone, Google URL Inspection). Optional: NEXT_PUBLIC_OPEN_IN_APP_BANNER=true turns on the small "Get the app" bar for the pages that stay open on phones (device test #122). App Links / Universal Links stay in #67.
 How to reproduce: Open https://www.evebash.com on a phone: the normal website shows, not the download screen.
+
+#110
+Listed: 2026-10-23
+Platform: Both
+Priority: High
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Modal deploy (v125) and Sarthak's OK to fill in the 37 missing sizes
+Found in: Video upload/cancel test (2026-10-23)
+Issue: Videos' streaming copies never count toward storage. Modal's transcoder (_transcode_video_core in modal_engine/main.py) summed the HLS files from its temporary folder after the `with tempfile.TemporaryDirectory()` block had already deleted it, so every video since 2026-09-27 was saved with overhead_size 0 (37 of 67 videos; the 30 from 2026-09-24/25 predate the bug). Their streaming copies are 12.71 GB in B2 (originals of all 67: 14.34 GB), and storage totals, plan limits and the deletion ledger all leave them out. Per owner: e8848fc1 22 videos +9.05 GB, 7ef17a61 7 +2.20 GB, b7ab6182 5 +1.02 GB, f78d1089 3 +0.45 GB.
+Fix: the transcoder now adds up the video's hls/<storage_key>/ files in B2 after uploading them (not deployed yet). Existing videos: set overhead_size to their measured B2 folder size (needs OK: it raises those hosts' storage used).
+How to reproduce: Upload a video, wait until it plays: photos.overhead_size is 0.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
