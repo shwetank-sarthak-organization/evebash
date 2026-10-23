@@ -11,11 +11,18 @@ export type AlbumRow = {
   title: string;
   currentRound: number;
   createdBy: string | null;
+  /** Uploads pages and sends rounds; null until roles are assigned */
+  photographerId: string | null;
+  /** Comment, approve and send feedback */
+  clientIds: string[];
   approvedBy: string | null;
   approvedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
+
+/** Someone who can be given a role: the event host or an approved guest admin. */
+export type RoleCandidate = { id: string; name: string; email: string | null; isHost: boolean };
 
 export type PageRow = {
   id: string;
@@ -77,8 +84,8 @@ export interface AlbumRepository {
   rootEventId(eventId: string): Promise<string | null>;
   listAlbums(eventId: string): Promise<AlbumRow[]>;
   getAlbum(albumId: string): Promise<AlbumRow | null>;
-  createAlbum(input: { eventId: string; title: string; createdBy: string }): Promise<AlbumRow>;
-  updateAlbum(albumId: string, patch: Partial<Pick<AlbumRow, "title" | "approvedBy" | "approvedAt">>): Promise<void>;
+  createAlbum(input: { eventId: string; title: string; createdBy: string; photographerId: string; clientIds: string[] }): Promise<AlbumRow>;
+  updateAlbum(albumId: string, patch: Partial<Pick<AlbumRow, "title" | "approvedBy" | "approvedAt" | "photographerId" | "clientIds">>): Promise<void>;
   deleteAlbum(albumId: string): Promise<void>;
   listPages(albumIds: string[]): Promise<PageRow[]>;
   updatePage(pageId: string, patch: Partial<Pick<PageRow, "layout" | "approvedVersion" | "approvedBy" | "approvedAt">>): Promise<void>;
@@ -100,8 +107,8 @@ export interface AlbumRepository {
   listFavourites(rootEventId: string): Promise<EventPhoto[]>;
   getPhotos(ids: string[]): Promise<EventPhoto[]>;
   profileNames(ids: string[]): Promise<Map<string, string>>;
-  /** Owner and approved guest admins of the main gallery, as profile ids (for pushes). */
-  managerIds(rootEventId: string): Promise<string[]>;
+  /** The host and approved guest admins of the main gallery: the people who can be given a role. */
+  roleCandidates(rootEventId: string): Promise<RoleCandidate[]>;
   pushTokens(profileIds: string[]): Promise<{ profileId: string; token: string }[]>;
   listDeletedFiles(limit: number): Promise<{ id: number; storageKey: string }[]>;
   removeDeletedFiles(ids: number[]): Promise<void>;
@@ -120,7 +127,7 @@ type Row = Record<string, any>;
 
 const album = (row: Row): AlbumRow => ({
   id: row.id, eventId: row.event_id, title: row.title, currentRound: row.current_round, createdBy: row.created_by,
-  approvedBy: row.approved_by, approvedAt: row.approved_at, createdAt: row.created_at, updatedAt: row.updated_at,
+  photographerId: row.photographer_id ?? null, clientIds: row.client_ids ?? [], approvedBy: row.approved_by, approvedAt: row.approved_at, createdAt: row.created_at, updatedAt: row.updated_at,
 });
 const page = (row: Row): PageRow => ({
   id: row.id, albumId: row.album_id, position: row.position, layout: row.layout,
@@ -189,11 +196,15 @@ export function createSupabaseAlbumRepository(getClient: () => SupabaseClient = 
       const row = check(await db().from("album_proofs").select("*").eq("id", albumId).maybeSingle()) as Row | null;
       return row ? album(row) : null;
     },
-    async createAlbum({ eventId, title, createdBy }) {
-      return album(check(await db().from("album_proofs").insert({ event_id: eventId, title, created_by: createdBy }).select("*").single()) as Row);
+    async createAlbum({ eventId, title, createdBy, photographerId, clientIds }) {
+      return album(check(await db().from("album_proofs")
+        .insert({ event_id: eventId, title, created_by: createdBy, photographer_id: photographerId, client_ids: clientIds })
+        .select("*").single()) as Row);
     },
     async updateAlbum(albumId, patch) {
-      const columns = toColumns(patch, { title: "title", approvedBy: "approved_by", approvedAt: "approved_at" });
+      const columns = toColumns(patch, {
+        title: "title", approvedBy: "approved_by", approvedAt: "approved_at", photographerId: "photographer_id", clientIds: "client_ids",
+      });
       check(await db().from("album_proofs").update({ ...columns, updated_at: new Date().toISOString() }).eq("id", albumId));
     },
     async deleteAlbum(albumId) {
@@ -289,20 +300,28 @@ export function createSupabaseAlbumRepository(getClient: () => SupabaseClient = 
         check(await db().from("profiles").select("id,name,email").in("id", chunk)) as Row[]);
       return new Map(rows.map((row) => [row.id as string, String(row.name || "").trim() || String(row.email || "").split("@")[0] || "Someone"]));
     },
-    async managerIds(rootEventId) {
+    async roleCandidates(rootEventId) {
       const event = check(await db().from("events").select("created_by").eq("id", rootEventId).maybeSingle()) as Row | null;
-      const ids = new Set<string>();
+      const hostIds = new Set<string>();
       const owner = String(event?.created_by || "");
       if (owner) {
         const profile = check(await db().from("profiles").select("id").eq(owner.includes("@") ? "email" : "id", owner).maybeSingle()) as Row | null;
-        if (profile?.id) ids.add(profile.id);
+        if (profile?.id) hostIds.add(profile.id);
       }
+      const adminIds = new Set<string>();
       for (const column of ["event_id", "parent_event_id"]) {
         const guests = check(await db().from("guests").select("user_id").eq(column, rootEventId).eq("status", "approved")
           .eq("can_admin", true).not("user_id", "is", null)) as Row[];
-        guests.forEach((guest) => ids.add(String(guest.user_id)));
+        guests.forEach((guest) => adminIds.add(String(guest.user_id)));
       }
-      return [...ids];
+      const ids = [...new Set([...hostIds, ...adminIds])];
+      const rows = await inChunks(ids, async (chunk) => check(await db().from("profiles").select("id,name,email").in("id", chunk)) as Row[]);
+      return rows.map((row) => ({
+        id: String(row.id),
+        name: String(row.name || "").trim() || String(row.email || "").split("@")[0] || "Someone",
+        email: row.email ?? null,
+        isHost: hostIds.has(String(row.id)),
+      })).sort((a, b) => Number(b.isHost) - Number(a.isHost) || a.name.localeCompare(b.name));
     },
     async pushTokens(profileIds) {
       if (!profileIds.length) return [];

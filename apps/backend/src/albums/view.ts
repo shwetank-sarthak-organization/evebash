@@ -1,6 +1,14 @@
 import type { AlbumRow, CommentRow, EventPhoto, PageRow, RoundRow, VersionRow } from "./repository.js";
 
 export type PageStatus = "draft" | "pending" | "approved" | "changes_requested";
+/** What someone does in an album: the photographer uploads, the client reviews, anyone else only views. */
+export type AlbumRole = "photographer" | "client" | "viewer";
+
+export function roleOf(album: Pick<AlbumRow, "photographerId" | "clientIds">, userId: string): AlbumRole {
+  if (album.photographerId === userId) return "photographer";
+  if (album.clientIds.includes(userId)) return "client";
+  return "viewer";
+}
 export type AlbumStatus = "draft" | "in_review" | "changes_requested" | "approved";
 
 type Lookup = {
@@ -94,6 +102,8 @@ export function presentAlbumSummary({ album, pages, versions, comments }: AlbumD
     unsentCount: pages.filter((p) => (versionsByPage.get(p.id) ?? []).some((v) => v.round === 0)).length,
     openRequestCount: openRequests(comments).length,
     myDraftCount: comments.filter((c) => !c.sentAt && c.authorId === viewerId).length,
+    myRole: roleOf(album, viewerId),
+    rolesAssigned: Boolean(album.photographerId) && album.clientIds.length > 0,
     coverThumbnailUrl: first ? lookup.url(first.thumbnailKey) : null,
     createdBy: album.createdBy,
     approvedAt: album.approvedAt,
@@ -108,7 +118,13 @@ export function presentAlbum(data: AlbumData, rounds: RoundRow[], lookup: Lookup
   const commentsByPage = by(visibleComments(data.comments, viewerId), (c) => c.pageId);
   return {
     ...presentAlbumSummary(data, lookup, viewerId),
-    viewer: { id: viewerId, isCreator: data.album.createdBy === viewerId },
+    viewer: { id: viewerId, isCreator: data.album.createdBy === viewerId, role: roleOf(data.album, viewerId) },
+    roles: {
+      photographer: data.album.photographerId
+        ? { id: data.album.photographerId, name: lookup.names.get(data.album.photographerId) ?? "Someone" }
+        : null,
+      clients: data.album.clientIds.map((id) => ({ id, name: lookup.names.get(id) ?? "Someone" })),
+    },
     rounds: rounds.map((r) => ({ ...r, sentByName: r.sentBy ? lookup.names.get(r.sentBy) ?? "Someone" : null })),
     pages: data.pages.map((p) => {
       const versions = versionsByPage.get(p.id) ?? [];
@@ -145,6 +161,8 @@ export function referencedIds(data: AlbumData, rounds: RoundRow[]) {
   const photos = new Set<string>();
   const add = (id: string | null) => { if (id) profiles.add(id); };
   add(data.album.approvedBy);
+  add(data.album.photographerId);
+  data.album.clientIds.forEach(add);
   data.pages.forEach((p) => add(p.approvedBy));
   data.comments.forEach((c) => { add(c.authorId); add(c.resolvedBy); if (c.replacementPhotoId) photos.add(c.replacementPhotoId); });
   rounds.forEach((r) => add(r.sentBy));

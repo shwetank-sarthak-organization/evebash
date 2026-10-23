@@ -16,7 +16,7 @@ import { AlbumButton, albumStyles, PageStatusChip } from './albumUi';
 import { FavouritePicker } from './FavouritePicker';
 import { VoicePlayer, VoiceRecorder, type VoiceRecording } from './VoiceNote';
 
-export type AlbumMode = 'photographer' | 'couple';
+export type AlbumMode = 'photographer' | 'client' | 'viewer';
 type Draft = { pinX: number | null; pinY: number | null };
 
 const ZOOM = 2.2;
@@ -67,7 +67,8 @@ function CommentCard({ comment, number, replies, album, page, mode, active, onFo
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
   const mine = comment.authorId === album.viewer.id;
-  const locked = album.status === 'approved';
+  // The host and other admins without a role only look
+  const locked = album.status === 'approved' || mode === 'viewer';
 
   const run = async (task: () => Promise<unknown>) => {
     setBusy(true);
@@ -279,7 +280,7 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
   const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const visibleVersions = useMemo(() => (page ? page.versions.filter((v) => mode === 'photographer' || v.round > 0) : []), [page, mode]);
-  const defaultVersion = mode === 'couple' ? page?.sentVersion ?? page?.latestVersion : page?.latestVersion;
+  const defaultVersion = mode !== 'photographer' ? page?.sentVersion ?? page?.latestVersion : page?.latestVersion;
   const [shownVersion, setShownVersion] = useState(defaultVersion ?? 1);
   const [zoom, setZoom] = useState(false);
   const [compare, setCompare] = useState(false);
@@ -305,7 +306,8 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
   const onThisVersion = topLevel.filter((c) => c.version === version?.version);
   const earlier = topLevel.filter((c) => c.version !== version?.version);
   const locked = album.status === 'approved';
-  const canComment = !locked && !!version && (mode === 'photographer' || version.round > 0);
+  // Requests come from the client; the photographer answers them with replies and new versions
+  const canComment = !locked && !!version && mode === 'client' && version.round > 0;
   const label = labels.get(page.id) ?? 'Page';
   const myDrafts = album.pages.reduce((n, p) => n + p.comments.filter((c) => c.isDraft && c.authorId === album.viewer.id).length, 0);
 
@@ -435,7 +437,7 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
             </View>
 
             <View style={styles.panel}>
-              {mode === 'couple' && page.sentVersion !== null && !locked && (
+              {mode === 'client' && page.sentVersion !== null && !locked && (
                 page.status === 'approved' ? (
                   <View style={styles.approved}>
                     <Text style={styles.approvedText}>✓ You approved this page</Text>
@@ -491,7 +493,7 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
           </ScrollView>
         </KeyboardAvoidingView>
 
-        {mode === 'couple' && myDrafts > 0 && (
+        {mode === 'client' && myDrafts > 0 && (
           <View style={[styles.footer, { paddingBottom: insets.bottom + 10 }]}>
             <Text style={[albumStyles.small, { color: '#E8C9A0', textAlign: 'center' }]}>
               {myDrafts === 1 ? '1 comment is' : `${myDrafts} comments are`} waiting. Close this view and tap Send feedback when you&apos;ve been through the pages.

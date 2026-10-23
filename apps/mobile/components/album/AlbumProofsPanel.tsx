@@ -2,14 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { albumApi, type AlbumSummary } from '../../lib/albumApi';
+import { albumApi, type AlbumRoles, type AlbumSummary } from '../../lib/albumApi';
 import { Fonts, MidnightColors } from '../../constants/theme';
 import { AlbumButton, albumStyles, AlbumStatusChip, ProgressBar } from './albumUi';
 import { AlbumWorkspace } from './AlbumWorkspace';
+import { RolePicker, rolesComplete } from './RolePicker';
 
 const STEPS = [
   ['Upload the pages', 'The photographer adds each page design: one image per page or per spread.'],
-  ['The couple reviews', 'They pin comments on photos to replace, enlarge or edit, by text or voice note.'],
+  ['The client reviews', 'They pin comments on photos to replace, enlarge or edit, by text or voice note.'],
   ['Send new versions', 'Fix what was asked and send the changed pages back, round after round.'],
   ['Approved for print', 'Once every page is approved, the album is locked with the date.'],
 ] as const;
@@ -21,6 +22,7 @@ export function AlbumProofsPanel({ eventId, initialAlbumId }: { eventId: string;
   const [openId, setOpenId] = useState<string | null>(initialAlbumId ?? null);
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState('');
+  const [roles, setRoles] = useState<Partial<AlbumRoles>>({});
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -40,12 +42,13 @@ export function AlbumProofsPanel({ eventId, initialAlbumId }: { eventId: string;
   }
 
   const create = async () => {
-    if (!title.trim()) return;
+    if (!title.trim() || !rolesComplete(roles)) return;
     setSaving(true);
     try {
-      const { album } = await albumApi.create(eventId, title.trim());
+      const { album } = await albumApi.create(eventId, title.trim(), roles);
       setCreating(false);
       setTitle('');
+      setRoles({});
       setOpenId(album.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't create the album.");
@@ -66,10 +69,11 @@ export function AlbumProofsPanel({ eventId, initialAlbumId }: { eventId: string;
       {creating ? (
         <View style={styles.createCard}>
           <Text style={albumStyles.eyebrow}>Album name</Text>
-          <TextInput value={title} onChangeText={setTitle} placeholder="Wedding Album" placeholderTextColor={MidnightColors.slate600} maxLength={80} autoFocus style={albumStyles.input} onSubmitEditing={create} returnKeyType="done" />
+          <TextInput value={title} onChangeText={setTitle} placeholder="Wedding Album" placeholderTextColor={MidnightColors.slate600} maxLength={80} autoFocus style={albumStyles.input} returnKeyType="done" />
+          <RolePicker eventId={eventId} value={roles} onChange={setRoles} />
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <AlbumButton label="Cancel" onPress={() => { setCreating(false); setTitle(''); }} style={{ flex: 1 }} />
-            <AlbumButton kind="primary" label="Create" busy={saving} disabled={!title.trim()} onPress={create} style={{ flex: 1 }} />
+            <AlbumButton label="Cancel" onPress={() => { setCreating(false); setTitle(''); setRoles({}); }} style={{ flex: 1 }} />
+            <AlbumButton kind="primary" label="Create" busy={saving} disabled={!title.trim() || !rolesComplete(roles)} onPress={create} style={{ flex: 1 }} />
           </View>
         </View>
       ) : albums && albums.length > 0 && (
@@ -113,6 +117,9 @@ export function AlbumProofsPanel({ eventId, initialAlbumId }: { eventId: string;
                 {album.currentRound > 0 ? ` · Round ${album.currentRound}` : ''}
                 {album.openRequestCount > 0 ? <Text style={{ color: '#FDA4AF' }}> · {album.openRequestCount} to do</Text> : null}
                 {album.myDraftCount > 0 ? <Text style={{ color: '#E8C9A0' }}> · {album.myDraftCount} unsent comments</Text> : null}
+                {!album.rolesAssigned
+                  ? <Text style={{ color: '#E8C9A0' }}> · Roles not assigned</Text>
+                  : album.myRole !== 'viewer' ? ` · You: ${album.myRole === 'photographer' ? 'Photographer' : 'Client'}` : null}
               </Text>
             </View>
           </Pressable>

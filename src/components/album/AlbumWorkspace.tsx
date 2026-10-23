@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    ArrowLeft, Check, CheckCircle2, GripVertical, Loader2, MessageSquare, MoreHorizontal, Pencil, RotateCcw, Send, Trash2, Upload, X,
+    ArrowLeft, Camera, Check, CheckCircle2, GripVertical, Heart, Loader2, MessageSquare, MoreHorizontal, Pencil, RotateCcw, Send, Trash2, Upload, Users, X,
 } from "lucide-react";
 import {
     ALBUM_MAX_PAGE_BYTES, ALBUM_PAGE_TYPES, albumApi, albumCommentKindLabel, albumPageLabels, sortByFileName,
@@ -12,6 +12,7 @@ import { alertDialog, confirmDialog } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
 import { PageReviewer, type AlbumMode } from "./PageReviewer";
 import { albumButton, AlbumStatusChip, PageStatusChip, pinNumbers, ProgressBar } from "./albumUi";
+import { RolesDialog } from "./RolePicker";
 
 type UploadItem = { key: string; name: string; progress: number; state: "waiting" | "uploading" | "processing" | "done" | "failed"; error?: string };
 
@@ -28,7 +29,6 @@ function checkFile(file: File) {
 export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: () => void }) {
     const [album, setAlbum] = useState<AlbumDetail | null>(null);
     const [error, setError] = useState("");
-    const [mode, setMode] = useState<AlbumMode | null>(null);
     const [uploads, setUploads] = useState<UploadItem[]>([]);
     const [viewing, setViewing] = useState<number | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
@@ -36,6 +36,9 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
     const [dropActive, setDropActive] = useState(false);
     const [editingTitle, setEditingTitle] = useState<string | null>(null);
     const [menuOpen, setMenuOpen] = useState(false);
+    const [rolesOpen, setRolesOpen] = useState(false);
+    // Each person sees their own side: the photographer's, the client's, or (host and other admins) view only
+    const mode: AlbumMode | null = album ? album.viewer.role : null;
     const fileRef = useRef<HTMLInputElement>(null);
     const uploading = uploads.some((u) => u.state === "waiting" || u.state === "uploading" || u.state === "processing");
 
@@ -50,11 +53,6 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
     }, [albumId]);
 
     useEffect(() => { void refresh(); }, [refresh]);
-
-    // The photographer starts in their view, everyone else in the couple's
-    useEffect(() => {
-        if (album && mode === null) setMode(album.viewer.isCreator ? "photographer" : "couple");
-    }, [album, mode]);
 
     // Realtime is off (#49), so check for the other side's changes every 30 s while the tab is visible
     useEffect(() => {
@@ -78,7 +76,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
     }, [album]);
 
     const visiblePages = useMemo(
-        () => (album ? (mode === "couple" ? album.pages.filter((p) => p.sentVersion !== null) : album.pages) : []),
+        () => (album ? (mode !== "photographer" ? album.pages.filter((p) => p.sentVersion !== null) : album.pages) : []),
         [album, mode]
     );
 
@@ -246,19 +244,17 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                         {album.currentRound > 0 && <span>· Round {album.currentRound}</span>}
                         {locked && album.approvedAt && <span>· Approved by {album.approvedByName} on {new Date(album.approvedAt).toLocaleDateString()}</span>}
                     </div>
+                    {album.rolesAssigned && (
+                        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-slate-400">
+                            <span><Camera className="mr-1 inline h-3.5 w-3.5 text-[#CA9C68]" />Photographer: <span className="font-bold text-slate-200">{album.roles.photographer?.name}</span></span>
+                            <span><Heart className="mr-1 inline h-3.5 w-3.5 text-[#CA9C68]" />Client: <span className="font-bold text-slate-200">{album.roles.clients.map((p) => p.name).join(", ")}</span></span>
+                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-300">
+                                {mode === "photographer" ? "You: Photographer" : mode === "client" ? "You: Client" : "View only"}
+                            </span>
+                        </p>
+                    )}
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="flex rounded-2xl border border-white/10 p-1" role="group" aria-label="View as">
-                        {(["photographer", "couple"] as const).map((m) => (
-                            <button
-                                key={m}
-                                type="button"
-                                onClick={() => setMode(m)}
-                                aria-pressed={mode === m}
-                                className={cn("rounded-xl px-3 py-2 text-xs font-black capitalize transition-colors", mode === m ? "bg-[#CA9C68] text-[#13191F]" : "text-slate-300 hover:bg-white/10")}
-                            >{m === "photographer" ? "Photographer" : "Couple"}</button>
-                        ))}
-                    </div>
                     <div className="relative">
                         <button type="button" className={albumButton.ghost} onClick={() => setMenuOpen(!menuOpen)} aria-label="Album options" aria-expanded={menuOpen}>
                             <MoreHorizontal className="h-5 w-5" />
@@ -267,6 +263,9 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                             <div className="absolute right-0 top-full z-30 mt-1 w-48 overflow-hidden rounded-2xl border border-white/10 bg-[#13191F] py-1 shadow-2xl" onMouseLeave={() => setMenuOpen(false)}>
                                 <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-slate-200 hover:bg-white/5" onClick={() => { setMenuOpen(false); setEditingTitle(album.title); }}>
                                     <Pencil className="h-4 w-4" /> Rename
+                                </button>
+                                <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-slate-200 hover:bg-white/5" onClick={() => { setMenuOpen(false); setRolesOpen(true); }}>
+                                    <Users className="h-4 w-4" /> {album.rolesAssigned ? "Change roles" : "Assign roles"}
                                 </button>
                                 {locked && (
                                     <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-slate-200 hover:bg-white/5" onClick={() => { setMenuOpen(false); void run("reopen", async () => setAlbum((await albumApi.reopen(album.id)).album)); }}>
@@ -290,6 +289,17 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                 </div>
             </div>
 
+            {!album.rolesAssigned && (
+                <div className="flex flex-col gap-3 rounded-[1.2rem] border border-[#CA9C68]/50 bg-[#CA9C68]/[0.08] p-4 sm:flex-row sm:items-center sm:p-5">
+                    <Users className="h-6 w-6 shrink-0 text-[#CA9C68]" />
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm font-black text-white">Assign the photographer and the client</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-400">Pick them from the event host and guests with Admin Access. Nothing can be uploaded or reviewed until then.</p>
+                    </div>
+                    <button type="button" className={albumButton.primary} onClick={() => setRolesOpen(true)}>Assign roles</button>
+                </div>
+            )}
+
             {/* Progress and the main action for this side */}
             <div className="flex flex-col gap-4 rounded-[1.2rem] border border-[#CA9C68]/25 bg-[linear-gradient(135deg,rgba(202,156,104,0.10),rgba(27,33,31,0.5)_60%)] p-4 sm:flex-row sm:items-center sm:p-5">
                 <div className="min-w-0 flex-1">
@@ -302,8 +312,10 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                         {mode === "photographer"
                             ? album.unsentCount
                                 ? `${album.unsentCount} ${album.unsentCount === 1 ? "page isn't" : "pages aren't"} sent yet.`
-                                : album.openRequestCount ? `${album.openRequestCount} ${album.openRequestCount === 1 ? "change" : "changes"} to do.` : album.currentRound ? "Waiting for the couple." : "Upload the album pages to start."
-                            : album.myDraftCount
+                                : album.openRequestCount ? `${album.openRequestCount} ${album.openRequestCount === 1 ? "change" : "changes"} to do.` : album.currentRound ? "Waiting for the client." : "Upload the album pages to start."
+                            : mode === "viewer"
+                                ? "View only: you're not the photographer or the client in this album."
+                                : album.myDraftCount
                                 ? `${album.myDraftCount} ${album.myDraftCount === 1 ? "comment" : "comments"} not sent yet.`
                                 : album.currentRound ? "Open a page to comment on it, or approve it." : "The photographer hasn't sent any pages yet."}
                     </p>
@@ -326,7 +338,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                             Send for review{album.unsentCount ? ` (${album.unsentCount})` : ""}
                         </button>
                     </div>
-                ) : album.currentRound > 0 && (
+                ) : mode === "client" && album.currentRound > 0 && (
                     <div className="flex flex-col gap-2 sm:flex-row">
                         {allApproved && (
                             <button type="button" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-emerald-400 disabled:opacity-50" disabled={busy === "approve"} onClick={approveAlbum}>
@@ -373,7 +385,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                 </div>
             )}
 
-            {/* Photographer: what the couple asked for */}
+            {/* Photographer: what the client asked for */}
             {mode === "photographer" && openRequests.length > 0 && (
                 <div className="rounded-[1.2rem] border border-rose-400/25 bg-rose-500/[0.04] p-4 sm:p-5">
                     <p className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-rose-200">Changes to do · {openRequests.length}</p>
@@ -425,15 +437,17 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                             <button type="button" className={albumButton.primary} onClick={() => fileRef.current?.click()} disabled={locked}><Upload className="h-4 w-4" /> Choose files</button>
                         </>
                     ) : (
-                        <p className="max-w-md text-sm font-semibold text-slate-400">No pages to review yet. You&apos;ll get a notification when the photographer sends them.</p>
+                        <p className="max-w-md text-sm font-semibold text-slate-400">
+                            {mode === "client" ? "No pages to review yet. You'll get a notification when the photographer sends them." : "No pages have been sent for review yet."}
+                        </p>
                     )}
                 </div>
             ) : (
                 <div className={cn("grid grid-cols-1 gap-4 rounded-[1.2rem] sm:grid-cols-2 xl:grid-cols-3", dropActive && "outline-dashed outline-2 outline-offset-4 outline-[#CA9C68]")}>
                     {visiblePages.map((page, index) => {
-                        const shown = mode === "couple" ? page.versions.find((v) => v.version === page.sentVersion) : page.versions.at(-1);
+                        const shown = mode !== "photographer" ? page.versions.find((v) => v.version === page.sentVersion) : page.versions.at(-1);
                         const requests = page.comments.filter((c) => !c.parentId && c.status === "open" && (!c.isDraft || c.authorId === album.viewer.id)).length;
-                        const updated = mode === "couple" && (page.sentVersion ?? 0) > 1 && page.versions.find((v) => v.version === page.sentVersion)?.round === album.currentRound;
+                        const updated = mode !== "photographer" && (page.sentVersion ?? 0) > 1 && page.versions.find((v) => v.version === page.sentVersion)?.round === album.currentRound;
                         return (
                             <div
                                 key={page.id}
@@ -464,7 +478,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate text-sm font-black text-white">{labels.get(page.id)}</p>
                                         <p className="truncate text-[11px] font-semibold text-slate-500">
-                                            {page.latestVersion > 1 ? `v${mode === "couple" ? page.sentVersion : page.latestVersion}` : "v1"}
+                                            {page.latestVersion > 1 ? `v${mode !== "photographer" ? page.sentVersion : page.latestVersion}` : "v1"}
                                             {mode === "photographer" && page.latestVersion > (page.sentVersion ?? 0) ? " · not sent" : ""}
                                             {page.versions.at(-1)?.fileName ? ` · ${page.versions.at(-1)!.fileName}` : ""}
                                         </p>
@@ -517,6 +531,17 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                         {album.approvedAt && <li className="text-emerald-300">Approved for print by {album.approvedByName} on {new Date(album.approvedAt).toLocaleString()}</li>}
                     </ul>
                 </details>
+            )}
+
+            {rolesOpen && (
+                <RolesDialog
+                    eventId={album.eventId}
+                    albumId={album.id}
+                    title={album.rolesAssigned ? "Change roles" : "Assign roles"}
+                    initial={{ photographerId: album.roles.photographer?.id, clientIds: album.roles.clients.map((p) => p.id) }}
+                    onClose={() => setRolesOpen(false)}
+                    onSaved={(updated) => { setAlbum(updated); setRolesOpen(false); }}
+                />
             )}
 
             {viewing !== null && visiblePages[viewing] && (

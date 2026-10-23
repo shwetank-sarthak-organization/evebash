@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 const cache = new Map<string, AlbumPhoto[]>();
 
-/** The couple's favourites (their album picks), to choose the photo that should go in instead. */
+/** The client's favourites (their album picks), to choose the photo that should go in instead. */
 export function FavouritePicker({ albumId, selectedId, onPick, onClose }: {
     albumId: string;
     selectedId: string | null;

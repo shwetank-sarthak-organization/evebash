@@ -11,6 +11,7 @@ import {
 import { Fonts, MidnightColors } from '../../constants/theme';
 import { AlbumButton, albumStyles, AlbumStatusChip, PageStatusChip, ProgressBar } from './albumUi';
 import { PageReviewer, type AlbumMode } from './PageReviewer';
+import { RolesModal } from './RolePicker';
 import { VoicePlayer } from './VoiceNote';
 
 type UploadItem = { key: string; name: string; progress: number; state: 'waiting' | 'uploading' | 'processing' | 'done' | 'failed'; error?: string };
@@ -60,7 +61,6 @@ function pickPageFiles(multiple: boolean): Promise<LocalFile[]> {
 export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: () => void }) {
   const [album, setAlbum] = useState<AlbumDetail | null>(null);
   const [error, setError] = useState('');
-  const [mode, setMode] = useState<AlbumMode | null>(null);
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [viewing, setViewing] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -80,10 +80,9 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  // The photographer starts in their view, everyone else in the couple's
-  useEffect(() => {
-    if (album && mode === null) setMode(album.viewer.isCreator ? 'photographer' : 'couple');
-  }, [album, mode]);
+  const [rolesOpen, setRolesOpen] = useState(false);
+  // Each person sees their own side: the photographer's, the client's, or (host and other admins) view only
+  const mode: AlbumMode | null = album ? album.viewer.role : null;
 
   // Realtime is off (#49): check for the other side's changes every 30 s while the app is open
   useEffect(() => {
@@ -101,7 +100,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
   }, [album]);
 
   const visiblePages = useMemo(
-    () => (album ? (mode === 'couple' ? album.pages.filter((p) => p.sentVersion !== null) : album.pages) : []),
+    () => (album ? (mode !== 'photographer' ? album.pages.filter((p) => p.sentVersion !== null) : album.pages) : []),
     [album, mode]
   );
 
@@ -217,6 +216,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
 
   const showOptions = () => Alert.alert(album.title, undefined, [
     { text: 'Rename', onPress: () => setEditingTitle(album.title) },
+    { text: album.rolesAssigned ? 'Change roles' : 'Assign roles', onPress: () => setRolesOpen(true) },
     ...(locked ? [{ text: 'Reopen album', onPress: () => void run('reopen', async () => setAlbum((await albumApi.reopen(album.id)).album)) }] : []),
     {
       text: 'Delete album',
@@ -260,19 +260,26 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
           {locked && album.approvedAt && (
             <Text style={[albumStyles.small, { color: '#6EE7B7' }]}>Approved by {album.approvedByName} on {new Date(album.approvedAt).toLocaleDateString()}</Text>
           )}
+          {album.rolesAssigned && (
+            <View style={{ gap: 3 }}>
+              <Text style={albumStyles.small}>Photographer: <Text style={{ color: MidnightColors.slate300 }}>{album.roles.photographer?.name}</Text></Text>
+              <Text style={albumStyles.small}>Client: <Text style={{ color: MidnightColors.slate300 }}>{album.roles.clients.map((p) => p.name).join(', ')}</Text></Text>
+              <Text style={styles.youBadge}>{mode === 'photographer' ? 'YOU: PHOTOGRAPHER' : mode === 'client' ? 'YOU: COUPLE' : 'VIEW ONLY'}</Text>
+            </View>
+          )}
         </View>
         <TouchableOpacity onPress={showOptions} style={{ padding: 6 }} accessibilityLabel="Album options">
           <MaterialIcons name="more-horiz" size={24} color={MidnightColors.slate400} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.segment} accessibilityRole="tablist">
-        {(['photographer', 'couple'] as const).map((m) => (
-          <TouchableOpacity key={m} onPress={() => setMode(m)} style={[styles.segmentItem, mode === m && styles.segmentActive]} accessibilityRole="tab" accessibilityState={{ selected: mode === m }}>
-            <Text style={[styles.segmentText, mode === m && { color: MidnightColors.onAccent }]}>{m === 'photographer' ? 'Photographer view' : 'Couple view'}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {!album.rolesAssigned && (
+        <View style={styles.assignCard}>
+          <Text style={styles.progressTitle}>Assign the photographer and the client</Text>
+          <Text style={albumStyles.small}>Pick them from the event host and guests with Admin Access. Nothing can be uploaded or reviewed until then.</Text>
+          <AlbumButton kind="primary" icon="group" label="Assign roles" onPress={() => setRolesOpen(true)} />
+        </View>
+      )}
 
       {/* Progress and the main action for this side */}
       <View style={styles.progressCard}>
@@ -285,8 +292,10 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
           {mode === 'photographer'
             ? album.unsentCount
               ? `${album.unsentCount} ${album.unsentCount === 1 ? "page isn't" : "pages aren't"} sent yet.`
-              : album.openRequestCount ? `${album.openRequestCount} ${album.openRequestCount === 1 ? 'change' : 'changes'} to do.` : album.currentRound ? 'Waiting for the couple.' : 'Upload the album pages to start.'
-            : album.myDraftCount
+              : album.openRequestCount ? `${album.openRequestCount} ${album.openRequestCount === 1 ? 'change' : 'changes'} to do.` : album.currentRound ? 'Waiting for the client.' : 'Upload the album pages to start.'
+            : mode === 'viewer'
+              ? "View only: you're not the photographer or the client in this album."
+              : album.myDraftCount
               ? `${album.myDraftCount} ${album.myDraftCount === 1 ? 'comment' : 'comments'} not sent yet.`
               : album.currentRound ? 'Open a page to comment on it, or approve it.' : "The photographer hasn't sent any pages yet."}
         </Text>
@@ -309,7 +318,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
               )}
             />
           </View>
-        ) : album.currentRound > 0 ? (
+        ) : mode === 'client' && album.currentRound > 0 ? (
           <View style={{ gap: 8 }}>
             {allApproved && (
               <AlbumButton
@@ -359,7 +368,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
         </View>
       )}
 
-      {/* Photographer: what the couple asked for */}
+      {/* Photographer: what the client asked for */}
       {mode === 'photographer' && openRequests.length > 0 && (
         <View style={styles.todo}>
           <Text style={[albumStyles.eyebrow, { color: '#FECDD3' }]}>Changes to do · {openRequests.length}</Text>
@@ -401,14 +410,16 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
               </Text>
             </>
           ) : (
-            <Text style={[albumStyles.body, { textAlign: 'center' }]}>No pages to review yet. You&apos;ll get a notification when the photographer sends them.</Text>
+            <Text style={[albumStyles.body, { textAlign: 'center' }]}>
+              {mode === 'client' ? "No pages to review yet. You'll get a notification when the photographer sends them." : 'No pages have been sent for review yet.'}
+            </Text>
           )}
         </View>
       ) : (
         visiblePages.map((page, index) => {
-          const shown = mode === 'couple' ? page.versions.find((v) => v.version === page.sentVersion) : page.versions.at(-1);
+          const shown = mode !== 'photographer' ? page.versions.find((v) => v.version === page.sentVersion) : page.versions.at(-1);
           const requests = page.comments.filter((c) => !c.parentId && c.status === 'open' && (!c.isDraft || c.authorId === album.viewer.id)).length;
-          const updated = mode === 'couple' && (page.sentVersion ?? 0) > 1 && page.versions.find((v) => v.version === page.sentVersion)?.round === album.currentRound;
+          const updated = mode !== 'photographer' && (page.sentVersion ?? 0) > 1 && page.versions.find((v) => v.version === page.sentVersion)?.round === album.currentRound;
           const pageIndex = album.pages.findIndex((p) => p.id === page.id);
           return (
             <View key={page.id} style={albumStyles.card}>
@@ -426,7 +437,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={styles.pageLabel}>{labels.get(page.id)}</Text>
                   <Text style={albumStyles.small} numberOfLines={1}>
-                    v{mode === 'couple' ? page.sentVersion : page.latestVersion}
+                    v{mode !== 'photographer' ? page.sentVersion : page.latestVersion}
                     {mode === 'photographer' && page.latestVersion > (page.sentVersion ?? 0) ? ' · not sent' : ''}
                     {page.versions.at(-1)?.fileName ? ` · ${page.versions.at(-1)!.fileName}` : ''}
                   </Text>
@@ -482,6 +493,17 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
         </View>
       )}
 
+      {rolesOpen && (
+        <RolesModal
+          eventId={album.eventId}
+          albumId={album.id}
+          title={album.rolesAssigned ? 'Change roles' : 'Assign roles'}
+          initial={{ photographerId: album.roles.photographer?.id, clientIds: album.roles.clients.map((p) => p.id) }}
+          onClose={() => setRolesOpen(false)}
+          onSaved={(updated) => { setAlbum(updated); setRolesOpen(false); }}
+        />
+      )}
+
       {viewing !== null && viewing >= 0 && visiblePages[viewing] && (
         <PageReviewer
           album={album}
@@ -504,10 +526,8 @@ const styles = StyleSheet.create({
   loading: { minHeight: 200, alignItems: 'center', justifyContent: 'center', gap: 12 },
   back: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
   backText: { color: MidnightColors.slate400, fontSize: 11, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1.4, textTransform: 'uppercase' },
-  segment: { flexDirection: 'row', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 16, padding: 4 },
-  segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 12 },
-  segmentActive: { backgroundColor: MidnightColors.gold },
-  segmentText: { color: MidnightColors.slate300, fontSize: 13, fontFamily: Fonts.outfit.extraBold },
+  youBadge: { alignSelf: 'flex-start', marginTop: 2, color: MidnightColors.slate300, backgroundColor: 'rgba(255,255,255,0.1)', fontSize: 9, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
+  assignCard: { borderWidth: 1, borderColor: 'rgba(202,156,104,0.5)', backgroundColor: 'rgba(202,156,104,0.08)', borderRadius: 20, padding: 14, gap: 8 },
   progressCard: { borderWidth: 1, borderColor: 'rgba(202,156,104,0.25)', backgroundColor: 'rgba(202,156,104,0.08)', borderRadius: 20, padding: 14, gap: 10 },
   progressTitle: { color: MidnightColors.text, fontSize: 14, fontFamily: Fonts.outfit.extraBold },
   todo: { borderWidth: 1, borderColor: 'rgba(251,113,133,0.25)', backgroundColor: 'rgba(244,63,94,0.04)', borderRadius: 20, padding: 12, gap: 10 },

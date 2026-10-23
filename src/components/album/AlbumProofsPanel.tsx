@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { BookImage, Loader2, MessageSquare, Plus } from "lucide-react";
-import { albumApi, type AlbumSummary } from "@/lib/albumApi";
+import { albumApi, type AlbumRoles, type AlbumSummary } from "@/lib/albumApi";
 import { cn } from "@/lib/utils";
 import { AlbumWorkspace } from "./AlbumWorkspace";
 import { albumButton, AlbumStatusChip, ProgressBar } from "./albumUi";
+import { RolePicker, rolesComplete } from "./RolePicker";
 
 const STEPS = [
     ["Upload the pages", "The photographer adds each page design: one image per page or per spread."],
-    ["The couple reviews", "They pin comments on photos to replace, enlarge or edit, by text or voice note."],
+    ["The client reviews", "They pin comments on photos to replace, enlarge or edit, by text or voice note."],
     ["Send new versions", "Fix what was asked and send the changed pages back, round after round."],
     ["Approved for print", "Once every page is approved, the album is locked with the date."],
 ] as const;
@@ -21,6 +22,7 @@ export function AlbumProofsPanel({ eventId }: { eventId: string }) {
     const [openId, setOpenId] = useState<string | null>(null);
     const [creating, setCreating] = useState(false);
     const [title, setTitle] = useState("");
+    const [roles, setRoles] = useState<Partial<AlbumRoles>>({});
     const [saving, setSaving] = useState(false);
 
     const load = useCallback(async () => {
@@ -44,12 +46,13 @@ export function AlbumProofsPanel({ eventId }: { eventId: string }) {
 
     const create = async (event: React.FormEvent) => {
         event.preventDefault();
-        if (!title.trim()) return;
+        if (!title.trim() || !rolesComplete(roles)) return;
         setSaving(true);
         try {
-            const { album } = await albumApi.create(eventId, title.trim());
+            const { album } = await albumApi.create(eventId, title.trim(), roles);
             setCreating(false);
             setTitle("");
+            setRoles({});
             setOpenId(album.id);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Couldn't create the album.");
@@ -75,8 +78,8 @@ export function AlbumProofsPanel({ eventId }: { eventId: string }) {
             {error && <p className="rounded-2xl border border-rose-400/25 bg-rose-400/10 p-4 text-sm font-bold text-rose-200">{error}</p>}
 
             {creating && (
-                <form onSubmit={create} className="flex flex-col gap-3 rounded-[1.2rem] border border-[#CA9C68]/40 bg-[#CA9C68]/[0.05] p-4 sm:flex-row sm:items-end">
-                    <label className="min-w-0 flex-1">
+                <form onSubmit={create} className="space-y-5 rounded-[1.2rem] border border-[#CA9C68]/40 bg-[#CA9C68]/[0.05] p-4 sm:p-5">
+                    <label className="block">
                         <span className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-500">Album name</span>
                         <input
                             value={title}
@@ -87,10 +90,11 @@ export function AlbumProofsPanel({ eventId }: { eventId: string }) {
                             className="w-full rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-base font-bold text-white outline-none placeholder:text-slate-600 focus:border-[#CA9C68]"
                         />
                     </label>
-                    <div className="flex gap-2">
-                        <button type="button" className={albumButton.secondary} onClick={() => { setCreating(false); setTitle(""); }}>Cancel</button>
-                        <button type="submit" className={albumButton.primary} disabled={saving || !title.trim()}>
-                            {saving && <Loader2 className="h-4 w-4 animate-spin" />} Create
+                    <RolePicker eventId={eventId} value={roles} onChange={setRoles} />
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <button type="button" className={albumButton.secondary} onClick={() => { setCreating(false); setTitle(""); setRoles({}); }}>Cancel</button>
+                        <button type="submit" className={albumButton.primary} disabled={saving || !title.trim() || !rolesComplete(roles)}>
+                            {saving && <Loader2 className="h-4 w-4 animate-spin" />} Create album
                         </button>
                     </div>
                 </form>
@@ -150,6 +154,9 @@ export function AlbumProofsPanel({ eventId }: { eventId: string }) {
                                         <span className={cn("inline-flex items-center gap-1 text-rose-300")}>· <MessageSquare className="h-3 w-3" />{album.openRequestCount} to do</span>
                                     )}
                                     {album.myDraftCount > 0 && <span className="text-[#E8C9A0]">· {album.myDraftCount} unsent comments</span>}
+                                    {!album.rolesAssigned
+                                        ? <span className="text-[#E8C9A0]">· Roles not assigned</span>
+                                        : album.myRole !== "viewer" && <span className="text-slate-300">· You: {album.myRole === "photographer" ? "Photographer" : "Client"}</span>}
                                 </p>
                             </div>
                         </button>

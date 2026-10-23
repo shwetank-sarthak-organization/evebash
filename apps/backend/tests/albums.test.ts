@@ -14,8 +14,12 @@ import type { AlbumRepository, AlbumRow, CommentRow, EventPhoto, PageRow, RoundR
 import type { ExpoPush } from '../src/routes/notifications.js';
 
 const DESIGNER = 'designer-1';
-const COUPLE = 'couple-1';
+const COUPLE = 'client-1';
 const STRANGER = 'stranger-1';
+/** An event admin who isn't given a role in the album: can view only */
+const ADMIN = 'admin-1';
+const COUPLE2 = 'client-2';
+const ROLES = { photographerId: DESIGNER, clientIds: [COUPLE] };
 const EVENT = 'evt-root';
 
 /** In-memory stand-in for the Supabase repository, mirroring the SQL functions and triggers. */
@@ -32,7 +36,7 @@ function createFakeRepo() {
     ['photo-other', { id: 'photo-other', eventId: 'evt-other', thumbnailUrl: 'https://m/o.webp', previewUrl: 'https://m/o.webp' }],
   ]);
   const roots: Record<string, string> = { [EVENT]: EVENT, 'evt-sub': EVENT, 'evt-other': 'evt-other' };
-  const pushTokens: Record<string, string> = { [DESIGNER]: 'token-designer', [COUPLE]: 'token-couple' };
+  const pushTokens: Record<string, string> = { [DESIGNER]: 'token-designer', [COUPLE]: 'token-client', [ADMIN]: 'token-admin' };
   const now = () => new Date().toISOString();
   const queue = (key: string) => deleted.push({ id: nextDeleted++, storageKey: key });
   const fail = (message: string) => { throw { message }; };
@@ -54,8 +58,8 @@ function createFakeRepo() {
     async rootEventId(eventId) { return roots[eventId] ?? null; },
     async listAlbums(eventId) { return [...albums.values()].filter((a) => a.eventId === eventId); },
     async getAlbum(id) { const a = albums.get(id); return a ? { ...a } : null; },
-    async createAlbum({ eventId, title, createdBy }) {
-      const row: AlbumRow = { id: randomUUID(), eventId, title, currentRound: 0, createdBy, approvedBy: null, approvedAt: null, createdAt: now(), updatedAt: now() };
+    async createAlbum({ eventId, title, createdBy, photographerId, clientIds }) {
+      const row: AlbumRow = { id: randomUUID(), eventId, title, currentRound: 0, createdBy, photographerId, clientIds, approvedBy: null, approvedAt: null, createdAt: now(), updatedAt: now() };
       albums.set(row.id, row);
       return { ...row };
     },
@@ -126,8 +130,15 @@ function createFakeRepo() {
     },
     async listFavourites() { return [photos.get('photo-fav')!]; },
     async getPhotos(ids) { return ids.map((id) => photos.get(id)).filter((p): p is EventPhoto => Boolean(p)); },
-    async profileNames(ids) { return new Map(ids.map((id) => [id, id === COUPLE ? 'Priya' : 'Studio'])); },
-    async managerIds() { return [DESIGNER, COUPLE]; },
+    async profileNames(ids) { const names: Record<string, string> = { [COUPLE]: 'Priya', [COUPLE2]: 'Arjun', [ADMIN]: 'Admin' }; return new Map(ids.map((id) => [id, names[id] ?? 'Studio'])); },
+    async roleCandidates() {
+      return [
+        { id: DESIGNER, name: 'Studio', email: null, isHost: true },
+        { id: COUPLE, name: 'Priya', email: null, isHost: false },
+        { id: COUPLE2, name: 'Arjun', email: null, isHost: false },
+        { id: ADMIN, name: 'Admin', email: null, isHost: false },
+      ];
+    },
     async pushTokens(ids) { return ids.filter((id) => pushTokens[id]).map((id) => ({ profileId: id, token: pushTokens[id] })); },
     async listDeletedFiles(limit) { return deleted.slice(0, limit); },
     async removeDeletedFiles(ids) { for (const id of ids) deleted.splice(deleted.findIndex((d) => d.id === id), 1); },
@@ -199,21 +210,21 @@ test('only signed-in event managers can use albums', async () => {
   try {
     assert.equal((await s.call(null, 'GET', `/?eventId=${EVENT}`)).status, 401);
     assert.equal((await s.call(STRANGER, 'GET', `/?eventId=${EVENT}`)).status, 403);
-    assert.equal((await s.call(STRANGER, 'POST', '/', { eventId: EVENT, title: 'Mine' })).status, 403);
-    const created = await s.call(DESIGNER, 'POST', '/', { eventId: 'evt-sub', title: '  Wedding Album ' });
+    assert.equal((await s.call(STRANGER, 'POST', '/', { eventId: EVENT, title: 'Mine', ...ROLES })).status, 403);
+    const created = await s.call(DESIGNER, 'POST', '/', { eventId: 'evt-sub', title: '  Wedding Album ', ...ROLES });
     assert.equal(created.status, 201);
     assert.equal(created.json.album.eventId, EVENT, 'a sub-gallery resolves to its main gallery');
     assert.equal(created.json.album.title, 'Wedding Album');
     assert.equal((await s.call(STRANGER, 'GET', `/${created.json.album.id}`)).status, 403);
     assert.equal((await s.call(DESIGNER, 'GET', `/${randomUUID()}`)).status, 404);
-    assert.equal((await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: '   ' })).status, 400);
+    assert.equal((await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: '   ', ...ROLES })).status, 400);
   } finally { s.close(); }
 });
 
 test('a page upload keeps only a preview and a thumbnail, and detects spreads', async () => {
   const s = await startServer();
   try {
-    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'Wedding Album' });
+    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'Wedding Album', ...ROLES });
     const spread = await s.call(DESIGNER, 'POST', `/${album.id}/pages?fileName=01.jpg`, await jpeg(3600, 1200), { 'content-type': 'image/jpeg' });
     assert.equal(spread.status, 201, JSON.stringify(spread.json));
     assert.equal(spread.json.page.layout, 'spread');
@@ -243,7 +254,7 @@ test('a page upload keeps only a preview and a thumbnail, and detects spreads', 
 test('uploads that are not images, too large, or over the plan are refused', async () => {
   const s = await startServer();
   try {
-    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'Album' });
+    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'Album', ...ROLES });
     const text = await s.call(DESIGNER, 'POST', `/${album.id}/pages`, Buffer.from('not an image at all'), { 'content-type': 'image/jpeg' });
     assert.equal(text.status, 415);
     const gif = await s.call(DESIGNER, 'POST', `/${album.id}/pages`, await sharp({ create: { width: 10, height: 10, channels: 3, background: '#fff' } }).gif().toBuffer());
@@ -262,21 +273,21 @@ test('uploads that are not images, too large, or over the plan are refused', asy
 test('review rounds: drafts, feedback, new versions and approval', async () => {
   const s = await startServer();
   try {
-    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'Wedding Album' });
+    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'Wedding Album', ...ROLES });
     const p1 = (await s.call(DESIGNER, 'POST', `/${album.id}/pages`, await jpeg(900, 300))).json.page.id;
     const p2 = (await s.call(DESIGNER, 'POST', `/${album.id}/pages`, await jpeg(900, 300))).json.page.id;
 
     // Comments can't be approved before the page is sent
     assert.equal((await s.call(COUPLE, 'POST', `/${album.id}/pages/${p1}/approval`, {})).status, 409);
 
-    // Round 1 tells the couple, not the sender
+    // Round 1 tells the client, not the sender
     const sent = await s.call(DESIGNER, 'POST', `/${album.id}/send`);
     assert.deepEqual(sent.json.round, { round: 1, pages: 2, updatedPages: 0 });
-    assert.deepEqual(s.pushes.map((p) => [p.token, p.title, p.body]), [['token-couple', 'Album ready for review', 'Wedding Album: 2 pages to review']]);
+    assert.deepEqual(s.pushes.map((p) => [p.token, p.title, p.body]), [['token-client', 'Album ready for review', 'Wedding Album: 2 pages to review']]);
     assert.equal(sent.json.album.status, 'in_review');
     assert.equal((await s.call(DESIGNER, 'POST', `/${album.id}/send`)).json.code, 'nothing_to_send');
 
-    // The couple pins a request with a favourite as the replacement; it stays a draft only they see
+    // The client pins a request with a favourite as the replacement; it stays a draft only they see
     const pin = await s.call(COUPLE, 'POST', `/${album.id}/pages/${p1}/comments`, { kind: 'replace', pinX: 0.25, pinY: 0.5, body: 'Use our favourite here', replacementPhotoId: 'photo-fav' });
     assert.equal(pin.status, 201, JSON.stringify(pin.json));
     assert.equal(pin.json.comment.isDraft, true);
@@ -288,7 +299,7 @@ test('review rounds: drafts, feedback, new versions and approval', async () => {
     assert.equal(designerView.pages[0].comments.length, 0, "the photographer doesn't see drafts");
     assert.equal(designerView.pages[0].status, 'pending');
 
-    // The couple approves page 2 and sends feedback: one push to the photographer
+    // The client approves page 2 and sends feedback: one push to the photographer
     await s.call(COUPLE, 'POST', `/${album.id}/pages/${p2}/approval`, {});
     s.pushes.length = 0;
     const feedback = await s.call(COUPLE, 'POST', `/${album.id}/feedback`);
@@ -319,16 +330,16 @@ test('review rounds: drafts, feedback, new versions and approval', async () => {
     const round2 = await s.call(DESIGNER, 'POST', `/${album.id}/send`);
     assert.deepEqual(round2.json.round, { round: 2, pages: 1, updatedPages: 1 });
     assert.equal(s.pushes[0].body, 'Wedding Album: 1 updated page to review');
-    let coupleView = round2.json.album;
-    assert.deepEqual(coupleView.pages.map((p: any) => [p.sentVersion, p.status]), [[2, 'pending'], [1, 'approved']]);
+    let clientView = round2.json.album;
+    assert.deepEqual(clientView.pages.map((p: any) => [p.sentVersion, p.status]), [[2, 'pending'], [1, 'approved']]);
 
     // The album can't be approved until every page is
     assert.equal((await s.call(COUPLE, 'POST', `/${album.id}/approve`)).json.code, 'not_ready');
     await s.call(COUPLE, 'POST', `/${album.id}/pages/${p1}/approval`, {});
     s.pushes.length = 0;
-    coupleView = (await s.call(COUPLE, 'POST', `/${album.id}/approve`)).json.album;
-    assert.equal(coupleView.status, 'approved');
-    assert.equal(coupleView.approvedByName, 'Priya');
+    clientView = (await s.call(COUPLE, 'POST', `/${album.id}/approve`)).json.album;
+    assert.equal(clientView.status, 'approved');
+    assert.equal(clientView.approvedByName, 'Priya');
     assert.deepEqual(s.pushes.map((p) => [p.token, p.title]), [['token-designer', 'Album approved for print']]);
 
     // An approved album is locked until reopened
@@ -342,7 +353,7 @@ test('review rounds: drafts, feedback, new versions and approval', async () => {
 test('approving a page settles its open requests', async () => {
   const s = await startServer();
   try {
-    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'A' });
+    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'A', ...ROLES });
     const p1 = (await s.call(DESIGNER, 'POST', `/${album.id}/pages`, await jpeg(900, 300))).json.page.id;
     await s.call(DESIGNER, 'POST', `/${album.id}/send`);
     await s.call(COUPLE, 'POST', `/${album.id}/pages/${p1}/comments`, { kind: 'bigger', pinX: 0.5, pinY: 0.5 });
@@ -358,7 +369,7 @@ test('approving a page settles its open requests', async () => {
 test('voice notes: stored as audio, replaceable, author only', async () => {
   const s = await startServer();
   try {
-    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'A' });
+    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'A', ...ROLES });
     const p1 = (await s.call(DESIGNER, 'POST', `/${album.id}/pages`, await jpeg(900, 300))).json.page.id;
     await s.call(DESIGNER, 'POST', `/${album.id}/send`);
     const { json: { comment } } = await s.call(COUPLE, 'POST', `/${album.id}/pages/${p1}/comments`, { kind: 'edit', pinX: 0.1, pinY: 0.9 });
@@ -381,7 +392,7 @@ test('voice notes: stored as audio, replaceable, author only', async () => {
 test('deleting an album deletes its files', async () => {
   const s = await startServer();
   try {
-    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'A' });
+    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'A', ...ROLES });
     await s.call(DESIGNER, 'POST', `/${album.id}/pages`, await jpeg(900, 300));
     await s.call(DESIGNER, 'POST', `/${album.id}/pages`, await jpeg(300, 300));
     assert.equal(s.stored.size, 4);
@@ -396,7 +407,7 @@ test('deleting an album deletes its files', async () => {
 test('pages can be reordered, relaid out and removed', async () => {
   const s = await startServer();
   try {
-    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'A' });
+    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'A', ...ROLES });
     const ids = [];
     for (let i = 0; i < 3; i++) ids.push((await s.call(DESIGNER, 'POST', `/${album.id}/pages`, await jpeg(900, 300))).json.page.id);
     const reordered = await s.call(DESIGNER, 'PUT', `/${album.id}/order`, { pageIds: [ids[2], ids[0], ids[1]] });
@@ -418,4 +429,70 @@ test('preview processing handles CMYK, rotation and tiny files', async () => {
   assert.deepEqual([upright.width, upright.height], [1200, 400], 'EXIF rotation is applied');
   const tiny = await makeAlbumPageImages(await jpeg(300, 100));
   assert.equal((await sharp(tiny.preview).metadata()).width, 300, 'small designs are not enlarged');
+});
+
+test('roles: only the host and guest admins can be picked, and each role does its own part', async () => {
+  const s = await startServer();
+  try {
+    const candidates = await s.call(ADMIN, 'GET', `/candidates?eventId=${EVENT}`);
+    assert.deepEqual(candidates.json.candidates.map((c: any) => [c.id, c.isHost]), [[DESIGNER, true], [COUPLE, false], [COUPLE2, false], [ADMIN, false]]);
+    assert.equal((await s.call(STRANGER, 'GET', `/candidates?eventId=${EVENT}`)).status, 403);
+
+    // Roles are required, from the candidates, and nobody is both
+    assert.equal((await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'A' })).status, 400);
+    assert.equal((await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'A', photographerId: DESIGNER, clientIds: [] })).status, 400);
+    assert.equal((await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'A', photographerId: STRANGER, clientIds: [COUPLE] })).status, 400);
+    assert.equal((await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'A', photographerId: COUPLE, clientIds: [COUPLE] })).status, 400);
+
+    // Any manager can create an album for others; two people as the client
+    const created = await s.call(ADMIN, 'POST', '/', { eventId: EVENT, title: 'Wedding Album', photographerId: DESIGNER, clientIds: [COUPLE, COUPLE2] });
+    assert.equal(created.status, 201, JSON.stringify(created.json));
+    const album = created.json.album;
+    assert.equal(album.viewer.role, 'viewer');
+    assert.deepEqual(album.roles, { photographer: { id: DESIGNER, name: 'Studio' }, clients: [{ id: COUPLE, name: 'Priya' }, { id: COUPLE2, name: 'Arjun' }] });
+    assert.equal((await s.call(DESIGNER, 'GET', `/${album.id}`)).json.album.viewer.role, 'photographer');
+    assert.equal((await s.call(COUPLE2, 'GET', `/${album.id}`)).json.album.viewer.role, 'client');
+
+    // Photographer-only and client-only actions
+    assert.equal((await s.call(ADMIN, 'POST', `/${album.id}/pages`, await jpeg(900, 300))).status, 403, 'a viewer cannot upload');
+    assert.equal((await s.call(COUPLE, 'POST', `/${album.id}/pages`, await jpeg(900, 300))).status, 403, 'the client cannot upload');
+    const page = (await s.call(DESIGNER, 'POST', `/${album.id}/pages`, await jpeg(900, 300))).json.page.id;
+    assert.equal((await s.call(COUPLE, 'POST', `/${album.id}/send`)).status, 403, 'the client cannot send rounds');
+    s.pushes.length = 0;
+    await s.call(DESIGNER, 'POST', `/${album.id}/send`);
+    assert.deepEqual(s.pushes.map((p) => p.token), ['token-client'], 'only the client is told (client-2 has no push token)');
+    assert.equal((await s.call(DESIGNER, 'POST', `/${album.id}/pages/${page}/comments`, { kind: 'bigger', pinX: 0.5, pinY: 0.5 })).status, 403, 'the photographer cannot make requests');
+    assert.equal((await s.call(ADMIN, 'POST', `/${album.id}/pages/${page}/comments`, { kind: 'bigger' })).status, 403, 'a viewer cannot comment');
+    assert.equal((await s.call(DESIGNER, 'POST', `/${album.id}/pages/${page}/approval`, {})).status, 403, 'the photographer cannot approve');
+    assert.equal((await s.call(ADMIN, 'POST', `/${album.id}/feedback`)).status, 403, 'a viewer cannot send feedback');
+    const request = (await s.call(COUPLE2, 'POST', `/${album.id}/pages/${page}/comments`, { kind: 'bigger', pinX: 0.5, pinY: 0.5 })).json.comment;
+    await s.call(COUPLE2, 'POST', `/${album.id}/feedback`);
+    assert.equal((await s.call(DESIGNER, 'POST', `/${album.id}/pages/${page}/comments`, { parentId: request.id, body: 'Done' })).status, 201, 'the photographer can reply');
+    assert.equal((await s.call(ADMIN, 'PATCH', `/${album.id}/comments/${request.id}`, { status: 'done' })).status, 403, 'a viewer cannot mark done');
+    assert.equal((await s.call(DESIGNER, 'PATCH', `/${album.id}/comments/${request.id}`, { status: 'done' })).status, 200);
+
+    // Roles can be changed by any manager; the old photographer becomes a viewer
+    assert.equal((await s.call(STRANGER, 'PUT', `/${album.id}/roles`, { photographerId: ADMIN, clientIds: [COUPLE] })).status, 403);
+    const changed = await s.call(COUPLE, 'PUT', `/${album.id}/roles`, { photographerId: ADMIN, clientIds: [COUPLE] });
+    assert.equal(changed.status, 200, JSON.stringify(changed.json));
+    assert.equal(changed.json.album.roles.photographer.id, ADMIN);
+    assert.equal((await s.call(DESIGNER, 'POST', `/${album.id}/pages`, await jpeg(900, 300))).status, 403, 'the old photographer can no longer upload');
+    assert.equal((await s.call(ADMIN, 'POST', `/${album.id}/pages`, await jpeg(900, 300))).status, 201, 'the new photographer can');
+    assert.equal((await s.call(COUPLE2, 'POST', `/${album.id}/pages/${page}/approval`, {})).status, 403, 'removed from the client');
+  } finally { s.close(); }
+});
+
+test('albums made before roles existed ask for roles before anything else', async () => {
+  const s = await startServer();
+  try {
+    const { json: { album } } = await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: 'Old', ...ROLES });
+    await s.repo.updateAlbum(album.id, { photographerId: null, clientIds: [] });
+    const opened = (await s.call(DESIGNER, 'GET', `/${album.id}`)).json.album;
+    assert.equal(opened.rolesAssigned, false);
+    assert.equal(opened.viewer.role, 'viewer');
+    const upload = await s.call(DESIGNER, 'POST', `/${album.id}/pages`, await jpeg(900, 300));
+    assert.equal(upload.status, 409);
+    assert.equal(upload.json.code, 'not_ready');
+    assert.equal((await s.call(DESIGNER, 'PUT', `/${album.id}/roles`, ROLES)).json.album.rolesAssigned, true);
+  } finally { s.close(); }
 });

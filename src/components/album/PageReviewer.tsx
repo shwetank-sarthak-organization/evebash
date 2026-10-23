@@ -14,7 +14,7 @@ import { FavouritePicker } from "./FavouritePicker";
 import { VoiceRecorder, type VoiceRecording } from "./VoiceRecorder";
 import { albumButton, formatSeconds, PageStatusChip, pinNumbers } from "./albumUi";
 
-export type AlbumMode = "photographer" | "couple";
+export type AlbumMode = "photographer" | "client" | "viewer";
 
 type Draft = { pinX: number | null; pinY: number | null };
 
@@ -64,7 +64,8 @@ function CommentCard({ comment, number, replies, album, mode, active, onFocus, o
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const mine = comment.authorId === album.viewer.id;
-    const locked = album.status === "approved";
+    // The host and other admins without a role only look
+    const locked = album.status === "approved" || mode === "viewer";
 
     const run = async (task: () => Promise<unknown>) => {
         setBusy(true);
@@ -329,7 +330,7 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
         () => (page ? page.versions.filter((v) => mode === "photographer" || v.round > 0) : []),
         [page, mode]
     );
-    const defaultVersion = mode === "couple" ? page?.sentVersion ?? page?.latestVersion : page?.latestVersion;
+    const defaultVersion = mode !== "photographer" ? page?.sentVersion ?? page?.latestVersion : page?.latestVersion;
     const [shownVersion, setShownVersion] = useState(defaultVersion ?? 1);
     const [compare, setCompare] = useState(false);
     const [zoom, setZoom] = useState(false);
@@ -380,7 +381,8 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
     const onThisVersion = topLevel.filter((c) => c.version === version?.version);
     const earlier = topLevel.filter((c) => c.version !== version?.version);
     const locked = album.status === "approved";
-    const canComment = !locked && !!version && (mode === "photographer" || version.round > 0);
+    // Requests come from the client; the photographer answers them with replies and new versions
+    const canComment = !locked && !!version && mode === "client" && version.round > 0;
     const myDrafts = album.pages.reduce((n, p) => n + p.comments.filter((c) => c.isDraft && c.authorId === album.viewer.id).length, 0);
     const label = labels.get(page.id) ?? "Page";
 
@@ -499,7 +501,7 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
                 {/* Comments */}
                 <div className="flex min-h-0 flex-1 flex-col border-t border-white/10 lg:w-[400px] lg:flex-none lg:border-l lg:border-t-0">
                     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
-                        {mode === "couple" && page.sentVersion !== null && !locked && (
+                        {mode === "client" && page.sentVersion !== null && !locked && (
                             page.status === "approved" ? (
                                 <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-400/40 bg-emerald-400/10 p-3">
                                     <span className="flex items-center gap-2 text-sm font-black text-emerald-200"><Check className="h-4 w-4" /> You approved this page</span>
@@ -593,7 +595,7 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
                         )}
                     </div>
 
-                    {mode === "couple" && myDrafts > 0 && (
+                    {mode === "client" && myDrafts > 0 && (
                         <div className="border-t border-white/10 bg-[#CA9C68]/[0.06] p-3 text-center text-xs font-bold text-[#E8C9A0]">
                             {myDrafts === 1 ? "1 comment is" : `${myDrafts} comments are`} waiting. Close this view and tap <span className="font-black">Send feedback</span> when you&apos;ve been through the pages.
                         </div>

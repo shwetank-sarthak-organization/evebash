@@ -9,7 +9,7 @@ import { AlbumError, toAlbumError } from "../albums/errors.js";
 import { drainRequest, flushDeletedAlbumFiles, receiveUpload, type AlbumFiles } from "../albums/files.js";
 import { createLimiter, layoutFor, makeAlbumPageImages } from "../albums/images.js";
 import { isAlbumId, type AlbumRepository, type AlbumRow, type CommentKind, type CommentRow, type PageImage, type PageLayout } from "../albums/repository.js";
-import { openRequests, pageStatus, presentAlbum, presentAlbumSummary, referencedIds, sentVersionOf, type AlbumData } from "../albums/view.js";
+import { openRequests, pageStatus, presentAlbum, presentAlbumSummary, referencedIds, roleOf, sentVersionOf, type AlbumData } from "../albums/view.js";
 import { checkEventUpload, isEventUploadLimitEnabled, type EventUploadDecision } from "../services/eventUploadLimits.js";
 import { canPostEventVideo } from "../services/eventVideoPermission.js";
 import { getSupabaseAdminClient } from "../supabase.js";
@@ -151,6 +151,34 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
     if (album.approvedAt) throw new AlbumError("album_approved", "This album is approved. Reopen it to make changes.");
   }
 
+  /** Photographer-only and client-only actions; the host and other admins can only view unless given a role. */
+  function requireRole(album: AlbumRow, user: User, roles: ("photographer" | "client")[], action: string) {
+    if (!album.photographerId || !album.clientIds.length) {
+      throw new AlbumError("not_ready", "Assign the photographer and the client first (⋯ > Change roles).");
+    }
+    const role = roleOf(album, user.id);
+    if (role === "viewer" || !roles.includes(role)) {
+      const who = roles.length === 2 ? "the album's photographer and client" : roles[0] === "photographer" ? "the album's photographer" : "the client";
+      throw new AlbumError("forbidden", `Only ${who} can ${action}.`);
+    }
+  }
+
+  /** One photographer and at least one client, all from the event's host and approved guest admins. */
+  async function checkRoles(eventId: string, photographerId: unknown, clientIds: unknown) {
+    if (typeof photographerId !== "string" || !photographerId) throw new AlbumError("invalid_input", "Choose the photographer.");
+    if (!Array.isArray(clientIds) || !clientIds.length || !clientIds.every((id) => typeof id === "string" && id)) {
+      throw new AlbumError("invalid_input", "Choose at least one client.");
+    }
+    const clients = [...new Set(clientIds as string[])];
+    if (clients.includes(photographerId)) throw new AlbumError("invalid_input", "The photographer can't also be a client.");
+    if (clients.length > 10) throw new AlbumError("invalid_input", "Choose up to 10 clients.");
+    const allowed = new Set((await repo.roleCandidates(eventId)).map((c) => c.id));
+    if (![photographerId, ...clients].every((id) => allowed.has(id))) {
+      throw new AlbumError("invalid_input", "Roles can only go to the event host or guests with Admin Access.");
+    }
+    return { photographerId, clientIds: clients };
+  }
+
   async function assertStorage(eventId: string, userId: string) {
     const decision = await checkUpload(eventId, userId);
     if (!decision.allowed) throw new AlbumError(decision.code, decision.error);
@@ -200,6 +228,13 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
   });
 
   // ── Albums ─────────────────────────────────────────────────────────────────
+  // Who can be the photographer or the client: the host and approved guest admins
+  router.get("/candidates", route(async ({ request, response, user }) => {
+    const eventId = await rootOf(request.query.eventId);
+    await requireManager(user, eventId);
+    response.json({ success: true, candidates: await repo.roleCandidates(eventId) });
+  }));
+
   router.get("/", route(async ({ request, response, user }) => {
     const eventId = await rootOf(request.query.eventId);
     await requireManager(user, eventId);
@@ -231,7 +266,8 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
     if ((await repo.listAlbums(eventId)).length >= albumConfig.maxAlbumsPerEvent) {
       throw new AlbumError("limit_reached", `An event can have up to ${albumConfig.maxAlbumsPerEvent} albums.`);
     }
-    const album = await repo.createAlbum({ eventId, title, createdBy: user.id });
+    const roles = await checkRoles(eventId, request.body?.photographerId, request.body?.clientIds);
+    const album = await repo.createAlbum({ eventId, title, createdBy: user.id, ...roles });
     response.status(201).json({ success: true, album: await presentFull(album, user.id) });
   }));
 
@@ -246,6 +282,13 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
     if (!title) throw new AlbumError("invalid_input", "Give the album a name.");
     await repo.updateAlbum(album.id, { title });
     response.json({ success: true, album: await presentFull({ ...album, title }, user.id) });
+  }));
+
+  router.put("/:albumId/roles", route(async ({ request, response, user }) => {
+    const album = await albumFor(user, request.params.albumId);
+    const roles = await checkRoles(album.eventId, request.body?.photographerId, request.body?.clientIds);
+    await repo.updateAlbum(album.id, roles);
+    response.json({ success: true, album: await presentFull({ ...album, ...roles }, user.id) });
   }));
 
   router.delete("/:albumId", route(async ({ request, response, user }) => {
@@ -263,6 +306,7 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
   // ── Pages (raw image in the request body) ─────────────────────────────────
   router.post("/:albumId/pages", route(async ({ request, response, user }) => {
     const album = await albumFor(user, request.params.albumId);
+    requireRole(album, user, ["photographer"], "upload pages");
     assertOpen(album);
     if ((await repo.listPages([album.id])).length >= albumConfig.maxPagesPerAlbum) {
       throw new AlbumError("limit_reached", "This album already has the most pages it can hold.");
@@ -280,6 +324,7 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
 
   router.post("/:albumId/pages/:pageId/versions", route(async ({ request, response, user }) => {
     const album = await albumFor(user, request.params.albumId);
+    requireRole(album, user, ["photographer"], "upload new versions");
     assertOpen(album);
     const page = await pageOf(album, request.params.pageId);
     await assertStorage(album.eventId, user.id);
@@ -293,6 +338,7 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
 
   router.patch("/:albumId/pages/:pageId", route(async ({ request, response, user }) => {
     const album = await albumFor(user, request.params.albumId);
+    requireRole(album, user, ["photographer"], "change page layouts");
     const page = await pageOf(album, request.params.pageId);
     const layout = request.body?.layout;
     if (layout !== "spread" && layout !== "single") throw new AlbumError("invalid_input", "Choose spread or single page.");
@@ -302,6 +348,7 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
 
   router.delete("/:albumId/pages/:pageId", route(async ({ request, response, user }) => {
     const album = await albumFor(user, request.params.albumId);
+    requireRole(album, user, ["photographer"], "delete pages");
     assertOpen(album);
     const page = await pageOf(album, request.params.pageId);
     await repo.deletePage(page.id);
@@ -311,6 +358,7 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
 
   router.put("/:albumId/order", route(async ({ request, response, user }) => {
     const album = await albumFor(user, request.params.albumId);
+    requireRole(album, user, ["photographer"], "reorder pages");
     const pageIds = request.body?.pageIds;
     if (!Array.isArray(pageIds) || !pageIds.every(isAlbumId)) throw new AlbumError("invalid_input", "Invalid page order.");
     await repo.reorder(album.id, pageIds);
@@ -320,9 +368,9 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
   // ── Review rounds ──────────────────────────────────────────────────────────
   router.post("/:albumId/send", route(async ({ request, response, user }) => {
     const album = await albumFor(user, request.params.albumId);
+    requireRole(album, user, ["photographer"], "send pages for review");
     const sent = await repo.sendRound(album.id, user.id);
-    const managers = (await repo.managerIds(album.eventId)).filter((id) => id !== user.id);
-    await notify(managers, {
+    await notify(album.clientIds.filter((id) => id !== user.id), {
       title: sent.round === 1 ? "Album ready for review" : `Album round ${sent.round} ready`,
       body: sent.round === 1 || sent.updatedPages === 0
         ? `${album.title}: ${plural(sent.pages, "page")} to review`
@@ -335,6 +383,7 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
 
   router.post("/:albumId/feedback", route(async ({ request, response, user }) => {
     const album = await albumFor(user, request.params.albumId);
+    requireRole(album, user, ["client"], "send feedback");
     const data = await dataOf(album);
     // A plain note with nothing in it (left behind when a voice note failed to upload) isn't worth sending
     for (const c of data.comments) {
@@ -347,10 +396,9 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
     const statuses = after.pages.map((p) => pageStatus(p, after.versions.filter((v) => v.pageId === p.id), after.comments.filter((c) => c.pageId === p.id)));
     const changes = statuses.filter((s) => s === "changes_requested").length;
     const approved = statuses.filter((s) => s === "approved").length;
-    const rounds = await repo.listRounds(album.id);
-    const designer = rounds.at(-1)?.sentBy ?? album.createdBy;
+    const designer = album.photographerId;
     if (designer && designer !== user.id) {
-      const name = (await repo.profileNames([user.id])).get(user.id) ?? "The couple";
+      const name = (await repo.profileNames([user.id])).get(user.id) ?? "The client";
       await notify([designer], {
         title: `Feedback on ${album.title}`,
         body: changes
@@ -364,6 +412,7 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
 
   router.post("/:albumId/pages/:pageId/approval", route(async ({ request, response, user }) => {
     const album = await albumFor(user, request.params.albumId);
+    requireRole(album, user, ["client"], "approve pages");
     assertOpen(album);
     const page = await pageOf(album, request.params.pageId);
     const [versions, comments] = await Promise.all([repo.listVersions([page.id]), repo.listComments([page.id])]);
@@ -382,6 +431,7 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
 
   router.post("/:albumId/approve", route(async ({ request, response, user }) => {
     const album = await albumFor(user, request.params.albumId);
+    requireRole(album, user, ["client"], "approve the album");
     assertOpen(album);
     const data = await dataOf(album);
     const ready = data.pages.length > 0
@@ -390,8 +440,8 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
     if (!ready) throw new AlbumError("not_ready", "Approve every page first. The album can be approved once nothing is waiting.");
     const at = now().toISOString();
     await repo.updateAlbum(album.id, { approvedBy: user.id, approvedAt: at });
-    const managers = (await repo.managerIds(album.eventId)).filter((id) => id !== user.id);
-    await notify(managers, {
+    const others = [album.photographerId, ...album.clientIds].filter((id): id is string => Boolean(id) && id !== user.id);
+    await notify(others, {
       title: "Album approved for print",
       body: `${album.title}: all ${plural(data.pages.length, "page")} approved`,
       data: { type: "album_proof", eventId: album.eventId, albumId: album.id },
@@ -429,8 +479,11 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
     const versions = await repo.listVersions([page.id]);
     const requested = Number(body.version);
     const version = versions.some((v) => v.version === requested) ? requested : sentVersionOf(versions) ?? versions.at(-1)?.version ?? 1;
+    const isReply = body.parentId !== undefined && body.parentId !== null;
+    // Requests come from the client; both sides can reply
+    requireRole(album, user, isReply ? ["photographer", "client"] : ["client"], isReply ? "reply" : "comment on pages");
     let parentId: string | null = null;
-    if (body.parentId !== undefined && body.parentId !== null) {
+    if (isReply) {
       const parent = await commentOf(album, body.parentId);
       if (parent.pageId !== page.id || parent.parentId || !parent.sentAt) throw new AlbumError("invalid_input", "You can only reply to a sent comment.");
       parentId = parent.id;
@@ -460,7 +513,8 @@ export function createAlbumRouter(deps: AlbumRouterDeps) {
     const comment = await commentOf(album, request.params.commentId);
     const body = request.body || {};
     if (body.status !== undefined) {
-      // Anyone working on the album marks a sent request done (or open again)
+      // The photographer or the client marks a sent request done (or open again)
+      requireRole(album, user, ["photographer", "client"], "mark requests done");
       if (body.status !== "open" && body.status !== "done") throw new AlbumError("invalid_input", "Invalid status.");
       if (!comment.sentAt || comment.parentId) throw new AlbumError("invalid_input", "Only sent requests can be marked done.");
       const done = body.status === "done";

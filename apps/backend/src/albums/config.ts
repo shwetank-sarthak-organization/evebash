@@ -1,4 +1,4 @@
-// Album proofing settings: the photographer uploads album page designs, the couple reviews them.
+// Album proofing settings: the photographer uploads album page designs, the client reviews them.
 const MB = 1024 * 1024;
 
 /** Off until ALBUM_PROOFING=true, so it can be switched on (and off) on Railway without a deploy. */

@@ -1,12 +1,17 @@
 import { getApiUrl } from "@/lib/apiBase";
 import { supabase } from "@/lib/supabase";
 
-// Album proofing: the photographer uploads album page designs, the couple reviews them (backend: /api/v1/albums).
+// Album proofing: the photographer uploads album page designs, the client reviews them (backend: /api/v1/albums).
 
 export type AlbumStatus = "draft" | "in_review" | "changes_requested" | "approved";
 export type AlbumPageStatus = "draft" | "pending" | "approved" | "changes_requested";
 export type AlbumPageLayout = "spread" | "single";
 export type AlbumCommentKind = "replace" | "bigger" | "smaller" | "edit" | "remove" | "note";
+/** The photographer uploads and sends rounds, the client reviews, everyone else (host, other admins) only views. */
+export type AlbumRole = "photographer" | "client" | "viewer";
+/** Someone who can be given a role: the event host or a guest with Admin Access. */
+export type AlbumRoleCandidate = { id: string; name: string; email: string | null; isHost: boolean };
+export type AlbumRoles = { photographerId: string; clientIds: string[] };
 
 export type AlbumPhoto = { id: string; eventId: string; thumbnailUrl: string | null; previewUrl: string | null };
 
@@ -22,6 +27,8 @@ export type AlbumSummary = {
     unsentCount: number;
     openRequestCount: number;
     myDraftCount: number;
+    myRole: AlbumRole;
+    rolesAssigned: boolean;
     coverThumbnailUrl: string | null;
     createdBy: string | null;
     approvedAt: string | null;
@@ -79,7 +86,8 @@ export type AlbumPage = {
 export type AlbumRound = { number: number; sentBy: string | null; sentByName: string | null; sentAt: string; pageCount: number; updatedPageCount: number };
 
 export type AlbumDetail = AlbumSummary & {
-    viewer: { id: string; isCreator: boolean };
+    viewer: { id: string; isCreator: boolean; role: AlbumRole };
+    roles: { photographer: { id: string; name: string } | null; clients: { id: string; name: string }[] };
     rounds: AlbumRound[];
     pages: AlbumPage[];
 };
@@ -177,7 +185,9 @@ export const albumApi = {
         return enabledCheck;
     },
     list: (eventId: string) => request<{ albums: AlbumSummary[] }>("GET", `/?eventId=${encodeURIComponent(eventId)}`),
-    create: (eventId: string, title: string) => request<{ album: AlbumDetail }>("POST", "/", { eventId, title }),
+    candidates: (eventId: string) => request<{ candidates: AlbumRoleCandidate[] }>("GET", `/candidates?eventId=${encodeURIComponent(eventId)}`),
+    create: (eventId: string, title: string, roles: AlbumRoles) => request<{ album: AlbumDetail }>("POST", "/", { eventId, title, ...roles }),
+    setRoles: (albumId: string, roles: AlbumRoles) => request<{ album: AlbumDetail }>("PUT", `/${albumId}/roles`, roles),
     get: (albumId: string) => request<{ album: AlbumDetail }>("GET", `/${albumId}`),
     rename: (albumId: string, title: string) => request<{ album: AlbumDetail }>("PATCH", `/${albumId}`, { title }),
     remove: (albumId: string) => request("DELETE", `/${albumId}`),

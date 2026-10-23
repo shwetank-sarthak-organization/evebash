@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 120
+Next test number: 121
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2800,7 +2800,7 @@ Status:    TODO
 Priority:  High
 Platform:  Website + App
 Brief:     New Album tab on the event page (next to Design), behind ALBUM_PROOFING on Railway (off by
-           default). Needs the migration 20261022010000_album_proofing.sql applied first.
+           default). Needs migrations 20261022010000_album_proofing.sql and 20261023000000_album_proof_roles.sql.
 How to test:
   1. With ALBUM_PROOFING off: open one of your events on the host page (website) and in the app.
      Expect: tabs are Galleries / Permissions / Design only, nothing else changed.
@@ -2841,15 +2841,15 @@ Fix ref:
 Feedback:
 
 --------------------------------------------------------------------------------
-#116 Couple reviews pages: pins, favourites, approve, send feedback
+#116 Client reviews pages: pins, favourites, approve, send feedback
 Status:    TODO
 Priority:  High
 Platform:  Website + App
-Brief:     The couple must be the event owner or an event admin (decided 2026-10-22). Comments are drafts
+Brief:     The album's client (picked when the album is made, see #120) reviews. Comments are drafts
            until "Send feedback"; the photographer gets one push for the whole batch.
 How to test:
-  1. Photographer: "Send for review". Expect: the couple's phone gets "Album ready for review".
-  2. Couple (app, then website): tap the push. Expect: the event opens on the Album tab.
+  1. Photographer: "Send for review". Expect: the client's phone gets "Album ready for review".
+  2. Client (app, then website): tap the push. Expect: the event opens on the Album tab.
   3. Open a spread, tap a photo, pick "Replace photo", pick a favourite, type a note, Save.
      Expect: a numbered pin on that photo, marked Draft.
   4. On another page tap "Looks good, approve page". Then "Send feedback".
@@ -2913,16 +2913,44 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
-Brief:     Round 2 shows only changed pages as "Updated"; approving every page lets the couple approve the
+Brief:     Round 2 shows only changed pages as "Updated"; approving every page lets the client approve the
            album, which locks it until reopened.
 How to test:
   1. Photographer: upload a new version of the page that has a request, mark the request Done,
-     "Send for review". Expect: couple gets "Album round 2 ready: 1 updated page".
-  2. Couple: the page shows "Updated"; open it, tap Compare. Expect: v1 (before) and v2 (now).
-  3. Couple: approve every page, then "Approve album". Expect: "Approved for print" with name and
+     "Send for review". Expect: client gets "Album round 2 ready: 1 updated page".
+  2. Client: the page shows "Updated"; open it, tap Compare. Expect: v1 (before) and v2 (now).
+  3. Client: approve every page, then "Approve album". Expect: "Approved for print" with name and
      date on both sides; uploading, commenting and approving are blocked.
   4. Album menu > Reopen album. Expect: editable again.
   5. Delete the album. Expect: it's gone, and storage on the dashboard drops back.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#120 Album roles: photographer and client are picked from the host and guest admins
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Each album has one photographer and one or more clients, picked from the event host
+           and guests with Admin Access. Everyone else (host or admins without a role) can only view.
+           Roles change from the album's ... menu. Albums made before roles existed ask for them first.
+How to test:
+  1. In Permissions, give Admin Access to the client's accounts and the photographer's account.
+  2. Album tab > New album. Expect: the picker lists the host (HOST) and those admins (ADMIN), and no
+     guest without Admin Access. Pick the photographer and both clients. Expect: someone picked
+     for one role is greyed out in the other.
+  3. Sign in as the photographer: "You: Photographer", Upload pages / Send for review, no Approve.
+  4. Sign in as each client: "You: Client", can pin comments, approve, send feedback; no upload.
+     Expect: both get the "Album ready for review" push; the photographer gets the "Feedback" push.
+  5. Sign in as an admin without a role: "View only", sees pages and comments, no buttons.
+  6. ... > Change roles: swap the photographer. Expect: the new person gets the upload buttons, the old
+     one becomes view only.
 Done by:
 Device / browser:
 Build / version:
