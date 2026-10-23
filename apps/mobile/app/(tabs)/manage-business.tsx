@@ -787,17 +787,17 @@ export default function ManageBusinessScreen() {
     const rangeEnquiries = getEnquiriesForRange();
     if (rangeEnquiries.length === 0) return [];
 
-    // 1. Group and count by city
+    // 1. Group and count by city. Enquiries without a real city are left out, never guessed.
     const cityCounts: Record<string, number> = {};
     rangeEnquiries.forEach(e => {
-      // Normalize city names: trim, Capitalize, fallback to 'Mumbai' for demo consistency
-      let city = e.city?.trim() || 'Mumbai';
-      if (city === 'Unknown') city = 'Mumbai';
+      let city = e.city?.trim() || '';
+      if (!city || city === 'Unknown') return;
       city = city.charAt(0).toUpperCase() + city.slice(1).toLowerCase();
       cityCounts[city] = (cityCounts[city] || 0) + 1;
     });
 
-    const total = rangeEnquiries.length;
+    const total = Object.values(cityCounts).reduce((sum, count) => sum + count, 0);
+    if (total === 0) return [];
 
     // 2. Map counts to percentages and sort descending
     const list = Object.entries(cityCounts).map(([city, count]) => {
