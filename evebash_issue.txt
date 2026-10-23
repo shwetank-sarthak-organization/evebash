@@ -737,11 +737,12 @@ Platform: Both
 Priority: High
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: Modal deploy (v125) and Sarthak's OK to fill in the 37 missing sizes
+Blocked by: Check overhead_size on the next new video (should be its hls/ size, not 0)
 Found in: Video upload/cancel test (2026-10-23)
 Issue: Videos' streaming copies never count toward storage. Modal's transcoder (_transcode_video_core in modal_engine/main.py) summed the HLS files from its temporary folder after the `with tempfile.TemporaryDirectory()` block had already deleted it, so every video since 2026-09-27 was saved with overhead_size 0 (37 of 67 videos; the 30 from 2026-09-24/25 predate the bug). Their streaming copies are 12.71 GB in B2 (originals of all 67: 14.34 GB), and storage totals, plan limits and the deletion ledger all leave them out. Per owner: e8848fc1 22 videos +9.05 GB, 7ef17a61 7 +2.20 GB, b7ab6182 5 +1.02 GB, f78d1089 3 +0.45 GB.
 Fix: the transcoder now adds up the video's hls/<storage_key>/ files in B2 after uploading them (not deployed yet). Existing videos: set overhead_size to their measured B2 folder size (needs OK: it raises those hosts' storage used).
 How to reproduce: Upload a video, wait until it plays: photos.overhead_size is 0.
+2026-10-23: Modal v125 (6ea9e30, 22:27 IST) live. With Sarthak's OK the 37 videos were set to their measured B2 streaming sizes (+12.71 GB); all processed videos now have a size, totalling the 20.7 GB in hls/.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
