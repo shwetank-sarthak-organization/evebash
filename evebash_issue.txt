@@ -733,18 +733,6 @@ Fix: PhotoProcessorV2 skips such faces when the switch's face_filter is set (mod
 How to reproduce: Upload a crowded or dark photo; faces of people far in the background or blurry shapes are saved and can show up in someone's Find You results.
 Live 2026-10-22 21:03 IST: Modal v121 (4e9d37a); switch face_filter = min_score 0.4, min_px 24 (Sarthak chose 0.4 over 0.5 to start gently; in the study, scores below 0.4 were 879 of 6,220 faces, 14.1%, before the size rule). Each v2 log line says how many unclear faces were skipped.
 
-#107
-Listed: 2026-10-23
-Platform: Both
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Album proofing build (2026-10-23, branch feat/album-proofing)
-Issue: Album voice notes recorded in Firefox are saved as WebM/Opus (Firefox can't record AAC), and the iPhone app can't play WebM. Chrome, Edge and Safari record AAC (.m4a), which plays everywhere, and so does the app. The backend stores what the browser sends (apps/backend/src/routes/albums.ts, PUT .../voice). Fix: convert WebM to AAC on upload (needs ffmpeg, which the Railway backend doesn't have), or ask Firefox users to type or use another browser.
-How to reproduce: Record an album voice note in Firefox on the website, then try to play it in the iPhone app.
-
-=====================================================================
 
 #109
 Listed: 2026-10-23
@@ -757,8 +745,22 @@ Found in: Chat with Sarthak about sending phone visitors to the app (2026-10-23)
 Issue: The phone/tablet "Get the EveBash app" screen (src/components/MobileAppGate.tsx, rules in src/lib/appGate.ts, commits 7b51ef0 and b227345) is only on for staging.evebash.com: NEXT_PUBLIC_MOBILE_APP_GATE=true is set in Vercel for Preview (staging branch) only. www.evebash.com still shows the normal website on phones, and both sites' store buttons say "coming soon" because the store links are empty. At launch: (1) in Vercel > Settings > Environment Variables, add for Production (type Config): NEXT_PUBLIC_MOBILE_APP_GATE=true, NEXT_PUBLIC_PLAY_STORE_URL=<Play Store page> and NEXT_PUBLIC_APP_STORE_URL=<App Store page>; add the two store links for Preview too. (2) Redeploy production (the values are read at build). (3) Run device test #123 on www.evebash.com (iPhone, iPad, Android phone and tablet, payment on Pricing, password reset from a phone, Google URL Inspection). Optional: NEXT_PUBLIC_OPEN_IN_APP_BANNER=true turns on the small "Get the app" bar for the pages that stay open on phones (device test #122). App Links / Universal Links stay in #67.
 How to reproduce: Open https://www.evebash.com on a phone: the normal website shows, not the download screen.
 
+=====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#107
+Listed: 2026-10-23
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Album proofing build (2026-10-23, branch feat/album-proofing)
+Issue: Album voice notes recorded in Firefox are saved as WebM/Opus (Firefox can't record AAC), and the iPhone app can't play WebM. Chrome, Edge and Safari record AAC (.m4a), which plays everywhere, and so does the app. The backend stores what the browser sends (apps/backend/src/routes/albums.ts, PUT .../voice). Fix: convert WebM to AAC on upload (needs ffmpeg, which the Railway backend doesn't have), or ask Firefox users to type or use another browser.
+How to reproduce: Record an album voice note in Firefox on the website, then try to play it in the iPhone app.
+Fix: when the browser can't record AAC (Firefox), the website records 16 kHz mono WAV instead (Web Audio API), which plays on iPhones, Android and every browser. Chrome, Safari and Edge still record AAC. Notes Firefox recorded before the fix stay WebM.
+Fixed in: e3f6752 (2026-10-23)
 
 #108
 Listed: 2026-10-23
