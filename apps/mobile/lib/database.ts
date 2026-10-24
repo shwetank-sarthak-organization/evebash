@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 import { sendPushNotificationDirectly } from "./notifications";
 import { DEFAULT_EVENT_COVER_IMAGE } from "./eventCovers";
 import { appAlert } from "./feedback";
+import { isMissingUploadedFile } from "../../../shared/media/missingUpload";
 
 const COVER_USAGE_TAG = "__cover_usage__";
 const BUSINESS_PORTFOLIO_EVENTS_KEY = "__portfolio_events__";
@@ -1358,7 +1359,8 @@ export async function getEventPhotos(eventId: string, legacyId?: string): Promis
             .in('event_id', ids);
 
         if (error) throw error;
-        const photos = (data || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery);
+        // Guest screen (events/sub): leaves out photos whose file never reached storage
+        const photos = (data || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery).filter((photo) => !isMissingUploadedFile(photo));
         const visiblePhotos = await filterPhotosForPlanExpiry(photos, ids);
         return visiblePhotos.sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
     } catch (error) {
@@ -1376,7 +1378,8 @@ export async function getEventPhotosPaginated(
 ): Promise<{ photos: Photo[], hasMore: boolean, totalPhotos: number, totalVideos: number }> {
     if (!eventId) return { photos: [], hasMore: false, totalPhotos: 0, totalVideos: 0 };
     // Hidden media is filtered here rather than in the query, so this also works before the is_hidden column exists
-    const isShown = (photo: Photo) => options.includeHidden || !photo.isHidden;
+    // Guests don't get media the host hid, nor photos whose file never reached storage; the host (includeHidden) sees both
+    const isShown = (photo: Photo) => options.includeHidden || (!photo.isHidden && !isMissingUploadedFile(photo));
     try {
         const ids = legacyId && legacyId !== eventId ? [eventId, legacyId] : [eventId];
 

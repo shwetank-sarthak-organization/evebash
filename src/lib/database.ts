@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 import { formatEventDate } from "./utils";
 import { sendPushNotification } from "./pushNotifications";
 import { getApiUrl } from "./apiBase";
+import { isMissingUploadedFile } from "../../shared/media/missingUpload";
 
 // Memory caches to optimize lookups
 const eventCache: Record<string, Event> = {};
@@ -810,7 +811,8 @@ export async function getEventPhotosPaginated(
     options: MediaQueryOptions = {}
 ): Promise<{ photos: Photo[], hasMore: boolean, totalPhotos: number, totalVideos: number, retainedMediaIds: string[] }> {
     // Hidden media is filtered here rather than in the query, so this also works before the is_hidden column exists
-    const isShown = (photo: Photo) => options.includeHidden || !photo.isHidden;
+    // Guests don't get media the host hid, nor photos whose file never reached storage; the host (includeHidden) sees both
+    const isShown = (photo: Photo) => options.includeHidden || (!photo.isHidden && !isMissingUploadedFile(photo));
     if (!eventId) {
         console.warn("[Supabase] getEventPhotosPaginated: eventId is missing.");
         return { photos: [], hasMore: false, totalPhotos: 0, totalVideos: 0, retainedMediaIds: [] };

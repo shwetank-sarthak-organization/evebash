@@ -54,6 +54,7 @@ import { ClassicGalleryHeader } from '../../components/classic/ClassicGalleryHea
 import { useClassicFonts } from '../../components/classic/classicFonts';
 import { ClassicPhotoRows } from '../../components/classic/ClassicPhotoRows';
 import { ThemedAppBar } from '../../components/navigation/ThemedAppBar';
+import { isMissingUploadedFile } from '../../../../shared/media/missingUpload';
 import { appTabBarMetrics } from '../../components/navigation/appTabs';
 import { useRoyalFonts } from '../../components/royal/royalFonts';
 import GalleriesIcon from '../../components/icons/GalleriesIcon';
@@ -353,6 +354,18 @@ function HiddenMediaBadge() {
       <View style={{ position: 'absolute', left: 4, bottom: 4, flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.75)' }}>
         <IconSymbol name="eye.slash.fill" size={10} color="#fff" />
         <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.8 }}>HIDDEN</Text>
+      </View>
+    </View>
+  );
+}
+
+/** Host view: a photo whose file never reached storage (guests don't see it), so the host knows to upload it again */
+function FailedUploadBadge() {
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 10, backgroundColor: 'rgba(2,6,23,0.55)', alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 999, backgroundColor: 'rgba(220, 38, 38, 0.92)' }}>
+        <IconSymbol name="exclamationmark.triangle.fill" size={10} color="#fff" />
+        <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.6 }}>UPLOAD FAILED</Text>
       </View>
     </View>
   );
@@ -5671,6 +5684,7 @@ export default function EventDetailScreen() {
                                 </TouchableOpacity>
                                 {shouldBlurPhoto && <ExpiredMediaThumbnailNotice />}
                                 {item.isHidden && <HiddenMediaBadge />}
+                                {isMissingUploadedFile(item) && <FailedUploadBadge />}
                                 {isSelectingMedia && (
                                 <TouchableOpacity
                                   accessibilityRole="checkbox"
