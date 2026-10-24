@@ -3240,7 +3240,7 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:          2026-10-24 (Claude, server side only): step 1 OK on test-face-new-155c with test_5.mp4 (GPU worker, 4 min, all 3 qualities + audio full length). Steps 2-4 still to do on devices.
 
 --------------------------------------------------------------------------------
 #129 Photos and videos load from Cloudflare's cache and still look and play right

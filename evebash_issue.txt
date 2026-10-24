@@ -799,7 +799,7 @@ Platform: Both
 Priority: Medium
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: Sarthak: OK to deploy Modal and turn the switch on for a test gallery
+Blocked by: Device check (test_yourself #128), then Sarthak: turn the switch on for every gallery
 Found in: gpu-video-handoff.md (2026-10-18 benchmark), re-measured 2026-10-24
 Issue: Long videos (> 10 min) run on the 16-core CPU worker (transcode_video_long, modal_engine/main.py) even though a full-GPU L4 transcode (NVDEC -> scale_npp -> NVENC) is faster and cheaper on some long videos. Also the backend log said "GPU worker" for long videos although no GPU is used (apps/backend/src/qstash.ts).
 Fix (code, switch off by default, not deployed): new transcode_video_long_gpu (L4, 4 cores, 8 GB) next to the 16-core worker; process_video_gpu sends long videos to it only when the Modal Dict "video-gpu-switch" says so (mode on, or the gallery id in gpu_events; modal_engine/video_gpu_switch.py shows/sets it). The 16-core worker takes the video instead when the GPU can't (10-bit, 4:2:2, rotated phone video, codecs other than 8-bit H.264/HEVC), when GPU ffmpeg fails, when the output is shorter than the source, or when no L4 starts within gpu_wait_s (default 180 s, watch_gpu_start). Backend log text fixed.
@@ -813,6 +813,7 @@ Measured 2026-10-24 (real Modal bill per run, 3 runs per worker, ₹100 = $1; GP
   10.7 min 4K24 portrait             1.5 min / ₹5.7 (5.0-6.1)      3.1 min / ₹6.1 (5.9-6.6)      +8% cost, slower (one 186 s L4 wait)
   The bills above include network egress (HLS upload to B2, ₹2.4-10.9 per video, same on both), but Modal's Starter plan includes 1 TiB/month free egress and we use ~56 GiB/month, so egress is really ₹0; compute alone is GPU ₹8.3 vs 16-core ₹12.7 on test_5. Waiting for an L4 took 4-186 s (avg 38 s); 16-core starts in 3-49 s. Quality vs the original (SSIM, start/middle/end segments): GPU 0.945-0.996, 16-core 0.942-0.995, GPU equal or slightly higher on every video. 10-min looped test files were made from test_1/2/3.
   Volume: only 4 videos over 10 min have ever been uploaded (68 videos total), so the saving is a few rupees a month today.
+2026-10-24: Modal v126 deployed (8d0d426, 16:05 IST; rollback v125). Switch: mode off, GPU for test galleries wedding-2-77d4 and test-face-new-155c, gpu_wait_s 300 (one benchmark run waited 186 s). Checked: test_5.mp4 (48.7 min, 1.94 GB) uploaded to test-face-new-155c went to process_video_gpu_long, processed in 240 s; 1080p/720p/480p/audio each 487 segments = 48.7 min, H.264 High yuv420p, overhead_size 2.87 GB, poster OK. Phone playback (#128 step 2) not checked yet.
 
 #118
 Listed: 2026-10-24
