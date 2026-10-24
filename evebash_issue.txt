@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 130
+Next issue number: 131
 
 =====================================================================
 ACTIVE ISSUES
@@ -786,12 +786,13 @@ Update 2026-10-24: fixed in bc6e3b2, pushed to staging: Playfair for Classic ser
 Listed: 2026-10-24
 Platform: Both
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: device test #132
 Found in: Classic White (Wedding) theme review, code only (2026-10-24)
 Issue: The website and app Classic White are two different designs. The website is a centred title, quote and tilted white-matted cover (src/components/TemplateClassic.tsx); the app is a cover photo with the title on it, a sage frame and a dotted divider (apps/mobile/components/eventStyles/classicStyles.ts, apps/mobile/components/event/ThemeHeader.tsx). With the app download screen (#109) on, phone guests only ever see the app version.
 How to reproduce: Open the same Classic White gallery on the website and in the app.
+Update 1 (2026-10-24): App cover and gallery header now match the website (apps/mobile/components/classic/). Cover: date, title in capitals as "X & Y" in real Playfair (the app had Playfair mapped to Inter), sage divider, tilted white-mounted print (portrait on phones) with the theme line card, outlined "Open Gallery". Header: Back / Share, gallery name, date, the message in quotes, video in a white mat, [ Photos ] [ Videos ]. Album tabs sage instead of gold. Still different: the photo grid (2 columns of white-matted cards vs the website's justified rows) and the sage divider above the grid.
 
 #117
 Listed: 2026-10-24
@@ -940,6 +941,17 @@ Blocked by: -
 Found in: GPU long-video work (#117), 2026-10-24
 Issue: When a long video falls back from the GPU to the 16-core worker (GPU ffmpeg error, output shorter than the source, no L4 within gpu_wait_s = 300 s, or one of #126-#128), the reason is only in Modal's logs ("[VideoGPU] ... -> 16-core worker: ..." / "No L4 ... sending it to the 16-core worker"). Nothing in the database counts them, so we can't see how often it happens or what the wasted GPU time costs (usually ₹0.5-1 per handoff: the L4 time spent downloading before the check). If fallbacks are frequent, the GPU switch saves less than measured. Fix: write the handoff reason to modal_cost_logs (e.g. a row with function_name process_video_gpu_fallback and the reason), and check the count a week after the switch goes on for all galleries.
 How to reproduce: Code check: transcode_video_long_gpu and watch_gpu_start in modal_engine/main.py only print the reason.
+
+#130
+Listed: 2026-10-24
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App Classic White rebuild (#116), 2026-10-24
+Issue: The couple-title helper (splitCoupleNames, coupleInitials, displayCoupleTitle) has two copies that must be kept in step by hand: src/components/royal/coupleNames.ts (website) and apps/mobile/components/royal/coupleNames.ts (app). Royal Emerald and Classic White on both platforms use it to show "X & Y". Fix: move it to shared/ (plain logic, like shared/themes/classicCoverLine.ts) and import it from both; keep the app's run-time Unicode regex fallback.
+How to reproduce: Code check: compare the two files.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
