@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 132
+Next issue number: 133
 
 =====================================================================
 ACTIVE ISSUES
@@ -966,6 +966,18 @@ Blocked by: -
 Found in: App Classic White review (2026-10-24)
 Issue: The app has no "Download All" for guests. The website's navbar has one (src/components/EventNavbar.tsx, handleDownloadZip in src/app/(public)/events/[slug]/EventRouteShell.tsx): on Home it asks whether to download Home or the whole event, inside an album it downloads that album, and logged-out visitors get the log-in prompt. In the app (apps/mobile/app/events/[id].tsx) guests can only save one photo or video at a time from the photo viewer, so saving a whole gallery means opening every photo. Fix: add a Download All action to the guest tab bar (apps/mobile/components/event/ThemeHeader.tsx) or the gallery header, with the same Home / whole event choice and the same rules as the website; save into the phone's gallery (PhotoViewer already does this for one file) with progress and a way to cancel, and skip what fails with a count, like the website's "Some files were skipped".
 How to reproduce: Open a gallery in the app as a guest: there is no download button on the gallery page, only Download inside the photo viewer. Open the same gallery on the website: Download All is in the navbar.
+
+#132
+Listed: 2026-10-24
+Platform: Both
+Priority: Critical
+Status: Open
+Owner: Sarthak
+Blocked by: Sarthak: check the Workers plan (Cloudflare > Workers & Pages > Plans) and switch to Workers Paid ($5/month) before launch
+Found in: Cloudflare Pro / Workers plan review (2026-10-24)
+Issue: Every photo, thumbnail, preview, cover and video chunk on media.evebash.com goes through the Cloudflare worker evebash-media-worker (route media.evebash.com/*), even when it comes from the cache (#120). On the free Workers plan the account gets about 100,000 worker requests per day. Estimate: one 200-guest wedding is ~80,000 requests on its first evening (about 300 grid photos + 30 viewer photos + ~80 video chunks per guest; a 5-minute video is 50-100 requests per viewer), website and app together. Over the limit, all photos and videos fail to load for everyone on the website and in the app (error 1027) until the daily count resets at 00:00 UTC (05:30 IST); pages, login and uploads keep working. The route is set to fail closed (request_limit_fail_open false), and fail open wouldn't help: the B2 bucket is private and only the worker signs requests and maps media.evebash.com paths to B2's /file/EveBash/ download URLs. Not happening now (pre-launch traffic). The API token can't read the account's billing, so the current Workers plan wasn't confirmed.
+Fix: Workers Paid ($5/month per account): no daily cap, 10 million requests/month included, then about $0.30 per extra million (~160 such weddings/month in the base price); same speed, no code or config change. Keep the bucket private (making it public to drop the worker would let anyone with a file path download from B2). Optional cleanup: the leftover DNS record media.evebash.com.evebash.com (old media-proxy custom domain) serves nothing.
+How to reproduce: Not safe to reproduce on live. Cloudflare dashboard > Workers & Pages > evebash-media-worker > Metrics shows daily requests; on the free plan the limit is 100,000/day.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
