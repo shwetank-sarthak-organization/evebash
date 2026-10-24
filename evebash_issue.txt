@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 126
+Next issue number: 130
 
 =====================================================================
 ACTIVE ISSUES
@@ -896,6 +896,50 @@ Found in: check of the 18 Rec 1 photos (#125), 2026-10-24
 Issue: The rotate tool turns sideways-marked photos the wrong way. Most phone and many camera photos are stored sideways with an EXIF orientation mark; the rotate route (POST /api/v1/media/rotate, apps/backend/src/routes/media.ts) uses sharp(original).rotate(angle), which ignores the mark and drops it. So on such a photo "Rotate right" shows no change and "Rotate left" turns it upside down. Checked on VIS_6191 (stored 6000x4000, EXIF orientation 8, shown 4000x6000): rotate right gave 4000x6000 again. Photos without the mark rotate correctly. Saved sizes stay consistent with the new files, so it doesn't cause #125-style cropping.
 Fix (backend, behind ROTATE_UPRIGHT_FIRST, off by default): apps/backend/src/services/rotateImage.ts turns the photo upright first (sharp autoOrient) and then by the angle. Tests (tests/rotateImage.test.ts): all 8 EXIF orientations x right/left/180 turn the way the guest sees them and the saved size matches; switch off gives byte-identical output to before; unmarked photos rotate as before. VIS_6191 with the fix: 6000x4000 (landscape). Backend suite 88/88.
 How to reproduce: Take a portrait photo on a phone, upload it, open it and tap Rotate right: it doesn't change. Rotate left: upside down.
+
+#126
+Listed: 2026-10-24
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: GPU long-video work (#117), edge-case test on Modal, 2026-10-24
+Issue: Long 10-bit / HDR videos (iPhone's default "HDR video", many newer cameras) can't use the GPU worker and go to the 16-core worker (slower, about 40% more compute per video). NVDEC turns 10-bit video into p010 frames, and scale_npp, the only GPU resize filter in our ffmpeg (jrottenberg/ffmpeg:7.0-nvidia2204 has no scale_cuda), rejects them ("Unsupported input format: p010le", tested). Even past that, h264_nvenc only encodes 8-bit and HDR needs tone mapping to SDR, and the image has no GPU tone-map filter. _gpu_decode_problem in modal_engine/main.py sends them to the CPU on purpose. Fix: an ffmpeg build with scale_cuda (p010 -> nv12) and a GPU tone map (tonemap_cuda / libplacebo), re-measured like #117; do it together with #118 (the CPU path makes unplayable High 10 from the same videos).
+How to reproduce: Upload an iPhone HDR video over 10 minutes to a gallery on the GPU switch: modal_cost_logs shows process_video_cpu_long and Modal logs "[VideoGPU] ... hevc yuv420p10le is not transcoded on the GPU".
+
+#127
+Listed: 2026-10-24
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: GPU long-video work (#117), edge-case test on Modal, 2026-10-24
+Issue: Long rotated phone videos (portrait recordings: the picture is stored sideways with a rotate-90 flag) can't use the GPU worker and go to the 16-core worker. ffmpeg's automatic rotation doesn't work on GPU frames. Turning them with transpose_npp works only after converting to yuv420p, and then every frame had a thin green strip along one edge (SSIM 0.84 vs the CPU output instead of 0.99; tried yuv420p and yuv444p), so _gpu_decode_problem sends any rotation flag to the CPU. Fix: try transpose_cuda / a newer ffmpeg build, or rotate after scaling per tier, check frames by eye and SSIM, then allow rotated videos. Related: #119 (the CPU path's height probe breaks on the same videos).
+How to reproduce: Upload a portrait phone video over 10 minutes to a gallery on the GPU switch: Modal logs "[VideoGPU] ... rotated video (90)" and it runs on the 16-core worker.
+
+#128
+Listed: 2026-10-24
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: GPU long-video work (#117), edge-case test on Modal, 2026-10-24
+Issue: The GPU worker only takes 8-bit 4:2:0 H.264 and HEVC; every other long video goes to the 16-core worker. 4:2:2 H.264 (pro cameras) fails on the L4's decoder (tested), and ProRes, MPEG-2 and old AVI codecs have no GPU decoder at all, so those stay on the CPU for good. VP9 and AV1 can be decoded by the L4 but were never tested, so they are excluded too. Fix: test VP9 and AV1 (8-bit) the same way as the edge-case test (output plays, SSIM vs CPU, length check) and add them to _gpu_decode_problem if they pass.
+How to reproduce: Upload a long VP9 or AV1 video (e.g. a WebM screen recording) to a gallery on the GPU switch: Modal logs "[VideoGPU] ... vp9 yuv420p is not transcoded on the GPU".
+
+#129
+Listed: 2026-10-24
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: GPU long-video work (#117), 2026-10-24
+Issue: When a long video falls back from the GPU to the 16-core worker (GPU ffmpeg error, output shorter than the source, no L4 within gpu_wait_s = 300 s, or one of #126-#128), the reason is only in Modal's logs ("[VideoGPU] ... -> 16-core worker: ..." / "No L4 ... sending it to the 16-core worker"). Nothing in the database counts them, so we can't see how often it happens or what the wasted GPU time costs (usually ₹0.5-1 per handoff: the L4 time spent downloading before the check). If fallbacks are frequent, the GPU switch saves less than measured. Fix: write the handoff reason to modal_cost_logs (e.g. a row with function_name process_video_gpu_fallback and the reason), and check the count a week after the switch goes on for all galleries.
+How to reproduce: Code check: transcode_video_long_gpu and watch_gpu_start in modal_engine/main.py only print the reason.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
