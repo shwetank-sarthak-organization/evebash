@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 140
+Next issue number: 141
 
 =====================================================================
 ACTIVE ISSUES
@@ -1067,6 +1067,19 @@ Found in: speed comparison with Samaro (2026-10-24)
 Issue: Cloudflare's free plan serves visitors in India from Marseille (cdn-cgi/trace: loc=IN, colo=MRS), so every photo and video starts ~0.2-0.25 s later than from Samaro's CDN (BunnyCDN, Singapore): first byte 0.51 s vs 0.29 s on the same connection. With the edge cache (#120) and the 1000 px grid image (#121) a screen of grid photos is already faster than Samaro's (0.91 s vs 1.11 s), so this is not urgent.
 Fix (decision): after launch, with real traffic numbers, either (1) try Cloudflare Pro for a month and check that /cdn-cgi/trace shows an Indian colo (BOM, DEL, MAA...), or (2) put media.evebash.com on BunnyCDN (pull zone on the private B2 bucket, test on media2.evebash.com first; ~$0.03/GB in Asia vs free today), or (3) stay on the free plan.
 How to reproduce: curl https://media.evebash.com/cdn-cgi/trace from India: colo=MRS.
+
+#140
+Listed: 2026-10-25
+Platform: Both
+Priority: High
+Status: Open
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: "Image unavailable" in the guest grid of rec-7-6230 (Rec 7 of wedding-fdd8), 2026-10-25
+Issue: Some uploads leave a photos row with no file in storage. In rec-7-6230, 26 of 68 photos (full camera JPEGs of 9-10 MB, uploaded 2026-09-27 12:47-12:52 UTC, right after photos of the same batch that worked) have status failed, no thumbnail and processing_error "An error occurred (NoSuchKey) when calling the GetObject operation: Key not found": the photo worker found no file. The original and every version (-thumbnail, -preview, -grid .webp) return 404 "File with such name does not exist." from media.evebash.com. The row is written before the file finishes uploading, and nothing removes or flags it when the upload never completes (phone asleep or app closed mid-upload, network drop, upload URL expiring on large files?). The guest grid showed "Image unavailable" for each and counted them in Photos (n).
+Guest side fixed (this change): website and app guest loads leave these photos out (shared/media/missingUpload.ts); the logged-out view already skipped them. The host still sees them: website host grid "Processing Failed" badge, app host grid "Upload failed" label.
+Still to do: (1) find which upload path leaves the row without a file (website and app; check upload logs around 2026-09-27 12:47 UTC for rec-7-6230) and make the row only count once the file is in storage, or mark it failed with a clear "upload didn't finish" reason the host can act on (re-upload); (2) count how many galleries have such rows (status failed + NoSuchKey) and decide whether to delete the rows or ask the hosts to re-upload; (3) don't count them against storage.
+How to reproduce: Open rec-7-6230 as the host: 26 photos with "Processing Failed". Before this change, guests saw 16+ "Image unavailable" cards. curl -I https://media.evebash.com/events/rec-7-6230/photos/e8848fc1-d1b0-4d83-84a0-5b9b26f3f9e9-1790513547861-c9fd11a5-899f-482b-b4d3-b7e460ad0002-7C0A9725.JPG returns 404.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
