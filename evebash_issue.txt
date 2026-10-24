@@ -802,6 +802,15 @@ Found in: gpu-video-handoff.md (2026-10-18 benchmark), re-measured 2026-10-24
 Issue: Long videos (> 10 min) run on the 16-core CPU worker (transcode_video_long, modal_engine/main.py) even though a full-GPU L4 transcode (NVDEC -> scale_npp -> NVENC) is faster and cheaper on some long videos. Also the backend log said "GPU worker" for long videos although no GPU is used (apps/backend/src/qstash.ts).
 Fix (code, switch off by default, not deployed): new transcode_video_long_gpu (L4, 4 cores, 8 GB) next to the 16-core worker; process_video_gpu sends long videos to it only when the Modal Dict "video-gpu-switch" says so (mode on, or the gallery id in gpu_events; modal_engine/video_gpu_switch.py shows/sets it). The 16-core worker takes the video instead when the GPU can't (10-bit, 4:2:2, rotated phone video, codecs other than 8-bit H.264/HEVC), when GPU ffmpeg fails, when the output is shorter than the source, or when no L4 starts within gpu_wait_s (default 180 s, watch_gpu_start). Backend log text fixed.
 How to reproduce: Upload a 15-minute video: modal_cost_logs shows process_video_cpu_long (16 cores).
+Measured 2026-10-24 (real Modal bill per run, 3 runs per worker, ₹100 = $1; GPU command = the production code; inputs in B2 bench/long/, deleted after):
+  video                              16-core: time / bill        L4 GPU: time / bill        GPU vs 16-core
+  test_5 48.7 min 1080p25 H.264      6.4 min / ₹23.6 (21.9-26.4)   5.1 min / ₹19.2 (18.0-21.4)   -19% cost, 20% faster
+  test 33 min 1080p60 H.264          4.9 min / ₹18.3 (16.7-20.7)   5.5 min / ₹17.8 (17.2-18.1)   -3% cost, 12% slower
+  10.4 min 1080p60 HEVC 8-bit        3.8 min / ₹8.0 (7.6-8.7)      3.1 min / ₹7.4 (6.5-7.9)      -8% cost, faster
+  10.8 min 4K24 landscape            2.1 min / ₹7.3 (6.3-8.0)      2.3 min / ₹6.6 (6.4-6.7)      -11% cost, similar
+  10.7 min 4K24 portrait             1.5 min / ₹5.7 (5.0-6.1)      3.1 min / ₹6.1 (5.9-6.6)      +8% cost, slower (one 186 s L4 wait)
+  Network egress (HLS upload to B2) is ₹2.4-10.9 per video on both = 30-57% of the bill. Waiting for an L4 took 4-186 s (avg 38 s); 16-core starts in 3-49 s. Quality vs the original (SSIM, start/middle/end segments): GPU 0.945-0.996, 16-core 0.942-0.995, GPU equal or slightly higher on every video. 10-min looped test files were made from test_1/2/3.
+  Volume: only 4 videos over 10 min have ever been uploaded (68 videos total), so the saving is a few rupees a month today.
 
 #118
 Listed: 2026-10-24

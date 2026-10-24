@@ -346,7 +346,8 @@ export async function publishManifestAssemblyTask(payload: {
 
   // Exact Routing Rule:
   // - Video <= 10 min (600 seconds) -> CPU worker (process_video_cpu)
-  // - Video > 10 min (600 seconds) -> GPU worker (process_video_gpu)
+  // - Video > 10 min (600 seconds) -> long-video worker (process_video_gpu; the URL name is historical:
+  //   it runs on 16 CPU cores, or on an L4 GPU when Modal's video-gpu-switch is on, issue #112)
   let isLongVideo = false;
   if (duration && duration > 0) {
     isLongVideo = duration > 600; // strictly > 10 minutes (600 seconds)
@@ -362,7 +363,7 @@ export async function publishManifestAssemblyTask(payload: {
 
   console.log(
     `[VideoRouting] ${photoId}: duration=${duration ? `${duration}s` : 'unknown'}, size=${fileSize ? `${(fileSize / (1024 * 1024)).toFixed(1)}MB` : 'unknown'} -> ${
-      isLongVideo ? 'GPU worker (process_video_gpu > 10m)' : 'CPU worker (process_video_cpu <= 10m)'
+      isLongVideo ? 'long-video worker (process_video_gpu > 10m: 16-core CPU, or L4 if the Modal GPU switch is on)' : 'CPU worker (process_video_cpu <= 10m)'
     }`
   );
 

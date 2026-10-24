@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 128
+Next test number: 129
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3200,6 +3200,34 @@ How to test:
      message card is a pale grey-white with light grey lines. The host's theme picker shows Classic
      White as a white swatch, "Soft white & vintage sage elegance". App (new build): a Classic White
      gallery's background, header strip and photo viewer are the same soft white.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#128 Long videos (over 10 min) converted on the GPU still play everywhere
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Videos longer than 10 minutes can now be converted on a GPU (issue #117). They must
+           look and play exactly like before.
+Detail:    Only after the Modal deploy with transcode_video_long_gpu AND the switch turned on for
+           the test gallery (modal_engine/video_gpu_switch.py add-gallery <id>). Before that,
+           nothing changes. modal_cost_logs shows function_name process_video_gpu_long for a GPU run.
+How to test:
+  1. In the test gallery, upload a landscape video longer than 10 minutes, shot normally (not HDR).
+     Expect: it shows "processing", then plays, a few minutes after upload.
+  2. Play it on the website (Chrome on a computer) and in the app on an iPhone and an Android phone.
+     Expect: picture and sound in sync, no green or black bars, seeking to the middle and the end works,
+     quality switches (1080p/720p/480p) without freezing.
+  3. Upload a portrait phone video over 10 minutes. Expect: it plays upright (this one is converted on
+     the 16-core worker, as before).
+  4. Delete one of the videos. Expect: it disappears and nothing else breaks.
 Done by:
 Device / browser:
 Build / version:

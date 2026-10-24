@@ -1694,8 +1694,125 @@ def _notify_video_processed(photo_id: str):
     except Exception as e:
         print(f"[TranscodeVideo] Video-ready callback failed for {photo_id} (non-fatal): {e}")
 
+# ---------------------------------------------------------------------------
+# Full-GPU transcode for long videos (issue #112)
+# ---------------------------------------------------------------------------
+# NVDEC decode -> scale_npp resize -> NVENC encode on an L4, so frames never leave the GPU. Measured
+# 2026-10-24 (real Modal bill, 3 runs each, same quality): 48.7-min 1080p25 ₹19.2 vs ₹23.6 on the 16-core
+# worker and 20% faster; 33-min 1080p60 ₹17.8 vs ₹18.3 but 12% slower (the L4's encoder is the limit at 60 fps);
+# 10-min 4K and HEVC 60 fps 8-11% cheaper; 10-min portrait 4K 8% dearer. About half of each bill is the upload
+# to B2 (network egress), the same on both. Short videos stay on the 4-core worker (cheapest for them).
+#
+# Behind a runtime switch (a Modal Dict, no deploy needed to flip it); modal_engine/video_gpu_switch.py
+# shows and sets it:
+#   mode        "off" (default: every long video on the 16-core worker, as before) or "on"
+#   gpu_events  gallery ids whose long videos use the GPU while mode is "off", for testing on one gallery
+#   gpu_wait_s  how long a video may wait for an L4 before it goes to the 16-core worker (default 180)
+# Anything the GPU can't take (10-bit, 4:2:2, rotated phone videos, other codecs), any GPU ffmpeg error and any
+# output whose length doesn't match the source go to the 16-core worker, which is unchanged.
+
+VIDEO_GPU_SWITCH = "video-gpu-switch"
+VIDEO_GPU_STARTS = "video-gpu-starts"  # function call id -> "gpu" (started) or "cpu" (gave up waiting)
+_DEFAULT_GPU_WAIT_S = 180
+
+# (name, max width, max height, bitrate, maxrate, bufsize): same ladder as the CPU command
+_HLS_TIERS = [
+    ("1080p", 1920, 1080, "4000k", "4500k", "8000k"),
+    ("720p", 1280, 720, "2500k", "3000k", "5000k"),
+    ("480p", 854, 480, "1000k", "1200k", "2000k"),
+]
+
+
+class _UseCpuWorker(Exception):
+    """The GPU can't (or didn't) transcode this video: hand it to the 16-core worker instead."""
+
+
+def _pick_long_video_worker(event_id, mode, gpu_events) -> str:
+    if mode == "on" or (event_id and event_id in (gpu_events or [])):
+        return "gpu"
+    return "cpu"
+
+
+async def _read_video_gpu_switch():
+    """Returns (mode, gpu_events, gpu_wait_s). If the switch can't be read, long videos go to the 16-core worker."""
+    try:
+        switch = modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True)
+        mode = await switch.get.aio("mode", "off")
+        gpu_events = await switch.get.aio("gpu_events", [])
+        wait_s = await switch.get.aio("gpu_wait_s", _DEFAULT_GPU_WAIT_S)
+        return mode, gpu_events, float(wait_s)
+    except Exception as err:
+        print(f"[VideoGPU] Could not read the switch, using the 16-core worker: {err}")
+        return "off", [], float(_DEFAULT_GPU_WAIT_S)
+
+
+def _gpu_decode_problem(stream: dict):
+    """Why the full-GPU command can't take this video stream (ffprobe fields), or None if it can. Tested
+    2026-10-24: scale_npp rejects the p010 frames NVDEC makes from 10-bit video, and turning a phone video's
+    rotation flag on the GPU (transpose_npp) leaves a green strip along one edge, so both go to the CPU."""
+    codec = stream.get("codec_name")
+    pix_fmt = stream.get("pix_fmt")
+    if codec not in ("h264", "hevc") or pix_fmt not in ("yuv420p", "yuvj420p"):
+        return f"{codec} {pix_fmt} is not transcoded on the GPU"
+    rotation = next((s["rotation"] for s in stream.get("side_data_list", []) if "rotation" in s), 0)
+    if rotation and float(rotation) % 360:
+        return f"rotated video ({rotation})"
+    return None
+
+
+def _full_gpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio):
+    """The full-GPU ffmpeg command: same tiers, bitrates, 6 s keyframes and HLS layout as the CPU command.
+    The production image's ffmpeg has libnpp but no scale_cuda, so resizing uses scale_npp."""
+    tiers = [t for t in _HLS_TIERS if t[0] in out_dirs]
+
+    cmd = ["ffmpeg", "-y", "-hwaccel", "cuda", "-hwaccel_output_format", "cuda", "-i", input_path]
+    filter_str = f"[0:v]split={len(tiers)}" + "".join(f"[v{i}]" for i in range(1, len(tiers) + 1)) + ";"
+    for i, (_name, w, h, *_rates) in enumerate(tiers, start=1):
+        filter_str += (f"[v{i}]scale_npp=w={w}:h={h}:force_original_aspect_ratio=decrease:force_divisible_by=2"
+                       f":format=nv12:interp_algo=super[v{i}out];")
+    cmd += ["-filter_complex", filter_str.rstrip(";")]
+
+    var_stream_parts = []
+    for m, (name, _w, _h, bitrate, maxrate, bufsize) in enumerate(tiers):
+        cmd += ["-map", f"[v{m + 1}out]", f"-c:v:{m}", "h264_nvenc", "-preset", "p4", "-profile:v", "high",
+                "-rc", "vbr", "-g", "48", "-no-scenecut", "1", "-forced-idr", "1",
+                "-force_key_frames", "expr:gte(t,n_forced*6)",
+                f"-b:v:{m}", bitrate, f"-maxrate:{m}", maxrate, f"-bufsize:{m}", bufsize]
+        var_stream_parts.append(f"v:{m},agroup:audio,name:{name}" if has_audio else f"v:{m},name:{name}")
+    if has_audio:
+        cmd += ["-map", "0:a?", "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2"]
+        var_stream_parts.insert(0, "a:0,agroup:audio,default:yes,name:audio")
+
+    cmd += [
+        "-f", "hls", "-hls_time", "6", "-hls_playlist_type", "vod",
+        "-hls_flags", "independent_segments",
+        "-hls_segment_filename", str(tmp_path / "%v/seg_%03d.ts"),
+        "-master_pl_name", "master.m3u8",
+        "-var_stream_map", " ".join(var_stream_parts),
+        str(tmp_path / "%v/playlist.m3u8"),
+    ]
+    return cmd
+
+
+def _hls_length_problem(tmp_path, out_dirs, source_seconds):
+    """Checks every variant playlist covers the whole source (a GPU run that stops early can still exit 0)."""
+    import re
+
+    if not source_seconds:
+        return None
+    for out_dir in out_dirs:
+        playlist = tmp_path / out_dir / "playlist.m3u8"
+        if not playlist.exists():
+            return f"{out_dir} playlist missing"
+        seconds = sum(float(x) for x in re.findall(r"#EXTINF:([0-9.]+)", playlist.read_text()))
+        if abs(seconds - source_seconds) > max(2.0, source_seconds * 0.01):
+            return f"{out_dir} is {seconds:.1f}s long, source is {source_seconds:.1f}s"
+    return None
+
+
 def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_gb=None, function_name=None):
     import boto3
+    import json
     import tempfile
     import pathlib
     import subprocess
@@ -1827,7 +1944,25 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 (tmp_path / out_dir).mkdir(parents=True, exist_ok=True)
 
             print(f"[TranscodeVideo-{hardware.upper()}] Starting single-pass multi-output FFmpeg...")
-            
+
+            if hardware == "gpu_full":
+                probe = subprocess.run([
+                    "ffprobe", "-v", "error", "-select_streams", "v:0",
+                    "-show_entries", "stream=codec_name,pix_fmt:stream_side_data=rotation", "-of", "json",
+                    input_path
+                ], capture_output=True, text=True)
+                stream = (json.loads(probe.stdout or "{}").get("streams") or [{}])[0]
+                problem = _gpu_decode_problem(stream)
+                if problem:
+                    raise _UseCpuWorker(problem)
+                proc = subprocess.run(_full_gpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio),
+                                      capture_output=True, text=True)
+                if proc.returncode != 0:
+                    raise _UseCpuWorker(f"GPU ffmpeg failed: {(proc.stderr or '')[-500:]}")
+                problem = _hls_length_problem(tmp_path, out_dirs, video_duration_seconds)
+                if problem:
+                    raise _UseCpuWorker(f"GPU output incomplete: {problem}")
+
             cmd = ["ffmpeg", "-y", "-i", input_path]
             
             # Build filter complex dynamically
@@ -1892,8 +2027,9 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 str(tmp_path / "%v/playlist.m3u8")
             ]
 
-            proc = subprocess.run(cmd, capture_output=True, text=True)
-            
+            if hardware != "gpu_full":  # the full-GPU run above already made the streams
+                proc = subprocess.run(cmd, capture_output=True, text=True)
+
             # GPU Fallback to CPU if hardware acceleration fails
             if proc.returncode != 0 and hardware == "gpu":
                 print(f"[TranscodeVideo-GPU] Hardware pipeline failed. Error: {proc.stderr[-500:]}")
@@ -2029,8 +2165,8 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
         duration = time.time() - start_time
         memory_gb = memory_gb or (8.0 if hardware == "gpu" else 4.0)
         function_name = function_name or f"process_video_{hardware}"
-        gpu_type = "l4" if hardware == "gpu" else "None"
-        gpu_cost_rate = 0.0222 if hardware == "gpu" else 0.0
+        gpu_type = "l4" if hardware in ("gpu", "gpu_full") else "None"
+        gpu_cost_rate = 0.0222 if hardware in ("gpu", "gpu_full") else 0.0
         estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222) + gpu_cost_rate)
         event_id = request.get("event_id")
         user_id = request.get("user_id")
@@ -2058,7 +2194,7 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 pass
 
         video_size = raw_video_path.stat().st_size if raw_video_path.exists() else None
-        if hardware == "gpu":
+        if hardware in ("gpu", "gpu_full"):
             worker_desc = "Modal GPU Worker (NVIDIA L4 • 4 vCPU • 8GB RAM)"
         elif cpu_cores == 4.0:
             worker_desc = "Modal CPU Worker (4 vCPU • 4GB RAM)"
@@ -2110,6 +2246,8 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
         print(f"[TranscodeVideo-{hardware.upper()}] completed in {duration:.1f}s")
         return {"status": "success", "hls_master_url": hls_master_url}
 
+    except _UseCpuWorker:
+        raise  # not a failure: transcode_video_long_gpu hands the video to the 16-core worker
     except Exception as e:
         error_details = str(e)
         try:
@@ -2185,6 +2323,54 @@ def transcode_video_short(payload: dict):
 def transcode_video_long(payload: dict):
     return _transcode_once(payload, _transcode_long)
 
+def _transcode_long_gpu(request: dict):
+    return _transcode_video_core(request, hardware="gpu_full", cpu_cores=4.0, memory_gb=8.0, function_name="process_video_gpu_long")
+
+# Same CPU and memory as the 2026-10-18 benchmark worker
+@app.function(
+    image=transcode_image,
+    gpu="L4",
+    cpu=4.0,
+    memory=8192,
+    timeout=3600,
+    scaledown_window=10,
+    retries=_video_retries,
+    max_containers=5,
+    secrets=_video_secrets,
+)
+def transcode_video_long_gpu(payload: dict):
+    starts = modal.Dict.from_name(VIDEO_GPU_STARTS, create_if_missing=True)
+    call_id = modal.current_function_call_id()
+    # A retry finds its own "gpu" mark; "cpu" means watch_gpu_start gave up waiting and the 16-core worker has it
+    if not starts.put(call_id, "gpu", skip_if_exists=True) and starts.get(call_id) != "gpu":
+        print(f"[VideoGPU] {payload.get('photo_id')} already went to the 16-core worker; skipping")
+        return {"status": "skipped", "photo_id": payload.get("photo_id")}
+    try:
+        return _transcode_once(payload, _transcode_long_gpu)
+    except _UseCpuWorker as err:
+        print(f"[VideoGPU] {payload.get('photo_id')} -> 16-core worker: {err}")
+        transcode_video_long.spawn(payload)
+        return {"status": "sent_to_cpu", "photo_id": payload.get("photo_id"), "reason": str(err)[:300]}
+
+@app.function(image=media_image, timeout=3600)
+def watch_gpu_start(call_id: str, payload: dict, wait_s: float):
+    """Sends the video to the 16-core worker if no L4 has picked it up within wait_s seconds."""
+    import time
+
+    starts = modal.Dict.from_name(VIDEO_GPU_STARTS, create_if_missing=True)
+    deadline = time.time() + wait_s
+    while time.time() < deadline:
+        if starts.get(call_id):
+            return "gpu"
+        time.sleep(5)
+    if not starts.put(call_id, "cpu", skip_if_exists=True):
+        return "gpu"  # started just now
+    print(f"[VideoGPU] No L4 for {payload.get('photo_id')} after {wait_s:g}s; sending it to the 16-core worker")
+    # Best effort (a queued call can still start after cancel): if it does, it finds the "cpu" mark and skips
+    modal.FunctionCall.from_id(call_id).cancel()
+    transcode_video_long.spawn(payload)
+    return "cpu"
+
 async def _accept_video_job(request, worker):
     """Checks the QStash signature, starts the transcode in the background and replies 202 at once."""
     import json
@@ -2198,6 +2384,12 @@ async def _accept_video_job(request, worker):
         raise fastapi.HTTPException(status_code=400, detail="Body must be JSON")
     if not isinstance(payload, dict) or not (payload.get("storage_key") or payload.get("object_key")):
         raise fastapi.HTTPException(status_code=400, detail="Missing required storage_key or photo_id")
+    if worker is transcode_video_long:
+        mode, gpu_events, wait_s = await _read_video_gpu_switch()
+        if _pick_long_video_worker(payload.get("event_id"), mode, gpu_events) == "gpu":
+            call = await transcode_video_long_gpu.spawn.aio(payload)
+            await watch_gpu_start.spawn.aio(call.object_id, payload, wait_s)
+            return JSONResponse({"accepted": True, "photo_id": payload.get("photo_id") or payload.get("id")}, status_code=202)
     await worker.spawn.aio(payload)
     return JSONResponse({"accepted": True, "photo_id": payload.get("photo_id") or payload.get("id")}, status_code=202)
 
