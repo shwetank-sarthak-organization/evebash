@@ -601,7 +601,7 @@ function EventPageContent() {
             </div>
             )}
 
-            <div className={cn(!isRoyalGallery && "mt-12")}>
+            <div className={cn(!isRoyalGallery && !isClassicGallery && "mt-12")}>
                 {isRoyalGallery ? (
                     <RoyalGalleryHeader
                         title={activeGallery ? activeGalleryTitle : "Home Gallery"}

@@ -85,7 +85,7 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
 
             {/* Full width with the page's side padding, like the navbar. The gallery's header comes from the event page */}
             {children && (
-                <section id="event-content" className="classic-gallery-content border-t border-[#E6E6E0] py-16 md:py-20">
+                <section id="event-content" className="classic-gallery-content border-t border-[#E6E6E0] pb-16 md:pb-20">
                     <div className="w-full px-4 sm:px-6 lg:px-8">
                         {children}
                     </div>

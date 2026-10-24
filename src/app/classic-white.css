@@ -41,9 +41,12 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
 
 /* Gallery header (src/components/classic/ClassicGalleryHeader.tsx): text on the left, the gallery video in a white
    mat on the right; text alone when there is no video. Stacks on narrow screens. */
+/* The gallery section starts close under the line below the cover */
+.classic-gallery-content { padding-top: clamp(28px, 3vw, 40px); }
 .classic-gh { display: grid; gap: 48px; align-items: center; color: #2C352E; text-align: left; }
 @media (min-width: 1024px) {
-  .classic-gh--video { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(48px, 6vw, 112px); }
+  /* Video top lines up with Back / Share, both just under the line */
+  .classic-gh--video { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(48px, 6vw, 112px); align-items: start; }
 }
 .classic-gh__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: clamp(40px, 7vw, 96px); }
 .classic-gh__action {
