@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 123
+Next issue number: 124
 
 =====================================================================
 ACTIVE ISSUES
@@ -871,6 +871,18 @@ Found in: media edge cache work (#120), 2026-10-24
 Issue: With the media edge cache (#120) on, Cloudflare keeps a copy of each photo, preview, thumbnail and video file for up to 30 days. (1) A deleted photo or gallery can still be opened from that copy by anyone who has the exact link, for up to 30 days. (2) When a photo is reprocessed, the preview and thumbnail are rewritten at the same path (modal_engine/main.py, PhotoProcessorV2), so visitors can get the old version for up to 30 days. Copies already in a viewer's own browser (Cache-Control max-age 1 year, immutable) can't be removed by any fix; for bulk re-generation (e.g. #121) write new images under a new file name instead.
 Fix: purge by URL (Cloudflare API, zone evebash.com) behind a switch, never blocking the delete (on failure the copy just expires): (a) backend delete paths (apps/backend/src/routes/media.ts POST /delete, apps/backend/src/deleteGalleryMedia.ts, routes/admin.ts): the original, -preview.webp, -thumbnail.webp, and for videos hls/<storage_key>/master.m3u8 and the playlists; (b) Modal photo worker after it uploads a preview/thumbnail. Free plan purge limits: batch big galleries over a few minutes.
 How to reproduce: After #120 is deployed, open a photo's media.evebash.com URL twice (X-Media-Cache: HIT), delete the photo, open the URL again: it still loads.
+
+#123
+Listed: 2026-10-24
+Platform: Both
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Deploy the backend, then set ROTATE_VERSIONED_LINKS=true on Railway (staging) and run test_yourself #130
+Found in: media edge cache work (#120), 2026-10-24
+Issue: Rotating a photo (POST /api/v1/media/rotate, apps/backend/src/routes/media.ts) rewrites the original, preview and thumbnail at the same B2 paths and saves the same plain links. With the edge cache (#120) other viewers can get the unrotated copy for up to 30 days; viewers who saw the photo before keep it for up to a year (browser cache, max-age 1 year immutable), which was already true before #120. Only the person who rotated sees it right (the app adds ?v= to its own copy). A gallery cover chosen from the photo is the same file and has the same problem. Also noticed: rotate remakes the preview at 900 px and the thumbnail at 400 px, smaller than the photo worker's 1600/480 (not changed here).
+Fix (backend, behind ROTATE_VERSIONED_LINKS, off by default): the rotate route saves url, thumbnail_url and preview_url with ?v=<time> (apps/backend/src/services/rotateLinks.ts), and moves a gallery cover of the same photo (events.cover_image and its cover copy in photos) to the new link; a failure there is only logged. Checked every reader of these links: website/app image helpers split off the query and keep it (getImageUrl), downloads strip it (PhotoViewer, host page, zipDownload use the URL path), deletes use storage_key, Modal downloads by storage_key, Find You keeps the query (URL parsing), the RPCs pass the links through, the media worker forwards ?v= to B2 (checked live: 200, same file). Tests: tests/rotateLinks.test.ts; backend suite 84/84.
+How to reproduce: Open a gallery photo on two devices, rotate it on one, reload the other: it is still unrotated.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

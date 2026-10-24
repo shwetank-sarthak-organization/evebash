@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 130
+Next test number: 131
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3262,6 +3262,33 @@ How to test:
   4. Download one photo and one video (and Download All on a small gallery). Expect: files open and
      are the full originals.
   5. Upload a new photo. Expect: its thumbnail appears once processing is done, as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#130 A rotated photo shows rotated for everyone (and as gallery cover)
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Rotating a photo now saves new links (issue #123), so other guests and devices see it
+           rotated instead of an old cached copy.
+Detail:    Only after the backend deploy AND ROTATE_VERSIONED_LINKS=true on Railway (staging). Before
+           that, nothing changes. A rotated photo's link ends in ?v=<number>.
+How to test:
+  1. As the host, open a gallery photo on a phone (app) and on a computer (website). Note its direction.
+  2. Rotate it right on the phone. Expect: it turns at once on the phone.
+  3. On the computer, reload the gallery. Expect: the photo is rotated in the grid and in the viewer.
+  4. As a guest on another phone (app), open the gallery. Expect: rotated there too.
+  5. Rotate the same photo again (left). Expect: steps 3-4 show the new direction.
+  6. Set that photo as the gallery cover, rotate it, reload. Expect: the cover is rotated too.
+  7. Download the rotated photo (website and app). Expect: the file is rotated and has a normal
+     name (no "?v=" in it). Then delete the photo. Expect: it disappears, no error.
 Done by:
 Device / browser:
 Build / version:

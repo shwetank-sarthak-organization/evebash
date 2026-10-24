@@ -38,6 +38,7 @@ import {
 } from "../uploadNotifications.js";
 import { runMediaWatchdog } from "../services/watchdog.js";
 import { checkEventUpload, isEventUploadLimitEnabled } from "../services/eventUploadLimits.js";
+import { buildRotatedLinks, isRotateVersionedLinksEnabled, previousOriginalLinks } from "../services/rotateLinks.js";
 import { getStorageContext, ownerIdentifiers } from "../vault/access.js";
 import { createSupabaseVaultRepository } from "../vault/repository.js";
 
@@ -1751,9 +1752,9 @@ mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
   const storageKey = savedPhoto.storage_key;
   const thumbnailKey = `${storageKey}-thumbnail.webp`;
   const previewKey = `${storageKey}-preview.webp`;
-  const url = `https://${mediaDomain}/${storageKey}`;
-  const thumbnailUrl = `https://${mediaDomain}/${thumbnailKey}`;
-  const previewUrl = `https://${mediaDomain}/${previewKey}`;
+  // Versioned links (issue #123) give the rotated files new addresses, so cached unrotated copies aren't shown
+  const versionedLinks = isRotateVersionedLinksEnabled();
+  const { url, thumbnailUrl, previewUrl } = buildRotatedLinks(mediaDomain, storageKey, versionedLinks ? Date.now() : null);
   const contentType = inferContentType(storageKey);
 
   const oldVersions = await Promise.all([
@@ -1782,6 +1783,7 @@ mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
     .update({
       url,
       thumbnail_url: thumbnailUrl,
+      ...(versionedLinks ? { preview_url: previewUrl } : {}),
       width: rotatedMetadata.width || null,
       height: rotatedMetadata.height || null,
       size: rotatedBuffer.length,
@@ -1789,6 +1791,22 @@ mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
     })
     .eq("id", photoId);
   if (updateError) throw updateError;
+
+  if (versionedLinks) {
+    // A gallery cover chosen from this photo (events.cover_image and its cover copy in photos) is the same file,
+    // so it moves to the new links too. The rotation is already saved: a failure here is only logged.
+    const oldLinks = previousOriginalLinks(savedPhoto.url, buildRotatedLinks(mediaDomain, storageKey, null).url);
+    const [covers, copies] = await Promise.all([
+      supabaseAdmin.from("events").update({ cover_image: url }).in("cover_image", oldLinks).select("id"),
+      supabaseAdmin.from("photos").update({ url, thumbnail_url: thumbnailUrl, preview_url: previewUrl })
+        .in("url", oldLinks).neq("id", photoId).select("id"),
+    ]);
+    if (covers.error || copies.error) {
+      console.error("[MediaRotate] Could not move covers to the new links", { photoId, covers: covers.error, copies: copies.error });
+    } else {
+      console.log("[MediaRotate] Covers moved to the new links", { covers: covers.data?.length || 0, copies: copies.data?.length || 0 });
+    }
+  }
 
   console.log("[MediaRotate] Completed", { photoId, width: rotatedMetadata.width, height: rotatedMetadata.height });
 
