@@ -183,7 +183,8 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
   position: relative; z-index: 50;
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-family: var(--font-playfair-src), Georgia, serif;
-  font-size: 1.35rem; font-style: italic;
+  /* Upright capitals like the cover title, in bold so the small size still reads as the name */
+  font-size: 1.2rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
   color: #2C352E;
 }
 .classic-nav__links { gap: clamp(20px, 3vw, 56px); }
