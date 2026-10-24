@@ -68,8 +68,12 @@ function titleSize(title: string) {
 }
 
 export interface ClassicHeroProps {
-  /** The gallery being shown (an album shows its own title) */
+  /** The gallery being shown: its date and cover */
   gallery: { title?: string; date?: string; category?: string; coverMode?: 'fit' | 'fill'; coverOffset?: number; coverOffsetX?: number; coverScale?: number };
+  /** The main event's title, on the cover in the main gallery and in every album */
+  mainTitle?: string;
+  /** The main event's category, which picks the card's line */
+  mainCategory?: string;
   coverSource?: ImageSourcePropType | null;
   width: number;
   height: number;
@@ -79,8 +83,8 @@ export interface ClassicHeroProps {
   onOpenGallery: () => void;
 }
 
-export function ClassicHero({ gallery, coverSource, width, height, insetTop, insetBottom, fonts, onOpenGallery }: ClassicHeroProps) {
-  const title = displayCoupleTitle((gallery.title || '').trim());
+export function ClassicHero({ gallery, mainTitle, mainCategory, coverSource, width, height, insetTop, insetBottom, fonts, onOpenGallery }: ClassicHeroProps) {
+  const title = displayCoupleTitle((mainTitle || gallery.title || '').trim());
   const date = (gallery.date || '').trim();
   const size = titleSize(title);
   const [space, setSpace] = useState({ width: 0, height: 0 });
@@ -118,7 +122,7 @@ export function ClassicHero({ gallery, coverSource, width, height, insetTop, ins
       <View style={local.print}>
         <View style={[local.card, coverSource ? { marginBottom: -CARD_OVERLAP } : null, mountWidth ? { maxWidth: mountWidth * 0.92 } : null]}>
           <View style={[local.sprig, { left: 8 }]}><Sprig /></View>
-          <Text style={[local.cardText, { fontFamily: fonts.serifItalic }]}>{classicCoverLine(gallery.category)}</Text>
+          <Text style={[local.cardText, { fontFamily: fonts.serifItalic }]}>{classicCoverLine(mainCategory || gallery.category)}</Text>
           <View style={[local.sprig, { right: 8 }]}><Sprig flip /></View>
         </View>
 

@@ -2225,6 +2225,17 @@ export default function EventDetailScreen() {
   const isClassicGuest = !showAdminView && event?.templateId === 'classic';
   const royalFonts = useRoyalFonts(event?.templateId === 'royal');
   const classicFonts = useClassicFonts(event?.templateId === 'classic');
+  // An album opened by its own link: Classic White's cover still shows the main event's title and theme line
+  const [classicParent, setClassicParent] = useState<{ title?: string; category?: string } | null>(null);
+  const classicParentId = isClassicGuest ? event?.parentId : undefined;
+  useEffect(() => {
+    if (!classicParentId) { setClassicParent(null); return; }
+    let active = true;
+    getEventById(classicParentId)
+      .then((parent) => { if (active) setClassicParent(parent ? { title: parent.title, category: parent.category } : null); })
+      .catch(() => { if (active) setClassicParent(null); });
+    return () => { active = false; };
+  }, [classicParentId]);
 
   // Cinematic highlight video of the gallery being shown (Home or an album), under the welcome message
   // (Find You and Event partners are pages, not galleries: no video there)
@@ -3536,6 +3547,8 @@ export default function EventDetailScreen() {
           ) : isClassicGuest ? (
             <ClassicHero
               gallery={currentActiveEvent || event!}
+              mainTitle={classicParent?.title || event!.title}
+              mainCategory={classicParent?.category || event!.category}
               coverSource={activeCoverSource}
               width={windowWidth}
               height={heroHeight}
@@ -6275,7 +6288,8 @@ export default function EventDetailScreen() {
 
                 {isClassicGuest && onGalleryPage && (
                   <ClassicGalleryHeader
-                    title={activeSubEvent ? activeSubEvent.title : 'Home Gallery'}
+                    // The gallery's own name; the event's title is on the cover
+                    title={activeSubEvent ? activeSubEvent.title : event.parentId ? event.title || 'Home' : 'Home'}
                     details={(shownGallery?.date || event.date || '').trim()}
                     message={(event as any).showWelcomeCard !== false ? (activeSubEvent ? activeSubEvent.description : event.description) : undefined}
                     backLabel={activeSubEvent ? 'Back to Gallery' : 'Back'}

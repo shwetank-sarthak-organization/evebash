@@ -96,6 +96,9 @@ function EventPageContent() {
     const { user, loading: authLoading } = useAuth();
 
     const [event, setEvent] = useState<Event | any | null>(null);
+    // The main event's title and category when this page is an album opened by its own link (Classic White's cover
+    // shows them)
+    const [parentInfo, setParentInfo] = useState<{ title?: string; category?: string }>({});
     const [subEvents, setSubEvents] = useState<Event[]>([]);
     const [photos, setPhotos] = useState<any[]>([]);
     const [mediaTotals, setMediaTotals] = useState({ photos: 0, videos: 0 });
@@ -369,11 +372,14 @@ function EventPageContent() {
 
             // Sub-gallery links inherit the parent event's current visibility.
             let parentCategory: string | undefined;
+            let mainTitle: string | undefined;
             if (eventData.parentId) {
                 const parentEvent = await getEventById(eventData.parentId, true);
                 eventData.isPublic = !!parentEvent?.isPublic;
                 parentCategory = parentEvent?.category;
+                mainTitle = parentEvent?.title;
             }
+            setParentInfo({ title: mainTitle, category: parentCategory });
 
             // Resolve event cover image to preview format
             const eventCategory = eventData.category || parentCategory;
@@ -619,7 +625,8 @@ function EventPageContent() {
                     />
                 ) : isClassicGallery ? (
                     <ClassicGalleryHeader
-                        title={activeGallery ? activeGalleryTitle : "Home Gallery"}
+                        // The gallery's own name; the event's title is on the cover
+                        title={activeGallery ? activeGalleryTitle : event.parentId ? event.title || "Home" : "Home"}
                         details={[displayEvent.date?.trim(), typeof displayEvent.location === "string" ? displayEvent.location.trim() : ""].filter(Boolean).join(" · ")}
                         message={activeGalleryMessage}
                         backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
@@ -825,6 +832,9 @@ function EventPageContent() {
         >
             <TemplateComponent
                 event={displayEvent}
+                // Classic White keeps the main event's title (and its theme line) on the cover in every album
+                mainTitle={activeGallery || !event.parentId ? event.title : parentInfo.title || event.title}
+                mainCategory={activeGallery || !event.parentId ? event.category : parentInfo.category || event.category}
                 subEvents={[]}
                 photos={[]}
                 isShared={isShared}

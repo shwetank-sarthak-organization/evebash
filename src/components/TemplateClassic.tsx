@@ -8,6 +8,10 @@ import { classicCoverLine } from "../../shared/themes/classicCoverLine";
 
 interface TemplateClassicProps {
     event: Event;
+    /** The main event's title, shown on the cover on the main gallery and in every album (default: event.title) */
+    mainTitle?: string;
+    /** The main event's category, which picks the cover card's line (default: event.category) */
+    mainCategory?: string;
     children?: React.ReactNode;
 }
 
@@ -32,10 +36,10 @@ function ClassicDivider({ className }: { className?: string }) {
 
 // Colours come from the Classic White palette (src/lib/webTemplateTheme.ts): soft white #FCFCFA, white mount,
 // dark green text #2C352E, muted #596653, sage #8B9A6E (lines only: too light for text).
-export function TemplateClassic({ event, children }: TemplateClassicProps) {
+export function TemplateClassic({ event, mainTitle, mainCategory, children }: TemplateClassicProps) {
     const location = "location" in event && typeof event.location === "string" ? event.location.trim() : "";
     const details = [event.date?.trim(), location].filter(Boolean).join(" · ");
-    const title = displayCoupleTitle(event.title);
+    const title = displayCoupleTitle(mainTitle || event.title);
     // Capitals run wide, so longer titles get a smaller size and keep the cover's room
     const titleSize = title.length > 32 ? " classic-hero__title--xlong" : title.length > 18 ? " classic-hero__title--long" : "";
 
@@ -67,7 +71,7 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
                 </div>
 
                 {/* Cover as a print in a white mount with the theme's card on its top edge; fills the space left */}
-                <ClassicCoverPrint coverImage={event.coverImage} alt={event.title} cardText={classicCoverLine(event.category)} imageStyle={coverImageStyle(event)} />
+                <ClassicCoverPrint coverImage={event.coverImage} alt={event.title} cardText={classicCoverLine(mainCategory || event.category)} imageStyle={coverImageStyle(event)} />
 
                 {children && (
                     <div className="mt-[clamp(14px,3svh,32px)] shrink-0 text-center">
