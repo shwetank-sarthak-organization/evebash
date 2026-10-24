@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 124
+Next issue number: 126
 
 =====================================================================
 ACTIVE ISSUES
@@ -884,9 +884,33 @@ Issue: Rotating a photo (POST /api/v1/media/rotate, apps/backend/src/routes/medi
 Fix (backend, behind ROTATE_VERSIONED_LINKS, off by default): the rotate route saves url, thumbnail_url and preview_url with ?v=<time> (apps/backend/src/services/rotateLinks.ts), and moves a gallery cover of the same photo (events.cover_image and its cover copy in photos) to the new link; a failure there is only logged. Checked every reader of these links: website/app image helpers split off the query and keep it (getImageUrl), downloads strip it (PhotoViewer, host page, zipDownload use the URL path), deletes use storage_key, Modal downloads by storage_key, Find You keeps the query (URL parsing), the RPCs pass the links through, the media worker forwards ?v= to B2 (checked live: 200, same file). Tests: tests/rotateLinks.test.ts; backend suite 84/84.
 How to reproduce: Open a gallery photo on two devices, rotate it on one, reload the other: it is still unrotated.
 
+#124
+Listed: 2026-10-24
+Platform: Both
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Deploy the backend, then set ROTATE_UPRIGHT_FIRST=true on Railway (staging) and run test_yourself #131
+Found in: check of the 18 Rec 1 photos (#125), 2026-10-24
+Issue: The rotate tool turns sideways-marked photos the wrong way. Most phone and many camera photos are stored sideways with an EXIF orientation mark; the rotate route (POST /api/v1/media/rotate, apps/backend/src/routes/media.ts) uses sharp(original).rotate(angle), which ignores the mark and drops it. So on such a photo "Rotate right" shows no change and "Rotate left" turns it upside down. Checked on VIS_6191 (stored 6000x4000, EXIF orientation 8, shown 4000x6000): rotate right gave 4000x6000 again. Photos without the mark rotate correctly. Saved sizes stay consistent with the new files, so it doesn't cause #125-style cropping.
+Fix (backend, behind ROTATE_UPRIGHT_FIRST, off by default): apps/backend/src/services/rotateImage.ts turns the photo upright first (sharp autoOrient) and then by the angle. Tests (tests/rotateImage.test.ts): all 8 EXIF orientations x right/left/180 turn the way the guest sees them and the saved size matches; switch off gives byte-identical output to before; unmarked photos rotate as before. VIS_6191 with the fix: 6000x4000 (landscape). Backend suite 88/88.
+How to reproduce: Take a portrait photo on a phone, upload it, open it and tap Rotate right: it doesn't change. Rotate left: upside down.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#125
+Listed: 2026-10-24
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: grid image check of wedding-fdd8 (2026-10-24)
+Issue: 18 photos in album Rec 1 (rec-1-f165, uploaded 2026-07-17, VIS_5710, VIS_5729, VIS_6172-6193) had landscape sizes saved (6000x4000) for portrait pictures, so the justified grid drew landscape tiles and cropped them hard. Their camera stores them sideways with an EXIF mark; the thumbnail maker in use in July turned them upright but saved the sideways size. Checked all 4,978 photos with thumbnails: these 18 are the only ones. Current uploads can't get it: both photo workers (process_photo_preview, PhotoProcessorV2) and RAW reading turn the photo upright before saving its size, and complete_media_job keeps the worker's size.
+Fix: swapped width/height for the 18 rows in photos (database update; previous values kept in the session scratchpad, rec1-sizes-backup.json). Grid checked after: all 23 tiles of wedding-fdd8 match their photo's shape.
+Fixed in: database update, no code (2026-10-24)
 
 #77
 Listed: 2026-10-19

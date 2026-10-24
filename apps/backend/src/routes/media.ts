@@ -39,6 +39,7 @@ import {
 import { runMediaWatchdog } from "../services/watchdog.js";
 import { checkEventUpload, isEventUploadLimitEnabled } from "../services/eventUploadLimits.js";
 import { buildRotatedLinks, isRotateVersionedLinksEnabled, previousOriginalLinks } from "../services/rotateLinks.js";
+import { isRotateUprightFirstEnabled, rotateImage } from "../services/rotateImage.js";
 import { getStorageContext, ownerIdentifiers } from "../vault/access.js";
 import { createSupabaseVaultRepository } from "../vault/repository.js";
 
@@ -1734,7 +1735,7 @@ mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
   const originalBytes = Buffer.from(await downloadResponse.arrayBuffer());
 
   console.log("[MediaRotate] Processing image", { bytes: originalBytes.length });
-  const rotated = await sharp(originalBytes).rotate(angle).toBuffer({ resolveWithObject: true });
+  const rotated = await rotateImage(originalBytes, angle, isRotateUprightFirstEnabled());
   const rotatedBuffer = rotated.data;
   const rotatedMetadata = rotated.info;
   const thumbnailBuffer = await sharp(rotatedBuffer)

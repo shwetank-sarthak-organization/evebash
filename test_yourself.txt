@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 131
+Next test number: 132
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3289,6 +3289,34 @@ How to test:
   6. Set that photo as the gallery cover, rotate it, reload. Expect: the cover is rotated too.
   7. Download the rotated photo (website and app). Expect: the file is rotated and has a normal
      name (no "?v=" in it). Then delete the photo. Expect: it disappears, no error.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#131 Rotate turns phone photos the right way
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Rotating a portrait phone photo did nothing (right) or turned it upside down (left) (issue
+           #124). It must now turn exactly the way you tap.
+Detail:    Only after the backend deploy AND ROTATE_UPRIGHT_FIRST=true on Railway (staging). Best with
+           ROTATE_VERSIONED_LINKS=true too (#130), or other devices may show an old cached copy.
+How to test:
+  1. Take a portrait photo with an iPhone and one with an Android phone, and upload both to a test
+     gallery (app). Also upload a landscape photo.
+  2. Open the portrait iPhone photo and tap Rotate right. Expect: it turns a quarter right and is now
+     landscape (people lying on their side, heads to the right).
+  3. Tap Rotate left. Expect: back to upright portrait.
+  4. Tap Rotate left again. Expect: landscape, heads to the left. Never upside down.
+  5. Repeat 2-4 for the Android photo and the landscape photo (website and app).
+  6. Reload the gallery on another device. Expect: same direction as on your phone, grid tile shape
+     matches the photo (no hard cropping).
 Done by:
 Device / browser:
 Build / version:
