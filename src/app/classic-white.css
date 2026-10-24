@@ -111,6 +111,7 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
   max-width: 42rem;
   font-family: var(--font-playfair-src), Georgia, serif;
   font-size: clamp(1rem, 1.2vw, 1.15rem);
+  font-style: italic;
   line-height: 1.6;
   color: #596653;
   white-space: pre-line;
