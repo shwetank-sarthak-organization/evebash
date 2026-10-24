@@ -1995,6 +1995,19 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 except Exception:
                     pass
 
+            # The GPU can't take every video: check before writing anything, so a video handed to the 16-core
+            # worker doesn't get its poster written twice (issue #134: the older copy survived the delete)
+            if hardware == "gpu_full":
+                probe = subprocess.run([
+                    "ffprobe", "-v", "error", "-select_streams", "v:0",
+                    "-show_entries", "stream=codec_name,pix_fmt:stream_side_data=rotation", "-of", "json",
+                    input_path
+                ], capture_output=True, text=True)
+                stream = (json.loads(probe.stdout or "{}").get("streams") or [{}])[0]
+                problem = _gpu_decode_problem(stream)
+                if problem:
+                    raise _UseCpuWorker(problem)
+
             # 3. Extract poster.jpg from local file at 1.0s
             subprocess.run([
                 "ffmpeg", "-y", "-i", input_path,
@@ -2028,15 +2041,6 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
             print(f"[TranscodeVideo-{hardware.upper()}] Starting single-pass multi-output FFmpeg...")
 
             if hardware == "gpu_full":
-                probe = subprocess.run([
-                    "ffprobe", "-v", "error", "-select_streams", "v:0",
-                    "-show_entries", "stream=codec_name,pix_fmt:stream_side_data=rotation", "-of", "json",
-                    input_path
-                ], capture_output=True, text=True)
-                stream = (json.loads(probe.stdout or "{}").get("streams") or [{}])[0]
-                problem = _gpu_decode_problem(stream)
-                if problem:
-                    raise _UseCpuWorker(problem)
                 proc = subprocess.run(_full_gpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio),
                                       capture_output=True, text=True)
                 if proc.returncode != 0:

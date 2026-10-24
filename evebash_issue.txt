@@ -1007,12 +1007,14 @@ How to reproduce: n/a (cost comparison, not a bug).
 Listed: 2026-10-24
 Platform: Both
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Sarthak: set B2_DELETE_ALL_VERSIONS=true on Railway api-staging; OK to deploy Modal
 Found in: Device test #128 delete step (2026-10-24)
 Issue: Deleting a video can leave part of its streaming copy in B2. deleteB2Prefix in apps/backend/src/routes/media.ts (used for hls/<storage_key>/ when DELETE_VIDEO_STREAM_ON_DELETE=true) lists files with b2_list_file_names, which returns only the newest version of each file, and deletes that version. When a file was written twice, the older version becomes visible again and stays billed. This happens whenever a worker writes the same file twice: the GPU-to-16-core handoff (#117) always writes poster.jpg twice (the GPU worker uploads the poster before it checks the video), Modal retries re-upload segments, and re-processing rewrites everything. Seen 2026-10-24: after deleting test128_portrait_10min.mp4 (rotated, so handed off) from test-face-new-155c, the photos row, the original and all segments were gone but hls/<key>/poster.jpg (143 KB) was still there (removed by hand). The admin delete paths (deleteB2Prefix in routes/admin.ts) may have the same problem; not checked. Fix: list with b2_list_file_versions and delete every version (as scripts/b2_hls_orphan_sweep.py and the Modal cancelled-upload cleanup already do), behind a flag; optionally move the GPU check before the poster upload in _transcode_video_core so a handoff doesn't write the poster twice. Then sweep existing leftovers with b2_hls_orphan_sweep.py.
 How to reproduce: In a gallery on the GPU switch, upload a portrait phone video over 10 minutes, wait until it plays, delete it, then list hls/<storage_key>/ in B2: poster.jpg is still there.
+Fix (code, flag off, not live): (1) Backend: new apps/backend/src/services/b2DeleteAllVersions.ts lists with b2_list_file_versions and deletes every version and hide marker under a prefix (refuses a prefix without a trailing slash). Both deleteB2Prefix copies (routes/media.ts user delete, routes/admin.ts admin delete) use it only when Railway B2_DELETE_ALL_VERSIONS=true; otherwise the old name-only delete runs unchanged. 5 unit tests (tests/b2DeleteAllVersions.test.ts); full backend suite 95/95. Real B2 check under bench/t134/ (poster written twice + a segment): old delete left poster.jpg visible (3 versions -> 1), new delete left nothing (3 -> 0), a neighbouring folder untouched in both; test files removed. (2) Modal: the GPU worker now checks whether it can take the video BEFORE uploading the poster, so a handoff to the 16-core worker no longer writes the poster twice (needs a Modal deploy; GPU ffmpeg failures can still write it twice, which (1) covers). Not changed: deleteB2File (single files: original, preview, thumbnail, grid) also deletes only the newest version; photos rewritten by retries could leave an old preview behind. Still to do after the flag is on: sweep existing leftovers with scripts/b2_hls_orphan_sweep.py.
+
 
 #135
 Listed: 2026-10-24

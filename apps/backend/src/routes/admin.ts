@@ -1,4 +1,5 @@
 import { deleteGalleryMedia } from "../deleteGalleryMedia.js";
+import { deleteAllB2Versions, isDeleteAllVersionsOn } from "../services/b2DeleteAllVersions.js";
 import type { Request, Response as ExpressResponse } from "express";
 import { Router } from "express";
 import { getCachedBackblazeAuth, type BackblazeAuth } from "../backblaze.js";
@@ -354,6 +355,9 @@ async function inspectBackblazeOrphans(supabaseAdmin: ReturnType<typeof getAdmin
 
 async function deleteB2Prefix(auth: BackblazeAuth, bucketId: string, prefix: string) {
   try {
+    if (isDeleteAllVersionsOn()) {
+      return (await deleteAllB2Versions(auth, bucketId, prefix)).deleted > 0;
+    }
     let startFileName: string | undefined = undefined;
     let totalDeleted = 0;
     while (true) {
