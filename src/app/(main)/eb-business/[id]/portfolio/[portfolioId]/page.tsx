@@ -11,7 +11,7 @@ const DEFAULT_PORTFOLIO_COVER_IMAGE = "https://images.unsplash.com/photo-1519741
 const PORTFOLIO_TYPES = ["Wedding", "Birthday", "Corporate", "Sports", "Other"];
 const PORTFOLIO_TEMPLATE_THEMES = [
   { id: "royal", category: "Wedding", label: "Royal Emerald", desc: "Deep imperial emerald & palace gold", background: { dark: "#02231c" }, accent: "#ca9c69" },
-  { id: "classic", category: "Wedding", label: "Classic White", desc: "Vintage sage & warm silk ivory elegance", background: { dark: "#F7F2EB" }, accent: "#8B9A6E" },
+  { id: "classic", category: "Wedding", label: "Classic White", desc: "Soft white & vintage sage elegance", background: { dark: "#FCFCFA" }, accent: "#8B9A6E" },
   { id: "hero", category: "Wedding", label: "Midnight Hero", desc: "Big impact cinematic dark aesthetic", background: { dark: "#000000" }, accent: "#ca9c69" },
   { id: "ethereal", category: "Wedding", label: "Ethereal Mist", desc: "Vintage fine-art album & steel blue", background: { dark: "#F8FAFC" }, accent: "#4A6984" },
   { id: "scrapbook", category: "Birthday", label: "Playful Scrapbook", desc: "Soft modern keepsake aesthetic", background: { dark: "#151c1b" }, accent: "#d9826b" },

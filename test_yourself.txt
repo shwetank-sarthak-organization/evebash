@@ -3156,7 +3156,7 @@ Feedback:
 #127 Classic White guest page redesign (computer browser)
 Status:    TODO
 Priority:  Medium
-Platform:  Website
+Platform:  Website + App (step 9)
 Brief:     The Classic White guest page now uses its own sage/ivory colours, Playfair titles, the
            host's date and place, a wide cover and up to 5 photo columns. The navbar no longer
            shows a profile button for signed-in visitors (all themes).
@@ -3196,6 +3196,10 @@ How to test:
      Signed in: no round profile button at the right of the navbar (any theme). Signed out guest
      who joined with name/phone: the logout button is still there.
   8. Quick look at another theme (e.g. Midnight Hero): gallery looks as before.
+  9. Colours: the page, navbar, gallery and photo viewer are soft white (#FCFCFA), not beige; the
+     message card is a pale grey-white with light grey lines. The host's theme picker shows Classic
+     White as a white swatch, "Soft white & vintage sage elegance". App (new build): a Classic White
+     gallery's background, header strip and photo viewer are the same soft white.
 Done by:
 Device / browser:
 Build / version:

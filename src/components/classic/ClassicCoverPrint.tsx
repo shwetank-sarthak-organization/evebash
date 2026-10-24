@@ -2,7 +2,7 @@ import Image from "next/image";
 import type { CSSProperties } from "react";
 
 // Classic White cover (styles in src/app/classic-white.css): the cover photo as a print in a thick white mount,
-// with the host's message on an ivory card overlapping its top edge. The card sits in the page flow, so a longer
+// with the host's message on a pale card overlapping its top edge. The card sits in the page flow, so a longer
 // message pushes the print down and the print shrinks to fit the screen instead of the card covering the photo.
 
 /** Small sage sprig for the card corners; the right one is mirrored in CSS */

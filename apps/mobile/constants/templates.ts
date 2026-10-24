@@ -38,8 +38,8 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     id: 'classic',
     category: 'Wedding',
     label: 'Classic White',
-    desc: 'Timeless vintage sage & warm ivory elegance',
-    background: { light: '#F7F2EB', dark: '#F7F2EB' }, // Warm silk ivory background
+    desc: 'Soft white & vintage sage elegance',
+    background: { light: '#FCFCFA', dark: '#FCFCFA' }, // Soft white background
     panel: { light: '#ffffff', dark: '#ffffff' }, // Pure silk white card matting
     text: { light: '#2C352E', dark: '#2C352E' }, // Deep warm sage charcoal
     muted: { light: '#596653', dark: '#596653' }, // Muted sage gray
@@ -47,7 +47,7 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     accentBg: { light: 'rgba(139,154,110,0.08)', dark: 'rgba(139,154,110,0.08)' },
     tileBg: { light: '#ffffff', dark: '#ffffff' },
     radius: 0,
-    overlay: { light: ['rgba(247,242,235,0.1)', 'rgba(247,242,235,1)'], dark: ['rgba(247,242,235,0.1)', 'rgba(247,242,235,1)'] },
+    overlay: { light: ['rgba(252,252,250,0.1)', 'rgba(252,252,250,1)'], dark: ['rgba(252,252,250,0.1)', 'rgba(252,252,250,1)'] },
     useSerif: true
   },
   {

@@ -296,7 +296,7 @@ export function ThemeHeader({
       isRoyal && (isRoyalFont
         ? { height: 60, marginTop: 0, marginBottom: 0, backgroundColor: '#021a15', borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(202,156,105,0.3)' }
         : { height: 70, marginTop: 12, marginBottom: 0 }),
-      isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#F7F2EB' },
+      isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#FCFCFA' },
       isHero && { height: 64, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', backgroundColor: '#000000' },
       isEthereal && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.accent + '26', backgroundColor: selectedTemplate.background },
       isAcademicEditorial && { height: 52, marginTop: 12, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.text + '1a', backgroundColor: selectedTemplate.background },

@@ -1,6 +1,6 @@
 /* Classic White only (src/components/TemplateClassic.tsx): shared gallery markup keeps every other theme's styles.
-   Palette from src/lib/webTemplateTheme.ts: ivory #F7F2EB, white #fff, text #2C352E, muted #596653, sage #8B9A6E, line #EAE2D6.
-   Sage is for lines only; on ivory or white it is too light for text (about 3:1). */
+   Palette from src/lib/webTemplateTheme.ts: soft white #FCFCFA, white #fff, text #2C352E, muted #596653, sage #8B9A6E, line #E6E6E0.
+   Sage is for lines only; on white it is too light for text (about 3:1). */
 
 /* Playfair Display (already loaded) instead of the Georgia that gallery-refinements.css gives every theme */
 .event-template-shell .classic-template .font-serif { font-family: var(--font-playfair-src), Georgia, serif; }
@@ -98,10 +98,10 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
   margin: 0;
   padding: clamp(20px, 3.5vw, 64px) clamp(20px, 3.5vw, 64px) 0;
   background: #fff;
-  border: 1px solid #EAE2D6;
+  border: 1px solid #E6E6E0;
   box-shadow: 0 22px 50px -28px rgba(44, 53, 46, .45);
 }
-.classic-gh__screen { position: relative; aspect-ratio: 16 / 10; overflow: hidden; background: #F7F2EB; outline: 1px solid #EAE2D6; outline-offset: 5px; }
+.classic-gh__screen { position: relative; aspect-ratio: 16 / 10; overflow: hidden; background: #FCFCFA; outline: 1px solid #E6E6E0; outline-offset: 5px; }
 .classic-gh__player, .classic-gh__poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .classic-gh__start { position: absolute; inset: 0; display: grid; place-items: center; width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .classic-gh__play {
@@ -120,12 +120,12 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
 .classic-gh__caption { padding: 22px 0 24px; text-align: center; color: #596653; font-size: 15px; }
 @media (prefers-reduced-motion: reduce) { .classic-gh__play, .classic-gh__action, .classic-gh__tab { transition: none; } }
 
-/* Navbar (EventNavbar variant="classic"): ivory, full width, the bar between two thin sage lines; title on the left,
+/* Navbar (EventNavbar variant="classic"): soft white, full width, the bar between two thin sage lines; title on the left,
    plain capital links on the right. The small-screen menu keeps the shared look. */
 .classic-nav {
   position: fixed; inset: 0 0 auto; z-index: 50;
   padding: 10px 16px 0;
-  background: #F7F2EB;
+  background: #FCFCFA;
   color: #2C352E;
   transition: box-shadow .3s ease;
 }
@@ -186,8 +186,8 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
   min-width: min(100%, 300px);
   margin-bottom: -14px;
   padding: 16px 58px;
-  background: #F2ECE1;
-  border: 1px solid #E2D8C6;
+  background: #F6F6F2;
+  border: 1px solid #E6E6E0;
   box-shadow: 0 8px 18px -12px rgba(44, 53, 46, .45);
   rotate: 1deg;
   color: #2C352E;
@@ -219,7 +219,7 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
   padding: max(26px, calc(var(--w) * .045));
   translate: -50% 0; rotate: -2.2deg;
   background: #fff;
-  border: 1px solid #ECE5D9;
+  border: 1px solid #E6E6E0;
   box-shadow: 0 22px 44px -26px rgba(44, 53, 46, .55), 0 2px 6px -2px rgba(44, 53, 46, .12);
 }
-.classic-print__photo { position: relative; width: 100%; height: 100%; overflow: hidden; background: #F7F2EB; box-shadow: inset 0 0 0 1px rgba(44, 53, 46, .12); }
+.classic-print__photo { position: relative; width: 100%; height: 100%; overflow: hidden; background: #FCFCFA; box-shadow: inset 0 0 0 1px rgba(44, 53, 46, .12); }

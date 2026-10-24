@@ -28,7 +28,7 @@ function ClassicDivider({ className }: { className?: string }) {
     );
 }
 
-// Colours come from the Classic White palette (src/lib/webTemplateTheme.ts): ivory #F7F2EB, white mat,
+// Colours come from the Classic White palette (src/lib/webTemplateTheme.ts): soft white #FCFCFA, white mount,
 // dark green text #2C352E, muted #596653, sage #8B9A6E (lines only: too light for text).
 export function TemplateClassic({ event, children }: TemplateClassicProps) {
     const location = "location" in event && typeof event.location === "string" ? event.location.trim() : "";
@@ -40,7 +40,7 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
     };
 
     return (
-        <div className="classic-template min-h-screen bg-[#F7F2EB] text-[#2C352E] font-sans selection:bg-[#8B9A6E]/30">
+        <div className="classic-template min-h-screen bg-[#FCFCFA] text-[#2C352E] font-sans selection:bg-[#8B9A6E]/30">
             {/* The first screen is exactly the window height (at least 640px) on every computer: navbar space, title,
                 message card and cover print, "Open Gallery", with the gallery header starting right below. The print
                 takes whatever height is left (ClassicCoverPrint). */}
@@ -85,7 +85,7 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
 
             {/* Full width with the page's side padding, like the navbar. The gallery's header comes from the event page */}
             {children && (
-                <section id="event-content" className="classic-gallery-content border-t border-[#EAE2D6] py-16 md:py-20">
+                <section id="event-content" className="classic-gallery-content border-t border-[#E6E6E0] py-16 md:py-20">
                     <div className="w-full px-4 sm:px-6 lg:px-8">
                         {children}
                     </div>

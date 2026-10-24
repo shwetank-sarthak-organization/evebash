@@ -267,10 +267,10 @@ const TEMPLATE_THEMES = [
         "id": "classic",
         "category": "Wedding",
         "label": "Classic White",
-        "desc": "Vintage sage & warm silk ivory elegance",
+        "desc": "Soft white & vintage sage elegance",
         "background": {
-            "light": "#F7F2EB",
-            "dark": "#F7F2EB"
+            "light": "#FCFCFA",
+            "dark": "#FCFCFA"
         },
         "accent": "#8B9A6E"
     },
