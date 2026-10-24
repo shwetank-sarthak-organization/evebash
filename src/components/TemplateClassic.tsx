@@ -77,14 +77,13 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
 
                 {children && (
                     <div className="mt-[clamp(14px,3svh,32px)] shrink-0 text-center">
+                        {/* Same outlined button as "Back to Gallery" in the gallery header */}
                         <button
+                            type="button"
                             onClick={scrollToContent}
-                            className="group inline-flex items-center gap-3 rounded-full bg-[#596653] px-8 py-4 text-white shadow-md transition-colors duration-300 hover:bg-[#2C352E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2C352E]"
+                            className="classic-gh__action focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2C352E]"
                         >
-                            <span className="text-sm font-medium uppercase tracking-widest">Open Gallery</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5 transition-transform group-hover:translate-y-0.5" aria-hidden="true">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" />
-                            </svg>
+                            Open Gallery
                         </button>
                     </div>
                 )}
