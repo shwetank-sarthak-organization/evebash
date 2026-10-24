@@ -396,30 +396,15 @@ export function EventNavbar({
 
                         {user?.role === "admin" && renderDesktopNavItem({ name: "Admin", href: `/host?view=manage&level=event-details&eventId=${mainEventId}`, gallery: null, isGallery: false })}
 
-                        {activeName && !(isRoyal && user) && (
-                            user ? (
-                                <Link
-                                    href="/profile"
-                                    aria-label="Profile"
-                                    title="Profile"
-                                    className={isRoyal ? "royal-nav__avatar" : "ml-4 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white text-slate-700 transition-all hover:bg-slate-50"}
-                                >
-                                    {user.profileImage ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={user.profileImage} alt="" className="h-full w-full object-cover" />
-                                    ) : (
-                                        <ProfileIcon className="h-6 w-6" />
-                                    )}
-                                </Link>
-                            ) : (
-                                <button
-                                    onClick={handleLogout}
-                                    className={isRoyal ? "royal-nav__avatar" : "ml-4 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-all hover:bg-slate-50"}
-                                    aria-label="Logout"
-                                >
-                                    <LogOut className="h-5 w-5" />
-                                </button>
-                            )
+                        {/* No profile button for signed-in visitors (the small-screen menu still has My Profile); guests keep logout */}
+                        {activeName && !user && (
+                            <button
+                                onClick={handleLogout}
+                                className={isRoyal ? "royal-nav__avatar" : "ml-4 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-all hover:bg-slate-50"}
+                                aria-label="Logout"
+                            >
+                                <LogOut className="h-5 w-5" />
+                            </button>
                         )}
                     </div>
 

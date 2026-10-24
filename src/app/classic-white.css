@@ -1,0 +1,45 @@
+/* Classic White only (src/components/TemplateClassic.tsx): shared gallery markup keeps every other theme's styles.
+   Palette from src/lib/webTemplateTheme.ts: ivory #F7F2EB, white #fff, text #2C352E, muted #596653, sage #8B9A6E, line #EAE2D6.
+   Sage is for lines only; on ivory or white it is too light for text (about 3:1). */
+
+/* Playfair Display (already loaded) instead of the Georgia that gallery-refinements.css gives every theme */
+.event-template-shell .classic-template .font-serif { font-family: var(--font-playfair-src), Georgia, serif; }
+
+/* Deep sage buttons with white text (6:1): guest "Add photos" and "Load More Media" */
+.classic-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 26px;
+  border-radius: 999px;
+  background: #596653;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  box-shadow: 0 8px 20px -10px rgba(44, 53, 46, .5);
+  cursor: pointer;
+  transition: background-color .2s ease;
+}
+.classic-button--large { padding: 16px 32px; font-size: 13px; }
+.classic-button:hover:not(:disabled) { background: #2C352E; }
+.classic-button:disabled { opacity: .6; cursor: default; }
+
+/* Empty gallery: full-strength muted text instead of opacity-50 */
+.classic-empty { color: #596653; }
+.classic-empty svg { color: #8B9A6E; }
+
+/* Selected Photos / Videos tab: white on deep sage like the buttons (the shared rule gives black on light sage) */
+.classic-gallery-content [data-royal-control="segments"] [aria-pressed="true"] { background: #596653; color: #fff; }
+
+/* White photo cards with a soft line, on the ivory section */
+.classic-gallery-content .gallery-media-card { border-color: #EAE2D6; box-shadow: 0 1px 2px rgba(44, 53, 46, .06); }
+
+/* More columns on wide screens (the shared rule stops at 3) */
+@media (min-width: 1280px) {
+  .classic-gallery-content .gallery-masonry:not(.royal-masonry) > div:first-child { column-count: min(4, var(--gallery-count, 4)); }
+}
+@media (min-width: 1680px) {
+  .classic-gallery-content .gallery-masonry:not(.royal-masonry) > div:first-child { column-count: min(5, var(--gallery-count, 5)); }
+}

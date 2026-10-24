@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 112
+Next issue number: 117
 
 =====================================================================
 ACTIVE ISSUES
@@ -725,6 +725,65 @@ Recommendation (in this order):
   4. Later, if side-profile misses still matter: ask for 2-3 selfies (front, slightly left, slightly right) and average them.
   Not recommended: only changing the 0.40 cut-off; a stronger model (buffalo_l/antelopev2 are non-commercial; re-index everything).
 How to reproduce: Find You on wedding-fdd8 with Sarthak's selfie: 44 results, most of the lower-scoring ones are the groom.
+
+#112
+Listed: 2026-10-24
+Platform: Website
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Classic White (Wedding) theme review, code only (2026-10-24)
+Issue: Classic White doesn't use its own colours. The theme is sage #8B9A6E / dark green #2C352E / muted #596653 on ivory #F7F2EB (src/lib/webTemplateTheme.ts), but src/components/TemplateClassic.tsx uses Tailwind slate text, a fourth green #64764c for the dividers and a pink text selection (selection:bg-rose-200). "Open Guest Gallery", "Add photos" and "Load More Media" are near-black (bg-slate-900). The gallery section is plain white and the photo cards are white too, so cards have no edge. The empty gallery text sits under opacity-50 (about 2.5:1 contrast, fails WCAG AA). The selected Photos/Videos tab is black text on sage while other buttons are white text.
+How to reproduce: Open a Classic White gallery on a computer: compare the hero text and buttons with the sage/ivory palette; open an empty album and check the text contrast.
+Update 2026-10-24: fixed in the working tree (not committed): theme colours, deep sage #596653 buttons and selected tab (white text, 6:1), ivory gallery section with white bordered cards, empty text at full strength (src/app/classic-white.css). Device test #127.
+
+#113
+Listed: 2026-10-24
+Platform: Website
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Classic White (Wedding) theme review, code only (2026-10-24)
+Issue: Classic White text problems. (1) An empty description shows the made-up wedding line "Join us in celebrating our special day." in quotes, on the event and on every album without a description. (2) An album description shows twice: as the hero quote and again above the photos. (3) Headings stack: album title in the hero, then "The Gallery", then the album title again (main page: "The Gallery" then "Home Gallery"). (4) The date and location are never shown. (5) Without a cover image guests see a grey box saying "No Cover Image". (6) The description is always wrapped in quote marks and line breaks are lost. (7) The page has two footers: the theme's "Title — <this year>" line (wrong year for older events) and the site footer.
+How to reproduce: Open a Classic White gallery with no description and no cover, then an album with a description.
+Update 2026-10-24: fixed in the working tree (not committed): no made-up text, the album message only in the hero, "The Gallery" heading and the theme footer removed, date and place shown, no cover = no frame, no quote marks, line breaks kept. Device test #127.
+
+#114
+Listed: 2026-10-24
+Platform: Website
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Classic White (Wedding) theme review, code only (2026-10-24)
+Issue: Classic White uses only a narrow middle part of a computer screen: the hero text is max-w-4xl (896px), the cover frame max-w-3xl (768px) and the gallery max-w-7xl (1280px) with at most 3 photo columns (src/app/gallery-refinements.css), so a 1920px screen has wide empty sides. The cover is object-contain inside a fixed 16:9 frame, so most photos get blank bars. Long titles go up to text-8xl with tight tracking and nothing stops them overflowing. Phones are not affected while the app download screen (#109) is on.
+How to reproduce: Open a Classic White gallery on a 1440-1920px wide screen; try a gallery with a 40+ character title and a portrait cover.
+Update 2026-10-24: fixed in the working tree (not committed): cover up to 1400px wide following the host's focus/zoom/fit, gallery up to 1800px with 4 columns at 1280px+ and 5 at 1680px+ (Classic only), title sized with clamp() and wrapping. Device test #127.
+
+#115
+Listed: 2026-10-24
+Platform: Website
+Priority: Low
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Classic White (Wedding) theme review, code only (2026-10-24)
+Issue: Classic White serif text is plain Georgia: gallery-refinements.css forces Georgia for every theme's font-serif although Playfair Display is already loaded. The title (the page's largest text) is hidden by a fade-in until the scripts run, which delays it. The cover image has no sizes, so the browser downloads a full-screen-width image for a smaller frame. TemplateClassic.tsx imports Link and motion without using them.
+How to reproduce: Open a Classic White gallery and check the title font; in DevTools check the cover image's downloaded width.
+Update 2026-10-24: fixed in the working tree (not committed): Playfair for Classic serif text, title shown without the fade, cover sizes set, unused imports removed. Device test #127.
+
+#116
+Listed: 2026-10-24
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Classic White (Wedding) theme review, code only (2026-10-24)
+Issue: The website and app Classic White are two different designs. The website is a centred title, quote and tilted white-matted cover (src/components/TemplateClassic.tsx); the app is a cover photo with the title on it, a sage frame and a dotted divider (apps/mobile/components/eventStyles/classicStyles.ts, apps/mobile/components/event/ThemeHeader.tsx). With the app download screen (#109) on, phone guests only ever see the app version.
+How to reproduce: Open the same Classic White gallery on the website and in the app.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

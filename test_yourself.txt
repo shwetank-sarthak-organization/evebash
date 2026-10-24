@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 127
+Next test number: 128
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3143,6 +3143,40 @@ How to test:
   5. Phone app (new build): Profile -> Storage card, tap Event Storage. Expect the same list, arrow
      flips up/down, tap again closes it.
   6. A host with no videos/voice notes: those lines show 0 B, nothing breaks.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#127 Classic White guest page redesign (computer browser)
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     The Classic White guest page now uses its own sage/ivory colours, Playfair titles, the
+           host's date and place, a wide cover and up to 5 photo columns. The navbar no longer
+           shows a profile button for signed-in visitors (all themes).
+Detail:    Issues #112-#115. Phones and tablets get the app download screen, so test on a computer.
+How to test:
+  1. Set a test gallery with photos and albums to Classic White. Open its guest page on a
+     1440-1920px wide screen.
+  2. Top: date and place above the title (if set), title in Playfair, a small sage divider, the
+     description in italics without quote marks, the cover in a white mat almost the full width.
+     The cover follows the host's focus point / fit setting. "Open Gallery" button is deep sage.
+  3. Clear the gallery description and cover: no "Join us in celebrating..." text, no grey
+     "No Cover Image" box.
+  4. Gallery: one "Home Gallery" heading (no "The Gallery" above it), 4 columns at 1280px+,
+     5 at 1680px+. "Add photos", "Load More Media" and the selected Photos/Videos tab are deep
+     sage with white text. Open an album with a description: it shows once, at the top.
+  5. Videos tab on a gallery with no videos: the "No videos yet." text is easy to read.
+  6. Only one footer at the bottom. A 40+ character title wraps neatly, nothing runs off screen.
+  7. Signed in: no round profile button at the right of the navbar (any theme). Signed out guest
+     who joined with name/phone: the logout button is still there.
+  8. Quick look at another theme (e.g. Midnight Hero): gallery looks as before.
 Done by:
 Device / browser:
 Build / version:

@@ -546,6 +546,8 @@ function EventPageContent() {
 
     // Royal Emerald draws its own gallery header (crest, title, welcome plaque, Back / Share, Photos / Videos)
     const isRoyalGallery = displayEvent.templateId === "royal";
+    // Classic White shows the gallery message in its hero and styles the shared buttons itself (classic-white.css)
+    const isClassicGallery = displayEvent.templateId === "classic";
     const goBack = () => {
         router.push(event?.parentId ? `/events/${event.parentId}${isShared ? "?shared=true" : ""}` : "/dashboard");
     };
@@ -621,7 +623,7 @@ function EventPageContent() {
                             subtitle={`${displayedPhotoCount} Photos · ${displayedVideoCount} Videos`}
                         />
 
-                        {activeGalleryMessage && (
+                        {activeGalleryMessage && !isClassicGallery && (
                             <p className="mx-auto mt-5 max-w-3xl text-center font-sans text-sm font-semibold leading-7 text-stone-600 md:text-base">
                                 {activeGalleryMessage}
                             </p>
@@ -652,6 +654,8 @@ function EventPageContent() {
                             onClick={() => guestFileInputRef.current?.click()}
                             className={isRoyalGallery
                                 ? "royal-button"
+                                : isClassicGallery
+                                ? "classic-button"
                                 : "inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800 disabled:opacity-60"}
                         >
                             {guestUpload ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
@@ -738,7 +742,7 @@ function EventPageContent() {
                         />
                     </div>
                 ) : (
-                    <div className={cn("text-center py-32", isRoyalGallery ? "royal-empty" : "opacity-50")}>
+                    <div className={cn("text-center py-32", isRoyalGallery ? "royal-empty" : isClassicGallery ? "classic-empty" : "opacity-50")}>
                         <ImageIcon className={cn("w-16 h-16 mx-auto mb-6", !isRoyalGallery && "text-stone-600")} />
                         {error === "permissions" ? (
                             <>
@@ -766,12 +770,14 @@ function EventPageContent() {
                             disabled={loadingMorePhotos}
                             className={isRoyalGallery
                                 ? "royal-button royal-button--large"
+                                : isClassicGallery
+                                ? "classic-button classic-button--large"
                                 : "px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-full font-bold shadow-xl flex items-center space-x-3 transition-all hover:scale-105 active:scale-95"}
                         >
                             {loadingMorePhotos ? (
-                                <Loader2 className={cn("w-5 h-5 animate-spin", !isRoyalGallery && "text-white/70")} />
+                                <Loader2 className={cn("w-5 h-5 animate-spin", !isRoyalGallery && !isClassicGallery && "text-white/70")} />
                             ) : (
-                                <ChevronDown className={cn("w-5 h-5", !isRoyalGallery && "text-white/70")} />
+                                <ChevronDown className={cn("w-5 h-5", !isRoyalGallery && !isClassicGallery && "text-white/70")} />
                             )}
                             <span className="tracking-widest uppercase text-sm">
                                 {loadingMorePhotos ? "Loading..." : "Load More Media"}
