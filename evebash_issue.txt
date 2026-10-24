@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 137
+Next issue number: 140
 
 =====================================================================
 ACTIVE ISSUES
@@ -883,7 +883,7 @@ Platform: Both
 Priority: Medium
 Status: Open
 Owner: Unassigned
-Blocked by: #120 (edge cache) deployed; a Cloudflare API token with Cache Purge permission for the backend (Railway) and Modal
+Blocked by: Sarthak: create a Cloudflare API token with Zone > Cache Purge for evebash.com (Cloudflare > My Profile > API Tokens) and add it to Railway; #120 is live
 Found in: media edge cache work (#120), 2026-10-24
 Issue: With the media edge cache (#120) on, Cloudflare keeps a copy of each photo, preview, thumbnail and video file for up to 30 days. (1) A deleted photo or gallery can still be opened from that copy by anyone who has the exact link, for up to 30 days. (2) When a photo is reprocessed, the preview and thumbnail are rewritten at the same path (modal_engine/main.py, PhotoProcessorV2), so visitors can get the old version for up to 30 days. Copies already in a viewer's own browser (Cache-Control max-age 1 year, immutable) can't be removed by any fix; for bulk re-generation (e.g. #121) write new images under a new file name instead.
 Fix: purge by URL (Cloudflare API, zone evebash.com) behind a switch, never blocking the delete (on failure the copy just expires): (a) backend delete paths (apps/backend/src/routes/media.ts POST /delete, apps/backend/src/deleteGalleryMedia.ts, routes/admin.ts): the original, -preview.webp, -thumbnail.webp, and for videos hls/<storage_key>/master.m3u8 and the playlists; (b) Modal photo worker after it uploads a preview/thumbnail. Free plan purge limits: batch big galleries over a few minutes.
@@ -1025,6 +1025,42 @@ Blocked by: -
 Found in: #134 fix (2026-10-24)
 Issue: Two loose ends from #134. (1) deleteB2File in apps/backend/src/routes/media.ts (deleting a single file: a photo/video original, preview, thumbnail, grid image) still lists file names only, so a file written twice (e.g. a preview remade by a photo retry or by rotate) leaves its older version in B2 after the delete; B2_DELETE_ALL_VERSIONS doesn't cover it. (2) Videos deleted before 2026-10-25 may have left older file versions in hls/ (any video that was retried or handed from the GPU to the 16-core worker). Fix: use b2_list_file_versions in deleteB2File too, behind the same flag; run scripts/b2_hls_orphan_sweep.py (list first, delete with Sarthak's OK) to find leftovers.
 How to reproduce: Upload a photo, have its preview remade, delete the photo, list versions of <key>-preview.webp in B2: one version is left.
+
+#137
+Listed: 2026-10-25
+Platform: Both
+Priority: High
+Status: Open
+Owner: Sarthak
+Blocked by: Sarthak: set the variables on the production Railway service before launch
+Found in: launch-config review after #120-#124 and #121 (2026-10-25)
+Issue: The new backend switches are only set on the staging Railway service (api-staging.evebash.com). The production service (api.evebash.com, Railway qa264myg) has none of them, so after launch rotate would again keep stale copies (#123) and turn phone photos the wrong way (#124), and rotate wouldn't make grid images (#121).
+Fix: On the production Railway service set ROTATE_VERSIONED_LINKS=true (#123), ROTATE_UPRIGHT_FIRST=true (#124) and GRID_VARIANT=true (#121), after their device tests (test_yourself #130, #131, #135) pass. Already done elsewhere: Vercel Production has NEXT_PUBLIC_GRID_HIRES=true (on with the next release from main); the Cloudflare media cache and the Modal "grid" switch are shared by staging and production. Optional at the same time: delete the leftover Cloudflare DNS record media.evebash.com.evebash.com (old media-proxy custom domain, serves nothing).
+How to reproduce: Railway > production backend service > Variables: the three names are missing.
+
+#138
+Listed: 2026-10-25
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: rotate test on VIS_6191 (2026-10-24)
+Issue: After a rotate, the photo's preview and thumbnail are smaller and lower quality than the photo worker makes: the rotate route (POST /api/v1/media/rotate, apps/backend/src/routes/media.ts) remakes the preview at 900 px wide and the thumbnail at 400 px wide (sharp resize by width only, WebP q75), while PhotoProcessorV2 makes 1600 px / 480 px on the long side (q70 / q68). So a rotated photo looks softer in the viewer (VIS_6191 in Rec 1 went from a 3000 px to a 900x1350 preview), and a rotated portrait gets a 400x600 thumbnail. The grid image is already right (1000 px long side, #121).
+Fix: make the rotate route's preview and thumbnail like the photo worker's (long side 1600 / 480, same qualities), behind a backend flag per change-safety; check overhead_size and the website/app viewer after a rotate.
+How to reproduce: Rotate a photo in the host page viewer, then open it: the viewer image is 900 px wide.
+
+#139
+Listed: 2026-10-25
+Platform: Both
+Priority: Low
+Status: Blocked
+Owner: Sarthak
+Blocked by: Real traffic after launch (and a Cloudflare token with Zone > Analytics > Read to measure it)
+Found in: speed comparison with Samaro (2026-10-24)
+Issue: Cloudflare's free plan serves visitors in India from Marseille (cdn-cgi/trace: loc=IN, colo=MRS), so every photo and video starts ~0.2-0.25 s later than from Samaro's CDN (BunnyCDN, Singapore): first byte 0.51 s vs 0.29 s on the same connection. With the edge cache (#120) and the 1000 px grid image (#121) a screen of grid photos is already faster than Samaro's (0.91 s vs 1.11 s), so this is not urgent.
+Fix (decision): after launch, with real traffic numbers, either (1) try Cloudflare Pro for a month and check that /cdn-cgi/trace shows an Indian colo (BOM, DEL, MAA...), or (2) put media.evebash.com on BunnyCDN (pull zone on the private B2 bucket, test on media2.evebash.com first; ~$0.03/GB in Asia vs free today), or (3) stay on the free plan.
+How to reproduce: curl https://media.evebash.com/cdn-cgi/trace from India: colo=MRS.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
