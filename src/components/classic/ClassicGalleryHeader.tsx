@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { ArrowLeft, Check, Play } from "lucide-react";
+import { ArrowLeft, Check, Play, Share2 } from "lucide-react";
 import { HLSVideoPlayer } from "@/components/ui/HLSVideoPlayer";
 
-// Top of the gallery section in the Classic White design (styles in src/app/classic-white.css): Back / Share, the
-// gallery title in large capitals, date and place, the [ Photos ] [ Videos ] switch, and on the right the gallery
-// video in a white mat when the host picked one. Other themes keep the shared markup in the event page.
+// Top of the gallery section in the Classic White design (styles in src/app/classic-white.css). With a gallery video
+// the text column is as tall as the video on its right: Back / Share at the top, the gallery name, date and the host's
+// gallery message in the middle, the [ Photos ] [ Videos ] switch at the bottom just above the grid. Without a video
+// the same parts simply stack. Other themes keep the shared markup in the event page.
 
 type MediaTab = "photos" | "videos";
 
@@ -20,6 +21,8 @@ interface ClassicGalleryHeaderProps {
     title: string;
     /** Date and place line under the title; left out when empty */
     details?: string;
+    /** The host's gallery message (description), under the date; left out when empty */
+    message?: string;
     backLabel: string;
     onBack: () => void;
     onShare: () => void;
@@ -68,6 +71,7 @@ function ClassicVideoFrame({ video, title }: { video: ClassicGalleryVideo; title
 export function ClassicGalleryHeader({
     title,
     details,
+    message,
     backLabel,
     onBack,
     onShare,
@@ -87,13 +91,16 @@ export function ClassicGalleryHeader({
                         {backLabel}
                     </button>
                     <button type="button" onClick={onShare} className="classic-gh__action" aria-live="polite">
-                        {copied && <Check className="h-4 w-4" aria-hidden="true" />}
+                        {copied ? <Check className="h-4 w-4" aria-hidden="true" /> : <Share2 className="h-4 w-4" aria-hidden="true" />}
                         {copied ? "Link copied" : "Share Event"}
                     </button>
                 </div>
 
-                <h2 className="classic-gh__title">{title}</h2>
-                {details && <p className="classic-gh__details">{details}</p>}
+                <div className="classic-gh__middle">
+                    <h2 className="classic-gh__title">{title}</h2>
+                    {details && <p className="classic-gh__details">{details}</p>}
+                    {message?.trim() && <p className="classic-gh__message">{message.trim()}</p>}
+                </div>
 
                 <div className="classic-gh__tabs" role="group" aria-label="Photos or videos">
                     {([

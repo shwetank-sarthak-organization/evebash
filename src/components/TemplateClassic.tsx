@@ -17,6 +17,13 @@ function coverImageStyle(event: Event): React.CSSProperties {
     return { objectFit: "cover", objectPosition: `${x}% ${y}%`, transform: `scale(${event.coverScale || 1})` };
 }
 
+/** Fixed line on the cover card, chosen by the event's category (the host's gallery message is in the gallery header) */
+function coverCardText(category?: string) {
+    if (category === "Anniversary") return "Still choosing each other, every year.";
+    if (category === "Wedding") return "Two hearts, one holy union.";
+    return "Moments worth keeping, forever.";
+}
+
 /** Sage line, dot, line (the same divider as the app's Classic White) */
 function ClassicDivider({ className }: { className?: string }) {
     return (
@@ -33,7 +40,6 @@ function ClassicDivider({ className }: { className?: string }) {
 export function TemplateClassic({ event, children }: TemplateClassicProps) {
     const location = "location" in event && typeof event.location === "string" ? event.location.trim() : "";
     const details = [event.date?.trim(), location].filter(Boolean).join(" · ");
-    const description = event.description?.trim();
 
     const scrollToContent = () => {
         document.getElementById("event-content")?.scrollIntoView({ behavior: "smooth" });
@@ -61,12 +67,8 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
                     </ScrollReveal>
                 </div>
 
-                {/* Cover as a print in a white mount with the message card on its top edge; fills the space left */}
-                {event.coverImage || description ? (
-                    <ClassicCoverPrint coverImage={event.coverImage} alt={event.title} message={description} imageStyle={coverImageStyle(event)} />
-                ) : (
-                    <div className="flex-1" />
-                )}
+                {/* Cover as a print in a white mount with the theme's card on its top edge; fills the space left */}
+                <ClassicCoverPrint coverImage={event.coverImage} alt={event.title} cardText={coverCardText(event.category)} imageStyle={coverImageStyle(event)} />
 
                 {children && (
                     <div className="mt-[clamp(16px,3.5svh,40px)] shrink-0 text-center">

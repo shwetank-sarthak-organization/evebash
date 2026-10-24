@@ -2,8 +2,8 @@ import Image from "next/image";
 import type { CSSProperties } from "react";
 
 // Classic White cover (styles in src/app/classic-white.css): the cover photo as a print in a thick white mount,
-// with the host's message on a pale card overlapping its top edge. The card sits in the page flow, so a longer
-// message pushes the print down and the print shrinks to fit the screen instead of the card covering the photo.
+// with a short line of the theme's own text on a pale card overlapping its top edge. The card sits in the page flow,
+// so a taller card pushes the print down and the print shrinks to fit the screen instead of covering the photo.
 
 /** Small sage sprig for the card corners; the right one is mirrored in CSS */
 function Sprig({ className }: { className: string }) {
@@ -20,12 +20,13 @@ function Sprig({ className }: { className: string }) {
 interface ClassicCoverPrintProps {
     coverImage?: string;
     alt: string;
-    message?: string;
+    /** Short line of the theme's own text (not the host's message) */
+    cardText?: string;
     imageStyle: CSSProperties;
 }
 
-export function ClassicCoverPrint({ coverImage, alt, message, imageStyle }: ClassicCoverPrintProps) {
-    // Longer messages get a smaller line so the card stays a strip across the top, not a block
+export function ClassicCoverPrint({ coverImage, alt, cardText: message, imageStyle }: ClassicCoverPrintProps) {
+    // Longer text gets a smaller line so the card stays a strip across the top, not a block
     const length = message?.length || 0;
     const sizeClass = length > 220 ? " classic-print__card--long" : length > 90 ? " classic-print__card--medium" : "";
 
@@ -34,7 +35,7 @@ export function ClassicCoverPrint({ coverImage, alt, message, imageStyle }: Clas
             {message && (
                 <div className={`classic-print__card${sizeClass}`}>
                     <Sprig className="classic-print__sprig" />
-                    <p className="classic-print__message">&ldquo;{message}&rdquo;</p>
+                    <p className="classic-print__message">{message}</p>
                     <Sprig className="classic-print__sprig classic-print__sprig--right" />
                 </div>
             )}

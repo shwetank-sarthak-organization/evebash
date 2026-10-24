@@ -547,7 +547,7 @@ function EventPageContent() {
 
     // Royal Emerald draws its own gallery header (crest, title, welcome plaque, Back / Share, Photos / Videos)
     const isRoyalGallery = displayEvent.templateId === "royal";
-    // Classic White shows the gallery message in its hero and styles the shared buttons itself (classic-white.css)
+    // Classic White shows the gallery message in its own gallery header and styles the shared buttons itself (classic-white.css)
     const isClassicGallery = displayEvent.templateId === "classic";
     const goBack = () => {
         router.push(event?.parentId ? `/events/${event.parentId}${isShared ? "?shared=true" : ""}` : "/dashboard");
@@ -621,6 +621,7 @@ function EventPageContent() {
                     <ClassicGalleryHeader
                         title={activeGallery ? activeGalleryTitle : "Home Gallery"}
                         details={[displayEvent.date?.trim(), typeof displayEvent.location === "string" ? displayEvent.location.trim() : ""].filter(Boolean).join(" · ")}
+                        message={activeGalleryMessage}
                         backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
                         onBack={goBack}
                         onShare={handleShare}

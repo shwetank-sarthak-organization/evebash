@@ -45,10 +45,13 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
 .classic-gallery-content { padding-top: clamp(28px, 3vw, 40px); }
 .classic-gh { display: grid; gap: 48px; align-items: center; color: #2C352E; text-align: left; }
 @media (min-width: 1024px) {
-  /* Video top lines up with Back / Share, both just under the line */
-  .classic-gh--video { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(48px, 6vw, 112px); align-items: start; }
+  /* The text column is as tall as the video: Back / Share level with its top, the tabs level with its bottom */
+  .classic-gh--video { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(48px, 6vw, 112px); align-items: stretch; }
+  .classic-gh--video .classic-gh__text { justify-content: space-between; }
+  .classic-gh--video .classic-gh__mat { align-self: start; }
 }
-.classic-gh__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: clamp(40px, 7vw, 96px); }
+.classic-gh__text { display: flex; flex-direction: column; gap: clamp(28px, 4vw, 56px); min-width: 0; }
+.classic-gh__actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .classic-gh__action {
   display: inline-flex; align-items: center; gap: 10px;
   padding: 12px 22px;
@@ -63,7 +66,7 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
 .classic-gh__title {
   margin: 0;
   font-family: var(--font-playfair-src), Georgia, serif;
-  font-size: clamp(2.75rem, 6.5vw, 7rem);
+  font-size: clamp(2.5rem, 5vw, 5.5rem);
   font-weight: 500;
   line-height: .98;
   letter-spacing: -.01em;
@@ -79,9 +82,19 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
   font-style: italic;
   color: #2C352E;
 }
+.classic-gh__message {
+  margin-top: 18px;
+  max-width: 34rem;
+  font-family: var(--font-playfair-src), Georgia, serif;
+  font-size: clamp(1rem, 1.2vw, 1.15rem);
+  line-height: 1.6;
+  color: #596653;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
 .classic-gh__tabs {
+  align-self: flex-start;
   display: inline-flex; flex-wrap: wrap; gap: 40px;
-  margin-top: clamp(40px, 6vw, 80px);
   border-bottom: 1px solid rgba(44, 53, 46, .18);
 }
 .classic-gh__tab {
@@ -200,7 +213,8 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
 .classic-print__message {
   margin: 0;
   font-family: var(--font-playfair-src), Georgia, serif;
-  font-size: clamp(15px, 1.2vw, 19px);
+  font-size: clamp(16px, 1.3vw, 20px);
+  font-style: italic;
   line-height: 1.45;
   white-space: pre-line;
   overflow-wrap: anywhere;
