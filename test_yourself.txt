@@ -3338,16 +3338,17 @@ How to test:
   1. Open a Classic White wedding gallery with a cover, albums, a gallery message and a highlight
      video. Cover: date at the top, the title in capitals in a serif font ("Asha weds Raj" shows
      "ASHA & RAJ"), a small sage divider, a pale card "Two hearts, one holy union." with sprigs over
-     the top edge of a tilted photo in a thick white border, then an outlined "Open Gallery". It all
+     the top edge of a tilted photo in a thick white border, then an outlined "Open Gallery" between
+     square icon-only Back (<) and Share buttons, all the same height. It all
      fits one screen, no gold anywhere. Also try an Anniversary gallery ("Still choosing each other,
      every year.") and a 30+ character title (smaller, still fits).
-  2. Tap Open Gallery: the page scrolls to the gallery, Back and Share Event fully visible under the
-     pinned album tabs. HOME is dark green with a sage underline.
-  3. Header: "HOME GALLERY", the date in italics, the message in quotes and italics, the video in a
+  2. Tap Open Gallery: the page scrolls to the gallery, its name fully visible under the pinned album
+     tabs. HOME is dark green with a sage underline. No Back / Share buttons in the gallery header.
+     Share (on the cover) opens the share sheet; Back on Home leaves the gallery.
+  3. Header: "HOME", the date in italics, the message in quotes and italics, the video in a
      white frame with "Highlight film" under it (plays when tapped), then [ Photos (n) ] [ Videos (n) ]
      with a sage underline under the selected one. Switching tabs switches the grid.
-  4. Open an album: "Back to Gallery" returns to Home; the album's own title and message show.
-     Share Event opens the share sheet. On Home, Back leaves the gallery.
+  4. Open an album: the album's own title and message show; Back on the cover returns to Home.
   5. A gallery without a video or without a message: those parts are simply left out.
   6. Open a Royal Emerald gallery: its fonts and look are unchanged.
   7. Album tabs: HOME, COLLECTIONS (with a down arrow) and FIND YOU (no emoji). Tap Collections: a white
