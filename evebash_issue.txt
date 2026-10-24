@@ -1012,12 +1012,14 @@ How to reproduce: n/a (cost comparison, not a bug).
 Listed: 2026-10-24
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: New app build (it's an app change: reaches users only with the next build / OTA update), then device test
 Found in: Device test #128 on the iOS simulator (2026-10-24)
 Issue: In the app's video viewer you can't seek: the progress bar (dashboardVideoProgressTrack in apps/mobile/components/PhotoViewer.tsx) only shows progress and has no touch handling, the buttons next to play are previous/next media, and the 5-second jump (seekBy, videoControlsRef) is defined but nothing calls it. On a 48-minute wedding video, guests can only watch from the start. The website player seeks fine. There is also no manual quality choice in the app (iOS picks it), which is fine. Fix: make the progress bar draggable/tappable (player.currentTime = fraction * duration) and/or add -10 s / +10 s buttons; check on iPhone and Android.
 How to reproduce: In the app, open any video in a gallery, play it, tap or drag the progress bar: playback position doesn't change.
+Fix (app, not in a build yet): apps/mobile/components/PhotoViewer.tsx: the progress bar is now a seek bar (tap or drag; a 20 px tall touch area around the 3 px bar, a thumb shows while dragging and the time follows the finger), plus -10 s / +10 s buttons beside play (icons gobackward.10 / goforward.10 added to icon-symbol.tsx), and the bar is adjustable for VoiceOver (swipe up/down = +/-10 s). On iOS a sideways drag anywhere is the "go back" gesture, so the gallery screen's swipe-back is switched off while a video viewer with these controls is open and back on when it closes. Checked in the iOS simulator (dev build from this branch, test_5 in test-face-new-155c): tap mid-bar 0:00 -> 24:20, +10 s 24:20 -> 24:30, drag to the right 46:06 and played from there; the screen no longer slides away while dragging. Android not checked. Device test #138.
+
 
 #136
 Listed: 2026-10-25

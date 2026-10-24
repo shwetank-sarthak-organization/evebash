@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 138
+Next test number: 139
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3514,6 +3514,35 @@ How to test:
   5. Turn the network off (dev tools "Offline"), scroll to the end: a "Load More Media" button
      appears. Turn the network back on and click it: the next photos load.
   6. Clicking any photo, including ones loaded later, opens the right photo in the viewer.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#138 App video player: drag to seek and skip 10 seconds
+Status:    TODO
+Priority:  Medium
+Platform:  App
+Brief:     In the app's video viewer you can now drag or tap the progress bar to jump anywhere,
+           and use the -10 s / +10 s buttons beside play (issue #135). Before, you could only
+           watch from the start.
+Detail:    Needs an app build (or OTA update) with the #135 change. Use a long video, e.g. test_5
+           in test-face-new.
+How to test:
+  1. Open a gallery, Videos, open a long video and press play.
+  2. Tap the middle of the progress bar. Expect: it jumps to about half way and keeps playing.
+  3. Drag the bar slowly left and right. Expect: a round thumb follows your finger, the time
+     changes as you drag, and on release it plays from there. The screen must NOT slide back
+     to the previous page while dragging (iPhone).
+  4. Tap +10 s and -10 s. Expect: the time moves 10 seconds each tap.
+  5. Close the video, then swipe from the left edge on iPhone. Expect: back navigation works
+     as before.
+  6. Repeat 1-4 on Android.
 Done by:
 Device / browser:
 Build / version:

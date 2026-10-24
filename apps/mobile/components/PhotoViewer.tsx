@@ -9,6 +9,7 @@ import { VideoView, createVideoPlayer, type VideoPlayer } from 'expo-video';
 import type { FullscreenOptions } from 'expo-video/build/VideoView.types';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useNavigation } from 'expo-router';
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, canCommentOnPhoto, Event as DatabaseEvent } from '@/lib/database';
 import { getImageUrl, getOriginalMediaUrl } from '@/lib/imageUrl';
 import { SCREEN_ORIENTATION_LOCK, canLockScreenOrientation, lockScreenOrientation } from '@/lib/screenOrientation';
@@ -198,6 +199,7 @@ function ViewerVideo({
   onNextMedia?: () => void;
 }) {
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const navigation = useNavigation();
   const [player, setPlayer] = useState<VideoPlayer | null>(null);
   const [currentPlayUri, setCurrentPlayUri] = useState<string>(uri);
   const [hasFallenBack, setHasFallenBack] = useState<boolean>(false);
@@ -217,11 +219,15 @@ function ViewerVideo({
   const [controlsVisible, setControlsVisible] = useState(true);
   const [controlsInteractionKey, setControlsInteractionKey] = useState(0);
   const [isCustomFullscreen, setIsCustomFullscreen] = useState(false);
+  // Issue #135: time under the finger while dragging the progress bar (null when not dragging)
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
+  const progressTrackWidthRef = useRef(0);
   const playerRef = useRef<VideoPlayer | null>(null);
   const videoViewRef = useRef<VideoView | null>(null);
   const sourceRef = useRef<string | null>(null);
   const controlsHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const progressPercent = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
+  const shownTime = scrubTime ?? currentTime;
+  const progressPercent = duration > 0 ? Math.min(100, Math.max(0, (shownTime / duration) * 100)) : 0;
   const shouldUseCustomFullscreen = customControls && Platform.OS !== 'web';
   const canUseOrientationLock = canLockScreenOrientation();
   const shouldUseCustomFullscreenOverlay = shouldUseCustomFullscreen;
@@ -384,6 +390,26 @@ function ViewerVideo({
     }
   }, []);
 
+  // Issue #135: on iOS a sideways drag anywhere on the screen means "go back", so dragging the progress bar closed
+  // the gallery. Pause the back swipe while a video with these controls is open; photos keep it.
+  useEffect(() => {
+    if (!customControls) return;
+    navigation.setOptions({ gestureEnabled: false });
+    return () => navigation.setOptions({ gestureEnabled: true });
+  }, [customControls, navigation]);
+
+  const seekToTime = useCallback((seconds: number) => {
+    const activePlayer = playerRef.current;
+    if (!activePlayer) return;
+
+    try {
+      activePlayer.currentTime = seconds;
+      setCurrentTime(seconds);
+    } catch (error) {
+      console.error('[PhotoViewer] Video seek failed:', error);
+    }
+  }, []);
+
   useEffect(() => {
     if (!videoControlsRef) return;
 
@@ -516,6 +542,24 @@ function ViewerVideo({
     }
   }, [revealVideoControls]);
 
+  const timeAtTouch = (event: GestureResponderEvent) => {
+    const trackWidth = progressTrackWidthRef.current;
+    if (trackWidth <= 0 || duration <= 0) return null;
+    return Math.min(duration, Math.max(0, (event.nativeEvent.locationX / trackWidth) * duration));
+  };
+
+  const handleScrubMove = (event: GestureResponderEvent) => {
+    revealVideoControls();
+    const time = timeAtTouch(event);
+    if (time !== null) setScrubTime(time);
+  };
+
+  const handleScrubEnd = (event: GestureResponderEvent) => {
+    const time = timeAtTouch(event) ?? scrubTime;
+    setScrubTime(null);
+    if (time !== null) seekToTime(time);
+  };
+
   const renderCustomControls = (fullscreen = false) => (
     <>
     <LinearGradient
@@ -526,13 +570,36 @@ function ViewerVideo({
       ]}
       pointerEvents="box-none"
     >
-      <View style={localStyles.dashboardVideoProgressTrack}>
-        <View
-          style={[
-            localStyles.dashboardVideoProgressFill,
-            { width: `${progressPercent}%`, backgroundColor: accent },
-          ]}
-        />
+      <View
+        style={localStyles.dashboardVideoProgressTouch}
+        onLayout={event => { progressTrackWidthRef.current = event.nativeEvent.layout.width; }}
+        onStartShouldSetResponder={() => duration > 0}
+        onMoveShouldSetResponder={() => duration > 0}
+        onResponderTerminationRequest={() => false}
+        onResponderGrant={handleScrubMove}
+        onResponderMove={handleScrubMove}
+        onResponderRelease={handleScrubEnd}
+        onResponderTerminate={() => setScrubTime(null)}
+        accessibilityRole="adjustable"
+        accessibilityLabel="Video position"
+        accessibilityValue={{ min: 0, max: Math.round(duration), now: Math.round(shownTime), text: formatVideoClock(shownTime) }}
+        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        onAccessibilityAction={event => seekBySeconds(event.nativeEvent.actionName === 'increment' ? 10 : -10)}
+      >
+        <View style={localStyles.dashboardVideoProgressTrack} pointerEvents="none">
+          <View
+            style={[
+              localStyles.dashboardVideoProgressFill,
+              { width: `${progressPercent}%`, backgroundColor: accent },
+            ]}
+          />
+        </View>
+        {scrubTime !== null && (
+          <View
+            pointerEvents="none"
+            style={[localStyles.dashboardVideoProgressThumb, { left: `${progressPercent}%`, backgroundColor: accent }]}
+          />
+        )}
       </View>
 
       <View style={localStyles.dashboardVideoControlsRow}>
@@ -551,11 +618,33 @@ function ViewerVideo({
           )}
 
           <TouchableOpacity
+            style={localStyles.dashboardVideoControlButton}
+            onPress={() => {
+              revealVideoControls();
+              seekBySeconds(-10);
+            }}
+            accessibilityLabel="Back 10 seconds"
+          >
+            <IconSymbol name="gobackward.10" size={20} color={controlText} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[localStyles.dashboardVideoControlButton, localStyles.dashboardVideoPlayButton]}
             onPress={handleTogglePlayback}
             accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'}
           >
             <IconSymbol name={isPlaying ? 'pause.fill' : 'play.fill'} size={22} color={controlText} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={localStyles.dashboardVideoControlButton}
+            onPress={() => {
+              revealVideoControls();
+              seekBySeconds(10);
+            }}
+            accessibilityLabel="Forward 10 seconds"
+          >
+            <IconSymbol name="goforward.10" size={20} color={controlText} />
           </TouchableOpacity>
 
           {onNextMedia && (
@@ -572,7 +661,7 @@ function ViewerVideo({
           )}
 
           <Text style={[localStyles.dashboardVideoTime, { color: controlText }]}>
-            {formatVideoClock(currentTime)} / {formatVideoClock(duration)}
+            {formatVideoClock(shownTime)} / {formatVideoClock(duration)}
           </Text>
         </View>
 
@@ -1867,6 +1956,20 @@ const localStyles = StyleSheet.create({
   mobileVideoFullscreenControlOverlay: {
     paddingHorizontal: 18,
     paddingBottom: 14,
+  },
+  dashboardVideoProgressTouch: {
+    // Tall invisible touch area around the 3 px bar, so it is easy to hit with a finger
+    width: '100%',
+    paddingVertical: 10,
+    marginVertical: -10,
+    justifyContent: 'center',
+  },
+  dashboardVideoProgressThumb: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    marginLeft: -7,
+    borderRadius: 7,
   },
   dashboardVideoProgressTrack: {
     height: 3,
