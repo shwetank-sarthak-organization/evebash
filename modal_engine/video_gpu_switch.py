@@ -8,10 +8,14 @@ long video (> 10 min), with no deploy. Run from the repo root with the Modal CLI
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py add-gallery <gallery id>
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py remove-gallery <gallery id>
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py wait 180        # seconds to wait for an L4
+  modal_engine/venv/bin/python modal_engine/video_gpu_switch.py sdr-8bit on     # 10-bit/HDR/4:2:2 -> 8-bit SDR (#118)
+  modal_engine/venv/bin/python modal_engine/video_gpu_switch.py sdr-8bit off    # keep the source format, as before
 
 add-gallery sends just that gallery's long videos to the GPU while mode is off. A sub-gallery has its own id.
 A long video still goes to the 16-core worker when the GPU can't take it (10-bit, rotated phone video...),
 when the GPU run fails, or when no L4 picks it up within the wait.
+sdr-8bit (issue #118, every video length, CPU workers): converts 10-bit, HDR and 4:2:2 sources to 8-bit 4:2:0
+SDR so every phone can play them. Videos that are already 8-bit 4:2:0 SDR are not affected either way.
 """
 import sys
 
@@ -35,6 +39,8 @@ def main(argv):
         switch["gpu_events"] = [g for g in switch.get("gpu_events", []) if g != value]
     elif command == "wait" and value.isdigit():
         switch["gpu_wait_s"] = int(value)
+    elif command == "sdr-8bit" and value in ("on", "off"):
+        switch["sdr_8bit"] = value == "on"
     elif command != "show":
         print(__doc__)
         return 1
@@ -42,6 +48,7 @@ def main(argv):
     print(f"mode: {switch.get('mode', 'off')}")
     print(f"GPU test galleries: {switch.get('gpu_events', []) or 'none'}")
     print(f"wait for an L4: {switch.get('gpu_wait_s', 180)} s")
+    print(f"8-bit SDR output (#118): {'on' if switch.get('sdr_8bit', False) else 'off'}")
     return 0
 
 

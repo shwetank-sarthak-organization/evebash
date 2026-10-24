@@ -1811,6 +1811,42 @@ def _hls_length_problem(tmp_path, out_dirs, source_seconds):
     return None
 
 
+# ---------------------------------------------------------------------------
+# 8-bit SDR output for every video (issue #118)
+# ---------------------------------------------------------------------------
+# libx264 keeps the source's pixel format, so a 10-bit source (iPhone HDR video, many cameras) became H.264
+# High 10 and a 4:2:2 source High 4:2:2, which most phones can't decode. With the "sdr_8bit" key of the video
+# switch on (modal_engine/video_gpu_switch.py sdr-8bit on), the CPU command converts them to 8-bit 4:2:0 before
+# the tier split and tone-maps HDR (PQ / HLG) to normal colours. Sources that are already 8-bit 4:2:0 SDR get
+# exactly the old command. Off (default) = the old command for every video.
+
+_HDR_TRANSFERS = ("smpte2084", "arib-std-b67")
+
+
+def _read_sdr_8bit_switch() -> bool:
+    try:
+        return bool(modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True).get("sdr_8bit", False))
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not read the 8-bit switch, keeping the source format: {err}")
+        return False
+
+
+def _sdr_8bit_filter(stream: dict) -> str:
+    """Filters to put before the tier split so every tier is 8-bit 4:2:0 SDR ("" when the source already is).
+    Tested 2026-10-24: mobius keeps normal-brightness colours (SSIM 0.99 vs the SDR original; hable 0.96, visibly
+    darker) and still rolls off highlights. Tone mapping runs in float, so a source bigger than 1080p is first
+    shrunk to the largest tier (15.7 s -> 3.4 s on a 15 s 4K clip); smaller sources are never enlarged."""
+    if stream.get("color_transfer") in _HDR_TRANSFERS:
+        shrink = ""
+        if (stream.get("width") or 0) > 1920 or (stream.get("height") or 0) > 1080:
+            shrink = "scale=w=1920:h=1080:force_original_aspect_ratio=decrease,"
+        return (f"{shrink}zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:desat=0,"
+                "zscale=t=bt709:m=bt709:r=tv,format=yuv420p,")
+    if stream.get("pix_fmt") not in ("yuv420p", "yuvj420p"):
+        return "format=yuv420p,"
+    return ""
+
+
 def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_gb=None, function_name=None):
     import boto3
     import json
@@ -1964,11 +2000,22 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 if problem:
                     raise _UseCpuWorker(f"GPU output incomplete: {problem}")
 
+            # 8-bit SDR output (issue #118): only with the switch on and a source that isn't 8-bit 4:2:0 SDR
+            sdr_prefix = ""
+            if hardware != "gpu_full" and _read_sdr_8bit_switch():
+                probe = subprocess.run([
+                    "ffprobe", "-v", "error", "-select_streams", "v:0",
+                    "-show_entries", "stream=pix_fmt,color_transfer,width,height", "-of", "json", input_path
+                ], capture_output=True, text=True)
+                sdr_prefix = _sdr_8bit_filter((json.loads(probe.stdout or "{}").get("streams") or [{}])[0])
+                if sdr_prefix:
+                    print(f"[TranscodeVideo-{hardware.upper()}] Converting to 8-bit SDR: {sdr_prefix.rstrip(',')}")
+
             cmd = ["ffmpeg", "-y", "-i", input_path]
-            
+
             # Build filter complex dynamically
             split_count = len([d for d in out_dirs if d != "audio"])
-            filter_str = f"[0:v]split={split_count}" + "".join(f"[v{i+1}]" for i in range(split_count)) + ";"
+            filter_str = f"[0:v]{sdr_prefix}split={split_count}" + "".join(f"[v{i+1}]" for i in range(split_count)) + ";"
                 
             idx = 1
             if "1080p" in out_dirs:
@@ -2030,6 +2077,13 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
 
             if hardware != "gpu_full":  # the full-GPU run above already made the streams
                 proc = subprocess.run(cmd, capture_output=True, text=True)
+                if proc.returncode != 0 and "tonemap" in sdr_prefix:
+                    # zscale can't convert colours it can't identify (e.g. HDR without primaries tags):
+                    # still give an 8-bit stream that plays, just without the tone map
+                    print(f"[TranscodeVideo-{hardware.upper()}] HDR conversion failed, retrying as plain 8-bit: {proc.stderr[-300:]}")
+                    fc = cmd.index("-filter_complex") + 1
+                    cmd[fc] = cmd[fc].replace(sdr_prefix, "format=yuv420p,", 1)
+                    proc = subprocess.run(cmd, capture_output=True, text=True)
 
             # GPU Fallback to CPU if hardware acceleration fails
             if proc.returncode != 0 and hardware == "gpu":

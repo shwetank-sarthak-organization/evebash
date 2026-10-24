@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 133
+Next test number: 134
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3361,6 +3361,33 @@ How to test:
      the whole width), thin 4px gaps, square corners, no white frames, photos not cropped to a fixed
      shape; the last row is not stretched. Tapping a photo opens the right one. [ Photos ] [ Videos ]
      are centred, with no sage divider between them and the photos.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#133 iPhone HDR and 10-bit videos play on every phone, with normal colours
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Videos recorded as HDR on an iPhone (the iPhone default) or in 10-bit on a camera used
+           to be converted into a format most phones can't play (issue #118). Now they come out in
+           the normal format, with colours that look right.
+Detail:    Only after the Modal deploy with the #118 fix AND the switch turned on
+           (modal_engine/video_gpu_switch.py sdr-8bit on). Before that, nothing changes.
+How to test:
+  1. On an iPhone with Camera > Formats > HDR Video on, record a 1-2 minute video with bright sky or
+     lights in it. Transfer the file unchanged to a computer (AirDrop) and upload it from the website.
+  2. Also upload a normal (non-HDR) video as a control.
+  3. Wait until both play. Play each on the website (Chrome), an iPhone (app) and an Android phone (app).
+     Expect: both play everywhere; the HDR one looks like the original on the iPhone's Photos app shown
+     in normal brightness (not washed out, not grey, not much darker); seeking and quality switch work.
+  4. Upload the same HDR video from the app (pick it from the gallery). Expect the same.
 Done by:
 Device / browser:
 Build / version:
