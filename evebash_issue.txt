@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 117
+Next issue number: 120
 
 =====================================================================
 ACTIVE ISSUES
@@ -763,6 +763,7 @@ How to reproduce: Open a Classic White gallery on a 1440-1920px wide screen; try
 Update 2026-10-24: fixed in bc6e3b2, pushed to staging: cover up to 1400px wide following the host's focus/zoom/fit, gallery up to 1800px with 4 columns at 1280px+ and 5 at 1680px+ (Classic only), title sized with clamp() and wrapping. Device test #127.
 Update 2026-10-24 (2): per Sarthak, following photos.knotsbyamp.com: navbar, gallery and guest footer now run the full width with the same 32px side gap at every screen size (no 1280/1800px caps), photos in justified rows (equal-height rows, 4px gaps, MasonryGrid layout="justified", Classic only), cover smaller (max 672px, thin mat).
 Update 2026-10-24 (3): gallery header redesigned from Sarthak's mockup (src/components/classic/ClassicGalleryHeader.tsx): Back / Share, the gallery name in large capitals, date and place, [ Photos ] [ Videos ] tabs with an underline, the gallery video in a white mat on the right.
+Update 2026-10-24 (4): the first screen (navbar space, text, cover, Open Gallery) is exactly the window height (at least 640px); the cover takes the space left, keeping 3:2 (up to 1170px wide). Checked 1280x650 to 2560x1440 and a 430-character description.
 
 #115
 Listed: 2026-10-24
@@ -786,6 +787,40 @@ Blocked by: -
 Found in: Classic White (Wedding) theme review, code only (2026-10-24)
 Issue: The website and app Classic White are two different designs. The website is a centred title, quote and tilted white-matted cover (src/components/TemplateClassic.tsx); the app is a cover photo with the title on it, a sage frame and a dotted divider (apps/mobile/components/eventStyles/classicStyles.ts, apps/mobile/components/event/ThemeHeader.tsx). With the app download screen (#109) on, phone guests only ever see the app version.
 How to reproduce: Open the same Classic White gallery on the website and in the app.
+
+#117
+Listed: 2026-10-24
+Platform: Both
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Sarthak: OK to deploy Modal and turn the switch on for a test gallery
+Found in: gpu-video-handoff.md (2026-10-18 benchmark), re-measured 2026-10-24
+Issue: Long videos (> 10 min) run on the 16-core CPU worker (transcode_video_long, modal_engine/main.py) even though a full-GPU L4 transcode (NVDEC -> scale_npp -> NVENC) is faster and cheaper on some long videos. Also the backend log said "GPU worker" for long videos although no GPU is used (apps/backend/src/qstash.ts).
+Fix (code, switch off by default, not deployed): new transcode_video_long_gpu (L4, 4 cores, 8 GB) next to the 16-core worker; process_video_gpu sends long videos to it only when the Modal Dict "video-gpu-switch" says so (mode on, or the gallery id in gpu_events; modal_engine/video_gpu_switch.py shows/sets it). The 16-core worker takes the video instead when the GPU can't (10-bit, 4:2:2, rotated phone video, codecs other than 8-bit H.264/HEVC), when GPU ffmpeg fails, when the output is shorter than the source, or when no L4 starts within gpu_wait_s (default 180 s, watch_gpu_start). Backend log text fixed.
+How to reproduce: Upload a 15-minute video: modal_cost_logs shows process_video_cpu_long (16 cores).
+
+#118
+Listed: 2026-10-24
+Platform: Both
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: GPU long-video work, edge-case test on Modal (2026-10-24)
+Issue: 10-bit and 4:2:2 videos are converted into streams many phones can't play. The video workers (_transcode_video_core in modal_engine/main.py, all lengths) run libx264 without -pix_fmt, so a 10-bit source (iPhone HDR video is HEVC 10-bit HLG; many cameras record 10-bit) comes out as H.264 High 10 (yuv420p10le), and a 4:2:2 source as H.264 High 4:2:2. Most hardware H.264 decoders (iPhone/Safari, most Android phones) only play 8-bit 4:2:0. HDR (HLG/PQ) is also passed through without tone mapping, so it looks washed out on SDR screens. Fix: add -pix_fmt yuv420p (and an HDR-to-SDR tone map, or keep HDR in HEVC) to the CPU command, behind a flag; check how many existing videos are affected.
+How to reproduce: Record a video on an iPhone with HDR on (default), upload it, then ffprobe hls/<storage_key>/1080p/seg_000.ts: profile High 10, pix_fmt yuv420p10le. Play it in iOS Safari / the app (not yet checked on a device).
+
+#119
+Listed: 2026-10-24
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: GPU long-video work, edge-case test (2026-10-24)
+Issue: Phone videos with a rotation flag (portrait videos from most phones) break the video worker's probes. `ffprobe -show_entries stream=height -of csv=p=0` prints "1080," for them (the side data adds an empty field), int() fails, and _transcode_video_core falls back to height 1080 and has_audio=True. So (1) a rotated video WITHOUT audio fails ("Unable to map stream at a:0", checked with the production command) and is marked failed; (2) a rotated video smaller than 1080p gets an upscaled 1080p stream it doesn't need. Fix: read the probes as JSON (or take the first field), probe audio separately from the fallback; flag-gate per change-safety.
+How to reproduce: Take a portrait phone video, strip its audio (ffmpeg -i in.mp4 -an -c copy out.mp4), upload it: the video ends up failed.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

@@ -41,63 +41,70 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
 
     return (
         <div className="classic-template min-h-screen bg-[#F7F2EB] text-[#2C352E] font-sans selection:bg-[#8B9A6E]/30">
-            <main className="px-4 pt-28 pb-16 sm:px-6 md:pt-32 md:pb-20 lg:px-8">
+            {/* The first screen is exactly the window height (at least 640px) on every computer: navbar space, text,
+                cover and "Open Gallery", with the gallery header starting right below. The cover takes whatever
+                height is left, keeping its 3:2 shape (sized from the leftover box with container units). */}
+            <main className="flex h-[max(100svh,640px)] flex-col px-4 pt-[88px] pb-[clamp(20px,4svh,48px)] sm:px-6 lg:px-8">
                 {/* The title shows straight away (it's the page's largest text), the rest fades in */}
-                <div className="mx-auto max-w-4xl text-center">
+                <div className="mx-auto w-full max-w-4xl shrink-0 text-center">
                     {details && (
-                        <p className="mb-5 text-xs font-semibold uppercase tracking-[0.3em] text-[#596653] md:text-sm">
+                        <p className="mb-[clamp(10px,2svh,20px)] text-xs font-semibold uppercase tracking-[0.3em] text-[#596653] md:text-sm">
                             {details}
                         </p>
                     )}
-                    <h1 className="font-serif text-[clamp(2.5rem,7vw,5.5rem)] leading-[1.08] tracking-tight text-[#2C352E] break-words [text-wrap:balance]">
+                    <h1 className="font-serif text-[clamp(2.25rem,min(6.5vw,8svh),5.5rem)] leading-[1.08] tracking-tight text-[#2C352E] break-words [text-wrap:balance]">
                         {event.title}
                     </h1>
 
                     <ScrollReveal delay={0.1}>
-                        <ClassicDivider className="mt-8" />
+                        <ClassicDivider className="mt-[clamp(14px,3svh,32px)]" />
                     </ScrollReveal>
 
                     {description && (
                         <ScrollReveal delay={0.2}>
-                            <p className="mx-auto mt-8 max-w-2xl whitespace-pre-line font-serif text-lg italic leading-relaxed text-[#596653] md:text-xl">
+                            {/* Long messages (up to a few hundred characters) get a wider, smaller line so the cover keeps its room */}
+                            <p className={description.length > 160
+                                ? "mx-auto mt-[clamp(12px,2.5svh,28px)] max-w-3xl whitespace-pre-line font-serif text-base italic leading-relaxed text-[#596653] md:text-lg"
+                                : "mx-auto mt-[clamp(12px,2.5svh,28px)] max-w-2xl whitespace-pre-line font-serif text-lg italic leading-relaxed text-[#596653] md:text-xl"}
+                            >
                                 {description}
                             </p>
                         </ScrollReveal>
                     )}
                 </div>
 
-                {/* Cover in a thin white mat, kept modest so the gallery stays close */}
-                {event.coverImage && (
-                    <ScrollReveal delay={0.3} direction="up">
-                        <div className="mx-auto mt-10 w-full max-w-2xl bg-white p-1.5 shadow-[0_14px_40px_-22px_rgba(44,53,46,0.4)] md:mt-12 md:p-2">
-                            <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#F7F2EB] sm:aspect-[3/2]">
+                {/* Cover in a thin white mat, filling the space left on the screen */}
+                {event.coverImage ? (
+                    <div className="relative mt-[clamp(16px,3.5svh,40px)] min-h-[200px] flex-1 [container-type:size]">
+                        <div className="absolute left-1/2 top-0 h-[min(100cqh,66.667cqw,780px)] w-[min(100cqw,150cqh,1170px)] -translate-x-1/2 bg-white p-1.5 shadow-[0_14px_40px_-22px_rgba(44,53,46,0.4)] md:p-2">
+                            <div className="relative h-full w-full overflow-hidden bg-[#F7F2EB]">
                                 <Image
                                     src={event.coverImage}
                                     alt={event.title}
                                     fill
-                                    sizes="(min-width: 720px) 672px, 100vw"
+                                    sizes="(min-width: 1200px) 1170px, 100vw"
                                     style={coverImageStyle(event)}
                                     priority
                                 />
                             </div>
                         </div>
-                    </ScrollReveal>
+                    </div>
+                ) : (
+                    <div className="flex-1" />
                 )}
 
                 {children && (
-                    <ScrollReveal delay={0.4}>
-                        <div className="mt-12 text-center md:mt-14">
-                            <button
-                                onClick={scrollToContent}
-                                className="group inline-flex items-center gap-3 rounded-full bg-[#596653] px-8 py-4 text-white shadow-md transition-colors duration-300 hover:bg-[#2C352E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2C352E]"
-                            >
-                                <span className="text-sm font-medium uppercase tracking-widest">Open Gallery</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5 transition-transform group-hover:translate-y-0.5" aria-hidden="true">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" />
-                                </svg>
-                            </button>
-                        </div>
-                    </ScrollReveal>
+                    <div className="mt-[clamp(16px,3.5svh,40px)] shrink-0 text-center">
+                        <button
+                            onClick={scrollToContent}
+                            className="group inline-flex items-center gap-3 rounded-full bg-[#596653] px-8 py-4 text-white shadow-md transition-colors duration-300 hover:bg-[#2C352E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2C352E]"
+                        >
+                            <span className="text-sm font-medium uppercase tracking-widest">Open Gallery</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5 transition-transform group-hover:translate-y-0.5" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" />
+                            </svg>
+                        </button>
+                    </div>
                 )}
             </main>
 

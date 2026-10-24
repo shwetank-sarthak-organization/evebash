@@ -3165,8 +3165,12 @@ How to test:
   1. Set a test gallery with photos and albums to Classic White. Open its guest page on a
      1440-1920px wide screen.
   2. Top: date and place above the title (if set), title in Playfair, a small sage divider, the
-     description in italics without quote marks, the cover in a thin white mat (at most 672px
-     wide). The cover follows the host's focus point / fit setting. "Open Gallery" is deep sage.
+     description in italics without quote marks, the cover in a thin white mat. The cover follows
+     the host's focus point / fit setting. "Open Gallery" is deep sage.
+     First screen fits the window: on 1366x768, 1440x900, 1920x1080 and a large monitor, the navbar,
+     text, cover and "Open Gallery" fill exactly one screen and the gallery header starts right at
+     the bottom edge (cover bigger on taller screens). With a long description (300+ characters)
+     it still fits, the cover just gets smaller. Very short windows (under 640px) scroll a little.
   3. Clear the gallery description and cover: no "Join us in celebrating..." text, no grey
      "No Cover Image" box.
   4. Gallery header (above the photos): Back to Gallery / Share Event as square outlined buttons,
