@@ -3356,6 +3356,10 @@ How to test:
      and the header shows the album's own name ("REC 1"); Home shows "HOME". Same on the website (open
      an album from the navbar's Collections, and an album's own link). Royal Emerald's Collections
      menu still works.
+  9. Photos tab: rows that fill the width (two portrait photos side by side, a landscape photo across
+     the whole width), thin 4px gaps, square corners, no white frames, photos not cropped to a fixed
+     shape; the last row is not stretched. Tapping a photo opens the right one. [ Photos ] [ Videos ]
+     are centred, with no sage divider between them and the photos.
 Done by:
 Device / browser:
 Build / version:

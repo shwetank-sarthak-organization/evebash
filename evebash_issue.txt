@@ -794,6 +794,7 @@ Issue: The website and app Classic White are two different designs. The website 
 How to reproduce: Open the same Classic White gallery on the website and in the app.
 Update 1 (2026-10-24): App cover and gallery header now match the website (apps/mobile/components/classic/). Cover: date, title in capitals as "X & Y" in real Playfair (the app had Playfair mapped to Inter), sage divider, tilted white-mounted print (portrait on phones) with the theme line card, outlined "Open Gallery". Header: Back / Share, gallery name, date, the message in quotes, video in a white mat, [ Photos ] [ Videos ]. Album tabs sage instead of gold. Still different: the photo grid (2 columns of white-matted cards vs the website's justified rows) and the sage divider above the grid.
 Update 2 (2026-10-24): Website and app: the cover always shows the main event's title (and its theme line), also inside albums and on an album opened by its own link; the header next to the video shows the gallery's own name ("Home", "Rec 1"). App: albums grouped under one Collections tab with a menu, like the website.
+Update 3 (2026-10-24): App photo grid now justified rows like the website (two portraits or one landscape per row, 4px gaps, no white mats); sage divider above the grid removed; Photos / Videos tabs centred on the phone.
 
 #117
 Listed: 2026-10-24
