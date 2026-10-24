@@ -33,13 +33,8 @@
 /* Selected Photos / Videos tab: white on deep sage like the buttons (the shared rule gives black on light sage) */
 .classic-gallery-content [data-royal-control="segments"] [aria-pressed="true"] { background: #596653; color: #fff; }
 
-/* White photo cards with a soft line, on the ivory section */
-.classic-gallery-content .gallery-media-card { border-color: #EAE2D6; box-shadow: 0 1px 2px rgba(44, 53, 46, .06); }
+/* Photos sit in justified rows (gallery-refinements.css) with no card edge, like a printed album page */
+.classic-gallery-content .gallery-masonry { padding-block: 0; }
 
-/* More columns on wide screens (the shared rule stops at 3) */
-@media (min-width: 1280px) {
-  .classic-gallery-content .gallery-masonry:not(.royal-masonry) > div:first-child { column-count: min(4, var(--gallery-count, 4)); }
-}
-@media (min-width: 1680px) {
-  .classic-gallery-content .gallery-masonry:not(.royal-masonry) > div:first-child { column-count: min(5, var(--gallery-count, 5)); }
-}
+/* The guest footer (src/components/Footer.tsx) lines up with the full-width navbar and gallery */
+body:has(.classic-template) .event-footer > div { max-width: none; }

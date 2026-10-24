@@ -739,6 +739,7 @@ function EventPageContent() {
                             onRequireLogin={isPublicView && !user ? promptLogin : undefined}
                             lightboxTheme={getWebLightboxTheme((activeGallery || event).templateId || event.templateId)}
                             templateId={(activeGallery || event).templateId || event.templateId}
+                            layout={isClassicGallery ? "justified" : undefined}
                         />
                     </div>
                 ) : (

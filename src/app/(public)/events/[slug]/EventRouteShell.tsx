@@ -215,6 +215,7 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
                 chromeTextColor={chrome.text}
                 chromeAccentColor={chrome.accent}
                 variant={(mainEvent?.templateId || event?.templateId) === "royal" ? "royal" : undefined}
+                fullWidth={(mainEvent?.templateId || event?.templateId) === "classic"}
                 chromeBorderColor={chrome.border}
             />
         );

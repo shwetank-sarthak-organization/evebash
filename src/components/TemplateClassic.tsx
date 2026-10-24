@@ -41,7 +41,7 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
 
     return (
         <div className="classic-template min-h-screen bg-[#F7F2EB] text-[#2C352E] font-sans selection:bg-[#8B9A6E]/30">
-            <main className="px-4 pt-28 pb-16 sm:px-6 md:pt-32 md:pb-20 lg:px-10">
+            <main className="px-4 pt-28 pb-16 sm:px-6 md:pt-32 md:pb-20 lg:px-8">
                 {/* The title shows straight away (it's the page's largest text), the rest fades in */}
                 <div className="mx-auto max-w-4xl text-center">
                     {details && (
@@ -66,16 +66,16 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
                     )}
                 </div>
 
-                {/* Cover in a white mat, nearly the full width of the screen */}
+                {/* Cover in a thin white mat, kept modest so the gallery stays close */}
                 {event.coverImage && (
                     <ScrollReveal delay={0.3} direction="up">
-                        <div className="mx-auto mt-12 w-full max-w-[1400px] bg-white p-3 shadow-[0_18px_50px_-20px_rgba(44,53,46,0.35)] md:mt-16 md:p-5">
-                            <div className="relative aspect-[4/5] w-full overflow-hidden border border-[#EAE2D6] bg-[#F7F2EB] sm:aspect-[3/2] lg:aspect-[16/9]">
+                        <div className="mx-auto mt-10 w-full max-w-2xl bg-white p-1.5 shadow-[0_14px_40px_-22px_rgba(44,53,46,0.4)] md:mt-12 md:p-2">
+                            <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#F7F2EB] sm:aspect-[3/2]">
                                 <Image
                                     src={event.coverImage}
                                     alt={event.title}
                                     fill
-                                    sizes="(min-width: 1440px) 1400px, 100vw"
+                                    sizes="(min-width: 720px) 672px, 100vw"
                                     style={coverImageStyle(event)}
                                     priority
                                 />
@@ -101,10 +101,10 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
                 )}
             </main>
 
-            {/* The gallery's own header (title, counts) comes from the event page; the site footer follows */}
+            {/* Full width with the page's side padding, like the navbar. The gallery's header comes from the event page */}
             {children && (
                 <section id="event-content" className="classic-gallery-content border-t border-[#EAE2D6] py-16 md:py-20">
-                    <div className="mx-auto max-w-[1800px] px-4 sm:px-6 lg:px-10">
+                    <div className="w-full px-4 sm:px-6 lg:px-8">
                         {children}
                     </div>
                 </section>

@@ -117,3 +117,23 @@
 @media (prefers-reduced-motion: reduce) {
   .gallery-highlight__play { transition: none; }
 }
+
+/* Justified rows (MasonryGrid layout="justified", used by Classic White): every row is the same height and runs
+   edge to edge; each card's width follows its photo's shape (--ar = width / height). */
+.gallery-justified { --row-h: 180px; display: flex; flex-wrap: wrap; gap: 4px; }
+@media (min-width: 640px) { .gallery-justified { --row-h: 240px; } }
+@media (min-width: 1024px) { .gallery-justified { --row-h: 320px; } }
+@media (min-width: 1440px) { .gallery-justified { --row-h: 400px; } }
+.gallery-justified > .gallery-media-card {
+  flex: var(--ar) 1 calc(var(--ar) * var(--row-h));
+  aspect-ratio: var(--ar);
+  max-width: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.gallery-justified > .gallery-media-card > button { height: 100%; }
+.gallery-justified > .gallery-media-card > button > :is(img, div) { width: 100%; height: 100%; aspect-ratio: auto !important; object-fit: cover; }
+/* Takes the spare room in the last row so it keeps the row height instead of stretching */
+.gallery-justified__end { flex: 1000 1 0px; height: 0; }

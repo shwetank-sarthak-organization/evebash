@@ -3165,12 +3165,15 @@ How to test:
   1. Set a test gallery with photos and albums to Classic White. Open its guest page on a
      1440-1920px wide screen.
   2. Top: date and place above the title (if set), title in Playfair, a small sage divider, the
-     description in italics without quote marks, the cover in a white mat almost the full width.
-     The cover follows the host's focus point / fit setting. "Open Gallery" button is deep sage.
+     description in italics without quote marks, the cover in a thin white mat (at most 672px
+     wide). The cover follows the host's focus point / fit setting. "Open Gallery" is deep sage.
   3. Clear the gallery description and cover: no "Join us in celebrating..." text, no grey
      "No Cover Image" box.
-  4. Gallery: one "Home Gallery" heading (no "The Gallery" above it), 4 columns at 1280px+,
-     5 at 1680px+. "Add photos", "Load More Media" and the selected Photos/Videos tab are deep
+  4. Gallery: one "Home Gallery" heading (no "The Gallery" above it). Photos in justified rows
+     (every row the same height, photos keep their shape, 4px gaps, square corners, last row not
+     stretched). Navbar, photos and footer line up with the same ~32px side gap at 1280, 1600 and
+     1920px wide. Clicking a photo still opens the viewer. "Add photos", "Load More Media" and the
+     selected Photos/Videos tab are deep
      sage with white text. Open an album with a description: it shows once, at the top.
   5. Videos tab on a gallery with no videos: the "No videos yet." text is easy to read.
   6. Only one footer at the bottom. A 40+ character title wraps neatly, nothing runs off screen.

@@ -31,6 +31,8 @@ interface EventNavbarProps {
     chromeBorderColor?: string;
     /** "royal": floating gold-edged bar for the Royal Emerald design (styles in src/app/royal-emerald.css) */
     variant?: "royal";
+    /** Content runs the full screen width (same side padding as the page) instead of a centred 1280px column */
+    fullWidth?: boolean;
 }
 
 type EventNavLink = {
@@ -59,7 +61,8 @@ export function EventNavbar({
     chromeTextColor,
     chromeAccentColor,
     chromeBorderColor,
-    variant
+    variant,
+    fullWidth = false
 }: EventNavbarProps) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [collectionsOpen, setCollectionsOpen] = useState(false);
@@ -231,7 +234,8 @@ export function EventNavbar({
                 initial={{ y: -100 }}
                 animate={{ y: 0 }}
                 className={isRoyal ? cn("royal-nav", scrolledPastTop && "royal-nav--scrolled", royalDisplay.variable) : cn(
-                    "fixed top-0 inset-x-0 z-50 transition-all duration-300 px-6 py-3 backdrop-blur-md shadow-sm border-b",
+                    "fixed top-0 inset-x-0 z-50 transition-all duration-300 py-3 backdrop-blur-md shadow-sm border-b",
+                    fullWidth ? "px-4 sm:px-6 lg:px-8" : "px-6",
                     hasTemplateChrome ? "bg-transparent" : "bg-white/95 border-stone-100"
                 )}
                 style={!isRoyal && hasTemplateChrome ? {
@@ -240,7 +244,7 @@ export function EventNavbar({
                     color: navTextColor,
                 } : undefined}
             >
-                <div className={cn("flex items-center justify-between gap-4", isRoyal ? "w-full" : "max-w-7xl mx-auto")}>
+                <div className={cn("flex items-center justify-between gap-4", isRoyal || fullWidth ? "w-full" : "max-w-7xl mx-auto")}>
                     {/* Left: Main Event Title */}
                     <Link
                         href={`${basePath}${sharedQuery}`}

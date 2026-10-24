@@ -41,6 +41,8 @@ interface MasonryGridProps {
     viewerLayout?: ViewerLayout;
     commentsMode?: "overlay" | "side-panel";
     templateId?: string;
+    /** "justified": rows of equal height edge to edge, each photo keeps its shape (Classic White). Default: columns */
+    layout?: "columns" | "justified";
     showPageFlipThumbnails?: boolean;
     onLikeChange?: () => void;
     /** Read-only visitors who could join by logging in: like, comment and download show and call this instead */
@@ -57,6 +59,7 @@ interface PhotoCardProps {
     onViewPhoto: (photo: Photo) => void;
     onLikeChange?: () => void;
     onRequireLogin?: () => void;
+    justified?: boolean;
 }
 
 type PhotoLike = {
@@ -72,7 +75,8 @@ function PhotoCard({
     itemClassName,
     onViewPhoto,
     onLikeChange,
-    onRequireLogin
+    onRequireLogin,
+    justified = false
 }: PhotoCardProps) {
     const { user } = useAuth();
     const [likes, setLikes] = useState<PhotoLike[]>([]);
@@ -101,6 +105,8 @@ function PhotoCard({
     const isLiked = likes.some(l => l.userId === identity.id);
     const isVideo = photo.mediaType === "video" || photo.resourceType === "video";
     const [imageSrc, setImageSrc] = useState(photo.thumbnailUrl || (photo.src ? getGridThumbnail(photo.src) : ""));
+    const [measuredRatio, setMeasuredRatio] = useState<number | null>(null);
+    const aspectRatio = photo.width && photo.height ? photo.width / photo.height : measuredRatio || (isVideo ? 16 / 9 : 3 / 2);
 
     useEffect(() => {
         setImageSrc(photo.thumbnailUrl || (photo.src ? getGridThumbnail(photo.src) : ""));
@@ -159,6 +165,8 @@ function PhotoCard({
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : Math.min(index, 5) * 0.04, ease: "easeOut" }}
             onClick={() => onViewPhoto(photo)}
+            // Justified rows size each card by its shape (--ar, styles in gallery-refinements.css); unknown sizes are read on load
+            style={justified ? { "--ar": aspectRatio } as React.CSSProperties : undefined}
             className={cn(
                 "gallery-media-card break-inside-avoid overflow-hidden group relative mb-4 shadow-md hover:shadow-xl transition-all duration-500 bg-white border border-stone-150 rounded-2xl cursor-pointer flex flex-col",
                 itemClassName
@@ -196,6 +204,10 @@ function PhotoCard({
                         onError={() => {
                             setImageSrc("");
                         }}
+                        onLoad={justified && !(photo.width && photo.height) ? (e) => {
+                            const { naturalWidth, naturalHeight } = e.currentTarget;
+                            if (naturalWidth && naturalHeight) setMeasuredRatio(naturalWidth / naturalHeight);
+                        } : undefined}
                         className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
                         loading="lazy"
                     />
@@ -340,6 +352,7 @@ export function MasonryGrid({
     viewerLayout,
     commentsMode = "side-panel",
     templateId,
+    layout = "columns",
     showPageFlipThumbnails = true,
     onLikeChange,
     onRequireLogin
@@ -369,7 +382,7 @@ export function MasonryGrid({
 
     return (
         <div className={cn("gallery-masonry container mx-auto px-4 py-8", templateId === "royal" && "royal-masonry", className)} style={{ "--gallery-count": Math.max(1, photos.length), "--royal-count": Math.max(1, photos.length <= 3 ? photos.length : Math.ceil(photos.length / 2)) } as React.CSSProperties}>
-            <div className={cn("columns-1 sm:columns-2 md:columns-3 gap-4", gridClassName)}>
+            <div className={cn(layout === "justified" ? "gallery-justified" : "columns-1 sm:columns-2 md:columns-3 gap-4", gridClassName)}>
                 {photos.map((photo, index) => (
                     <PhotoCard
                         key={photo.id}
@@ -382,8 +395,11 @@ export function MasonryGrid({
                         onViewPhoto={setViewingPhoto}
                         onLikeChange={onLikeChange}
                         onRequireLogin={onRequireLogin}
+                        justified={layout === "justified"}
                     />
                 ))}
+                {/* Keeps the last justified row at its natural height instead of stretching it across */}
+                {layout === "justified" && <div aria-hidden="true" className="gallery-justified__end" />}
             </div>
 
             {viewingPhoto && viewingIndex >= 0 && (
