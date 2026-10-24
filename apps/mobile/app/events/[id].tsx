@@ -52,6 +52,7 @@ import { RoyalFooter } from '../../components/royal/RoyalFooter';
 import { ClassicHero } from '../../components/classic/ClassicHero';
 import { ClassicGalleryHeader } from '../../components/classic/ClassicGalleryHeader';
 import { useClassicFonts } from '../../components/classic/classicFonts';
+import { ClassicPhotoRows } from '../../components/classic/ClassicPhotoRows';
 import { useRoyalFonts } from '../../components/royal/royalFonts';
 import GalleriesIcon from '../../components/icons/GalleriesIcon';
 import PermissionsIcon from '../../components/icons/PermissionsIcon';
@@ -6649,7 +6650,8 @@ export default function EventDetailScreen() {
                   )
                 )}
 
-                <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />
+                {/* Classic White's photos start right under its Photos / Videos tabs, as on the website */}
+                {!isClassicGuest && <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />}
 
                 {/* Find You and Event partners are for signed-in guests; logged-out visitors get a log-in prompt */}
                 {isPublicView && !user && (activeSubEvent?.id === 'find-you' || activeSubEvent?.id === 'event-partners') ? (
@@ -7183,6 +7185,31 @@ export default function EventDetailScreen() {
                       </View>
                     ) : (
                       (() => {
+                        // Classic White: rows that fill the width with thin gaps, like the website
+                        if (isClassicGuest) {
+                          return (
+                            <ClassicPhotoRows
+                              items={filteredPhotoItems}
+                              renderTile={(photo, idx) => {
+                                const blurred = shouldBlurMediaForPlan(photo);
+                                return (
+                                  <TouchableOpacity
+                                    style={{ flex: 1 }}
+                                    activeOpacity={0.9}
+                                    onPress={() => openViewer(idx)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Photo ${idx + 1} of ${filteredPhotoItems.length}`}
+                                    accessibilityHint="Opens the photo viewer"
+                                  >
+                                    <GalleryThumbnailImage url={photo.url} thumbnailUrl={photo.thumbnailUrl} style={styles.galleryImg} blurRadius={blurred ? 6 : 0} />
+                                    {blurred && <ExpiredMediaThumbnailNotice />}
+                                  </TouchableOpacity>
+                                );
+                              }}
+                            />
+                          );
+                        }
+
                         const leftCol: any[] = [];
                         const rightCol: any[] = [];
                         let leftHeight = 0;

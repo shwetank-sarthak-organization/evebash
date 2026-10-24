@@ -89,7 +89,7 @@ export function ClassicGalleryHeader({
 }
 
 const local = StyleSheet.create({
-  wrap: { paddingTop: 28, paddingHorizontal: 16, paddingBottom: 6 },
+  wrap: { paddingTop: 28, paddingHorizontal: 16, paddingBottom: 14 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   action: {
     flexDirection: 'row',
@@ -107,7 +107,8 @@ const local = StyleSheet.create({
   message: { marginTop: 10, color: CLASSIC.muted, fontSize: 16, lineHeight: 25 },
   tabs: {
     flexDirection: 'row',
-    alignSelf: 'flex-start',
+    // Centred on the phone screen (the website keeps them under the text, on the left)
+    alignSelf: 'center',
     gap: 32,
     marginTop: 30,
     borderBottomWidth: 1,
