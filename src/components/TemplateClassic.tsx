@@ -54,11 +54,11 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
             {/* The first screen is exactly the window height (at least 640px) on every computer: navbar space, title,
                 message card and cover print, "Open Gallery", with the gallery header starting right below. The print
                 takes whatever height is left (ClassicCoverPrint). */}
-            <main className="flex h-[max(100svh,640px)] flex-col px-4 pt-[108px] pb-[clamp(20px,4svh,48px)] sm:px-6 lg:px-8">
+            <main className="flex h-[max(100svh,640px)] flex-col px-4 pt-[90px] pb-[clamp(12px,2svh,24px)] sm:px-6 lg:px-8">
                 {/* The title shows straight away (it's the page's largest text), the rest fades in */}
                 <div className="mx-auto w-full max-w-6xl shrink-0 text-center">
                     {details && (
-                        <p className="classic-hero__details mb-[clamp(10px,2svh,20px)]">
+                        <p className="classic-hero__details mb-[clamp(4px,1svh,10px)]">
                             {details}
                         </p>
                     )}
@@ -68,7 +68,7 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
                     </h1>
 
                     <ScrollReveal delay={0.1}>
-                        <ClassicDivider className="mt-[clamp(14px,3svh,32px)]" />
+                        <ClassicDivider className="mt-[clamp(8px,1.6svh,18px)]" />
                     </ScrollReveal>
                 </div>
 
@@ -76,7 +76,7 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
                 <ClassicCoverPrint coverImage={event.coverImage} alt={event.title} cardText={coverCardText(event.category)} imageStyle={coverImageStyle(event)} />
 
                 {children && (
-                    <div className="mt-[clamp(16px,3.5svh,40px)] shrink-0 text-center">
+                    <div className="mt-[clamp(14px,3svh,32px)] shrink-0 text-center">
                         <button
                             onClick={scrollToContent}
                             className="group inline-flex items-center gap-3 rounded-full bg-[#596653] px-8 py-4 text-white shadow-md transition-colors duration-300 hover:bg-[#2C352E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2C352E]"

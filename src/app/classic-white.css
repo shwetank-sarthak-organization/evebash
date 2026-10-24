@@ -214,7 +214,7 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
 .classic-print {
   flex: 1; min-height: 240px;
   display: flex; flex-direction: column; align-items: center;
-  margin-top: clamp(16px, 3.5svh, 40px);
+  margin-top: clamp(12px, 2.4svh, 28px);
   container-type: size;
 }
 .classic-print--no-cover { justify-content: center; }
