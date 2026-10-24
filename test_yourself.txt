@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 136
+Next test number: 137
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3457,6 +3457,31 @@ How to test:
   5. Make the window narrow (under 1024 px). Expect: grid still works.
   6. Rotate one of the new photos (host page viewer), reload. Expect: rotated in the grid too.
   7. Other themes (e.g. Royal): look as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#136 Portrait phone videos without sound process and play upright
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     A video recorded upright on a phone with no sound used to fail ("failed" status, never
+           plays) (issue #119). Now it should process like any other video.
+Detail:    Only after the Modal deploy with the #119 fix AND the switch turned on
+           (modal_engine/video_gpu_switch.py probe-v2 on). Before that, nothing changes.
+How to test:
+  1. On a phone, record a short portrait video (10-20 s), then make a copy with no sound (for
+     example iPhone Photos > Edit > tap the speaker icon to mute > Save as new video).
+  2. Upload both from the website, and the muted one also from the app.
+  3. Expect: all of them reach "processed" and play upright on the website, iPhone and Android;
+     the muted ones have no sound and no errors.
+  4. Also upload a normal landscape video with sound: it should look and play exactly as before.
 Done by:
 Device / browser:
 Build / version:

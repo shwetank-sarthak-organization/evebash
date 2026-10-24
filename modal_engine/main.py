@@ -1868,6 +1868,37 @@ def _hls_length_problem(tmp_path, out_dirs, source_seconds):
 _HDR_TRANSFERS = ("smpte2084", "arib-std-b67")
 
 
+# ---------------------------------------------------------------------------
+# Video probe that survives phone rotation flags (issue #119)
+# ---------------------------------------------------------------------------
+# The old probes read `ffprobe -show_entries stream=height -of csv`, which prints "1080," for a video with a
+# rotation flag (most portrait phone videos). int() then failed and the shared fallback set has_audio=True and
+# height 1080, so a rotated video WITHOUT audio failed ("Unable to map stream at a:0") and a small rotated video
+# got an enlarged 1080p stream. With the "probe_v2" key of the video switch on (video_gpu_switch.py probe-v2 on),
+# one JSON probe is used instead. Off (default) = the old probes.
+
+def _read_probe_v2_switch() -> bool:
+    try:
+        return bool(modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True).get("probe_v2", False))
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not read the probe switch, using the old probes: {err}")
+        return False
+
+
+def _video_basics_from_probe(probe: dict):
+    """(has_audio, display height) from `ffprobe -show_entries stream=codec_type,width,height:stream_side_data=rotation
+    -of json`. The height is the one the viewer sees: a video stored sideways with a 90-degree flag shows its stored
+    width as height, the same as a video recorded upright. None when there is no video stream."""
+    streams = probe.get("streams") or []
+    has_audio = any(s.get("codec_type") == "audio" for s in streams)
+    video = next((s for s in streams if s.get("codec_type") == "video"), None)
+    if not video or not video.get("height"):
+        return has_audio, None
+    rotation = next((float(d["rotation"]) for d in video.get("side_data_list", []) if "rotation" in d), 0)
+    sideways = round(rotation) % 180 == 90
+    return has_audio, int(video["width"] if sideways else video["height"])
+
+
 def _read_sdr_8bit_switch() -> bool:
     try:
         return bool(modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True).get("sdr_8bit", False))
@@ -1978,6 +2009,20 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
             except Exception:
                 has_audio = True
                 src_height = 1080
+
+            if _read_probe_v2_switch():
+                try:
+                    probe = subprocess.run([
+                        "ffprobe", "-v", "error",
+                        "-show_entries", "stream=codec_type,width,height:stream_side_data=rotation", "-of", "json",
+                        input_path
+                    ], capture_output=True, text=True)
+                    probed_audio, probed_height = _video_basics_from_probe(json.loads(probe.stdout or "{}"))
+                    if probed_height:
+                        has_audio, src_height = probed_audio, probed_height
+                    print(f"[TranscodeVideo-{hardware.upper()}] Probe: audio={has_audio}, height={src_height}")
+                except Exception as err:
+                    print(f"[TranscodeVideo-{hardware.upper()}] JSON probe failed, keeping the old values: {err}")
 
             video_duration_seconds = None
             try:

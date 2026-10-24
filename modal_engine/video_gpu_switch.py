@@ -10,12 +10,16 @@ long video (> 10 min), with no deploy. Run from the repo root with the Modal CLI
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py wait 180        # seconds to wait for an L4
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py sdr-8bit on     # 10-bit/HDR/4:2:2 -> 8-bit SDR (#118)
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py sdr-8bit off    # keep the source format, as before
+  modal_engine/venv/bin/python modal_engine/video_gpu_switch.py probe-v2 on     # rotation-safe video probe (#119)
+  modal_engine/venv/bin/python modal_engine/video_gpu_switch.py probe-v2 off    # old probes, as before
 
 add-gallery sends just that gallery's long videos to the GPU while mode is off. A sub-gallery has its own id.
 A long video still goes to the 16-core worker when the GPU can't take it (10-bit, rotated phone video...),
 when the GPU run fails, or when no L4 picks it up within the wait.
 sdr-8bit (issue #118, every video length, CPU workers): converts 10-bit, HDR and 4:2:2 sources to 8-bit 4:2:0
 SDR so every phone can play them. Videos that are already 8-bit 4:2:0 SDR are not affected either way.
+probe-v2 (issue #119, every video): reads audio and height from one JSON probe, so portrait phone videos without
+audio no longer fail and small portrait videos don't get an enlarged 1080p stream.
 """
 import sys
 
@@ -41,6 +45,8 @@ def main(argv):
         switch["gpu_wait_s"] = int(value)
     elif command == "sdr-8bit" and value in ("on", "off"):
         switch["sdr_8bit"] = value == "on"
+    elif command == "probe-v2" and value in ("on", "off"):
+        switch["probe_v2"] = value == "on"
     elif command != "show":
         print(__doc__)
         return 1
@@ -49,6 +55,7 @@ def main(argv):
     print(f"GPU test galleries: {switch.get('gpu_events', []) or 'none'}")
     print(f"wait for an L4: {switch.get('gpu_wait_s', 180)} s")
     print(f"8-bit SDR output (#118): {'on' if switch.get('sdr_8bit', False) else 'off'}")
+    print(f"rotation-safe probe (#119): {'on' if switch.get('probe_v2', False) else 'off'}")
     return 0
 
 

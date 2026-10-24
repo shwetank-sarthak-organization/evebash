@@ -839,12 +839,15 @@ Tested on Modal (4-core, production image, production filter code, old vs new co
 Listed: 2026-10-24
 Platform: Both
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Sarthak: OK to deploy Modal; then switch on (probe-v2 on) + device check
 Found in: GPU long-video work, edge-case test (2026-10-24)
 Issue: Phone videos with a rotation flag (portrait videos from most phones) break the video worker's probes. `ffprobe -show_entries stream=height -of csv=p=0` prints "1080," for them (the side data adds an empty field), int() fails, and _transcode_video_core falls back to height 1080 and has_audio=True. So (1) a rotated video WITHOUT audio fails ("Unable to map stream at a:0", checked with the production command) and is marked failed; (2) a rotated video smaller than 1080p gets an upscaled 1080p stream it doesn't need. Fix: read the probes as JSON (or take the first field), probe audio separately from the fallback; flag-gate per change-safety.
 How to reproduce: Take a portrait phone video, strip its audio (ffmpeg -i in.mp4 -an -c copy out.mp4), upload it: the video ends up failed.
+Fix (code, switch off, not deployed): with the video switch's "probe_v2" key on (modal_engine/video_gpu_switch.py probe-v2 on), _transcode_video_core reads audio and height from one JSON ffprobe (_video_basics_from_probe). The height is the one the viewer sees (a video stored sideways with a 90-degree flag uses its stored width), the same as for a video recorded upright. Off = the old probes. Tested on Modal (production image and command, old vs new) on 8 clips: the old probes FAILED on all 4 rotated videos without audio (90, -90, 180 and a small 640x480 one); the new probe processed all of them upright, and the small one got only a 480p stream (360x480) instead of an enlarged 1080p one. Normal, no-audio, natively portrait and rotated-with-audio videos came out identical with old and new.
+Correction to the text above: a rotated 720p phone video was not enlarged before (its output fitted inside 1080 anyway); only rotated videos under 720p were.
+
 
 #120
 Listed: 2026-10-24
