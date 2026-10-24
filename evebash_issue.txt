@@ -809,7 +809,7 @@ Measured 2026-10-24 (real Modal bill per run, 3 runs per worker, ₹100 = $1; GP
   10.4 min 1080p60 HEVC 8-bit        3.8 min / ₹8.0 (7.6-8.7)      3.1 min / ₹7.4 (6.5-7.9)      -8% cost, faster
   10.8 min 4K24 landscape            2.1 min / ₹7.3 (6.3-8.0)      2.3 min / ₹6.6 (6.4-6.7)      -11% cost, similar
   10.7 min 4K24 portrait             1.5 min / ₹5.7 (5.0-6.1)      3.1 min / ₹6.1 (5.9-6.6)      +8% cost, slower (one 186 s L4 wait)
-  Network egress (HLS upload to B2) is ₹2.4-10.9 per video on both = 30-57% of the bill. Waiting for an L4 took 4-186 s (avg 38 s); 16-core starts in 3-49 s. Quality vs the original (SSIM, start/middle/end segments): GPU 0.945-0.996, 16-core 0.942-0.995, GPU equal or slightly higher on every video. 10-min looped test files were made from test_1/2/3.
+  The bills above include network egress (HLS upload to B2, ₹2.4-10.9 per video, same on both), but Modal's Starter plan includes 1 TiB/month free egress and we use ~56 GiB/month, so egress is really ₹0; compute alone is GPU ₹8.3 vs 16-core ₹12.7 on test_5. Waiting for an L4 took 4-186 s (avg 38 s); 16-core starts in 3-49 s. Quality vs the original (SSIM, start/middle/end segments): GPU 0.945-0.996, 16-core 0.942-0.995, GPU equal or slightly higher on every video. 10-min looped test files were made from test_1/2/3.
   Volume: only 4 videos over 10 min have ever been uploaded (68 videos total), so the saving is a few rupees a month today.
 
 #118

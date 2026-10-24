@@ -1700,8 +1700,9 @@ def _notify_video_processed(photo_id: str):
 # NVDEC decode -> scale_npp resize -> NVENC encode on an L4, so frames never leave the GPU. Measured
 # 2026-10-24 (real Modal bill, 3 runs each, same quality): 48.7-min 1080p25 ₹19.2 vs ₹23.6 on the 16-core
 # worker and 20% faster; 33-min 1080p60 ₹17.8 vs ₹18.3 but 12% slower (the L4's encoder is the limit at 60 fps);
-# 10-min 4K and HEVC 60 fps 8-11% cheaper; 10-min portrait 4K 8% dearer. About half of each bill is the upload
-# to B2 (network egress), the same on both. Short videos stay on the 4-core worker (cheapest for them).
+# 10-min 4K and HEVC 60 fps 8-11% cheaper; 10-min portrait 4K 8% dearer. Those bills include the upload to B2
+# (network egress, ₹2.4-10.9 per video, the same on both), which is free within the plan's 1 TiB/month. Compute
+# alone: GPU ₹8.3 vs ₹12.7 on test_5. Short videos stay on the 4-core worker (cheapest for them).
 #
 # Behind a runtime switch (a Modal Dict, no deploy needed to flip it); modal_engine/video_gpu_switch.py
 # shows and sets it:
