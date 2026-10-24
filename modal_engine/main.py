@@ -683,6 +683,35 @@ def _read_face_filter():
         return None
 
 
+GRID_SUFFIX = "-grid.webp"  # same name the backend deletes and the website grid loads
+
+
+def _read_grid_setting():
+    """The 1000 px grid image (issue #121), from the switch's "grid" key: "all" for every photo, or a list of
+    gallery ids to test on. Missing or unreadable = off, so no grid image is made, as before."""
+    try:
+        value = modal.Dict.from_name(PHOTO_PIPELINE_SWITCH, create_if_missing=True).get("grid")
+        return value if value == "all" or isinstance(value, list) else None
+    except Exception as err:
+        print(f"[PhotoV2] Could not read the grid switch, no grid image: {err}")
+        return None
+
+
+def _grid_on_for(event_id, setting) -> bool:
+    return setting == "all" or (isinstance(setting, list) and bool(event_id) and event_id in setting)
+
+
+def _make_grid_image(preview_img) -> bytes:
+    """1000 px on the long side, WebP q75 (tested 2026-10-24 on 10 real photos: median 66 KB vs 128 KB for the
+    1600 px preview). Made from the preview, as the thumbnail is."""
+    from PIL import Image
+    grid_img = preview_img.copy()
+    grid_img.thumbnail((1000, 1000), Image.Resampling.LANCZOS)
+    grid_buf = io.BytesIO()
+    grid_img.save(grid_buf, format="WEBP", quality=75, method=4)
+    return grid_buf.getvalue()
+
+
 def _spawn_photo_job(item: dict, mode, v2_events):
     if _pick_photo_pipeline(item.get("event_id"), mode, v2_events) == "v2":
         PhotoProcessorV2().process.spawn(item)
@@ -805,7 +834,7 @@ V2_LEASE_SECONDS = 150
 V2_SLOW_WARNING_SECONDS = 60
 
 
-def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_name: str, media_domain: str, photos_in_container=lambda: 1, face_filter=None, on_step=lambda step: None):
+def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_name: str, media_domain: str, photos_in_container=lambda: 1, face_filter=None, on_step=lambda step: None, make_grid=False):
     """
     One photo start to finish, making the same database calls in the same order as process_photo_preview
     followed by FaceIndexer.process: claim_media_job, complete_media_job (the photo shows in the gallery),
@@ -878,6 +907,10 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         thumb_buf = io.BytesIO()
         thumb_img.save(thumb_buf, format="WEBP", quality=68, method=4)
         thumb_bytes = thumb_buf.getvalue()
+
+        # Grid image (issue #121), also from the preview, for the website grid on big screens; only when the
+        # switch's "grid" key covers this gallery
+        grid_bytes = _make_grid_image(preview_img) if make_grid else b""
         del pil_img, preview_img, thumb_img
 
         preview_key = f"{storage_key}-preview.webp"
@@ -885,6 +918,8 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         on_step("upload preview and thumbnail")
         b2_client.put_object(Bucket=bucket_name, Key=preview_key, Body=preview_bytes, ContentType="image/webp")
         b2_client.put_object(Bucket=bucket_name, Key=thumb_key, Body=thumb_bytes, ContentType="image/webp")
+        if grid_bytes:
+            b2_client.put_object(Bucket=bucket_name, Key=f"{storage_key}{GRID_SUFFIX}", Body=grid_bytes, ContentType="image/webp")
 
         preview_url = f"https://{media_domain}/{preview_key}"
         thumbnail_url = f"https://{media_domain}/{thumb_key}"
@@ -898,7 +933,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
             "p_preview_url": preview_url,
             "p_width": orig_w,
             "p_height": orig_h,
-            "p_overhead_size": len(preview_bytes) + len(thumb_bytes)
+            "p_overhead_size": len(preview_bytes) + len(thumb_bytes) + len(grid_bytes)
         }))
         preview_seconds = time.time() - start_time
         print(f"[{photo_id}] Preview ready in {preview_seconds:.2f}s. Photo is now live in gallery.")
@@ -1081,6 +1116,7 @@ class PhotoProcessorV2:
         self._lock = threading.Lock()
         self._in_flight = 0
         self._face_filter, self._face_filter_read_at = None, 0.0
+        self._grid, self._grid_read_at = None, 0.0
         print("[PhotoV2] AuraFace (detection + recognition) warm and ready.")
 
     def face_filter(self):
@@ -1091,16 +1127,25 @@ class PhotoProcessorV2:
                 self._face_filter, self._face_filter_read_at = _read_face_filter(), time.time()
             return self._face_filter
 
+    def grid_setting(self):
+        """The switch's "grid" key, read at most once a minute per container, like the face filter."""
+        import time
+        with self._lock:
+            if time.time() - self._grid_read_at > 60:
+                self._grid, self._grid_read_at = _read_grid_setting(), time.time()
+            return self._grid
+
     @modal.method()
     def process(self, photo_data: dict):
-        return self._run(_process_photo_v2, photo_data)
+        return self._run(_process_photo_v2, photo_data,
+                         make_grid=_grid_on_for(photo_data.get("event_id"), self.grid_setting()))
 
     @modal.method()
     def index_faces(self, photo_data: dict):
         """Faces only, for the maintenance job's retries (the preview is already done)."""
         return self._run(_index_faces_v2, photo_data)
 
-    def _run(self, worker, photo_data: dict):
+    def _run(self, worker, photo_data: dict, **extra):
         import boto3
         from supabase import create_client, ClientOptions
 
@@ -1124,7 +1169,7 @@ class PhotoProcessorV2:
             return worker(
                 photo_data, self.face_app, supabase, b2_client, os.environ.get('B2_BUCKET_NAME'),
                 _media_domain(), photos_in_container=lambda: self._in_flight, face_filter=self.face_filter(),
-                on_step=progress.step,
+                on_step=progress.step, **extra,
             )
         finally:
             progress.stop()
