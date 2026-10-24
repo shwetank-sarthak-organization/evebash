@@ -53,6 +53,8 @@ import { ClassicHero } from '../../components/classic/ClassicHero';
 import { ClassicGalleryHeader } from '../../components/classic/ClassicGalleryHeader';
 import { useClassicFonts } from '../../components/classic/classicFonts';
 import { ClassicPhotoRows } from '../../components/classic/ClassicPhotoRows';
+import { ThemedAppBar } from '../../components/navigation/ThemedAppBar';
+import { appTabBarMetrics } from '../../components/navigation/appTabs';
 import { useRoyalFonts } from '../../components/royal/royalFonts';
 import GalleriesIcon from '../../components/icons/GalleriesIcon';
 import PermissionsIcon from '../../components/icons/PermissionsIcon';
@@ -854,12 +856,17 @@ export default function EventDetailScreen() {
     ? Math.max(floatingButtonsBottom ?? (Platform.OS === 'android' ? 80 : insets.top + 52), insets.top) + 8
     : insets.top + 4;
 
+  // Classic White (first theme to try it): the app's bottom bar stays on the gallery, in the theme's colours
+  const showsThemedAppBar = !showAdminView && event?.templateId === 'classic';
+  const themedAppBarHeight = showsThemedAppBar ? appTabBarMetrics(insets.bottom).height : 0;
+
   const heroHeight = showAdminView
     ? 400
     : isSportsTemplate
       ? 555 + insets.top
     : event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'hero'
-      ? windowHeight
+      // The cover fills the screen above the bottom bar when it shows
+      ? windowHeight - themedAppBarHeight
       : event?.templateId === 'ethereal'
         ? windowHeight * 0.8
         : event?.templateId === 'academic_editorial'
@@ -3554,8 +3561,9 @@ export default function EventDetailScreen() {
               width={windowWidth}
               height={heroHeight}
               insetTop={insets.top}
-              // The pinned album tabs start this far above the hero's bottom edge, with a solid background
-              insetBottom={Math.max(insets.bottom, stickyTabsTopInset)}
+              // The pinned album tabs start this far above the hero's bottom edge, with a solid background; the
+              // bottom bar already covers the phone's bottom inset
+              insetBottom={showsThemedAppBar ? stickyTabsTopInset : Math.max(insets.bottom, stickyTabsTopInset)}
               fonts={classicFonts}
               // The pinned album tabs take this much of the top, so stop that much earlier and Back / Share show
               onOpenGallery={() => scrollViewRef.current?.scrollTo({ y: heroHeight - stickyTabsTopInset, animated: true })}
@@ -7644,6 +7652,10 @@ export default function EventDetailScreen() {
           )}
         </View>
       </RNAnimated.ScrollView>
+
+      {showsThemedAppBar && (
+        <ThemedAppBar colors={{ background: '#FCFCFA', border: '#E6E6E0', active: '#2C352E', inactive: '#8B9A6E' }} />
+      )}
 
       {/* ── CREATE SUB-EVENT MODAL ── */}
       <SubEventModal

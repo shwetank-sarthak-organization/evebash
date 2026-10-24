@@ -1,26 +1,16 @@
 import { Tabs } from 'expo-router';
 import { BottomTabBar } from '@react-navigation/bottom-tabs';
 import * as React from 'react';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { DashboardTabIcon, EbNetworkTabIcon, HostTabIcon, ProfileTabIcon, appTabBarMetrics } from '@/components/navigation/appTabs';
 import { useAppTheme } from '@/context/ThemeContext';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const CREATE_BUSINESS_SECTION_ROUTES = new Set(['manage-business']);
 const EB_NETWORK_SECTION_ROUTES = new Set(['business/[id]']);
-
-function EbNetworkIcon({ color }: { color: string }) {
-  return (
-    <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/>
-      <Path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/>
-      <Path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/>
-    </Svg>
-  );
-}
 
 export default function TabLayout() {
   const { colors } = useAppTheme();
@@ -55,9 +45,7 @@ export default function TabLayout() {
           backgroundColor: colors.background,
           borderTopWidth: 1,
           borderTopColor: colors.cardBorder,
-          paddingTop: 8,
-          height: 55 + insets.bottom,
-          paddingBottom: insets.bottom > 0 ? insets.bottom - 5 : 10,
+          ...appTabBarMetrics(insets.bottom),
         },
       }}>
 
@@ -65,14 +53,7 @@ export default function TabLayout() {
         name="dashboard"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color }) => (
-            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <Rect width="7" height="9" x="3" y="3" rx="1" />
-              <Rect width="7" height="5" x="14" y="3" rx="1" />
-              <Rect width="7" height="9" x="14" y="12" rx="1" />
-              <Rect width="7" height="5" x="3" y="16" rx="1" />
-            </Svg>
-          ),
+          tabBarIcon: ({ color }) => <DashboardTabIcon color={color} />,
         }}
       />
 
@@ -80,7 +61,7 @@ export default function TabLayout() {
         name="gallery"
         options={{
           title: 'Host',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="calendar" color={color} />,
+          tabBarIcon: ({ color }) => <HostTabIcon color={color} />,
         }}
       />
 
@@ -89,7 +70,7 @@ export default function TabLayout() {
         options={{
           // EB Network "coming soon" page; the route stays "vendors" so existing links keep working.
           title: 'EB Network',
-          tabBarIcon: ({ color }) => <EbNetworkIcon color={color} />,
+          tabBarIcon: ({ color }) => <EbNetworkTabIcon color={color} />,
         }}
       />
 
@@ -116,14 +97,14 @@ export default function TabLayout() {
           // Hidden for v1; restore by removing href: null (Phase 2)
           href: null,
           title: 'EB Network',
-          tabBarIcon: ({ color }) => <EbNetworkIcon color={color} />,
+          tabBarIcon: ({ color }) => <EbNetworkTabIcon color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
+          tabBarIcon: ({ color }) => <ProfileTabIcon color={color} />,
         }}
       />
       <Tabs.Screen
