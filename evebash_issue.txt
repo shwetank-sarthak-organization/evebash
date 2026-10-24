@@ -825,13 +825,14 @@ Platform: Both
 Priority: High
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: Sarthak: OK to deploy Modal; then switch on + device check (test_yourself #133)
+Blocked by: Sarthak: turn the switch on (sdr-8bit on), then device check (test_yourself #133)
 Found in: GPU long-video work, edge-case test on Modal (2026-10-24)
 Issue: 10-bit and 4:2:2 videos are converted into streams many phones can't play. The video workers (_transcode_video_core in modal_engine/main.py, all lengths) run libx264 without -pix_fmt, so a 10-bit source (iPhone HDR video is HEVC 10-bit HLG; many cameras record 10-bit) comes out as H.264 High 10 (yuv420p10le), and a 4:2:2 source as H.264 High 4:2:2. Most hardware H.264 decoders (iPhone/Safari, most Android phones) only play 8-bit 4:2:0. HDR (HLG/PQ) is also passed through without tone mapping, so it looks washed out on SDR screens. Fix: add -pix_fmt yuv420p (and an HDR-to-SDR tone map, or keep HDR in HEVC) to the CPU command, behind a flag; check how many existing videos are affected.
 How to reproduce: Record a video on an iPhone with HDR on (default), upload it, then ffprobe hls/<storage_key>/1080p/seg_000.ts: profile High 10, pix_fmt yuv420p10le. Play it in iOS Safari / the app (not yet checked on a device).
 Checked 2026-10-24: all 69 existing videos' streams are 8-bit (57 High + 10 Main + 2 other 8-bit), so no uploaded video is affected yet.
-Fix (code, switch off by default, not deployed): with the video switch's sdr_8bit key on (modal_engine/video_gpu_switch.py sdr-8bit on), both CPU workers probe the source and, only when it isn't 8-bit 4:2:0 SDR, put a conversion before the tier split (_sdr_8bit_filter): format=yuv420p for 10-bit / 4:2:2, and for HDR (PQ / HLG) zscale + tonemap=mobius to BT.709 SDR, with sources above 1080p shrunk to 1080p first. If the HDR conversion fails (e.g. no colour primaries tag), it retries as plain 8-bit. 8-bit SDR sources get exactly the old command.
+Fix (switch off by default): with the video switch's sdr_8bit key on (modal_engine/video_gpu_switch.py sdr-8bit on), both CPU workers probe the source and, only when it isn't 8-bit 4:2:0 SDR, put a conversion before the tier split (_sdr_8bit_filter): format=yuv420p for 10-bit / 4:2:2, and for HDR (PQ / HLG) zscale + tonemap=mobius to BT.709 SDR, with sources above 1080p shrunk to 1080p first. If the HDR conversion fails (e.g. no colour primaries tag), it retries as plain 8-bit. 8-bit SDR sources get exactly the old command.
 Tested on Modal (4-core, production image, production filter code, old vs new command): 10-bit H.264, 10-bit HEVC, 4:2:2, HLG, PQ, HLG 4K and HLG without primaries all came out H.264 High (profile 100) yuv420p bt709 in every tier (old: High 10 / High 4:2:2); 8-bit SDR unchanged. Colours vs the SDR original: SSIM 0.98 (HLG and PQ; hable was 0.96 and visibly darker). Extra time: 4K HDR ~0 (6.4 -> 6.6 s for 15 s), 1080p HDR ~3x (3.8 -> 12 s for 12 s), 10-bit/4:2:2 SDR ~0.
+2026-10-24: Modal v127 deployed (6653ffe, 18:06 IST; rollback v126). sdr_8bit is off, so every video still gets the old command until it is switched on. Checked after deploy: video endpoints reject unsigned calls (401), all four video functions present.
 
 
 #119
