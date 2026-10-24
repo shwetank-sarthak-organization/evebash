@@ -71,7 +71,7 @@ export function ClassicGalleryHeader({
 }
 
 const local = StyleSheet.create({
-  wrap: { paddingTop: 28, paddingHorizontal: 16, paddingBottom: 14 },
+  wrap: { paddingTop: 8, paddingHorizontal: 16, paddingBottom: 14 },
   title: { color: '#1F2620', fontSize: 34, lineHeight: 38, letterSpacing: -0.2 },
   details: { marginTop: 12, color: CLASSIC.text, fontSize: 18, lineHeight: 24 },
   message: { marginTop: 10, color: CLASSIC.muted, fontSize: 16, lineHeight: 25 },
