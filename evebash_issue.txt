@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 133
+Next issue number: 134
 
 =====================================================================
 ACTIVE ISSUES
@@ -983,6 +983,18 @@ Found in: Cloudflare Pro / Workers plan review (2026-10-24)
 Issue: Every photo, thumbnail, preview, cover and video chunk on media.evebash.com goes through the Cloudflare worker evebash-media-worker (route media.evebash.com/*), even when it comes from the cache (#120). On the free Workers plan the account gets about 100,000 worker requests per day. Estimate: one 200-guest wedding is ~80,000 requests on its first evening (about 300 grid photos + 30 viewer photos + ~80 video chunks per guest; a 5-minute video is 50-100 requests per viewer), website and app together. Over the limit, all photos and videos fail to load for everyone on the website and in the app (error 1027) until the daily count resets at 00:00 UTC (05:30 IST); pages, login and uploads keep working. The route is set to fail closed (request_limit_fail_open false), and fail open wouldn't help: the B2 bucket is private and only the worker signs requests and maps media.evebash.com paths to B2's /file/EveBash/ download URLs. Not happening now (pre-launch traffic). The API token can't read the account's billing, so the current Workers plan wasn't confirmed.
 Fix: Workers Paid ($5/month per account): no daily cap, 10 million requests/month included, then about $0.30 per extra million (~160 such weddings/month in the base price); same speed, no code or config change. Keep the bucket private (making it public to drop the worker would let anyone with a file path download from B2). Optional cleanup: the leftover DNS record media.evebash.com.evebash.com (old media-proxy custom domain) serves nothing.
 How to reproduce: Not safe to reproduce on live. Cloudflare dashboard > Workers & Pages > evebash-media-worker > Metrics shows daily requests; on the free plan the limit is 100,000/day.
+
+#133
+Listed: 2026-10-24
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Sarthak (decision)
+Blocked by: Sarthak: a RunPod account with credit (min $10, non-refundable) and RUNPOD_API_KEY in the root .env
+Found in: Modal vs RunPod comparison (chat 2026-10-24); follows #117
+Issue: Long videos might convert ~30% cheaper on RunPod Serverless than on our Modal L4, but every RunPod figure so far is an estimate. Estimates for test_5 (48.7 min, 1.94 GB in, 2.88 GB HLS out), from the ~284 s Modal bills for it priced at RunPod's flex rates: L4 $0.69/h ~₹5.4, RTX 4000 Ada $0.58/h ~₹4.6 (if L4-like speed), 4090 $1.10/h ~₹7.6, A5000/3090 $0.69/h ~₹7.1-8.8 (1 NVENC, likely 1.5-2x slower), L40S $1.75/h ~₹12. Modal L4 measured ₹7.5-8.3, 16-core ₹12.7. Egress: free on RunPod (docs.runpod.io billing); free on Modal up to 1 TiB/month then $0.04/GiB, so RunPod only pulls clearly ahead above ~350 long videos/month (monthly at 1,000 test_5-size videos: Modal L4 ~₹14,500, RunPod Serverless L4 ~₹5,400). A100/H100 can't be used (0 NVENC). Unknowns: RunPod cold start with our ~2 GB ffmpeg image, B2 download/upload speed from RunPod datacentres, which GPU the 24 GB tier hands out (L4 vs A5000/3090) unless the endpoint is pinned to L4, unpublished active-worker discount.
+Plan: Serverless endpoint (flex, max 3 workers, idle timeout ~10 s) pinned to L4, then one pinned to RTX 4000 Ada; image = jrottenberg/ffmpeg:7.0-nvidia2204 + Python + the production _full_gpu_ffmpeg_cmd (no Docker on the Mac, so install Python at start or build via RunPod's GitHub integration). 3 runs each on test_5 and the 4 other long test videos from #117 (B2 bench/ prefix, deleted after). Measure per stage (GPU wait, download, transcode, upload), cost from RunPod's billing API, SSIM vs the original. Delete the endpoint and all bench files after. Expected cost of the test: under $5. Only move videos if the measured saving is worth running a second provider (lock, switch, retries and cost log would need rebuilding outside Modal).
+How to reproduce: n/a (cost comparison, not a bug).
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
