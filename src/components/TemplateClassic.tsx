@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { Event } from "@/lib/database";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
+import { ClassicCoverPrint } from "@/components/classic/ClassicCoverPrint";
 
 interface TemplateClassicProps {
     event: Event;
@@ -41,9 +41,9 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
 
     return (
         <div className="classic-template min-h-screen bg-[#F7F2EB] text-[#2C352E] font-sans selection:bg-[#8B9A6E]/30">
-            {/* The first screen is exactly the window height (at least 640px) on every computer: navbar space, text,
-                cover and "Open Gallery", with the gallery header starting right below. The cover takes whatever
-                height is left, keeping its 3:2 shape (sized from the leftover box with container units). */}
+            {/* The first screen is exactly the window height (at least 640px) on every computer: navbar space, title,
+                message card and cover print, "Open Gallery", with the gallery header starting right below. The print
+                takes whatever height is left (ClassicCoverPrint). */}
             <main className="flex h-[max(100svh,640px)] flex-col px-4 pt-[108px] pb-[clamp(20px,4svh,48px)] sm:px-6 lg:px-8">
                 {/* The title shows straight away (it's the page's largest text), the rest fades in */}
                 <div className="mx-auto w-full max-w-4xl shrink-0 text-center">
@@ -59,36 +59,11 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
                     <ScrollReveal delay={0.1}>
                         <ClassicDivider className="mt-[clamp(14px,3svh,32px)]" />
                     </ScrollReveal>
-
-                    {description && (
-                        <ScrollReveal delay={0.2}>
-                            {/* Long messages (up to a few hundred characters) get a wider, smaller line so the cover keeps its room */}
-                            <p className={description.length > 160
-                                ? "mx-auto mt-[clamp(12px,2.5svh,28px)] max-w-3xl whitespace-pre-line font-serif text-base italic leading-relaxed text-[#596653] md:text-lg"
-                                : "mx-auto mt-[clamp(12px,2.5svh,28px)] max-w-2xl whitespace-pre-line font-serif text-lg italic leading-relaxed text-[#596653] md:text-xl"}
-                            >
-                                {description}
-                            </p>
-                        </ScrollReveal>
-                    )}
                 </div>
 
-                {/* Cover in a thin white mat, filling the space left on the screen */}
-                {event.coverImage ? (
-                    <div className="relative mt-[clamp(16px,3.5svh,40px)] min-h-[200px] flex-1 [container-type:size]">
-                        <div className="absolute left-1/2 top-0 h-[min(100cqh,66.667cqw,780px)] w-[min(100cqw,150cqh,1170px)] -translate-x-1/2 bg-white p-1.5 shadow-[0_14px_40px_-22px_rgba(44,53,46,0.4)] md:p-2">
-                            <div className="relative h-full w-full overflow-hidden bg-[#F7F2EB]">
-                                <Image
-                                    src={event.coverImage}
-                                    alt={event.title}
-                                    fill
-                                    sizes="(min-width: 1200px) 1170px, 100vw"
-                                    style={coverImageStyle(event)}
-                                    priority
-                                />
-                            </div>
-                        </div>
-                    </div>
+                {/* Cover as a print in a white mount with the message card on its top edge; fills the space left */}
+                {event.coverImage || description ? (
+                    <ClassicCoverPrint coverImage={event.coverImage} alt={event.title} message={description} imageStyle={coverImageStyle(event)} />
                 ) : (
                     <div className="flex-1" />
                 )}

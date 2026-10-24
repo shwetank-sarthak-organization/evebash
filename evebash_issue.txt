@@ -765,6 +765,7 @@ Update 2026-10-24 (2): per Sarthak, following photos.knotsbyamp.com: navbar, gal
 Update 2026-10-24 (3): gallery header redesigned from Sarthak's mockup (src/components/classic/ClassicGalleryHeader.tsx): Back / Share, the gallery name in large capitals, date and place, [ Photos ] [ Videos ] tabs with an underline, the gallery video in a white mat on the right.
 Update 2026-10-24 (4): the first screen (navbar space, text, cover, Open Gallery) is exactly the window height (at least 640px); the cover takes the space left, keeping 3:2 (up to 1170px wide). Checked 1280x650 to 2560x1440 and a 430-character description.
 Update 2026-10-24 (5): Classic navbar redesigned from Sarthak's image (EventNavbar variant="classic", styles in src/app/classic-white.css): ivory bar between two sage lines, title left, capital links right; same links and positions.
+Update 2026-10-24 (6): cover redesigned from Sarthak's image (src/components/classic/ClassicCoverPrint.tsx): photo print in a thick white mount, message on an ivory card with sage sprigs over its top edge; checked messages from 10 to 463 characters, line breaks, no message and no cover at 1366x768, 1600x900, 1920x1080.
 
 #115
 Listed: 2026-10-24

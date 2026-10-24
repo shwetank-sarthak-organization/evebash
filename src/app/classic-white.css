@@ -167,3 +167,58 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
 .classic-nav__link:disabled { opacity: .6; cursor: default; }
 .classic-nav__link:focus-visible { outline: 2px solid #2C352E; outline-offset: 4px; }
 @media (prefers-reduced-motion: reduce) { .classic-nav, .classic-nav__link, .classic-nav__link::after { transition: none; } }
+
+/* Cover print and message card (src/components/classic/ClassicCoverPrint.tsx). The print fills the height left on
+   the first screen: .classic-print__space is a size container and the mount is sized from it, keeping the shape. */
+.classic-print {
+  flex: 1; min-height: 240px;
+  display: flex; flex-direction: column; align-items: center;
+  margin-top: clamp(16px, 3.5svh, 40px);
+  container-type: size;
+}
+.classic-print--no-cover { justify-content: center; }
+.classic-print__card {
+  position: relative; z-index: 2; flex-shrink: 0;
+  /* About three quarters of the mount's width (the mount is height-limited on most screens), so its white
+     border shows on both sides of the card as on a real mounted print */
+  width: max-content;
+  max-width: min(80cqw, 760px, calc((100cqh - 90px) * 1.18));
+  min-width: min(100%, 300px);
+  margin-bottom: -14px;
+  padding: 16px 58px;
+  background: #F2ECE1;
+  border: 1px solid #E2D8C6;
+  box-shadow: 0 8px 18px -12px rgba(44, 53, 46, .45);
+  rotate: .5deg;
+  color: #2C352E;
+  text-align: center;
+}
+.classic-print--no-cover .classic-print__card { margin-bottom: 0; }
+.classic-print__message {
+  margin: 0;
+  font-family: var(--font-playfair-src), Georgia, serif;
+  font-size: clamp(15px, 1.2vw, 19px);
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.classic-print__card--medium .classic-print__message { font-size: clamp(14px, 1.1vw, 17px); }
+/* Long messages run wider (fewer lines) so the photo keeps its room; the card is then a banner above the print */
+.classic-print__card--long { max-width: min(86cqw, 860px); }
+.classic-print__card--long .classic-print__message { font-size: clamp(13px, .95vw, 15px); line-height: 1.5; text-wrap: pretty; }
+.classic-print__sprig { position: absolute; top: 50%; left: 14px; width: clamp(30px, 2.6vw, 38px); translate: 0 -50%; color: #7D8C61; }
+.classic-print__sprig--right { left: auto; right: 14px; scale: -1 1; }
+
+.classic-print__space { position: relative; flex: 1; width: 100%; min-height: 0; container-type: size; }
+.classic-print__mount {
+  --w: min(97cqw, 138cqh, 1080px);
+  position: absolute; top: 0; left: 50%;
+  width: var(--w); height: calc(var(--w) / 1.38);
+  padding: max(26px, calc(var(--w) * .045));
+  translate: -50% 0; rotate: -.6deg;
+  background: #fff;
+  border: 1px solid #ECE5D9;
+  box-shadow: 0 22px 44px -26px rgba(44, 53, 46, .55), 0 2px 6px -2px rgba(44, 53, 46, .12);
+}
+.classic-print__photo { position: relative; width: 100%; height: 100%; overflow: hidden; background: #F7F2EB; box-shadow: inset 0 0 0 1px rgba(44, 53, 46, .12); }

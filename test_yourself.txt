@@ -3165,8 +3165,11 @@ How to test:
   1. Set a test gallery with photos and albums to Classic White. Open its guest page on a
      1440-1920px wide screen.
   2. Top: date and place above the title (if set), title in Playfair, a small sage divider, the
-     description in italics without quote marks, the cover in a thin white mat. The cover follows
-     the host's focus point / fit setting. "Open Gallery" is deep sage.
+     the cover as a print in a thick white mount (slightly tilted) with the host's message in quote
+     marks on an ivory card with sage sprigs overlapping its top edge. The cover follows the host's
+     focus point / fit setting. "Open Gallery" is deep sage. Try messages of ~10, ~70, ~150, ~300
+     and ~450 characters and one with line breaks: the card fits short text, long text becomes a
+     wide banner, the print's white border stays visible under the card, nothing overflows.
      First screen fits the window: on 1366x768, 1440x900, 1920x1080 and a large monitor, the navbar,
      text, cover and "Open Gallery" fill exactly one screen and the gallery header starts right at
      the bottom edge (cover bigger on taller screens). With a long description (300+ characters)
