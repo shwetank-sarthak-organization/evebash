@@ -762,6 +762,7 @@ Issue: Classic White uses only a narrow middle part of a computer screen: the he
 How to reproduce: Open a Classic White gallery on a 1440-1920px wide screen; try a gallery with a 40+ character title and a portrait cover.
 Update 2026-10-24: fixed in bc6e3b2, pushed to staging: cover up to 1400px wide following the host's focus/zoom/fit, gallery up to 1800px with 4 columns at 1280px+ and 5 at 1680px+ (Classic only), title sized with clamp() and wrapping. Device test #127.
 Update 2026-10-24 (2): per Sarthak, following photos.knotsbyamp.com: navbar, gallery and guest footer now run the full width with the same 32px side gap at every screen size (no 1280/1800px caps), photos in justified rows (equal-height rows, 4px gaps, MasonryGrid layout="justified", Classic only), cover smaller (max 672px, thin mat).
+Update 2026-10-24 (3): gallery header redesigned from Sarthak's mockup (src/components/classic/ClassicGalleryHeader.tsx): Back / Share, the gallery name in large capitals, date and place, [ Photos ] [ Videos ] tabs with an underline, the gallery video in a white mat on the right.
 
 #115
 Listed: 2026-10-24

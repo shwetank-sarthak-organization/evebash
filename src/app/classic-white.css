@@ -38,3 +38,84 @@
 
 /* The guest footer (src/components/Footer.tsx) lines up with the full-width navbar and gallery */
 body:has(.classic-template) .event-footer > div { max-width: none; }
+
+/* Gallery header (src/components/classic/ClassicGalleryHeader.tsx): text on the left, the gallery video in a white
+   mat on the right; text alone when there is no video. Stacks on narrow screens. */
+.classic-gh { display: grid; gap: 48px; align-items: center; color: #2C352E; text-align: left; }
+@media (min-width: 1024px) {
+  .classic-gh--video { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(48px, 6vw, 112px); }
+}
+.classic-gh__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: clamp(40px, 7vw, 96px); }
+.classic-gh__action {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 12px 22px;
+  border: 1px solid rgba(44, 53, 46, .28);
+  border-radius: 2px;
+  background: transparent;
+  color: #2C352E;
+  font-size: 15px;
+  transition: background-color .2s ease, border-color .2s ease;
+}
+.classic-gh__action:hover { background: #fff; border-color: rgba(44, 53, 46, .5); }
+.classic-gh__title {
+  margin: 0;
+  font-family: var(--font-playfair-src), Georgia, serif;
+  font-size: clamp(2.75rem, 6.5vw, 7rem);
+  font-weight: 500;
+  line-height: .98;
+  letter-spacing: -.01em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.themed-gallery-content .classic-gh__title { color: #1F2620; }
+.classic-gh__details {
+  margin-top: 20px;
+  font-family: var(--font-playfair-src), Georgia, serif;
+  font-size: clamp(1.15rem, 1.8vw, 1.6rem);
+  font-style: italic;
+  color: #2C352E;
+}
+.classic-gh__tabs {
+  display: inline-flex; flex-wrap: wrap; gap: 40px;
+  margin-top: clamp(40px, 6vw, 80px);
+  border-bottom: 1px solid rgba(44, 53, 46, .18);
+}
+.classic-gh__tab {
+  display: inline-flex; gap: 10px;
+  margin-bottom: -1px;
+  padding: 0 0 12px;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: #596653;
+  font-size: clamp(1rem, 1.5vw, 1.3rem);
+  transition: color .2s ease, border-color .2s ease;
+}
+.classic-gh__tab:hover { color: #2C352E; }
+.classic-gh__tab[aria-pressed="true"] { color: #2C352E; border-bottom-color: #596653; }
+
+.classic-gh__mat {
+  margin: 0;
+  padding: clamp(20px, 3.5vw, 64px) clamp(20px, 3.5vw, 64px) 0;
+  background: #fff;
+  border: 1px solid #EAE2D6;
+  box-shadow: 0 22px 50px -28px rgba(44, 53, 46, .45);
+}
+.classic-gh__screen { position: relative; aspect-ratio: 16 / 10; overflow: hidden; background: #F7F2EB; outline: 1px solid #EAE2D6; outline-offset: 5px; }
+.classic-gh__player, .classic-gh__poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.classic-gh__start { position: absolute; inset: 0; display: grid; place-items: center; width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.classic-gh__play {
+  position: relative; display: grid; place-items: center;
+  width: 84px; height: 84px; border-radius: 999px;
+  background: rgba(255, 255, 255, .28);
+  border: 1px solid rgba(255, 255, 255, .55);
+  color: #fff;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+  transition: transform .2s ease, background-color .2s ease;
+}
+.classic-gh__play-icon { width: 30px; height: 30px; margin-left: 4px; fill: currentColor; }
+.classic-gh__start:hover .classic-gh__play { transform: scale(1.05); background: rgba(255, 255, 255, .38); }
+.classic-gh__start:focus-visible { outline: 2px solid #2C352E; outline-offset: -6px; }
+.classic-gh__caption { padding: 22px 0 24px; text-align: center; color: #596653; font-size: 15px; }
+@media (prefers-reduced-motion: reduce) { .classic-gh__play, .classic-gh__action, .classic-gh__tab { transition: none; } }

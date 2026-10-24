@@ -3169,7 +3169,12 @@ How to test:
      wide). The cover follows the host's focus point / fit setting. "Open Gallery" is deep sage.
   3. Clear the gallery description and cover: no "Join us in celebrating..." text, no grey
      "No Cover Image" box.
-  4. Gallery: one "Home Gallery" heading (no "The Gallery" above it). Photos in justified rows
+  4. Gallery header (above the photos): Back to Gallery / Share Event as square outlined buttons,
+     the gallery name in large capitals, date and place in italics, [ Photos (n) ] [ Videos (n) ]
+     with a sage underline under the selected one. A gallery with a highlight video shows it on the
+     right in a white mat ("Highlight film" under it) and it plays; without a video the text runs
+     alone. Share shows "Link copied". At ~900px wide the video moves under the text.
+     Photos in justified rows
      (every row the same height, photos keep their shape, 4px gaps, square corners, last row not
      stretched). Navbar, photos and footer line up with the same ~32px side gap at 1280, 1600 and
      1920px wide. Clicking a photo still opens the viewer. "Add photos", "Load More Media" and the

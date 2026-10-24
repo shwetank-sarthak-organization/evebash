@@ -19,6 +19,7 @@ import { getWebTemplateComponent } from "@/components/templateRegistry";
 import { RoyalGalleryHeader } from "@/components/royal/RoyalGalleryHeader";
 import { GalleryHighlightVideo } from "@/components/GalleryHighlightVideo";
 import { getWebLightboxTheme, getWebTemplateChrome } from "@/lib/webTemplateTheme";
+import { ClassicGalleryHeader } from "@/components/classic/ClassicGalleryHeader";
 import { supabase } from "@/lib/supabase";
 import { uploadEventImage } from "@/lib/storage";
 import { alertDialog } from "@/components/ui/Modal";
@@ -554,7 +555,7 @@ function EventPageContent() {
 
     const renderContent = () => (
         <div className={cn("contents themed-gallery-content", isRoyalGallery && "royal-gallery-content")}>
-            {!isRoyalGallery && (
+            {!isRoyalGallery && !isClassicGallery && (
             <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <button
                     onClick={goBack}
@@ -616,6 +617,20 @@ function EventPageContent() {
                         onTabChange={setGalleryMediaTab}
                         video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
                     />
+                ) : isClassicGallery ? (
+                    <ClassicGalleryHeader
+                        title={activeGallery ? activeGalleryTitle : "Home Gallery"}
+                        details={[displayEvent.date?.trim(), typeof displayEvent.location === "string" ? displayEvent.location.trim() : ""].filter(Boolean).join(" · ")}
+                        backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
+                        onBack={goBack}
+                        onShare={handleShare}
+                        copied={copied}
+                        photoCountLabel={displayedPhotoCount}
+                        videoCountLabel={displayedVideoCount}
+                        activeTab={galleryMediaTab}
+                        onTabChange={setGalleryMediaTab}
+                        video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
+                    />
                 ) : (
                     <>
                         <SectionHeader
@@ -639,7 +654,7 @@ function EventPageContent() {
                 )}
 
                 {canGuestUpload && (activeGallery || subEvents.length === 0 ? (
-                    <div className="mt-6 flex flex-col items-center gap-2">
+                    <div className={cn("flex flex-col gap-2", isClassicGallery ? "mt-10 items-start" : "mt-6 items-center")}>
                         <input
                             ref={guestFileInputRef}
                             type="file"
@@ -664,12 +679,12 @@ function EventPageContent() {
                         {guestUploadError && <p className={cn("max-w-md text-center text-xs font-semibold", isRoyalGallery ? "royal-error" : "text-rose-600")}>{guestUploadError}</p>}
                     </div>
                 ) : (
-                    <p className={cn("mt-6 text-center text-xs font-semibold", isRoyalGallery ? "royal-muted" : "text-stone-500")}>Open an album to add your photos.</p>
+                    <p className={cn("mt-6 text-xs font-semibold", isClassicGallery ? "text-left" : "text-center", isRoyalGallery ? "royal-muted" : "text-stone-500")}>Open an album to add your photos.</p>
                 ))}
 
                 {/* Photos / Videos on the left; Favourites only (in albums, for logged-in guests) on the right, below on phones */}
-                <div className={cn("mt-10 flex flex-wrap items-center gap-4", isRoyalGallery ? "justify-end" : "justify-between")}>
-                {!isRoyalGallery && (
+                <div className={cn("mt-10 flex flex-wrap items-center gap-4", isRoyalGallery || isClassicGallery ? "justify-end" : "justify-between")}>
+                {!isRoyalGallery && !isClassicGallery && (
                 <div data-royal-control="segments" className="inline-flex rounded-2xl border border-stone-200 bg-white p-1 shadow-sm">
                     {([
                         { id: "photos", label: `Photos (${displayedPhotoCount})` },
