@@ -114,6 +114,11 @@ function EventPageContent() {
     const [photoPage, setPhotoPage] = useState(0);
     const [hasMorePhotos, setHasMorePhotos] = useState(false);
     const [loadingMorePhotos, setLoadingMorePhotos] = useState(false);
+    // The next page loads on its own near the end of the grid; the button only shows if that fails
+    // (or the browser can't watch the scroll position)
+    const [loadMoreFailed, setLoadMoreFailed] = useState(false);
+    const [canAutoLoad, setCanAutoLoad] = useState(true);
+    const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
     // What this viewer may do with the link (open_gallery)
     const [access, setAccess] = useState<GalleryAccess | null>(null);
@@ -485,12 +490,33 @@ function EventPageContent() {
             } else {
                 await loadGalleryPhotos(currentGallery, nextPage, true);
             }
+            setLoadMoreFailed(false);
         } catch (error) {
             console.error("Error loading more photos:", error);
+            setLoadMoreFailed(true);
         } finally {
             setLoadingMorePhotos(false);
         }
     };
+
+    // Load the next page about two screens before the guest reaches the end, so it's usually there in time.
+    // Re-armed after every page (photos.length), so a short page that leaves the end in view loads the next one too.
+    const loadMorePhotosRef = useRef(loadMorePhotos);
+    loadMorePhotosRef.current = loadMorePhotos;
+    useEffect(() => {
+        if (typeof IntersectionObserver === "undefined") {
+            setCanAutoLoad(false);
+            return;
+        }
+        const sentinel = loadMoreSentinelRef.current;
+        if (!sentinel || !hasMorePhotos || loadMoreFailed) return;
+        const observer = new IntersectionObserver(
+            (entries) => { if (entries.some((entry) => entry.isIntersecting)) void loadMorePhotosRef.current(); },
+            { rootMargin: "0px 0px 1600px 0px" }
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [hasMorePhotos, loadMoreFailed, photos.length]);
 
     const handleShare = () => {
         const shareUrl = `${window.location.origin}/events/${slug}?shared=true`;
@@ -786,9 +812,17 @@ function EventPageContent() {
                     </div>
                 )}
 
-                {/* LOAD MORE BUTTON */}
+                {/* More photos load on their own as the guest nears this point; the button is the fallback */}
                 {hasMorePhotos && photos.length > 0 && (
-                    <div className="flex justify-center mt-16 mb-8 w-full">
+                    <div ref={loadMoreSentinelRef} className="flex justify-center mt-16 mb-8 w-full min-h-14" aria-live="polite">
+                        {canAutoLoad && !loadMoreFailed ? (
+                            loadingMorePhotos && (
+                                <span className={cn("inline-flex items-center gap-2 text-sm", !isRoyalGallery && "text-stone-500")}>
+                                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                                    Loading more…
+                                </span>
+                            )
+                        ) : (
                         <button
                             onClick={loadMorePhotos}
                             disabled={loadingMorePhotos}
@@ -807,6 +841,7 @@ function EventPageContent() {
                                 {loadingMorePhotos ? "Loading..." : "Load More Media"}
                             </span>
                         </button>
+                        )}
                     </div>
                 )}
             </div>
