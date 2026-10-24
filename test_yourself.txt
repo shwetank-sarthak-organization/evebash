@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 129
+Next test number: 130
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3228,6 +3228,35 @@ How to test:
   3. Upload a portrait phone video over 10 minutes. Expect: it plays upright (this one is converted on
      the 16-core worker, as before).
   4. Delete one of the videos. Expect: it disappears and nothing else breaks.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#129 Photos and videos load from Cloudflare's cache and still look and play right
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     media.evebash.com now keeps copies of photos and videos in Cloudflare's cache (issue
+           #120, live since 2026-10-24). Everything must look and play exactly as before, only faster.
+Detail:    The response header X-Media-Cache shows HIT (from the cache) or MISS (fetched from B2).
+           Rollback: Cloudflare dashboard > Workers > evebash-media-worker > Settings > Variables:
+           set MEDIA_EDGE_CACHE to off. Known for now (issue #122): a deleted photo's direct link
+           can keep working for up to 30 days.
+How to test:
+  1. Open a big gallery on the website (computer and phone) and in the app, and scroll to the end.
+     Expect: every photo appears, none broken or swapped; a second visit feels faster.
+  2. Open several photos in the viewer and swipe through them. Expect: the large photo loads sharp.
+  3. Play a video on the website and in the app (iPhone and Android): start, seek to the middle and
+     the end, change quality. Expect: plays normally, sound in sync.
+  4. Download one photo and one video (and Download All on a small gallery). Expect: files open and
+     are the full originals.
+  5. Upload a new photo. Expect: its thumbnail appears once processing is done, as before.
 Done by:
 Device / browser:
 Build / version:

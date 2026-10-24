@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 120
+Next issue number: 123
 
 =====================================================================
 ACTIVE ISSUES
@@ -833,6 +833,42 @@ Blocked by: -
 Found in: GPU long-video work, edge-case test (2026-10-24)
 Issue: Phone videos with a rotation flag (portrait videos from most phones) break the video worker's probes. `ffprobe -show_entries stream=height -of csv=p=0` prints "1080," for them (the side data adds an empty field), int() fails, and _transcode_video_core falls back to height 1080 and has_audio=True. So (1) a rotated video WITHOUT audio fails ("Unable to map stream at a:0", checked with the production command) and is marked failed; (2) a rotated video smaller than 1080p gets an upscaled 1080p stream it doesn't need. Fix: read the probes as JSON (or take the first field), probe audio separately from the fallback; flag-gate per change-safety.
 How to reproduce: Take a portrait phone video, strip its audio (ffmpeg -i in.mp4 -an -c copy out.mp4), upload it: the video ends up failed.
+
+#120
+Listed: 2026-10-24
+Platform: Both
+Priority: High
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #129)
+Found in: thumbnail speed comparison with Samaro (2026-10-24)
+Issue: Cloudflare caches no photos or videos. media.evebash.com/* runs the worker "evebash-media-worker" (made in the Cloudflare dashboard, not in the repo until now), which fetches every file from B2 (Canada) with an Authorization header and never uses the Cloudflare cache, so every view goes to B2: cf-cache-status BYPASS, 0.55-1.6 s to first byte on repeat requests of the same thumbnail (Samaro's BunnyCDN: ~0.27 s, cache HIT). The repo's cloudflare-worker/src/index.ts (media-proxy), which does cache, is bound to the mistyped domain media.evebash.com.evebash.com and serves nothing. Also, Indian visitors are served from Cloudflare's Marseille data centre (cdn-cgi/trace: loc=IN, colo=MRS), which adds ~0.3-0.4 s even when cached.
+Fix: cloudflare-worker/evebash-media-worker/ (the deployed script, then a Cache API layer behind the MEDIA_EDGE_CACHE var): whole-file GETs are kept at the edge for 30 days (previews/thumbnails are rewritten at the same path when reprocessed); Range, HEAD and errors go to B2 as before; X-Media-Cache: HIT/MISS header. Tested locally with wrangler dev against real B2.
+2026-10-24: deployed (wrangler, version 5e26fca4; MEDIA_EDGE_CACHE on; B2 secrets kept). Live check: 4 thumbnails and an HLS playlist + segment go MISS then HIT with identical bytes; 404s not cached (no-store); Range/HEAD/OPTIONS as before. Cached thumbnails 0.42-0.65 s to first byte (was 0.55-1.6 s); the rest is the Marseille routing. Left: device check (test_yourself #129), commit the worker folder. Rollback: set MEDIA_EDGE_CACHE to off in the dashboard. Deleted/reprocessed files stay cached up to 30 days: #122.
+How to reproduce: curl -sI the same media.evebash.com thumbnail URL 3 times: cf-cache-status BYPASS and no speed-up.
+
+#121
+Listed: 2026-10-24
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: thumbnail quality comparison with Samaro (2026-10-24)
+Issue: Gallery photos look soft in the website grid, most on the Classic White justified rows. The photo worker makes thumbnails at most 480 px, WebP quality 68 (modal_engine/main.py, PhotoProcessorV2), and MasonryGrid always shows thumbnailUrl with no srcset, but justified rows are 320-400 px tall (gallery-refinements.css), so on a retina screen a 480 px thumbnail is stretched 2-2.5x. Samaro serves 768 px (phone) or 1100 px (desktop) JPEGs of 100-210 KB. Fix options: (1) website only: give grid images a srcset with the thumbnail (480w) and the existing 1600 px preview (1600w, 80-230 KB) plus sizes from the row height; (2) later, a ~1000 px variant in PhotoProcessorV2 behind a flag.
+How to reproduce: Open a Classic White gallery on a retina laptop at 1440 px wide; compare a photo in the grid with the same photo in the lightbox.
+
+#122
+Listed: 2026-10-24
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: #120 (edge cache) deployed; a Cloudflare API token with Cache Purge permission for the backend (Railway) and Modal
+Found in: media edge cache work (#120), 2026-10-24
+Issue: With the media edge cache (#120) on, Cloudflare keeps a copy of each photo, preview, thumbnail and video file for up to 30 days. (1) A deleted photo or gallery can still be opened from that copy by anyone who has the exact link, for up to 30 days. (2) When a photo is reprocessed, the preview and thumbnail are rewritten at the same path (modal_engine/main.py, PhotoProcessorV2), so visitors can get the old version for up to 30 days. Copies already in a viewer's own browser (Cache-Control max-age 1 year, immutable) can't be removed by any fix; for bulk re-generation (e.g. #121) write new images under a new file name instead.
+Fix: purge by URL (Cloudflare API, zone evebash.com) behind a switch, never blocking the delete (on failure the copy just expires): (a) backend delete paths (apps/backend/src/routes/media.ts POST /delete, apps/backend/src/deleteGalleryMedia.ts, routes/admin.ts): the original, -preview.webp, -thumbnail.webp, and for videos hls/<storage_key>/master.m3u8 and the playlists; (b) Modal photo worker after it uploads a preview/thumbnail. Free plan purge limits: batch big galleries over a few minutes.
+How to reproduce: After #120 is deployed, open a photo's media.evebash.com URL twice (X-Media-Cache: HIT), delete the photo, open the URL again: it still loads.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
