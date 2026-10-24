@@ -3330,7 +3330,7 @@ Feedback:
 #132 App: Classic White cover and gallery header match the website
 Status:    TODO
 Priority:  Medium
-Platform:  App (iPhone and Android)
+Platform:  App (iPhone and Android) + Website (step 8)
 Brief:     The app's Classic White guest page was a different design (gold buttons, title on the
            photo). Its cover and gallery header now match the website (issue #116).
 Detail:    Needs an app build with this change. Test as a guest (not the gallery's host).
@@ -3350,6 +3350,12 @@ How to test:
      Share Event opens the share sheet. On Home, Back leaves the gallery.
   5. A gallery without a video or without a message: those parts are simply left out.
   6. Open a Royal Emerald gallery: its fonts and look are unchanged.
+  7. Album tabs: HOME, COLLECTIONS (with a down arrow) and FIND YOU (no emoji). Tap Collections: a white
+     menu lists every album, the open one highlighted in pale sage; picking one opens it.
+  8. In every album the cover still shows the main title ("SAMARTH & JYOTI") and the main event's line,
+     and the header shows the album's own name ("REC 1"); Home shows "HOME". Same on the website (open
+     an album from the navbar's Collections, and an album's own link). Royal Emerald's Collections
+     menu still works.
 Done by:
 Device / browser:
 Build / version:

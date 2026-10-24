@@ -793,6 +793,7 @@ Found in: Classic White (Wedding) theme review, code only (2026-10-24)
 Issue: The website and app Classic White are two different designs. The website is a centred title, quote and tilted white-matted cover (src/components/TemplateClassic.tsx); the app is a cover photo with the title on it, a sage frame and a dotted divider (apps/mobile/components/eventStyles/classicStyles.ts, apps/mobile/components/event/ThemeHeader.tsx). With the app download screen (#109) on, phone guests only ever see the app version.
 How to reproduce: Open the same Classic White gallery on the website and in the app.
 Update 1 (2026-10-24): App cover and gallery header now match the website (apps/mobile/components/classic/). Cover: date, title in capitals as "X & Y" in real Playfair (the app had Playfair mapped to Inter), sage divider, tilted white-mounted print (portrait on phones) with the theme line card, outlined "Open Gallery". Header: Back / Share, gallery name, date, the message in quotes, video in a white mat, [ Photos ] [ Videos ]. Album tabs sage instead of gold. Still different: the photo grid (2 columns of white-matted cards vs the website's justified rows) and the sage divider above the grid.
+Update 2 (2026-10-24): Website and app: the cover always shows the main event's title (and its theme line), also inside albums and on an album opened by its own link; the header next to the video shows the gallery's own name ("Home", "Rec 1"). App: albums grouped under one Collections tab with a menu, like the website.
 
 #117
 Listed: 2026-10-24
