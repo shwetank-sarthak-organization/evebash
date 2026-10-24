@@ -3240,7 +3240,18 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:          2026-10-24 (Claude, server side only): step 1 OK on test-face-new-155c with test_5.mp4 (GPU worker, 4 min, all 3 qualities + audio full length). Steps 2-4 still to do on devices.
+Feedback:          2026-10-24 (Claude; website in the desktop app's browser, iOS on the iPhone 17 Pro
+                   SIMULATOR, not a real phone; Android not tested):
+                   Step 1 PASS: test_5 (48.7 min) on the GPU worker, 4 min, all qualities full length.
+                   Step 2 website PASS: plays 1080p, seek to 24:04 and 48:02 OK, played to the end, quality
+                   menu Auto/1080p/720p/480p, 480p switched to 854x480 and played; ~1% dropped frames
+                   around seeks. iOS: plays in Safari and in the app (dev build); Safari seek OK; the app
+                   CANNOT seek at all (no seek control) -> issue #135. Android: still to do on a phone.
+                   Step 3 PASS: 10:40 portrait video (rotation flag) uploaded from the website went
+                   GPU -> handed to process_video_cpu_long (107 s, ₹2.42), 608x1080 / 404x720 / 270x480,
+                   upright, 10.7 min in every tier.
+                   Step 4 PASS with a leftover: deleting it from the website removed the row, original and
+                   segments, but one older poster.jpg version stayed in B2 -> issue #134 (removed by hand).
 
 --------------------------------------------------------------------------------
 #129 Photos and videos load from Cloudflare's cache and still look and play right
