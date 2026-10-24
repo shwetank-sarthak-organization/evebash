@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, type ImageSourcePropType, type LayoutChangeEvent } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Ellipse, Path } from 'react-native-svg';
 import { displayCoupleTitle } from '@/components/royal/coupleNames';
 import { classicCoverLine } from '../../../../shared/themes/classicCoverLine';
@@ -8,9 +9,10 @@ import type { ClassicFontSet } from './classicFonts';
 
 // Classic White cover for phones, from the website (src/components/TemplateClassic.tsx and
 // src/components/classic/ClassicCoverPrint.tsx): date, the title in capitals ("X & Y"), a sage divider, the cover
-// as a tilted print in a white mount with the theme's line on a card over its top edge, and "Open Gallery".
+// as a tilted print in a white mount with the theme's line on a card over its top edge, and "Open Gallery" between
+// icon-only Back and Share buttons.
 // The website's print is landscape; a phone has height to spare, so here it is portrait (4:5 to 2:3) and takes
-// whatever height the rest leaves. Back and Share are in the gallery header below (and the phone's own back works).
+// whatever height the rest leaves.
 
 export const CLASSIC = {
   background: '#FCFCFA',
@@ -28,6 +30,8 @@ const PRINT_RATIO = 4 / 5;
 const TALLEST_RATIO = 2 / 3;
 // The card overlaps the print's top edge by this much
 const CARD_OVERLAP = 14;
+// Height of Open Gallery, and size of the square Back / Share buttons beside it
+const BUTTON = 46;
 
 /** Small sage sprig for the card corners (same drawing as the website); `flip` mirrors it for the right side */
 function Sprig({ flip }: { flip?: boolean }) {
@@ -81,9 +85,11 @@ export interface ClassicHeroProps {
   insetBottom: number;
   fonts: ClassicFontSet;
   onOpenGallery: () => void;
+  onBack: () => void;
+  onShare: () => void;
 }
 
-export function ClassicHero({ gallery, mainTitle, mainCategory, coverSource, width, height, insetTop, insetBottom, fonts, onOpenGallery }: ClassicHeroProps) {
+export function ClassicHero({ gallery, mainTitle, mainCategory, coverSource, width, height, insetTop, insetBottom, fonts, onOpenGallery, onBack, onShare }: ClassicHeroProps) {
   const title = displayCoupleTitle((mainTitle || gallery.title || '').trim());
   const date = (gallery.date || '').trim();
   const size = titleSize(title);
@@ -148,9 +154,17 @@ export function ClassicHero({ gallery, mainTitle, mainCategory, coverSource, wid
         )}
       </View>
 
-      <TouchableOpacity onPress={onOpenGallery} accessibilityRole="button" style={local.open} activeOpacity={0.8}>
-        <Text style={local.openText}>Open Gallery</Text>
-      </TouchableOpacity>
+      <View style={local.actions}>
+        <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" style={local.iconButton} activeOpacity={0.8}>
+          <IconSymbol name="chevron.left" size={18} color={CLASSIC.text} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onOpenGallery} accessibilityRole="button" style={local.open} activeOpacity={0.8}>
+          <Text style={local.openText}>Open Gallery</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onShare} accessibilityRole="button" accessibilityLabel="Share event" style={local.iconButton} activeOpacity={0.8}>
+          <IconSymbol name="square.and.arrow.up" size={18} color={CLASSIC.text} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -195,6 +209,8 @@ const local = StyleSheet.create({
     elevation: 8,
   },
   photo: { flex: 1, overflow: 'hidden', backgroundColor: CLASSIC.background, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(44,53,46,0.12)' },
-  open: { marginTop: 18, paddingVertical: 12, paddingHorizontal: 22, borderWidth: 1, borderColor: CLASSIC.outline, borderRadius: 2 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18 },
+  open: { height: BUTTON, justifyContent: 'center', paddingHorizontal: 22, borderWidth: 1, borderColor: CLASSIC.outline, borderRadius: 2 },
+  iconButton: { width: BUTTON, height: BUTTON, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: CLASSIC.outline, borderRadius: 2 },
   openText: { color: CLASSIC.text, fontSize: 15 },
 });

@@ -3559,6 +3559,8 @@ export default function EventDetailScreen() {
               fonts={classicFonts}
               // The pinned album tabs take this much of the top, so stop that much earlier and Back / Share show
               onOpenGallery={() => scrollViewRef.current?.scrollTo({ y: heroHeight - stickyTabsTopInset, animated: true })}
+              onBack={handleEventBack}
+              onShare={() => setShowShareModal(true)}
             />
           ) : !showAdminView && event?.templateId === 'ethereal' ? (
             <View style={[StyleSheet.absoluteFillObject, { backgroundColor: selectedTemplate.background }]}>
@@ -6293,12 +6295,9 @@ export default function EventDetailScreen() {
                     title={activeSubEvent ? activeSubEvent.title : event.parentId ? event.title || 'Home' : 'Home'}
                     details={(shownGallery?.date || event.date || '').trim()}
                     message={(event as any).showWelcomeCard !== false ? (activeSubEvent ? activeSubEvent.description : event.description) : undefined}
-                    backLabel={activeSubEvent ? 'Back to Gallery' : 'Back'}
                     video={galleryVideo}
                     selectedTemplate={selectedTemplate}
                     fonts={classicFonts}
-                    onBack={handleEventBack}
-                    onShare={() => setShowShareModal(true)}
                     tabs={mediaTabs}
                     activeTab={galleryMediaTab}
                     onTabChange={setGalleryMediaTab}
