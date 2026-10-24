@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 134
+Next test number: 135
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3392,6 +3392,27 @@ Done by:
 Device / browser:
 Build / version:
 Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#134 App video player: the Quality box above the gear is fully visible
+Status:    PASS
+Priority:  Low
+Platform:  App (iPhone + Android)
+Brief:     Tapping the gear in the app's video player showed the Quality / Auto box cut off at the
+           top. The box now sits outside the controls' dark gradient (apps/mobile/components/PhotoViewer.tsx).
+How to test:
+  1. Open a video in a gallery, tap the video to show the controls, tap the gear.
+     Expect: the whole "QUALITY / Auto" box shows just above the gear, with its full rounded border.
+  2. Tap the fullscreen button, show the controls, tap the gear (portrait and landscape).
+     Expect: same, box fully visible above the gear.
+  3. Tap the gear again. Expect: the box closes.
+Done by:   Sarthak
+Device / browser:
+Build / version:
+Date tested: 2026-10-24
 Account used:
 Screenshot / recording:
 Fix ref:

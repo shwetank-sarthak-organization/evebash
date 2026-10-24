@@ -517,6 +517,7 @@ function ViewerVideo({
   }, [revealVideoControls]);
 
   const renderCustomControls = (fullscreen = false) => (
+    <>
     <LinearGradient
       colors={['transparent', 'rgba(0,0,0,0.76)', 'rgba(0,0,0,0.92)']}
       style={[
@@ -643,15 +644,23 @@ function ViewerVideo({
             />
           </TouchableOpacity>
         </View>
-
-        {showSettings && (
-          <View style={[localStyles.dashboardVideoSettingsPopover, { borderColor: accent }]}>
-            <Text style={[localStyles.dashboardVideoSettingsLabel, { color: controlText }]}>Quality</Text>
-            <Text style={[localStyles.dashboardVideoSettingsValue, { color: accent }]}>Auto</Text>
-          </View>
-        )}
       </View>
     </LinearGradient>
+
+    {/* Outside the gradient so it isn't clipped at the gradient's top edge. */}
+    {showSettings && (
+      <View
+        style={[
+          localStyles.dashboardVideoSettingsPopover,
+          fullscreen && localStyles.mobileVideoFullscreenSettingsPopover,
+          { borderColor: accent },
+        ]}
+      >
+        <Text style={[localStyles.dashboardVideoSettingsLabel, { color: controlText }]}>Quality</Text>
+        <Text style={[localStyles.dashboardVideoSettingsValue, { color: accent }]}>Auto</Text>
+      </View>
+    )}
+    </>
   );
 
   const videoSurface = (
@@ -1944,16 +1953,22 @@ const localStyles = StyleSheet.create({
     borderRadius: 5.5,
     transform: [{ translateX: -5.5 }],
   },
+  // Positioned from the player frame: overlay paddingBottom + 30 px controls row + 6 px gap.
   dashboardVideoSettingsPopover: {
     position: 'absolute',
-    right: 0,
-    bottom: 36,
+    right: 12,
+    bottom: 46,
+    zIndex: 3,
     minWidth: 104,
     borderRadius: 12,
     borderWidth: 1,
     backgroundColor: 'rgba(0,0,0,0.82)',
     paddingHorizontal: 12,
     paddingVertical: 9,
+  },
+  mobileVideoFullscreenSettingsPopover: {
+    right: 18,
+    bottom: 50,
   },
   dashboardVideoSettingsLabel: {
     fontSize: 10,
