@@ -140,7 +140,7 @@ export function ThemeHeader({
   });
 
   const themeTextColor = (active: boolean) => active
-    ? (isGarden ? '#FFFFFF' : (isHero ? '#cca43b' : (isRoyal ? '#fff' : (isEthereal ? selectedTemplate.accent : '#cca43b'))))
+    ? (isGarden ? '#FFFFFF' : (isHero ? '#cca43b' : (isRoyal ? '#fff' : (isEthereal ? selectedTemplate.accent : (isClassic ? '#2C352E' : '#cca43b')))))
     : (isGarden ? '#64748b' : (isHero ? '#CDB89E' : selectedTemplate.muted));
 
   const academicTabStyle = {
@@ -225,7 +225,7 @@ export function ThemeHeader({
     );
     if (isClassic && isActive) return (
       <View style={{ alignItems: 'center', marginTop: 4 }}>
-        <View style={{ width: 32, height: 1.2, backgroundColor: '#cca43b' }} />
+        <View style={{ width: 32, height: 1.2, backgroundColor: '#596653' }} />
       </View>
     );
     if (isEthereal && isActive) return (

@@ -4,6 +4,7 @@ import { Event } from "@/lib/database";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { ClassicCoverPrint } from "@/components/classic/ClassicCoverPrint";
 import { displayCoupleTitle } from "@/components/royal/coupleNames";
+import { classicCoverLine } from "../../shared/themes/classicCoverLine";
 
 interface TemplateClassicProps {
     event: Event;
@@ -16,13 +17,6 @@ function coverImageStyle(event: Event): React.CSSProperties {
     const x = Math.max(0, Math.min(100, 50 + (event.coverOffsetX || 0)));
     const y = Math.max(0, Math.min(100, 50 + (event.coverOffset || 0)));
     return { objectFit: "cover", objectPosition: `${x}% ${y}%`, transform: `scale(${event.coverScale || 1})` };
-}
-
-/** Fixed line on the cover card, chosen by the event's category (the host's gallery message is in the gallery header) */
-function coverCardText(category?: string) {
-    if (category === "Anniversary") return "Still choosing each other, every year.";
-    if (category === "Wedding") return "Two hearts, one holy union.";
-    return "Moments worth keeping, forever.";
 }
 
 /** Sage line, dot, line (the same divider as the app's Classic White) */
@@ -73,7 +67,7 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
                 </div>
 
                 {/* Cover as a print in a white mount with the theme's card on its top edge; fills the space left */}
-                <ClassicCoverPrint coverImage={event.coverImage} alt={event.title} cardText={coverCardText(event.category)} imageStyle={coverImageStyle(event)} />
+                <ClassicCoverPrint coverImage={event.coverImage} alt={event.title} cardText={classicCoverLine(event.category)} imageStyle={coverImageStyle(event)} />
 
                 {children && (
                     <div className="mt-[clamp(14px,3svh,32px)] shrink-0 text-center">

@@ -49,6 +49,9 @@ import { GalleryVideoPanel } from '../../components/event/GalleryVideoPanel';
 import { RoyalHero } from '../../components/royal/RoyalHero';
 import { RoyalGalleryHeader } from '../../components/royal/RoyalGalleryHeader';
 import { RoyalFooter } from '../../components/royal/RoyalFooter';
+import { ClassicHero } from '../../components/classic/ClassicHero';
+import { ClassicGalleryHeader } from '../../components/classic/ClassicGalleryHeader';
+import { useClassicFonts } from '../../components/classic/classicFonts';
 import { useRoyalFonts } from '../../components/royal/royalFonts';
 import GalleriesIcon from '../../components/icons/GalleriesIcon';
 import PermissionsIcon from '../../components/icons/PermissionsIcon';
@@ -2219,7 +2222,9 @@ export default function EventDetailScreen() {
 
   // Royal Emerald guest view: the website's design (components/royal); its fonts load only for this theme
   const isRoyalGuest = !showAdminView && event?.templateId === 'royal';
+  const isClassicGuest = !showAdminView && event?.templateId === 'classic';
   const royalFonts = useRoyalFonts(event?.templateId === 'royal');
+  const classicFonts = useClassicFonts(event?.templateId === 'classic');
 
   // Cinematic highlight video of the gallery being shown (Home or an album), under the welcome message
   // (Find You and Event partners are pages, not galleries: no video there)
@@ -3528,27 +3533,19 @@ export default function EventDetailScreen() {
               <View style={styles.popBackgroundShapeBlue} />
               <View style={styles.popBackgroundShapePink} />
             </View>
-          ) : !showAdminView && event?.templateId === 'classic' ? (
-            <View style={styles.classicHeroImageContainer}>
-              <Image
-                source={activeCoverSource}
-                style={[
-                  styles.classicHeroImage,
-                  (activeCoverMode === 'fit') ? {
-                    resizeMode: 'contain',
-                  } : {
-                    height: '120%',
-                    top: '-10%',
-                    resizeMode: 'cover',
-                    transform: [
-                      { translateY: activeCoverOffset || 0 },
-                      { translateX: activeCoverOffsetX || 0 },
-                      { scale: activeCoverScale || 1.0 }
-                    ]
-                  }
-                ]}
-              />
-            </View>
+          ) : isClassicGuest ? (
+            <ClassicHero
+              gallery={currentActiveEvent || event!}
+              coverSource={activeCoverSource}
+              width={windowWidth}
+              height={heroHeight}
+              insetTop={insets.top}
+              // The pinned album tabs start this far above the hero's bottom edge, with a solid background
+              insetBottom={Math.max(insets.bottom, stickyTabsTopInset)}
+              fonts={classicFonts}
+              // The pinned album tabs take this much of the top, so stop that much earlier and Back / Share show
+              onOpenGallery={() => scrollViewRef.current?.scrollTo({ y: heroHeight - stickyTabsTopInset, animated: true })}
+            />
           ) : !showAdminView && event?.templateId === 'ethereal' ? (
             <View style={[StyleSheet.absoluteFillObject, { backgroundColor: selectedTemplate.background }]}>
               {/* Full-bleed Photo */}
@@ -4087,70 +4084,7 @@ export default function EventDetailScreen() {
           )}
 
 
-          {(!showAdminView && (isSportsTemplate || event?.templateId === 'academic_editorial' || event?.templateId === 'bohemian' || event?.templateId === 'museum' || event?.templateId === 'brutalist' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : isRoyalGuest ? null : (!showAdminView && event?.templateId === 'classic') ? (
-            <View style={styles.classicHeroOverlay}>
-              {/* 1. Elegant Thin Matte Frame */}
-              <View style={[styles.classicFrame, { borderColor: 'rgba(202, 156, 104, 0.15)' }]} />
-
-              {/* 2. Center Content with Spaced-out Fine-Art Typography */}
-              <View style={styles.classicCenterContent}>
-                <Text style={[styles.classicTitle, { color: selectedTemplate.text, fontFamily: selectedTemplate.serifFont }]}>
-                  {currentActiveEvent?.title || event.title}
-                </Text>
-
-                <View style={styles.classicDividerOrnament}>
-                  <View style={[styles.classicDividerOrnamentLine, { backgroundColor: '#cca43b' }]} />
-                  <Text style={styles.classicDividerOrnamentDot}>✦</Text>
-                  <View style={[styles.classicDividerOrnamentLine, { backgroundColor: '#cca43b' }]} />
-                </View>
-
-                <Text style={[styles.classicDateText, { color: '#cca43b', fontFamily: selectedTemplate.serifItalic }]}>
-                  {`— ${currentActiveEvent?.date || event.date || ''} —`.toUpperCase()}
-                </Text>
-
-                <View style={styles.classicActionRow}>
-                  {/* Left: Symmetrical Gold Square Back Button */}
-                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
-                    style={[styles.classicSideButton, { borderColor: '#cca43b' }]}
-                    onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
-                  >
-                    <IconSymbol name="chevron.left" size={16} color="#cca43b" />
-                  </TouchableOpacity>
-
-                  {/* Center: Main Gold Square Enter Gallery Button */}
-                  <TouchableOpacity
-                    style={[styles.classicButton, { borderColor: '#cca43b', marginTop: 0 }]}
-                    onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
-                  >
-                    <Text style={[styles.classicButtonText, { color: '#cca43b' }]}>ENTER GALLERY</Text>
-                  </TouchableOpacity>
-
-                  {/* Right: Symmetrical Gold Square Share Button */}
-                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
-                    style={[styles.classicSideButton, { borderColor: '#cca43b' }]}
-                    onPress={() => setShowShareModal(true)}
-                  >
-                    <IconSymbol name="square.and.arrow.up" size={16} color="#cca43b" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* 3. Classic Fine Art Brand Signature */}
-              <View style={styles.classicBottomContent}>
-                <View style={styles.brandLogoContainer}>
-                  <Text style={[styles.classicBrandSubText, { color: '#CDB89E' }]}>EXHIBITION DELIVERED BY</Text>
-                  <Text style={[styles.classicBrandLogoScript, { color: selectedTemplate.text, fontFamily: selectedTemplate.serifItalic }]}>EveBash</Text>
-                </View>
-
-                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Scroll to gallery"
-                  onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
-                  style={styles.classicChevron}
-                >
-                  <IconSymbol name="chevron.down" size={20} color="#cca43b" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (!showAdminView && event?.templateId === 'ethereal') ? (
+          {(!showAdminView && (isSportsTemplate || event?.templateId === 'academic_editorial' || event?.templateId === 'bohemian' || event?.templateId === 'museum' || event?.templateId === 'brutalist' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (isRoyalGuest || isClassicGuest) ? null : (!showAdminView && event?.templateId === 'ethereal') ? (
             <View style={styles.etherealOverlayContainer}>
               {/* Back button at top left */}
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
@@ -6339,7 +6273,24 @@ export default function EventDetailScreen() {
                   />
                 )}
 
-                {!isRoyalGuest && (event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
+                {isClassicGuest && onGalleryPage && (
+                  <ClassicGalleryHeader
+                    title={activeSubEvent ? activeSubEvent.title : 'Home Gallery'}
+                    details={(shownGallery?.date || event.date || '').trim()}
+                    message={(event as any).showWelcomeCard !== false ? (activeSubEvent ? activeSubEvent.description : event.description) : undefined}
+                    backLabel={activeSubEvent ? 'Back to Gallery' : 'Back'}
+                    video={galleryVideo}
+                    selectedTemplate={selectedTemplate}
+                    fonts={classicFonts}
+                    onBack={handleEventBack}
+                    onShare={() => setShowShareModal(true)}
+                    tabs={mediaTabs}
+                    activeTab={galleryMediaTab}
+                    onTabChange={setGalleryMediaTab}
+                  />
+                )}
+
+                {!isRoyalGuest && !isClassicGuest && (event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
                   <View style={[
                     styles.mainInfoBox,
                     {
@@ -6658,7 +6609,7 @@ export default function EventDetailScreen() {
                   </View>
                 )}
 
-                {galleryVideo && !isRoyalGuest && (
+                {galleryVideo && !isRoyalGuest && !isClassicGuest && (
                   <GalleryHighlightVideo
                     video={galleryVideo}
                     title={shownGallery?.title || event.title}
@@ -6849,7 +6800,7 @@ export default function EventDetailScreen() {
                   </View>
                 ) : (
                   <>
-                {!isRoyalGuest && (<>
+                {!isRoyalGuest && !isClassicGuest && (<>
                 <View style={[
                   styles.galleryHeader,
                   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 16 },

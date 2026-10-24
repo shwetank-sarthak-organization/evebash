@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -8,7 +8,8 @@ import { galleryActionText } from '../../constants/galleryContrast';
 import type { GalleryVideo } from '@/lib/database';
 
 // The gallery's cinematic highlight video, under the welcome message (website: GalleryHighlightVideo and the Royal
-// Emerald frame in RoyalGalleryHeader). Royal Emerald gets a gold double frame, other themes their own colours.
+// Emerald frame in RoyalGalleryHeader). Royal Emerald gets a gold double frame, Classic White a white mat with a
+// caption (website: ClassicGalleryHeader), other themes their own colours.
 
 export function HighlightPlayer({ src }: { src: string }) {
   const player = useVideoPlayer(src, (p) => { p.play(); });
@@ -29,12 +30,13 @@ export function GalleryHighlightVideo({ video, title, selectedTemplate }: {
 }) {
   const [playing, setPlaying] = useState(false);
   const isRoyal = selectedTemplate?.id === 'royal';
+  const isClassic = selectedTemplate?.id === 'classic';
   const accent: string = selectedTemplate?.accent || '#ffffff';
-  const radius = isRoyal ? 2 : 12;
+  const radius = isRoyal ? 2 : isClassic ? 0 : 12;
   // Royal Emerald draws the video inside its gallery header, which has its own side padding
 
   const screen = (
-    <View style={[localStyles.screen, { borderRadius: radius, backgroundColor: isRoyal ? '#010d0a' : '#000' }]}>
+    <View style={[localStyles.screen, { borderRadius: radius, backgroundColor: isRoyal ? '#010d0a' : '#000' }, isClassic && localStyles.classicScreen]}>
       {playing ? (
         <HighlightPlayer src={video.streamUrl} />
       ) : (
@@ -51,6 +53,10 @@ export function GalleryHighlightVideo({ video, title, selectedTemplate }: {
             <LinearGradient colors={['#f3dc9a', '#b8873a']} start={{ x: 0.3, y: 0.2 }} end={{ x: 0.8, y: 1 }} style={[localStyles.play, localStyles.royalPlay]}>
               <IconSymbol name="play.fill" size={26} color="#1c1406" />
             </LinearGradient>
+          ) : isClassic ? (
+            <View style={[localStyles.play, localStyles.classicPlay]}>
+              <IconSymbol name="play.fill" size={26} color="#ffffff" />
+            </View>
           ) : (
             <View style={[localStyles.play, { backgroundColor: accent, borderColor: 'transparent' }]}>
               <IconSymbol name="play.fill" size={24} color={galleryActionText(accent)} />
@@ -73,6 +79,16 @@ export function GalleryHighlightVideo({ video, title, selectedTemplate }: {
         >
           {screen}
         </LinearGradient>
+      </View>
+    );
+  }
+
+  if (isClassic) {
+    // Mounted like a print: white mat, the screen inside it, the caption on the mat's bottom edge
+    return (
+      <View style={localStyles.classicMat}>
+        {screen}
+        <Text style={localStyles.classicCaption}>Highlight film</Text>
       </View>
     );
   }
@@ -118,4 +134,21 @@ const localStyles = StyleSheet.create({
   },
   royalPlay: { width: 70, height: 70, borderRadius: 35, borderColor: 'rgba(246,227,176,0.7)', borderWidth: 2 },
   themedFrame: { borderWidth: 1, overflow: 'hidden' },
+  classicMat: {
+    alignSelf: 'stretch',
+    marginTop: 28,
+    paddingTop: 14,
+    paddingHorizontal: 14,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#E6E6E0',
+    shadowColor: '#2C352E',
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 6,
+  },
+  classicScreen: { aspectRatio: 16 / 10, backgroundColor: '#FCFCFA' },
+  classicPlay: { width: 68, height: 68, borderRadius: 34, backgroundColor: 'rgba(255,255,255,0.28)', borderColor: 'rgba(255,255,255,0.55)', borderWidth: 1 },
+  classicCaption: { paddingTop: 12, paddingBottom: 14, color: '#596653', fontSize: 14, textAlign: 'center' },
 });
