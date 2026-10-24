@@ -122,8 +122,8 @@ export function EventNavbar({
     const isClassic = variant === "classic";
     // Royal Emerald and Classic White draw their own colours from CSS classes instead of the inline theme colours
     const useInlineChrome = !isRoyal && !isClassic && hasTemplateChrome;
-    // Royal Emerald writes a couple's joiner ("and", "AND", "weds", "+") as "&", like the title card
-    const navTitle = isRoyal ? displayCoupleTitle(mainEventTitle) : mainEventTitle;
+    // Royal Emerald and Classic White write a couple's joiner ("and", "AND", "weds", "+") as "&", like their titles
+    const navTitle = isRoyal || isClassic ? displayCoupleTitle(mainEventTitle) : mainEventTitle;
     const royalLinkClass = (isActive: boolean) => cn("royal-nav__link", isActive && "royal-nav__link--active");
     const navTextColor = chromeTextColor || "#0f172a";
     const navAccentColor = chromeAccentColor || "#0f172a";

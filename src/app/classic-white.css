@@ -5,6 +5,30 @@
 /* Playfair Display (already loaded) instead of the Georgia that gallery-refinements.css gives every theme */
 .event-template-shell .classic-template .font-serif { font-family: var(--font-playfair-src), Georgia, serif; }
 
+/* Top of the page: the date / place line and the title in capitals. The date's line box stays 20px tall, so the
+   bigger text moves nothing below it. */
+.classic-hero__details {
+  font-size: clamp(14px, 1.15vw, 18px);
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  color: #596653;
+}
+.classic-hero__title {
+  font-family: var(--font-playfair-src), Georgia, serif;
+  font-size: clamp(2.25rem, min(6.5vw, 8svh), 5.5rem);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: #2C352E;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.classic-hero__title--long { font-size: clamp(2rem, min(5vw, 6.5svh), 4.25rem); }
+.classic-hero__title--xlong { font-size: clamp(1.75rem, min(3.8vw, 5svh), 3.25rem); }
+
 /* Deep sage buttons with white text (6:1): guest "Add photos" and "Load More Media" */
 .classic-button {
   display: inline-flex;
@@ -46,11 +70,11 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
 .classic-gh { display: grid; gap: 48px; align-items: center; color: #2C352E; text-align: left; }
 @media (min-width: 1024px) {
   /* The text column is as tall as the video: Back / Share level with its top, the tabs level with its bottom */
-  .classic-gh--video { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(48px, 6vw, 112px); align-items: stretch; }
+  .classic-gh--video { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(40px, 5vw, 96px); align-items: stretch; }
   .classic-gh--video .classic-gh__text { justify-content: space-between; }
   .classic-gh--video .classic-gh__mat { align-self: start; }
 }
-.classic-gh__text { display: flex; flex-direction: column; gap: clamp(28px, 4vw, 56px); min-width: 0; }
+.classic-gh__text { display: flex; flex-direction: column; gap: clamp(20px, 2.5vw, 40px); min-width: 0; }
 .classic-gh__actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .classic-gh__action {
   display: inline-flex; align-items: center; gap: 10px;
@@ -83,8 +107,8 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
   color: #2C352E;
 }
 .classic-gh__message {
-  margin-top: 18px;
-  max-width: 34rem;
+  margin-top: 14px;
+  max-width: 42rem;
   font-family: var(--font-playfair-src), Georgia, serif;
   font-size: clamp(1rem, 1.2vw, 1.15rem);
   line-height: 1.6;
@@ -112,7 +136,7 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
 
 .classic-gh__mat {
   margin: 0;
-  padding: clamp(20px, 3.5vw, 64px) clamp(20px, 3.5vw, 64px) 0;
+  padding: clamp(16px, 2.4vw, 40px) clamp(16px, 2.4vw, 40px) 0;
   background: #fff;
   border: 1px solid #E6E6E0;
   box-shadow: 0 22px 50px -28px rgba(44, 53, 46, .45);
@@ -133,7 +157,7 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
 .classic-gh__play-icon { width: 30px; height: 30px; margin-left: 4px; fill: currentColor; }
 .classic-gh__start:hover .classic-gh__play { transform: scale(1.05); background: rgba(255, 255, 255, .38); }
 .classic-gh__start:focus-visible { outline: 2px solid #2C352E; outline-offset: -6px; }
-.classic-gh__caption { padding: 22px 0 24px; text-align: center; color: #596653; font-size: 15px; }
+.classic-gh__caption { padding: 16px 0 18px; text-align: center; color: #596653; font-size: 15px; }
 @media (prefers-reduced-motion: reduce) { .classic-gh__play, .classic-gh__action, .classic-gh__tab { transition: none; } }
 
 /* Navbar (EventNavbar variant="classic"): soft white, full width, the bar between two thin sage lines; title on the left,

@@ -3172,6 +3172,9 @@ How to test:
      Gallery header with a highlight video: Back to Gallery / Share Event (with icons) level with the
      video's top, gallery name + date + the host's gallery message in the middle, [ Photos ] [ Videos ]
      level with the video's bottom. Try a gallery message of ~70 and ~250 characters.
+     Title: always in capitals; "Asha and Raj", "Asha AND Raj", "Asha weds Raj", "Asha + Raj" all show
+     as "ASHA & RAJ" (navbar "Asha & Raj"); longer titles stay as written and get smaller so the cover
+     keeps its room. The date / place line above it is bigger (18px on a large screen).
      First screen fits the window: on 1366x768, 1440x900, 1920x1080 and a large monitor, the navbar,
      text, cover and "Open Gallery" fill exactly one screen and the gallery header starts right at
      the bottom edge (cover bigger on taller screens). With a long description (300+ characters)

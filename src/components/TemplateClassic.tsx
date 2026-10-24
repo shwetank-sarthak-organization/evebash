@@ -3,6 +3,7 @@
 import { Event } from "@/lib/database";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { ClassicCoverPrint } from "@/components/classic/ClassicCoverPrint";
+import { displayCoupleTitle } from "@/components/royal/coupleNames";
 
 interface TemplateClassicProps {
     event: Event;
@@ -40,6 +41,9 @@ function ClassicDivider({ className }: { className?: string }) {
 export function TemplateClassic({ event, children }: TemplateClassicProps) {
     const location = "location" in event && typeof event.location === "string" ? event.location.trim() : "";
     const details = [event.date?.trim(), location].filter(Boolean).join(" · ");
+    const title = displayCoupleTitle(event.title);
+    // Capitals run wide, so longer titles get a smaller size and keep the cover's room
+    const titleSize = title.length > 32 ? " classic-hero__title--xlong" : title.length > 18 ? " classic-hero__title--long" : "";
 
     const scrollToContent = () => {
         document.getElementById("event-content")?.scrollIntoView({ behavior: "smooth" });
@@ -52,14 +56,15 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
                 takes whatever height is left (ClassicCoverPrint). */}
             <main className="flex h-[max(100svh,640px)] flex-col px-4 pt-[108px] pb-[clamp(20px,4svh,48px)] sm:px-6 lg:px-8">
                 {/* The title shows straight away (it's the page's largest text), the rest fades in */}
-                <div className="mx-auto w-full max-w-4xl shrink-0 text-center">
+                <div className="mx-auto w-full max-w-6xl shrink-0 text-center">
                     {details && (
-                        <p className="mb-[clamp(10px,2svh,20px)] text-xs font-semibold uppercase tracking-[0.3em] text-[#596653] md:text-sm">
+                        <p className="classic-hero__details mb-[clamp(10px,2svh,20px)]">
                             {details}
                         </p>
                     )}
-                    <h1 className="font-serif text-[clamp(2.25rem,min(6.5vw,8svh),5.5rem)] leading-[1.08] tracking-tight text-[#2C352E] break-words [text-wrap:balance]">
-                        {event.title}
+                    {/* Always capitals; "X and Y" / "X weds Y" / "X + Y" read as "X & Y" (same rule as Royal Emerald) */}
+                    <h1 className={`classic-hero__title${titleSize}`}>
+                        {title}
                     </h1>
 
                     <ScrollReveal delay={0.1}>
