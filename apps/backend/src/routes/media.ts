@@ -40,6 +40,7 @@ import { runMediaWatchdog } from "../services/watchdog.js";
 import { checkEventUpload, isEventUploadLimitEnabled } from "../services/eventUploadLimits.js";
 import { buildRotatedLinks, isRotateVersionedLinksEnabled, previousOriginalLinks } from "../services/rotateLinks.js";
 import { isRotateUprightFirstEnabled, rotateImage } from "../services/rotateImage.js";
+import { GRID_LONG_SIDE, GRID_QUALITY, gridKey, isGridVariantEnabled } from "../services/gridVariant.js";
 import { getStorageContext, ownerIdentifiers } from "../vault/access.js";
 import { createSupabaseVaultRepository } from "../vault/repository.js";
 
@@ -465,7 +466,7 @@ async function rollbackB2Upload(storageKey: string, resourceType: string) {
   const backblazeAuth = await getCachedBackblazeAuth();
   const bucketId = requireEnv("B2_BUCKET_ID");
   const keys = resourceType === "image"
-    ? [storageKey, `${storageKey}-thumbnail.webp`, `${storageKey}-preview.webp`]
+    ? [storageKey, `${storageKey}-thumbnail.webp`, `${storageKey}-preview.webp`, gridKey(storageKey)]
     : [storageKey];
   await Promise.all(keys.map((key) => deleteB2File(backblazeAuth, bucketId, key).catch(() => false)));
 }
@@ -1582,6 +1583,7 @@ mediaRouter.post("/delete", asyncRoute(async (request, response) => {
     deleteB2File(backblazeAuth, bucketId, savedPhoto.storage_key),
     deleteB2File(backblazeAuth, bucketId, `${savedPhoto.storage_key}-thumbnail.webp`),
     deleteB2File(backblazeAuth, bucketId, `${savedPhoto.storage_key}-preview.webp`),
+    deleteB2File(backblazeAuth, bucketId, gridKey(savedPhoto.storage_key)),
     deleteB2Prefix(backblazeAuth, bucketId, `${savedPhoto.storage_key}-hls/`),
     // The streaming copy Modal makes (playlists, segments, poster), as the admin delete already does
     ...(deleteStreamingCopy ? [deleteB2Prefix(backblazeAuth, bucketId, `hls/${savedPhoto.storage_key}/`)] : []),
@@ -1746,6 +1748,14 @@ mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
     .resize({ width: 900, fit: "inside", withoutEnlargement: true })
     .webp({ quality: 75 })
     .toBuffer();
+  // Grid image (issue #121): remade only with GRID_VARIANT=true, but an old one is always removed below so the
+  // grid never shows the photo unrotated (without one, the website shows the thumbnail)
+  const gridBuffer = isGridVariantEnabled()
+    ? await sharp(rotatedBuffer)
+      .resize({ width: GRID_LONG_SIDE, height: GRID_LONG_SIDE, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: GRID_QUALITY })
+      .toBuffer()
+    : null;
 
   const backblazeAuth = await getCachedBackblazeAuth();
   const bucketId = requireEnv("B2_BUCKET_ID");
@@ -1762,17 +1772,20 @@ mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
     listExactFileVersions(backblazeAuth, bucketId, storageKey),
     listExactFileVersions(backblazeAuth, bucketId, thumbnailKey),
     listExactFileVersions(backblazeAuth, bucketId, previewKey),
+    listExactFileVersions(backblazeAuth, bucketId, gridKey(storageKey)),
   ]);
 
   console.log("[MediaRotate] Uploading rotated variants", {
     originalBytes: rotatedBuffer.length,
     thumbnailBytes: thumbnailBuffer.length,
     previewBytes: previewBuffer.length,
+    gridBytes: gridBuffer?.length ?? 0,
   });
   await Promise.all([
     uploadBufferToB2(backblazeAuth, bucketId, rotatedBuffer, storageKey, contentType),
     uploadBufferToB2(backblazeAuth, bucketId, thumbnailBuffer, thumbnailKey, "image/webp"),
     uploadBufferToB2(backblazeAuth, bucketId, previewBuffer, previewKey, "image/webp"),
+    ...(gridBuffer ? [uploadBufferToB2(backblazeAuth, bucketId, gridBuffer, gridKey(storageKey), "image/webp")] : []),
   ]);
 
   console.log("[MediaRotate] Removing old B2 versions", { count: oldVersions.flat().length });
@@ -1788,7 +1801,7 @@ mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
       width: rotatedMetadata.width || null,
       height: rotatedMetadata.height || null,
       size: rotatedBuffer.length,
-      overhead_size: thumbnailBuffer.length + previewBuffer.length,
+      overhead_size: thumbnailBuffer.length + previewBuffer.length + (gridBuffer?.length ?? 0),
     })
     .eq("id", photoId);
   if (updateError) throw updateError;

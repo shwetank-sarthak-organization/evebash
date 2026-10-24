@@ -863,12 +863,14 @@ How to reproduce: curl -sI the same media.evebash.com thumbnail URL 3 times: cf-
 Listed: 2026-10-24
 Platform: Both
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: thumbnail quality comparison with Samaro (2026-10-24)
 Issue: Gallery photos look soft in the website grid, most on the Classic White justified rows. The photo worker makes thumbnails at most 480 px, WebP quality 68 (modal_engine/main.py, PhotoProcessorV2), and MasonryGrid always shows thumbnailUrl with no srcset, but justified rows are 320-400 px tall (gallery-refinements.css), so on a retina screen a 480 px thumbnail is stretched 2-2.5x. Samaro serves 768 px (phone) or 1100 px (desktop) JPEGs of 100-210 KB. Fix options: (1) website only: give grid images a srcset with the thumbnail (480w) and the existing 1600 px preview (1600w, 80-230 KB) plus sizes from the row height; (2) later, a ~1000 px variant in PhotoProcessorV2 behind a flag.
 How to reproduce: Open a Classic White gallery on a retina laptop at 1440 px wide; compare a photo in the grid with the same photo in the lightbox.
+2026-10-24 plan agreed (Sarthak): a 1000 px WebP q75 grid image "<storage_key>-grid.webp" next to the preview (10 real photos: median 66 KB vs 128 KB for the 1600 px preview, about 75% of the sharpness gain over thumbnails; ~1.5 s per screen of 12 vs Samaro 2.0 s, estimated). Order: (1) backend, (2) Modal PhotoProcessorV2 behind the photo-pipeline-switch key "grid", (3) one-off job to make grid images for existing photos, (4) website grid uses thumbnail 480w + grid 1000w (NEXT_PUBLIC_GRID_HIRES, branch feat/sharp-grid, not pushed), only after (3).
+Step 1 done (branch feat/grid-variant-backend): every delete path also removes -grid.webp (deleteGalleryMedia, user delete, admin deletes, failed-upload cleanup); the admin orphan cleanup knows -grid.webp (it would otherwise have deleted every grid file as an orphan); rotate always removes an old grid image and makes a new one when GRID_VARIANT=true (set on Railway 2026-10-24). Backend suite 90/90.
 
 #122
 Listed: 2026-10-24

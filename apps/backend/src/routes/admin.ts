@@ -2,6 +2,7 @@ import { deleteGalleryMedia } from "../deleteGalleryMedia.js";
 import type { Request, Response as ExpressResponse } from "express";
 import { Router } from "express";
 import { getCachedBackblazeAuth, type BackblazeAuth } from "../backblaze.js";
+import { GRID_SUFFIX, gridKey } from "../services/gridVariant.js";
 import { adminAuthStatus, getAdminClient, verifySuperAdmin } from "../adminAuth.js";
 
 export const adminRouter = Router();
@@ -153,6 +154,7 @@ function addMediaKeyVariants(target: Set<string>, key: string) {
   target.add(cleanKey.toLowerCase());
   target.add(`${cleanKey.toLowerCase()}-thumbnail.webp`);
   target.add(`${cleanKey.toLowerCase()}-preview.webp`);
+  target.add(gridKey(cleanKey.toLowerCase()));
 }
 
 function isManagedB2MediaFile(fileName: string) {
@@ -323,6 +325,7 @@ async function inspectBackblazeOrphans(supabaseAdmin: ReturnType<typeof getAdmin
         const baseKey = cleanKey
           .replace("-thumbnail.webp", "")
           .replace("-preview.webp", "")
+          .replace(GRID_SUFFIX, "")
           .toLowerCase();
         return !referencedKeys.has(baseKey);
       }
@@ -1016,6 +1019,7 @@ async function resetUserData(
         deleteB2File(auth, bucketId, photo.storage_key),
         deleteB2File(auth, bucketId, `${photo.storage_key}-thumbnail.webp`),
         deleteB2File(auth, bucketId, `${photo.storage_key}-preview.webp`),
+        deleteB2File(auth, bucketId, gridKey(photo.storage_key)),
         deleteB2Prefix(auth, bucketId, `hls/${photo.storage_key}/`),
       ]);
     }
@@ -1223,6 +1227,7 @@ async function deleteEventTree(
         deleteB2File(auth, bucketId, photo.storage_key),
         deleteB2File(auth, bucketId, `${photo.storage_key}-thumbnail.webp`),
         deleteB2File(auth, bucketId, `${photo.storage_key}-preview.webp`),
+        deleteB2File(auth, bucketId, gridKey(photo.storage_key)),
         deleteB2Prefix(auth, bucketId, `hls/${photo.storage_key}/`),
       ]);
     }
