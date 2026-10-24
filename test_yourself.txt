@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 137
+Next test number: 138
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3482,6 +3482,38 @@ How to test:
   3. Expect: all of them reach "processed" and play upright on the website, iPhone and Android;
      the muted ones have no sound and no errors.
   4. Also upload a normal landscape video with sound: it should look and play exactly as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#137 Website: guest gallery loads more photos on its own, and photos don't jump
+Status:    TODO
+Priority:  Medium
+Platform:  Website (computer browser)
+Brief:     The guest gallery no longer needs "Load More Media": the next photos load on their own as
+           you scroll near the end. Photos hold their place while images and new pages arrive.
+Detail:    Every theme. Needs a gallery (or album) with more than 20 photos; also try a non-Classic
+           theme (photos in columns) and Royal Emerald. Phones and tablets see the app download
+           screen, so test on a computer.
+How to test:
+  1. Open the gallery as a guest and scroll down slowly. Before you reach the last photo, the next
+     ones appear on their own (a small "Loading more…" may show at the bottom). No "Load More Media"
+     button. Keep going until the photo count in [ Photos (n) ] is all there.
+  2. While scrolling, the photos you are looking at never jump or swap places, in the column themes
+     too (each new batch only adds to the bottom of the columns).
+  3. Reload on a slow connection (browser dev tools, "Slow 4G"): before each photo appears its space
+     is already there with a light grey tint, so the grid doesn't shift as photos load.
+  4. Make the window narrower and wider (about 700, 1280 and 1500 px): the columns change count as
+     before (Royal Emerald up to 4), and photos still don't jump when more load.
+  5. Turn the network off (dev tools "Offline"), scroll to the end: a "Load More Media" button
+     appears. Turn the network back on and click it: the next photos load.
+  6. Clicking any photo, including ones loaded later, opens the right photo in the viewer.
 Done by:
 Device / browser:
 Build / version:
