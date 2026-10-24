@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 135
+Next test number: 136
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3264,6 +3264,8 @@ Detail:    The response header X-Media-Cache shows HIT (from the cache) or MISS 
            Rollback: Cloudflare dashboard > Workers > evebash-media-worker > Settings > Variables:
            set MEDIA_EDGE_CACHE to off. Known for now (issue #122): a deleted photo's direct link
            can keep working for up to 30 days.
+           Checked by Claude 2026-10-24 (website, Chrome, desktop size): grid, viewer, video play/seek,
+           original download, 404s - all fine. Left: the app on iPhone and Android.
 How to test:
   1. Open a big gallery on the website (computer and phone) and in the app, and scroll to the end.
      Expect: every photo appears, none broken or swapped; a second visit feels faster.
@@ -3291,6 +3293,9 @@ Brief:     Rotating a photo now saves new links (issue #123), so other guests an
            rotated instead of an old cached copy.
 Detail:    Only after the backend deploy AND ROTATE_VERSIONED_LINKS=true on Railway (staging). Before
            that, nothing changes. A rotated photo's link ends in ?v=<number>.
+           Checked by Claude 2026-10-24 (website): rotate right/left on VIS_6191 (Rec 1) saved new ?v=
+           links each time and the new file was served; the old link still showed the old copy. Left: steps
+           3-6 on other devices.
 How to test:
   1. As the host, open a gallery photo on a phone (app) and on a computer (website). Note its direction.
   2. Rotate it right on the phone. Expect: it turns at once on the phone.
@@ -3318,6 +3323,8 @@ Brief:     Rotating a portrait phone photo did nothing (right) or turned it upsi
            #124). It must now turn exactly the way you tap.
 Detail:    Only after the backend deploy AND ROTATE_UPRIGHT_FIRST=true on Railway (staging). Best with
            ROTATE_VERSIONED_LINKS=true too (#130), or other devices may show an old cached copy.
+           Checked by Claude 2026-10-24 (website): VIS_6191 (camera photo, EXIF 8) turned right then left
+           correctly. Left: fresh iPhone and Android portrait photos.
 How to test:
   1. Take a portrait photo with an iPhone and one with an Android phone, and upload both to a test
      gallery (app). Also upload a landscape photo.
@@ -3424,6 +3431,36 @@ Done by:   Sarthak
 Device / browser:
 Build / version:
 Date tested: 2026-10-24
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#135 Sharper photos in the Classic White grid on computers
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     On computer screens the gallery grid now loads a 1000 px "grid" image instead of the small
+           480 px thumbnail (issue #121), so photos look sharp instead of soft.
+Detail:    Only after NEXT_PUBLIC_GRID_HIRES=true is set in Vercel (Preview) and the site is redeployed,
+           and for photos uploaded while the Modal switch "grid" covers the gallery (it's "all" once
+           rolled out). Older photos keep thumbnails. Screens narrower than 1024 px load thumbnails.
+How to test:
+  1. Upload 10+ photos (landscape and portrait) to a Classic White gallery. On a laptop (retina
+     MacBook if possible), open it full screen in Chrome. Expect: grid photos look as sharp as
+     when opened in the viewer.
+  2. Scroll to the end. Expect: every photo appears, none broken or "Image unavailable", the rows
+     look the same as before (same layout, no gaps).
+  3. Same in Safari and Firefox. Expect: same.
+  4. Open an older Classic White gallery (photos from before). Expect: works as before (thumbnails).
+  5. Make the window narrow (under 1024 px). Expect: grid still works.
+  6. Rotate one of the new photos (host page viewer), reload. Expect: rotated in the grid too.
+  7. Other themes (e.g. Royal): look as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:

@@ -7,7 +7,7 @@ import { onPhotoInteractions, toggleLike } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
 import { Heart, MessageCircle, Download, Play } from "lucide-react";
 import type { LightboxTheme } from "./Lightbox";
-import { getGridThumbnail, getImageUrl } from "@/lib/imageUrl";
+import { getGridSrcSet, getGridThumbnail, getImageUrl, GRID_HIRES_ENABLED } from "@/lib/imageUrl";
 import { PageFlipViewer, type GalleryMediaItem, type PageFlipTheme, type ViewerLayout } from "@/components/page-flip/PageFlipViewer";
 import { getPageFlipThemeForTemplateId } from "@/components/page-flip/pageFlipThemes";
 import { getOriginalMediaUrl } from "@/lib/zipDownload";
@@ -108,8 +108,16 @@ function PhotoCard({
     const [measuredRatio, setMeasuredRatio] = useState<number | null>(null);
     const aspectRatio = photo.width && photo.height ? photo.width / photo.height : measuredRatio || (isVideo ? 16 / 9 : 3 / 2);
 
+    // Big screens may pick the 1000 px grid image instead of the thumbnail (issue #121); dropped again if it fails to
+    // load (photos uploaded before grid images existed have none)
+    const [hiResFailed, setHiResFailed] = useState(false);
+    const hiResSrcSet = GRID_HIRES_ENABLED && justified && !isVideo && !hiResFailed && imageSrc
+        ? getGridSrcSet(imageSrc, photo.width, photo.height)
+        : "";
+
     useEffect(() => {
         setImageSrc(photo.thumbnailUrl || (photo.src ? getGridThumbnail(photo.src) : ""));
+        setHiResFailed(false);
     }, [photo.src, photo.thumbnailUrl]);
 
     useEffect(() => {
@@ -197,21 +205,31 @@ function PhotoCard({
                             </div>
                         </div>
                     </div>
-                ) : imageSrc ? (
-                    <img
-                        src={imageSrc}
-                        alt={photo.alt || "Event Photo"}
-                        onError={() => {
-                            setImageSrc("");
-                        }}
-                        onLoad={justified && !(photo.width && photo.height) ? (e) => {
-                            const { naturalWidth, naturalHeight } = e.currentTarget;
-                            if (naturalWidth && naturalHeight) setMeasuredRatio(naturalWidth / naturalHeight);
-                        } : undefined}
-                        className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
-                        loading="lazy"
-                    />
-                ) : (
+                ) : imageSrc ? (() => {
+                    const image = (
+                        <img
+                            src={imageSrc}
+                            alt={photo.alt || "Event Photo"}
+                            onError={() => {
+                                if (hiResSrcSet) setHiResFailed(true);
+                                else setImageSrc("");
+                            }}
+                            onLoad={justified && !(photo.width && photo.height) ? (e) => {
+                                const { naturalWidth, naturalHeight } = e.currentTarget;
+                                if (naturalWidth && naturalHeight) setMeasuredRatio(naturalWidth / naturalHeight);
+                            } : undefined}
+                            className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
+                            loading="lazy"
+                        />
+                    );
+                    // From 1024 px wide the browser chooses thumbnail or preview by the tile's real size; smaller screens keep the thumbnail
+                    return hiResSrcSet ? (
+                        <picture>
+                            <source media="(min-width: 1024px)" srcSet={hiResSrcSet} sizes="auto, 50vw" />
+                            {image}
+                        </picture>
+                    ) : image;
+                })() : (
                     <div className="flex aspect-[4/5] w-full items-center justify-center bg-stone-100 text-xs font-bold uppercase tracking-widest text-stone-400">
                         Image unavailable
                     </div>

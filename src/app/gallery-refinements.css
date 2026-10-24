@@ -135,5 +135,8 @@
 }
 .gallery-justified > .gallery-media-card > button { height: 100%; }
 .gallery-justified > .gallery-media-card > button > :is(img, div) { width: 100%; height: 100%; aspect-ratio: auto !important; object-fit: cover; }
+/* Sharper grid (issue #121): the photo sits in a <picture>, which fills the card the same way */
+.gallery-justified > .gallery-media-card > button > picture { display: block; width: 100%; height: 100%; }
+.gallery-justified > .gallery-media-card > button > picture > img { width: 100%; height: 100%; object-fit: cover; }
 /* Takes the spare room in the last row so it keeps the row height instead of stretching */
 .gallery-justified__end { flex: 1000 1 0px; height: 0; }

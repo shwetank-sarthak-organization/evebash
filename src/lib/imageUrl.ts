@@ -67,6 +67,28 @@ export function getGridThumbnail(src: string | null | undefined): string {
     return getImageUrl(src, { width: 500, quality: 75, format: 'webp' });
 }
 
+/** Sharper grid photos on big screens (issue #121). Off unless NEXT_PUBLIC_GRID_HIRES=true at build time. */
+export const GRID_HIRES_ENABLED = process.env.NEXT_PUBLIC_GRID_HIRES === "true";
+
+/**
+ * srcset offering a grid photo's thumbnail (480 px on its long side) and its grid image (1000 px, "-grid.webp",
+ * made by the photo worker next to the thumbnail), each described by its width so the browser picks by tile size
+ * and screen sharpness. Empty when the thumbnail isn't one of ours. Photos without a grid image (uploaded before
+ * it existed) fail over to the thumbnail in the grid.
+ */
+export function getGridSrcSet(thumbnailSrc: string, width?: number, height?: number): string {
+    // Keeps any "?v=" a rotate added, so the grid image is as fresh as the thumbnail
+    const gridSrc = thumbnailSrc.replace(/-thumbnail\.webp(\?|$)/, "-grid.webp$1");
+    if (!thumbnailSrc || gridSrc === thumbnailSrc) return "";
+    // Unknown shape: assume landscape, the common case
+    const shortOverLong = width && height ? Math.min(width, height) / Math.max(width, height) : 1;
+    const isPortrait = Boolean(width && height && height > width);
+    const widthAt = (longSide: number) => Math.round(isPortrait ? longSide * shortOverLong : longSide);
+    // A space would end the URL inside srcset
+    const safe = (url: string) => url.replace(/ /g, "%20");
+    return `${safe(thumbnailSrc)} ${widthAt(480)}w, ${safe(gridSrc)} ${widthAt(1000)}w`;
+}
+
 /** Convenience preset: small square avatar/preview (200px wide) */
 export function getSmallThumbnail(src: string | null | undefined): string {
     return getImageUrl(src, { width: 200, quality: 70, format: 'webp' });
