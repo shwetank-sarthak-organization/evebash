@@ -99,7 +99,7 @@ export function ClassicGalleryHeader({
                 <div className="classic-gh__middle">
                     <h2 className="classic-gh__title">{title}</h2>
                     {details && <p className="classic-gh__details">{details}</p>}
-                    {message?.trim() && <p className="classic-gh__message">{message.trim()}</p>}
+                    {message?.trim() && <p className="classic-gh__message">&ldquo;{message.trim()}&rdquo;</p>}
                 </div>
 
                 <div className="classic-gh__tabs" role="group" aria-label="Photos or videos">
