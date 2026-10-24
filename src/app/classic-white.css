@@ -189,7 +189,7 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
   background: #F2ECE1;
   border: 1px solid #E2D8C6;
   box-shadow: 0 8px 18px -12px rgba(44, 53, 46, .45);
-  rotate: .5deg;
+  rotate: 1deg;
   color: #2C352E;
   text-align: center;
 }
@@ -212,11 +212,12 @@ body:has(.classic-template) .event-footer > div { max-width: none; }
 
 .classic-print__space { position: relative; flex: 1; width: 100%; min-height: 0; container-type: size; }
 .classic-print__mount {
-  --w: min(97cqw, 138cqh, 1080px);
+  /* A little narrower than the space so the tilted corners stay inside it */
+  --w: min(94cqw, 132cqh, 1080px);
   position: absolute; top: 0; left: 50%;
   width: var(--w); height: calc(var(--w) / 1.38);
   padding: max(26px, calc(var(--w) * .045));
-  translate: -50% 0; rotate: -.6deg;
+  translate: -50% 0; rotate: -2.2deg;
   background: #fff;
   border: 1px solid #ECE5D9;
   box-shadow: 0 22px 44px -26px rgba(44, 53, 46, .55), 0 2px 6px -2px rgba(44, 53, 46, .12);
