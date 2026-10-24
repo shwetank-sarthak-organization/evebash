@@ -29,10 +29,9 @@ interface EventNavbarProps {
     chromeTextColor?: string;
     chromeAccentColor?: string;
     chromeBorderColor?: string;
-    /** "royal": floating gold-edged bar for the Royal Emerald design (styles in src/app/royal-emerald.css) */
-    variant?: "royal";
-    /** Content runs the full screen width (same side padding as the page) instead of a centred 1280px column */
-    fullWidth?: boolean;
+    /** "royal": floating gold-edged bar for the Royal Emerald design (styles in src/app/royal-emerald.css).
+     *  "classic": Classic White, full width between two thin sage lines (styles in src/app/classic-white.css) */
+    variant?: "royal" | "classic";
 }
 
 type EventNavLink = {
@@ -61,8 +60,7 @@ export function EventNavbar({
     chromeTextColor,
     chromeAccentColor,
     chromeBorderColor,
-    variant,
-    fullWidth = false
+    variant
 }: EventNavbarProps) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [collectionsOpen, setCollectionsOpen] = useState(false);
@@ -121,6 +119,9 @@ export function EventNavbar({
     const sharedQuery = isShared ? "?shared=true" : "";
     const hasTemplateChrome = Boolean(chromeBackgroundColor);
     const isRoyal = variant === "royal";
+    const isClassic = variant === "classic";
+    // Royal Emerald and Classic White draw their own colours from CSS classes instead of the inline theme colours
+    const useInlineChrome = !isRoyal && !isClassic && hasTemplateChrome;
     // Royal Emerald writes a couple's joiner ("and", "AND", "weds", "+") as "&", like the title card
     const navTitle = isRoyal ? displayCoupleTitle(mainEventTitle) : mainEventTitle;
     const royalLinkClass = (isActive: boolean) => cn("royal-nav__link", isActive && "royal-nav__link--active");
@@ -174,7 +175,7 @@ export function EventNavbar({
         const isActive = link.isGallery && onSelectGallery
                 ? isGalleryActive(link.gallery)
                 : isLinkActive(link.href, link.isFindYou);
-        const className = isRoyal ? royalLinkClass(isActive) : cn(
+        const className = isRoyal ? royalLinkClass(isActive) : isClassic ? cn("classic-nav__link", isActive && "classic-nav__link--active") : cn(
             "px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5",
             isActive
                 ? "bg-slate-900 text-white shadow-md"
@@ -182,7 +183,7 @@ export function EventNavbar({
                     ? "hover:bg-white/10"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
         );
-        const style = !isRoyal && hasTemplateChrome ? {
+        const style = useInlineChrome ? {
             backgroundColor: isActive ? activeBgColor : "transparent",
             color: isActive ? activeTextColor : navTextColor,
         } : undefined;
@@ -233,18 +234,19 @@ export function EventNavbar({
             <motion.nav
                 initial={{ y: -100 }}
                 animate={{ y: 0 }}
-                className={isRoyal ? cn("royal-nav", scrolledPastTop && "royal-nav--scrolled", royalDisplay.variable) : cn(
-                    "fixed top-0 inset-x-0 z-50 transition-all duration-300 py-3 backdrop-blur-md shadow-sm border-b",
-                    fullWidth ? "px-4 sm:px-6 lg:px-8" : "px-6",
+                className={isRoyal ? cn("royal-nav", scrolledPastTop && "royal-nav--scrolled", royalDisplay.variable)
+                    : isClassic ? cn("classic-nav", scrolledPastTop && "classic-nav--scrolled")
+                    : cn(
+                    "fixed top-0 inset-x-0 z-50 transition-all duration-300 px-6 py-3 backdrop-blur-md shadow-sm border-b",
                     hasTemplateChrome ? "bg-transparent" : "bg-white/95 border-stone-100"
                 )}
-                style={!isRoyal && hasTemplateChrome ? {
+                style={useInlineChrome ? {
                     backgroundColor: `${chromeBackgroundColor}f2`,
                     borderColor: navBorderColor,
                     color: navTextColor,
                 } : undefined}
             >
-                <div className={cn("flex items-center justify-between gap-4", isRoyal || fullWidth ? "w-full" : "max-w-7xl mx-auto")}>
+                <div className={cn("flex items-center justify-between gap-4", isClassic ? "classic-nav__bar" : isRoyal ? "w-full" : "max-w-7xl mx-auto")}>
                     {/* Left: Main Event Title */}
                     <Link
                         href={`${basePath}${sharedQuery}`}
@@ -259,17 +261,17 @@ export function EventNavbar({
                             "royal-nav__title",
                             // Smaller capitals for long titles; anything still too long ends in "…" with the full title on hover
                             navTitle.length > 36 ? "royal-nav__title--xlong" : navTitle.length > 24 && "royal-nav__title--long"
-                        ) : cn(
+                        ) : isClassic ? "classic-nav__title" : cn(
                             "text-2xl font-serif font-bold italic tracking-tight transition-colors z-50 relative",
                             hasTemplateChrome ? "" : "text-slate-900"
                         )}
-                        style={!isRoyal && hasTemplateChrome ? { color: navTextColor } : undefined}
+                        style={useInlineChrome ? { color: navTextColor } : undefined}
                     >
                         {navTitle}
                     </Link>
 
                     {/* Right: Desktop Navigation */}
-                    <div className={cn("hidden md:flex items-center", isRoyal ? "gap-1" : "space-x-2")}>
+                    <div className={cn("hidden md:flex items-center", isRoyal ? "gap-1" : isClassic ? "classic-nav__links" : "space-x-2")}>
                         {primaryDesktopLinks.map(renderDesktopNavItem)}
 
                         {collectionLinks.length > 0 && (
@@ -280,7 +282,7 @@ export function EventNavbar({
                                         event.stopPropagation();
                                         setCollectionsOpen((open) => !open);
                                     }}
-                                    className={isRoyal ? royalLinkClass(isCollectionsActive) : cn(
+                                    className={isRoyal ? royalLinkClass(isCollectionsActive) : isClassic ? cn("classic-nav__link", isCollectionsActive && "classic-nav__link--active") : cn(
                                         "px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5",
                                         isCollectionsActive
                                             ? "bg-slate-900 text-white shadow-md"
@@ -288,7 +290,7 @@ export function EventNavbar({
                                                 ? "hover:bg-white/10"
                                                 : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                                     )}
-                                    style={!isRoyal && hasTemplateChrome ? {
+                                    style={useInlineChrome ? {
                                         backgroundColor: isCollectionsActive ? activeBgColor : "transparent",
                                         color: isCollectionsActive ? activeTextColor : navTextColor,
                                     } : undefined}
@@ -372,13 +374,13 @@ export function EventNavbar({
                                 type="button"
                                 onClick={onDownloadZip}
                                 disabled={isZipping}
-                                className={isRoyal ? "royal-nav__link" : cn(
+                                className={isRoyal ? "royal-nav__link" : isClassic ? "classic-nav__link" : cn(
                                     "px-3.5 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 border disabled:opacity-50",
                                     hasTemplateChrome
                                         ? "hover:opacity-85 hover:shadow-sm"
                                         : "border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-900 hover:text-white"
                                 )}
-                                style={!isRoyal && hasTemplateChrome ? {
+                                style={useInlineChrome ? {
                                     borderColor: `${navAccentColor}80`,
                                     backgroundColor: `${navAccentColor}18`,
                                     color: navTextColor,

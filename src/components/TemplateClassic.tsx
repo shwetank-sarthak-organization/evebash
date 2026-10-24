@@ -44,7 +44,7 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
             {/* The first screen is exactly the window height (at least 640px) on every computer: navbar space, text,
                 cover and "Open Gallery", with the gallery header starting right below. The cover takes whatever
                 height is left, keeping its 3:2 shape (sized from the leftover box with container units). */}
-            <main className="flex h-[max(100svh,640px)] flex-col px-4 pt-[88px] pb-[clamp(20px,4svh,48px)] sm:px-6 lg:px-8">
+            <main className="flex h-[max(100svh,640px)] flex-col px-4 pt-[108px] pb-[clamp(20px,4svh,48px)] sm:px-6 lg:px-8">
                 {/* The title shows straight away (it's the page's largest text), the rest fades in */}
                 <div className="mx-auto w-full max-w-4xl shrink-0 text-center">
                     {details && (

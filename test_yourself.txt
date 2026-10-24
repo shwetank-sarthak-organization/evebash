@@ -3186,7 +3186,11 @@ How to test:
      sage with white text. Open an album with a description: it shows once, at the top.
   5. Videos tab on a gallery with no videos: the "No videos yet." text is easy to read.
   6. Only one footer at the bottom. A 40+ character title wraps neatly, nothing runs off screen.
-  7. Signed in: no round profile button at the right of the navbar (any theme). Signed out guest
+  7. Navbar (Classic White): ivory, full width, between two thin sage lines; gallery title on the
+     left in italics, HOME / COLLECTIONS / FIND YOU / DOWNLOAD ALL on the right in spaced capitals
+     with a thin underline under the current page and on hover. Collections still opens the album
+     list, Download All still works. Scrolling down adds a soft shadow under the bar.
+     Signed in: no round profile button at the right of the navbar (any theme). Signed out guest
      who joined with name/phone: the logout button is still there.
   8. Quick look at another theme (e.g. Midnight Hero): gallery looks as before.
 Done by:
