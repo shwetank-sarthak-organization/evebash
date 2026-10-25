@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 
 // Classic White photo grid, as on the website (.gallery-justified in src/app/gallery-refinements.css): rows that fill
@@ -67,15 +67,23 @@ export function ClassicPhotoRows<T extends Item>({
   viewportHeight?: number;
 }) {
   const [width, setWidth] = useState(0);
-  // Where the grid starts in the scrolled content, from its position on screen when it was last laid out
+  // Where the grid starts in the scrolled content: its position on screen plus the scroll position, measured again
+  // at every scroll step, so it stays right after an album switch or a jump (a value from first layout goes stale)
   const [contentTop, setContentTop] = useState<number | null>(null);
   const gridRef = useRef<View>(null);
   const scrollYRef = useRef(scrollY ?? 0);
   scrollYRef.current = scrollY ?? 0;
+  const measure = () => {
+    gridRef.current?.measureInWindow((_x, y) => {
+      const next = Math.round(y + scrollYRef.current);
+      setContentTop((prev) => (prev === next ? prev : next));
+    });
+  };
+  useEffect(measure, [scrollY, items.length]);
   const onLayout = (e: LayoutChangeEvent) => {
     const next = Math.floor(e.nativeEvent.layout.width);
     if (next !== width) setWidth(next);
-    gridRef.current?.measureInWindow((_x, y) => setContentTop(y + scrollYRef.current));
+    measure();
   };
   // Rows a little taller than half the width: two portrait photos, or one landscape, per row
   const rows = width ? buildRows(items, width, Math.round(width * 0.62)) : [];

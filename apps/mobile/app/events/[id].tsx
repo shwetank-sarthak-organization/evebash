@@ -7692,7 +7692,8 @@ export default function EventDetailScreen() {
                 </>
                 )}
 
-                <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />
+                {/* Classic White ends the gallery with the photos, as on the website */}
+                {!isClassicGuest && <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />}
 
                 {/* Logged-out visitors of a public gallery see previews only */}
                 {isPublicView && !user && activeSubEvent?.id !== 'find-you' && activeSubEvent?.id !== 'event-partners' && (
