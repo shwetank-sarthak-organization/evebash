@@ -3506,7 +3506,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #137 Website: guest gallery loads more photos on its own, and photos don't jump
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website (computer browser)
 Brief:     The guest gallery no longer needs "Load More Media": the next photos load on their own as
@@ -3527,14 +3527,22 @@ How to test:
   5. Turn the network off (dev tools "Offline"), scroll to the end: a "Load More Media" button
      appears. Turn the network back on and click it: the next photos load.
   6. Clicking any photo, including ones loaded later, opens the right photo in the viewer.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Claude (asked by Sarthak)
+Device / browser: Claude desktop app browser (Chromium), local website on the same code as staging 24cebe6
+Build / version: staging 24cebe6
+Date tested: 2026-10-25
+Account used: host account (Sarthak), galleries rec-2-6a72 (Classic White, 92 photos) and
+           test-face-new-155c (Royal Emerald, columns, 42 photos)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  PASS steps 1-4 and 6. Classic: all 92 photos loaded on their own in 4 batches, each
+           started 4,700-5,900 px before the end, no Load More button; 3 photos (the last row,
+           ~5 screens below) re-flowed, nothing on screen moved. Royal (columns): 0 photos moved at
+           700 / 1280 / 1500 px (2 / 3 / 4 columns). Before images arrive every photo already has
+           its size and the grey tint, and nothing moves when they load (both layouts). A photo
+           loaded later opens in the viewer. NOT tested: step 5 (offline, then Load More) - needs
+           DevTools "Offline". Note: a hidden browser tab doesn't load more until shown (the
+           browser pauses scroll watching for hidden pages), which is normal.
 
 --------------------------------------------------------------------------------
 #138 App video player: drag to seek and skip 10 seconds
