@@ -14,6 +14,8 @@ long video (> 10 min), with no deploy. Run from the repo root with the Modal CLI
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py probe-v2 off    # old probes, as before
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py all-formats on   # GPU takes every format (#141)
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py all-formats off  # GPU hands some to the 16-core
+  modal_engine/venv/bin/python modal_engine/video_gpu_switch.py poster-sdr on    # HDR posters in normal colours (#145)
+  modal_engine/venv/bin/python modal_engine/video_gpu_switch.py poster-sdr off   # poster = the plain frame, as before
 
 add-gallery sends just that gallery's long videos to the GPU while mode is off. A sub-gallery has its own id.
 A long video still goes to the 16-core worker when the GPU can't take it (10-bit, rotated phone video...),
@@ -24,6 +26,8 @@ probe-v2 (issue #119, every video): reads audio and height from one JSON probe, 
 audio no longer fail and small portrait videos don't get an enlarged 1080p stream.
 all-formats (issue #141, long videos that go to the GPU): the GPU worker keeps 10-bit, HDR, rotated and other
 formats itself instead of handing them to the 16-core worker; only a failed GPU run or no free L4 still does.
+poster-sdr (issue #145, every video, every worker): the poster of an HDR video is tone-mapped like the streams
+(not pale), and a poster bigger than 1080p is shrunk. SDR videos up to 1080p get the same poster either way.
 """
 import sys
 
@@ -53,6 +57,8 @@ def main(argv):
         switch["probe_v2"] = value == "on"
     elif command == "all-formats" and value in ("on", "off"):
         switch["gpu_all_formats"] = value == "on"
+    elif command == "poster-sdr" and value in ("on", "off"):
+        switch["poster_sdr"] = value == "on"
     elif command != "show":
         print(__doc__)
         return 1
@@ -63,6 +69,7 @@ def main(argv):
     print(f"8-bit SDR output (#118): {'on' if switch.get('sdr_8bit', False) else 'off'}")
     print(f"rotation-safe probe (#119): {'on' if switch.get('probe_v2', False) else 'off'}")
     print(f"GPU takes every format (#141): {'on' if switch.get('gpu_all_formats', False) else 'off'}")
+    print(f"HDR posters in normal colours (#145): {'on' if switch.get('poster_sdr', False) else 'off'}")
     return 0
 
 

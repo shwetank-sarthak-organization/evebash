@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 141
+Next test number: 142
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3643,3 +3643,25 @@ Feedback:  PASS all steps. Step 1 PASS: 20 photos and 2 videos uploaded through 
            The cut-off photo (31.jpg) was never saved (no broken photo); the other 9 saved and processed.
            Note: the app used its 3 retries while still offline (~6 s) and gave up on 31.jpg instead of
            re-uploading it when the network returned - logged as a separate issue.
+
+#141 HDR video posters show normal colours
+Status:    TODO
+Priority:  Low
+Platform:  Website + App
+Brief:     The still picture shown on a video tile before it plays (the poster) was pale for iPhone HDR
+           videos and a full 4K image (issue #145). With the fix it uses the same colours as the video.
+Detail:    Only after the Modal deploy with #145 AND the switch on
+           (modal_engine/video_gpu_switch.py poster-sdr on). Existing videos keep their old poster.
+How to test:
+  1. Upload an iPhone HDR video (any length; evebash-test/iphone13pro_hdr_4K60p.mov is a public
+     sample) to a test gallery from the website. Expect: on the website and in the app, the video
+     tile's picture has the same colours and brightness as the video when it plays (not pale or grey).
+  2. Upload a normal (non-HDR) phone video. Expect: its tile looks the same as before the change.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

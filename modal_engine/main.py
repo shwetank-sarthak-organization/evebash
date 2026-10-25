@@ -2087,6 +2087,31 @@ def _sdr_8bit_filter(stream: dict) -> str:
     return ""
 
 
+# ---------------------------------------------------------------------------
+# Poster in normal colours and at most 1080p (issue #145)
+# ---------------------------------------------------------------------------
+# The poster was one frame of the original as it is, on every worker: an HDR video (iPhone HDR) gave a pale poster
+# and a 4K video a 4K JPEG (2.6 MB for a portrait iPhone video). With the "poster_sdr" key of the video switch on
+# (video_gpu_switch.py poster-sdr on), HDR is tone-mapped the same way as the streams and a source bigger than 1080p
+# is shrunk. Off (default) = the old command.
+
+def _read_poster_sdr_switch() -> bool:
+    try:
+        return bool(modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True).get("poster_sdr", False))
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not read the poster switch, using the plain frame: {err}")
+        return False
+
+
+def _poster_filter(stream: dict) -> str:
+    """-vf for the poster ("" = the frame as it is)."""
+    if stream.get("color_transfer") in _HDR_TRANSFERS:
+        return _sdr_8bit_filter(stream).rstrip(",")
+    if (stream.get("width") or 0) > 1920 or (stream.get("height") or 0) > 1080:
+        return "scale=w=1920:h=1080:force_original_aspect_ratio=decrease"
+    return ""
+
+
 def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_gb=None, function_name=None):
     import boto3
     import json
@@ -2226,10 +2251,22 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 stream = (json.loads(probe.stdout or "{}").get("streams") or [{}])[0]
 
             # 3. Extract poster.jpg from local file at 1.0s
-            subprocess.run([
-                "ffmpeg", "-y", "-i", input_path,
-                "-ss", "00:00:01", "-vframes", "1", "-q:v", "2", str(poster_path)
-            ], capture_output=True, text=True)
+            poster_cmd = ["ffmpeg", "-y", "-i", input_path, "-ss", "00:00:01", "-vframes", "1", "-q:v", "2", str(poster_path)]
+            poster_vf = ""
+            if _read_poster_sdr_switch():  # normal colours, at most 1080p (issue #145)
+                probe = subprocess.run([
+                    "ffprobe", "-v", "error", "-select_streams", "v:0",
+                    "-show_entries", "stream=color_transfer,width,height", "-of", "json", input_path
+                ], capture_output=True, text=True)
+                poster_vf = _poster_filter((json.loads(probe.stdout or "{}").get("streams") or [{}])[0])
+            if poster_vf:
+                proc = subprocess.run(poster_cmd[:-1] + ["-vf", poster_vf, str(poster_path)], capture_output=True, text=True)
+                if proc.returncode != 0 or not poster_path.exists() or poster_path.stat().st_size == 0:
+                    # e.g. HDR without colour tags, which zscale can't convert: keep the old poster
+                    print(f"[TranscodeVideo-{hardware.upper()}] Poster conversion failed, using the plain frame: {proc.stderr[-300:]}")
+                    poster_vf = ""
+            if not poster_vf:
+                subprocess.run(poster_cmd, capture_output=True, text=True)
 
             if poster_path.exists() and poster_path.stat().st_size > 0:
                 b2_client.upload_file(
