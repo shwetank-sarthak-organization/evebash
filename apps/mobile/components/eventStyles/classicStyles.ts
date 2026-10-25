@@ -441,4 +441,13 @@ export const classicStyles = {
     color: '#555555',
     fontWeight: '500',
   },
+
+  // Classic White guest boxes on the soft-white page (website: classic-white.css). Log-in prompt: pale card,
+  // deep sage button with white text; empty gallery: muted sage text; Favourites switch: hairline card, square corners.
+  classicGuestSection: { backgroundColor: '#F6F6F2', padding: 24, borderRadius: 2, borderWidth: 1, borderColor: '#E6E6E0' },
+  classicGuestTitle: { fontSize: 22, lineHeight: 28, color: '#2C352E', textAlign: 'center' },
+  classicGuestSub: { fontSize: 14, lineHeight: 21, color: '#596653', textAlign: 'center', marginTop: 6, marginBottom: 20 },
+  classicAccessBtn: { backgroundColor: '#596653', paddingVertical: 15, borderRadius: 2, alignItems: 'center' },
+  classicAccessBtnText: { fontSize: 13, color: '#FFFFFF', fontFamily: Fonts.inter.bold, letterSpacing: 1.6, textTransform: 'uppercase' },
+  classicEmptyText: { fontSize: 17, color: '#596653', textAlign: 'center' },
 };

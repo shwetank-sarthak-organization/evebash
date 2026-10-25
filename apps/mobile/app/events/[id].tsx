@@ -627,10 +627,17 @@ export default function EventDetailScreen() {
   const [stickyTabsY, setStickyTabsY] = useState<number | null>(null);
   const loadingMorePhotosRef = React.useRef(false);
   const loadMorePhotosRef = React.useRef<(() => void) | null>(null);
+  // Scroll position in coarse steps, for the Classic White grid, which only draws photos near the screen
+  const [coarseScrollY, setCoarseScrollY] = useState(0);
+  const coarseScrollYRef = React.useRef(0);
   const handleScrollNearEnd = useCallback((e: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
     const distanceFromEnd = contentSize.height - (contentOffset.y + layoutMeasurement.height);
     if (distanceFromEnd < layoutMeasurement.height * 1.5) loadMorePhotosRef.current?.();
+    if (Math.abs(contentOffset.y - coarseScrollYRef.current) > 200) {
+      coarseScrollYRef.current = contentOffset.y;
+      setCoarseScrollY(contentOffset.y);
+    }
   }, []);
   // Bottom edge (window coords) of the floating back/share header buttons, measured on layout
   const [floatingButtonsBottom, setFloatingButtonsBottom] = useState<number | null>(null);
@@ -3574,12 +3581,12 @@ export default function EventDetailScreen() {
               width={windowWidth}
               height={heroHeight}
               insetTop={insets.top}
-              // The pinned album tabs start this far above the hero's bottom edge, with a solid background; the
-              // bottom bar already covers the phone's bottom inset
-              insetBottom={showsThemedAppBar ? stickyTabsTopInset : Math.max(insets.bottom, stickyTabsTopInset)}
+              // The pinned album tabs' top spacer overlaps the hero's bottom edge, except with the bottom bar (which also
+              // covers the phone's inset), where it starts below the cover, so nothing has to be kept clear
+              insetBottom={showsThemedAppBar ? 0 : Math.max(insets.bottom, stickyTabsTopInset)}
               fonts={classicFonts}
-              // The pinned album tabs take this much of the top, so stop that much earlier and Back / Share show
-              onOpenGallery={() => scrollViewRef.current?.scrollTo({ y: heroHeight - stickyTabsTopInset, animated: true })}
+              // Scroll to where the album tabs pin (their spacer overlaps the cover unless the bottom bar shows)
+              onOpenGallery={() => scrollViewRef.current?.scrollTo({ y: showsThemedAppBar ? heroHeight : heroHeight - stickyTabsTopInset, animated: true })}
               onBack={handleEventBack}
               onShare={() => setShowShareModal(true)}
             />
@@ -4918,7 +4925,9 @@ export default function EventDetailScreen() {
           // It overlaps the hero while scrolling (transparent, touch-through) and gets an opaque background once pinned.
           <View
             pointerEvents="box-none"
-            style={{ marginTop: -stickyTabsTopInset, paddingTop: stickyTabsTopInset, backgroundColor: isRoyalGuest ? '#021a15' : undefined }}
+            // With the themed bottom bar (Classic White) the spacer starts below the cover instead of overlapping it: the
+            // list's sticky wrapper catches taps, so the cover's bottom buttons must not sit under it
+            style={{ marginTop: showsThemedAppBar ? 0 : -stickyTabsTopInset, paddingTop: stickyTabsTopInset, backgroundColor: isRoyalGuest ? '#021a15' : undefined }}
             onLayout={(e) => setStickyTabsY(e.nativeEvent.layout.y)}
           >
             <RNAnimated.View
@@ -6676,17 +6685,17 @@ export default function EventDetailScreen() {
 
                 {/* Find You and Event partners are for signed-in guests; logged-out visitors get a log-in prompt */}
                 {isPublicView && !user && (activeSubEvent?.id === 'find-you' || activeSubEvent?.id === 'event-partners') ? (
-                  <View style={styles.guestSection}>
-                    <Text style={styles.guestTitle}>
+                  <View style={isClassicGuest ? styles.classicGuestSection : styles.guestSection}>
+                    <Text style={isClassicGuest ? [styles.classicGuestTitle, { fontFamily: classicFonts.serif }] : styles.guestTitle}>
                       {activeSubEvent?.id === 'find-you' ? 'Find yourself in the photos' : 'Meet the event partners'}
                     </Text>
-                    <Text style={styles.guestSub}>
+                    <Text style={isClassicGuest ? styles.classicGuestSub : styles.guestSub}>
                       {activeSubEvent?.id === 'find-you'
                         ? "Log in to use Find You: take a selfie and we'll show the photos you're in."
                         : 'Log in to see the vendors behind this event.'}
                     </Text>
-                    <TouchableOpacity style={styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
-                      <Text style={styles.accessBtnText}>Log in</Text>
+                    <TouchableOpacity style={isClassicGuest ? styles.classicAccessBtn : styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
+                      <Text style={isClassicGuest ? styles.classicAccessBtnText : styles.accessBtnText}>Log in</Text>
                     </TouchableOpacity>
                   </View>
                 ) : activeSubEvent?.id === 'find-you' ? (
@@ -7118,16 +7127,20 @@ export default function EventDetailScreen() {
                   accessibilityRole="switch"
                   accessibilityState={{ checked: showOnlyFavourites }}
                   onPress={() => setShowOnlyFavourites(current => !current)}
-                  style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4, marginBottom: 14, borderRadius: 12, borderWidth: 1, borderColor: showOnlyFavourites ? selectedTemplate.accent : 'rgba(148,163,184,0.22)', backgroundColor: showOnlyFavourites ? selectedTemplate.accentBg : 'rgba(27,33,31,0.06)', paddingHorizontal: 12, paddingVertical: 10 }}
+                  style={[
+                    { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4, marginBottom: 14, borderRadius: 12, borderWidth: 1, borderColor: showOnlyFavourites ? selectedTemplate.accent : 'rgba(148,163,184,0.22)', backgroundColor: showOnlyFavourites ? selectedTemplate.accentBg : 'rgba(27,33,31,0.06)', paddingHorizontal: 12, paddingVertical: 10 },
+                    // Classic White: a hairline card with square corners on the soft-white page
+                    isClassicGuest && { borderRadius: 2, borderColor: showOnlyFavourites ? '#8B9A6E' : '#E6E6E0', backgroundColor: showOnlyFavourites ? 'rgba(139,154,110,0.10)' : '#F6F6F2' },
+                  ]}
                 >
-                  <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: showOnlyFavourites ? selectedTemplate.accent : 'rgba(100,116,139,0.12)' }}>
+                  <View style={[{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: showOnlyFavourites ? selectedTemplate.accent : 'rgba(100,116,139,0.12)' }, isClassicGuest && { borderRadius: 2, backgroundColor: showOnlyFavourites ? '#596653' : 'rgba(139,154,110,0.14)' }]}>
                     <IconSymbol name={showOnlyFavourites ? 'star.fill' : 'star'} size={16} color={showOnlyFavourites ? '#ffffff' : selectedTemplate.muted} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: showOnlyFavourites ? selectedTemplate.accent : selectedTemplate.text, fontSize: 13, fontFamily: Fonts.inter.bold }}>Favourites only</Text>
                     <Text style={{ color: selectedTemplate.muted, fontSize: 11, marginTop: 2 }}>{activeFavouriteCount} in {galleryMediaTab === 'videos' ? 'Videos' : 'Photos'}</Text>
                   </View>
-                  <View style={{ width: 44, height: 24, borderRadius: 12, padding: 2, backgroundColor: showOnlyFavourites ? selectedTemplate.accent : 'rgba(100,116,139,0.55)' }}>
+                  <View style={{ width: 44, height: 24, borderRadius: 12, padding: 2, backgroundColor: showOnlyFavourites ? (isClassicGuest ? '#596653' : selectedTemplate.accent) : (isClassicGuest ? 'rgba(89,102,83,0.35)' : 'rgba(100,116,139,0.55)') }}>
                     <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignSelf: showOnlyFavourites ? 'flex-end' : 'flex-start' }} />
                   </View>
                 </TouchableOpacity>
@@ -7184,13 +7197,42 @@ export default function EventDetailScreen() {
                       </View>
                     ) : activeGalleryItems.length === 0 ? (
                       <View style={styles.emptyGallery}>
-                        <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={40} color={isCyberTechTemplate ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255,255,255,0.05)'} />
-                        <Text style={[styles.emptyText, isCyberTechTemplate && styles.cyberEmptyText]}>
+                        <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={40} color={isCyberTechTemplate ? 'rgba(0, 240, 255, 0.15)' : isClassicGuest ? 'rgba(139,154,110,0.55)' : 'rgba(255,255,255,0.05)'} />
+                        <Text style={[styles.emptyText, isCyberTechTemplate && styles.cyberEmptyText, isClassicGuest && [styles.classicEmptyText, { fontFamily: classicFonts.serifItalic, fontStyle: 'normal' }]]}>
                           {isFavouriteFilterActive
                             ? `No favourite ${galleryMediaTab === 'videos' ? 'videos' : 'photos'} in this gallery yet.`
                             : isCyberTechTemplate ? '// NO_DATA_AVAILABLE' : (galleryMediaTab === 'videos' ? 'No videos yet.' : 'No photos yet.')}
                         </Text>
                       </View>
+                    ) : galleryMediaTab === 'videos' && isClassicGuest ? (
+                      // Classic White: videos in the same full-width rows as the photos, poster with a frosted play button
+                      <ClassicPhotoRows
+                              scrollY={coarseScrollY}
+                              viewportHeight={windowHeight}
+                        items={filteredVideoItems.map((video: any) => ({ ...video, width: video.width || 16, height: video.height || 9 }))}
+                        renderTile={(video: any, idx) => {
+                          const posterUri = video.thumbnailUrl || video.posterUrl || video.previewUrl || '';
+                          const blurred = shouldBlurMediaForPlan(video);
+                          return (
+                            <TouchableOpacity
+                              style={{ flex: 1, backgroundColor: '#E6E6E0', alignItems: 'center', justifyContent: 'center' }}
+                              activeOpacity={0.9}
+                              onPress={() => openViewer(idx)}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Video ${idx + 1} of ${filteredVideoItems.length}`}
+                              accessibilityHint="Plays the video"
+                            >
+                              {!!posterUri && (
+                                <ExpoImage source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={blurred ? 6 : 0} transition={150} />
+                              )}
+                              <View style={localStyles.classicVideoPlay}>
+                                <IconSymbol name="play.fill" size={20} color="#ffffff" />
+                              </View>
+                              {blurred && <ExpiredMediaThumbnailNotice />}
+                            </TouchableOpacity>
+                          );
+                        }}
+                      />
                     ) : galleryMediaTab === 'videos' ? (
                       <View>
                         {filteredVideoItems.map((video, idx) => (
@@ -7210,6 +7252,8 @@ export default function EventDetailScreen() {
                         if (isClassicGuest) {
                           return (
                             <ClassicPhotoRows
+                              scrollY={coarseScrollY}
+                              viewportHeight={windowHeight}
                               items={filteredPhotoItems}
                               renderTile={(photo, idx) => {
                                 const blurred = shouldBlurMediaForPlan(photo);
@@ -7652,11 +7696,11 @@ export default function EventDetailScreen() {
 
                 {/* Logged-out visitors of a public gallery see previews only */}
                 {isPublicView && !user && activeSubEvent?.id !== 'find-you' && activeSubEvent?.id !== 'event-partners' && (
-                  <View style={styles.guestSection}>
-                    <Text style={styles.guestTitle}>Enter the Celebration</Text>
-                    <Text style={styles.guestSub}>Log in to join this gallery, see full-size photos, like and comment</Text>
-                    <TouchableOpacity style={styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
-                      <Text style={styles.accessBtnText}>Log in to join</Text>
+                  <View style={isClassicGuest ? styles.classicGuestSection : styles.guestSection}>
+                    <Text style={isClassicGuest ? [styles.classicGuestTitle, { fontFamily: classicFonts.serif }] : styles.guestTitle}>Enter the Celebration</Text>
+                    <Text style={isClassicGuest ? styles.classicGuestSub : styles.guestSub}>Log in to join this gallery, see full-size photos, like and comment</Text>
+                    <TouchableOpacity style={isClassicGuest ? styles.classicAccessBtn : styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
+                      <Text style={isClassicGuest ? styles.classicAccessBtnText : styles.accessBtnText}>Log in to join</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -8781,6 +8825,18 @@ export default function EventDetailScreen() {
 }
 
 const localStyles = StyleSheet.create({
+  // Classic White video tiles: the same frosted play button as the highlight film
+  classicVideoPlay: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    paddingLeft: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.28)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+  },
   expiredMediaThumbnailNotice: {
     position: 'absolute',
     left: 8,
