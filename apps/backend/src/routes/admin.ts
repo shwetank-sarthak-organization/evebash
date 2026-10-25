@@ -1,5 +1,5 @@
 import { deleteGalleryMedia } from "../deleteGalleryMedia.js";
-import { deleteAllB2Versions, isDeleteAllVersionsOn } from "../services/b2DeleteAllVersions.js";
+import { deleteAllB2FileVersions, deleteAllB2Versions, isDeleteAllFileVersionsOn, isDeleteAllVersionsOn } from "../services/b2DeleteAllVersions.js";
 import type { Request, Response as ExpressResponse } from "express";
 import { Router } from "express";
 import { getCachedBackblazeAuth, type BackblazeAuth } from "../backblaze.js";
@@ -419,6 +419,9 @@ async function deleteB2Prefix(auth: BackblazeAuth, bucketId: string, prefix: str
 
 async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) {
   try {
+    if (isDeleteAllFileVersionsOn()) {
+      return (await deleteAllB2FileVersions(auth, bucketId, key)).ok;
+    }
     const listResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
       method: "POST",
       headers: {

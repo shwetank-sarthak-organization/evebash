@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { deleteAllB2Versions, isDeleteAllVersionsOn } from "../src/services/b2DeleteAllVersions.js";
+import { deleteAllB2FileVersions, deleteAllB2Versions, isDeleteAllFileVersionsOn, isDeleteAllVersionsOn } from "../src/services/b2DeleteAllVersions.js";
 
 const auth = { apiUrl: "https://b2.test", authorizationToken: "token" };
 
@@ -17,9 +17,11 @@ function fakeB2(files: Array<{ fileName: string; fileId: string }>, options: { f
       const matching = store
         .filter((f) => f.fileName.startsWith(body.prefix))
         .sort((a, b) => a.fileName.localeCompare(b.fileName) || a.fileId.localeCompare(b.fileId));
-      const start = body.startFileName
-        ? matching.findIndex((f) => f.fileName === body.startFileName && f.fileId === body.startFileId)
-        : 0;
+      const start = !body.startFileName
+        ? 0
+        : body.startFileId
+          ? matching.findIndex((f) => f.fileName === body.startFileName && f.fileId === body.startFileId)
+          : Math.max(0, matching.findIndex((f) => f.fileName >= body.startFileName));
       const page = matching.slice(start, start + 2);
       const next = matching[start + 2];
       return { ok: true, json: async () => ({ files: page, nextFileName: next?.fileName ?? null, nextFileId: next?.fileId ?? null }) };
@@ -37,6 +39,7 @@ function fakeB2(files: Array<{ fileName: string; fileId: string }>, options: { f
 
 afterEach(() => {
   delete process.env.B2_DELETE_ALL_VERSIONS;
+  delete process.env.B2_DELETE_ALL_FILE_VERSIONS;
 });
 
 test("deletes every version under the prefix, across pages, and nothing outside it", async () => {
@@ -82,4 +85,44 @@ test("the flag is off unless B2_DELETE_ALL_VERSIONS is true", () => {
   assert.equal(isDeleteAllVersionsOn(), true);
   process.env.B2_DELETE_ALL_VERSIONS = "1";
   assert.equal(isDeleteAllVersionsOn(), false);
+});
+
+test("single file: deletes every version of exactly that name, across pages, and keeps its neighbours", async () => {
+  const b2 = fakeB2([
+    { fileName: "events/e/a.jpg", fileId: "o1" },
+    { fileName: "events/e/a.jpg-preview.webp", fileId: "p1" },
+    { fileName: "events/e/a.jpg-preview.webp", fileId: "p2" }, // remade by a retry
+    { fileName: "events/e/a.jpg-preview.webp", fileId: "p3" }, // and by rotate
+    { fileName: "events/e/a.jpg-preview.webp.bak", fileId: "keep1" },
+    { fileName: "events/e/a.jpg-thumbnail.webp", fileId: "keep2" },
+  ]);
+  const result = await deleteAllB2FileVersions(auth, "bucket", "events/e/a.jpg-preview.webp", b2.fetchImpl);
+  assert.deepEqual(result, { ok: true, deleted: 3, failed: 0 });
+  assert.deepEqual(b2.store.map((f) => f.fileId).sort(), ["keep1", "keep2", "o1"]);
+});
+
+test("single file: the original keeps its preview and thumbnail (names that start with it)", async () => {
+  const b2 = fakeB2([
+    { fileName: "events/e/a.jpg", fileId: "o1" },
+    { fileName: "events/e/a.jpg", fileId: "o2" },
+    { fileName: "events/e/a.jpg-preview.webp", fileId: "p1" },
+  ]);
+  assert.deepEqual(await deleteAllB2FileVersions(auth, "bucket", "events/e/a.jpg", b2.fetchImpl), { ok: true, deleted: 2, failed: 0 });
+  assert.deepEqual(b2.store, [{ fileName: "events/e/a.jpg-preview.webp", fileId: "p1" }]);
+});
+
+test("single file: nothing there is fine, a failed listing or delete is reported", async () => {
+  assert.deepEqual(await deleteAllB2FileVersions(auth, "bucket", "events/e/none.jpg", fakeB2([]).fetchImpl), { ok: true, deleted: 0, failed: 0 });
+  const listFails = fakeB2([{ fileName: "k", fileId: "1" }], { failList: true });
+  assert.equal((await deleteAllB2FileVersions(auth, "bucket", "k", listFails.fetchImpl)).ok, false);
+  const deleteFails = fakeB2([{ fileName: "k", fileId: "1" }, { fileName: "k", fileId: "2" }], { failDeleteId: "2" });
+  assert.deepEqual(await deleteAllB2FileVersions(auth, "bucket", "k", deleteFails.fetchImpl), { ok: false, deleted: 1, failed: 1 });
+  await assert.rejects(deleteAllB2FileVersions(auth, "bucket", "", listFails.fetchImpl), /empty/);
+});
+
+test("the single-file flag is separate and off by default", () => {
+  process.env.B2_DELETE_ALL_VERSIONS = "true";
+  assert.equal(isDeleteAllFileVersionsOn(), false);
+  process.env.B2_DELETE_ALL_FILE_VERSIONS = "true";
+  assert.equal(isDeleteAllFileVersionsOn(), true);
 });

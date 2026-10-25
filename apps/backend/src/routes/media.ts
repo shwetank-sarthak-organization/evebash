@@ -41,7 +41,7 @@ import { checkEventUpload, isEventUploadLimitEnabled } from "../services/eventUp
 import { buildRotatedLinks, isRotateVersionedLinksEnabled, previousOriginalLinks } from "../services/rotateLinks.js";
 import { isRotateUprightFirstEnabled, rotateImage } from "../services/rotateImage.js";
 import { GRID_LONG_SIDE, GRID_QUALITY, gridKey, isGridVariantEnabled } from "../services/gridVariant.js";
-import { deleteAllB2Versions, isDeleteAllVersionsOn } from "../services/b2DeleteAllVersions.js";
+import { deleteAllB2FileVersions, deleteAllB2Versions, isDeleteAllFileVersionsOn, isDeleteAllVersionsOn } from "../services/b2DeleteAllVersions.js";
 import { getStorageContext, ownerIdentifiers } from "../vault/access.js";
 import { createSupabaseVaultRepository } from "../vault/repository.js";
 
@@ -350,6 +350,13 @@ function background(label: string, task: () => Promise<unknown>) {
 }
 
 export async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) {
+  if (isDeleteAllFileVersionsOn()) {
+    const result = await deleteAllB2FileVersions(auth, bucketId, key).catch((error) => {
+      console.warn(`[MediaDelete] Could not delete every version of ${key}:`, error);
+      return { ok: false };
+    });
+    return result.ok;
+  }
   const listResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
     method: "POST",
     headers: {

@@ -69,3 +69,63 @@ export async function deleteAllB2Versions(
 
   return { ok: failed === 0, deleted, failed };
 }
+
+// Issue #136: the same problem for single files (a photo or video original, its preview, thumbnail and grid image,
+// profile pictures, album files, replaced video thumbnails): deleting only the newest version leaves an older one
+// visible and billed when the file was written twice (a photo retry or rotate remade the preview). With
+// B2_DELETE_ALL_FILE_VERSIONS=true every version of the exact file name is deleted. Its own flag, so turning it on
+// is a separate step from B2_DELETE_ALL_VERSIONS. Off by default: the old newest-version delete runs unchanged.
+export function isDeleteAllFileVersionsOn() {
+  return process.env.B2_DELETE_ALL_FILE_VERSIONS?.trim().toLowerCase() === "true";
+}
+
+/**
+ * Deletes every version (and hide marker) of exactly `key`; files whose names only start with `key` (for example
+ * `<key>-preview.webp` next to `<key>`) are left alone. ok=false if a listing call or a delete failed.
+ */
+export async function deleteAllB2FileVersions(
+  auth: B2Auth,
+  bucketId: string,
+  key: string,
+  fetchImpl: FetchLike = fetch as unknown as FetchLike,
+): Promise<{ ok: boolean; deleted: number; failed: number }> {
+  if (!key) throw new Error("Refusing to delete an empty B2 file name");
+
+  const post = (method: string, body: Record<string, unknown>) =>
+    fetchImpl(`${auth.apiUrl}/b2api/v3/${method}`, {
+      method: "POST",
+      headers: { Authorization: auth.authorizationToken, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+  let startFileId: string | undefined;
+  let deleted = 0;
+  let failed = 0;
+  while (true) {
+    const listResponse = await post("b2_list_file_versions", {
+      bucketId,
+      prefix: key,
+      startFileName: key,
+      maxFileCount: 100,
+      ...(startFileId ? { startFileId } : {}),
+    });
+    if (!listResponse.ok) return { ok: false, deleted, failed };
+    const listData = await listResponse.json();
+    const versions: Array<{ fileName?: string; fileId?: string }> = (listData.files || []).filter(
+      (file: { fileName?: string; fileId?: string }) => file.fileName === key && file.fileId,
+    );
+    const results = await Promise.all(
+      versions.map((file) =>
+        post("b2_delete_file_version", { fileName: key, fileId: file.fileId })
+          .then((response) => response.ok)
+          .catch(() => false),
+      ),
+    );
+    deleted += results.filter(Boolean).length;
+    failed += results.filter((ok) => !ok).length;
+    // Versions of one name come in a row; stop once the listing moves past it
+    if (listData.nextFileName !== key || !listData.nextFileId) break;
+    startFileId = listData.nextFileId;
+  }
+  return { ok: failed === 0, deleted, failed };
+}
