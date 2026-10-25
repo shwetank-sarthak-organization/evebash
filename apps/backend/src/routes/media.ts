@@ -470,6 +470,14 @@ function isVideoStreamDeleteOn() {
   return process.env.DELETE_VIDEO_STREAM_ON_DELETE?.trim().toLowerCase() === "true";
 }
 
+// Issue #140: a photo row was saved although its file never reached B2 (the worker then fails with NoSuchKey and guests
+// saw "Image unavailable"). With this on, the save routes first check the file is in B2 and refuse rows whose file
+// isn't there, and /save-photo no longer deletes the uploaded file when its database save fails (the website retries
+// that save, and the retry used to save a row for the file the first attempt had just deleted). Off until switched on.
+function isUploadVerifyOn() {
+  return process.env.VERIFY_UPLOAD_BEFORE_SAVE?.trim().toLowerCase() === "true";
+}
+
 async function rollbackB2Upload(storageKey: string, resourceType: string) {
   const backblazeAuth = await getCachedBackblazeAuth();
   const bucketId = requireEnv("B2_BUCKET_ID");
@@ -950,13 +958,19 @@ mediaRouter.post("/save-photo", asyncRoute(async (request, response) => {
     return jsonError(response, 401, "Invalid event or unauthorized access");
   }
 
+  const verifyUpload = isUploadVerifyOn();
+  if (verifyUpload && await isUploadMissing(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), storageKey)) {
+    return jsonError(response, 409, "The file didn't finish uploading. Please upload it again.");
+  }
+
   const duration = Number(body.duration || 0);
   const { row, url, photoId, isVideo } = toPhotoRow({ storageKey, eventId, fileName, fileSize, userId, resourceType: body.resourceType, duration });
   const supabaseAdmin = getSupabaseAdminClient();
   const { error: dbError } = await safeUpsertPhoto(supabaseAdmin, row);
 
   if (dbError) {
-    background("UploadRollback", () => rollbackB2Upload(storageKey, isVideo ? "video" : "image"));
+    // The website retries this save; deleting the file here left the retry saving a row without one (issue #140)
+    if (!verifyUpload) background("UploadRollback", () => rollbackB2Upload(storageKey, isVideo ? "video" : "image"));
     return jsonError(response, 500, `Failed to save to database: ${dbError.message}`);
   }
 
@@ -1018,6 +1032,11 @@ mediaRouter.post("/save-photo-batch", asyncRoute(async (request, response) => {
   const imagePayloads: PhotoPayload[] = [];
   const videoPayloads: Array<PhotoPayload & { fileSize?: number; duration?: number }> = [];
   let firstEventId = "";
+  // Issue #140: files B2 says aren't there are left out and reported back, so the page can mark them failed
+  const verifyUpload = isUploadVerifyOn();
+  const backblazeAuth = verifyUpload ? await getCachedBackblazeAuth() : null;
+  const bucketId = verifyUpload ? requireEnv("B2_BUCKET_ID") : "";
+  const notUploaded: string[] = [];
 
   for (const photo of photos) {
     const storageKey = String(photo.storageKey || "");
@@ -1026,6 +1045,10 @@ mediaRouter.post("/save-photo-batch", asyncRoute(async (request, response) => {
     const fileSize = Number(photo.fileSize || 0);
     const duration = Number(photo.duration || 0);
     if (!storageKey || !eventId || !fileName) continue;
+    if (backblazeAuth && await isUploadMissing(backblazeAuth, bucketId, storageKey)) {
+      notUploaded.push(storageKey);
+      continue;
+    }
     if (!firstEventId) firstEventId = eventId;
 
     const { row, url, photoId, isVideo } = toPhotoRow({ storageKey, eventId, fileName, fileSize, userId, resourceType: photo.resourceType, duration });
@@ -1037,7 +1060,13 @@ mediaRouter.post("/save-photo-batch", asyncRoute(async (request, response) => {
     }
   }
 
-  if (upsertRows.length === 0) return jsonError(response, 400, "No valid photos in batch");
+  if (upsertRows.length === 0) {
+    if (notUploaded.length > 0) {
+      response.json({ success: true, processed: 0, notUploaded });
+      return;
+    }
+    return jsonError(response, 400, "No valid photos in batch");
+  }
 
   const supabaseAdmin = getSupabaseAdminClient();
   const { error: dbError } = await safeUpsertPhotosBatch(supabaseAdmin, upsertRows);
@@ -1077,13 +1106,14 @@ mediaRouter.post("/save-photo-batch", asyncRoute(async (request, response) => {
     );
   }
 
-  response.json({ success: true, processed: upsertRows.length });
+  response.json({ success: true, processed: upsertRows.length, ...(notUploaded.length > 0 ? { notUploaded } : {}) });
 }));
 
 // ── MOBILE-SPECIFIC SECURE & DEBOUNCED MEDIA PIPELINE ─────────────────────────
 
 // Helper to check B2 file existence and size
-async function checkB2FileExists(auth: BackblazeAuth, bucketId: string, key: string): Promise<{ exists: boolean; contentLength?: number }> {
+/** checked: B2 answered (so exists:false really means the file isn't there); false when the check itself failed */
+async function checkB2FileExists(auth: BackblazeAuth, bucketId: string, key: string): Promise<{ exists: boolean; checked: boolean; contentLength?: number }> {
   try {
     const listResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
       method: "POST",
@@ -1094,15 +1124,21 @@ async function checkB2FileExists(auth: BackblazeAuth, bucketId: string, key: str
       body: JSON.stringify({ bucketId, startFileName: key, maxFileCount: 1, prefix: key }),
     });
 
-    if (!listResponse.ok) return { exists: false };
+    if (!listResponse.ok) return { exists: false, checked: false };
     const listData = await listResponse.json();
     const file = listData.files?.find((item: { fileName: string; contentLength?: number }) => item.fileName === key);
-    if (!file) return { exists: false };
-    return { exists: true, contentLength: file.contentLength };
+    if (!file) return { exists: false, checked: true };
+    return { exists: true, checked: true, contentLength: file.contentLength };
   } catch (err) {
     console.warn(`[MobileB2Check] Failed to check file existence for ${key}:`, err);
-    return { exists: false };
+    return { exists: false, checked: false };
   }
+}
+
+/** Issue #140, with VERIFY_UPLOAD_BEFORE_SAVE: true only when B2 answered that the file isn't there */
+async function isUploadMissing(auth: BackblazeAuth, bucketId: string, key: string) {
+  const check = await checkB2FileExists(auth, bucketId, key);
+  return check.checked && !check.exists;
 }
 
 // Memory debounce timer map for event notifications: eventId -> NodeJS.Timeout
@@ -1340,6 +1376,11 @@ mediaRouter.post("/mobile/save-photo-batch", asyncRoute(async (request, response
       const b2Check = await checkB2FileExists(backblazeAuth, bucketId, storageKey);
       if (b2Check.exists && b2Check.contentLength) {
         effectiveSize = b2Check.contentLength;
+      }
+      // Issue #140: the app re-uploads a file reported not_uploaded (lib/uploadQueue.ts)
+      if (isUploadVerifyOn() && b2Check.checked && !b2Check.exists) {
+        results.push({ clientUploadId, status: "not_uploaded", error: "The file didn't finish uploading" });
+        continue;
       }
     } catch {
       // Non-blocking check

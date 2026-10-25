@@ -2468,12 +2468,22 @@ function DashboardContent() {
                     }
 
                     if (res.ok) {
-                        itemsToFlush
+                        // Issue #140: files the server found missing in storage weren't saved; they show as failed
+                        const saveResult = await res.json().catch(() => ({}));
+                        const notUploaded = new Set<string>(Array.isArray(saveResult?.notUploaded) ? saveResult.notUploaded : []);
+                        const savedItems = itemsToFlush.filter(item => !notUploaded.has(item.photo.storageKey));
+                        if (notUploaded.size > 0) {
+                            const failedIds = new Set(itemsToFlush.filter(item => notUploaded.has(item.photo.storageKey)).map(item => item.queueItemId));
+                            setUploadQueue(prev => prev.map(qItem =>
+                                failedIds.has(qItem.id) ? { ...qItem, status: "error", progress: 100, error: "Didn't finish uploading. Please upload it again." } : qItem
+                            ));
+                        }
+                        savedItems
                             .filter(item => item.photo.mediaType === "video" || item.photo.resourceType === "video")
                             .forEach(item => options?.onVideoSaved?.(item.photo.id));
                         // Immediately prepend new photos to grid state (videos stay hidden until backend transcode completes)
                         setCurrentEventPhotos(prev => {
-                            const newPhotos = itemsToFlush
+                            const newPhotos = savedItems
                                 .filter(item => {
                                     const isVideo = item.photo.mediaType === "video" || item.photo.resourceType === "video";
                                     return !isVideo || item.photo.status === "processed";
@@ -2483,7 +2493,7 @@ function DashboardContent() {
                             return [...newPhotos, ...prev];
                         });
 
-                        const itemIds = new Set(itemsToFlush.map(item => item.queueItemId));
+                        const itemIds = new Set(savedItems.map(item => item.queueItemId));
                         setUploadQueue(prev => prev.map(qItem => {
                             if (itemIds.has(qItem.id)) {
                                 if (qItem.status === "success" || qItem.status === "error") return qItem;
