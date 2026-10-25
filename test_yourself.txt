@@ -3154,7 +3154,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #127 Classic White guest page redesign (computer browser)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website + App (step 9)
 Brief:     The Classic White guest page now uses its own sage/ivory colours, Playfair titles, the
@@ -3205,14 +3205,15 @@ How to test:
      message card is a pale grey-white with light grey lines. The host's theme picker shows Classic
      White as a white swatch, "Soft white & vintage sage elegance". App (new build): a Classic White
      gallery's background, header strip and photo viewer are the same soft white.
-Done by:
+Done by:   Sarthak
 Device / browser:
 Build / version:
-Date tested:
+Date tested: 2026-10-25
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  Passed (reported by Sarthak in chat). Note: written before later changes; Open Gallery is now
+           an outlined button, the navbar title bold capitals, and photos load on their own (#137).
 
 --------------------------------------------------------------------------------
 #128 Long videos (over 10 min) converted on the GPU still play everywhere

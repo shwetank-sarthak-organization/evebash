@@ -726,63 +726,6 @@ Recommendation (in this order):
   Not recommended: only changing the 0.40 cut-off; a stronger model (buffalo_l/antelopev2 are non-commercial; re-index everything).
 How to reproduce: Find You on wedding-fdd8 with Sarthak's selfie: 44 results, most of the lower-scoring ones are the groom.
 
-#112
-Listed: 2026-10-24
-Platform: Website
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #127); move to RECENTLY FIXED once it passes
-Found in: Classic White (Wedding) theme review, code only (2026-10-24)
-Issue: Classic White doesn't use its own colours. The theme is sage #8B9A6E / dark green #2C352E / muted #596653 on ivory #F7F2EB (src/lib/webTemplateTheme.ts), but src/components/TemplateClassic.tsx uses Tailwind slate text, a fourth green #64764c for the dividers and a pink text selection (selection:bg-rose-200). "Open Guest Gallery", "Add photos" and "Load More Media" are near-black (bg-slate-900). The gallery section is plain white and the photo cards are white too, so cards have no edge. The empty gallery text sits under opacity-50 (about 2.5:1 contrast, fails WCAG AA). The selected Photos/Videos tab is black text on sage while other buttons are white text.
-How to reproduce: Open a Classic White gallery on a computer: compare the hero text and buttons with the sage/ivory palette; open an empty album and check the text contrast.
-Update 2026-10-24: fixed in bc6e3b2, pushed to staging: theme colours, deep sage #596653 buttons and selected tab (white text, 6:1), ivory gallery section with white bordered cards, empty text at full strength (src/app/classic-white.css). Device test #127.
-
-#113
-Listed: 2026-10-24
-Platform: Website
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #127); move to RECENTLY FIXED once it passes
-Found in: Classic White (Wedding) theme review, code only (2026-10-24)
-Issue: Classic White text problems. (1) An empty description shows the made-up wedding line "Join us in celebrating our special day." in quotes, on the event and on every album without a description. (2) An album description shows twice: as the hero quote and again above the photos. (3) Headings stack: album title in the hero, then "The Gallery", then the album title again (main page: "The Gallery" then "Home Gallery"). (4) The date and location are never shown. (5) Without a cover image guests see a grey box saying "No Cover Image". (6) The description is always wrapped in quote marks and line breaks are lost. (7) The page has two footers: the theme's "Title — <this year>" line (wrong year for older events) and the site footer.
-How to reproduce: Open a Classic White gallery with no description and no cover, then an album with a description.
-Update 2026-10-24: fixed in bc6e3b2, pushed to staging: no made-up text, the album message only in the hero, "The Gallery" heading and the theme footer removed, date and place shown, no cover = no frame, no quote marks, line breaks kept. Device test #127.
-
-#114
-Listed: 2026-10-24
-Platform: Website
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #127); move to RECENTLY FIXED once it passes
-Found in: Classic White (Wedding) theme review, code only (2026-10-24)
-Issue: Classic White uses only a narrow middle part of a computer screen: the hero text is max-w-4xl (896px), the cover frame max-w-3xl (768px) and the gallery max-w-7xl (1280px) with at most 3 photo columns (src/app/gallery-refinements.css), so a 1920px screen has wide empty sides. The cover is object-contain inside a fixed 16:9 frame, so most photos get blank bars. Long titles go up to text-8xl with tight tracking and nothing stops them overflowing. Phones are not affected while the app download screen (#109) is on.
-How to reproduce: Open a Classic White gallery on a 1440-1920px wide screen; try a gallery with a 40+ character title and a portrait cover.
-Update 2026-10-24: fixed in bc6e3b2, pushed to staging: cover up to 1400px wide following the host's focus/zoom/fit, gallery up to 1800px with 4 columns at 1280px+ and 5 at 1680px+ (Classic only), title sized with clamp() and wrapping. Device test #127.
-Update 2026-10-24 (2): per Sarthak, following photos.knotsbyamp.com: navbar, gallery and guest footer now run the full width with the same 32px side gap at every screen size (no 1280/1800px caps), photos in justified rows (equal-height rows, 4px gaps, MasonryGrid layout="justified", Classic only), cover smaller (max 672px, thin mat).
-Update 2026-10-24 (3): gallery header redesigned from Sarthak's mockup (src/components/classic/ClassicGalleryHeader.tsx): Back / Share, the gallery name in large capitals, date and place, [ Photos ] [ Videos ] tabs with an underline, the gallery video in a white mat on the right.
-Update 2026-10-24 (4): the first screen (navbar space, text, cover, Open Gallery) is exactly the window height (at least 640px); the cover takes the space left, keeping 3:2 (up to 1170px wide). Checked 1280x650 to 2560x1440 and a 430-character description.
-Update 2026-10-24 (5): Classic navbar redesigned from Sarthak's image (EventNavbar variant="classic", styles in src/app/classic-white.css): ivory bar between two sage lines, title left, capital links right; same links and positions.
-Update 2026-10-24 (6): cover redesigned from Sarthak's image (src/components/classic/ClassicCoverPrint.tsx): photo print in a thick white mount, message on an ivory card with sage sprigs over its top edge; checked messages from 10 to 463 characters, line breaks, no message and no cover at 1366x768, 1600x900, 1920x1080.
-Update 2026-10-24 (7): Classic White switched from beige to soft white on the website and the app (Sarthak): background #FCFCFA, message card #F6F6F2, lines #E6E6E0 (src/lib/webTemplateTheme.ts, classic-white.css, page-flip, host picker; apps/mobile/constants/templates.ts, viewerPalettes.ts, ThemeHeader.tsx). Picker text now "Soft white & vintage sage elegance". Cover print tilted to -2.2deg.
-Update 2026-10-24 (8): per Sarthak, the host's gallery message moved from the cover card into the gallery header (under the name and date); the cover card shows a fixed line chosen by category (Wedding "Two hearts, one holy union.", Anniversary "Still choosing each other, every year.", other "Moments worth keeping, forever."). Gallery header text column runs the height of the video: Back / Share top, name/date/message middle, tabs bottom.
-Update 2026-10-24 (9): title always in capitals with "and" / "weds" / "+" between two short names shown as "&" (displayCoupleTitle, also in the Classic navbar); long titles step down in size; date line 18px in the same 20px line (nothing below moves, measured); gallery video column narrower (7fr / 5fr, thinner mat).
-
-#115
-Listed: 2026-10-24
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #127); move to RECENTLY FIXED once it passes
-Found in: Classic White (Wedding) theme review, code only (2026-10-24)
-Issue: Classic White serif text is plain Georgia: gallery-refinements.css forces Georgia for every theme's font-serif although Playfair Display is already loaded. The title (the page's largest text) is hidden by a fade-in until the scripts run, which delays it. The cover image has no sizes, so the browser downloads a full-screen-width image for a smaller frame. TemplateClassic.tsx imports Link and motion without using them.
-How to reproduce: Open a Classic White gallery and check the title font; in DevTools check the cover image's downloaded width.
-Update 2026-10-24: fixed in bc6e3b2, pushed to staging: Playfair for Classic serif text, title shown without the fade, cover sizes set, unused imports removed. Device test #127.
-Update 2026-10-25 (76e0064): the navbar's small-screen menu (outside .classic-template) still fell back to Georgia; it now uses Playfair too. The Classic page uses two fonts: Playfair Display and Inter.
-
 #116
 Listed: 2026-10-24
 Platform: Both
@@ -1113,6 +1056,67 @@ How to reproduce: App, Classic White gallery, Videos tab, open a video: the bar 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#112
+Listed: 2026-10-24
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Classic White (Wedding) theme review, code only (2026-10-24)
+Issue: Classic White doesn't use its own colours. The theme is sage #8B9A6E / dark green #2C352E / muted #596653 on ivory #F7F2EB (src/lib/webTemplateTheme.ts), but src/components/TemplateClassic.tsx uses Tailwind slate text, a fourth green #64764c for the dividers and a pink text selection (selection:bg-rose-200). "Open Guest Gallery", "Add photos" and "Load More Media" are near-black (bg-slate-900). The gallery section is plain white and the photo cards are white too, so cards have no edge. The empty gallery text sits under opacity-50 (about 2.5:1 contrast, fails WCAG AA). The selected Photos/Videos tab is black text on sage while other buttons are white text.
+How to reproduce: Open a Classic White gallery on a computer: compare the hero text and buttons with the sage/ivory palette; open an empty album and check the text contrast.
+Update 2026-10-24: fixed in bc6e3b2, pushed to staging: theme colours, deep sage #596653 buttons and selected tab (white text, 6:1), ivory gallery section with white bordered cards, empty text at full strength (src/app/classic-white.css). Device test #127.
+Fixed in: bc6e3b2 (2026-10-24) and the Classic White commits after it, last 76e0064 (2026-10-25). Device test #127 passed 2026-10-25 (Sarthak).
+
+#113
+Listed: 2026-10-24
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Classic White (Wedding) theme review, code only (2026-10-24)
+Issue: Classic White text problems. (1) An empty description shows the made-up wedding line "Join us in celebrating our special day." in quotes, on the event and on every album without a description. (2) An album description shows twice: as the hero quote and again above the photos. (3) Headings stack: album title in the hero, then "The Gallery", then the album title again (main page: "The Gallery" then "Home Gallery"). (4) The date and location are never shown. (5) Without a cover image guests see a grey box saying "No Cover Image". (6) The description is always wrapped in quote marks and line breaks are lost. (7) The page has two footers: the theme's "Title — <this year>" line (wrong year for older events) and the site footer.
+How to reproduce: Open a Classic White gallery with no description and no cover, then an album with a description.
+Update 2026-10-24: fixed in bc6e3b2, pushed to staging: no made-up text, the album message only in the hero, "The Gallery" heading and the theme footer removed, date and place shown, no cover = no frame, no quote marks, line breaks kept. Device test #127.
+Fixed in: bc6e3b2 (2026-10-24) and the Classic White commits after it, last 76e0064 (2026-10-25). Device test #127 passed 2026-10-25 (Sarthak).
+
+#114
+Listed: 2026-10-24
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Classic White (Wedding) theme review, code only (2026-10-24)
+Issue: Classic White uses only a narrow middle part of a computer screen: the hero text is max-w-4xl (896px), the cover frame max-w-3xl (768px) and the gallery max-w-7xl (1280px) with at most 3 photo columns (src/app/gallery-refinements.css), so a 1920px screen has wide empty sides. The cover is object-contain inside a fixed 16:9 frame, so most photos get blank bars. Long titles go up to text-8xl with tight tracking and nothing stops them overflowing. Phones are not affected while the app download screen (#109) is on.
+How to reproduce: Open a Classic White gallery on a 1440-1920px wide screen; try a gallery with a 40+ character title and a portrait cover.
+Update 2026-10-24: fixed in bc6e3b2, pushed to staging: cover up to 1400px wide following the host's focus/zoom/fit, gallery up to 1800px with 4 columns at 1280px+ and 5 at 1680px+ (Classic only), title sized with clamp() and wrapping. Device test #127.
+Update 2026-10-24 (2): per Sarthak, following photos.knotsbyamp.com: navbar, gallery and guest footer now run the full width with the same 32px side gap at every screen size (no 1280/1800px caps), photos in justified rows (equal-height rows, 4px gaps, MasonryGrid layout="justified", Classic only), cover smaller (max 672px, thin mat).
+Update 2026-10-24 (3): gallery header redesigned from Sarthak's mockup (src/components/classic/ClassicGalleryHeader.tsx): Back / Share, the gallery name in large capitals, date and place, [ Photos ] [ Videos ] tabs with an underline, the gallery video in a white mat on the right.
+Update 2026-10-24 (4): the first screen (navbar space, text, cover, Open Gallery) is exactly the window height (at least 640px); the cover takes the space left, keeping 3:2 (up to 1170px wide). Checked 1280x650 to 2560x1440 and a 430-character description.
+Update 2026-10-24 (5): Classic navbar redesigned from Sarthak's image (EventNavbar variant="classic", styles in src/app/classic-white.css): ivory bar between two sage lines, title left, capital links right; same links and positions.
+Update 2026-10-24 (6): cover redesigned from Sarthak's image (src/components/classic/ClassicCoverPrint.tsx): photo print in a thick white mount, message on an ivory card with sage sprigs over its top edge; checked messages from 10 to 463 characters, line breaks, no message and no cover at 1366x768, 1600x900, 1920x1080.
+Update 2026-10-24 (7): Classic White switched from beige to soft white on the website and the app (Sarthak): background #FCFCFA, message card #F6F6F2, lines #E6E6E0 (src/lib/webTemplateTheme.ts, classic-white.css, page-flip, host picker; apps/mobile/constants/templates.ts, viewerPalettes.ts, ThemeHeader.tsx). Picker text now "Soft white & vintage sage elegance". Cover print tilted to -2.2deg.
+Update 2026-10-24 (8): per Sarthak, the host's gallery message moved from the cover card into the gallery header (under the name and date); the cover card shows a fixed line chosen by category (Wedding "Two hearts, one holy union.", Anniversary "Still choosing each other, every year.", other "Moments worth keeping, forever."). Gallery header text column runs the height of the video: Back / Share top, name/date/message middle, tabs bottom.
+Update 2026-10-24 (9): title always in capitals with "and" / "weds" / "+" between two short names shown as "&" (displayCoupleTitle, also in the Classic navbar); long titles step down in size; date line 18px in the same 20px line (nothing below moves, measured); gallery video column narrower (7fr / 5fr, thinner mat).
+Fixed in: bc6e3b2 (2026-10-24) and the Classic White commits after it, last 76e0064 (2026-10-25). Device test #127 passed 2026-10-25 (Sarthak).
+
+#115
+Listed: 2026-10-24
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Classic White (Wedding) theme review, code only (2026-10-24)
+Issue: Classic White serif text is plain Georgia: gallery-refinements.css forces Georgia for every theme's font-serif although Playfair Display is already loaded. The title (the page's largest text) is hidden by a fade-in until the scripts run, which delays it. The cover image has no sizes, so the browser downloads a full-screen-width image for a smaller frame. TemplateClassic.tsx imports Link and motion without using them.
+How to reproduce: Open a Classic White gallery and check the title font; in DevTools check the cover image's downloaded width.
+Update 2026-10-24: fixed in bc6e3b2, pushed to staging: Playfair for Classic serif text, title shown without the fade, cover sizes set, unused imports removed. Device test #127.
+Update 2026-10-25 (76e0064): the navbar's small-screen menu (outside .classic-template) still fell back to Georgia; it now uses Playfair too. The Classic page uses two fonts: Playfair Display and Inter.
+Fixed in: bc6e3b2 (2026-10-24) and the Classic White commits after it, last 76e0064 (2026-10-25). Device test #127 passed 2026-10-25 (Sarthak).
+
 #130
 Listed: 2026-10-24
 Platform: Both
