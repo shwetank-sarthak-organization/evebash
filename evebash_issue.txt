@@ -732,7 +732,7 @@ Platform: Both
 Priority: Medium
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: device test #132 on Android and a smaller iPhone, plus its untested steps (see the test's Feedback)
+Blocked by: video playback check on a real iPhone (test #132)
 Found in: Classic White (Wedding) theme review, code only (2026-10-24)
 Issue: The website and app Classic White are two different designs. The website is a centred title, quote and tilted white-matted cover (src/components/TemplateClassic.tsx); the app is a cover photo with the title on it, a sage frame and a dotted divider (apps/mobile/components/eventStyles/classicStyles.ts, apps/mobile/components/event/ThemeHeader.tsx). With the app download screen (#109) on, phone guests only ever see the app version.
 How to reproduce: Open the same Classic White gallery on the website and in the app.
@@ -742,6 +742,7 @@ Update 3 (2026-10-24): App photo grid now justified rows like the website (two p
 Update 4 (2026-10-24): App Back and Share moved from the gallery header to the cover, as square icon-only buttons on either side of Open Gallery.
 Update 5 (2026-10-25, 963e5f5): App log-in prompts, empty gallery, Favourites switch and Videos tab in the Classic look; no empty band under the cover buttons (the pinned tabs' spacer now starts below the cover); the photo rows only draw photos near the screen. Still different: the video controls in the viewer (#142).
 Update 6 (2026-10-25): device test #132 passed on the iOS simulator (iPhone 17 Pro); found and fixed in d3a65ef: photo rows stayed empty after an album switch. Still open: Android, a smaller iPhone and the untested steps.
+Update 7 (2026-10-25): test #132 run again on the Android emulator and the iPhone 16e simulator (logged out, public Classic gallery): all pass; video plays on Android. Only video playback on a real iPhone is left.
 
 #117
 Listed: 2026-10-24
