@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 139
+Next test number: 140
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3543,6 +3543,33 @@ How to test:
   5. Close the video, then swipe from the left edge on iPhone. Expect: back navigation works
      as before.
   6. Repeat 1-4 on Android.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#139 Long portrait and iPhone HDR videos stay on the GPU and play correctly
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     The GPU worker now converts every long video itself (issue #141), including portrait
+           phone videos and iPhone HDR. Check they play the right way up with normal colours.
+Detail:    Only after the Modal deploy with #141 AND the switch on for the test gallery
+           (modal_engine/video_gpu_switch.py all-formats on; the gallery must be in the GPU test
+           galleries). modal_cost_logs: function_name process_video_gpu_long, and worker_type ends
+           with "GPU decode" or "CPU decode"; no process_video_gpu_fallback row.
+How to test:
+  1. Record a portrait video over 10 minutes on a phone (or join clips), upload it from the website.
+     Expect: it processes, plays upright on the website, iPhone and Android.
+  2. Record an iPhone HDR video over 10 minutes (Camera > Formats > HDR Video on), AirDrop the
+     original to a computer, upload from the website. Expect: it plays everywhere, colours and
+     brightness look like the iPhone Photos app (not dark, not grey).
+  3. Optional: a ProRes or 4:2:2 camera file over 10 minutes. Expect: processes and plays.
 Done by:
 Device / browser:
 Build / version:

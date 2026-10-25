@@ -12,6 +12,8 @@ long video (> 10 min), with no deploy. Run from the repo root with the Modal CLI
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py sdr-8bit off    # keep the source format, as before
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py probe-v2 on     # rotation-safe video probe (#119)
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py probe-v2 off    # old probes, as before
+  modal_engine/venv/bin/python modal_engine/video_gpu_switch.py all-formats on   # GPU takes every format (#141)
+  modal_engine/venv/bin/python modal_engine/video_gpu_switch.py all-formats off  # GPU hands some to the 16-core
 
 add-gallery sends just that gallery's long videos to the GPU while mode is off. A sub-gallery has its own id.
 A long video still goes to the 16-core worker when the GPU can't take it (10-bit, rotated phone video...),
@@ -20,6 +22,8 @@ sdr-8bit (issue #118, every video length, CPU workers): converts 10-bit, HDR and
 SDR so every phone can play them. Videos that are already 8-bit 4:2:0 SDR are not affected either way.
 probe-v2 (issue #119, every video): reads audio and height from one JSON probe, so portrait phone videos without
 audio no longer fail and small portrait videos don't get an enlarged 1080p stream.
+all-formats (issue #141, long videos that go to the GPU): the GPU worker keeps 10-bit, HDR, rotated and other
+formats itself instead of handing them to the 16-core worker; only a failed GPU run or no free L4 still does.
 """
 import sys
 
@@ -47,6 +51,8 @@ def main(argv):
         switch["sdr_8bit"] = value == "on"
     elif command == "probe-v2" and value in ("on", "off"):
         switch["probe_v2"] = value == "on"
+    elif command == "all-formats" and value in ("on", "off"):
+        switch["gpu_all_formats"] = value == "on"
     elif command != "show":
         print(__doc__)
         return 1
@@ -56,6 +62,7 @@ def main(argv):
     print(f"wait for an L4: {switch.get('gpu_wait_s', 180)} s")
     print(f"8-bit SDR output (#118): {'on' if switch.get('sdr_8bit', False) else 'off'}")
     print(f"rotation-safe probe (#119): {'on' if switch.get('probe_v2', False) else 'off'}")
+    print(f"GPU takes every format (#141): {'on' if switch.get('gpu_all_formats', False) else 'off'}")
     return 0
 
 
