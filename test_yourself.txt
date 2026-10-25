@@ -3608,7 +3608,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #140 Uploads only become photos when the file really arrived (issue #140)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website + App
 Brief:     Some uploads left a photo with no file ("Image unavailable" for guests, "Processing Failed"
@@ -3623,11 +3623,20 @@ How to test:
   3. App: upload 20 photos, turn on airplane mode mid-upload for a few seconds, then off. The queue
      retries the unfinished ones; every photo that ends up in the gallery opens normally.
   4. As a guest, open the gallery on website and app: no "Image unavailable" cards, counts match.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Claude (asked by Sarthak)
+Device / browser: Claude desktop app browser (Chromium) on staging.evebash.com; app on the iOS simulator
+Build / version: staging website and backend as of 2026-10-25, VERIFY_UPLOAD_BEFORE_SAVE=true
+Date tested: 2026-10-25
+Account used: host account (Sarthak), album check-fail-test-d8be (in test-face-new-155c)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  Step 1 PASS: 20 photos and 2 videos uploaded through the host page; all "Done" / "Ready",
+           22 rows processed with thumbnails, no "Processing Failed". (The Videos count only updated
+           after a reload, as before.)
+           Step 2 PASS (simulated): instead of DevTools Offline, 3 of 6 photos had their storage upload
+           report success without sending the file (the #140 bug). The server refused them: the panel
+           showed "Error" with "Didn't finish uploading. Please upload it again.", no rows were saved
+           for them, and the 3 real photos were saved and processed.
+           Step 4 PASS: guest page on the website and in the app show Photos (23), Videos (2), no
+           "Image unavailable" or broken images.
+           NOT tested: step 3 (app, airplane mode mid-upload, the queue re-uploads) - needs a phone.
