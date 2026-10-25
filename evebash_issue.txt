@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 142
+Next issue number: 143
 
 =====================================================================
 ACTIVE ISSUES
@@ -781,6 +781,7 @@ Found in: Classic White (Wedding) theme review, code only (2026-10-24)
 Issue: Classic White serif text is plain Georgia: gallery-refinements.css forces Georgia for every theme's font-serif although Playfair Display is already loaded. The title (the page's largest text) is hidden by a fade-in until the scripts run, which delays it. The cover image has no sizes, so the browser downloads a full-screen-width image for a smaller frame. TemplateClassic.tsx imports Link and motion without using them.
 How to reproduce: Open a Classic White gallery and check the title font; in DevTools check the cover image's downloaded width.
 Update 2026-10-24: fixed in bc6e3b2, pushed to staging: Playfair for Classic serif text, title shown without the fade, cover sizes set, unused imports removed. Device test #127.
+Update 2026-10-25 (76e0064): the navbar's small-screen menu (outside .classic-template) still fell back to Georgia; it now uses Playfair too. The Classic page uses two fonts: Playfair Display and Inter.
 
 #116
 Listed: 2026-10-24
@@ -796,6 +797,7 @@ Update 1 (2026-10-24): App cover and gallery header now match the website (apps/
 Update 2 (2026-10-24): Website and app: the cover always shows the main event's title (and its theme line), also inside albums and on an album opened by its own link; the header next to the video shows the gallery's own name ("Home", "Rec 1"). App: albums grouped under one Collections tab with a menu, like the website.
 Update 3 (2026-10-24): App photo grid now justified rows like the website (two portraits or one landscape per row, 4px gaps, no white mats); sage divider above the grid removed; Photos / Videos tabs centred on the phone.
 Update 4 (2026-10-24): App Back and Share moved from the gallery header to the cover, as square icon-only buttons on either side of Open Gallery.
+Update 5 (2026-10-25, 963e5f5): App log-in prompts, empty gallery, Favourites switch and Videos tab in the Classic look; no empty band under the cover buttons (the pinned tabs' spacer now starts below the cover); the photo rows only draw photos near the screen. Still different: the video controls in the viewer (#142).
 
 #117
 Listed: 2026-10-24
@@ -969,17 +971,6 @@ How to reproduce: Code check: transcode_video_long_gpu and watch_gpu_start in mo
 2026-10-25: covered by #141 (handoff logging): code on staging, behind the gpu_all_formats switch, not deployed.
 
 
-#130
-Listed: 2026-10-24
-Platform: Both
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: App Classic White rebuild (#116), 2026-10-24
-Issue: The couple-title helper (splitCoupleNames, coupleInitials, displayCoupleTitle) has two copies that must be kept in step by hand: src/components/royal/coupleNames.ts (website) and apps/mobile/components/royal/coupleNames.ts (app). Royal Emerald and Classic White on both platforms use it to show "X & Y". Fix: move it to shared/ (plain logic, like shared/themes/classicCoverLine.ts) and import it from both; keep the app's run-time Unicode regex fallback.
-How to reproduce: Code check: compare the two files.
-
 #131
 Listed: 2026-10-24
 Platform: App
@@ -1080,13 +1071,14 @@ How to reproduce: curl https://media.evebash.com/cdn-cgi/trace from India: colo=
 Listed: 2026-10-25
 Platform: Both
 Priority: High
-Status: Open
+Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: -
+Blocked by: VERIFY_UPLOAD_BEFORE_SAVE=true on Railway (staging), then device test #140
 Found in: "Image unavailable" in the guest grid of rec-7-6230 (Rec 7 of wedding-fdd8), 2026-10-25
 Issue: Some uploads leave a photos row with no file in storage. In rec-7-6230, 26 of 68 photos (full camera JPEGs of 9-10 MB, uploaded 2026-09-27 12:47-12:52 UTC, right after photos of the same batch that worked) have status failed, no thumbnail and processing_error "An error occurred (NoSuchKey) when calling the GetObject operation: Key not found": the photo worker found no file. The original and every version (-thumbnail, -preview, -grid .webp) return 404 "File with such name does not exist." from media.evebash.com. The row is written before the file finishes uploading, and nothing removes or flags it when the upload never completes (phone asleep or app closed mid-upload, network drop, upload URL expiring on large files?). The guest grid showed "Image unavailable" for each and counted them in Photos (n).
 Guest side fixed (this change): website and app guest loads leave these photos out (shared/media/missingUpload.ts); the logged-out view already skipped them. The host still sees them: website host grid "Processing Failed" badge, app host grid "Upload failed" label.
 Still to do: (1) find which upload path leaves the row without a file (website and app; check upload logs around 2026-09-27 12:47 UTC for rec-7-6230) and make the row only count once the file is in storage, or mark it failed with a clear "upload didn't finish" reason the host can act on (re-upload); (2) count how many galleries have such rows (status failed + NoSuchKey) and decide whether to delete the rows or ask the hosts to re-upload; (3) don't count them against storage.
+Update 1 (2026-10-25): Likely causes found in the save routes (apps/backend/src/routes/media.ts). (a) No save route checked that the file was in B2: /save-photo and /save-photo-batch (website) saved any storageKey, and /mobile/save-photo-batch checked but saved anyway (its not_uploaded answer was never used, although the app re-uploads on it). (b) /save-photo deleted the uploaded file when its database save failed (rollbackB2Upload) and returned 500, and the website (src/lib/storage.ts) retries a 500, so the retry saved a row for the file the first try had just deleted. The rec-7-6230 keys have the website's name format (user-time-uuid-name). Fixed in ed13daa behind VERIFY_UPLOAD_BEFORE_SAVE (off): all three routes refuse rows whose file B2 says isn't there (a failed check doesn't block), /save-photo keeps the file on a database error, and the host page shows such files as failed ("Didn't finish uploading"). Still to do: switch it on in Railway staging and run test #140; count affected galleries and decide on the existing rows (rec-7-6230 has 26).
 How to reproduce: Open rec-7-6230 as the host: 26 photos with "Processing Failed". Before this change, guests saw 16+ "Image unavailable" cards. curl -I https://media.evebash.com/events/rec-7-6230/photos/e8848fc1-d1b0-4d83-84a0-5b9b26f3f9e9-1790513547861-c9fd11a5-899f-482b-b4d3-b7e460ad0002-7C0A9725.JPG returns 404.
 
 #141
@@ -1104,9 +1096,32 @@ Real Modal bill, 3 runs each, compute only (egress is free under 1 TiB/month): t
 Open point, HLG (iPhone HDR): on a synthetic HLG clip converted from SDR, tonemap_cuda gives a much darker picture than the CPU path at every setting; showing HLG as SDR (no tone map) keeps the brightness (SSIM 0.945, colours a little paler). The synthetic clip may not match how an iPhone records HLG, so check with a real iPhone HDR video before turning the switch on, and change _GPU_TONEMAP / the HLG handling if needed. PQ HDR is fine (0.97).
 How to reproduce: Upload a portrait phone video or an iPhone HDR video over 10 minutes to a gallery on the GPU switch: modal_cost_logs shows process_video_cpu_long, not the GPU.
 
+#142
+Listed: 2026-10-25
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App Classic White check in the simulator (2026-10-25)
+Issue: In the app's photo viewer on Classic White, the video controls bar (play, previous/next, time, volume, settings, full screen) draws dark green icons on its dark gradient, so the controls are almost invisible. The viewer itself follows the Classic colours (white background, light action panel). apps/mobile/components/PhotoViewer.tsx; it had uncommitted work from another session at the time, so it wasn't changed here.
+How to reproduce: App, Classic White gallery, Videos tab, open a video: the bar at the bottom of the video is dark with near-invisible dark icons.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#130
+Listed: 2026-10-24
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App Classic White rebuild (#116), 2026-10-24
+Issue: The couple-title helper (splitCoupleNames, coupleInitials, displayCoupleTitle) has two copies that must be kept in step by hand: src/components/royal/coupleNames.ts (website) and apps/mobile/components/royal/coupleNames.ts (app). Royal Emerald and Classic White on both platforms use it to show "X & Y". Fix: move it to shared/ (plain logic, like shared/themes/classicCoverLine.ts) and import it from both; keep the app's run-time Unicode regex fallback.
+How to reproduce: Code check: compare the two files.
+Fixed in: 7ab5b6c (2026-10-25). One copy in shared/text/coupleNames.ts (the app's version); both old copies deleted.
+
 2026-10-25: Modal v131 deployed (22ba209, 10:26 IST; rollback v130). gpu_all_formats is off, so long videos still use the old GPU worker in the test galleries and the 16-core worker elsewhere. Live now regardless of the switch: handoffs from the old GPU worker and from watch_gpu_start are logged to modal_cost_logs (process_video_gpu_fallback). Checked: video endpoints reject unsigned calls (401), all five video functions present.
 
 

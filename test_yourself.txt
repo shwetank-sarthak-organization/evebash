@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 140
+Next test number: 141
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3379,6 +3379,12 @@ How to test:
      the whole width), thin 4px gaps, square corners, no white frames, photos not cropped to a fixed
      shape; the last row is not stretched. Tapping a photo opens the right one. [ Photos ] [ Videos ]
      are centred, with no sage divider between them and the photos.
+  10. Videos tab: posters in full-width rows with a white frosted play button (no dark cards). Album
+     with no videos: "No videos yet." in sage italic with a visible icon. Favourites only switch: a
+     pale card with square corners. Logged out on a public Classic gallery: the "Enter the
+     Celebration" box is a pale card with a deep sage "Log in to join" button (no dark box or gold).
+  11. Cover: no empty band under the < / Open Gallery / share buttons; all three still work. Scroll a
+     big album (90+ photos) to the end and back: photos are there wherever you stop.
 Done by:
 Device / browser:
 Build / version:
@@ -3570,6 +3576,32 @@ How to test:
      original to a computer, upload from the website. Expect: it plays everywhere, colours and
      brightness look like the iPhone Photos app (not dark, not grey).
   3. Optional: a ProRes or 4:2:2 camera file over 10 minutes. Expect: processes and plays.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#140 Uploads only become photos when the file really arrived (issue #140)
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Some uploads left a photo with no file ("Image unavailable" for guests, "Processing Failed"
+           for the host). The server now refuses to save a photo whose file isn't in storage.
+Detail:    Only with VERIFY_UPLOAD_BEFORE_SAVE=true on Railway (staging) and the backend deployed.
+How to test:
+  1. Website host page: upload 20 photos and 2 videos to a test gallery. All finish; the grid shows
+     them all and none say "Processing Failed".
+  2. Website host page: start uploading 10 large photos (10+ MB) and switch the network off for a few
+     seconds in the middle (dev tools "Offline"), then back on. Any photo that didn't make it shows
+     as failed in the upload panel ("Didn't finish uploading"), never as a broken photo in the grid.
+  3. App: upload 20 photos, turn on airplane mode mid-upload for a few seconds, then off. The queue
+     retries the unfinished ones; every photo that ends up in the gallery opens normally.
+  4. As a guest, open the gallery on website and app: no "Image unavailable" cards, counts match.
 Done by:
 Device / browser:
 Build / version:
