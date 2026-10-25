@@ -3581,7 +3581,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #139 Long portrait and iPhone HDR videos stay on the GPU and play correctly
-Status:    TODO
+Status:    TODO (website PASS 2026-10-25; iPhone and Android still to check)
 Priority:  Medium
 Platform:  Website + App
 Brief:     The GPU worker now converts every long video itself (issue #141), including portrait
@@ -3597,14 +3597,14 @@ How to test:
      original to a computer, upload from the website. Expect: it plays everywhere, colours and
      brightness look like the iPhone Photos app (not dark, not grey).
   3. Optional: a ProRes or 4:2:2 camera file over 10 minutes. Expect: processes and plays.
-Done by:
-Device / browser:
+Done by: Claude (website only)
+Device / browser: Claude desktop app browser (Chromium, hls.js)
 Build / version:
-Date tested:
-Account used:
+Date tested: 2026-10-25
+Account used: newone@email.com (staging)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Steps 1+2 in one file: a real iPhone 13 Pro HDR clip (HLG, 10-bit HEVC 4K60, public sample) looped to 10.5 min with a portrait rotation flag, test139_iphone_hdr_portrait_10min.mov (4.2 GB), uploaded to test-face-new-155c through the website's chunked upload API. Ran on process_video_gpu_long, worker_type "... GPU decode" (all on the L4), 144 s, logged estimate Rs 4.2; no process_video_gpu_fallback row. 1080p/720p/480p are 608x1080 / 406x720 / 270x480, H.264 High 8-bit bt709, 10.5 min each; picture turned the same way as the source, colours normal (tone-mapped, matches the CPU path at the HLG reference white). Website gallery: plays, seek to 10:00 plays on. The poster is pale and 4K (new issue #145). Phones: play this video in test-face-new on Android and iPhone (Videos tab) before it is deleted.
 
 --------------------------------------------------------------------------------
 #140 Uploads only become photos when the file really arrived (issue #140)

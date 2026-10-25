@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 145
+Next issue number: 146
 
 =====================================================================
 ACTIVE ISSUES
@@ -1021,6 +1021,17 @@ Blocked by: -
 Found in: Device test #140 step 3 (airplane mode during an app upload), 2026-10-25
 Issue: Two problems in the app's upload path. (1) The upload queue gives up on a photo if the network is down for more than a few seconds: it has 3 attempts (MAX_UPLOAD_RETRIES in apps/mobile/lib/uploadQueue.ts) with a 2 s then 4 s wait, so all of them are used up while the phone is still offline, and the photo is marked failed instead of being uploaded when the network returns (31.jpg in check-fail-test-d8be). The host has to notice the failed popup and tap retry. Fix: don't count attempts while the phone is offline (wait for the network, e.g. @react-native-community/netinfo or expo-network if already installed), and/or retry failed items automatically when the network comes back. (2) When the API can't be reached, lib/storage.ts tries a fixed list of fallbacks that includes the production backend (https://evebash-production-0ae3.up.railway.app) even in a staging build, plus local dev addresses. A staging build should never send requests to production, and production shouldn't fall back to staging. Fix: use only EXPO_PUBLIC_API_BASE_URL (and the local dev hosts in __DEV__).
 How to reproduce: App, upload ~10 photos, turn on airplane mode for 10 seconds mid-upload, then off: the photo that was uploading ends as failed ("Permanent upload failure ... after 3 attempts" in the log), and the log shows requests to evebash-production-0ae3.up.railway.app.
+
+#145
+Listed: 2026-10-25
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Test #139 (iPhone HDR portrait video on the GPU worker), 2026-10-25
+Issue: Video posters (hls/<key>/poster.jpg) of HDR videos (iPhone HDR / HLG, PQ) look pale and washed out, and are full source size (a 4K iPhone video gives a 2160x3840, 2.6 MB JPEG). _transcode_video_core in modal_engine/main.py grabs the poster with a plain `ffmpeg -ss 1 -vframes 1` from the original: no HDR-to-SDR tone map and no resize. All workers (4-core, 16-core, both GPU workers) share this step, so it is not from #141; the streams themselves have normal colours. Fix idea (behind a video-gpu-switch key): run the poster through _sdr_8bit_filter (it tone-maps HDR and shrinks above 1080p) or take it from the 1080p stream after encoding.
+How to reproduce: Upload an iPhone HDR video (evebash-test/iphone13pro_hdr_4K60p.mov is a public sample) to any gallery; once processed, open hls/<storage_key>/poster.jpg: pale colours, 3840 px tall.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
