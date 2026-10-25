@@ -1453,7 +1453,8 @@ export default function EventDetailScreen() {
             : Promise.resolve([]),
           getEventPhotosPaginated(eventData.id, eventData.legacyId, 0, PHOTO_PAGE_SIZE, { includeHidden: isAdminViewActive }),
           getRetainedMediaIdsForEventGrace(eventData.id, eventData.legacyId),
-          getEventFavouritePhotos(eventData.id),
+          // An album opened by its own link also reads the main event's stars
+          getEventFavouritePhotos([eventData.id, eventData.parentId || '']),
         ]);
 
         const eventLogs = logs.filter(l => l.eventId === id || l.parentEventId === id);
@@ -1542,7 +1543,8 @@ export default function EventDetailScreen() {
       const [photoDataResult, retainedIds, favouriteRows] = await Promise.all([
         getEventPhotosPaginated(eventId, legacyId, 0, PHOTO_PAGE_SIZE * pageCount, { includeHidden: isAdminViewActive }),
         getRetainedMediaIdsForEventGrace(eventId, legacyId),
-        getEventFavouritePhotos(eventId),
+        // Stars are saved under the main event (older app versions saved them under the album)
+        getEventFavouritePhotos([eventId, event?.parentId || '', event?.id || '']),
       ]);
       setPhotos(photoDataResult.photos);
       setMediaTotals({ photos: photoDataResult.totalPhotos, videos: photoDataResult.totalVideos });
@@ -1956,7 +1958,9 @@ export default function EventDetailScreen() {
       return next;
     });
 
-    const result = await toggleEventFavouritePhoto(editableGallery.id, photoId, user.uid);
+    // Saved under the main event, as the website does; a star an older version saved under an album is removed too
+    const mainEventId = event?.parentId || event?.id || editableGallery.id;
+    const result = await toggleEventFavouritePhoto(mainEventId, photoId, user.uid, [editableGallery.id, ...subEvents.map(sub => sub.id)]);
     if (result.error) {
       setEventFavouritePhotoIds(prev => {
         const next = new Set(prev);

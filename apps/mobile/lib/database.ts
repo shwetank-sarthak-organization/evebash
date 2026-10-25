@@ -1464,14 +1464,16 @@ export async function getFavouritePhotosForEvents(eventIds: string[], options: M
     }
 }
 
-export async function getEventFavouritePhotos(eventId: string): Promise<EventFavouritePhoto[]> {
-    if (!eventId) return [];
+/** Stars saved under these galleries (an album reads its own and the main event's: stars are saved under the main event) */
+export async function getEventFavouritePhotos(eventId: string | string[]): Promise<EventFavouritePhoto[]> {
+    const eventIds = Array.from(new Set((Array.isArray(eventId) ? eventId : [eventId]).filter(Boolean)));
+    if (eventIds.length === 0) return [];
 
     try {
         const { data, error } = await supabase
             .from('event_favourite_photos')
             .select('*')
-            .eq('event_id', eventId)
+            .in('event_id', eventIds)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -1490,24 +1492,29 @@ export async function getEventFavouritePhotos(eventId: string): Promise<EventFav
     }
 }
 
-export async function toggleEventFavouritePhoto(eventId: string, photoId: string, markedBy?: string) {
+/**
+ * Stars a photo for the event's Primary Gallery, or removes the star. New stars are saved under `eventId` (the main
+ * event); `alsoEventIds` (the event's albums) are checked too, so a star saved under an album by an older app version
+ * is removed instead of a second one being added.
+ */
+export async function toggleEventFavouritePhoto(eventId: string, photoId: string, markedBy?: string, alsoEventIds: string[] = []) {
     if (!eventId || !photoId) return { favourited: false, error: 'Missing event or photo.' };
 
     try {
+        const eventIds = Array.from(new Set([eventId, ...alsoEventIds].filter(Boolean)));
         const { data: existing, error: selectError } = await supabase
             .from('event_favourite_photos')
             .select('id')
-            .eq('event_id', eventId)
-            .eq('photo_id', photoId)
-            .maybeSingle();
+            .in('event_id', eventIds)
+            .eq('photo_id', photoId);
 
         if (selectError) throw selectError;
 
-        if (existing) {
+        if (existing && existing.length > 0) {
             const { error: deleteError } = await supabase
                 .from('event_favourite_photos')
                 .delete()
-                .eq('id', existing.id);
+                .in('id', existing.map((row: { id: string }) => row.id));
             if (deleteError) throw deleteError;
             return { favourited: false };
         }

@@ -228,7 +228,8 @@ function EventPageContent() {
 
     const loadGalleryPhotos = async (gallery: Event, page = 0, append = false, overrideSubEvents?: Event[]) => {
         if (!append) {
-            const favouriteRows = await getEventFavouritePhotos(gallery.id);
+            // Stars are saved under the main event (older app versions saved them under the album)
+            const favouriteRows = await getEventFavouritePhotos([gallery.id, gallery.parentId || "", event?.id || ""]);
             setFavouriteMediaIds(new Set(favouriteRows.map(row => row.photoId)));
         }
         const currentMainEvent = gallery.type === 'main' ? gallery : event;

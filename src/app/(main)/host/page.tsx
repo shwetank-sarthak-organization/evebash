@@ -1331,7 +1331,7 @@ function DashboardContent() {
             setEventFavouritePreview(null);
             setEventFavouriteCount(0);
         }
-    }, [selectedMainEventId]);
+    }, [selectedMainEventId, eventDetailGalleries]);
 
     useEffect(() => {
         if (!selectedMainEventId || manageLevel !== "event-details") return;
@@ -1573,9 +1573,12 @@ function DashboardContent() {
         }
 
         try {
-            const favouriteRows = await getEventFavouritePhotos(eventId);
-            setEventFavouritePhotoIds(new Set(favouriteRows.map(row => row.photoId)));
-            setEventFavouriteCount(favouriteRows.length);
+            // Stars saved under the event, plus any an older app version saved under one of its albums
+            const albumIds = eventId === selectedMainEventId ? eventDetailGalleries.map(gallery => gallery.id) : [];
+            const favouriteRows = await getEventFavouritePhotos([eventId, ...albumIds]);
+            const favouriteIds = new Set(favouriteRows.map(row => row.photoId));
+            setEventFavouritePhotoIds(favouriteIds);
+            setEventFavouriteCount(favouriteIds.size);
 
             if (favouriteRows.length > 0) {
                 const favouritePhotos = await getFavouritePhotosForEvents([eventId], { includeHidden: true });
@@ -3502,7 +3505,7 @@ function DashboardContent() {
         if (!selectedMainEventId || !user?.uid) return;
 
         try {
-            const result = await toggleEventFavouritePhoto(selectedMainEventId, photoId, user.uid);
+            const result = await toggleEventFavouritePhoto(selectedMainEventId, photoId, user.uid, eventDetailGalleries.map(gallery => gallery.id));
             if (result.error) {
                 setStatus("error");
                 setMessage(result.error);
