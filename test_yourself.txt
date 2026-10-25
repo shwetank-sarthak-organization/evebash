@@ -3347,7 +3347,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #132 App: Classic White cover and gallery header match the website
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (iPhone and Android) + Website (step 8)
 Brief:     The app's Classic White guest page was a different design (gold buttons, title on the
@@ -3386,14 +3386,20 @@ How to test:
      Celebration" box is a pale card with a deep sage "Log in to join" button (no dark box or gold).
   11. Cover: no empty band under the < / Open Gallery / share buttons; all three still work. Scroll a
      big album (90+ photos) to the end and back: photos are there wherever you stop.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Claude (asked by Sarthak)
+Device / browser: iOS simulator, iPhone 17 Pro (Metro, current code)
+Build / version: dev build, staging code at d3a65ef
+Date tested: 2026-10-25
+Account used: host account (Sarthak), gallery wedding-fdd8 (samarth weds Jyoti)
 Screenshot / recording:
-Fix ref:
-Feedback:
+Fix ref:   d3a65ef (photo rows stayed empty after an album switch; divider after the photos removed)
+Feedback:  PASS on the iOS simulator: steps 1 (cover), 2, 3, 4, 6 (Royal Emerald unchanged), 7, 8, 9,
+           10 (Videos tab, Favourites switch), 11 (REC 2, 92 photos, end and back).
+           NOT tested yet (needed before #116 closes): Android and a smaller iPhone; step 1 with an
+           Anniversary gallery and a 30+ character title; step 3 video playback (doesn't play in the
+           simulator); step 5 (gallery without video / message); step 10 logged-out "Enter the
+           Celebration" box. Noted: albums show "Favourites only: 0" because the app counts favourites
+           saved under the album, not the main event (existing since 2026-09-21).
 
 --------------------------------------------------------------------------------
 #133 iPhone HDR and 10-bit videos play on every phone, with normal colours
