@@ -4,6 +4,8 @@
 
 /* Playfair Display (already loaded) instead of the Georgia that gallery-refinements.css gives every theme */
 .event-template-shell .classic-template .font-serif { font-family: var(--font-playfair-src), Georgia, serif; }
+/* The navbar's small-screen menu sits outside .classic-template, so its serif titles would fall back to Georgia */
+.event-template-shell .classic-nav__menu .font-serif { font-family: var(--font-playfair-src), Georgia, serif; }
 
 /* Top of the page: the date / place line and the title in capitals. The date's line box stays 20px tall, so the
    bigger text moves nothing below it. */

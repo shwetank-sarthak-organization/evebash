@@ -443,7 +443,8 @@ export function EventNavbar({
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         className={cn(
                             "fixed inset-0 z-40 backdrop-blur-xl md:hidden flex flex-col pt-24 px-8",
-                            hasTemplateChrome ? "" : "bg-white/95"
+                            hasTemplateChrome ? "" : "bg-white/95",
+                            isClassic && "classic-nav__menu"
                         )}
                         style={hasTemplateChrome ? {
                             backgroundColor: `${chromeBackgroundColor}f7`,
