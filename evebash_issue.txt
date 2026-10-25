@@ -726,24 +726,6 @@ Recommendation (in this order):
   Not recommended: only changing the 0.40 cut-off; a stronger model (buffalo_l/antelopev2 are non-commercial; re-index everything).
 How to reproduce: Find You on wedding-fdd8 with Sarthak's selfie: 44 results, most of the lower-scoring ones are the groom.
 
-#116
-Listed: 2026-10-24
-Platform: Both
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: video playback check on a real iPhone (test #132)
-Found in: Classic White (Wedding) theme review, code only (2026-10-24)
-Issue: The website and app Classic White are two different designs. The website is a centred title, quote and tilted white-matted cover (src/components/TemplateClassic.tsx); the app is a cover photo with the title on it, a sage frame and a dotted divider (apps/mobile/components/eventStyles/classicStyles.ts, apps/mobile/components/event/ThemeHeader.tsx). With the app download screen (#109) on, phone guests only ever see the app version.
-How to reproduce: Open the same Classic White gallery on the website and in the app.
-Update 1 (2026-10-24): App cover and gallery header now match the website (apps/mobile/components/classic/). Cover: date, title in capitals as "X & Y" in real Playfair (the app had Playfair mapped to Inter), sage divider, tilted white-mounted print (portrait on phones) with the theme line card, outlined "Open Gallery". Header: Back / Share, gallery name, date, the message in quotes, video in a white mat, [ Photos ] [ Videos ]. Album tabs sage instead of gold. Still different: the photo grid (2 columns of white-matted cards vs the website's justified rows) and the sage divider above the grid.
-Update 2 (2026-10-24): Website and app: the cover always shows the main event's title (and its theme line), also inside albums and on an album opened by its own link; the header next to the video shows the gallery's own name ("Home", "Rec 1"). App: albums grouped under one Collections tab with a menu, like the website.
-Update 3 (2026-10-24): App photo grid now justified rows like the website (two portraits or one landscape per row, 4px gaps, no white mats); sage divider above the grid removed; Photos / Videos tabs centred on the phone.
-Update 4 (2026-10-24): App Back and Share moved from the gallery header to the cover, as square icon-only buttons on either side of Open Gallery.
-Update 5 (2026-10-25, 963e5f5): App log-in prompts, empty gallery, Favourites switch and Videos tab in the Classic look; no empty band under the cover buttons (the pinned tabs' spacer now starts below the cover); the photo rows only draw photos near the screen. Still different: the video controls in the viewer (#142).
-Update 6 (2026-10-25): device test #132 passed on the iOS simulator (iPhone 17 Pro); found and fixed in d3a65ef: photo rows stayed empty after an album switch. Still open: Android, a smaller iPhone and the untested steps.
-Update 7 (2026-10-25): test #132 run again on the Android emulator and the iPhone 16e simulator (logged out, public Classic gallery): all pass; video plays on Android. Only video playback on a real iPhone is left.
-
 #117
 Listed: 2026-10-24
 Platform: Both
@@ -1050,6 +1032,25 @@ How to reproduce: App, as a guest, open wedding-fdd8 > Collections > Rec 1: "Fav
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#116
+Listed: 2026-10-24
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Classic White (Wedding) theme review, code only (2026-10-24)
+Issue: The website and app Classic White are two different designs. The website is a centred title, quote and tilted white-matted cover (src/components/TemplateClassic.tsx); the app is a cover photo with the title on it, a sage frame and a dotted divider (apps/mobile/components/eventStyles/classicStyles.ts, apps/mobile/components/event/ThemeHeader.tsx). With the app download screen (#109) on, phone guests only ever see the app version.
+How to reproduce: Open the same Classic White gallery on the website and in the app.
+Update 1 (2026-10-24): App cover and gallery header now match the website (apps/mobile/components/classic/). Cover: date, title in capitals as "X & Y" in real Playfair (the app had Playfair mapped to Inter), sage divider, tilted white-mounted print (portrait on phones) with the theme line card, outlined "Open Gallery". Header: Back / Share, gallery name, date, the message in quotes, video in a white mat, [ Photos ] [ Videos ]. Album tabs sage instead of gold. Still different: the photo grid (2 columns of white-matted cards vs the website's justified rows) and the sage divider above the grid.
+Update 2 (2026-10-24): Website and app: the cover always shows the main event's title (and its theme line), also inside albums and on an album opened by its own link; the header next to the video shows the gallery's own name ("Home", "Rec 1"). App: albums grouped under one Collections tab with a menu, like the website.
+Update 3 (2026-10-24): App photo grid now justified rows like the website (two portraits or one landscape per row, 4px gaps, no white mats); sage divider above the grid removed; Photos / Videos tabs centred on the phone.
+Update 4 (2026-10-24): App Back and Share moved from the gallery header to the cover, as square icon-only buttons on either side of Open Gallery.
+Update 5 (2026-10-25, 963e5f5): App log-in prompts, empty gallery, Favourites switch and Videos tab in the Classic look; no empty band under the cover buttons (the pinned tabs' spacer now starts below the cover); the photo rows only draw photos near the screen. Still different: the video controls in the viewer (#142).
+Update 6 (2026-10-25): device test #132 passed on the iOS simulator (iPhone 17 Pro); found and fixed in d3a65ef: photo rows stayed empty after an album switch. Still open: Android, a smaller iPhone and the untested steps.
+Update 7 (2026-10-25): test #132 run again on the Android emulator and the iPhone 16e simulator (logged out, public Classic gallery): all pass; video plays on Android. Only video playback on a real iPhone is left.
+Fixed in: cb4bba6 (2026-10-24) and the Classic White app commits after it, last d3a65ef (2026-10-25). Device test #132 passed on the iOS simulator (iPhone 17 Pro, iPhone 16e) and the Android emulator. Closed by Sarthak without the real-iPhone video check: the highlight video uses the shared app player (only the white frame is Classic), so check video playback on a physical iPhone in the next device-testing round.
+
 
 #136
 Listed: 2026-10-25
