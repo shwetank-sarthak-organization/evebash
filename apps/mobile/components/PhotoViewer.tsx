@@ -60,6 +60,9 @@ type ViewerVideoControls = {
 
 const VIDEO_VOLUME_SLIDER_WIDTH = 54;
 const VIDEO_CONTROLS_HIDE_DELAY_MS = 2500;
+// Space above and below the media in the host viewer (under the top controls / above the bottom bar)
+const HOST_VIEWER_PADDING_TOP = 112;
+const HOST_VIEWER_PADDING_BOTTOM = 28;
 const VIDEO_NATIVE_FULLSCREEN_OPTIONS: FullscreenOptions =
   Platform.OS === 'web'
     ? { enable: true }
@@ -191,6 +194,7 @@ function ViewerVideo({
   videoControlsRef,
   onPreviousMedia,
   onNextMedia,
+  onVideoSize,
 }: {
   uri: string;
   rawUri?: string;
@@ -201,7 +205,11 @@ function ViewerVideo({
   videoControlsRef?: React.MutableRefObject<ViewerVideoControls | null>;
   onPreviousMedia?: () => void;
   onNextMedia?: () => void;
+  // Issue #146: the picture's size once the player knows it, so the frame can take the video's shape
+  onVideoSize?: (width: number, height: number) => void;
 }) {
+  const onVideoSizeRef = useRef(onVideoSize);
+  onVideoSizeRef.current = onVideoSize;
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const navigation = useNavigation();
   const [player, setPlayer] = useState<VideoPlayer | null>(null);
@@ -348,9 +356,16 @@ function ViewerVideo({
         setDuration(nextDuration);
       }
     });
-    const sourceSubscription = player.addListener('sourceLoad', ({ duration: nextDuration }) => {
+    const reportVideoSize = (size?: { width: number; height: number } | null) => {
+      if (size && size.width > 0 && size.height > 0) onVideoSizeRef.current?.(size.width, size.height);
+    };
+    const sourceSubscription = player.addListener('sourceLoad', ({ duration: nextDuration, availableVideoTracks }) => {
       setCurrentTime(0);
       setDuration(Number.isFinite(nextDuration) && nextDuration > 0 ? nextDuration : 0);
+      reportVideoSize(availableVideoTracks?.[0]?.size);
+    });
+    const videoTrackSubscription = player.addListener('videoTrackChange', ({ videoTrack }) => {
+      reportVideoSize(videoTrack?.size);
     });
     const endSubscription = player.addListener('playToEnd', () => {
       setIsPlaying(false);
@@ -374,6 +389,7 @@ function ViewerVideo({
       playingSubscription.remove();
       timeSubscription.remove();
       sourceSubscription.remove();
+      videoTrackSubscription.remove();
       endSubscription.remove();
       statusSubscription.remove();
     };
@@ -929,7 +945,13 @@ export default function PhotoViewer({
     const isPortraitMedia = !isVideoMedia && safeAspectRatio < 1;
     const mediaWidth = Math.max(1, safeWidth - horizontalInset * 2);
     const landscapeStageHeight = Math.max(minMediaHeight, Math.min(preferredMediaHeight, maxMediaHeight));
-    const mediaHeight = isPortraitMedia ? mediaWidth / safeAspectRatio : landscapeStageHeight;
+    // Issue #146: a portrait video fills the screen below the top controls (like the website), controls still on screen
+    const portraitVideoStageHeight = Math.max(minMediaHeight, availableHeight - HOST_VIEWER_PADDING_TOP - HOST_VIEWER_PADDING_BOTTOM);
+    const mediaHeight = isPortraitMedia
+      ? mediaWidth / safeAspectRatio
+      : isVideoMedia && safeAspectRatio < 1
+        ? Math.min(mediaWidth / safeAspectRatio, portraitVideoStageHeight)
+        : landscapeStageHeight;
     const guestbookScrollY = Math.max(0, mediaHeight + 104);
 
     return {
@@ -971,9 +993,11 @@ export default function PhotoViewer({
 
   const handleHostImageLoad = (event: ImageLoadEventData | NativeSyntheticEvent<ImageLoadEventData>) => {
     const payload = 'nativeEvent' in event ? event.nativeEvent : event;
-    const width = Number(payload?.source?.width);
-    const height = Number(payload?.source?.height);
+    handleHostMediaSize(Number(payload?.source?.width), Number(payload?.source?.height));
+  };
 
+  // Photos report their size on load, videos once the player reads the stream (issue #146)
+  const handleHostMediaSize = (width: number, height: number) => {
     if (!(width > 0 && height > 0)) return;
 
     setLoadedImageSizes((prev) => {
@@ -1621,6 +1645,7 @@ export default function PhotoViewer({
                       customControls
                       onPreviousMedia={() => navigateViewer('prev')}
                       onNextMedia={() => navigateViewer('next')}
+                      onVideoSize={handleHostMediaSize}
                     />
                   ) : (
                     <ZoomablePhoto
@@ -2168,8 +2193,8 @@ const localStyles = StyleSheet.create({
   },
   hostViewerScrollContent: {
     alignItems: 'center',
-    paddingTop: 112,
-    paddingBottom: 28,
+    paddingTop: HOST_VIEWER_PADDING_TOP,
+    paddingBottom: HOST_VIEWER_PADDING_BOTTOM,
   },
   hostScrollableMedia: {
     alignItems: 'center',

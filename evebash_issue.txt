@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 146
+Next issue number: 147
 
 =====================================================================
 ACTIVE ISSUES
@@ -1012,6 +1012,17 @@ Issue: Video posters (hls/<key>/poster.jpg) of HDR videos (iPhone HDR / HLG, PQ)
 How to reproduce: Upload an iPhone HDR video (evebash-test/iphone13pro_hdr_4K60p.mov is a public sample) to any gallery; once processed, open hls/<storage_key>/poster.jpg: pale colours, 3840 px tall.
 Fix (code, switch off, not deployed): with the video switch's "poster_sdr" key on (video_gpu_switch.py poster-sdr on), the poster step in _transcode_video_core (all workers) probes the original and runs the poster through _poster_filter: HDR (HLG/PQ) gets the streams' CPU tone map (_sdr_8bit_filter: shrink to 1080p, mobius), an SDR source bigger than 1080p is only shrunk, anything else gets the old plain frame. If the filtered poster fails (e.g. HDR without colour tags, which zscale can't convert), the old command runs. Off = the old command for every video. Tested 2026-10-25 in both production images (jrottenberg 7.0 for the 4/16-core and old GPU workers, Jellyfin 7.1.4-3 for the all-formats GPU worker): iPhone HDR portrait 2160x3840 2.6 MB pale -> 608x1080 265 KB normal colours; SDR 4K 3840x2160 2.5 MB -> 1920x1080 0.8 MB; SDR 1080p unchanged (same bytes); HLG without primaries tags -> fallback to the old poster. Needs a Modal deploy, then the switch on and device test #141. Existing posters are not redone.
 Update (2026-10-25): deployed as Modal v132 (c2a7826, rollback v131), poster-sdr switched ON (Sarthak's OK). Live check: the 22 s iPhone HDR sample uploaded to test-face-new-155c (t145_iphone_hdr_poster.mov, 4-core worker) got a 1920x1080, 824 KB poster in normal colours (the #139 upload's old poster: 2160x3840, 2.6 MB, pale). Left: device test #141; both test videos stay in test-face-new-155c for the phone checks (#139, #141), then delete them.
+
+#146
+Listed: 2026-10-25
+Platform: App
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test #139 (portrait video in the app's viewer), 2026-10-25
+Issue: The app's photo viewer shows every video in a landscape-shaped frame, so a portrait phone video plays small with wide black bars on both sides. In apps/mobile/components/PhotoViewer.tsx, only photos may get a portrait frame (isPortraitMedia = !isVideoMedia && ...), and the frame's shape comes from the photos row's width/height, which videos don't have, so it falls back to 16:9. The website's player fills the screen height for the same video (608x1080 stream in a 718x771 box).
+How to reproduce: App, test-face-new-155c, Videos tab, open test139_iphone_hdr_portrait_10min.mov (or any portrait phone video): the picture is a narrow strip in a wide frame.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

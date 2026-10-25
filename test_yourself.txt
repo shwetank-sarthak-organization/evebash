@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 142
+Next test number: 143
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3659,6 +3659,28 @@ How to test:
      sample) to a test gallery from the website. Expect: on the website and in the app, the video
      tile's picture has the same colours and brightness as the video when it plays (not pale or grey).
   2. Upload a normal (non-HDR) phone video. Expect: its tile looks the same as before the change.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#142 Portrait videos fill the app's video viewer
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone + Android)
+Brief:     As the host, a portrait phone video opened in the app's viewer was a narrow strip inside a
+           wide frame (issue #146). Now the frame takes the video's shape and fills the screen height.
+Detail:    Needs an app build with the #146 fix (apps/mobile/components/PhotoViewer.tsx).
+How to test:
+  1. As the gallery owner, open test-face-new-155c > Videos and open a portrait video (a phone video
+     recorded upright). Expect: after a moment the video fills the height between the top buttons
+     and the likes row, no wide black bars; play, seek and full screen still work.
+  2. Open a normal landscape video. Expect: same as before (wide frame).
+  3. Swipe between a portrait video, a landscape video and a photo. Expect: each gets its own shape.
 Done by:
 Device / browser:
 Build / version:
