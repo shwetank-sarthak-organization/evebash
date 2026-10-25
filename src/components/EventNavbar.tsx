@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { ProfileIcon } from "@/components/ProfileIcon";
 import { royalDisplay } from "@/components/royal/royalFonts";
-import { displayCoupleTitle } from "@/components/royal/coupleNames";
+import { displayCoupleTitle } from "../../shared/text/coupleNames";
 
 interface EventNavbarProps {
     mainEventTitle: string;

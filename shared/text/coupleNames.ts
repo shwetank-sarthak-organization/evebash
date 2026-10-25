@@ -1,4 +1,4 @@
-// Same as the website (src/components/royal/coupleNames.ts); keep the two in step.
+// Website and app (one copy): "Name & Name" titles for Royal Emerald and Classic White.
 // Royal Emerald shows "Name & Name" titles as a couple. Hosts write the joiner in different ways, so "&", "+",
 // and the whole words "and" / "weds" (any letter case) all count. Each side may be at most 3 words, so titles
 // like "Sharma Family Get Together and Dinner Night" stay a single title.

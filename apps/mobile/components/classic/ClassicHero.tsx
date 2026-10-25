@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, type ImageSourcePropType, typ
 import { Image as ExpoImage } from 'expo-image';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Ellipse, Path } from 'react-native-svg';
-import { displayCoupleTitle } from '@/components/royal/coupleNames';
+import { displayCoupleTitle } from '../../../../shared/text/coupleNames';
 import { classicCoverLine } from '../../../../shared/themes/classicCoverLine';
 import type { ClassicFontSet } from './classicFonts';
 

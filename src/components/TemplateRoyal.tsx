@@ -7,7 +7,7 @@ import { Event } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { Crown } from "lucide-react";
 import { royalDisplay, royalScript, royalSerif } from "@/components/royal/royalFonts";
-import { coupleInitials, displayCoupleTitle, splitCoupleNames } from "@/components/royal/coupleNames";
+import { coupleInitials, displayCoupleTitle, splitCoupleNames } from "../../shared/text/coupleNames";
 import {
     RoyalDivider,
     RoyalFiligreeFrame,

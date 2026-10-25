@@ -3,7 +3,7 @@
 import { Event } from "@/lib/database";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { ClassicCoverPrint } from "@/components/classic/ClassicCoverPrint";
-import { displayCoupleTitle } from "@/components/royal/coupleNames";
+import { displayCoupleTitle } from "../../shared/text/coupleNames";
 import { classicCoverLine } from "../../shared/themes/classicCoverLine";
 
 interface TemplateClassicProps {

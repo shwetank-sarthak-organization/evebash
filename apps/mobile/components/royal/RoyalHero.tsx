@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, type ImageSourcePropType } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { coupleInitials, splitCoupleNames } from './coupleNames';
+import { coupleInitials, splitCoupleNames } from '../../../../shared/text/coupleNames';
 import { RoyalFiligreeFrame, RoyalFlourish, RoyalPaperCard, RoyalScreenCorner, RoyalWaxSeal } from './RoyalOrnaments';
 import type { RoyalFontSet } from './royalFonts';
 

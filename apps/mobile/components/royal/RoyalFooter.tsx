@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { displayCoupleTitle } from './coupleNames';
+import { displayCoupleTitle } from '../../../../shared/text/coupleNames';
 import { ROYAL_GOLD, RoyalCrown } from './RoyalOrnaments';
 import type { RoyalFontSet } from './royalFonts';
 

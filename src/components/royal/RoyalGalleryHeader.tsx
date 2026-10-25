@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Check, ChevronLeft, Play, Share2 } from "lucide-react";
 import { HLSVideoPlayer } from "@/components/ui/HLSVideoPlayer";
-import { coupleInitials } from "@/components/royal/coupleNames";
+import { coupleInitials } from "../../../shared/text/coupleNames";
 import { RoyalCrest, RoyalPlaqueCorner, RoyalTitleRule } from "@/components/royal/RoyalOrnaments";
 
 // Top of the gallery section in the Royal Emerald design (styles in src/app/royal-emerald.css):

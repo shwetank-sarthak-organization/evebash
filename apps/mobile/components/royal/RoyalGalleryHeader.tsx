@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { GalleryHighlightVideo } from '@/components/event/GalleryHighlightVideo';
 import type { GalleryVideo } from '@/lib/database';
-import { coupleInitials } from './coupleNames';
+import { coupleInitials } from '../../../../shared/text/coupleNames';
 import { RoyalCrest, RoyalPlaqueCorner, RoyalTitleRule } from './RoyalOrnaments';
 import type { RoyalFontSet } from './royalFonts';
 
