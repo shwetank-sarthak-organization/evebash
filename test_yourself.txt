@@ -3395,10 +3395,16 @@ Screenshot / recording:
 Fix ref:   d3a65ef (photo rows stayed empty after an album switch; divider after the photos removed)
 Feedback:  PASS on the iOS simulator: steps 1 (cover), 2, 3, 4, 6 (Royal Emerald unchanged), 7, 8, 9,
            10 (Videos tab, Favourites switch), 11 (REC 2, 92 photos, end and back).
-           NOT tested yet (needed before #116 closes): Android and a smaller iPhone; step 1 with an
-           Anniversary gallery and a 30+ character title; step 3 video playback (doesn't play in the
-           simulator); step 5 (gallery without video / message); step 10 logged-out "Enter the
-           Celebration" box. Noted: albums show "Favourites only: 0" because the app counts favourites
+           Second run 2026-10-25 (Claude): Android emulator (Pixel, Android 16, 1080x2400) and iPhone 16e
+           simulator, logged out, public Classic gallery 10-oct-reject-73a7: cover (title in capitals,
+           theme card, print, < / Open Gallery / share), bottom bar, Open Gallery, header, Videos tab,
+           Collections menu, and the logged-out "Enter the Celebration" pale card with the deep sage
+           "Log in to join" button all PASS on both. The highlight video plays on Android (frames
+           change); on the iPhone simulator it doesn't, as before (simulator limit). Gallery without a
+           video: no frame shown (Rec albums). Checked in code, as no gallery has these: Anniversary
+           line "Still choosing each other, every year."; "Asha weds Raj / AND / +" -> "Asha & Raj",
+           long titles unchanged and sized down (21-36 pt, up to 3 lines, shrinks to fit); no message =
+           no message line. Left for a real device: video playback on an iPhone. Noted: albums show "Favourites only: 0" because the app counts favourites
            saved under the album, not the main event (existing since 2026-09-21).
 
 --------------------------------------------------------------------------------
