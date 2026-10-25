@@ -958,13 +958,15 @@ Platform: Both
 Priority: Low
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: Sarthak: set B2_DELETE_ALL_FILE_VERSIONS=true on Railway api-staging (whenever convenient)
+Blocked by: End-to-end delete check on staging
 Found in: #134 fix (2026-10-24)
 Issue: Two loose ends from #134. (1) deleteB2File in apps/backend/src/routes/media.ts (deleting a single file: a photo/video original, preview, thumbnail, grid image) still lists file names only, so a file written twice (e.g. a preview remade by a photo retry or by rotate) leaves its older version in B2 after the delete; B2_DELETE_ALL_VERSIONS doesn't cover it. (2) Videos deleted before 2026-10-25 may have left older file versions in hls/ (any video that was retried or handed from the GPU to the 16-core worker). Fix: use b2_list_file_versions in deleteB2File too, behind the same flag; run scripts/b2_hls_orphan_sweep.py (list first, delete with Sarthak's OK) to find leftovers.
 How to reproduce: Upload a photo, have its preview remade, delete the photo, list versions of <key>-preview.webp in B2: one version is left.
 Fix (code, flag off, not live): new deleteAllB2FileVersions in apps/backend/src/services/b2DeleteAllVersions.ts lists b2_list_file_versions for the exact file name and deletes every version (names that only start with it, like <key>-preview.webp next to <key>, are left alone). Both deleteB2File copies (routes/media.ts: photo/video delete, cancelled uploads, profile picture, album files, replaced video thumbnails; routes/admin.ts: admin deletes) use it only when Railway B2_DELETE_ALL_FILE_VERSIONS=true. Its own flag, not B2_DELETE_ALL_VERSIONS as first suggested above, because that one is already on and would have switched this on at the next Railway deploy. Nothing relies on old versions: rotate's "versioned links" are ?v= cache-busting in the URL, and rotate already deletes the old versions itself. 4 new unit tests (9 in the file), backend suite 99/99. Real B2 check under bench/t136/ (a preview written 3 times next to its original): old delete 3 -> 2 versions and the preview still visible; new delete 3 -> 0, original and a neighbour file kept; test files removed.
 Leftovers: new scripts/b2_old_versions_sweep.py lists (read-only by default) every file version billed for nothing, per top-level folder: "hidden" (all versions of a file whose newest entry is a delete marker) and "older" (older versions under a file that is still there; the newest is always kept); files changed in the last 2 days are skipped; --delete <prefix> ... removes them, only with Sarthak's OK.
 Scan 2026-10-25 (read-only): 35,634 files, 130.34 GB, 0 hidden and 0 older versions anywhere; scripts/b2_hls_orphan_sweep.py: 68 streaming folders (23.57 GB), 0 orphans. Why nothing: the EveBash bucket has a lifecycle rule daysFromHidingToDeleting=1, so B2 deletes every replaced or hidden version one day later. So this bug only leaves a file behind when it is deleted within about a day of being rewritten (e.g. a photo deleted right after a retry or rotate); the leftover is then the visible older version, which the lifecycle rule does not remove. Low impact; turn the flag on when convenient. Nothing to clean up now.
+2026-10-25: B2_DELETE_ALL_FILE_VERSIONS=true set on Railway api-staging and deployed (Sarthak).
+
 
 #137
 Listed: 2026-10-25
