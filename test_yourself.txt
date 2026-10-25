@@ -3652,6 +3652,8 @@ Brief:     The still picture shown on a video tile before it plays (the poster) 
            videos and a full 4K image (issue #145). With the fix it uses the same colours as the video.
 Detail:    Only after the Modal deploy with #145 AND the switch on
            (modal_engine/video_gpu_switch.py poster-sdr on). Existing videos keep their old poster.
+           Ready: Modal v132 deployed and poster-sdr on (2026-10-25). Ready-made: t145_iphone_hdr_poster.mov
+           in test-face-new-155c has the new poster; test139_iphone_hdr_portrait_10min.mov has an old one.
 How to test:
   1. Upload an iPhone HDR video (any length; evebash-test/iphone13pro_hdr_4K60p.mov is a public
      sample) to a test gallery from the website. Expect: on the website and in the app, the video
