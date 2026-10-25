@@ -1000,17 +1000,6 @@ Found in: App Classic White check in the simulator (2026-10-25)
 Issue: In the app's photo viewer on Classic White, the video controls bar (play, previous/next, time, volume, settings, full screen) draws dark green icons on its dark gradient, so the controls are almost invisible. The viewer itself follows the Classic colours (white background, light action panel). apps/mobile/components/PhotoViewer.tsx; it had uncommitted work from another session at the time, so it wasn't changed here.
 How to reproduce: App, Classic White gallery, Videos tab, open a video: the bar at the bottom of the video is dark with near-invisible dark icons.
 
-#143
-Listed: 2026-10-25
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Device test #132 in the iOS simulator (2026-10-25)
-Issue: In an album, the guest "Favourites only" switch always says "0 in Photos" and shows nothing, although the host has favourited photos in that album (wedding-fdd8: 5 in Rec 1, 2 in Rec 10, 3 in Reception 5). The host's favourites are saved under the main event (event_favourite_photos.event_id = the main gallery), but in an album the app loads favourites by the album's own id (loadPhotos in apps/mobile/app/events/[id].tsx calls getEventFavouritePhotos(album id)). Home is right (it loads favourites for the main event and all albums). Existing since 2026-09-21, not from the Classic White work. Check the website's album view for the same behaviour before fixing.
-How to reproduce: App, as a guest, open wedding-fdd8 > Collections > Rec 1: "Favourites only: 0 in Photos". Home shows the 10 favourites.
-
 #144
 Listed: 2026-10-25
 Platform: App
@@ -1037,6 +1026,18 @@ Fix (code, switch off, not deployed): with the video switch's "poster_sdr" key o
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#143
+Listed: 2026-10-25
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test #132 in the iOS simulator (2026-10-25)
+Issue: In an album, the guest "Favourites only" switch always says "0 in Photos" and shows nothing, although the host has favourited photos in that album (wedding-fdd8: 5 in Rec 1, 2 in Rec 10, 3 in Reception 5). The host's favourites are saved under the main event (event_favourite_photos.event_id = the main gallery), but in an album the app loads favourites by the album's own id (loadPhotos in apps/mobile/app/events/[id].tsx calls getEventFavouritePhotos(album id)). Home is right (it loads favourites for the main event and all albums). Existing since 2026-09-21, not from the Classic White work. Check the website's album view for the same behaviour before fixing.
+How to reproduce: App, as a guest, open wedding-fdd8 > Collections > Rec 1: "Favourites only: 0 in Photos". Home shows the 10 favourites.
+Fixed in: 58575f0 (2026-10-25). Cause was on both platforms: the website host page saved stars under the main event, the app under the album, and both guest album views read only the album's. Now both save under the main event and album views read the album's and the main event's stars; un-starring removes a star saved under an album too. Checked rec-1-f165: Favourites only 5 on the website and in the app.
+
 #140
 Listed: 2026-10-25
 Platform: Both
