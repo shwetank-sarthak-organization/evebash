@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 143
+Next issue number: 144
 
 =====================================================================
 ACTIVE ISSUES
@@ -1004,6 +1004,7 @@ Still to do: (1) find which upload path leaves the row without a file (website a
 Update 1 (2026-10-25): Likely causes found in the save routes (apps/backend/src/routes/media.ts). (a) No save route checked that the file was in B2: /save-photo and /save-photo-batch (website) saved any storageKey, and /mobile/save-photo-batch checked but saved anyway (its not_uploaded answer was never used, although the app re-uploads on it). (b) /save-photo deleted the uploaded file when its database save failed (rollbackB2Upload) and returned 500, and the website (src/lib/storage.ts) retries a 500, so the retry saved a row for the file the first try had just deleted. The rec-7-6230 keys have the website's name format (user-time-uuid-name). Fixed in ed13daa behind VERIFY_UPLOAD_BEFORE_SAVE (off): all three routes refuse rows whose file B2 says isn't there (a failed check doesn't block), /save-photo keeps the file on a database error, and the host page shows such files as failed ("Didn't finish uploading"). Still to do: switch it on in Railway staging and run test #140; count affected galleries and decide on the existing rows (rec-7-6230 has 26).
 Update 2 (2026-10-25): VERIFY_UPLOAD_BEFORE_SAVE=true is on in Railway (staging), set by Sarthak. Checked against api-staging: /save-photo answered 409 and saved nothing, /save-photo-batch and /mobile/save-photo-batch reported the missing file (notUploaded / not_uploaded) and saved nothing; real uploads through the website and app routes saved and were processed (thumbnails 200). Test photos deleted afterwards. Still to do: device test #140; count galleries with such rows (rec-7-6230 has 26) and decide delete or re-upload; check they don't count against storage.
 
+Update 3 (2026-10-25): Counted on live data: only rec-7-6230 has such rows (26 photos, 233 MB); no other gallery. They count against the host's storage: the event storage total (vault_event_storage_bytes, supabase/migrations/20261022010000_album_proofing.sql) sums photos.size for every row, whatever its status. Decision needed: delete the 26 rows (their files don't exist; frees 233 MB of counted storage) or ask the host to re-upload.
 How to reproduce: Open rec-7-6230 as the host: 26 photos with "Processing Failed". Before this change, guests saw 16+ "Image unavailable" cards. curl -I https://media.evebash.com/events/rec-7-6230/photos/e8848fc1-d1b0-4d83-84a0-5b9b26f3f9e9-1790513547861-c9fd11a5-899f-482b-b4d3-b7e460ad0002-7C0A9725.JPG returns 404.
 
 #141
@@ -1031,6 +1032,17 @@ Blocked by: -
 Found in: App Classic White check in the simulator (2026-10-25)
 Issue: In the app's photo viewer on Classic White, the video controls bar (play, previous/next, time, volume, settings, full screen) draws dark green icons on its dark gradient, so the controls are almost invisible. The viewer itself follows the Classic colours (white background, light action panel). apps/mobile/components/PhotoViewer.tsx; it had uncommitted work from another session at the time, so it wasn't changed here.
 How to reproduce: App, Classic White gallery, Videos tab, open a video: the bar at the bottom of the video is dark with near-invisible dark icons.
+
+#143
+Listed: 2026-10-25
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Device test #132 in the iOS simulator (2026-10-25)
+Issue: In an album, the guest "Favourites only" switch always says "0 in Photos" and shows nothing, although the host has favourited photos in that album (wedding-fdd8: 5 in Rec 1, 2 in Rec 10, 3 in Reception 5). The host's favourites are saved under the main event (event_favourite_photos.event_id = the main gallery), but in an album the app loads favourites by the album's own id (loadPhotos in apps/mobile/app/events/[id].tsx calls getEventFavouritePhotos(album id)). Home is right (it loads favourites for the main event and all albums). Existing since 2026-09-21, not from the Classic White work. Check the website's album view for the same behaviour before fixing.
+How to reproduce: App, as a guest, open wedding-fdd8 > Collections > Rec 1: "Favourites only: 0 in Photos". Home shows the 10 favourites.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
