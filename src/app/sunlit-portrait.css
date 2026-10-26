@@ -5,6 +5,10 @@
    Palette also in src/lib/webTemplateTheme.ts: paper #FBF8F3, ink #1F1B17, muted #6B6158 (5.8:1), clay #A24E30 (5.6:1). */
 .portrait-template, .portrait-nav, .portrait-nav__menu {
   --sp-display: var(--font-portrait-display), var(--font-playfair-src), Georgia, serif;
+  /* The cover's date line ("We're getting married" / "Happily married since"): size and the hairline stroke that makes
+     Instrument Serif (one weight only) read as bold. Navbar links and Back / Share use the same. */
+  --sp-label-size: clamp(20px, 1.9vw, 28px);
+  --sp-label-stroke: .6px;
   --sp-paper: #FBF8F3;
   --sp-ink: #1F1B17;
   --sp-muted: #6B6158;
@@ -46,10 +50,10 @@
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
   margin-bottom: 0;
   font-family: var(--sp-display);
-  font-size: clamp(20px, 1.9vw, 28px);
+  font-size: var(--sp-label-size);
   line-height: 1.25;
   /* Instrument Serif has one weight; a hairline stroke makes the line read as bold over busy photos */
-  -webkit-text-stroke: .6px currentColor;
+  -webkit-text-stroke: var(--sp-label-stroke) currentColor;
   paint-order: stroke fill;
   text-shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 2px 16px rgba(0, 0, 0, .45);
 }
@@ -117,9 +121,9 @@
   background: none;
   color: var(--sp-ink);
   font-family: var(--sp-display);
-  font-size: clamp(18px, 1.4vw, 21px);
+  font-size: var(--sp-label-size);
   /* Bold, like the cover's date line (Instrument Serif has one weight) */
-  -webkit-text-stroke: .5px currentColor;
+  -webkit-text-stroke: var(--sp-label-stroke) currentColor;
   paint-order: stroke fill;
   transition: color .2s ease, opacity .2s ease;
 }
@@ -296,6 +300,8 @@
 .portrait-nav .classic-nav__title {
   font-family: var(--sp-display);
   font-size: clamp(1.6rem, 2.1vw, 2rem);
+  -webkit-text-stroke: var(--sp-label-stroke) currentColor;
+  paint-order: stroke fill;
   font-weight: 400;
   line-height: 1;
   letter-spacing: -.005em;
@@ -308,7 +314,11 @@
   padding: 6px 0;
   color: inherit;
   font-family: var(--sp-display);
-  font-size: clamp(17px, 1.35vw, 20px);
+  /* Same size and weight as the cover's date line */
+  font-size: var(--sp-label-size);
+  line-height: 1.2;
+  -webkit-text-stroke: var(--sp-label-stroke) currentColor;
+  paint-order: stroke fill;
   font-weight: 400;
   letter-spacing: .005em;
   text-transform: none;
@@ -357,7 +367,10 @@
 .portrait-nav__menu-item--active { color: var(--sp-clay); }
 /* Small-screen menu: the title and items in the serif, normal weight */
 .event-template-shell .portrait-nav__menu .font-serif { font-family: var(--sp-display); font-style: normal; font-weight: 400; }
-.portrait-nav__menu a, .portrait-nav__menu button { font-family: var(--sp-display); font-weight: 400; font-size: 24px; }
+.portrait-nav__menu a, .portrait-nav__menu button {
+  font-family: var(--sp-display); font-weight: 400; font-size: 24px;
+  -webkit-text-stroke: var(--sp-label-stroke) currentColor; paint-order: stroke fill;
+}
 .portrait-nav__menu p { font-family: var(--font-inter-src), ui-sans-serif, system-ui, sans-serif; }
 
 @media (prefers-reduced-motion: reduce) {
