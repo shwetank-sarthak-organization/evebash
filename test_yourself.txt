@@ -4016,32 +4016,45 @@ Platform:  Website
 Brief:     A new wedding theme, "Confetti Circle": the cover photo fills the first screen with a big
            white circle in the middle. In the circle: the couple's names in tall pink-to-orange
            capitals with "- and -" between them, the date as "March | 28 | 2025" and the place; a
-           dark tag with the couple's initials as "S ♥ R" (red heart) and "Happily married" on the circle's top edge; pink and
+           dark tag on the circle's top edge with a red heart and the gallery's welcome message ("Happily
+           married" when there is none; a long message gets a wider tag, at most 4 lines); pink and
            orange paint specks round the circle; a torn-paper edge at the bottom of the photo. On a computer
            the tag starts right under the top bar and the circle reaches down to the torn edge. The circle
            is see-through (70% white). The top bar is frosted white with the couple's names in
            the middle (the "&" is a pink heart), Home and Collections on the left, Find You and Download
            All on the right, all in tall narrow capitals; solid white once you scroll. On phones the names
-           are on the left and the menu button on the right. Below the photo the gallery looks like
-           Classic White.
-Detail:    Commits ef1dece, b708222 (centred navbar, see-through circle), 3f44228 (circle lower, 90%), a981b06 (upright "S ♥ R" tag) , 30d07b9 (circle fills the cover) and 4aa3f34 (70% white): src/components/TemplateConfetti.tsx, src/app/confetti-circle.css,
+           are on the left and the menu button on the right. Below the photo: "We're getting married!",
+           the highlight video (or, without one, the cover photo) in a frame that fades out at its edges
+           with paint specks and a white "Sophia ♥ Robert" ribbon, the bride on the left and the groom on
+           the right (placeholder words and social icons for now, todo #10). Then the gallery looks like
+           Classic White, without its own video.
+Detail:    Commits ef1dece, b708222 (centred navbar, see-through circle), 3f44228 (circle lower, 90%), a981b06 (upright "S ♥ R" tag), 30d07b9 (circle fills the cover), 4aa3f34 (70% white) and d187abe (couple section, message on the tag): src/components/TemplateConfetti.tsx, src/app/confetti-circle.css,
            src/components/confetti/confettiFonts.ts, src/components/EventNavbar.tsx (variant "confetti"),
            theme id "confetti". Website only: the app has no Confetti Circle, so don't check it in the app.
 How to test:
   1. Log in on staging as a host, open a wedding gallery's design settings and look at the themes.
      Expect: "Confetti Circle" is offered with the other wedding themes. Pick it and save.
   2. Open the guest page on a computer. Expect: the circle as described above, names and date fully
-     inside the circle, the tag's initials readable, a round dark arrow button at the bottom right.
+     inside the circle, the heart and the gallery's message readable in the tag, a round dark arrow
+     button at the bottom right.
   3. Click each top-bar link: Home, a gallery under Collections, Find You, Download All. Expect: each
      does what it does on Classic White. Scroll down: the bar turns solid white.
   4. Scroll back up and click the round arrow. Expect: the page scrolls to the gallery and its title
      is not hidden under the top bar.
-  5. Try a title that isn't two names (e.g. "Sharma Wedding"): one line of big gradient capitals and
-     no initials on the tag. Try long names (e.g. "Alexandrina and Maximilian"): smaller, still inside
+  5. Try a title that isn't two names (e.g. "Sharma Wedding"): one line of big gradient capitals, and
+     no bride / groom columns under the cover (just the video and the title on the ribbon). Try long names (e.g. "Alexandrina and Maximilian"): smaller, still inside
      the circle. Try a gallery with no date, and a cover set to "fit" and moved / zoomed in the host page.
   6. Open the guest page on a phone with the website (skip if it shows the "Get the app" screen,
-     #109). Expect: the circle fills the width, the tag's initials are upright and inside the tag,
-     the arrow button sits under the circle.
+     #109). Expect: the circle fills the width, the heart and message fit inside the tag, the arrow
+     button sits under the circle; under the cover the heading, the video frame, then the bride and
+     the groom side by side.
+  7. Give the gallery a highlight video (host page > Cinematic Highlight Video). Expect: under the cover
+     its poster in the faded frame with a pink play button; press it: the film plays in a plain 16:9
+     box with its controls, the ribbon under it. The gallery header below has no second copy of it.
+     Remove the video: the frame shows the cover photo, no play button.
+  8. Change the welcome message: empty (tag says "Happily married"), short (e.g. "Save the date", in
+     capitals), and the full 200 characters (wider tag, normal letters, 4 lines ending in "…", not
+     touching the names; the whole message is in the gallery header below).
 Done by:
 Device / browser:
 Build / version:

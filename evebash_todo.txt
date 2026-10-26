@@ -32,9 +32,9 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 10
+Next todo number: 11
 
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 
 =====================================================================
 ACTIVE TODOS
@@ -202,6 +202,30 @@ Brief:        The website has a new wedding theme "Sunlit Portrait" (id "portrai
               Keep the web and app pickers the same (src/lib/hiddenTemplates.test.ts checks the
               app list).
 Done in:      -
+
+#10 Confetti Circle: bride and groom details in the theme editor
+Listed:       2026-10-27
+Platform:     Website
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Agreed
+Effort:       M
+Suggested by: Sarthak (2026-10-27: "use dummy data and add it to todo list")
+Discussed:    Yes
+Decision:     2026-10-27 Sarthak: ship the couple section with placeholder text first; hosts fill the
+              real details later in the theme editor (Preview theme in the host section).
+Owner:        Unassigned
+Depends on:   -
+Brief:        The Confetti Circle theme (id "confetti") has a section under the cover: "We're getting
+              married!", the bride on the left, the highlight video in a faded frame in the middle,
+              the groom on the right (src/components/confetti/ConfettiCoupleSection.tsx). Each person
+              shows a few words and Facebook / Instagram / X icons, but these are placeholders for
+              every gallery (PLACEHOLDER_BIO / PLACEHOLDER_SOCIALS) and the icons don't link anywhere.
+              Add fields for them to the theme editor you reach from Preview theme in the host
+              section: the bride's and groom's name (default: the two names in the gallery title),
+              a short bio each (set a max length and check it fits the column), and up to three
+              social links each. Save them on the main event and show them on every album. Hide an
+              icon with no link, and the bio line when it's empty.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
