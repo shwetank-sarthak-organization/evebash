@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { ProfileIcon } from "@/components/ProfileIcon";
 import { royalDisplay } from "@/components/royal/royalFonts";
 import { midnightScript } from "@/components/midnight/midnightFonts";
+import { portraitDisplay } from "@/components/portrait/portraitFonts";
 import { displayCoupleTitle } from "../../shared/text/coupleNames";
 
 interface EventNavbarProps {
@@ -32,8 +33,10 @@ interface EventNavbarProps {
     chromeBorderColor?: string;
     /** "royal": floating gold-edged bar for the Royal Emerald design (styles in src/app/royal-emerald.css).
      *  "classic": Classic White, full width between two thin sage lines (styles in src/app/classic-white.css)
-     *  "midnight": Midnight Hero, script title on the photo and the links in a glass pill (styles in src/app/midnight-hero.css) */
-    variant?: "royal" | "classic" | "midnight";
+     *  "midnight": Midnight Hero, script title on the photo and the links in a glass pill (styles in src/app/midnight-hero.css)
+     *  "portrait": Sunlit Portrait, Classic White's links in white on the cover photo, then a soft white bar once the guest
+     *  scrolls (styles in src/app/sunlit-portrait.css) */
+    variant?: "royal" | "classic" | "midnight" | "portrait";
 }
 
 type EventNavLink = {
@@ -84,9 +87,9 @@ export function EventNavbar({
     }, []);
 
     // Royal Emerald: the bar sits between the hero's top corners until the guest scrolls.
-    // Midnight Hero: the bar has no background over the cover photo until the guest scrolls.
+    // Midnight Hero and Sunlit Portrait: the bar has no background over the cover photo until the guest scrolls.
     useEffect(() => {
-        if (variant !== "royal" && variant !== "midnight") return;
+        if (variant !== "royal" && variant !== "midnight" && variant !== "portrait") return;
         const update = () => setScrolledPastTop(window.scrollY > 40);
         const frame = window.requestAnimationFrame(update);
         window.addEventListener("scroll", update, { passive: true });
@@ -122,7 +125,9 @@ export function EventNavbar({
     const sharedQuery = isShared ? "?shared=true" : "";
     const hasTemplateChrome = Boolean(chromeBackgroundColor);
     const isRoyal = variant === "royal";
-    const isClassic = variant === "classic";
+    const isPortrait = variant === "portrait";
+    // Sunlit Portrait has Classic White's links and menu; only the bar itself differs (sunlit-portrait.css)
+    const isClassic = variant === "classic" || isPortrait;
     const isMidnight = variant === "midnight";
     // Royal Emerald, Classic White and Midnight Hero draw their own colours from CSS classes instead of the inline theme colours
     const useInlineChrome = !isRoyal && !isClassic && !isMidnight && hasTemplateChrome;
@@ -240,6 +245,7 @@ export function EventNavbar({
                 initial={{ y: -100 }}
                 animate={{ y: 0 }}
                 className={isRoyal ? cn("royal-nav", scrolledPastTop && "royal-nav--scrolled", royalDisplay.variable)
+                    : isPortrait ? cn("portrait-nav", (scrolledPastTop || mobileMenuOpen) && "portrait-nav--solid", portraitDisplay.variable)
                     : isClassic ? cn("classic-nav", scrolledPastTop && "classic-nav--scrolled")
                     : isMidnight ? cn("midnight-nav", scrolledPastTop && "midnight-nav--scrolled", midnightScript.variable)
                     : cn(
@@ -252,7 +258,7 @@ export function EventNavbar({
                     color: navTextColor,
                 } : undefined}
             >
-                <div className={cn("flex items-center justify-between gap-4", isClassic ? "classic-nav__bar" : isRoyal || isMidnight ? "w-full" : "max-w-7xl mx-auto")}>
+                <div className={cn("flex items-center justify-between gap-4", isPortrait ? "portrait-nav__bar" : isClassic ? "classic-nav__bar" : isRoyal || isMidnight ? "w-full" : "max-w-7xl mx-auto")}>
                     {/* Left: Main Event Title */}
                     <Link
                         href={`${basePath}${sharedQuery}`}
@@ -380,7 +386,7 @@ export function EventNavbar({
                                 type="button"
                                 onClick={onDownloadZip}
                                 disabled={isZipping}
-                                className={isRoyal ? "royal-nav__link" : isMidnight ? "midnight-nav__link midnight-nav__link--outline" : isClassic ? "classic-nav__link" : cn(
+                                className={isRoyal ? "royal-nav__link" : isMidnight ? "midnight-nav__link midnight-nav__link--outline" : isPortrait ? "classic-nav__link portrait-nav__cta" : isClassic ? "classic-nav__link" : cn(
                                     "px-3.5 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 border disabled:opacity-50",
                                     hasTemplateChrome
                                         ? "hover:opacity-85 hover:shadow-sm"
@@ -425,7 +431,8 @@ export function EventNavbar({
                         <button
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                             className="p-2 rounded-full active:scale-95 transition-transform"
-                            style={hasTemplateChrome ? { color: navTextColor } : undefined}
+                            // Sunlit Portrait: white on the photo, dark on the solid bar (sunlit-portrait.css)
+                            style={hasTemplateChrome && !isPortrait ? { color: navTextColor } : undefined}
                             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
                             aria-expanded={mobileMenuOpen}
                         >

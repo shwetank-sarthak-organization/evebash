@@ -580,8 +580,9 @@ function EventPageContent() {
 
     // Royal Emerald draws its own gallery header (crest, title, welcome plaque, Back / Share, Photos / Videos)
     const isRoyalGallery = displayEvent.templateId === "royal";
-    // Classic White shows the gallery message in its own gallery header and styles the shared buttons itself (classic-white.css)
-    const isClassicGallery = displayEvent.templateId === "classic";
+    // Classic White shows the gallery message in its own gallery header and styles the shared buttons itself (classic-white.css).
+    // Sunlit Portrait uses the same gallery section below its cover photo.
+    const isClassicGallery = displayEvent.templateId === "classic" || displayEvent.templateId === "portrait";
     const goBack = () => {
         router.push(event?.parentId ? `/events/${event.parentId}${isShared ? "?shared=true" : ""}` : "/dashboard");
     };

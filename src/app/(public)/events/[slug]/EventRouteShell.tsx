@@ -197,7 +197,7 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
 
     // Midnight Hero is the default theme, so a gallery without a theme gets its navbar too
     const navTemplateId = mainEvent?.templateId || event?.templateId || "hero";
-    const navVariant = navTemplateId === "royal" ? "royal" : navTemplateId === "classic" ? "classic" : navTemplateId === "hero" ? "midnight" : undefined;
+    const navVariant = navTemplateId === "royal" ? "royal" : navTemplateId === "classic" ? "classic" : navTemplateId === "hero" ? "midnight" : navTemplateId === "portrait" ? "portrait" : undefined;
 
     const navigation = useMemo(() => {
         if (!event || !mainEvent) return null;

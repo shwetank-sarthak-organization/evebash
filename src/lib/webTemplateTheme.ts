@@ -48,6 +48,8 @@ for (const [id, preset] of Object.entries(GALLERY_PRESETS)) {
 Object.assign(WEB_LIGHTBOX_THEMES.scrapbook, { background: "#f6f1e8", panel: "#fffaf2", tile: "#fffaf2", text: "#263331", muted: "#56645f" });
 Object.assign(WEB_LIGHTBOX_THEMES.bohemian, { background: "#f3e8d3", panel: "#faf5ea", tile: "#faf5ea", muted: "#705747" });
 WEB_LIGHTBOX_THEMES.classic.muted = "#596653";
+// Sunlit Portrait: a cover photo above Classic White's gallery, so the gallery, viewer and navbar menu use its palette
+WEB_LIGHTBOX_THEMES.portrait = { ...WEB_LIGHTBOX_THEMES.classic };
 WEB_LIGHTBOX_THEMES.polaroid.muted = "#705747";
 WEB_LIGHTBOX_THEMES.brutalist.muted = "#c0b49e";
 

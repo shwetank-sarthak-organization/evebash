@@ -275,6 +275,17 @@ const TEMPLATE_THEMES = [
         "accent": "#8B9A6E"
     },
     {
+        "id": "portrait",
+        "category": "Wedding",
+        "label": "Sunlit Portrait",
+        "desc": "Full-screen couple photo & big serif names",
+        "background": {
+            "light": "#FCFCFA",
+            "dark": "#FCFCFA"
+        },
+        "accent": "#8B9A6E"
+    },
+    {
         "id": "hero",
         "category": "Wedding",
         "label": "Midnight Hero",

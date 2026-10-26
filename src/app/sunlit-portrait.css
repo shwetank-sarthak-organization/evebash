@@ -1,0 +1,131 @@
+/* ---------- Sunlit Portrait guest page (src/components/TemplatePortrait.tsx) ----------
+   The cover photo fills the first screen; the couple's names sit along its bottom edge in Gloock
+   (src/components/portrait/portraitFonts.ts). Below the photo the page is Classic White (classic-white.css). */
+.portrait-template, .portrait-nav {
+  --sp-display: var(--font-portrait-display), var(--font-playfair-src), Georgia, serif;
+}
+
+.portrait-hero {
+  position: relative;
+  height: 100vh;
+  height: 100svh;
+  min-height: 560px;
+  overflow: hidden;
+  background: #2C352E;
+  isolation: isolate;
+}
+.portrait-hero__photo { z-index: -2; }
+.portrait-hero__fill { z-index: -3; object-fit: cover; filter: blur(36px) saturate(1.1) brightness(.7); transform: scale(1.15); }
+.portrait-hero__empty {
+  position: absolute; inset: 0; z-index: -2;
+  background: radial-gradient(70% 60% at 65% 30%, #8b7a5c 0%, transparent 70%), linear-gradient(160deg, #596653, #2C352E);
+}
+/* Darker at the top for the navbar and at the bottom for the names; the middle of the photo stays as shot */
+.portrait-hero__shade {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(20, 16, 12, .45) 0%, rgba(20, 16, 12, 0) 22%),
+    linear-gradient(0deg, rgba(20, 16, 12, .62) 0%, rgba(20, 16, 12, .25) 30%, rgba(20, 16, 12, 0) 55%);
+}
+
+.portrait-hero__text {
+  position: absolute;
+  left: clamp(20px, 4vw, 56px);
+  right: clamp(84px, 9vw, 140px);
+  bottom: clamp(28px, 6svh, 64px);
+  color: #fff;
+}
+.portrait-hero__details {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
+  margin-bottom: clamp(8px, 1.6svh, 18px);
+  font-family: var(--sp-display);
+  font-size: clamp(15px, 1.3vw, 19px);
+  line-height: 1.3;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, .35);
+}
+.portrait-hero__heart { font-size: .7em; }
+/* Phones: the intro and the date on their own lines, so the heart never ends a line alone */
+@media (max-width: 639px) {
+  .portrait-hero__details { flex-direction: column; align-items: flex-start; }
+  .portrait-hero__heart { display: none; }
+}
+.portrait-hero__title {
+  font-family: var(--sp-display);
+  font-weight: 400;
+  font-size: clamp(3.25rem, min(11vw, 20svh), 11rem);
+  line-height: .95;
+  letter-spacing: -.01em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  text-shadow: 0 2px 30px rgba(0, 0, 0, .25);
+}
+.portrait-hero__title--long { font-size: clamp(2.75rem, min(8vw, 15svh), 8rem); }
+.portrait-hero__title--xlong { font-size: clamp(2.25rem, min(5.5vw, 11svh), 5.5rem); }
+
+/* Round "open gallery" button at the bottom right */
+.portrait-hero__open {
+  position: absolute;
+  right: clamp(20px, 4vw, 56px);
+  bottom: clamp(32px, 6svh, 68px);
+  display: grid; place-items: center;
+  width: 48px; height: 48px;
+  border-radius: 999px;
+  background: #fff;
+  color: #2C352E;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+  transition: transform .2s ease;
+}
+.portrait-hero__open svg { width: 20px; height: 20px; }
+.portrait-hero__open:hover { transform: translateY(2px); }
+.portrait-hero__open:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+
+/* No sage line above the gallery: the photo ends the first screen */
+.portrait-template .classic-gallery-content { padding-top: clamp(40px, 5vw, 72px); }
+/* "Open gallery" stops below the navbar's solid bar, not under it */
+.portrait-template #event-content { scroll-margin-top: 68px; }
+
+/* ---------- Event navbar in the Sunlit Portrait design (EventNavbar variant="portrait") ----------
+   Classic White's links, in white on the photo with the download as a white pill; once the guest scrolls (or opens
+   the small-screen menu) the bar turns soft white with Classic White's dark text. */
+.portrait-nav {
+  position: fixed; inset: 0 0 auto; z-index: 50;
+  padding: 14px clamp(20px, 4vw, 56px);
+  color: #fff;
+  transition: background-color .3s ease, color .3s ease, box-shadow .3s ease, padding .3s ease;
+}
+.portrait-nav--solid {
+  padding-block: 8px;
+  background: #FCFCFA;
+  color: #2C352E;
+  box-shadow: 0 8px 24px -18px rgba(44, 53, 46, .45);
+}
+.portrait-nav__bar { width: 100%; min-height: 52px; }
+.portrait-nav .classic-nav__title {
+  font-family: var(--sp-display);
+  font-size: clamp(1.15rem, 1.5vw, 1.4rem);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: inherit;
+}
+.portrait-nav .classic-nav__links { gap: clamp(16px, 2.2vw, 36px); }
+.portrait-nav .classic-nav__link { color: inherit; font-size: 13px; letter-spacing: .04em; text-transform: none; }
+.portrait-nav:not(.portrait-nav--solid) .classic-nav__link { text-shadow: 0 1px 8px rgba(0, 0, 0, .35); }
+.portrait-nav:not(.portrait-nav--solid) .classic-nav__link::after { background: #fff; }
+.portrait-nav:not(.portrait-nav--solid) .classic-nav__link:focus-visible { outline-color: #fff; }
+/* "Download All": white pill on the photo, dark pill on the white bar */
+.portrait-nav .portrait-nav__cta {
+  padding: 9px 16px;
+  border-radius: 6px;
+  background: #fff;
+  color: #2C352E;
+  text-shadow: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .15);
+}
+.portrait-nav .portrait-nav__cta::after { display: none; }
+.portrait-nav--solid .portrait-nav__cta { background: #2C352E; color: #fff; box-shadow: none; }
+.portrait-nav--solid .portrait-nav__cta:hover:not(:disabled) { background: #1F2620; }
+
+@media (prefers-reduced-motion: reduce) {
+  .portrait-nav, .portrait-hero__open { transition: none; }
+}
