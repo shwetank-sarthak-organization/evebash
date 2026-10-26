@@ -1,5 +1,5 @@
 /* ---------- Sunlit Portrait guest page (src/components/TemplatePortrait.tsx) ----------
-   The cover photo fills the first screen; the couple's names sit along its bottom edge in Gloock
+   The cover photo fills the first screen; the couple's names sit along its bottom edge in Instrument Serif
    (src/components/portrait/portraitFonts.ts). Below the photo the page is Classic White (classic-white.css). */
 .portrait-template, .portrait-nav {
   --sp-display: var(--font-portrait-display), var(--font-playfair-src), Georgia, serif;
@@ -39,7 +39,7 @@
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
   margin-bottom: clamp(8px, 1.6svh, 18px);
   font-family: var(--sp-display);
-  font-size: clamp(15px, 1.3vw, 19px);
+  font-size: clamp(16px, 1.4vw, 20px);
   line-height: 1.3;
   text-shadow: 0 1px 12px rgba(0, 0, 0, .35);
 }
@@ -52,15 +52,15 @@
 .portrait-hero__title {
   font-family: var(--sp-display);
   font-weight: 400;
-  font-size: clamp(3.25rem, min(11vw, 20svh), 11rem);
+  font-size: clamp(3.5rem, min(15.5vw, 28svh), 15rem);
   line-height: .95;
-  letter-spacing: -.01em;
+  letter-spacing: -.005em;
   overflow-wrap: anywhere;
   text-wrap: balance;
   text-shadow: 0 2px 30px rgba(0, 0, 0, .25);
 }
-.portrait-hero__title--long { font-size: clamp(2.75rem, min(8vw, 15svh), 8rem); }
-.portrait-hero__title--xlong { font-size: clamp(2.25rem, min(5.5vw, 11svh), 5.5rem); }
+.portrait-hero__title--long { font-size: clamp(3rem, min(11vw, 20svh), 11rem); }
+.portrait-hero__title--xlong { font-size: clamp(2.5rem, min(6.5vw, 13svh), 6.5rem); }
 
 /* Round "open gallery" button at the bottom right */
 .portrait-hero__open {
@@ -102,7 +102,7 @@
 .portrait-nav__bar { width: 100%; min-height: 52px; }
 .portrait-nav .classic-nav__title {
   font-family: var(--sp-display);
-  font-size: clamp(1.15rem, 1.5vw, 1.4rem);
+  font-size: clamp(1.3rem, 1.7vw, 1.6rem);
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
