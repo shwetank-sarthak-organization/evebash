@@ -57,32 +57,31 @@
 }
 .confetti-hero__speck--orange { background: #ffa25e; }
 
-/* Dark tag over the circle's top edge: initials written upwards, the small line across the bottom */
+/* Dark tag over the circle's top edge: the initials ("S ♥ R" with a red heart), the small line under them */
 .confetti-hero__tag {
   position: absolute;
   top: -9cqi; left: 50%;
-  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-  width: 27cqi; height: 34cqi;
-  padding: 4cqi 2cqi 3.4cqi;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.4cqi;
+  width: 27cqi; height: 26cqi;
+  padding: 3cqi 1cqi;
   transform: translateX(-50%);
   background: var(--cc-ink);
   color: #fff;
 }
 .confetti-hero__initials {
-  flex-shrink: 0;
+  display: flex; align-items: center; gap: 1.6cqi;
   white-space: nowrap;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
   font-family: var(--cc-display);
-  /* cqw, not cqi: in vertical text cqi would measure the circle's height axis, which isn't a query container */
-  font-size: 11cqw;
+  font-size: 11cqi;
   line-height: 1;
   letter-spacing: .02em;
 }
+.confetti-hero__heart { color: #e4202e; font-size: .5em; line-height: 1; }
 .confetti-hero__tagline {
   font-size: max(8px, 1.9cqi);
   font-weight: 600;
-  letter-spacing: .1em;
+  letter-spacing: .08em;
+  white-space: nowrap;
   line-height: 1.3;
   text-transform: uppercase;
 }

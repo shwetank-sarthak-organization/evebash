@@ -20,7 +20,7 @@ interface TemplateConfettiProps {
 
 /** The small line under the initials on the dark tag, by the main event's category */
 function confettiTagLine(category?: string) {
-    if (category === "Wedding") return "Just married";
+    if (category === "Wedding") return "Happily married";
     if (category === "Anniversary") return "Still choosing each other";
     return "Our moments";
 }
@@ -58,7 +58,7 @@ const SPECKS = (() => {
 })();
 
 // Confetti Circle (styles in src/app/confetti-circle.css): the cover photo fills the first screen with a big white
-// circle in the middle holding the couple's names in pink-to-orange capitals, a dark tag with their initials on its
+// circle in the middle holding the couple's names in pink-to-orange capitals, a dark tag with their initials ("S ♥ R") on its
 // top edge, and a torn-paper edge into the page. The gallery below is Classic White's (.classic-template, classic-white.css).
 export function TemplateConfetti({ event, mainTitle, mainCategory, children }: TemplateConfettiProps) {
     const reducedMotion = useReducedMotion();
@@ -111,7 +111,11 @@ export function TemplateConfetti({ event, mainTitle, mainCategory, children }: T
                     </div>
 
                     <div className="confetti-hero__tag">
-                        {initials && <span className="confetti-hero__initials">{initials[0]}-{initials[1]}</span>}
+                        {initials && (
+                            <span className="confetti-hero__initials">
+                                {initials[0]}<span className="confetti-hero__heart" aria-label="and">♥</span>{initials[1]}
+                            </span>
+                        )}
                         <span className="confetti-hero__tagline">{confettiTagLine(mainCategory || event.category)}</span>
                     </div>
 
