@@ -9,14 +9,18 @@
   --cc-ink: #2a2727;
 }
 
+/* Like the reference: the dark tag starts right under the navbar and the circle reaches down to the torn edge. The circle
+   is sized from that space (screen height less the navbar, the part of the tag above the circle (9% of the circle's
+   width) and a few pixels the torn edge overlaps); phones are limited by the screen width instead. */
 .confetti-hero {
+  --cc-nav-h: 73px; /* .confetti-nav: 56px bar + 2 x 8px padding + 1px border */
+  --cc-size: min(92vw, calc((max(100svh, 600px) - var(--cc-nav-h) - 8px) / 1.09));
   position: relative;
-  display: grid;
-  place-items: center;
+  display: flex; flex-direction: column; align-items: center;
   height: 100vh;
   height: 100svh;
   min-height: 600px;
-  padding: 136px 16px 40px;
+  padding: calc(var(--cc-nav-h) + var(--cc-size) * .09) 16px 0;
   overflow: hidden;
   background: #d9c7bd;
   isolation: isolate;
@@ -28,13 +32,14 @@
   background: radial-gradient(60% 70% at 75% 40%, #f3c7c9 0%, transparent 70%), linear-gradient(160deg, #efe1d6, #c9b1a5);
 }
 
-/* The circle: every size inside it is a share of its width (cqi), so it reads the same on a phone and a big screen */
+/* The circle: every size inside it is a share of its width (cqi), so it reads the same on a phone and a big screen.
+   The tag's -9cqi above it is the 9% in --cc-size. */
 .confetti-hero__circle {
   position: relative;
   container-type: inline-size;
   display: grid; place-items: center;
-  width: min(88vw, calc(100svh - 190px), 620px);
-  min-width: 280px;
+  flex-shrink: 0;
+  width: var(--cc-size);
   aspect-ratio: 1;
   border-radius: 50%;
   /* Slightly see-through, so the photo shows faintly behind the names */
@@ -163,7 +168,6 @@
 
 /* Phones: the circle fills the width and the open button moves under it */
 @media (max-width: 639px) {
-  .confetti-hero { padding-bottom: 96px; }
   .confetti-hero__open { right: 50%; transform: translateX(50%); bottom: 36px; }
   .confetti-hero__open:hover { transform: translateX(50%) translateY(2px); }
 }
