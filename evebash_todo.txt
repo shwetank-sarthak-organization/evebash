@@ -146,12 +146,13 @@ Listed:       2026-10-26
 Platform:     Both
 Priority:     High
 Phase:        1
-Status:       Idea
+Status:       In progress
 Effort:       M
 Suggested by: Sarthak (with Claude)
-Discussed:    No
-Decision:     -
-Owner:        Unassigned
+Discussed:    Yes
+Decision:     2026-10-26 Sarthak: build it with @sentry/react-native, @sentry/nextjs and @sentry/node, off
+              unless the DSN env var is set, staging first. No Sentry wizards. Device test #145.
+Owner:        Sarthak (with Claude)
 Depends on:   a Sentry account (free plan: 5,000 errors a month)
 Brief:        There is no crash or error reporting anywhere today (no Sentry, Crashlytics or
               Bugsnag in any package.json), so crashes real users hit are invisible unless they
@@ -161,6 +162,9 @@ Brief:        There is no crash or error reporting anywhere today (no Sentry, Cr
               staging first. Strip personal data (emails, photo URLs, auth tokens) before
               sending. Then connect the Sentry connector so Claude can read real errors.
               Should be live before the Play Store / App Store launch.
+              Left after the first version (branch feat/sentry-crash-reporting): source maps are
+              not uploaded yet, so stack traces show minified code. Needs a SENTRY_AUTH_TOKEN
+              (EAS secret + Vercel) and the @sentry/react-native Expo plugin / withSentryConfig.
 Done in:      -
 
 =====================================================================

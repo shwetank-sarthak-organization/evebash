@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 145
+Next test number: 146
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3758,3 +3758,38 @@ Feedback:         1 PASS: dashboard "How to host" card dark warm brown (#1E1B17 
                   gold border and ring on the focused field. 6 PASS: /vault grey text warm beige.
                   7 PASS: Royal Emerald (test-face-new-155c) and Midnight Hero (wedding-2-77d4) galleries
                   unchanged, default greys; Classic White not opened. Not covered: a real phone.
+
+--------------------------------------------------------------------------------
+#145 Crashes and errors reach Sentry, with no personal data
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App (staging) + Backend
+Brief:     Sentry crash and error reporting (todo #6). It is off unless the Sentry DSN env var is set, so
+           production does not change. Check that staging sends errors, that they hold no emails or
+           tokens, and that nothing else changed.
+Detail:    Branch feat/sentry-crash-reporting. Env vars: NEXT_PUBLIC_SENTRY_DSN (+ optional
+           NEXT_PUBLIC_SENTRY_ENVIRONMENT=staging) on Vercel evebash-staging, SENTRY_DSN (+ SENTRY_ENVIRONMENT=staging)
+           on Railway evebash-api-staging-backend, EXPO_PUBLIC_SENTRY_DSN in the EAS "staging" profile.
+           The app part has native code: it needs a NEW staging build (an OTA update to an old build does nothing).
+How to test:
+  1. Website: open staging.evebash.com, use it normally for a minute (log in, open a gallery). Expect: works
+     exactly as before. In Sentry (project evebash-web / Next.js) nothing new unless something broke.
+  2. Website: in the browser console run  setTimeout(() => { throw new Error('sentry test ' + Date.now()) })
+     Expect: within a minute the error is in Sentry, environment "staging".
+  3. Open the error in Sentry. Expect: no email, no "access_token=", no Authorization or Cookie header,
+     user shows only an id (or nothing).
+  4. App: install a new EAS staging build. Use it normally (log in, open a gallery, upload a photo).
+     Expect: works exactly as before; no Sentry pop-ups or slowdowns at start-up.
+  5. App: turn on airplane mode mid-upload and back off. Expect: upload behaves as before (test #143).
+  6. Backend: after SENTRY_DSN is set on Railway staging, the deploy log shows "Sentry error reporting on"
+     and the API still answers /health.
+  7. Production website and production app build: Expect: no requests to "ingest.us.sentry.io" in the
+     network tab (Sentry is off there).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

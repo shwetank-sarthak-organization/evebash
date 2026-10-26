@@ -13,7 +13,9 @@
       "channel": "staging",
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://api-staging.evebash.com",
-        "EXPO_PUBLIC_MEDIA_DOMAIN": "media.evebash.com"
+        "EXPO_PUBLIC_MEDIA_DOMAIN": "media.evebash.com",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://707488a2172c045a2a3bae11f2f537e7@o4512321942716416.ingest.us.sentry.io/4512321949466624",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "staging"
       }
     },
     "production": {

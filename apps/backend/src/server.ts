@@ -30,6 +30,10 @@ import { createSupabaseVaultRepository } from "./vault/repository.js";
 import { createS3VaultStorage } from "./vault/storage.js";
 import { runVaultMaintenance, startVaultMaintenanceScheduler } from "./services/vaultMaintenance.js";
 import { startPlanChangeScheduler } from "./services/planChangeScheduler.js";
+import { initSentry, reportError } from "./sentry.js";
+
+// Crash and error reporting: off unless SENTRY_DSN is set
+await initSentry();
 
 // ── Process-Level Crash Protection ──────────────────────────────────────────
 // Prevent unhandled promise rejections from crashing the process (Node 16+)
@@ -38,6 +42,7 @@ process.on("unhandledRejection", (reason, promise) => {
     reason: reason instanceof Error ? reason.stack || reason.message : reason,
     promise,
   });
+  reportError(reason, { origin: "unhandledRejection" });
 });
 
 // Catch synchronous exceptions that escape error handlers to prevent abrupt process termination
@@ -46,6 +51,7 @@ process.on("uncaughtException", (error, origin) => {
     error: error instanceof Error ? error.stack || error.message : error,
     origin,
   });
+  reportError(error, { origin });
 });
 
 process.on("warning", (warning) => {
@@ -175,6 +181,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     status,
     message: err?.message || "Internal server error",
   });
+  if (status >= 500) reportError(err, { method: req.method, url: req.originalUrl, status });
 
   res.status(status).json({
     success: false,

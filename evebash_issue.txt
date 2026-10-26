@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 149
+Next issue number: 150
 
 =====================================================================
 ACTIVE ISSUES
@@ -1014,6 +1014,17 @@ Found in: App vs website dark-gold colour check (2026-10-26)
 Issue: Tailwind gold-* classes (and primary-* other than primary-500) produce no CSS. The website uses Tailwind v4, which only reads tailwind.config.ts when a CSS file points to it with @config, and none does, so the gold and primary scales defined there don't exist. Visible effect: the gold divider lines of the shared gallery heading (src/components/ui/SectionHeader.tsx: "Home Gallery · N Photos" on every gallery page, and Find You) are invisible and its diamond takes the text colour. The orphan /find-me page (src/app/(main)/find-me with ui/Navigation and ui/UploadCard) has no gold either. Don't fix it with @config: the config's fontFamily would turn font-serif (Playfair) into Inter across the site. Fix: give SectionHeader the gallery theme's colours (as gallery-refinements.css already does for its text), or add only the gold scale to @theme in src/app/globals.css and check every gallery theme, since each would then get gold lines.
 How to reproduce: Open any gallery on the website and look under the "Home Gallery" heading: no lines either side of the small diamond.
 
+
+#149
+Listed: 2026-10-26
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: a decision on how the backend gets shared/ code
+Found in: Sentry crash reporting work (todo #6, 2026-10-26)
+Issue: The backend cannot import shared/: Railway builds evebash-api-staging-backend with Root Directory /apps/backend, so files outside it don't exist at runtime (only backend tests import shared/ today). Code needed by website, app and backend has to be copied, and copies drift. First case: the Sentry personal-data scrubber exists in shared/monitoring/sentryScrub.ts (website, app) and again in apps/backend/src/sentry.ts. Fix options: set Railway's Root Directory to the repo root with a backend build/start command and watch paths, or copy shared/ into apps/backend at build time; then delete the backend copy.
+How to reproduce: Import anything from ../../../shared in apps/backend/src and deploy to staging: the service fails to start with "Cannot find module".
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
