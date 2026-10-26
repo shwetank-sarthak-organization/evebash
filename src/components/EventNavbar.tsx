@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { ProfileIcon } from "@/components/ProfileIcon";
 import { royalDisplay } from "@/components/royal/royalFonts";
-import { midnightScript } from "@/components/midnight/midnightFonts";
+import { midnightDisplay, midnightSans } from "@/components/midnight/midnightFonts";
 import { portraitDisplay } from "@/components/portrait/portraitFonts";
 import { confettiDisplay } from "@/components/confetti/confettiFonts";
 import { displayCoupleTitle } from "../../shared/text/coupleNames";
@@ -253,7 +253,7 @@ export function EventNavbar({
                     : isPortrait ? cn("portrait-nav", (scrolledPastTop || mobileMenuOpen) && "portrait-nav--solid", portraitDisplay.variable)
                     : isConfetti ? cn("confetti-nav", (scrolledPastTop || mobileMenuOpen) && "confetti-nav--solid", confettiDisplay.variable)
                     : isClassic ? cn("classic-nav", scrolledPastTop && "classic-nav--scrolled")
-                    : isMidnight ? cn("midnight-nav", scrolledPastTop && "midnight-nav--scrolled", midnightScript.variable)
+                    : isMidnight ? cn("midnight-nav", scrolledPastTop && "midnight-nav--scrolled", midnightDisplay.variable, midnightSans.variable)
                     : cn(
                     "fixed top-0 inset-x-0 z-50 transition-all duration-300 px-6 py-3 backdrop-blur-md shadow-sm border-b",
                     hasTemplateChrome ? "bg-transparent" : "bg-white/95 border-stone-100"

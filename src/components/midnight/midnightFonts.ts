@@ -1,17 +1,17 @@
-import { Bodoni_Moda, Parisienne } from "next/font/google";
+import { Italiana, Manrope } from "next/font/google";
 
 // Midnight Hero guest page and its navbar only. Kept out of src/app/fonts.ts so other pages don't load them.
-export const midnightScript = Parisienne({
+// Italiana: thin, tall display capitals for names and titles. Manrope: labels, buttons, dates and messages.
+export const midnightDisplay = Italiana({
     subsets: ["latin"],
     weight: "400",
     display: "swap",
-    variable: "--font-midnight-script",
+    variable: "--font-midnight-display",
 });
 
-export const midnightDisplay = Bodoni_Moda({
+export const midnightSans = Manrope({
     subsets: ["latin"],
-    weight: ["400", "500"],
-    style: ["normal", "italic"],
+    weight: ["400", "500", "600"],
     display: "swap",
-    variable: "--font-midnight-display",
+    variable: "--font-midnight-sans",
 });
