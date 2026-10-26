@@ -133,21 +133,10 @@
   border-radius: 0;
   box-shadow: none;
 }
-:is(.gallery-justified, .gallery-mosaic) > .gallery-media-card > button { height: 100%; }
-:is(.gallery-justified, .gallery-mosaic) > .gallery-media-card > button > :is(img, div) { width: 100%; height: 100%; aspect-ratio: auto !important; object-fit: cover; }
+.gallery-justified > .gallery-media-card > button { height: 100%; }
+.gallery-justified > .gallery-media-card > button > :is(img, div) { width: 100%; height: 100%; aspect-ratio: auto !important; object-fit: cover; }
 /* Sharper grid (issue #121): the photo sits in a <picture>, which fills the card the same way */
-:is(.gallery-justified, .gallery-mosaic) > .gallery-media-card > button > picture { display: block; width: 100%; height: 100%; }
-:is(.gallery-justified, .gallery-mosaic) > .gallery-media-card > button > picture > img { width: 100%; height: 100%; object-fit: cover; }
+.gallery-justified > .gallery-media-card > button > picture { display: block; width: 100%; height: 100%; }
+.gallery-justified > .gallery-media-card > button > picture > img { width: 100%; height: 100%; object-fit: cover; }
 /* Takes the spare room in the last row so it keeps the row height instead of stretching */
 .gallery-justified__end { flex: 1000 1 0px; height: 0; }
-
-/* Mosaic grid (MasonryGrid layout="mosaic", Confetti Circle): rows of narrow, wide, narrow tiles of one height, each
-   photo cropped to fill its tile (the fill rules are shared with the justified grid above). Phones: two small tiles,
-   then one across the width. */
-.gallery-mosaic { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 150px; gap: 8px; }
-.gallery-mosaic > .gallery-media-card:nth-child(3n) { grid-column: span 2; }
-@media (min-width: 768px) {
-  .gallery-mosaic { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr); grid-auto-rows: clamp(220px, 22vw, 320px); gap: 20px; }
-  .gallery-mosaic > .gallery-media-card:nth-child(3n) { grid-column: auto; }
-}
-.gallery-mosaic > .gallery-media-card { height: 100%; margin: 0; border: 0; border-radius: 0; box-shadow: none; }

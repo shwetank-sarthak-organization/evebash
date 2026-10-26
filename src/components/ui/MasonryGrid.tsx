@@ -41,9 +41,8 @@ interface MasonryGridProps {
     viewerLayout?: ViewerLayout;
     commentsMode?: "overlay" | "side-panel";
     templateId?: string;
-    /** "justified": rows of equal height edge to edge, each photo keeps its shape (Classic White).
-     *  "mosaic": rows of narrow, wide, narrow tiles of one height, photos cropped to fill (Confetti Circle). Default: columns */
-    layout?: "columns" | "justified" | "mosaic";
+    /** "justified": rows of equal height edge to edge, each photo keeps its shape (Classic White). Default: columns */
+    layout?: "columns" | "justified";
     showPageFlipThumbnails?: boolean;
     onLikeChange?: () => void;
     /** Read-only visitors who could join by logging in: like, comment and download show and call this instead */
@@ -438,7 +437,7 @@ export function MasonryGrid({
     // Columns layout: each photo goes into the shortest column in order, so photos added by the next page only extend
     // the columns at the bottom. (Plain CSS columns re-balance the whole grid, moving photos the guest is looking at.)
     const gridRef = useRef<HTMLDivElement | null>(null);
-    const cssColumns = useCssColumns(gridRef, layout === "columns", photos.length);
+    const cssColumns = useCssColumns(gridRef, layout !== "justified", photos.length);
     const columnItems = useMemo(() => {
         if (!cssColumns) return null;
         const columns: { photo: Photo; index: number }[][] = Array.from({ length: cssColumns.count }, () => []);
@@ -463,14 +462,13 @@ export function MasonryGrid({
             onViewPhoto={setViewingPhoto}
             onLikeChange={onLikeChange}
             onRequireLogin={onRequireLogin}
-            // Mosaic tiles fill their box like justified ones (and may use the sharper grid image)
-            justified={layout !== "columns"}
+            justified={layout === "justified"}
         />
     );
 
     return (
         <div className={cn("gallery-masonry container mx-auto px-4 py-8", templateId === "royal" && "royal-masonry", className)} style={{ "--gallery-count": Math.max(1, photos.length), "--royal-count": Math.max(1, photos.length <= 3 ? photos.length : Math.ceil(photos.length / 2)) } as React.CSSProperties}>
-            <div ref={gridRef} className={cn(layout === "justified" ? "gallery-justified" : layout === "mosaic" ? "gallery-mosaic" : "columns-1 sm:columns-2 md:columns-3 gap-4", gridClassName)}>
+            <div ref={gridRef} className={cn(layout === "justified" ? "gallery-justified" : "columns-1 sm:columns-2 md:columns-3 gap-4", gridClassName)}>
                 {columnItems ? (
                     // The grid keeps its CSS columns (read above); this row spans them and holds the placed columns
                     <div className="flex items-start" style={{ columnSpan: "all", gap: cssColumns?.gap }}>

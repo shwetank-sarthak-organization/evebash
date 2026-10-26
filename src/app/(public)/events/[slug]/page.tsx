@@ -618,7 +618,7 @@ function EventPageContent() {
     // Classic White shows the gallery message in its own gallery header and styles the shared buttons itself (classic-white.css).
     // Sunlit Portrait, Confetti Circle and Periwinkle Script use the same gallery section below their cover.
     const isClassicGallery = displayEvent.templateId === "classic" || displayEvent.templateId === "portrait" || displayEvent.templateId === "confetti" || displayEvent.templateId === "periwinkle";
-    // Confetti Circle: Classic White's gallery with its own header (ConfettiGalleryHeader) and a mosaic grid
+    // Confetti Circle: Classic White's gallery with its own header (ConfettiGalleryHeader)
     const isConfettiGallery = displayEvent.templateId === "confetti";
     // Midnight Hero (the default theme) draws its own gallery header (event name, star, title, count, film, Photos / Videos)
     const isMidnightGallery = (displayEvent.templateId || "hero") === "hero";
@@ -895,7 +895,7 @@ function EventPageContent() {
                             onRequireLogin={isPublicView && !user ? promptLogin : undefined}
                             lightboxTheme={getWebLightboxTheme((activeGallery || event).templateId || event.templateId)}
                             templateId={(activeGallery || event).templateId || event.templateId}
-                            layout={isConfettiGallery ? "mosaic" : isClassicGallery || isMidnightGallery ? "justified" : undefined}
+                            layout={isClassicGallery || isMidnightGallery ? "justified" : undefined}
                         />
                     </div>
                 ) : (

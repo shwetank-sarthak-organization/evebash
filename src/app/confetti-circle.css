@@ -2,7 +2,7 @@
    The cover photo fills the first screen; a big white circle in the middle holds the couple's names in Bebas Neue
    (src/components/confetti/confettiFonts.ts) in pink-to-orange, with a dark tag on its top edge and paint specks round
    it. A torn-paper edge leads into the page, which below the photo is Classic White (classic-white.css). */
-.confetti-template, .confetti-nav {
+.confetti-template, .confetti-nav, .confetti-footer {
   --cc-display: var(--font-confetti-display), "Arial Narrow", Impact, sans-serif;
   --cc-pink: #e8175d;
   --cc-orange: #ff7a1a;
@@ -337,7 +337,7 @@
 .confetti-couple__heart { color: var(--cc-pink); font-size: .7em; margin: 0 .45em; }
 @media (prefers-reduced-motion: reduce) { .confetti-couple__play { transition: none; } }
 
-/* ---------- Gallery header (src/components/confetti/ConfettiGalleryHeader.tsx) and the mosaic grid below it ----------
+/* ---------- Gallery header (src/components/confetti/ConfettiGalleryHeader.tsx) and the grid below it ----------
    Back / Share in a thin row, then "PHOTO GALLERY | GALLERY NAME | VIDEO GALLERY": the small words switch between
    photos and videos (pink when chosen). Phones: the title on its own line, the two words under it. */
 .confetti-gh { color: var(--cc-ink); text-align: center; }
@@ -391,7 +391,72 @@
   .confetti-gh__tab--photos { border-right: 1px solid rgba(42, 39, 39, .16); }
 }
 @media (prefers-reduced-motion: reduce) { .confetti-gh__tab, .confetti-gh__action { transition: none; } }
-.confetti-template .gallery-mosaic { max-width: 1200px; margin-inline: auto; }
+/* The grid: Classic White's full-width rows, each photo whole (never cropped), with wider gaps and lower rows than
+   Classic White so about three photos share a row, like the reference */
+.confetti-template .gallery-justified { --row-h: 140px; gap: 8px; }
+@media (min-width: 640px) { .confetti-template .gallery-justified { --row-h: 200px; } }
+@media (min-width: 768px) { .confetti-template .gallery-justified { gap: 16px; } }
+@media (min-width: 1024px) { .confetti-template .gallery-justified { --row-h: 260px; } }
+@media (min-width: 1440px) { .confetti-template .gallery-justified { --row-h: 300px; } }
+
+/* ---------- Footer (src/components/confetti/ConfettiFooter.tsx, on every Confetti Circle page) ----------
+   A torn-paper edge, then links on the left, "S ♥ R" with "Made with EveBash" in the middle, legal links on the right.
+   Phones: the middle first, the two link lists side by side under it. */
+.confetti-footer {
+  position: relative;
+  margin-top: clamp(32px, 5vw, 64px);
+  padding: clamp(56px, 7vw, 88px) 16px clamp(36px, 5vw, 56px);
+  background: linear-gradient(180deg, #e4e0de 0%, #ebe7e4 55%, #f3f0ed 100%);
+  color: var(--cc-ink);
+}
+.confetti-footer__tear {
+  position: absolute; left: 0; right: 0; top: -1px;
+  width: 100%; height: clamp(28px, 4vw, 56px);
+  transform: scaleY(-1); /* the torn edge faces up, into the page above */
+  pointer-events: none;
+}
+/* Flipped: the "paper" (page colour) sits above the tear, the shadow just under it */
+.confetti-footer__tear-shadow { fill: #c3bcb9; opacity: .9; filter: blur(2.5px); }
+.confetti-footer__tear-paper { fill: #FCFCFA; }
+.confetti-footer__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(32px, 6vw, 120px);
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.confetti-footer__links { display: flex; flex-direction: column; gap: 8px; }
+.confetti-footer__links--left { align-items: flex-start; text-align: left; }
+.confetti-footer__links--right { align-items: flex-end; text-align: right; }
+.confetti-footer__link { color: #4a4444; font-size: 15px; font-weight: 500; transition: color .2s ease; }
+.confetti-footer__link:hover { color: var(--cc-pink); }
+.confetti-footer__middle { text-align: center; }
+.confetti-footer__couple {
+  display: flex; align-items: center; justify-content: center; gap: .3em;
+  color: var(--cc-ink); /* not the site's text colours */
+  font-family: var(--cc-display);
+  font-size: clamp(3rem, 5vw, 4.25rem);
+  line-height: 1;
+  letter-spacing: .01em;
+  text-transform: uppercase;
+}
+.confetti-footer__heart { color: var(--cc-pink); font-size: .6em; }
+.confetti-footer__couple--title { max-width: 32ch; font-size: clamp(1.9rem, 3vw, 2.6rem); text-wrap: balance; }
+.confetti-footer__made { margin-top: 10px; color: #6b6262; font-size: 14px; }
+.confetti-footer__brand { color: var(--cc-ink); font-family: var(--font-brand); font-size: 1.35em; transition: color .2s ease; }
+.confetti-footer__brand:hover { color: var(--cc-pink); }
+.confetti-footer a:focus-visible { outline: 2px solid var(--cc-ink); outline-offset: 3px; }
+@media (max-width: 639px) {
+  .confetti-footer__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; row-gap: 28px; column-gap: 24px; }
+  .confetti-footer__middle { grid-column: 1 / -1; grid-row: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .confetti-footer__link, .confetti-footer__brand { transition: none; } }
+/* globals.css gives every footer on a guest page the theme's colours with !important; this one keeps its own */
+.event-template-shell footer.confetti-footer { border-color: transparent !important; color: var(--cc-ink) !important; }
+.event-template-shell .confetti-footer p.confetti-footer__made { color: #6b6262 !important; }
+/* The shared one-line event footer (Footer.tsx) steps aside on Confetti Circle pages */
+body:has(.confetti-footer) .event-footer { display: none; }
 
 /* ---------- Event navbar in the Confetti Circle design (EventNavbar variant="confetti") ----------
    Like the save-the-date it copies: the couple's names in the middle in Bebas Neue with a pink heart for the "&", and
