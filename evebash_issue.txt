@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 151
+Next issue number: 152
 
 =====================================================================
 ACTIVE ISSUES
@@ -983,20 +983,32 @@ Found in: Sentry crash reporting work (todo #6, 2026-10-26)
 Issue: The backend cannot import shared/: Railway builds evebash-api-staging-backend with Root Directory /apps/backend, so files outside it don't exist at runtime (only backend tests import shared/ today). Code needed by website, app and backend has to be copied, and copies drift. First case: the Sentry personal-data scrubber exists in shared/monitoring/sentryScrub.ts (website, app) and again in apps/backend/src/sentry.ts. Fix options: set Railway's Root Directory to the repo root with a backend build/start command and watch paths, or copy shared/ into apps/backend at build time; then delete the backend copy.
 How to reproduce: Import anything from ../../../shared in apps/backend/src and deploy to staging: the service fails to start with "Cannot find module".
 
-#150
+#151
 Listed: 2026-10-26
 Platform: Website
 Priority: Low
 Status: Open
 Owner: Unassigned
 Blocked by: -
-Found in: #98 fix (2026-10-26)
-Issue: The site-wide Find You page (/find-you, src/app/(main)/find-you/page.tsx) can never find anything. It sends eventIds: [] ("search all indexed events"), but the backend (apps/backend/src/routes/findYou.ts) refuses an empty list with 400 "Missing selfie source ... or eventIds", so every selfie ends in "Something went wrong during matching." The 404 page's "Find your photos" button (src/components/NotFoundContent.tsx) links there. Its upload and result code is also a near copy of the gallery Find You page (src/app/(public)/events/[slug]/find-you/page.tsx), with `any` types. Fix idea: point the 404 button at a page that lists the user's galleries (or the dashboard) and delete /find-you, or have it ask which gallery to search; if both pages stay, move the shared upload code into one place.
-How to reproduce: Log in, open /find-you, accept the consent, upload a selfie: "Something went wrong during matching." The browser network tab shows POST /api/find-you answered 400.
+Found in: #150 fix (2026-10-26)
+Issue: An old mock "Find Your Photos" page is still live at /find-me (src/app/(main)/find-me/page.tsx). Its upload card (src/components/ui/UploadCard.tsx) only shows the picked selfie; its "Search Photos" button has no click handler, so nothing is ever searched. Nothing on the site links to it: the only links are in src/components/ui/Hero.tsx (unused, listed in #99) and src/components/ui/Navigation.tsx (used only by /find-me itself), so it can only be reached by typing the address. It is noindex. Find You works only inside an event (/events/<event>/find-you and the app's Find You tab), which searches that event and all its visible galleries. Fix: delete src/app/(main)/find-me with ui/UploadCard.tsx and ui/Navigation.tsx (nothing else imports them), and ui/Hero.tsx if #99 hasn't already.
+How to reproduce: Open /find-me, pick a selfie, tap "Search Photos": nothing happens.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#150
+Listed: 2026-10-26
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #98 fix (2026-10-26)
+Issue: The site-wide Find You page (/find-you, src/app/(main)/find-you/page.tsx) can never find anything. It sends eventIds: [] ("search all indexed events"), but the backend (apps/backend/src/routes/findYou.ts) refuses an empty list with 400 "Missing selfie source ... or eventIds", so every selfie ends in "Something went wrong during matching." The 404 page's "Find your photos" button (src/components/NotFoundContent.tsx) links there. Its upload and result code is also a near copy of the gallery Find You page (src/app/(public)/events/[slug]/find-you/page.tsx), with `any` types. Fix idea: point the 404 button at a page that lists the user's galleries (or the dashboard) and delete /find-you, or have it ask which gallery to search; if both pages stay, move the shared upload code into one place.
+How to reproduce: Log in, open /find-you, accept the consent, upload a selfie: "Something went wrong during matching." The browser network tab shows POST /api/find-you answered 400.
+Fixed in: ad77d6f (2026-10-26). Deleted the /find-you page. The 404 page's second button is now "Go to my events" (/dashboard); signed-out visitors are sent to log in and come back to their events. Find You stays inside each event (website /events/<event>/find-you, app Find You tab), which searches that event and all its visible galleries. Checked: clean npm ci, tsc and next build pass (no /find-you route left); on the built site in the built-in browser (no real data), /find-you answers 404 with the new button, and the button opens Log in when signed out. No device test: nothing phone-specific changed. The old mock /find-me page is #151.
+
 #98
 Listed: 2026-10-22
 Platform: Website
