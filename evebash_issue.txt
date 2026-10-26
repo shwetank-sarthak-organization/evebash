@@ -894,6 +894,10 @@ Short clips on RunPod CPU workers (22:30-23:00 IST, 3 runs x 4 clips each, slim 
 - cpu5g 8 vCPU: 34 / 41 / 17 / 18 s, avg wait 2 s, steadiest. cpu5c 8: 50 / 45 / 31 / 19 (one slow wait). cpu5c 16: 27 / 97 (one 218 s) / 13 / 15, 1.6x cost. cpu3c 8: 42 / 51 / 19 / 21. cpu3g 8: 54 / 68 / 20 / 26. cpu5c 4: 54 / 59 / 25 / 26.
 - RunPod cost ~₹0.04-0.08 per clip (cpu5c billed ~$0.0000020 per vCPU-s; cpu5g/cpu3g price to confirm from the 17:00 UTC bill).
 Read: short clips -> RunPod cpu5g 8 vCPU (or cpu5c 8 if cpu5g is much dearer), slim image, Modal fallback; ~1/5 of Modal's cost at equal or better time.
+EXACT costs from both providers' bills (2026-10-26; RunPod = each endpoint's billed total split over its jobs by run time - billed seconds matched job seconds within 0.8-1.16x; Modal = each run's own bill). Total ₹ per video, avg of 3 (Modal = compute + egress):
+- Long, RunPod RTX 4000 Ada / Blackwell 24 GB / Modal L4: test_5 48.7 min ₹4.67 / ₹6.92 / ₹20.55 (₹9.66 + ₹10.89); 4K HDR portrait ₹3.26 / ₹3.31 / ₹8.12 (₹5.58 + ₹2.54); 4K 24 fps ₹2.60 / ₹2.46 / ₹8.17 (₹5.68 + ₹2.49); 1080p 60 fps HEVC ₹2.79 / ₹3.33 / ₹7.90 (₹5.31 + ₹2.59). Ada saving vs Modal: 77% / 60% / 68% / 65% incl. egress (52% / 42% / 54% / 47% compute only).
+- Short, Modal 4-core vs RunPod cpu5g 8 vCPU: 4K 50 s ₹0.62 (₹0.43 + ₹0.19 egress) vs ₹0.08; iPhone HDR ₹0.53 vs ₹0.09; 4K 25 s ₹0.18 vs ₹0.04; HEVC 60 fps ₹0.28 vs ₹0.05 -> 78-87% saving. Other CPU types per clip: cpu5c 8 ₹0.03-0.07, cpu3c 8 ₹0.03-0.07, cpu3g 8 ₹0.04-0.13, cpu5c 16 ₹0.05-0.11, cpu5c 4 ₹0.02-0.04.
+- Billed rates: RTX 4000 Ada $0.000162/s, 24 GB tier $0.000192/s, cpu5g-8-32 $0.0000203/s, cpu5c-8-16 $0.0000159/s, cpu3c-8-16 $0.0000136/s, cpu3g-8-32 $0.0000228/s, cpu5c-16-32 $0.0000316/s, cpu5c-4-8 $0.0000083/s; no egress on RunPod.
 
 #135
 Listed: 2026-10-24
