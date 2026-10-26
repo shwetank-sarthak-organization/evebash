@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 147
+Next test number: 148
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3813,6 +3813,38 @@ How to test:
      behind does not scroll; nothing hides behind Safari's bottom toolbar.
   4. Log out and open the menu. Expect: the logged-out menu looks as before.
   5. On a computer at full width. Expect: the normal top links, no menu button (unchanged).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#147 Find You buttons work straight away (no 12 MB download)
+Status:    TODO
+Priority:  Medium
+Platform:  Website (computer on staging; phone on www.evebash.com)
+Brief:     The gallery Find You page used to download 12 MB of face models it never used before the
+           Upload / Take Selfie buttons turned on (about 10 s on 4G). It no longer downloads them, so
+           the buttons work at once. Searching itself is unchanged (the server does the matching).
+Detail:    Commit 6662abf: src/app/(public)/events/[slug]/find-you/page.tsx, public/models deleted,
+           face-api.js removed from package.json. Issue #98. Staging shows phones the "Get the app"
+           screen (#109), so do the phone step on www.evebash.com once this reaches production.
+How to test:
+  1. On a computer, log in on staging, open a gallery you can see, then Find You
+     (/events/<slug>/find-you). Accept the consent if asked. Open the browser network tab, set it to
+     "Slow 4G" and reload. Expect: "Upload from Gallery" and "Take Selfie" are gold and clickable as
+     soon as the page shows; no "Loading AI Models..." line; no requests for /models/... or files
+     named *model-shard*.
+  2. Upload a clear selfie of someone in the gallery. Expect: "Optimizing selfie & searching photos..."
+     while it works (buttons greyed), then "Found N photos of you!" and the photos, same as before.
+  3. Upload a photo with no face (e.g. a landscape). Expect: a message under the buttons (no face found
+     or no matches), and the buttons can be used again.
+  4. On a phone, on www.evebash.com after this is in production: open Find You on mobile data. Expect:
+     the buttons work at once; Take Selfie opens the front camera and the photo taken is searched.
 Done by:
 Device / browser:
 Build / version:

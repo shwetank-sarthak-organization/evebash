@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 150
+Next issue number: 151
 
 =====================================================================
 ACTIVE ISSUES
@@ -575,18 +575,6 @@ Issue: The website and app Royal Emerald are two different designs. The website 
 How to reproduce: Open the same Royal Emerald gallery on the website and in the app.
 Note (2026-10-22): the app now uses the website design, adapted for phones (apps/mobile/components/royal): gold corners, the cover in the gold filigree frame (portrait 4:5) with the ivory title card and wax seal under it, a top bar with Back, the title and Share, then the crest / title / highlight video / plaque / Back and Share / Photos-Videos header and the crown footer. Not committed yet; waiting for the user's app mockup. Device test #109.
 
-#98
-Listed: 2026-10-22
-Platform: Website
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Unused code and assets scan (2026-10-22)
-Issue: The guest Find You page (src/app/(public)/events/[slug]/find-you/page.tsx) downloads about 12 MB of face-api.js models from public/models (ssdMobilenetv1, faceLandmark68Net, faceRecognitionNet) on every visit, but never uses them: the selfie is sent to the backend (/api/find-you), which does the matching. The models only decide when the Upload/Camera buttons turn on, so phone guests wait for 12 MB before they can search (measured 12.5 MB of models plus about 160 KB gzipped of face-api.js code: about 10 s on 10 Mbps 4G, about 35 s on 3 Mbps, about 2 s on fast Wi-Fi, and 12.5 MB of mobile data per guest). src/app/(main)/find-you/page.tsx also imports face-api.js without using it, which puts the library in that page's bundle. public/models/tiny_face_detector_* is not loaded by anything. Fix: drop the model loading and the face-api.js imports (buttons enabled straight away), then delete public/models and the face-api.js dependency.
-How to reproduce: Open /events/<id>/find-you with the browser network tab open: the *_model-shard* files load (about 12 MB); grep the page for faceapi. - only loadFromUri calls.
-Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
-
 #99
 Listed: 2026-10-22
 Platform: Both
@@ -595,7 +583,7 @@ Status: Open
 Owner: Unassigned
 Blocked by: -
 Found in: Unused code and assets scan (2026-10-22)
-Issue: The website and app carry files, assets and packages nothing uses. App: 7 fonts in apps/mobile/assets/fonts (all but AkayaKanadaka; about 0.7 MB), 9 images in apps/mobile/assets/images (memories_bg, marketplace_bg, react-logo x3, partial-react-logo, splash-icon, android-icon-foreground, android-icon-monochrome; about 1.6 MB), 13 @expo-google-fonts packages (every name except Inter is mapped to Inter in app/_layout.tsx), Expo starter leftovers (app/modal.tsx, components/themed-text, themed-view, hello-wave, parallax-scroll-view, external-link, ui/collapsible, hooks/use-color-scheme*, hooks/use-theme-color, scripts/reset-project.js), components/event/index.ts. Website: components DashboardHeader, FindYouSection, RouteGuard, SubEventsGrid, page-flip/CoverFlowMediaViewer, ui/Hero, ui/JharokhaCard and lib/fmp4Chunker, lib/seed; public/file.svg, globe.svg, next.svg, vercel.svg, window.svg, _redirects; API routes media/process-thumbnail, media/trigger-modal-batch, debug/video-trigger, the empty api/test-deploy folder; root packages @tensorflow/tfjs-node, canvas, sharp, razorpay, expo, react-native, file-saver, @types/file-saver, @types/jszip. Repo root: one-off scripts (check-*.js, query_events*.js, replace_*_theme.js, parse/update/tmp_templates.js, templates_str.txt, parsed_templates.json, test-faceapi-block.js), logs (modal_logs*.txt, backend_error.log, .next_log), netlify.toml + netlify/ + vercel.json (Railway deploys). Unused functions: website src/lib/database.ts (getEvents, getUserPendingVisits, getPendingSharedEventsForUser, saveFaceToIndex, updateGuestStatus, updateGuestPermissions, deleteGuest, getPublishedBusinesses, updateUserPrivacy, getUserVisits, findGuestNameByPhone, getUserLikes, serializeDatabaseData, followUser, unfollowUser, getFollowing, getFollowersCount, getFollowingCount), src/lib/razorpayPricing.ts (normalizeBillingDuration, getPricingPlanAmount, getBillingDurationLabel), src/lib/events.ts getAllEvents, src/lib/imageUrl.ts getSmallThumbnail, src/lib/subscriptionStatus.ts formatSubscriptionDate, page-flip resolvePageFlipTransition, templateRegistry WEB_TEMPLATE_IDS; app apps/mobile/lib/database.ts (getSharedEvents, updateUserPrivacy, getPendingFollowRequests, approveFollowRequest, rejectFollowRequest, getFollowersCount, getFollowingCount, getBusinessActivities, updateUserProfileImage, serializeDatabaseData), uploadQueue getIndexingStatusForEvent, chunkUpload isNonRetryableUploadError, imageUrl getSmallThumbnail, subscriptionStatus formatSubscriptionDate, constants/theme RoyalColors; shared/legal POLICY_ACCEPTANCE_TEXT and FIND_YOU_CONSENT_REQUIRED_CODE. Unused CSS in src/app/globals.css: .glass-nav, the .via-slate-950 / .to-slate-950 / .bg-sky-900/30 overrides, the --font-lato alias. Size and speed: none of these items are in the built app or website pages (the build leaves unused files out), so deleting them doesn't change app size or load speed; it removes about 750 MB from the root node_modules (faster installs and builds) and keeps searches clean. The real size and speed wins are #98 and #105. Overlaps #43 (root android/), #55 (unused database.ts functions) and #68 (root APKs).
+Issue: The website and app carry files, assets and packages nothing uses. App: 7 fonts in apps/mobile/assets/fonts (all but AkayaKanadaka; about 0.7 MB), 9 images in apps/mobile/assets/images (memories_bg, marketplace_bg, react-logo x3, partial-react-logo, splash-icon, android-icon-foreground, android-icon-monochrome; about 1.6 MB), 13 @expo-google-fonts packages (every name except Inter is mapped to Inter in app/_layout.tsx), Expo starter leftovers (app/modal.tsx, components/themed-text, themed-view, hello-wave, parallax-scroll-view, external-link, ui/collapsible, hooks/use-color-scheme*, hooks/use-theme-color, scripts/reset-project.js), components/event/index.ts. Website: components DashboardHeader, FindYouSection, RouteGuard, SubEventsGrid, page-flip/CoverFlowMediaViewer, ui/Hero, ui/JharokhaCard and lib/fmp4Chunker, lib/seed; public/file.svg, globe.svg, next.svg, vercel.svg, window.svg, _redirects; API routes media/process-thumbnail, media/trigger-modal-batch, debug/video-trigger, the empty api/test-deploy folder; root packages @tensorflow/tfjs-node, canvas, sharp, razorpay, expo, react-native, file-saver, @types/file-saver, @types/jszip. Repo root: one-off scripts (check-*.js, query_events*.js, replace_*_theme.js, parse/update/tmp_templates.js, templates_str.txt, parsed_templates.json, test-faceapi-block.js), logs (modal_logs*.txt, backend_error.log, .next_log), netlify.toml + netlify/ + vercel.json (Railway deploys). Unused functions: website src/lib/database.ts (getEvents, getUserPendingVisits, getPendingSharedEventsForUser, saveFaceToIndex, updateGuestStatus, updateGuestPermissions, deleteGuest, getPublishedBusinesses, updateUserPrivacy, getUserVisits, findGuestNameByPhone, getUserLikes, serializeDatabaseData, followUser, unfollowUser, getFollowing, getFollowersCount, getFollowingCount), src/lib/razorpayPricing.ts (normalizeBillingDuration, getPricingPlanAmount, getBillingDurationLabel), src/lib/events.ts getAllEvents, src/lib/imageUrl.ts getSmallThumbnail, src/lib/subscriptionStatus.ts formatSubscriptionDate, page-flip resolvePageFlipTransition, templateRegistry WEB_TEMPLATE_IDS; app apps/mobile/lib/database.ts (getSharedEvents, updateUserPrivacy, getPendingFollowRequests, approveFollowRequest, rejectFollowRequest, getFollowersCount, getFollowingCount, getBusinessActivities, updateUserProfileImage, serializeDatabaseData), uploadQueue getIndexingStatusForEvent, chunkUpload isNonRetryableUploadError, imageUrl getSmallThumbnail, subscriptionStatus formatSubscriptionDate, constants/theme RoyalColors; shared/legal POLICY_ACCEPTANCE_TEXT and FIND_YOU_CONSENT_REQUIRED_CODE. Unused CSS in src/app/globals.css: .glass-nav, the .via-slate-950 / .to-slate-950 / .bg-sky-900/30 overrides, the --font-lato alias. Size and speed: none of these items are in the built app or website pages (the build leaves unused files out), so deleting them doesn't change app size or load speed; it removes about 750 MB from the root node_modules (faster installs and builds) and keeps searches clean. The real size and speed wins are #98 (fixed 2026-10-26) and #105. Overlaps #43 (root android/), #55 (unused database.ts functions) and #68 (root APKs).
 How to reproduce: grep the repo for each file or package name: only its own file (or package.json) mentions it.
 
 #104
@@ -992,9 +980,33 @@ Found in: Sentry crash reporting work (todo #6, 2026-10-26)
 Issue: The backend cannot import shared/: Railway builds evebash-api-staging-backend with Root Directory /apps/backend, so files outside it don't exist at runtime (only backend tests import shared/ today). Code needed by website, app and backend has to be copied, and copies drift. First case: the Sentry personal-data scrubber exists in shared/monitoring/sentryScrub.ts (website, app) and again in apps/backend/src/sentry.ts. Fix options: set Railway's Root Directory to the repo root with a backend build/start command and watch paths, or copy shared/ into apps/backend at build time; then delete the backend copy.
 How to reproduce: Import anything from ../../../shared in apps/backend/src and deploy to staging: the service fails to start with "Cannot find module".
 
+#150
+Listed: 2026-10-26
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: #98 fix (2026-10-26)
+Issue: The site-wide Find You page (/find-you, src/app/(main)/find-you/page.tsx) can never find anything. It sends eventIds: [] ("search all indexed events"), but the backend (apps/backend/src/routes/findYou.ts) refuses an empty list with 400 "Missing selfie source ... or eventIds", so every selfie ends in "Something went wrong during matching." The 404 page's "Find your photos" button (src/components/NotFoundContent.tsx) links there. Its upload and result code is also a near copy of the gallery Find You page (src/app/(public)/events/[slug]/find-you/page.tsx), with `any` types. Fix idea: point the 404 button at a page that lists the user's galleries (or the dashboard) and delete /find-you, or have it ask which gallery to search; if both pages stay, move the shared upload code into one place.
+How to reproduce: Log in, open /find-you, accept the consent, upload a selfie: "Something went wrong during matching." The browser network tab shows POST /api/find-you answered 400.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#98
+Listed: 2026-10-22
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Unused code and assets scan (2026-10-22)
+Issue: The guest Find You page (src/app/(public)/events/[slug]/find-you/page.tsx) downloads about 12 MB of face-api.js models from public/models (ssdMobilenetv1, faceLandmark68Net, faceRecognitionNet) on every visit, but never uses them: the selfie is sent to the backend (/api/find-you), which does the matching. The models only decide when the Upload/Camera buttons turn on, so phone guests wait for 12 MB before they can search (measured 12.5 MB of models plus about 160 KB gzipped of face-api.js code: about 10 s on 10 Mbps 4G, about 35 s on 3 Mbps, about 2 s on fast Wi-Fi, and 12.5 MB of mobile data per guest). src/app/(main)/find-you/page.tsx also imports face-api.js without using it, which puts the library in that page's bundle. public/models/tiny_face_detector_* is not loaded by anything. Fix: drop the model loading and the face-api.js imports (buttons enabled straight away), then delete public/models and the face-api.js dependency.
+How to reproduce: Open /events/<id>/find-you with the browser network tab open: the *_model-shard* files load (about 12 MB); grep the page for faceapi. - only loadFromUri calls.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
+Fixed in: 6662abf (2026-10-26). The Upload and Take Selfie buttons now work straight away (they also no longer stay disabled for good when the model download failed). public/models and the face-api.js dependency are deleted. Checked: clean npm ci, tsc and next build pass, and no built page holds face-api.js code. On the built site in the built-in browser (login, consent and search answers stubbed, no real data), the buttons work at once, a match and a "no face" answer both show, and no model files load. Device test #147.
+
 #70
 Listed: 2026-10-13
 Platform: Website
