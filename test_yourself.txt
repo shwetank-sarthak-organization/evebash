@@ -4016,19 +4016,21 @@ Platform:  Website
 Brief:     A new wedding theme, "Confetti Circle": the cover photo fills the first screen with a big
            white circle in the middle. In the circle: the couple's names in tall pink-to-orange
            capitals with "- and -" between them, the date as "March | 28 | 2025" and the place; a
-           dark tag on the circle's top edge with a red heart and the gallery's welcome message ("Happily
-           married" when there is none; a long message gets a wider tag, at most 4 lines); pink and
+           dark tag on the circle's top edge with a red heart and the gallery's welcome message in italics
+           and quotes ("Happily married" in capitals when there is none; a long message gets a wider tag, at most 4 lines); pink and
            orange paint specks round the circle; a torn-paper edge at the bottom of the photo. On a computer
            the tag starts right under the top bar and the circle reaches down to the torn edge. The circle
            is see-through (70% white). The top bar is frosted white with the couple's names in
            the middle (the "&" is a pink heart), Home and Collections on the left, Find You and Download
            All on the right, all in tall narrow capitals; solid white once you scroll. On phones the names
            are on the left and the menu button on the right. Below the photo: "We're getting married!",
-           the highlight video (or, without one, the cover photo) in a frame that fades out at its edges
-           with paint specks and a white "Sophia ♥ Robert" ribbon, the bride on the left and the groom on
-           the right (placeholder words and social icons for now, todo #10). Then the gallery looks like
-           Classic White, without its own video.
-Detail:    Commits ef1dece, b708222 (centred navbar, see-through circle), 3f44228 (circle lower, 90%), a981b06 (upright "S ♥ R" tag), 30d07b9 (circle fills the cover), 4aa3f34 (70% white) and d187abe (couple section, message on the tag): src/components/TemplateConfetti.tsx, src/app/confetti-circle.css,
+           the highlight video (or, without one, the cover photo) in a widescreen frame that fades out at
+           its edges with paint specks and a white "Sophia ♥ Robert" ribbon, the bride on the left and the groom on
+           the right (placeholder words and social icons for now, todo #10). Then the gallery: Back /
+           Share, "PHOTO GALLERY | <gallery name> | VIDEO GALLERY" (the main gallery's or the album's name;
+           the pink words switch photos / videos), and a grid of narrow, wide, narrow
+           tiles (phones: two small tiles, then one across).
+Detail:    Commits ef1dece, b708222 (centred navbar, see-through circle), 3f44228 (circle lower, 90%), a981b06 (upright "S ♥ R" tag), 30d07b9 (circle fills the cover), 4aa3f34 (70% white) d187abe (couple section, message on the tag) and 3d4c1f5 (gallery header, mosaic grid, rectangular video, italic message): src/components/TemplateConfetti.tsx, src/app/confetti-circle.css,
            src/components/confetti/confettiFonts.ts, src/components/EventNavbar.tsx (variant "confetti"),
            theme id "confetti". Website only: the app has no Confetti Circle, so don't check it in the app.
 How to test:
@@ -4052,9 +4054,12 @@ How to test:
      its poster in the faded frame with a pink play button; press it: the film plays in a plain 16:9
      box with its controls, the ribbon under it. The gallery header below has no second copy of it.
      Remove the video: the frame shows the cover photo, no play button.
-  8. Change the welcome message: empty (tag says "Happily married"), short (e.g. "Save the date", in
-     capitals), and the full 200 characters (wider tag, normal letters, 4 lines ending in "…", not
-     touching the names; the whole message is in the gallery header below).
+  8. Change the welcome message: empty (tag says "Happily married" in capitals), short (e.g. "Save
+     the date": italic, in quotes), and the full 200 characters (wider tag, italic, 4 lines ending in
+     "…", not touching the names; the whole message in italics and quotes under the gallery name).
+  9. Under the couple section: press "Video gallery" and "Photo gallery". Expect: the chosen word turns
+     pink and the grid shows those items; open a tile: the viewer opens as before. The big word between
+     them is the gallery's name; open an album: it changes to the album's name.
 Done by:
 Device / browser:
 Build / version:
