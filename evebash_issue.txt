@@ -869,6 +869,14 @@ Phase 3 (only if phase 2 passes; ask before any deploy): new video-gpu-switch ke
 Phase 4: move all long and/or short videos, keep RunPod as a backup, or drop it.
 Expected cost of the test: ~$3-5 RunPod credit plus a little Modal time.
 How to reproduce: n/a (cost comparison, not a bug).
+Results, rounds 1-2 (2026-10-26, 16:15-18:00 IST; production _transcode_video_core run unchanged on both providers via a harness that stubs Supabase/B2; B2 access by short-lived tokens, outputs only under bench/rp-out/; ₹100 = $1; RunPod cost = its billed per-second rate x (run + 10 s), i.e. with my test boot install taken out, as a prebuilt image would; Modal = real bill per run incl. network egress):
+- test_5 (48.7 min 1080p): Modal L4 272-384 s, ₹20-22 (₹9-11 compute + ₹11 egress). RunPod 24 GB class (gave an RTX PRO 6000 Blackwell 24 GB MIG slice) 282-307 s, ₹5.6-6.1. RunPod L4 305 s, ₹6.1. RunPod 16 GB class (RTX A4500) 452 s, ₹7.6.
+- 4K HDR portrait (10.5 min): Modal L4 175-181 s, ₹8.2-8.3 (₹2.5 egress). RunPod Blackwell slice 111-118 s, ₹2.3-2.5. RunPod L4 202 s. RunPod A4500 203 s, ₹3.5.
+- Short clips (22-50 s, 4K / HDR / HEVC 60 fps), same ffmpeg image (jrottenberg 7.0) on both: Modal 4-core 7.5-21 s, ₹0.12-0.36. RunPod cpu5c 8 vCPU 15-39 s, ₹0.05-0.11 (4 vCPU about 2x slower again; cpu3c slower still).
+- Waits (queue + container start, boot taken out): Modal 4-9 s. RunPod 24 GB class 18-60 s, CPU 15-28 s. RunPod pinned to L4: one job waited 18 min (endpoint "throttled", no L4 free) - don't pin L4.
+- Rates billed: RunPod 24 GB GPU $0.000193/s ($0.69/h), 16 GB $0.000164/s, cpu5c 8 vCPU ~$0.0000216/s, no egress charge. Modal bills network egress (~$0.038/GB): ~₹11 per test_5 run; production paid ~$0.73 egress in Oct so far (the #141 note "egress free under 1 TiB" was wrong).
+- Same ffmpeg speed on the same L4 (187 vs 189 s); differences come from B2 transfer speed and start-up.
+Early read: long videos ~70% cheaper on RunPod's 24 GB class at similar speed (about a third from GPU price, the rest from egress); short videos ~3x cheaper but ~2x slower + ~20 s more wait, so keep them on Modal. Next: round 3 at a busy hour (US daytime, ~21:00-22:00 IST) for RunPod waits, then phase 2 decision. Test endpoints (workersMin 0, no idle cost) kept until then; bench/short/ inputs and bench/rp-out/ outputs to delete after.
 
 #135
 Listed: 2026-10-24
