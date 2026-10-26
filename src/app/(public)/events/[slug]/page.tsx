@@ -27,6 +27,8 @@ import { alertDialog } from "@/components/ui/Modal";
 
 const PUBLIC_PAGE_SIZE = 60;
 
+const isVideoMedia = (item: { mediaType?: string; resourceType?: string }) => item.mediaType === "video" || item.resourceType === "video";
+
 type GateState = "login_required" | "none" | "pending" | "rejected" | "error";
 
 const isGateAccess = (access: GalleryAccess | null): access is Exclude<GateState, "error"> =>
@@ -214,6 +216,21 @@ function EventPageContent() {
     }, [wantsGalleryVideo, shownGalleryId, shownGallery?.galleryVideoId]);
     const galleryVideo = wantsGalleryVideo && loadedGalleryVideo?.galleryId === shownGalleryId ? loadedGalleryVideo.video : null;
 
+    // A gallery with videos but no photos opens on Videos. Decided once per gallery, after its media has loaded,
+    // so a guest who then picks Photos keeps their choice.
+    const mediaTabChosenFor = useRef<string | null>(null);
+    useEffect(() => {
+        if (loading || !shownGalleryId || mediaTabChosenFor.current === shownGalleryId) return;
+        const loadedVideos = photos.filter(isVideoMedia).length;
+        const photoTotal = mediaTotals.photos || photos.length - loadedVideos;
+        const videoTotal = mediaTotals.videos || loadedVideos;
+        // Public galleries have no totals; wait until every page has loaded if the first one is only videos
+        const countsKnown = mediaTotals.photos + mediaTotals.videos > 0 || !hasMorePhotos;
+        if (photoTotal + videoTotal === 0 || !countsKnown) return;
+        mediaTabChosenFor.current = shownGalleryId;
+        if (photoTotal === 0 && videoTotal > 0) setGalleryMediaTab("videos");
+    }, [loading, shownGalleryId, photos, mediaTotals, hasMorePhotos]);
+
     const transformPhotos = (databasePhotos: DatabasePhoto[]) => databasePhotos.map(p => ({
         id: p.id,
         eventId: p.eventId,
@@ -257,10 +274,9 @@ function EventPageContent() {
                 setPhotos(mergeHomeMedia(favPhotos, ownPhotos));
                 // Home uploads that are also favourites are counted once
                 const extraFavourites = favPhotos.filter(photo => !homeIds.has(photo.eventId || ""));
-                const isVideoItem = (p: { mediaType?: string; resourceType?: string }) => p.mediaType === "video" || p.resourceType === "video";
                 setMediaTotals({
-                    photos: own.totalPhotos + extraFavourites.filter(p => !isVideoItem(p)).length,
-                    videos: own.totalVideos + extraFavourites.filter(isVideoItem).length,
+                    photos: own.totalPhotos + extraFavourites.filter(p => !isVideoMedia(p)).length,
+                    videos: own.totalVideos + extraFavourites.filter(isVideoMedia).length,
                 });
             } else {
                 setPhotos(prev => mergeHomeMedia(prev, ownPhotos));
@@ -554,7 +570,7 @@ function EventPageContent() {
     }
 
     const photoItems = photos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video" && !!(photo.thumbnailUrl || photo.src));
-    const videoItems = photos.filter(photo => photo.mediaType === "video" || photo.resourceType === "video");
+    const videoItems = photos.filter(isVideoMedia);
     const selectedMediaItems = galleryMediaTab === "videos" ? videoItems : photoItems;
     const isPrimaryGalleryView = !activeGallery;
     const isFavouriteFilterActive = !isPrimaryGalleryView && !isPublicView && showOnlyFavourites;
