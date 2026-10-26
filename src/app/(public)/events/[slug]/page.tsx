@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
 import { getWebTemplateComponent } from "@/components/templateRegistry";
 import { RoyalGalleryHeader } from "@/components/royal/RoyalGalleryHeader";
+import { MidnightGalleryHeader } from "@/components/midnight/MidnightGalleryHeader";
 import { GalleryHighlightVideo } from "@/components/GalleryHighlightVideo";
 import { getWebLightboxTheme, getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { ClassicGalleryHeader } from "@/components/classic/ClassicGalleryHeader";
@@ -583,13 +584,18 @@ function EventPageContent() {
     // Classic White shows the gallery message in its own gallery header and styles the shared buttons itself (classic-white.css).
     // Sunlit Portrait uses the same gallery section below its cover photo.
     const isClassicGallery = displayEvent.templateId === "classic" || displayEvent.templateId === "portrait";
+    // Midnight Hero (the default theme) draws its own gallery header (event name, star, title, count, film, Photos / Videos)
+    const isMidnightGallery = (displayEvent.templateId || "hero") === "hero";
+    // A new main gallery gets "Main Event: <title>" as its description; that isn't a message for guests
+    const midnightMessage = activeGalleryMessage?.trim() === `Main Event: ${event.title}` ? "" : activeGalleryMessage;
+    const ownHeader = isRoyalGallery || isClassicGallery || isMidnightGallery;
     const goBack = () => {
         router.push(event?.parentId ? `/events/${event.parentId}${isShared ? "?shared=true" : ""}` : "/dashboard");
     };
 
     const renderContent = () => (
         <div className={cn("contents themed-gallery-content", isRoyalGallery && "royal-gallery-content")}>
-            {!isRoyalGallery && !isClassicGallery && (
+            {!ownHeader && (
             <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <button
                     onClick={goBack}
@@ -635,12 +641,27 @@ function EventPageContent() {
             </div>
             )}
 
-            <div className={cn(!isRoyalGallery && !isClassicGallery && "mt-12")}>
+            <div className={cn(!ownHeader && "mt-12")}>
                 {isRoyalGallery ? (
                     <RoyalGalleryHeader
                         title={activeGallery ? activeGalleryTitle : "Home Gallery"}
                         message={activeGalleryMessage}
                         coupleTitle={event?.parentId ? undefined : event?.title}
+                        backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
+                        onBack={goBack}
+                        onShare={handleShare}
+                        copied={copied}
+                        photoCountLabel={displayedPhotoCount}
+                        videoCountLabel={displayedVideoCount}
+                        activeTab={galleryMediaTab}
+                        onTabChange={setGalleryMediaTab}
+                        video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
+                    />
+                ) : isMidnightGallery ? (
+                    <MidnightGalleryHeader
+                        title={activeGallery ? activeGalleryTitle : "Home Gallery"}
+                        eventTitle={event.parentId ? parentInfo.title || undefined : event.title}
+                        message={midnightMessage}
                         backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
                         onBack={goBack}
                         onShare={handleShare}
@@ -705,6 +726,8 @@ function EventPageContent() {
                             onClick={() => guestFileInputRef.current?.click()}
                             className={isRoyalGallery
                                 ? "royal-button"
+                                : isMidnightGallery
+                                ? "midnight-gh-button"
                                 : isClassicGallery
                                 ? "classic-button"
                                 : "inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800 disabled:opacity-60"}
@@ -719,8 +742,8 @@ function EventPageContent() {
                 ))}
 
                 {/* Photos / Videos on the left; Favourites only (in albums, for logged-in guests) on the right, below on phones */}
-                <div className={cn("mt-10 flex flex-wrap items-center gap-4", isRoyalGallery || isClassicGallery ? "justify-end" : "justify-between")}>
-                {!isRoyalGallery && !isClassicGallery && (
+                <div className={cn("mt-10 flex flex-wrap items-center gap-4", ownHeader ? "justify-end" : "justify-between")}>
+                {!ownHeader && (
                 <div data-royal-control="segments" className="inline-flex rounded-2xl border border-stone-200 bg-white p-1 shadow-sm">
                     {([
                         { id: "photos", label: `Photos (${displayedPhotoCount})` },

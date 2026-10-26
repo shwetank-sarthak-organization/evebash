@@ -123,11 +123,6 @@ export function TemplateHero({ event, mainTitle, mainCategory, hasParent = false
 
       {children && (
         <section id="event-content" className="midnight-content">
-          <div className="midnight-content__ornament" aria-hidden="true">
-            <span />
-            <i />
-            <span />
-          </div>
           <div className="max-w-7xl mx-auto px-4">{children}</div>
         </section>
       )}
