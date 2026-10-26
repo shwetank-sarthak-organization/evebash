@@ -881,6 +881,13 @@ Prebuilt workers + GPU types (2026-10-26 evening): images built without Docker (
 GPU types, cost per long video (RunPod = list $/h x (run + 5 s); Modal = bill without egress): Blackwell 24 GB MIG slice ($0.69/h) test_5 ₹5.5-6.0 / 4K HDR ₹2.2-2.6; RTX 4000 Ada ($0.58) ₹4.8 / ₹3.3, ffmpeg faster than L4 (171 vs 187 s); RunPod L4 ₹5.9 / ₹4.0 (one 18-min wait); A5000 ₹7.0 (single old NVENC, ffmpeg 333 s); RTX PRO 4500 Blackwell ($1.15) fastest ffmpeg (135 / 69 s) ₹8.1 / ₹5.4; 48 GB PRO ($1.75, gave a 48 GB Blackwell slice) fastest total (3.3 / 2.0 min) ₹9.4 / ₹5.6; Modal L4 compute only ₹8.4-11.3 / ₹5.4-5.8 (+₹11 / ₹2.5 egress). RTX 4090 and 5090: NVENC "Invalid argument" on test_5 (5090 on both) - excluded. A100/H100-class cards have no NVENC.
 Why some RunPod GPUs were slower with the same code: ffmpeg (3 NVENC encodes at once, preset p4) depends on the card's encoders - L4 has 2 (Ada), A5000/3090 1 older, the 24 GB Blackwell slice about 1 (newest). On the same L4, RunPod = Modal (187 vs 189 s). B2 transfers were faster on RunPod.
 Chosen pool for the next phase: RTX 4000 Ada, then L4 / Blackwell 24 GB slice (gpuIds "AMPERE_16,-A4000,-A4500,-RTX 2000 Ada,AMPERE_24,-A5000,-3090"). RunPod spend for the whole test ~$1.3 of $15. Test endpoints left: evebash-bench-gpu-pre, evebash-bench-cpu-pre (idle = free).
+Matrix 2026-10-26 21:20-22:20 IST, 3 runs per GPU per video type, prebuilt image; average (min-max); total = wait for a machine + run; RunPod cost = list $/h x (run + 5 s); Modal = bill compute (+ egress), last two video types estimated at today's Modal rate (₹0.031/s) until their bill is out:
+- test_5 1080p25 H.264 48.7 min: RTX 4000 Ada 334 s (282-435) ₹4.60 | Blackwell 24 GB slice 348 s (305-372) ₹6.54 | Modal L4 320 s (277-390) ₹9.66 + ₹10.89 egress.
+- 4K HDR HEVC portrait 10.5 min: Ada 196 s (189-199) ₹3.21 | Blackwell 165 s (135-186) ₹3.13 | Modal 252 s (180-385, one 203 s wait) ₹5.58 + ₹2.54.
+- 4K 24 fps H.264 10.7 min (looped clip, no audio): Ada 157 s (153-166) ₹2.56 | Blackwell 125 s (88-188) ₹2.32 | Modal 445 s (186-874, one 715 s wait for an L4) ~₹5.95 + ₹2.41.
+- 1080p 60 fps HEVC 10.7 min (looped clip): Ada 167 s (166-167) ₹2.75 | Blackwell 194 s (166-232) ₹3.15 | Modal 176 s (162-185) ~₹5.23 + ₹2.48.
+- No failures on Ada or Blackwell (24/24). RunPod L4 dropped: no L4 free within 10 min again (2nd time today).
+Read: both RunPod GPUs at ~half Modal's compute cost and ~a quarter including egress, similar or faster total time; Ada steadier on time (cheapest on 1080p), Blackwell faster on 4K. Next: phase 3 (switch, Modal fallback) with pool RTX 4000 Ada + Blackwell 24 GB slice (+ L4 as a third choice). RunPod spend for all tests ~$2.3 of $15.
 
 #135
 Listed: 2026-10-24
