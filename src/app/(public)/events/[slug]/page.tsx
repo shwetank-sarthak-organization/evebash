@@ -22,6 +22,7 @@ import { GalleryHighlightVideo } from "@/components/GalleryHighlightVideo";
 import { getWebLightboxTheme, getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { ClassicGalleryHeader } from "@/components/classic/ClassicGalleryHeader";
 import { ConfettiCoupleSection } from "@/components/confetti/ConfettiCoupleSection";
+import { ConfettiGalleryHeader } from "@/components/confetti/ConfettiGalleryHeader";
 import { coverImageStyle } from "@/lib/coverStyle";
 import { PortraitGalleryHeader } from "@/components/portrait/PortraitGalleryHeader";
 import { supabase } from "@/lib/supabase";
@@ -617,6 +618,8 @@ function EventPageContent() {
     // Classic White shows the gallery message in its own gallery header and styles the shared buttons itself (classic-white.css).
     // Sunlit Portrait, Confetti Circle and Periwinkle Script use the same gallery section below their cover.
     const isClassicGallery = displayEvent.templateId === "classic" || displayEvent.templateId === "portrait" || displayEvent.templateId === "confetti" || displayEvent.templateId === "periwinkle";
+    // Confetti Circle: Classic White's gallery with its own header (ConfettiGalleryHeader) and a mosaic grid
+    const isConfettiGallery = displayEvent.templateId === "confetti";
     // Midnight Hero (the default theme) draws its own gallery header (event name, star, title, count, film, Photos / Videos)
     const isMidnightGallery = (displayEvent.templateId || "hero") === "hero";
     // A new main gallery gets "Main Event: <title>" as its description; that isn't a message for guests
@@ -724,8 +727,8 @@ function EventPageContent() {
                 ) : isClassicGallery ? (
                     <>
                         {/* Confetti Circle: "We're getting married!", the bride, the highlight video (or cover photo) and the groom,
-                            above the header, which then leaves the video out */}
-                        {displayEvent.templateId === "confetti" && (
+                            above its own gallery header (which has no video) */}
+                        {isConfettiGallery && (
                             <ConfettiCoupleSection
                                 title={event.parentId ? parentInfo.title || event.title : event.title}
                                 category={event.parentId ? parentInfo.category || event.category : event.category}
@@ -734,22 +737,38 @@ function EventPageContent() {
                                 coverImageStyle={coverImageStyle(displayEvent)}
                             />
                         )}
-                        <ClassicGalleryHeader
-                            // The gallery's own name; the event's title is on the cover
-                            title={activeGallery ? activeGalleryTitle : event.parentId ? event.title || "Home" : "Home"}
-                            details={[displayEvent.date?.trim(), typeof displayEvent.location === "string" ? displayEvent.location.trim() : ""].filter(Boolean).join(" · ")}
-                            // Periwinkle Script shows the message in the card on its cover
-                            message={displayEvent.templateId === "periwinkle" ? "" : activeGalleryMessage}
-                            backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
-                            onBack={goBack}
-                            onShare={handleShare}
-                            copied={copied}
-                            photoCountLabel={displayedPhotoCount}
-                            videoCountLabel={displayedVideoCount}
-                            activeTab={galleryMediaTab}
-                            onTabChange={setGalleryMediaTab}
-                            video={galleryVideo && displayEvent.templateId !== "confetti" ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
-                        />
+                        {isConfettiGallery ? (
+                            <ConfettiGalleryHeader
+                                // The gallery's own name (the album's, or the main gallery's)
+                                title={activeGalleryTitle}
+                                message={activeGalleryMessage}
+                                backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
+                                onBack={goBack}
+                                onShare={handleShare}
+                                copied={copied}
+                                photoCountLabel={displayedPhotoCount}
+                                videoCountLabel={displayedVideoCount}
+                                activeTab={galleryMediaTab}
+                                onTabChange={setGalleryMediaTab}
+                            />
+                        ) : (
+                            <ClassicGalleryHeader
+                                // The gallery's own name; the event's title is on the cover
+                                title={activeGallery ? activeGalleryTitle : event.parentId ? event.title || "Home" : "Home"}
+                                details={[displayEvent.date?.trim(), typeof displayEvent.location === "string" ? displayEvent.location.trim() : ""].filter(Boolean).join(" · ")}
+                                // Periwinkle Script shows the message in the card on its cover
+                                message={displayEvent.templateId === "periwinkle" ? "" : activeGalleryMessage}
+                                backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
+                                onBack={goBack}
+                                onShare={handleShare}
+                                copied={copied}
+                                photoCountLabel={displayedPhotoCount}
+                                videoCountLabel={displayedVideoCount}
+                                activeTab={galleryMediaTab}
+                                onTabChange={setGalleryMediaTab}
+                                video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
+                            />
+                        )}
                     </>
                 ) : (
                     <>
@@ -876,7 +895,7 @@ function EventPageContent() {
                             onRequireLogin={isPublicView && !user ? promptLogin : undefined}
                             lightboxTheme={getWebLightboxTheme((activeGallery || event).templateId || event.templateId)}
                             templateId={(activeGallery || event).templateId || event.templateId}
-                            layout={isClassicGallery || isMidnightGallery ? "justified" : undefined}
+                            layout={isConfettiGallery ? "mosaic" : isClassicGallery || isMidnightGallery ? "justified" : undefined}
                         />
                     </div>
                 ) : (

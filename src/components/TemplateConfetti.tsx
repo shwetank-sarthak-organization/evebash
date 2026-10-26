@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { coverImageStyle } from "@/lib/coverStyle";
 import { confettiDisplay } from "@/components/confetti/confettiFonts";
 import { makeSpecks } from "@/components/confetti/confettiSpecks";
+import { CONFETTI_TAG_LONG_MESSAGE } from "@/components/confetti/ConfettiGalleryHeader";
 import { displayCoupleTitle, splitCoupleNames } from "../../shared/text/coupleNames";
 
 interface TemplateConfettiProps {
@@ -53,8 +54,8 @@ export function TemplateConfetti({ event, mainTitle, mainCategory, children }: T
     const message = rawMessage.startsWith("Main Event: ") ? "" : rawMessage;
     const tagText = message || confettiTagLine(mainCategory || event.category);
     // Messages are at most 200 characters (host page and app). Longer ones get a wider tag and smaller text, and the
-    // tag shows at most 4 lines; the whole message is also in the gallery header below the cover.
-    const tagSize = tagText.length > 90 ? " confetti-hero__tag--xlong" : tagText.length > 26 ? " confetti-hero__tag--long" : "";
+    // tag shows at most 4 lines; the gallery header below the cover then shows the whole message.
+    const tagSize = tagText.length > CONFETTI_TAG_LONG_MESSAGE ? " confetti-hero__tag--xlong" : tagText.length > 26 ? " confetti-hero__tag--long" : "";
     const title = displayCoupleTitle(rawTitle);
     const date = event.date?.trim() || "";
     const dateParts = date ? splitDate(date) : null;
@@ -100,9 +101,10 @@ export function TemplateConfetti({ event, mainTitle, mainCategory, children }: T
                         ))}
                     </div>
 
-                    <div className={`confetti-hero__tag${tagSize}`}>
+                    {/* The host's message is italic in quotes; the fallback line is plain capitals */}
+                    <div className={`confetti-hero__tag${tagSize}${message ? " confetti-hero__tag--message" : ""}`}>
                         <span className="confetti-hero__heart" aria-hidden="true">♥</span>
-                        <p className="confetti-hero__tagline" title={tagText}>{tagText}</p>
+                        <p className="confetti-hero__tagline" title={tagText}>{message ? <>&ldquo;{message}&rdquo;</> : tagText}</p>
                     </div>
 
                     <div className="confetti-hero__body">
