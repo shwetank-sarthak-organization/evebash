@@ -4028,9 +4028,12 @@ Brief:     A new wedding theme, "Confetti Circle": the cover photo fills the fir
            its edges with paint specks and a white "Sophia ♥ Robert" ribbon, the bride on the left and the groom on
            the right (placeholder words and social icons for now, todo #10). Then the gallery: Back /
            Share, "PHOTO GALLERY | <gallery name> | VIDEO GALLERY" (the main gallery's or the album's name;
-           the pink words switch photos / videos), and a grid of narrow, wide, narrow
-           tiles (phones: two small tiles, then one across).
-Detail:    Commits ef1dece, b708222 (centred navbar, see-through circle), 3f44228 (circle lower, 90%), a981b06 (upright "S ♥ R" tag), 30d07b9 (circle fills the cover), 4aa3f34 (70% white) d187abe (couple section, message on the tag) and 3d4c1f5 (gallery header, mosaic grid, rectangular video, italic message): src/components/TemplateConfetti.tsx, src/app/confetti-circle.css,
+           the pink words switch photos / videos), and full-width rows of photos, each shown whole (never
+           cropped), about three to a row on a computer and two on a phone. At the bottom of every
+           Confetti Circle page (gallery, albums, Find You) its own footer: a torn-paper edge, "Create your
+           own event / Sample galleries / Pricing" on the left, "S ♥ R" with "Made with EveBash" (EveBash in
+           the EveBash font) in the middle, "Privacy / Terms / Contact us" on the right; no other footer.
+Detail:    Commits ef1dece, b708222 (centred navbar, see-through circle), 3f44228 (circle lower, 90%), a981b06 (upright "S ♥ R" tag), 30d07b9 (circle fills the cover), 4aa3f34 (70% white) d187abe (couple section, message on the tag) , 3d4c1f5 (gallery header, rectangular video, italic message) and 2826ad1 (footer, full-width uncropped grid): src/components/TemplateConfetti.tsx, src/app/confetti-circle.css,
            src/components/confetti/confettiFonts.ts, src/components/EventNavbar.tsx (variant "confetti"),
            theme id "confetti". Website only: the app has no Confetti Circle, so don't check it in the app.
 How to test:
