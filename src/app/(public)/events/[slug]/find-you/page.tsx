@@ -3,7 +3,6 @@
 import { Camera, ImageUp } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import * as faceapi from "face-api.js";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { getEventById, getSubEvents, visibleGalleries, Event } from "@/lib/database";
 import { getWebTemplateChrome } from "@/lib/webTemplateTheme";
@@ -37,11 +36,10 @@ function FindYouContent({ slug }: { slug: string }) {
     const [templateId, setTemplateId] = useState("hero");
     const theme = getWebTemplateChrome(templateId);
     const [subEvents, setSubEvents] = useState<Event[]>([]);
-    const [modelsLoaded, setModelsLoaded] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [matchedPhotos, setMatchedPhotos] = useState<MatchedPhoto[]>([]);
-    const [statusMessage, setStatusMessage] = useState("Loading AI Models...");
+    const [statusMessage, setStatusMessage] = useState("");
     const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,26 +71,6 @@ function FindYouContent({ slug }: { slug: string }) {
             active = false;
         };
     }, [slug]);
-
-    useEffect(() => {
-        const loadModels = async () => {
-            try {
-                const MODEL_URL = "/models";
-                await Promise.all([
-                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-                ]);
-                setModelsLoaded(true);
-                setStatusMessage("AI Models Loaded. Ready.");
-            } catch (error) {
-                console.error("Error loading models:", error);
-                setStatusMessage("Error loading AI models. Please check /public/models folder.");
-            }
-        };
-
-        loadModels();
-    }, []);
 
     const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (!event.target.files?.length) return;
@@ -211,11 +189,11 @@ function FindYouContent({ slug }: { slug: string }) {
                         <div className="flex flex-col md:flex-row gap-4 justify-center">
                             {/* Option 1: Gallery Upload */}
                             <button data-gallery-panel
-                                onClick={() => modelsLoaded && fileInputRef.current?.click()}
-                                disabled={!modelsLoaded || uploading || processing}
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploading || processing}
                                 className={`
                                     flex-1 flex flex-col items-center justify-center p-8 rounded-xl border-2 border-dashed transition-all
-                                    ${modelsLoaded && !uploading && !processing
+                                    ${!uploading && !processing
                                         ? 'border-royal-gold/50 bg-royal-gold/5 hover:bg-royal-gold/10 hover:border-royal-gold text-royal-maroon cursor-pointer'
                                         : 'border-stone-200 bg-stone-50 text-stone-400 cursor-not-allowed'}
                                 `}
@@ -227,11 +205,11 @@ function FindYouContent({ slug }: { slug: string }) {
 
                             {/* Option 2: Camera Capture */}
                             <button data-gallery-panel
-                                onClick={() => modelsLoaded && cameraInputRef.current?.click()}
-                                disabled={!modelsLoaded || uploading || processing}
+                                onClick={() => cameraInputRef.current?.click()}
+                                disabled={uploading || processing}
                                 className={`
                                     flex-1 flex flex-col items-center justify-center p-8 rounded-xl border-2 border-dashed transition-all
-                                    ${modelsLoaded && !uploading && !processing
+                                    ${!uploading && !processing
                                         ? 'border-royal-gold/50 bg-royal-gold/5 hover:bg-royal-gold/10 hover:border-royal-gold text-royal-maroon cursor-pointer'
                                         : 'border-stone-200 bg-stone-50 text-stone-400 cursor-not-allowed'}
                                 `}
@@ -241,13 +219,6 @@ function FindYouContent({ slug }: { slug: string }) {
                                 <span className="text-xs opacity-70 mt-1">Use camera directly</span>
                             </button>
                         </div>
-
-                        {/* Status Message */}
-                        {!modelsLoaded && (
-                            <p className="text-center text-stone-700 mt-4 animate-pulse">
-                                Loading AI Models...
-                            </p>
-                        )}
 
                         {/* Hidden Inputs */}
                         <input
@@ -267,7 +238,7 @@ function FindYouContent({ slug }: { slug: string }) {
                         />
 
                         {/* Status / Progress */}
-                        {(uploading || processing || (statusMessage !== "AI Models Loaded. Ready." && modelsLoaded)) && (
+                        {(uploading || processing || statusMessage) && (
                             <div className="mt-6">
                                 <p role="status" aria-live="polite" style={{ color: theme.text }} className={`font-medium ${uploading || processing ? "animate-pulse" : ""} ${matchedPhotos.length > 0 ? "text-green-700" : "text-royal-maroon"}`}>
                                     {statusMessage}

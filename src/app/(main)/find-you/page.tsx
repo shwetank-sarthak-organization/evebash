@@ -4,7 +4,6 @@ import { Camera, ImageUp } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import * as faceapi from "face-api.js";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { getApiUrl } from "@/lib/apiBase";
 import { supabase } from "@/lib/supabase";
