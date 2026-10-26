@@ -18,6 +18,15 @@
 - Testers fill in Status, Done by, Device / browser, Build / version, Date tested, Account used, Screenshot and Feedback.
 - `evebash_issue.txt` is for bugs; `test_yourself.txt` is for tests. A FAIL that needs real work also gets an issue in `evebash_issue.txt`.
 
+## Todo list
+
+`evebash_todo.txt` at the repo root lists new features and improvements we plan to build.
+
+- Read it at the start of any task and say if the work touches one of its todos.
+- Add new todos with the file's "Next todo number" (then increase it; pull staging first). Numbers are never reused.
+- When starting on a todo, set Status to "In progress" and its Owner. When it ships, set Status to "Done" with "Done in: <commit> (date)", and add a device test in `test_yourself.txt` if it needs one.
+- Bugs go in `evebash_issue.txt`, device checks in `test_yourself.txt`, new features here.
+
 ## Code reuse
 
 Search before you write. Duplicated helpers drift apart and cause web/app mismatches.

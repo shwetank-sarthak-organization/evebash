@@ -1,0 +1,83 @@
+EVEBASH - TODO (NEW FEATURES)
+=============================
+New things we want to build (features and improvements), for the website and/or phone app.
+Share this file in chats and keep it in the repo so everyone knows what is planned.
+
+Which file to use:
+- Bugs (something is broken)              -> evebash_issue.txt
+- Checks by hand on a real device         -> test_yourself.txt
+- New features and improvements (planned) -> this file
+
+HOW TO USE
+- New todo: add it at the end of ACTIVE TODOS with the "Next todo number" below, then increase
+  that number by 1. Never reuse a number. Pull staging first so two chats don't take the same number.
+- Starting work: set Status to "In progress" and Owner to your name.
+- After discussing it: set Discussed to Yes and write what was agreed in Decision.
+- Shipped (merged to staging): set Status to "Done" and add "Done in: <commit> (YYYY-MM-DD)".
+  If it needs a check on a device, add a test in test_yourself.txt and note its number in Done in.
+- Dropped: set Status to "Dropped" and say why in Decision.
+- Delete Done and Dropped entries once they are older than 14 days.
+- Dates are YYYY-MM-DD.
+
+Field values:
+- Platform:     App | Website | Both | Analytics dashboard | Backend only
+- Priority:     High | Medium | Low
+- Phase:        1 (v1 launch) | 2 (after launch, incl. business features) | 3 (later / nice to have)
+- Status:       Idea | Agreed | In progress | Done | Dropped
+- Effort:       S (a few hours) | M (1-3 days) | L (a week or more)
+- Suggested by: a name, or where it came from (a user, an audit, a competitor)
+- Discussed:    Yes | No
+- Decision:     what was agreed when discussed, or "-"
+- Owner:        a name, or Unassigned
+- Depends on:   another todo, an issue number, a decision, or "-"
+
+Next todo number: 3
+
+Last updated: 2026-10-26
+
+=====================================================================
+ACTIVE TODOS
+=====================================================================
+
+#1  Light theme for the app and website
+Listed:       2026-10-26
+Platform:     Both
+Priority:     Medium
+Phase:        2
+Status:       Idea
+Effort:       L
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Add a light theme to the app and the website, alongside the current look.
+              To decide: follow the phone/browser setting, a switch in settings, or both;
+              and whether gallery themes (e.g. Classic White) stay separate from it.
+Done in:      -
+
+#2  One-time event payment plan
+Listed:       2026-10-26
+Platform:     Both
+Priority:     Medium
+Phase:        1
+Status:       Idea
+Effort:       M
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        A plan you pay for once for a single event, instead of a subscription.
+              Today plans are billed monthly / 3 months / 6 months / yearly through Razorpay
+              (src/lib/razorpayPricing.ts). To decide: price, storage and photo limits per
+              event, how long the event stays active, and whether it can be upgraded later.
+              Storage/plan limits are web-only today (issue #6); this plan should be enforced
+              on the app and backend too.
+Done in:      -
+
+=====================================================================
+DONE / DROPPED (delete after 14 days)
+=====================================================================
+
+(none yet)
