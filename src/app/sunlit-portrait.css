@@ -91,93 +91,148 @@
 .portrait-hero__open:hover { transform: translateY(2px); }
 .portrait-hero__open:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
 
-/* ---------- Gallery section (src/components/classic/ClassicGalleryHeader.tsx, restyled) ----------
-   Centred like a printed album's title page: small Back / Share links, the gallery name in the cover's serif, the
-   date in small capitals, the message in italics, then a pill switch for Photos / Videos. */
+/* ---------- Gallery section (src/components/portrait/PortraitGalleryHeader.tsx) ----------
+   Repeats the cover below it: a thin strip with Back / Share, the gallery name large on the left with the date above
+   it (as on the cover) and the host's message as a quote on the right, the gallery video as a wide "second cover", then
+   Photos / Videos marked with the navbar's dot. */
 .portrait-template { background: var(--sp-paper); color: var(--sp-ink); }
 .portrait-template ::selection { background: #A24E3033; }
 /* Any other serif text below the cover ("No photos yet." and the like) in the cover's serif, not Classic White's Playfair */
 .event-template-shell .portrait-template .font-serif { font-family: var(--sp-display); font-style: normal; font-weight: 400; }
-.portrait-template .classic-gallery-content { padding-top: clamp(56px, 7vw, 112px); }
-.portrait-template .classic-gh { justify-items: center; text-align: center; color: var(--sp-ink); }
-.portrait-template .classic-gh__text { align-items: center; gap: clamp(24px, 3vw, 44px); }
-.portrait-template .classic-gh__actions { justify-content: center; gap: 28px; }
-.portrait-template .classic-gh__action {
-  padding: 6px 0;
-  border: 0;
-  border-bottom: 1px solid transparent;
-  border-radius: 0;
+.portrait-template .classic-gallery-content { padding-top: clamp(20px, 2.4vw, 32px); }
+
+.portrait-gh { display: flex; flex-direction: column; gap: clamp(36px, 5vw, 72px); color: var(--sp-ink); }
+.portrait-gh__strip {
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--sp-line);
+}
+.portrait-gh__link {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 4px 0;
+  background: none;
   color: var(--sp-muted);
-  font-size: 14px;
-  letter-spacing: .02em;
-}
-.portrait-template .classic-gh__action:hover { background: none; border-bottom-color: currentColor; color: var(--sp-ink); }
-.portrait-template .classic-gh__action:focus-visible { outline: 2px solid var(--sp-ink); outline-offset: 4px; }
-.portrait-template .classic-gh__middle { display: flex; flex-direction: column; align-items: center; }
-/* A short clay rule above the name, like the line under a chapter number */
-.portrait-template .classic-gh__middle::before {
-  content: ""; width: 48px; height: 1px; margin-bottom: clamp(20px, 2.4vw, 32px); background: var(--sp-clay);
-}
-.portrait-template .classic-gh__title,
-.themed-gallery-content .portrait-template .classic-gh__title {
   font-family: var(--sp-display);
-  font-size: clamp(3rem, 7vw, 7rem);
-  font-weight: 400;
-  line-height: .95;
-  letter-spacing: -.01em;
-  text-transform: none;
-  color: var(--sp-ink);
+  font-size: clamp(17px, 1.3vw, 19px);
+  transition: color .2s ease;
 }
-.portrait-template .classic-gh__details {
-  margin-top: clamp(14px, 1.6vw, 22px);
+.portrait-gh__link svg { width: 16px; height: 16px; }
+.portrait-gh__link:hover { color: var(--sp-ink); }
+.portrait-gh__link:focus-visible { outline: 2px solid var(--sp-ink); outline-offset: 4px; }
+
+/* Name and date like the cover's, in ink; the message beside it as a pull quote, both sitting on one baseline */
+.portrait-gh__intro { display: grid; gap: clamp(24px, 4vw, 64px); align-items: end; }
+@media (min-width: 900px) {
+  .portrait-gh__intro--quote { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+}
+.portrait-gh__details {
+  margin-bottom: 6px;
   font-family: var(--font-inter-src), ui-sans-serif, system-ui, sans-serif;
   font-size: 13px;
-  font-style: normal;
   font-weight: 600;
   letter-spacing: .22em;
   text-transform: uppercase;
   color: var(--sp-clay);
 }
-.portrait-template .classic-gh__message {
-  margin-top: clamp(16px, 2vw, 26px);
+.portrait-gh__title {
+  margin: 0;
   font-family: var(--sp-display);
-  font-size: clamp(1.25rem, 1.8vw, 1.6rem);
-  line-height: 1.45;
-  color: var(--sp-muted);
+  font-size: clamp(3.5rem, 9vw, 9rem);
+  font-weight: 400;
+  line-height: .9;
+  letter-spacing: -.015em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
-/* Photos / Videos: one pill with the chosen side filled in ink */
-.portrait-template .classic-gh__tabs {
-  align-self: center;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid var(--sp-line);
+.portrait-gh__quote { position: relative; margin: 0; padding-top: clamp(28px, 3vw, 44px); max-width: 34rem; }
+.portrait-gh__mark {
+  position: absolute; top: 0; left: -.04em;
+  font-family: var(--sp-display);
+  font-size: clamp(5rem, 7vw, 7.5rem);
+  line-height: .8;
+  color: var(--sp-clay);
+}
+.portrait-gh__quote p {
+  position: relative;
+  font-family: var(--sp-display);
+  font-size: clamp(1.4rem, 2vw, 1.9rem);
+  line-height: 1.3;
+  color: var(--sp-ink);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* Highlight film: a wide rounded frame like a second cover; the round white button sits where the cover's arrow is */
+.portrait-gh__film { position: relative; margin: 0; aspect-ratio: 21 / 9; overflow: hidden; border-radius: 18px; background: var(--sp-ink); }
+@media (max-width: 767px) { .portrait-gh__film { aspect-ratio: 4 / 5; border-radius: 14px; } }
+.portrait-gh__player, .portrait-gh__poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.portrait-gh__poster--empty { background: radial-gradient(70% 60% at 65% 30%, #6B6158 0%, transparent 70%), var(--sp-ink); }
+.portrait-gh__start { position: absolute; inset: 0; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; text-align: left; }
+.portrait-gh__poster { transition: transform .8s ease; }
+.portrait-gh__start:hover .portrait-gh__poster { transform: scale(1.03); }
+.portrait-gh__film-shade {
+  position: absolute; inset: 0;
+  background: linear-gradient(0deg, rgba(20, 16, 12, .6) 0%, rgba(20, 16, 12, .15) 40%, rgba(20, 16, 12, 0) 60%);
+}
+.portrait-gh__film-text {
+  position: absolute; left: clamp(20px, 3vw, 44px); right: 96px; bottom: clamp(20px, 3vw, 40px);
+  display: flex; flex-direction: column; gap: 4px;
+  color: #fff;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, .3);
+}
+.portrait-gh__film-kicker {
+  font-family: var(--font-inter-src), ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase;
+}
+.portrait-gh__film-title { font-family: var(--sp-display); font-size: clamp(2.5rem, 6vw, 5.5rem); line-height: .95; }
+.portrait-gh__play {
+  position: absolute; right: clamp(20px, 3vw, 44px); bottom: clamp(24px, 3vw, 44px);
+  display: grid; place-items: center;
+  width: clamp(52px, 5vw, 64px); height: clamp(52px, 5vw, 64px);
   border-radius: 999px;
   background: #fff;
+  color: var(--sp-ink);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+  transition: transform .2s ease;
 }
-.portrait-template .classic-gh__tab {
-  margin: 0;
-  padding: 10px 22px;
-  border: 0;
-  border-radius: 999px;
+.portrait-gh__play svg { width: 22px; height: 22px; margin-left: 3px; fill: currentColor; }
+.portrait-gh__start:hover .portrait-gh__play { transform: scale(1.06); }
+.portrait-gh__start:focus-visible { outline: 3px solid var(--sp-clay); outline-offset: 4px; }
+
+/* Photos / Videos: serif words with the count raised, the chosen one marked with the navbar's clay dot */
+.portrait-gh__tabs { display: flex; gap: clamp(28px, 4vw, 48px); }
+.portrait-gh__tab {
+  position: relative;
+  padding: 2px 0 12px;
+  background: none;
   color: var(--sp-muted);
-  font-size: 14px;
-  font-weight: 500;
+  font-family: var(--sp-display);
+  font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+  line-height: 1;
+  transition: color .2s ease;
 }
-.portrait-template .classic-gh__tab > span { display: none; }
-.portrait-template .classic-gh__tab:hover { color: var(--sp-ink); }
-.portrait-template .classic-gh__tab[aria-pressed="true"] { background: var(--sp-ink); color: #fff; }
-.portrait-template .classic-gh__tab:focus-visible { outline: 2px solid var(--sp-ink); outline-offset: 2px; }
-/* Gallery video: rounded, no white mat */
-@media (min-width: 1024px) {
-  .portrait-template .classic-gh--video { justify-items: stretch; text-align: left; }
-  .portrait-template .classic-gh--video .classic-gh__text { align-items: flex-start; }
-  .portrait-template .classic-gh--video .classic-gh__actions { justify-content: flex-start; }
-  .portrait-template .classic-gh--video .classic-gh__middle { align-items: flex-start; }
-  .portrait-template .classic-gh--video .classic-gh__tabs { align-self: flex-start; }
+.portrait-gh__count {
+  margin-left: 4px;
+  font-family: var(--font-inter-src), ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: super;
 }
-.portrait-template .classic-gh__mat { padding: 0; border: 0; background: none; box-shadow: none; }
-.portrait-template .classic-gh__screen { border-radius: 14px; outline: 0; box-shadow: 0 24px 60px -30px rgba(31, 27, 23, .55); }
-.portrait-template .classic-gh__caption { color: var(--sp-muted); font-family: var(--sp-display); font-size: 18px; }
+.portrait-gh__tab::after {
+  content: ""; position: absolute; left: 50%; bottom: 0;
+  width: 6px; height: 6px; border-radius: 999px;
+  background: var(--sp-clay);
+  transform: translateX(-50%) scale(0);
+  transition: transform .2s ease;
+}
+.portrait-gh__tab:hover { color: var(--sp-ink); }
+.portrait-gh__tab[aria-pressed="true"] { color: var(--sp-ink); }
+.portrait-gh__tab[aria-pressed="true"]::after { transform: translateX(-50%) scale(1); }
+.portrait-gh__tab:focus-visible { outline: 2px solid var(--sp-ink); outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  .portrait-gh__poster, .portrait-gh__play, .portrait-gh__tab::after, .portrait-gh__link { transition: none; }
+}
+
 /* Photos: a little space and soft corners */
 .portrait-template .gallery-justified { gap: 8px; }
 .portrait-template .gallery-justified > * { border-radius: 6px; overflow: hidden; }

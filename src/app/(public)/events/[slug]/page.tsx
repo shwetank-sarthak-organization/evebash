@@ -21,6 +21,7 @@ import { MidnightGalleryHeader } from "@/components/midnight/MidnightGalleryHead
 import { GalleryHighlightVideo } from "@/components/GalleryHighlightVideo";
 import { getWebLightboxTheme, getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { ClassicGalleryHeader } from "@/components/classic/ClassicGalleryHeader";
+import { PortraitGalleryHeader } from "@/components/portrait/PortraitGalleryHeader";
 import { supabase } from "@/lib/supabase";
 import { uploadEventImage } from "@/lib/storage";
 import { alertDialog } from "@/components/ui/Modal";
@@ -678,6 +679,22 @@ function EventPageContent() {
                         title={activeGallery ? activeGalleryTitle : "Home Gallery"}
                         eventTitle={event.parentId ? parentInfo.title || undefined : event.title}
                         message={midnightMessage}
+                        backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
+                        onBack={goBack}
+                        onShare={handleShare}
+                        copied={copied}
+                        photoCountLabel={displayedPhotoCount}
+                        videoCountLabel={displayedVideoCount}
+                        activeTab={galleryMediaTab}
+                        onTabChange={setGalleryMediaTab}
+                        video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
+                    />
+                ) : displayEvent.templateId === "portrait" ? (
+                    <PortraitGalleryHeader
+                        // The gallery's own name; the event's title is on the cover
+                        title={activeGallery ? activeGalleryTitle : event.parentId ? event.title || "Home" : "Home"}
+                        details={[displayEvent.date?.trim(), typeof displayEvent.location === "string" ? displayEvent.location.trim() : ""].filter(Boolean).join(" · ")}
+                        message={activeGalleryMessage}
                         backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
                         onBack={goBack}
                         onShare={handleShare}

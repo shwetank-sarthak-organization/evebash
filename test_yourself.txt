@@ -3945,10 +3945,14 @@ How to test:
      dark text and Download All turns dark.
   4. Click each top-bar link: Home, a gallery under Collections, Find You, Download All. Expect: each
      does what it does on Classic White (Download All asks Home or whole event, then downloads a ZIP).
-  5. Scroll back up and click the round arrow. Expect: the page scrolls to the gallery and its title
-     is not hidden under the top bar. Expect: the gallery name centred, the date in small reddish-brown
-     capitals, the Photos / Videos switch as one rounded pill (the chosen side filled black); switching
-     works. "Add photos" / "Load More Media" buttons are black.
+  5. Scroll back up and click the round arrow. Expect: the page scrolls to the gallery, not hidden under
+     the top bar. At the top a thin line with "Back to Gallery" on the left and "Share" on the right;
+     then the date in small reddish-brown capitals above the gallery name in a big serif, and the
+     gallery message as a quote (big reddish-brown quote mark) on the right (under it on a phone).
+     If the host picked a gallery video: a wide rounded picture with "Highlight film" at the bottom
+     left and a round white play button at the bottom right; press it and the film plays. Then
+     "Photos" and "Videos" in serif with the count raised; the chosen one has a small dot under it and
+     switching works. "Add photos" / "Load More Media" buttons are black.
   6. In the host page, change the cover position (move / zoom), save, reopen the guest page.
      Expect: the big photo follows the new position. Also try a very long title, an album under
      Collections (the couple's names stay on the cover), and a gallery with no date.
