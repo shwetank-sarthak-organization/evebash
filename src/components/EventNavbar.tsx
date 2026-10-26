@@ -347,7 +347,7 @@ export function EventNavbar({
                                         >
                                             {collectionLinks.map((link) => {
                                                 const isActive = isGalleryActive(link.gallery);
-                                                const className = isRoyal ? cn(royalLinkClass(isActive), "royal-nav__menu-item") : isMidnight ? cn(midnightLinkClass(isActive), "midnight-nav__menu-item") : cn(
+                                                const className = isRoyal ? cn(royalLinkClass(isActive), "royal-nav__menu-item") : isMidnight ? cn(midnightLinkClass(isActive), "midnight-nav__menu-item") : isPortrait ? cn("portrait-nav__menu-item", isActive && "portrait-nav__menu-item--active") : cn(
                                                     "block w-full rounded-xl px-4 py-3 text-left text-xs font-bold uppercase tracking-widest transition-all",
                                                     isActive
                                                         ? "bg-slate-900 text-white"
@@ -355,7 +355,7 @@ export function EventNavbar({
                                                             ? "hover:bg-white/10"
                                                             : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                                                 );
-                                                const style = !isRoyal && !isMidnight && hasTemplateChrome ? {
+                                                const style = !isRoyal && !isMidnight && !isPortrait && hasTemplateChrome ? {
                                                     backgroundColor: isActive ? activeBgColor : "transparent",
                                                     color: isActive ? activeTextColor : navTextColor,
                                                 } : undefined;
@@ -476,7 +476,9 @@ export function EventNavbar({
                         className={cn(
                             "fixed inset-0 z-40 backdrop-blur-xl md:hidden flex flex-col pt-24 px-8",
                             hasTemplateChrome ? "" : "bg-white/95",
-                            isClassic && "classic-nav__menu"
+                            isClassic && "classic-nav__menu",
+                            // Sunlit Portrait: the menu's titles and items in the cover's serif (sunlit-portrait.css)
+                            isPortrait && cn("portrait-nav__menu", portraitDisplay.variable)
                         )}
                         style={hasTemplateChrome ? {
                             backgroundColor: `${chromeBackgroundColor}f7`,

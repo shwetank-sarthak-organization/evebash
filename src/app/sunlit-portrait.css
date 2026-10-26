@@ -3,7 +3,7 @@
    (src/components/portrait/portraitFonts.ts). Below the photo it reuses Classic White's gallery markup
    (classic-white.css) restyled here: warm paper, ink text, a clay accent and a centred header in the same serif.
    Palette also in src/lib/webTemplateTheme.ts: paper #FBF8F3, ink #1F1B17, muted #6B6158 (5.8:1), clay #A24E30 (5.6:1). */
-.portrait-template, .portrait-nav {
+.portrait-template, .portrait-nav, .portrait-nav__menu {
   --sp-display: var(--font-portrait-display), var(--font-playfair-src), Georgia, serif;
   --sp-paper: #FBF8F3;
   --sp-ink: #1F1B17;
@@ -44,7 +44,7 @@
 }
 .portrait-hero__details {
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
-  margin-bottom: clamp(8px, 1.6svh, 18px);
+  margin-bottom: 0;
   font-family: var(--sp-display);
   font-size: clamp(20px, 1.9vw, 28px);
   line-height: 1.25;
@@ -65,6 +65,8 @@
   font-size: clamp(3.5rem, min(15.5vw, 28svh), 15rem);
   line-height: .95;
   letter-spacing: -.005em;
+  /* Pulls the names up into the empty space above their capitals, so the date line sits just above them */
+  margin-top: -.1em;
   overflow-wrap: anywhere;
   text-wrap: balance;
   text-shadow: 0 2px 30px rgba(0, 0, 0, .25);
@@ -94,6 +96,8 @@
    date in small capitals, the message in italics, then a pill switch for Photos / Videos. */
 .portrait-template { background: var(--sp-paper); color: var(--sp-ink); }
 .portrait-template ::selection { background: #A24E3033; }
+/* Any other serif text below the cover ("No photos yet." and the like) in the cover's serif, not Classic White's Playfair */
+.event-template-shell .portrait-template .font-serif { font-family: var(--sp-display); font-style: normal; font-weight: 400; }
 .portrait-template .classic-gallery-content { padding-top: clamp(56px, 7vw, 112px); }
 .portrait-template .classic-gh { justify-items: center; text-align: center; color: var(--sp-ink); }
 .portrait-template .classic-gh__text { align-items: center; gap: clamp(24px, 3vw, 44px); }
@@ -187,11 +191,12 @@
 .portrait-template #event-content { scroll-margin-top: 68px; }
 
 /* ---------- Event navbar in the Sunlit Portrait design (EventNavbar variant="portrait") ----------
-   Classic White's links, in white on the photo with the download as a white pill; once the guest scrolls (or opens
-   the small-screen menu) the bar turns warm paper with ink text. */
+   Same links as Classic White, drawn in the cover's serif: the name on the left, the links in normal case, the
+   chosen one marked with a clay dot, no icons, and Download All as a rounded pill. White on the photo; once the guest
+   scrolls (or opens the small-screen menu) the bar turns warm paper with ink text. */
 .portrait-nav {
   position: fixed; inset: 0 0 auto; z-index: 50;
-  padding: 14px clamp(20px, 4vw, 56px);
+  padding: 16px clamp(20px, 4vw, 56px);
   color: #fff;
   transition: background-color .3s ease, color .3s ease, box-shadow .3s ease, padding .3s ease;
 }
@@ -204,30 +209,70 @@
 .portrait-nav__bar { width: 100%; min-height: 52px; }
 .portrait-nav .classic-nav__title {
   font-family: var(--sp-display);
-  font-size: clamp(1.3rem, 1.7vw, 1.6rem);
+  font-size: clamp(1.6rem, 2.1vw, 2rem);
   font-weight: 400;
-  letter-spacing: 0;
+  line-height: 1;
+  letter-spacing: -.005em;
   text-transform: none;
   color: inherit;
 }
-.portrait-nav .classic-nav__links { gap: clamp(16px, 2.2vw, 36px); }
-.portrait-nav .classic-nav__link { color: inherit; font-size: 13px; letter-spacing: .04em; text-transform: none; }
-.portrait-nav:not(.portrait-nav--solid) .classic-nav__link { text-shadow: 0 1px 8px rgba(0, 0, 0, .35); }
+.portrait-nav .classic-nav__links { gap: clamp(18px, 2.4vw, 40px); }
+.portrait-nav .classic-nav__link {
+  gap: 6px;
+  padding: 6px 0;
+  color: inherit;
+  font-family: var(--sp-display);
+  font-size: clamp(17px, 1.35vw, 20px);
+  font-weight: 400;
+  letter-spacing: .005em;
+  text-transform: none;
+}
+/* No icons beside Find You / Download All (the Collections arrow stays) */
+.portrait-nav .classic-nav__link > svg:first-child { display: none; }
+/* The chosen link: a clay dot under it instead of Classic White's underline */
+.portrait-nav .classic-nav__link::after {
+  left: 50%; right: auto; bottom: -4px;
+  width: 5px; height: 5px; border-radius: 999px;
+  background: var(--sp-clay);
+  transform: translateX(-50%) scale(0);
+  transition: transform .2s ease;
+}
+.portrait-nav .classic-nav__link:hover::after, .portrait-nav .classic-nav__link--active::after { transform: translateX(-50%) scale(1); }
 .portrait-nav:not(.portrait-nav--solid) .classic-nav__link::after { background: #fff; }
+.portrait-nav:not(.portrait-nav--solid) .classic-nav__title,
+.portrait-nav:not(.portrait-nav--solid) .classic-nav__link { text-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 2px 14px rgba(0, 0, 0, .35); }
 .portrait-nav:not(.portrait-nav--solid) .classic-nav__link:focus-visible { outline-color: #fff; }
-/* "Download All": white pill on the photo, dark pill on the white bar */
+/* "Download All": a rounded pill, white on the photo and ink on the paper bar */
 .portrait-nav .portrait-nav__cta {
-  padding: 9px 16px;
-  border-radius: 6px;
+  margin-left: 4px;
+  padding: 8px 20px 9px;
+  border-radius: 999px;
   background: #fff;
   color: var(--sp-ink);
   text-shadow: none;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, .15);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .18);
 }
+.portrait-nav:not(.portrait-nav--solid) .portrait-nav__cta { text-shadow: none; }
 .portrait-nav .portrait-nav__cta::after { display: none; }
+.portrait-nav .portrait-nav__cta:hover:not(:disabled) { background: var(--sp-paper); }
 .portrait-nav--solid .portrait-nav__cta { background: var(--sp-ink); color: #fff; box-shadow: none; }
 .portrait-nav--solid .portrait-nav__cta:hover:not(:disabled) { background: var(--sp-clay); }
-.portrait-nav--solid .classic-nav__link::after { background: var(--sp-clay); }
+/* Collections list */
+.portrait-nav__menu-item {
+  display: block; width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  color: var(--sp-ink);
+  font-family: var(--sp-display);
+  font-size: 19px;
+  text-align: left;
+}
+.portrait-nav__menu-item:hover { background: #A24E3014; }
+.portrait-nav__menu-item--active { color: var(--sp-clay); }
+/* Small-screen menu: the title and items in the serif, normal weight */
+.event-template-shell .portrait-nav__menu .font-serif { font-family: var(--sp-display); font-style: normal; font-weight: 400; }
+.portrait-nav__menu a, .portrait-nav__menu button { font-family: var(--sp-display); font-weight: 400; font-size: 24px; }
+.portrait-nav__menu p { font-family: var(--font-inter-src), ui-sans-serif, system-ui, sans-serif; }
 
 @media (prefers-reduced-motion: reduce) {
   .portrait-nav, .portrait-hero__open { transition: none; }
