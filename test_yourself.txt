@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 146
+Next test number: 147
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3785,6 +3785,34 @@ How to test:
      and the API still answers /health.
   7. Production website and production app build: Expect: no requests to "ingest.us.sentry.io" in the
      network tab (Sentry is off there).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#146 Phone menu shows Profile and Logout when signed in (issue #70)
+Status:    TODO
+Priority:  Medium
+Platform:  Website (phone browser)
+Brief:     On phones the signed-in menu (top-right button) was cut off, so Logout could not be seen or
+           tapped. The menu now fits the screen and scrolls when the phone is short.
+Detail:    Commit fb130e5: src/components/Navbar.tsx. Checked in the built-in browser at 375x812 and
+           375x540 (emulated). Still to check on real phones: Safari's moving toolbar and touch scrolling.
+How to test:
+  1. On a phone, log in on staging.evebash.com and open /profile. Tap the menu button (top right).
+     Expect: Dashboard, Host, EB Business, EB Network, your name card, Profile and Logout all show;
+     the menu slides open as before.
+  2. Tap Logout. Expect: you are logged out.
+  3. On a small phone (iPhone SE or similar), or with the phone turned sideways, log in again and open
+     the menu. Expect: if it doesn't fit, it scrolls inside the menu and Logout can be reached; the page
+     behind does not scroll; nothing hides behind Safari's bottom toolbar.
+  4. Log out and open the menu. Expect: the logged-out menu looks as before.
+  5. On a computer at full width. Expect: the normal top links, no menu button (unchanged).
 Done by:
 Device / browser:
 Build / version:

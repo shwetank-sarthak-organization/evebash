@@ -318,18 +318,6 @@ Found in: Checking signing fingerprints for #67 (2026-10-13)
 Issue: The locally built Android APKs in the repo root (app-release-v1.apk, app-release-v1.2.4.apk) are signed with the Android debug key (apps/mobile/android/app/debug.keystore, "CN=Android Debug", SHA-1 5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25, SHA-256 FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C), even though they are named "release". EAS builds use the EAS Android keystore (SHA-1 29:40:B3:BD:EB:22:B7:1F:A2:E5:E6:8C:B0:92:52:2B:D2:08:30:47; Firebase also lists SHA-256 b5:2b:a8:a5:85:66:3d:5f:1d:d4:10:37:f7:ff:67:02:1d:49:7d:f1:2c:8c:11:8b:ac:09:fd:41:a9:39:1e:13, probably the same key). Impact: testers can't install an EAS build over a local APK (or the other way round) without uninstalling, because the signatures differ; and the debug key is public, so it must never go into the live assetlinks.json (#67). Fix: make store and tester builds only through EAS, and list only the EAS key's and Google Play's app-signing key's SHA-256 in assetlinks.json and Firebase (#18).
 How to reproduce: ~/Library/Android/sdk/build-tools/36.1.0/apksigner verify --print-certs app-release-v1.2.4.apk shows "CN=Android Debug".
 
-#70
-Listed: 2026-10-13
-Platform: Website
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Navbar font comparison (2026-10-13)
-Issue: On phones, the signed-in navbar menu cuts off its bottom part, so Logout can't be seen or tapped. src/components/Navbar.tsx caps the open menu at max-h-96 (384px) with overflow-hidden, but the signed-in menu (4 links, profile card, Profile, Logout) is 487px tall (measured at 375x812). Profile is half cut off and Logout is fully hidden. The signed-out menu is shorter and fits. Fix idea: raise the cap (for example max-h-[calc(100vh-5rem)]) and let the menu scroll (overflow-y-auto), keeping the open/close animation.
-How to reproduce: Sign in on the website on a phone (or a 375px-wide window), tap the menu button at the top right: the menu ends at "Profile" and there is no Logout.
-Note 2026-10-23: still matters after the phone/tablet download screen goes live (#109): Profile, Pricing and Contact us stay open on phones and show this navbar. The download screen has its own Log out, but anyone on Profile still hits this.
-
 #71
 Listed: 2026-10-13
 Platform: App
@@ -1007,6 +995,19 @@ How to reproduce: Import anything from ../../../shared in apps/backend/src and d
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#70
+Listed: 2026-10-13
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Navbar font comparison (2026-10-13)
+Issue: On phones, the signed-in navbar menu cuts off its bottom part, so Logout can't be seen or tapped. src/components/Navbar.tsx caps the open menu at max-h-96 (384px) with overflow-hidden, but the signed-in menu (4 links, profile card, Profile, Logout) is 487px tall (measured at 375x812). Profile is half cut off and Logout is fully hidden. The signed-out menu is shorter and fits. Fix idea: raise the cap (for example max-h-[calc(100vh-5rem)]) and let the menu scroll (overflow-y-auto), keeping the open/close animation.
+How to reproduce: Sign in on the website on a phone (or a 375px-wide window), tap the menu button at the top right: the menu ends at "Profile" and there is no Logout.
+Note 2026-10-23: still matters after the phone/tablet download screen goes live (#109): Profile, Pricing and Contact us stay open on phones and show this navbar. The download screen has its own Log out, but anyone on Profile still hits this.
+Fixed in: fb130e5 (2026-10-26). The open menu is now capped at the screen height below the nav (max-h-[calc(100dvh-5rem)]) and scrolls. Checked in the built-in browser with a signed-in menu: at 375x812 all items show (Logout 489-543px, menu ends at 568px); at 375x540 the menu stops at the screen bottom and scrolls to a fully visible Logout. Real-phone check: device test #146.
+
 #60
 Listed: 2026-10-12
 Platform: Website
