@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 143
+Next test number: 144
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3681,6 +3681,29 @@ How to test:
      and the likes row, no wide black bars; play, seek and full screen still work.
   2. Open a normal landscape video. Expect: same as before (wide frame).
   3. Swipe between a portrait video, a landscape video and a photo. Expect: each gets its own shape.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#143 App uploads survive losing the network
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone + Android)
+Brief:     The app gave up on a photo if the network dropped for a few seconds mid-upload (issue #144).
+           Now it waits for the network and carries on; no photo should end as failed.
+Detail:    Needs an app build with the #144 fix (apps/mobile/lib/uploadQueue.ts, lib/storage.ts).
+How to test:
+  1. As a gallery owner, start uploading ~15 photos to a test album from the app.
+  2. While it uploads, turn on airplane mode for about 30 seconds, then turn it off.
+     Expect: the upload pauses (no "upload failed" popup) and continues by itself once online.
+  3. Repeat, turning airplane mode on just as a photo finishes (the moment the count goes up).
+  4. Open the album on the website. Expect: every photo is there with a thumbnail, none failed or
+     missing, and no duplicates.
 Done by:
 Device / browser:
 Build / version:

@@ -980,17 +980,6 @@ Open point, HLG (iPhone HDR): on a synthetic HLG clip converted from SDR, tonema
 Update (2026-10-25): HLG checked on a real iPhone 13 Pro HDR clip (4K60 HEVC 10-bit, HLG, Dolby Vision 8.4) on an L4 with the production image: tonemap_cuda mobius is NOT dark on real iPhone video. Average brightness 154 vs the CPU path's 167, colour 19.7 vs 25.4, and it looks the same as the CPU tone map at npl=203 (the HLG reference white); the CPU path at npl=100 is a little brighter and more saturated. HLG shown as SDR is washed out (brightness 141, colour 12.4), so it is not used. bt2390 and peak=400/1000 make almost no difference. GPU tone map on the whole 21.7 s 4K60 clip: 3.8 s (CPU 4 cores 17.7 s). Decision: keep _GPU_TONEMAP = mobius, no code change; the darker synthetic result came from the SDR-to-HLG conversion of the test clip.
 How to reproduce: Upload a portrait phone video or an iPhone HDR video over 10 minutes to a gallery on the GPU switch: modal_cost_logs shows process_video_cpu_long, not the GPU.
 
-#144
-Listed: 2026-10-25
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Device test #140 step 3 (airplane mode during an app upload), 2026-10-25
-Issue: Two problems in the app's upload path. (1) The upload queue gives up on a photo if the network is down for more than a few seconds: it has 3 attempts (MAX_UPLOAD_RETRIES in apps/mobile/lib/uploadQueue.ts) with a 2 s then 4 s wait, so all of them are used up while the phone is still offline, and the photo is marked failed instead of being uploaded when the network returns (31.jpg in check-fail-test-d8be). The host has to notice the failed popup and tap retry. Fix: don't count attempts while the phone is offline (wait for the network, e.g. @react-native-community/netinfo or expo-network if already installed), and/or retry failed items automatically when the network comes back. (2) When the API can't be reached, lib/storage.ts tries a fixed list of fallbacks that includes the production backend (https://evebash-production-0ae3.up.railway.app) even in a staging build, plus local dev addresses. A staging build should never send requests to production, and production shouldn't fall back to staging. Fix: use only EXPO_PUBLIC_API_BASE_URL (and the local dev hosts in __DEV__).
-How to reproduce: App, upload ~10 photos, turn on airplane mode for 10 seconds mid-upload, then off: the photo that was uploading ends as failed ("Permanent upload failure ... after 3 attempts" in the log), and the log shows requests to evebash-production-0ae3.up.railway.app.
-
 #145
 Listed: 2026-10-25
 Platform: Both
@@ -1008,6 +997,19 @@ Update (2026-10-25): deployed as Modal v132 (c2a7826, rollback v131), poster-sdr
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#144
+Listed: 2026-10-25
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test #140 step 3 (airplane mode during an app upload), 2026-10-25
+Issue: Two problems in the app's upload path. (1) The upload queue gives up on a photo if the network is down for more than a few seconds: it has 3 attempts (MAX_UPLOAD_RETRIES in apps/mobile/lib/uploadQueue.ts) with a 2 s then 4 s wait, so all of them are used up while the phone is still offline, and the photo is marked failed instead of being uploaded when the network returns (31.jpg in check-fail-test-d8be). The host has to notice the failed popup and tap retry. Fix: don't count attempts while the phone is offline (wait for the network, e.g. @react-native-community/netinfo or expo-network if already installed), and/or retry failed items automatically when the network comes back. (2) When the API can't be reached, lib/storage.ts tries a fixed list of fallbacks that includes the production backend (https://evebash-production-0ae3.up.railway.app) even in a staging build, plus local dev addresses. A staging build should never send requests to production, and production shouldn't fall back to staging. Fix: use only EXPO_PUBLIC_API_BASE_URL (and the local dev hosts in __DEV__).
+How to reproduce: App, upload ~10 photos, turn on airplane mode for 10 seconds mid-upload, then off: the photo that was uploading ends as failed ("Permanent upload failure ... after 3 attempts" in the log), and the log shows requests to evebash-production-0ae3.up.railway.app.
+Fix: a network error while uploading puts the photo back to pending without using an attempt, and the queue waits (checking the backend's /health every 4 s) until the network is back, then resumes. The save step waits the same way if the event check or save call fails offline (before, an offline event check was read as "event does not exist" and marked already-uploaded photos failed). getEndpointsForPath no longer adds the production backend or staging after the configured EXPO_PUBLIC_API_BASE_URL. No new dependency. Checked 2026-10-26 on the Android emulator (staging build, check-fail-test-d8be): airplane mode on for ~35 s during two 10-photo uploads; the log shows "No connection while uploading 37.jpg ... Waiting for the network" then "Connection back; resuming 37.jpg", every photo saved and processed, 0 failed, and no requests to evebash-production-0ae3. The save step going offline was not caught on the emulator (timing); device test #143 left.
+Fixed in: 6d5f088 (2026-10-26)
+
 #146
 Listed: 2026-10-25
 Platform: App
