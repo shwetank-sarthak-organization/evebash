@@ -92,9 +92,9 @@
 .portrait-hero__open:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
 
 /* ---------- Gallery section (src/components/portrait/PortraitGalleryHeader.tsx) ----------
-   Like the cover, the opening fills one screen: a thin strip with Back / Share, then the gallery video edge to edge with
-   the date, gallery name and message over it at the bottom left (or, without a video, the same on paper), then
-   Photos / Videos marked with the navbar's dot. */
+   With a gallery video the opening fills one screen like the cover: a thin strip with Back / Share, then the video edge
+   to edge with the date, gallery name and message over it at the bottom left. Without one, the name and message sit on
+   paper under the strip. Then Photos / Videos marked with the navbar's dot. */
 .portrait-template { background: var(--sp-paper); color: var(--sp-ink); }
 .portrait-template ::selection { background: #A24E3033; }
 /* Any other serif text below the cover ("No photos yet." and the like) in the cover's serif, not Classic White's Playfair */
@@ -103,7 +103,9 @@
 
 /* The opening fills one screen below the navbar's bar (68px), as the cover fills the first */
 .portrait-gh { display: flex; flex-direction: column; gap: clamp(36px, 4vw, 56px); color: var(--sp-ink); }
-.portrait-gh__screen { display: flex; flex-direction: column; min-height: calc(100svh - 68px); min-height: max(calc(100svh - 68px), 520px); }
+.portrait-gh__screen { display: flex; flex-direction: column; }
+/* Only with a film: without one, Photos / Videos come straight after the name and message */
+.portrait-gh__screen--film { min-height: calc(100svh - 68px); min-height: max(calc(100svh - 68px), 520px); }
 .portrait-gh__strip {
   display: flex; justify-content: space-between; align-items: center; gap: 16px;
   padding: 16px 0 14px;
@@ -154,8 +156,8 @@
   overflow-wrap: anywhere;
 }
 
-/* Without a film: the same screen on paper, the name and message at the bottom left */
-.portrait-gh__paper { flex: 1; display: flex; align-items: flex-end; padding: clamp(32px, 6svh, 64px) 0 clamp(28px, 6svh, 64px); }
+/* Without a film: the name and message on paper under the strip, then Photos / Videos right away */
+.portrait-gh__paper { padding-top: clamp(32px, 5vw, 64px); }
 
 /* With a film: it runs edge to edge under the strip, like the cover photo; text over it, the play pill bottom right */
 .portrait-gh__film {

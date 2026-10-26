@@ -5,11 +5,11 @@ import { ArrowLeft, Check, Play, Share2 } from "lucide-react";
 import { HLSVideoPlayer } from "@/components/ui/HLSVideoPlayer";
 import type { ClassicGalleryVideo } from "@/components/classic/ClassicGalleryHeader";
 
-// Top of the gallery section in the Sunlit Portrait design (styles in src/app/sunlit-portrait.css). Like the cover, its
-// opening fills one screen (below the navbar): a thin strip with Back / Share, then either the gallery video filling the
-// rest of the screen with the date, gallery name and host's message over it at the bottom left and the cover's round
-// white button (play) at the bottom right, or, without a video, the same frame on paper with the name and message.
-// The Photos / Videos switch, marked with the navbar's dot, comes right after that screen.
+// Top of the gallery section in the Sunlit Portrait design (styles in src/app/sunlit-portrait.css). A thin strip with
+// Back / Share, then with a gallery video the opening fills one screen like the cover (below the navbar): the video
+// edge to edge with the date, gallery name and host's message over it at the bottom left and a play button at the
+// bottom right. Without a video the name and message sit on paper under the strip. The Photos / Videos switch, marked
+// with the navbar's dot, comes next.
 
 type MediaTab = "photos" | "videos";
 
