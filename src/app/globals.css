@@ -5,6 +5,7 @@
 @import "./midnight-hero.css";
 @import "./sunlit-portrait.css";
 @import "./confetti-circle.css";
+@import "./periwinkle-script.css";
 
 /* Suppress Native Browser Video Controls (Overflow 3-Dots & Picture-in-Picture) */
 video::-webkit-media-controls-overflow-button,

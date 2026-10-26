@@ -52,6 +52,8 @@ WEB_LIGHTBOX_THEMES.classic.muted = "#596653";
 WEB_LIGHTBOX_THEMES.portrait = { ...WEB_LIGHTBOX_THEMES.classic, background: "#FBF8F3", text: "#1F1B17", muted: "#6B6158", accent: "#A24E30", accentBg: "rgba(162,78,48,0.1)", border: "#E7DFD4" };
 // Confetti Circle: the same, below its circle cover
 WEB_LIGHTBOX_THEMES.confetti = { ...WEB_LIGHTBOX_THEMES.classic };
+// Periwinkle Script: the same, below its framed cover and periwinkle band
+WEB_LIGHTBOX_THEMES.periwinkle = { ...WEB_LIGHTBOX_THEMES.classic };
 WEB_LIGHTBOX_THEMES.polaroid.muted = "#705747";
 WEB_LIGHTBOX_THEMES.brutalist.muted = "#c0b49e";
 

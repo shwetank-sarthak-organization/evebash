@@ -599,8 +599,8 @@ function EventPageContent() {
     // Royal Emerald draws its own gallery header (crest, title, welcome plaque, Back / Share, Photos / Videos)
     const isRoyalGallery = displayEvent.templateId === "royal";
     // Classic White shows the gallery message in its own gallery header and styles the shared buttons itself (classic-white.css).
-    // Sunlit Portrait and Confetti Circle use the same gallery section below their cover.
-    const isClassicGallery = displayEvent.templateId === "classic" || displayEvent.templateId === "portrait" || displayEvent.templateId === "confetti";
+    // Sunlit Portrait, Confetti Circle and Periwinkle Script use the same gallery section below their cover.
+    const isClassicGallery = displayEvent.templateId === "classic" || displayEvent.templateId === "portrait" || displayEvent.templateId === "confetti" || displayEvent.templateId === "periwinkle";
     // Midnight Hero (the default theme) draws its own gallery header (event name, star, title, count, film, Photos / Videos)
     const isMidnightGallery = (displayEvent.templateId || "hero") === "hero";
     // A new main gallery gets "Main Event: <title>" as its description; that isn't a message for guests
@@ -710,7 +710,8 @@ function EventPageContent() {
                         // The gallery's own name; the event's title is on the cover
                         title={activeGallery ? activeGalleryTitle : event.parentId ? event.title || "Home" : "Home"}
                         details={[displayEvent.date?.trim(), typeof displayEvent.location === "string" ? displayEvent.location.trim() : ""].filter(Boolean).join(" · ")}
-                        message={activeGalleryMessage}
+                        // Periwinkle Script shows the message in the card on its cover
+                        message={displayEvent.templateId === "periwinkle" ? "" : activeGalleryMessage}
                         backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
                         onBack={goBack}
                         onShare={handleShare}

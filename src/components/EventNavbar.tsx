@@ -13,6 +13,7 @@ import { royalDisplay } from "@/components/royal/royalFonts";
 import { midnightScript } from "@/components/midnight/midnightFonts";
 import { portraitDisplay } from "@/components/portrait/portraitFonts";
 import { confettiDisplay } from "@/components/confetti/confettiFonts";
+import { periwinkleScript, periwinkleSerif } from "@/components/periwinkle/periwinkleFonts";
 import { displayCoupleTitle } from "../../shared/text/coupleNames";
 
 interface EventNavbarProps {
@@ -38,8 +39,10 @@ interface EventNavbarProps {
      *  "portrait": Sunlit Portrait, Classic White's links in white on the cover photo, then a soft white bar once the guest
      *  scrolls (styles in src/app/sunlit-portrait.css)
      *  "confetti": Confetti Circle, Classic White's links on a frosted white bar over the cover photo, solid once the guest
-     *  scrolls (styles in src/app/confetti-circle.css) */
-    variant?: "royal" | "classic" | "midnight" | "portrait" | "confetti";
+     *  scrolls (styles in src/app/confetti-circle.css)
+     *  "periwinkle": Periwinkle Script, Classic White's links either side of the centred names on a cream bar
+     *  (styles in src/app/periwinkle-script.css) */
+    variant?: "royal" | "classic" | "midnight" | "portrait" | "confetti" | "periwinkle";
 }
 
 type EventNavLink = {
@@ -93,7 +96,7 @@ export function EventNavbar({
     // Midnight Hero and Sunlit Portrait: the bar has no background over the cover photo until the guest scrolls.
     useEffect(() => {
         // Confetti Circle: the bar is frosted over the cover photo until the guest scrolls.
-        if (variant !== "royal" && variant !== "midnight" && variant !== "portrait" && variant !== "confetti") return;
+        if (variant !== "royal" && variant !== "midnight" && variant !== "portrait" && variant !== "confetti" && variant !== "periwinkle") return;
         const update = () => setScrolledPastTop(window.scrollY > 40);
         const frame = window.requestAnimationFrame(update);
         window.addEventListener("scroll", update, { passive: true });
@@ -131,8 +134,9 @@ export function EventNavbar({
     const isRoyal = variant === "royal";
     const isPortrait = variant === "portrait";
     const isConfetti = variant === "confetti";
-    // Sunlit Portrait and Confetti Circle have Classic White's links and menu; only the bar itself differs (their CSS files)
-    const isClassic = variant === "classic" || isPortrait || isConfetti;
+    const isPeriwinkle = variant === "periwinkle";
+    // Sunlit Portrait, Confetti Circle and Periwinkle Script have Classic White's links and menu; only the bar itself differs (their CSS files)
+    const isClassic = variant === "classic" || isPortrait || isConfetti || isPeriwinkle;
     const isMidnight = variant === "midnight";
     // Royal Emerald, Classic White and Midnight Hero draw their own colours from CSS classes instead of the inline theme colours
     const useInlineChrome = !isRoyal && !isClassic && !isMidnight && hasTemplateChrome;
@@ -252,6 +256,7 @@ export function EventNavbar({
                 className={isRoyal ? cn("royal-nav", scrolledPastTop && "royal-nav--scrolled", royalDisplay.variable)
                     : isPortrait ? cn("portrait-nav", (scrolledPastTop || mobileMenuOpen) && "portrait-nav--solid", portraitDisplay.variable)
                     : isConfetti ? cn("confetti-nav", (scrolledPastTop || mobileMenuOpen) && "confetti-nav--solid", confettiDisplay.variable)
+                    : isPeriwinkle ? cn("periwinkle-nav", scrolledPastTop && "periwinkle-nav--solid", periwinkleScript.variable, periwinkleSerif.variable)
                     : isClassic ? cn("classic-nav", scrolledPastTop && "classic-nav--scrolled")
                     : isMidnight ? cn("midnight-nav", scrolledPastTop && "midnight-nav--scrolled", midnightScript.variable)
                     : cn(
@@ -264,7 +269,7 @@ export function EventNavbar({
                     color: navTextColor,
                 } : undefined}
             >
-                <div className={cn("flex items-center justify-between gap-4", isPortrait ? "portrait-nav__bar" : isConfetti ? "confetti-nav__bar" : isClassic ? "classic-nav__bar" : isRoyal || isMidnight ? "w-full" : "max-w-7xl mx-auto")}>
+                <div className={cn("flex items-center justify-between gap-4", isPortrait ? "portrait-nav__bar" : isConfetti ? "confetti-nav__bar" : isPeriwinkle ? "periwinkle-nav__bar" : isClassic ? "classic-nav__bar" : isRoyal || isMidnight ? "w-full" : "max-w-7xl mx-auto")}>
                     {/* Left: Main Event Title */}
                     <Link
                         href={`${basePath}${sharedQuery}`}
@@ -297,9 +302,9 @@ export function EventNavbar({
 
                     {/* Right: Desktop Navigation */}
                     <div className={cn("hidden md:flex items-center", isRoyal ? "gap-1" : isClassic ? "classic-nav__links" : isMidnight ? "midnight-nav__links" : "gap-2")}>
-                        {/* Midnight Hero and Confetti Circle put these two groups either side of the centred title (midnight-hero.css,
-                            confetti-circle.css); elsewhere they don't affect the layout */}
-                        <div className={isMidnight ? "midnight-nav__group midnight-nav__group--left" : isConfetti ? "confetti-nav__group confetti-nav__group--left" : "contents"}>
+                        {/* Midnight Hero, Confetti Circle and Periwinkle Script put these two groups either side of the centred title
+                            (midnight-hero.css, confetti-circle.css, periwinkle-script.css); elsewhere they don't affect the layout */}
+                        <div className={isMidnight ? "midnight-nav__group midnight-nav__group--left" : isConfetti ? "confetti-nav__group confetti-nav__group--left" : isPeriwinkle ? "periwinkle-nav__group periwinkle-nav__group--left" : "contents"}>
                         {primaryDesktopLinks.map(renderDesktopNavItem)}
 
                         {collectionLinks.length > 0 && (
@@ -396,7 +401,7 @@ export function EventNavbar({
                         )}
 
                         </div>
-                        <div className={isMidnight ? "midnight-nav__group midnight-nav__group--right" : isConfetti ? "confetti-nav__group confetti-nav__group--right" : "contents"}>
+                        <div className={isMidnight ? "midnight-nav__group midnight-nav__group--right" : isConfetti ? "confetti-nav__group confetti-nav__group--right" : isPeriwinkle ? "periwinkle-nav__group periwinkle-nav__group--right" : "contents"}>
                         {utilityDesktopLinks.map(renderDesktopNavItem)}
 
                         {onDownloadZip && (
@@ -404,7 +409,7 @@ export function EventNavbar({
                                 type="button"
                                 onClick={onDownloadZip}
                                 disabled={isZipping}
-                                className={isRoyal ? "royal-nav__link" : isMidnight ? "midnight-nav__link midnight-nav__link--outline" : isPortrait ? "classic-nav__link portrait-nav__cta" : isConfetti ? "classic-nav__link confetti-nav__cta" : isClassic ? "classic-nav__link" : cn(
+                                className={isRoyal ? "royal-nav__link" : isMidnight ? "midnight-nav__link midnight-nav__link--outline" : isPortrait ? "classic-nav__link portrait-nav__cta" : isConfetti ? "classic-nav__link confetti-nav__cta" : isPeriwinkle ? "classic-nav__link periwinkle-nav__cta" : isClassic ? "classic-nav__link" : cn(
                                     "px-3.5 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 border disabled:opacity-50",
                                     hasTemplateChrome
                                         ? "hover:opacity-85 hover:shadow-sm"

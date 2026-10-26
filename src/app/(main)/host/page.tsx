@@ -297,6 +297,17 @@ const TEMPLATE_THEMES = [
         "accent": "#e8175d"
     },
     {
+        "id": "periwinkle",
+        "category": "Wedding",
+        "label": "Periwinkle Script",
+        "desc": "Framed couple photo, cream script & a message card",
+        "background": {
+            "light": "#F4F1EA",
+            "dark": "#F4F1EA"
+        },
+        "accent": "#C9DBFB"
+    },
+    {
         "id": "hero",
         "category": "Wedding",
         "label": "Midnight Hero",
