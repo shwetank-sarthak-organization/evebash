@@ -16,7 +16,7 @@
   height: 100vh;
   height: 100svh;
   min-height: 600px;
-  padding: 96px 16px 56px;
+  padding: 136px 16px 40px;
   overflow: hidden;
   background: #d9c7bd;
   isolation: isolate;
@@ -33,12 +33,12 @@
   position: relative;
   container-type: inline-size;
   display: grid; place-items: center;
-  width: min(88vw, calc(100svh - 170px), 620px);
+  width: min(88vw, calc(100svh - 190px), 620px);
   min-width: 280px;
   aspect-ratio: 1;
   border-radius: 50%;
-  /* A little see-through, so the photo shows faintly behind the names */
-  background: rgba(255, 255, 255, .8);
+  /* Slightly see-through, so the photo shows faintly behind the names */
+  background: rgba(255, 255, 255, .9);
   color: var(--cc-ink);
   text-align: center;
   box-shadow: 0 30px 60px -30px rgba(60, 30, 30, .35);
