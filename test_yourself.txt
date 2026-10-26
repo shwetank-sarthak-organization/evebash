@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 150
+Next test number: 151
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3959,3 +3959,31 @@ Feedback:         2026-10-26 Claude, built-in browser before commit (local dev s
                   look as described and the bar turns soft white on scroll; at 375x812 (phone size
                   emulated, not a real phone) the cover and the menu look right. No console errors.
                   Not done: steps 1, 4, 5, 6 and a real person on staging.
+
+--------------------------------------------------------------------------------
+#150 Galleries with only videos open on the Videos tab
+Status:    TODO
+Priority:  Low
+Platform:  Website (computer)
+Brief:     A gallery that has videos but no photos used to open on the empty Photos tab ("No photos
+           yet."). It now opens on Videos. Galleries with photos still open on Photos. Works in every theme.
+Detail:    Commit 5d7fe4f: src/app/(public)/events/[slug]/page.tsx. The choice is made once when a gallery
+           opens, so a guest who then clicks Photos stays on Photos.
+How to test:
+  1. On a computer, log in on staging and open /events/wedding-2-77d4 (0 photos, 1 video). Expect: the
+     Videos tab is selected and the video shows; no "No photos yet.".
+  2. Click Photos. Expect: Photos stays selected ("No photos yet."), it does not jump back to Videos.
+  3. Open a gallery that has photos (any theme). Expect: it opens on Photos as before.
+  4. Open an album under Collections that has only videos (or upload only a video to a test album).
+     Expect: it opens on Videos. Switch back to an album with photos: it opens on Photos.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:         2026-10-26 Claude, built-in browser (computer size) on staging with 5d7fe4f, host account:
+                  1 PASS wedding-2-77d4 opened on Videos (1), no "No photos yet."; 2 PASS clicking Photos
+                  stayed on Photos; 3 PASS test-face-new-155c (42 photos, 3 videos) opened on Photos.
+                  Step 4 not done (no video-only album to hand).
