@@ -177,6 +177,10 @@ function LucideDownloadIcon({ size = 20, color, strokeWidth = 2 }: LucideIconPro
 }
 
 
+// The video bar and its Quality box always sit on a dark gradient, so their icons and time are white in every
+// theme (light themes' dark text colour made them nearly invisible, issue #142)
+const VIDEO_BAR_TEXT = '#ffffff';
+
 function ViewerVideo({
   uri,
   rawUri,
@@ -613,7 +617,7 @@ function ViewerVideo({
               }}
               accessibilityLabel="Previous media"
             >
-              <IconSymbol name="backward.end.fill" size={18} color={controlText} />
+              <IconSymbol name="backward.end.fill" size={18} color={VIDEO_BAR_TEXT} />
             </TouchableOpacity>
           )}
 
@@ -625,7 +629,7 @@ function ViewerVideo({
             }}
             accessibilityLabel="Back 10 seconds"
           >
-            <IconSymbol name="gobackward.10" size={20} color={controlText} />
+            <IconSymbol name="gobackward.10" size={20} color={VIDEO_BAR_TEXT} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -633,7 +637,7 @@ function ViewerVideo({
             onPress={handleTogglePlayback}
             accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'}
           >
-            <IconSymbol name={isPlaying ? 'pause.fill' : 'play.fill'} size={22} color={controlText} />
+            <IconSymbol name={isPlaying ? 'pause.fill' : 'play.fill'} size={22} color={VIDEO_BAR_TEXT} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -644,7 +648,7 @@ function ViewerVideo({
             }}
             accessibilityLabel="Forward 10 seconds"
           >
-            <IconSymbol name="goforward.10" size={20} color={controlText} />
+            <IconSymbol name="goforward.10" size={20} color={VIDEO_BAR_TEXT} />
           </TouchableOpacity>
 
           {onNextMedia && (
@@ -656,11 +660,11 @@ function ViewerVideo({
               }}
               accessibilityLabel="Next media"
             >
-              <IconSymbol name="forward.end.fill" size={18} color={controlText} />
+              <IconSymbol name="forward.end.fill" size={18} color={VIDEO_BAR_TEXT} />
             </TouchableOpacity>
           )}
 
-          <Text style={[localStyles.dashboardVideoTime, { color: controlText }]}>
+          <Text style={[localStyles.dashboardVideoTime, { color: VIDEO_BAR_TEXT }]}>
             {formatVideoClock(shownTime)} / {formatVideoClock(duration)}
           </Text>
         </View>
@@ -673,7 +677,7 @@ function ViewerVideo({
               accessibilityLabel="Video volume"
               activeOpacity={0.75}
             >
-              <IconSymbol name={isMuted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'} size={19} color={showVolume ? accent : controlText} />
+              <IconSymbol name={isMuted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'} size={19} color={showVolume ? accent : VIDEO_BAR_TEXT} />
             </TouchableOpacity>
 
             {showVolume && (
@@ -717,7 +721,7 @@ function ViewerVideo({
             accessibilityLabel="Video settings"
             activeOpacity={0.75}
           >
-            <IconSymbol name="gearshape.fill" size={20} color={controlText} />
+            <IconSymbol name="gearshape.fill" size={20} color={VIDEO_BAR_TEXT} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -729,7 +733,7 @@ function ViewerVideo({
             <IconSymbol
               name={isCustomFullscreen ? 'arrow.down.right.and.arrow.up.left' : 'arrow.up.left.and.arrow.down.right'}
               size={20}
-              color={controlText}
+              color={VIDEO_BAR_TEXT}
             />
           </TouchableOpacity>
         </View>
@@ -745,7 +749,7 @@ function ViewerVideo({
           { borderColor: accent },
         ]}
       >
-        <Text style={[localStyles.dashboardVideoSettingsLabel, { color: controlText }]}>Quality</Text>
+        <Text style={[localStyles.dashboardVideoSettingsLabel, { color: VIDEO_BAR_TEXT }]}>Quality</Text>
         <Text style={[localStyles.dashboardVideoSettingsValue, { color: accent }]}>Auto</Text>
       </View>
     )}
