@@ -184,7 +184,7 @@ Brief:        The website has a new wedding theme "Sunlit Portrait" (id "portrai
               app has no "portrait" entry in apps/mobile/constants/templates.ts, so the app's theme
               picker doesn't offer it and a gallery a host set to it on the website isn't drawn in
               that design in the app. Add it to the app: full-screen cover photo, names in Instrument Serif
-              along the bottom, Classic White's gallery below. Keep the web and app pickers the same
+              along the bottom, its warm paper / ink gallery below. Keep the web and app pickers the same
               (src/lib/hiddenTemplates.test.ts checks the app list).
 Done in:      -
 
@@ -209,14 +209,15 @@ Depends on:   -
 Brief:        The cover photo fills the first screen (uses the host's focus point and zoom),
               "We're getting married ♥ date, place" and the names in Instrument Serif along the bottom, a
               round white button that scrolls to the gallery. Below the photo it reuses Classic
-              White's gallery section and palette. Navbar variant "portrait": Classic White's
+              White's gallery markup restyled in its own warm paper / ink / clay look (centred
+              header, pill Photos / Videos switch, rounded photos), CSS only. Navbar variant "portrait": Classic White's
               links in white on the photo with Download All as a white pill, turning into a soft
               white bar once the guest scrolls. In the website's host theme picker.
               Files: src/components/TemplatePortrait.tsx, src/components/portrait/portraitFonts.ts,
               src/app/sunlit-portrait.css, src/components/EventNavbar.tsx, EventRouteShell.tsx,
               events/[slug]/page.tsx, templateRegistry.tsx, webTemplateTheme.ts, host/page.tsx.
               App follow-up: #9.
-Done in:      38465e5 (2026-10-26), on staging. Device test #149.
+Done in:      38465e5 (2026-10-26), on staging; font 11f425e, gallery look 9830e96. Device test #149.
 
 #7  Midnight Hero redesign: photo-led "midnight velvet" guest page (website)
 Listed:       2026-10-26

@@ -3921,18 +3921,20 @@ Brief:     A new wedding theme, "Sunlit Portrait": the cover photo fills the fir
            "We're getting married ♥ date" and the couple's names in a big serif along the bottom,
            and a round white arrow button. The top bar has the same links as Classic White, in white
            over the photo, with Download All as a white button; it turns soft white when you scroll.
-           Below the photo the gallery looks like Classic White. This checks the theme can be picked
-           and looks right, and every button works.
+           Below the photo the gallery has its own look: warm off-white page, the gallery name centred in
+           the same serif, the date in small reddish-brown capitals, a rounded Photos / Videos switch and
+           photos with soft corners. This checks the theme can be picked and looks right, and every button
+           works.
 Detail:    Commit 38465e5 (todo #8): src/components/TemplatePortrait.tsx, src/app/sunlit-portrait.css,
-           src/components/EventNavbar.tsx. Website only: the app has no Sunlit Portrait yet (todo #9),
+           src/components/EventNavbar.tsx; gallery look and bolder date line in 9830e96. Website only: the app has no Sunlit Portrait yet (todo #9),
            so don't check a Sunlit Portrait gallery in the app.
 How to test:
   1. Log in on staging as a host, open a wedding gallery's design settings and look at the themes.
      Expect: "Sunlit Portrait" is offered next to Royal Emerald, Classic White and Midnight Hero.
      Pick it and save.
   2. Open the guest page of that gallery on a computer. Expect: the cover photo fills the whole
-     screen; at the bottom left "We're getting married ♥ <date>" and the gallery name in a large
-     serif ("A and B" shows as "A & B"); a round white arrow button at the bottom right. Everything
+     screen; at the bottom left "We're getting married ♥ <date>" (big and bold enough to read over the
+     photo) and the gallery name in a large serif ("A and B" shows as "A & B"); a round white arrow button at the bottom right. Everything
      readable over the photo.
   3. Look at the top bar. Expect: the name on the left; Home, Collections, Find You in white and a
      white "Download All" button on the right. Scroll down. Expect: the bar turns soft white with
@@ -3940,13 +3942,16 @@ How to test:
   4. Click each top-bar link: Home, a gallery under Collections, Find You, Download All. Expect: each
      does what it does on Classic White (Download All asks Home or whole event, then downloads a ZIP).
   5. Scroll back up and click the round arrow. Expect: the page scrolls to the gallery and its title
-     is not hidden under the top bar. The gallery part looks like Classic White.
+     is not hidden under the top bar. Expect: the gallery name centred, the date in small reddish-brown
+     capitals, the Photos / Videos switch as one rounded pill (the chosen side filled black); switching
+     works. "Add photos" / "Load More Media" buttons are black.
   6. In the host page, change the cover position (move / zoom), save, reopen the guest page.
      Expect: the big photo follows the new position. Also try a very long title, an album under
      Collections (the couple's names stay on the cover), and a gallery with no date.
   7. Open the guest page on a phone with the website (if it shows the "Get the app" screen, #109,
      skip this step). Expect: names readable, "We're getting married" and the date on two lines,
-     the menu button white over the photo; the menu opens with the same items as Classic White.
+     the menu button white over the photo; the menu opens with the same items as Classic White; the
+     gallery header is centred and nothing runs off the screen.
 Done by:
 Device / browser:
 Build / version:
