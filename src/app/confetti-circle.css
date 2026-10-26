@@ -42,8 +42,8 @@
   width: var(--cc-size);
   aspect-ratio: 1;
   border-radius: 50%;
-  /* Slightly see-through, so the photo shows faintly behind the names */
-  background: rgba(255, 255, 255, .9);
+  /* See-through (70% white), so the photo shows behind the names */
+  background: rgba(255, 255, 255, .7);
   color: var(--cc-ink);
   text-align: center;
   box-shadow: 0 30px 60px -30px rgba(60, 30, 30, .35);
