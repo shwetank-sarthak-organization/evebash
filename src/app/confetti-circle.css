@@ -400,12 +400,14 @@
 @media (min-width: 1440px) { .confetti-template .gallery-justified { --row-h: 300px; } }
 
 /* ---------- Footer (src/components/confetti/ConfettiFooter.tsx, on every Confetti Circle page) ----------
-   A torn-paper edge, then links on the left, "S ♥ R" with "Made with EveBash" in the middle, legal links on the right.
+   A torn-paper edge, then links at the far left, "S ♥ R" with "Made with EveBash" in the middle, legal links at the far
+   right.
    Phones: the middle first, the two link lists side by side under it. */
 .confetti-footer {
   position: relative;
-  margin-top: clamp(32px, 5vw, 64px);
-  padding: clamp(56px, 7vw, 88px) 16px clamp(36px, 5vw, 56px);
+  /* No top margin: the page wrapper behind it has no background, so a gap would show the site's dark body colour.
+     The gallery above already ends with its own bottom padding. */
+  padding: clamp(56px, 7vw, 88px) clamp(16px, 4vw, 56px) clamp(36px, 5vw, 56px);
   background: linear-gradient(180deg, #e4e0de 0%, #ebe7e4 55%, #f3f0ed 100%);
   color: var(--cc-ink);
 }
@@ -423,8 +425,7 @@
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: clamp(32px, 6vw, 120px);
-  max-width: 1100px;
-  margin: 0 auto;
+  /* Full width: the link lists sit at the page's far left and far right (same side gap as the navbar) */
 }
 .confetti-footer__links { display: flex; flex-direction: column; gap: 8px; }
 .confetti-footer__links--left { align-items: flex-start; text-align: left; }
