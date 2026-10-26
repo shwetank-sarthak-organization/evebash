@@ -588,6 +588,7 @@ Blocked by: -
 Found in: Unused code and assets scan (2026-10-22)
 Issue: The website and app carry files, assets and packages nothing uses. App: 7 fonts in apps/mobile/assets/fonts (all but AkayaKanadaka; about 0.7 MB), 9 images in apps/mobile/assets/images (memories_bg, marketplace_bg, react-logo x3, partial-react-logo, splash-icon, android-icon-foreground, android-icon-monochrome; about 1.6 MB), 13 @expo-google-fonts packages (every name except Inter is mapped to Inter in app/_layout.tsx), Expo starter leftovers (app/modal.tsx, components/themed-text, themed-view, hello-wave, parallax-scroll-view, external-link, ui/collapsible, hooks/use-color-scheme*, hooks/use-theme-color, scripts/reset-project.js), components/event/index.ts. Website: components DashboardHeader, FindYouSection, RouteGuard, SubEventsGrid, page-flip/CoverFlowMediaViewer, ui/Hero, ui/JharokhaCard and lib/fmp4Chunker, lib/seed; public/file.svg, globe.svg, next.svg, vercel.svg, window.svg, _redirects; API routes media/process-thumbnail, media/trigger-modal-batch, debug/video-trigger, the empty api/test-deploy folder; root packages @tensorflow/tfjs-node, canvas, sharp, razorpay, expo, react-native, file-saver, @types/file-saver, @types/jszip. Repo root: one-off scripts (check-*.js, query_events*.js, replace_*_theme.js, parse/update/tmp_templates.js, templates_str.txt, parsed_templates.json, test-faceapi-block.js), logs (modal_logs*.txt, backend_error.log, .next_log), netlify.toml + netlify/ + vercel.json (Railway deploys). Unused functions: website src/lib/database.ts (getEvents, getUserPendingVisits, getPendingSharedEventsForUser, saveFaceToIndex, updateGuestStatus, updateGuestPermissions, deleteGuest, getPublishedBusinesses, updateUserPrivacy, getUserVisits, findGuestNameByPhone, getUserLikes, serializeDatabaseData, followUser, unfollowUser, getFollowing, getFollowersCount, getFollowingCount), src/lib/razorpayPricing.ts (normalizeBillingDuration, getPricingPlanAmount, getBillingDurationLabel), src/lib/events.ts getAllEvents, src/lib/imageUrl.ts getSmallThumbnail, src/lib/subscriptionStatus.ts formatSubscriptionDate, page-flip resolvePageFlipTransition, templateRegistry WEB_TEMPLATE_IDS; app apps/mobile/lib/database.ts (getSharedEvents, updateUserPrivacy, getPendingFollowRequests, approveFollowRequest, rejectFollowRequest, getFollowersCount, getFollowingCount, getBusinessActivities, updateUserProfileImage, serializeDatabaseData), uploadQueue getIndexingStatusForEvent, chunkUpload isNonRetryableUploadError, imageUrl getSmallThumbnail, subscriptionStatus formatSubscriptionDate, constants/theme RoyalColors; shared/legal POLICY_ACCEPTANCE_TEXT and FIND_YOU_CONSENT_REQUIRED_CODE. Unused CSS in src/app/globals.css: .glass-nav, the .via-slate-950 / .to-slate-950 / .bg-sky-900/30 overrides, the --font-lato alias. Size and speed: none of these items are in the built app or website pages (the build leaves unused files out), so deleting them doesn't change app size or load speed; it removes about 750 MB from the root node_modules (faster installs and builds) and keeps searches clean. The real size and speed wins are #98 (fixed 2026-10-26) and #105. Overlaps #43 (root android/), #55 (unused database.ts functions) and #68 (root APKs).
 How to reproduce: grep the repo for each file or package name: only its own file (or package.json) mentions it.
+Note 2026-10-26: src/components/ui/Hero.tsx is deleted (22c0ec8, with #151).
 
 #104
 Listed: 2026-10-22
@@ -983,20 +984,21 @@ Found in: Sentry crash reporting work (todo #6, 2026-10-26)
 Issue: The backend cannot import shared/: Railway builds evebash-api-staging-backend with Root Directory /apps/backend, so files outside it don't exist at runtime (only backend tests import shared/ today). Code needed by website, app and backend has to be copied, and copies drift. First case: the Sentry personal-data scrubber exists in shared/monitoring/sentryScrub.ts (website, app) and again in apps/backend/src/sentry.ts. Fix options: set Railway's Root Directory to the repo root with a backend build/start command and watch paths, or copy shared/ into apps/backend at build time; then delete the backend copy.
 How to reproduce: Import anything from ../../../shared in apps/backend/src and deploy to staging: the service fails to start with "Cannot find module".
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
 #151
 Listed: 2026-10-26
 Platform: Website
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: Fixed
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: #150 fix (2026-10-26)
 Issue: An old mock "Find Your Photos" page is still live at /find-me (src/app/(main)/find-me/page.tsx). Its upload card (src/components/ui/UploadCard.tsx) only shows the picked selfie; its "Search Photos" button has no click handler, so nothing is ever searched. Nothing on the site links to it: the only links are in src/components/ui/Hero.tsx (unused, listed in #99) and src/components/ui/Navigation.tsx (used only by /find-me itself), so it can only be reached by typing the address. It is noindex. Find You works only inside an event (/events/<event>/find-you and the app's Find You tab), which searches that event and all its visible galleries. Fix: delete src/app/(main)/find-me with ui/UploadCard.tsx and ui/Navigation.tsx (nothing else imports them), and ui/Hero.tsx if #99 hasn't already.
 How to reproduce: Open /find-me, pick a selfie, tap "Search Photos": nothing happens.
+Fixed in: 22c0ec8 (2026-10-26). Deleted the /find-me page with src/components/ui/UploadCard.tsx and ui/Navigation.tsx (only /find-me used them) and the unused ui/Hero.tsx (from #99, whose only link went to /find-me). Checked: clean npm ci, tsc and next build pass (no /find-me route left). No device test: nothing linked to the page.
 
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
 #150
 Listed: 2026-10-26
 Platform: Website
