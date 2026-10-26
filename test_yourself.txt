@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 152
+Next test number: 153
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4045,3 +4045,45 @@ Feedback:         2026-10-26 Claude, built-in browser before commit (local dev s
                   page with a sample couple, since deleted): at ~800px wide and 375x812 (phone size
                   emulated) steps 2 and 6 look as described; no console errors after fixes. Not done:
                   steps 1, 3, 4, 5 and a real person on staging.
+
+--------------------------------------------------------------------------------
+#152 New wedding theme Periwinkle Script (website, computer and phone)
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     A new wedding theme, "Periwinkle Script": a cream top bar with the couple's names in script
+           in the middle and the same links as Classic White either side; below it the cover photo in a
+           frame with rounded top corners and "<names>'s Wedding Day!" in a big cream script across it.
+           A cream card with cut corners sits half on the photo and half on a light periwinkle band,
+           holding the date, the gallery's message and the place. Below the band the gallery looks like
+           Classic White, without the message (the card shows it).
+Detail:    4ee5eab (2026-10-26): src/components/TemplatePeriwinkle.tsx,
+           src/app/periwinkle-script.css, src/components/periwinkle/periwinkleFonts.ts,
+           src/components/EventNavbar.tsx (variant "periwinkle"), theme id "periwinkle". Website only:
+           the app has no Periwinkle Script, so don't check it in the app.
+How to test:
+  1. Log in on staging as a host, open a wedding gallery's design settings and look at the themes.
+     Expect: "Periwinkle Script" is offered with the other wedding themes. Pick it and save.
+  2. Give the gallery a message (description). Open the guest page on a computer. Expect: the
+     layout above; the card shows date, message and place, and the message is not repeated in the
+     gallery header below.
+  3. Click each top-bar link: Home, a gallery under Collections, Find You, Download All. Expect: each
+     does what it does on Classic White.
+  4. Open an album. Expect: the card shows that album's message, not the main gallery's.
+  5. Try a title that isn't two names (e.g. "Sharma Wedding"), long names (e.g. "Alexandrina and
+     Maximilian"), a gallery with no date, message or place (no card, just the band), and a cover
+     set to "fit" and moved / zoomed in the host page.
+  6. Open the guest page on a phone with the website (skip if it shows the "Get the app" screen,
+     #109). Expect: names on the left of the bar and the menu on the right, the title fits the
+     photo, the card text is readable and inside the card.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:         2026-10-26 Claude, built-in browser before commit (local dev server, a temporary preview
+                  page with a sample couple, since deleted): at 1280x860 and 375x812 (phone size
+                  emulated) steps 2 and 6 look as described. Not done: steps 1, 3, 4, 5 and a real
+                  person on staging.
