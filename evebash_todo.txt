@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 8
+Next todo number: 10
 
 Last updated: 2026-10-26
 
@@ -167,9 +167,56 @@ Brief:        There is no crash or error reporting anywhere today (no Sentry, Cr
               (EAS secret + Vercel) and the @sentry/react-native Expo plugin / withSentryConfig.
 Done in:      -
 
+
+#9  Sunlit Portrait theme in the app
+Listed:       2026-10-26
+Platform:     App
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Agreed
+Effort:       M
+Suggested by: Sarthak (2026-10-26: "first create for website")
+Discussed:    Yes
+Decision:     2026-10-26 Sarthak: build the website version first (#8), the app after.
+Owner:        Unassigned
+Depends on:   #8
+Brief:        The website has a new wedding theme "Sunlit Portrait" (id "portrait", #8), but the
+              app has no "portrait" entry in apps/mobile/constants/templates.ts, so the app's theme
+              picker doesn't offer it and a gallery a host set to it on the website isn't drawn in
+              that design in the app. Add it to the app: full-screen cover photo, names in Gloock
+              along the bottom, Classic White's gallery below. Keep the web and app pickers the same
+              (src/lib/hiddenTemplates.test.ts checks the app list).
+Done in:      -
+
 =====================================================================
 DONE / DROPPED (delete after 14 days)
 =====================================================================
+
+#8  New wedding theme "Sunlit Portrait" (website)
+Listed:       2026-10-26
+Platform:     Website
+Priority:     Medium
+Phase:        1
+Status:       Done
+Effort:       M
+Suggested by: Sarthak (reference design shared in chat, 2026-10-26)
+Discussed:    Yes
+Decision:     2026-10-26 Sarthak: add a new wedding theme like the reference (full-screen couple
+              photo, names in a big serif along the bottom), same navbar links as Classic White,
+              website first. Name "Sunlit Portrait" suggested by Claude (id "portrait").
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        The cover photo fills the first screen (uses the host's focus point and zoom),
+              "We're getting married ♥ date, place" and the names in Gloock along the bottom, a
+              round white button that scrolls to the gallery. Below the photo it reuses Classic
+              White's gallery section and palette. Navbar variant "portrait": Classic White's
+              links in white on the photo with Download All as a white pill, turning into a soft
+              white bar once the guest scrolls. In the website's host theme picker.
+              Files: src/components/TemplatePortrait.tsx, src/components/portrait/portraitFonts.ts,
+              src/app/sunlit-portrait.css, src/components/EventNavbar.tsx, EventRouteShell.tsx,
+              events/[slug]/page.tsx, templateRegistry.tsx, webTemplateTheme.ts, host/page.tsx.
+              App follow-up: #9.
+Done in:      38465e5 (2026-10-26), on staging. Device test #149.
 
 #7  Midnight Hero redesign: photo-led "midnight velvet" guest page (website)
 Listed:       2026-10-26

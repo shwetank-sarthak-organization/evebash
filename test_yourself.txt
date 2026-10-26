@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 149
+Next test number: 150
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3905,3 +3905,50 @@ Feedback:         2026-10-26 Claude, built-in browser at 1440x900 on staging (9a
                   the bar turns navy on scroll; step 4 Enter Gallery scrolls to the gallery and Share shows
                   the tick (the clipboard refused the copy only because the test window was not focused).
                   Not done: steps 3, 5, 6 and a real person's look on a real computer.
+--------------------------------------------------------------------------------
+#149 New wedding theme Sunlit Portrait (website, computer and phone)
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     A new wedding theme, "Sunlit Portrait": the cover photo fills the first screen with
+           "We're getting married ♥ date" and the couple's names in a big serif along the bottom,
+           and a round white arrow button. The top bar has the same links as Classic White, in white
+           over the photo, with Download All as a white button; it turns soft white when you scroll.
+           Below the photo the gallery looks like Classic White. This checks the theme can be picked
+           and looks right, and every button works.
+Detail:    Commit 38465e5 (todo #8): src/components/TemplatePortrait.tsx, src/app/sunlit-portrait.css,
+           src/components/EventNavbar.tsx. Website only: the app has no Sunlit Portrait yet (todo #9),
+           so don't check a Sunlit Portrait gallery in the app.
+How to test:
+  1. Log in on staging as a host, open a wedding gallery's design settings and look at the themes.
+     Expect: "Sunlit Portrait" is offered next to Royal Emerald, Classic White and Midnight Hero.
+     Pick it and save.
+  2. Open the guest page of that gallery on a computer. Expect: the cover photo fills the whole
+     screen; at the bottom left "We're getting married ♥ <date>" and the gallery name in a large
+     serif ("A and B" shows as "A & B"); a round white arrow button at the bottom right. Everything
+     readable over the photo.
+  3. Look at the top bar. Expect: the name on the left; Home, Collections, Find You in white and a
+     white "Download All" button on the right. Scroll down. Expect: the bar turns soft white with
+     dark text and Download All turns dark.
+  4. Click each top-bar link: Home, a gallery under Collections, Find You, Download All. Expect: each
+     does what it does on Classic White (Download All asks Home or whole event, then downloads a ZIP).
+  5. Scroll back up and click the round arrow. Expect: the page scrolls to the gallery and its title
+     is not hidden under the top bar. The gallery part looks like Classic White.
+  6. In the host page, change the cover position (move / zoom), save, reopen the guest page.
+     Expect: the big photo follows the new position. Also try a very long title, an album under
+     Collections (the couple's names stay on the cover), and a gallery with no date.
+  7. Open the guest page on a phone with the website (if it shows the "Get the app" screen, #109,
+     skip this step). Expect: names readable, "We're getting married" and the date on two lines,
+     the menu button white over the photo; the menu opens with the same items as Classic White.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:         2026-10-26 Claude, built-in browser before commit (local dev server, every gallery
+                  forced to Sunlit Portrait), public test gallery 29-sep-bqu5k: at 1280x800 steps 2-3
+                  look as described and the bar turns soft white on scroll; at 375x812 (phone size
+                  emulated, not a real phone) the cover and the menu look right. No console errors.
+                  Not done: steps 1, 4, 5, 6 and a real person on staging.
