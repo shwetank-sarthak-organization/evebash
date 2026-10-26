@@ -691,7 +691,6 @@ Fix: PhotoProcessorV2 skips such faces when the switch's face_filter is set (mod
 How to reproduce: Upload a crowded or dark photo; faces of people far in the background or blurry shapes are saved and can show up in someone's Find You results.
 Live 2026-10-22 21:03 IST: Modal v121 (4e9d37a); switch face_filter = min_score 0.4, min_px 24 (Sarthak chose 0.4 over 0.5 to start gently; in the study, scores below 0.4 were 879 of 6,220 faces, 14.1%, before the size rule). Each v2 log line says how many unclear faces were skipped.
 
-
 #109
 Listed: 2026-10-23
 Platform: Website
@@ -763,7 +762,6 @@ Fix (switch off by default): with the video switch's sdr_8bit key on (modal_engi
 Tested on Modal (4-core, production image, production filter code, old vs new command): 10-bit H.264, 10-bit HEVC, 4:2:2, HLG, PQ, HLG 4K and HLG without primaries all came out H.264 High (profile 100) yuv420p bt709 in every tier (old: High 10 / High 4:2:2); 8-bit SDR unchanged. Colours vs the SDR original: SSIM 0.98 (HLG and PQ; hable was 0.96 and visibly darker). Extra time: 4K HDR ~0 (6.4 -> 6.6 s for 15 s), 1080p HDR ~3x (3.8 -> 12 s for 12 s), 10-bit/4:2:2 SDR ~0.
 2026-10-24: Modal v127 deployed (6653ffe, 18:06 IST; rollback v126). sdr_8bit is off, so every video still gets the old command until it is switched on. Checked after deploy: video endpoints reject unsigned calls (401), all four video functions present.
 
-
 #119
 Listed: 2026-10-24
 Platform: Both
@@ -777,7 +775,6 @@ How to reproduce: Take a portrait phone video, strip its audio (ffmpeg -i in.mp4
 Fix: with the video switch's "probe_v2" key on (modal_engine/video_gpu_switch.py probe-v2 on), _transcode_video_core reads audio and height from one JSON ffprobe (_video_basics_from_probe). The height is the one the viewer sees (a video stored sideways with a 90-degree flag uses its stored width), the same as for a video recorded upright. Off = the old probes. Tested on Modal (production image and command, old vs new) on 8 clips: the old probes FAILED on all 4 rotated videos without audio (90, -90, 180 and a small 640x480 one); the new probe processed all of them upright, and the small one got only a 480p stream (360x480) instead of an enlarged 1080p one. Normal, no-audio, natively portrait and rotated-with-audio videos came out identical with old and new.
 Correction to the text above: a rotated 720p phone video was not enlarged before (its output fitted inside 1080 anyway); only rotated videos under 720p were.
 2026-10-25: Modal v130 deployed (eae06d0, 00:13 IST; rollback v129) and probe_v2 switched on for every video (video_gpu_switch.py probe-v2 off to undo). Checked: video endpoints reject unsigned calls (401), all four video functions present.
-
 
 #120
 Listed: 2026-10-24
@@ -858,7 +855,6 @@ Issue: Long 10-bit / HDR videos (iPhone's default "HDR video", many newer camera
 How to reproduce: Upload an iPhone HDR video over 10 minutes to a gallery on the GPU switch: modal_cost_logs shows process_video_cpu_long and Modal logs "[VideoGPU] ... hevc yuv420p10le is not transcoded on the GPU".
 2026-10-25: covered by #141 (10-bit/HDR): code on staging, behind the gpu_all_formats switch, not deployed.
 
-
 #127
 Listed: 2026-10-24
 Platform: Both
@@ -870,7 +866,6 @@ Found in: GPU long-video work (#117), edge-case test on Modal, 2026-10-24
 Issue: Long rotated phone videos (portrait recordings: the picture is stored sideways with a rotate-90 flag) can't use the GPU worker and go to the 16-core worker. ffmpeg's automatic rotation doesn't work on GPU frames. Turning them with transpose_npp works only after converting to yuv420p, and then every frame had a thin green strip along one edge (SSIM 0.84 vs the CPU output instead of 0.99; tried yuv420p and yuv444p), so _gpu_decode_problem sends any rotation flag to the CPU. Fix: try transpose_cuda / a newer ffmpeg build, or rotate after scaling per tier, check frames by eye and SSIM, then allow rotated videos. Related: #119 (the CPU path's height probe breaks on the same videos).
 How to reproduce: Upload a portrait phone video over 10 minutes to a gallery on the GPU switch: Modal logs "[VideoGPU] ... rotated video (90)" and it runs on the 16-core worker.
 2026-10-25: covered by #141 (rotated): code on staging, behind the gpu_all_formats switch, not deployed.
-
 
 #128
 Listed: 2026-10-24
@@ -884,7 +879,6 @@ Issue: The GPU worker only takes 8-bit 4:2:0 H.264 and HEVC; every other long vi
 How to reproduce: Upload a long VP9 or AV1 video (e.g. a WebM screen recording) to a gallery on the GPU switch: Modal logs "[VideoGPU] ... vp9 yuv420p is not transcoded on the GPU".
 2026-10-25: covered by #141 (VP9/AV1/4:2:2/other formats): code on staging, behind the gpu_all_formats switch, not deployed.
 
-
 #129
 Listed: 2026-10-24
 Platform: Both
@@ -896,7 +890,6 @@ Found in: GPU long-video work (#117), 2026-10-24
 Issue: When a long video falls back from the GPU to the 16-core worker (GPU ffmpeg error, output shorter than the source, no L4 within gpu_wait_s = 300 s, or one of #126-#128), the reason is only in Modal's logs ("[VideoGPU] ... -> 16-core worker: ..." / "No L4 ... sending it to the 16-core worker"). Nothing in the database counts them, so we can't see how often it happens or what the wasted GPU time costs (usually ₹0.5-1 per handoff: the L4 time spent downloading before the check). If fallbacks are frequent, the GPU switch saves less than measured. Fix: write the handoff reason to modal_cost_logs (e.g. a row with function_name process_video_gpu_fallback and the reason), and check the count a week after the switch goes on for all galleries.
 How to reproduce: Code check: transcode_video_long_gpu and watch_gpu_start in modal_engine/main.py only print the reason.
 2026-10-25: covered by #141 (handoff logging): code on staging, behind the gpu_all_formats switch, not deployed.
-
 
 #132
 Listed: 2026-10-24
@@ -922,7 +915,6 @@ Issue: Long videos might convert ~30% cheaper on RunPod Serverless than on our M
 Plan: Serverless endpoint (flex, max 3 workers, idle timeout ~10 s) pinned to L4, then one pinned to RTX 4000 Ada; image = jrottenberg/ffmpeg:7.0-nvidia2204 + Python + the production _full_gpu_ffmpeg_cmd (no Docker on the Mac, so install Python at start or build via RunPod's GitHub integration). 3 runs each on test_5 and the 4 other long test videos from #117 (B2 bench/ prefix, deleted after). Measure per stage (GPU wait, download, transcode, upload), cost from RunPod's billing API, SSIM vs the original. Delete the endpoint and all bench files after. Expected cost of the test: under $5. Only move videos if the measured saving is worth running a second provider (lock, switch, retries and cost log would need rebuilding outside Modal).
 How to reproduce: n/a (cost comparison, not a bug).
 
-
 #135
 Listed: 2026-10-24
 Platform: App
@@ -934,7 +926,6 @@ Found in: Device test #128 on the iOS simulator (2026-10-24)
 Issue: In the app's video viewer you can't seek: the progress bar (dashboardVideoProgressTrack in apps/mobile/components/PhotoViewer.tsx) only shows progress and has no touch handling, the buttons next to play are previous/next media, and the 5-second jump (seekBy, videoControlsRef) is defined but nothing calls it. On a 48-minute wedding video, guests can only watch from the start. The website player seeks fine. There is also no manual quality choice in the app (iOS picks it), which is fine. Fix: make the progress bar draggable/tappable (player.currentTime = fraction * duration) and/or add -10 s / +10 s buttons; check on iPhone and Android.
 How to reproduce: In the app, open any video in a gallery, play it, tap or drag the progress bar: playback position doesn't change.
 Fix (app, not in a build yet): apps/mobile/components/PhotoViewer.tsx: the progress bar is now a seek bar (tap or drag; a 20 px tall touch area around the 3 px bar, a thumb shows while dragging and the time follows the finger), plus -10 s / +10 s buttons beside play (icons gobackward.10 / goforward.10 added to icon-symbol.tsx), and the bar is adjustable for VoiceOver (swipe up/down = +/-10 s). On iOS a sideways drag anywhere is the "go back" gesture, so the gallery screen's swipe-back is switched off while a video viewer with these controls is open and back on when it closes. Checked in the iOS simulator (dev build from this branch, test_5 in test-face-new-155c): tap mid-bar 0:00 -> 24:20, +10 s 24:20 -> 24:30, drag to the right 46:06 and played from there; the screen no longer slides away while dragging. Android not checked. Device test #138.
-
 
 
 #137
@@ -1013,20 +1004,23 @@ How to reproduce: Upload an iPhone HDR video (evebash-test/iphone13pro_hdr_4K60p
 Fix (code, switch off, not deployed): with the video switch's "poster_sdr" key on (video_gpu_switch.py poster-sdr on), the poster step in _transcode_video_core (all workers) probes the original and runs the poster through _poster_filter: HDR (HLG/PQ) gets the streams' CPU tone map (_sdr_8bit_filter: shrink to 1080p, mobius), an SDR source bigger than 1080p is only shrunk, anything else gets the old plain frame. If the filtered poster fails (e.g. HDR without colour tags, which zscale can't convert), the old command runs. Off = the old command for every video. Tested 2026-10-25 in both production images (jrottenberg 7.0 for the 4/16-core and old GPU workers, Jellyfin 7.1.4-3 for the all-formats GPU worker): iPhone HDR portrait 2160x3840 2.6 MB pale -> 608x1080 265 KB normal colours; SDR 4K 3840x2160 2.5 MB -> 1920x1080 0.8 MB; SDR 1080p unchanged (same bytes); HLG without primaries tags -> fallback to the old poster. Needs a Modal deploy, then the switch on and device test #141. Existing posters are not redone.
 Update (2026-10-25): deployed as Modal v132 (c2a7826, rollback v131), poster-sdr switched ON (Sarthak's OK). Live check: the 22 s iPhone HDR sample uploaded to test-face-new-155c (t145_iphone_hdr_poster.mov, 4-core worker) got a 1920x1080, 824 KB poster in normal colours (the #139 upload's old poster: 2160x3840, 2.6 MB, pale). Left: device test #141; both test videos stay in test-face-new-155c for the phone checks (#139, #141), then delete them.
 
+
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
 #146
 Listed: 2026-10-25
 Platform: App
 Priority: Medium
-Status: In progress
+Status: Fixed
 Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Device test #139 (portrait video in the app's viewer), 2026-10-25
 Issue: The app's photo viewer shows every video in a landscape-shaped frame, so a portrait phone video plays small with wide black bars on both sides. In apps/mobile/components/PhotoViewer.tsx, only photos may get a portrait frame (isPortraitMedia = !isVideoMedia && ...), and the frame's shape comes from the photos row's width/height, which videos don't have, so it falls back to 16:9. The website's player fills the screen height for the same video (608x1080 stream in a 718x771 box).
 How to reproduce: App, test-face-new-155c, Videos tab, open test139_iphone_hdr_portrait_10min.mov (or any portrait phone video): the picture is a narrow strip in a wide frame.
+Fix: ViewerVideo reports the stream's size (expo-video sourceLoad / videoTrackChange), and the host viewer gives a portrait video a frame in its own shape that fills the screen below the top buttons (HOST_VIEWER_PADDING_TOP/BOTTOM); landscape videos and photos keep the old layout. Checked 2026-10-26 in the iPhone 17 Pro simulator as the test-face-new host: the 10.5-min portrait video fills the height with the controls on screen and plays; the 48-min landscape video and a landscape photo look as before. The guest viewer already used a full-height frame. Device test #142 left.
+Fixed in: 93a940a (2026-10-26)
 
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
 #142
 Listed: 2026-10-25
 Platform: App
@@ -1089,7 +1083,6 @@ Update 5 (2026-10-25, 963e5f5): App log-in prompts, empty gallery, Favourites sw
 Update 6 (2026-10-25): device test #132 passed on the iOS simulator (iPhone 17 Pro); found and fixed in d3a65ef: photo rows stayed empty after an album switch. Still open: Android, a smaller iPhone and the untested steps.
 Update 7 (2026-10-25): test #132 run again on the Android emulator and the iPhone 16e simulator (logged out, public Classic gallery): all pass; video plays on Android. Only video playback on a real iPhone is left.
 Fixed in: cb4bba6 (2026-10-24) and the Classic White app commits after it, last d3a65ef (2026-10-25). Device test #132 passed on the iOS simulator (iPhone 17 Pro, iPhone 16e) and the Android emulator. Closed by Sarthak without the real-iPhone video check: the highlight video uses the shared app player (only the white frame is Classic), so check video playback on a physical iPhone in the next device-testing round.
-
 
 #136
 Listed: 2026-10-25
@@ -1185,7 +1178,6 @@ Fixed in: 7ab5b6c (2026-10-25). One copy in shared/text/coupleNames.ts (the app'
 
 2026-10-25: Modal v131 deployed (22ba209, 10:26 IST; rollback v130). gpu_all_formats is off, so long videos still use the old GPU worker in the test galleries and the 16-core worker elsewhere. Live now regardless of the switch: handoffs from the old GPU worker and from watch_gpu_start are logged to modal_cost_logs (process_video_gpu_fallback). Checked: video endpoints reject unsigned calls (401), all five video functions present.
 
-
 #134
 Listed: 2026-10-24
 Platform: Both
@@ -1200,7 +1192,6 @@ Fix (code, flag off, not live): (1) Backend: new apps/backend/src/services/b2Del
 2026-10-24: Modal v129 deployed (a2380ea, 23:57 IST; rollback v128, which also has #121). Checked: video endpoints reject unsigned calls (401), all four video functions present, switch unchanged.
 2026-10-25: B2_DELETE_ALL_VERSIONS=true set on Railway api-staging (Sarthak). Checked end to end: test_3.mp4 in wedding-2-77d4 with a second poster.jpg version added on purpose (23 versions, 22 files) deleted from the website: 0 versions and 0 hide markers left under hls/<key>/, and the original, preview, thumbnail and <key>-hls/ all gone. Left over, now issue #136: single-file deletes (deleteB2File) and existing leftovers.
 Fixed in: a2380ea (2026-10-24) + Railway B2_DELETE_ALL_VERSIONS=true (2026-10-25), Modal v129.
-
 
 #125
 Listed: 2026-10-24
