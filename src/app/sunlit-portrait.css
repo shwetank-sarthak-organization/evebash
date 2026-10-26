@@ -92,19 +92,21 @@
 .portrait-hero__open:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
 
 /* ---------- Gallery section (src/components/portrait/PortraitGalleryHeader.tsx) ----------
-   Repeats the cover below it: a thin strip with Back / Share, the gallery name large on the left with the date above
-   it (as on the cover) and the host's message as a quote on the right, the gallery video as a wide "second cover", then
+   Like the cover, the opening fills one screen: a thin strip with Back / Share, then the gallery video edge to edge with
+   the date, gallery name and message over it at the bottom left (or, without a video, the same on paper), then
    Photos / Videos marked with the navbar's dot. */
 .portrait-template { background: var(--sp-paper); color: var(--sp-ink); }
 .portrait-template ::selection { background: #A24E3033; }
 /* Any other serif text below the cover ("No photos yet." and the like) in the cover's serif, not Classic White's Playfair */
 .event-template-shell .portrait-template .font-serif { font-family: var(--sp-display); font-style: normal; font-weight: 400; }
-.portrait-template .classic-gallery-content { padding-top: clamp(20px, 2.4vw, 32px); }
+.portrait-template .classic-gallery-content { padding-top: 0; }
 
-.portrait-gh { display: flex; flex-direction: column; gap: clamp(36px, 5vw, 72px); color: var(--sp-ink); }
+/* The opening fills one screen below the navbar's bar (68px), as the cover fills the first */
+.portrait-gh { display: flex; flex-direction: column; gap: clamp(36px, 4vw, 56px); color: var(--sp-ink); }
+.portrait-gh__screen { display: flex; flex-direction: column; min-height: calc(100svh - 68px); min-height: max(calc(100svh - 68px), 520px); }
 .portrait-gh__strip {
   display: flex; justify-content: space-between; align-items: center; gap: 16px;
-  padding-bottom: 14px;
+  padding: 16px 0 14px;
   border-bottom: 1px solid var(--sp-line);
 }
 .portrait-gh__link {
@@ -120,13 +122,10 @@
 .portrait-gh__link:hover { color: var(--sp-ink); }
 .portrait-gh__link:focus-visible { outline: 2px solid var(--sp-ink); outline-offset: 4px; }
 
-/* Name and date like the cover's, in ink; the message beside it as a pull quote, both sitting on one baseline */
-.portrait-gh__intro { display: grid; gap: clamp(24px, 4vw, 64px); align-items: end; }
-@media (min-width: 900px) {
-  .portrait-gh__intro--quote { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
-}
+/* Date, gallery name and message at the bottom left, like the cover's date line and names */
+.portrait-gh__intro { display: flex; flex-direction: column; align-items: flex-start; max-width: min(100%, 64rem); }
 .portrait-gh__details {
-  margin-bottom: 6px;
+  margin-bottom: clamp(6px, 1svh, 12px);
   font-family: var(--font-inter-src), ui-sans-serif, system-ui, sans-serif;
   font-size: 13px;
   font-weight: 600;
@@ -137,67 +136,79 @@
 .portrait-gh__title {
   margin: 0;
   font-family: var(--sp-display);
-  font-size: clamp(3.5rem, 9vw, 9rem);
+  font-size: clamp(4rem, min(14vw, 26svh), 13rem);
   font-weight: 400;
   line-height: .9;
   letter-spacing: -.015em;
   overflow-wrap: anywhere;
   text-wrap: balance;
 }
-.portrait-gh__quote { position: relative; margin: 0; padding-top: clamp(28px, 3vw, 44px); max-width: 34rem; }
-.portrait-gh__mark {
-  position: absolute; top: 0; left: -.04em;
+.portrait-gh__quote {
+  margin-top: clamp(14px, 2.4svh, 28px);
+  max-width: 38rem;
   font-family: var(--sp-display);
-  font-size: clamp(5rem, 7vw, 7.5rem);
-  line-height: .8;
-  color: var(--sp-clay);
-}
-.portrait-gh__quote p {
-  position: relative;
-  font-family: var(--sp-display);
-  font-size: clamp(1.4rem, 2vw, 1.9rem);
+  font-size: clamp(1.35rem, 2vw, 1.9rem);
   line-height: 1.3;
-  color: var(--sp-ink);
+  color: var(--sp-muted);
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
 
-/* Highlight film: a wide rounded frame like a second cover; the round white button sits where the cover's arrow is */
-.portrait-gh__film { position: relative; margin: 0; aspect-ratio: 21 / 9; overflow: hidden; border-radius: 18px; background: var(--sp-ink); }
-@media (max-width: 767px) { .portrait-gh__film { aspect-ratio: 4 / 5; border-radius: 14px; } }
+/* Without a film: the same screen on paper, the name and message at the bottom left */
+.portrait-gh__paper { flex: 1; display: flex; align-items: flex-end; padding: clamp(32px, 6svh, 64px) 0 clamp(28px, 6svh, 64px); }
+
+/* With a film: it runs edge to edge under the strip, like the cover photo; text over it, the play pill bottom right */
+.portrait-gh__film {
+  position: relative; flex: 1;
+  margin: 0 -16px; min-height: 360px;
+  overflow: hidden;
+  background: var(--sp-ink);
+  isolation: isolate;
+}
+@media (min-width: 640px) { .portrait-gh__film { margin-inline: -24px; } }
+@media (min-width: 1024px) { .portrait-gh__film { margin-inline: -32px; } }
 .portrait-gh__player, .portrait-gh__poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.portrait-gh__player { background: #000; }
+.portrait-gh__poster { z-index: -2; }
 .portrait-gh__poster--empty { background: radial-gradient(70% 60% at 65% 30%, #6B6158 0%, transparent 70%), var(--sp-ink); }
-.portrait-gh__start { position: absolute; inset: 0; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; text-align: left; }
-.portrait-gh__poster { transition: transform .8s ease; }
-.portrait-gh__start:hover .portrait-gh__poster { transform: scale(1.03); }
 .portrait-gh__film-shade {
-  position: absolute; inset: 0;
-  background: linear-gradient(0deg, rgba(20, 16, 12, .6) 0%, rgba(20, 16, 12, .15) 40%, rgba(20, 16, 12, 0) 60%);
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(0deg, rgba(20, 16, 12, .7) 0%, rgba(20, 16, 12, .3) 35%, rgba(20, 16, 12, 0) 60%);
 }
-.portrait-gh__film-text {
-  position: absolute; left: clamp(20px, 3vw, 44px); right: 96px; bottom: clamp(20px, 3vw, 40px);
-  display: flex; flex-direction: column; gap: 4px;
+.portrait-gh__film .portrait-gh__intro {
+  position: absolute;
+  left: clamp(16px, 4vw, 56px); right: clamp(84px, 16vw, 260px); bottom: clamp(28px, 6svh, 64px);
   color: #fff;
-  text-shadow: 0 2px 20px rgba(0, 0, 0, .3);
+  text-shadow: 0 2px 24px rgba(0, 0, 0, .3);
 }
-.portrait-gh__film-kicker {
-  font-family: var(--font-inter-src), ui-sans-serif, system-ui, sans-serif;
-  font-size: 12px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase;
-}
-.portrait-gh__film-title { font-family: var(--sp-display); font-size: clamp(2.5rem, 6vw, 5.5rem); line-height: .95; }
+.portrait-gh__film .portrait-gh__details { color: #fff; }
+/* Beats the shared ".themed-gallery-content h2" colour (gallery-refinements.css), which would draw the name in ink */
+.themed-gallery-content .portrait-gh__film .portrait-gh__title { color: #fff; }
+.portrait-gh__film .portrait-gh__quote { color: rgba(255, 255, 255, .92); }
 .portrait-gh__play {
-  position: absolute; right: clamp(20px, 3vw, 44px); bottom: clamp(24px, 3vw, 44px);
-  display: grid; place-items: center;
-  width: clamp(52px, 5vw, 64px); height: clamp(52px, 5vw, 64px);
+  position: absolute; right: clamp(16px, 4vw, 56px); bottom: clamp(32px, 6svh, 68px);
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 8px 20px 8px 8px;
   border-radius: 999px;
   background: #fff;
   color: var(--sp-ink);
+  font-family: var(--sp-display);
+  font-size: 19px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
   transition: transform .2s ease;
 }
-.portrait-gh__play svg { width: 22px; height: 22px; margin-left: 3px; fill: currentColor; }
-.portrait-gh__start:hover .portrait-gh__play { transform: scale(1.06); }
-.portrait-gh__start:focus-visible { outline: 3px solid var(--sp-clay); outline-offset: 4px; }
+.portrait-gh__play svg {
+  box-sizing: content-box; width: 18px; height: 18px; padding: 11px 10px 11px 12px;
+  border-radius: 999px; background: var(--sp-ink); color: #fff; fill: currentColor;
+}
+.portrait-gh__play:hover { transform: scale(1.04); }
+.portrait-gh__play:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+/* Phones: only the round button, so the text keeps the width */
+@media (max-width: 639px) {
+  .portrait-gh__play { padding: 0; }
+  .portrait-gh__play-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .portrait-gh__play svg { width: 20px; height: 20px; padding: 14px 13px 14px 15px; background: #fff; color: var(--sp-ink); }
+}
 
 /* Photos / Videos: serif words with the count raised, the chosen one marked with the navbar's clay dot */
 .portrait-gh__tabs { display: flex; gap: clamp(28px, 4vw, 48px); }
@@ -230,7 +241,7 @@
 .portrait-gh__tab[aria-pressed="true"]::after { transform: translateX(-50%) scale(1); }
 .portrait-gh__tab:focus-visible { outline: 2px solid var(--sp-ink); outline-offset: 4px; }
 @media (prefers-reduced-motion: reduce) {
-  .portrait-gh__poster, .portrait-gh__play, .portrait-gh__tab::after, .portrait-gh__link { transition: none; }
+  .portrait-gh__play, .portrait-gh__tab::after, .portrait-gh__link { transition: none; }
 }
 
 /* Photos: a little space and soft corners */
