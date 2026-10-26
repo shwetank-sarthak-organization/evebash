@@ -3845,11 +3845,18 @@ How to test:
      or no matches), and the buttons can be used again.
   4. On a phone, on www.evebash.com after this is in production: open Find You on mobile data. Expect:
      the buttons work at once; Take Selfie opens the front camera and the photo taken is searched.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Claude (built-in browser)
+Device / browser: Claude desktop app's built-in browser (Chromium), computer size
+Build / version:  staging.evebash.com with dd93865 (fix 6662abf); /models/... returns 404 there
+Date tested:      2026-10-26
+Account used:     host account already signed in to the built-in browser; gallery test-face-new-155c
+                  (Find You consent already given)
+Screenshot / recording: taken in the chat, not saved
 Fix ref:
-Feedback:
+Feedback:         2026-10-26 steps 1-3 PASS. 1: both buttons enabled as soon as the page showed, no
+                  "Loading AI Models..." line, 0 requests for /models or model shards. The built-in
+                  browser can't throttle to Slow 4G, but with no model download there is nothing to wait
+                  for. 2: the gallery cover (a group of 5) used as the selfie: buttons greyed while
+                  searching, then "Found 2 photos of you!" with 2 photos (/api/find-you 200 in 12.5 s).
+                  3: a plain sky-and-grass picture: "No face detected in selfie", buttons usable again
+                  (2.5 s). Still to do: step 4 on a phone on www.evebash.com once this is in production.
