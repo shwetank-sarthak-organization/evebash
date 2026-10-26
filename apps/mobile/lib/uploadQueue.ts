@@ -6,6 +6,40 @@ import { getEndpointsForPath, fetchWithEndpointFallback } from './storage';
 import { toDurationSeconds } from './mediaDuration';
 import { appAlert } from './feedback';
 
+// Issue #144: an upload that failed because the phone lost its connection doesn't use up an attempt. The item waits
+// until the backend answers again and then carries on; other errors still get MAX_UPLOAD_RETRIES attempts.
+const NETWORK_ERROR = /Network request failed|network connection was lost|connection abort|Failed to connect to any|Unable to resolve host|offline|timed out/i;
+const CONNECTION_CHECK_MS = 4000;
+let connectionWait: Promise<void> | null = null;
+
+function isNetworkError(err: any) {
+  return err?.nonRetryable !== true && NETWORK_ERROR.test(String(err?.message || err || ''));
+}
+
+/** Resolves once the backend answers again (any HTTP reply counts); every waiting upload shares one check. */
+function waitForConnection(): Promise<void> {
+  if (connectionWait) return connectionWait;
+  const healthUrl = getEndpointsForPath('/health')[0];
+  connectionWait = (async () => {
+    for (;;) {
+      await new Promise(res => setTimeout(res, CONNECTION_CHECK_MS));
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), CONNECTION_CHECK_MS);
+      try {
+        await fetch(healthUrl, { method: 'GET', signal: controller.signal });
+        return;
+      } catch {
+        // Still offline
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+  })().finally(() => {
+    connectionWait = null;
+  });
+  return connectionWait;
+}
+
 // The server refused an upload because of the gallery owner's plan (storage full or plan expired).
 // Retrying can't help, so the item fails at once; the reason is shown once per minute, not once per file.
 const PLAN_LIMIT_CODES = new Set(['storage_full', 'plan_expired']);
@@ -661,7 +695,20 @@ async function uploadWorker(item: UploadQueueItem) {
     // Set by chunkUpload for 4xx responses — repeating the identical request cannot succeed.
     const nonRetryable = err?.nonRetryable === true;
 
-    if (!nonRetryable && retries < MAX_UPLOAD_RETRIES) {
+    if (isNetworkError(err)) {
+      console.warn(`[UploadQueue] No connection while uploading ${item.fileName} (${err?.message || err}). Waiting for the network...`);
+      await mutateQueue(q => {
+        const target = q.find(i => i.id === item.id);
+        if (target) {
+          target.status = 'pending';
+          target.progress = 0;
+          target.storageKey = undefined; // Fresh upload URL once back online
+          target.error = 'Waiting for connection';
+        }
+      });
+      await waitForConnection();
+      console.log(`[UploadQueue] Connection back; resuming ${item.fileName}`);
+    } else if (!nonRetryable && retries < MAX_UPLOAD_RETRIES) {
       console.warn(`[UploadQueue] Transient upload issue on ${item.fileName} (${err?.message || err}). Retrying attempt ${retries}/${MAX_UPLOAD_RETRIES}...`);
       await mutateQueue(q => {
         const target = q.find(i => i.id === item.id);
@@ -743,11 +790,19 @@ async function flushMetadataBatchesInternal(): Promise<void> {
       // 1. Resolve rawEventId to true database primary key id
       let targetEventId = rawEventId;
       try {
-        const { data: eventRow } = await supabase
+        const { data: eventRow, error: lookupError } = await supabase
           .from('events')
           .select('id')
           .or(`id.eq.${rawEventId},legacy_id.eq.${rawEventId}`)
           .maybeSingle();
+
+        // Issue #144: a lookup that failed (offline) says nothing about the gallery; keep the items and try once
+        // the connection is back, instead of failing photos whose file is already uploaded
+        if (lookupError) {
+          console.warn(`[UploadQueue] Couldn't check event ${rawEventId} (${lookupError.message}). Saving when the connection is back.`);
+          void waitForConnection().then(() => flushMetadataBatches());
+          continue;
+        }
 
         if (eventRow?.id) {
           targetEventId = eventRow.id;
@@ -890,6 +945,11 @@ async function flushMetadataBatchesInternal(): Promise<void> {
       const errorMsg = batchErr?.message || String(batchErr || 'Metadata sync failed');
       console.warn(`[UploadQueue] Error flushing metadata batch for event ${rawEventId}:`, errorMsg);
       const isFatalFkError = errorMsg.includes('foreign key constraint') || errorMsg.includes('does not exist');
+      // Issue #144: offline, the files are already uploaded; save them once the connection is back without using attempts
+      if (!isFatalFkError && isNetworkError(batchErr)) {
+        void waitForConnection().then(() => flushMetadataBatches());
+        continue;
+      }
       let shouldRetry = false;
       await mutateQueue(q => {
         for (const item of items) {
