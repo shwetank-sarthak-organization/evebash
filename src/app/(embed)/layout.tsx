@@ -17,7 +17,7 @@ export const viewport: Viewport = {
 export default function EmbedLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
         <html lang="en" className={inter.variable}>
-            <body className="antialiased font-sans bg-[#0E1318] text-white">{children}</body>
+            <body className="antialiased font-sans site-palette bg-[#0E1318] text-white">{children}</body>
         </html>
     );
 }

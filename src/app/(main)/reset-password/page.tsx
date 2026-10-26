@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
             <div className="w-full max-w-md mx-auto">
                 <div className="flex flex-col items-center justify-center mb-8">
                     <div className="w-16 h-16 rounded-full border border-slate-700 bg-slate-800/50 flex items-center justify-center mb-4 shadow-xl">
-                        <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-sky-600">EB</span>
+                        <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#DEB57E] to-[#B88955]">EB</span>
                     </div>
                     <h1 className="text-3xl font-bold tracking-tight text-white">Set New Password</h1>
                     <p className="text-slate-400 text-sm mt-2 font-medium tracking-wide">Choose a secure password for EveBash</p>
@@ -72,7 +72,7 @@ export default function ResetPasswordPage() {
                                 type="password"
                                 value={password}
                                 onChange={(event) => setPassword(event.target.value)}
-                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
+                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#CA9C68]/50 focus:border-[#CA9C68] transition-all"
                                 placeholder="••••••••"
                             />
                         </div>
@@ -98,7 +98,7 @@ export default function ResetPasswordPage() {
                                 type="password"
                                 value={confirmPassword}
                                 onChange={(event) => setConfirmPassword(event.target.value)}
-                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
+                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#CA9C68]/50 focus:border-[#CA9C68] transition-all"
                                 placeholder="••••••••"
                             />
                         </div>
@@ -118,10 +118,10 @@ export default function ResetPasswordPage() {
                         <button
                             type="submit"
                             disabled={status !== "idle" || !isPassValid || password !== confirmPassword}
-                            className="w-full py-3.5 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white rounded-xl font-bold text-[15px] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 focus:ring-offset-slate-900 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                            className="w-full py-3.5 bg-[#CA9C68] hover:bg-[#D7AE7D] text-[#13191F] rounded-xl font-bold text-[15px] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#CA9C68] focus:ring-offset-slate-900 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
                         >
                             {status === "loading" ? (
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <div className="w-5 h-5 border-2 border-[#13191F]/30 border-t-[#13191F] rounded-full animate-spin" />
                             ) : (
                                 "Update Password"
                             )}

@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 144
+Next test number: 145
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-10-23
+Last updated: 2026-10-26
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -3704,6 +3704,39 @@ How to test:
   3. Repeat, turning airplane mode on just as a photo finishes (the moment the count goes up).
   4. Open the album on the website. Expect: every photo is there with a thumbnail, none failed or
      missing, and no duplicates.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#144 Website pages use the app's warm greys and gold
+Status:    TODO
+Priority:  Low
+Platform:  Website (computer + phone browser)
+Brief:     The website's grey text was blue-grey while the app's is warm beige, and a few places used
+           blue, indigo or purple where the app uses gold. The site pages now use the app's colours.
+           Guest gallery pages are not changed.
+Detail:    Branch fix/web-warm-greys: src/app/globals.css (.site-palette on the (main), (vault) and (embed)
+           layouts), host, dashboard, profile, pricing, forgot-password and reset-password pages. Issue #59.
+How to test:
+  1. Log in as a host and open /dashboard. Expect: the "How to host" card is dark warm brown with a gold
+     "HOW TO HOST" label and a red "Watch on YouTube" button, like the app's dashboard (not indigo).
+  2. Open /host. Expect: grey text (subtitles, counts, dates, labels) is warm beige like the app, not
+     blue-grey; the "Your Events" / "Galleries" subtitle is easy to read; in Usage the Events bar is gold
+     like Storage.
+  3. In a gallery, open the photo table (the list with Resolution / File Size / Format / Added On).
+     Expect: the values are light and readable (they were nearly invisible).
+  4. Open /pricing (logged out is fine). Expect: Premium has a gold "Most popular" band, gold ring and gold
+     button; the other plans have dark buttons; the check marks are small tinted circles (gold, teal, sky,
+     violet, pink, orange) like the app's pricing screen.
+  5. Open /forgot-password. Expect: gold "EB", a gold Send button with dark text, a gold ring on the field.
+  6. Open /vault as a host. Expect: grey text is warm beige and everything is readable.
+  7. Open two guest galleries (/events/<slug>) in different themes, e.g. Classic White and Royal Emerald.
+     Expect: they look exactly as before (gallery themes keep their own colours).
 Done by:
 Device / browser:
 Build / version:

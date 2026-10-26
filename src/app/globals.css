@@ -32,13 +32,30 @@ video::-webkit-media-controls-picture-in-picture-button {
   --site-border: rgba(202, 156, 104, 0.18);
   --site-text: #FFF7EB;
   --site-muted: #CDB89E;
-  --site-subtle: #E2CFB7;
+  --site-subtle: #E6D8C3;
   --site-input: rgba(202, 156, 104, 0.1);
 }
 
 .theme-dark {
   --color-royal-cream: #13191F;
   --color-slate-800: #FFF7EB;
+}
+
+/* Site pages (not guest galleries): Tailwind's slate greys use the app's warm palette
+   (MidnightColors in apps/mobile/constants/theme.ts) instead of blue-grey, so grey text matches the app.
+   Set on <body> in the (main), (vault) and (embed) layouts. 100, 200 and 500 sit between app colours;
+   slate-800 keeps its value from .theme-dark. */
+.site-palette {
+  --color-slate-50: #FFF7EB;
+  --color-slate-100: #F9F0E1;
+  --color-slate-200: #F3E8D7;
+  --color-slate-300: #E6D8C3;
+  --color-slate-400: #CDB89E;
+  --color-slate-500: #B4A28B;
+  --color-slate-600: #9A8B78;
+  --color-slate-700: #594C3D;
+  --color-slate-900: #1B211F;
+  --color-slate-950: #13191F;
 }
 
 @theme {

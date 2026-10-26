@@ -78,7 +78,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/evebash-logo-gold.png" />
         {APP_GATE_ENABLED && <script dangerouslySetInnerHTML={{ __html: appGateHeadScript }} />}
       </head>
-      <body className="antialiased font-sans">
+      <body className="antialiased font-sans site-palette">
         <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(organizationJsonLd)} />
         <AuthProvider>
           {APP_GATE_ENABLED && <MobileAppGate />}

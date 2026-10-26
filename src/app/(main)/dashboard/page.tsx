@@ -274,19 +274,19 @@ export default function DashboardHub() {
 
                     <section
                         onClick={() => window.open("https://www.youtube.com/@EveBashApp", "_blank")}
-                        className="group relative flex flex-col justify-between cursor-pointer overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-900 to-indigo-950 p-6 sm:p-8 shadow-xl shadow-indigo-950/20 min-h-[220px]"
+                        className="group relative flex flex-col justify-between cursor-pointer overflow-hidden rounded-[2rem] border border-[#CA9C68]/15 bg-gradient-to-br from-[#1E1B17] to-[#12171C] p-6 sm:p-8 shadow-xl shadow-black/30 min-h-[220px]"
                     >
-                        <div className="absolute right-0 top-0 h-48 w-48 -translate-y-1/2 translate-x-1/4 rounded-full bg-indigo-500/20 blur-2xl" />
+                        <div className="absolute right-0 top-0 h-48 w-48 -translate-y-1/2 translate-x-1/4 rounded-full bg-[#CA9C68]/10 blur-2xl" />
                         <div className="relative z-10 flex flex-col gap-4">
-                            <div className="w-fit rounded-lg bg-indigo-500/20 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-200">
+                            <div className="w-fit rounded-lg border border-[#CA9C68]/20 bg-[#CA9C68]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#CA9C68]">
                                 How To Host
                             </div>
                             <div>
                                 <h2 className="text-2xl font-black text-white">Host Your Perfect Event</h2>
-                                <p className="mt-2 text-sm font-semibold text-indigo-200">Watch our step-by-step tutorials and host your event like a pro.</p>
+                                <p className="mt-2 text-sm font-semibold text-white/80">Watch our step-by-step tutorials and host your event like a pro.</p>
                             </div>
                         </div>
-                        <div className="relative z-10 mt-6 flex w-fit items-center rounded-xl border border-indigo-300/30 bg-indigo-500/20 px-4 py-2.5 text-xs font-black text-white backdrop-blur-md transition-colors group-hover:bg-indigo-500/40">
+                        <div className="relative z-10 mt-6 flex w-fit items-center rounded-xl bg-[#FF0000] px-4 py-2.5 text-xs font-black text-white transition-colors group-hover:bg-[#CC0000]">
                             <Play className="mr-2 h-4 w-4 fill-current" />
                             <span>Watch on YouTube</span>
                         </div>

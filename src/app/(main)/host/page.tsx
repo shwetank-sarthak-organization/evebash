@@ -3717,7 +3717,7 @@ function DashboardContent() {
                         const contact = log.email || log.phone || "No contact";
                         const hasAdminAccess = Boolean(log.canAdmin);
                         const role = isPending
-                            ? { label: "Pending", icon: RefreshCw, className: "border-sky-400/30 bg-sky-400/10 text-sky-300" }
+                            ? { label: "Pending", icon: RefreshCw, className: "border-amber-400/30 bg-amber-400/10 text-amber-300" }
                             : hasAdminAccess
                                 ? { label: "Admin", icon: ShieldCheck, className: "border-[#CA9C68]/30 bg-[#CA9C68]/10 text-[#CA9C68]" }
                                 : { label: "Member", icon: Users, className: "border-slate-700 bg-slate-800 text-slate-300" };
@@ -4143,7 +4143,7 @@ function DashboardContent() {
 
                                 {loadingEvents ? (
                                     <div className="flex justify-center py-12">
-                                        <div className="w-8 h-8 border-4 border-slate-600 border-t-sky-400 rounded-full animate-spin" />
+                                        <div className="w-8 h-8 border-4 border-slate-600 border-t-[#CA9C68] rounded-full animate-spin" />
                                     </div>
                                 ) : activeTab === "request" ? (
                                     <div className="mt-6">
@@ -4273,18 +4273,18 @@ function DashboardContent() {
                                 {/* SECTION 4: HOW TO HOST (YouTube Card) */}
                                 <div
                                     onClick={() => window.open('https://www.youtube.com/@EveBashApp', '_blank')}
-                                    className="relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-indigo-900 to-indigo-950 p-6 cursor-pointer shadow-lg shadow-indigo-900/20 group border border-indigo-500/20"
+                                    className="relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-[#1E1B17] to-[#12171C] p-6 cursor-pointer shadow-lg shadow-black/30 group border border-[#CA9C68]/15"
                                 >
-                                    <div className="absolute right-0 top-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
+                                    <div className="absolute right-0 top-0 w-64 h-64 bg-[#CA9C68]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
                                     <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between">
                                         <div className="mb-6 md:mb-0 max-w-md">
-                                            <div className="inline-block px-3 py-1 bg-indigo-500/20 backdrop-blur-sm rounded-lg text-indigo-300 text-[10px] font-bold tracking-widest mb-3">
+                                            <div className="inline-block px-3 py-1 bg-[#CA9C68]/10 border border-[#CA9C68]/20 rounded-lg text-[#CA9C68] text-[10px] font-bold tracking-widest mb-3">
                                                 HOW TO HOST
                                             </div>
                                             <h3 className="text-2xl font-bold text-white mb-1">Watch & Learn</h3>
-                                            <p className="text-indigo-200 text-sm font-medium">Watch our step-by-step tutorials and host your event like a pro.</p>
+                                            <p className="text-white/80 text-sm font-medium">Watch our step-by-step tutorials and host your event like a pro.</p>
                                         </div>
-                                        <div className="flex items-center bg-indigo-500/20 backdrop-blur-md px-5 py-3 rounded-xl text-white font-bold w-fit group-hover:bg-indigo-500/40 transition-colors border border-indigo-400/30">
+                                        <div className="flex items-center bg-[#FF0000] px-5 py-3 rounded-xl text-white font-bold w-fit group-hover:bg-[#CC0000] transition-colors">
                                             <Play className="w-4 h-4 mr-2" fill="currentColor" /> Watch on YouTube
                                         </div>
                                     </div>
@@ -4304,7 +4304,7 @@ function DashboardContent() {
                                     <h2 className="text-3xl font-bold mb-2 uppercase tracking-wide">
                                         {manageLevel === "events" ? "Your Events" : "Galleries"}
                                     </h2>
-                                    <p className="text-slate-700 font-sans">
+                                    <p className="text-slate-400 font-sans">
                                         {manageLevel === "events"
                                             ? "Organize your wedding into high-level events."
                                             : `Galleries within ${selectedMainEvent?.title}`
@@ -4934,7 +4934,7 @@ function DashboardContent() {
                                                 value={eventName}
                                                 onChange={(e) => setEventName(e.target.value)}
                                                 placeholder="e.g. Dream Wedding 2024"
-                                                className="w-full px-6 py-5 bg-slate-900/50 border border-slate-700 rounded-3xl focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all outline-none text-xl font-medium"
+                                                className="w-full px-6 py-5 bg-slate-900/50 border border-slate-700 rounded-3xl focus:ring-2 focus:ring-[#CA9C68] focus:border-transparent transition-all outline-none text-xl font-medium"
                                                 required
                                                 autoFocus
                                             />
@@ -4947,7 +4947,7 @@ function DashboardContent() {
                                             <button
                                                 type="button"
                                                 onClick={() => openDatePicker("create")}
-                                                className="flex w-full items-center justify-between px-6 py-5 bg-slate-900/50 border border-slate-700 rounded-3xl focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all outline-none text-xl font-medium text-left"
+                                                className="flex w-full items-center justify-between px-6 py-5 bg-slate-900/50 border border-slate-700 rounded-3xl focus:ring-2 focus:ring-[#CA9C68] focus:border-transparent transition-all outline-none text-xl font-medium text-left"
                                             >
                                                 <span className={eventDate ? "text-white" : "text-slate-500"}>
                                                     {eventDate || "Select event date"}
@@ -4996,7 +4996,7 @@ function DashboardContent() {
                                                             onClick={() => setSelectedTemplate(template.id)}
                                                             className={cn(
                                                                 "flex items-center justify-between p-3 rounded-2xl border-2 transition-colors cursor-pointer",
-                                                                isActive ? "bg-slate-900 border-sky-500 shadow-md" : "bg-slate-900/50 border-slate-700 hover:border-slate-500"
+                                                                isActive ? "bg-slate-900 border-[#CA9C68] shadow-md" : "bg-slate-900/50 border-slate-700 hover:border-slate-500"
                                                             )}
                                                             style={{ borderColor: isActive ? template.accent : undefined }}
                                                         >
@@ -5665,7 +5665,7 @@ function DashboardContent() {
                                                 layout
                                                 className={cn(
                                                     "group relative flex aspect-square cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-3 text-center transition-colors",
-                                                    status === "uploading" ? "border-sky-500/50 bg-sky-500/5" : "border-[#CA9C68]/55 bg-slate-900/50 hover:border-[#CA9C68] hover:bg-slate-900/70"
+                                                    status === "uploading" ? "border-[#CA9C68] bg-[#CA9C68]/5" : "border-[#CA9C68]/55 bg-slate-900/50 hover:border-[#CA9C68] hover:bg-slate-900/70"
                                                 )}
                                                 title="Click to select photos to upload"
                                             >
@@ -5891,7 +5891,7 @@ function DashboardContent() {
                                             {!isFavouriteFilterActive && (galleryMediaTab !== "videos" || canPostVideos) && <motion.label
                                                 className={cn(
                                                     "flex items-center p-5 sm:p-6 border-2 border-dashed rounded-2xl cursor-pointer transition-colors group",
-                                                    status === "uploading" ? "border-sky-500/50 bg-sky-500/5" : "border-[#CA9C68]/55 bg-slate-900/50 hover:border-[#CA9C68] hover:bg-slate-900/70"
+                                                    status === "uploading" ? "border-[#CA9C68] bg-[#CA9C68]/5" : "border-[#CA9C68]/55 bg-slate-900/50 hover:border-[#CA9C68] hover:bg-slate-900/70"
                                                 )}
                                             >
                                                 <input
@@ -6002,17 +6002,17 @@ function DashboardContent() {
                                                                             <div className="space-y-1.5">
                                                                                 <div className="flex items-center text-xs">
                                                                                     <span className="text-slate-400 w-20">Resolution:</span>
-                                                                                    <span className="font-bold text-slate-700">{photo.width && photo.height ? `${photo.width} × ${photo.height}` : 'N/A'}</span>
+                                                                                    <span className="font-bold text-slate-200">{photo.width && photo.height ? `${photo.width} × ${photo.height}` : 'N/A'}</span>
                                                                                 </div>
                                                                                 <div className="flex items-center text-xs">
                                                                                     <span className="text-slate-400 w-20">File Size:</span>
-                                                                                    <span className={cn("font-bold text-slate-700", !photo.size && "text-slate-400 font-normal italic")}>
+                                                                                    <span className={cn("font-bold text-slate-200", !photo.size && "text-slate-400 font-normal italic")}>
                                                                                         {formatSize(photo.size)}
                                                                                     </span>
                                                                                 </div>
                                                                                 <div className="flex items-center text-xs">
                                                                                     <span className="text-slate-400 w-20">Format:</span>
-                                                                                    <span className="font-bold text-slate-700 uppercase">{displayFormat || 'N/A'}</span>
+                                                                                    <span className="font-bold text-slate-200 uppercase">{displayFormat || 'N/A'}</span>
                                                                                 </div>
                                                                             </div>
                                                                         </td>
@@ -6020,7 +6020,7 @@ function DashboardContent() {
                                                                             <div className="space-y-1.5">
                                                                                 <div className="flex items-center text-xs">
                                                                                     <span className="text-slate-400 w-20">Added On:</span>
-                                                                                    <span className="font-bold text-slate-700">{dateAdded}</span>
+                                                                                    <span className="font-bold text-slate-200">{dateAdded}</span>
                                                                                 </div>
                                                                                 <div className="flex items-center space-x-2 pt-1">
                                                                                     {!isVideo && isCover && (
@@ -6480,7 +6480,7 @@ function DashboardContent() {
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between gap-3">
                                             <div className="flex items-center gap-2">
-                                                <span className="h-2 w-2 rounded-full bg-indigo-400" />
+                                                <span className="h-2 w-2 rounded-full bg-[#D7AE7D]" />
                                                 <span className="text-sm font-black text-slate-100">Events</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-sm">
@@ -6488,14 +6488,14 @@ function DashboardContent() {
                                                 <span className="font-semibold text-slate-500">
                                                     / {planDetails.eventLabel}
                                                 </span>
-                                                <span className="rounded-full bg-indigo-400/10 px-2 py-1 text-[10px] font-black text-indigo-300">
+                                                <span className="rounded-full bg-[#CA9C68]/10 px-2 py-1 text-[10px] font-black text-[#CA9C68]">
                                                     {planDetails.eventLimit === Infinity ? "∞" : `${Math.round(eventPercent)}%`}
                                                 </span>
                                             </div>
                                         </div>
                                         <div className="h-2 overflow-hidden rounded-full bg-slate-950">
                                             <div
-                                                className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-indigo-200"
+                                                className="h-full rounded-full bg-gradient-to-r from-[#CA9C68] to-[#D7AE7D]"
                                                 style={{ width: `${planDetails.eventLimit === Infinity ? 5 : eventPercent}%` }}
                                             />
                                         </div>
@@ -7178,7 +7178,7 @@ function DashboardContent() {
                                     ? "bg-emerald-500/20 text-emerald-100 border-emerald-500/30"
                                     : status === "error"
                                         ? "bg-rose-500/20 text-rose-100 border-rose-500/30"
-                                        : "bg-sky-500/20 text-sky-100 border-sky-500/30"
+                                        : "bg-[#CA9C68]/15 text-[#F5E7D4] border-[#CA9C68]/30"
                             )}>
                                 {message}
                             </div>
@@ -7235,7 +7235,7 @@ function OptionCard({ title, description, icon: Icon, onClick, href, color, hove
                 <h3 className="text-2xl font-bold mb-4 group-hover:text-white transition-colors">
                     {title}
                 </h3>
-                <p className="text-slate-700 font-sans leading-relaxed mb-6 text-sm">
+                <p className="text-slate-400 font-sans leading-relaxed mb-6 text-sm">
                     {description}
                 </p>
                 <div className="flex items-center text-xs font-bold uppercase tracking-widest text-white mt-auto">

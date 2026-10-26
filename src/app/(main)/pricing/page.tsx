@@ -153,64 +153,64 @@ const planVisuals: Record<string, {
         badgeColor: "",
         description: "Get started and explore the platform at no cost.",
         accentClass: "border border-slate-100",
-        btnClass: "bg-slate-800 text-white hover:bg-slate-900",
-        checkClass: "bg-slate-100 text-slate-600",
+        btnClass: "bg-slate-800 text-white hover:bg-slate-700",
+        checkClass: "bg-[#CDB89E]/12 text-[#CDB89E]",
     },
     starter: {
         badge: null,
         badgeColor: "",
         description: "For small personal galleries.",
         accentClass: "border border-teal-100",
-        btnClass: "bg-teal-600 text-white hover:bg-teal-700",
-        checkClass: "bg-teal-50 text-teal-500",
+        btnClass: "bg-slate-800 text-white hover:bg-slate-700",
+        checkClass: "bg-teal-500/12 text-teal-500",
     },
     basic: {
         badge: null,
         badgeColor: "",
         description: "For individuals and small events.",
         accentClass: "border border-teal-100",
-        btnClass: "bg-teal-600 text-white hover:bg-teal-700",
-        checkClass: "bg-teal-50 text-teal-500",
+        btnClass: "bg-slate-800 text-white hover:bg-slate-700",
+        checkClass: "bg-teal-500/12 text-teal-500",
     },
     standard: {
         badge: null,
         badgeColor: "",
         description: "Best for frequent users and families.",
         accentClass: "border border-sky-100",
-        btnClass: "bg-sky-600 text-white hover:bg-sky-700",
-        checkClass: "bg-sky-50 text-sky-500",
+        btnClass: "bg-slate-800 text-white hover:bg-slate-700",
+        checkClass: "bg-sky-500/12 text-sky-500",
     },
     premium: {
         badge: "Most Popular",
-        badgeColor: "bg-sky-600",
+        badgeColor: "bg-[#CA9C68] text-[#13191F]",
         description: "For professional photographers.",
-        accentClass: "ring-2 ring-sky-500",
-        btnClass: "bg-sky-600 text-white hover:bg-sky-700 shadow-lg shadow-sky-200",
-        checkClass: "bg-sky-100 text-sky-600",
+        accentClass: "ring-2 ring-[#CA9C68]",
+        btnClass: "bg-[#CA9C68] text-[#13191F] hover:bg-[#D7AE7D] shadow-lg shadow-[#CA9C68]/20",
+        checkClass: "bg-[#CA9C68]/12 text-[#CA9C68]",
     },
     pro: {
         badge: null,
         badgeColor: "",
         description: "For growing professional teams.",
-        accentClass: "border border-purple-100",
-        btnClass: "bg-purple-600 text-white hover:bg-purple-700",
-        checkClass: "bg-purple-50 text-purple-500",
+        accentClass: "border border-violet-100",
+        btnClass: "bg-slate-800 text-white hover:bg-slate-700",
+        checkClass: "bg-violet-500/12 text-violet-500",
     },
     elite: {
         badge: null,
-        badgeColor: "bg-purple-600",
+        badgeColor: "bg-pink-600 text-white",
         description: "For studios and heavy users.",
-        accentClass: "ring-2 ring-purple-400",
-        btnClass: "bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-200",
-        checkClass: "bg-purple-100 text-purple-600",
+        accentClass: "ring-2 ring-pink-400",
+        btnClass: "bg-slate-800 text-white hover:bg-slate-700",
+        checkClass: "bg-pink-500/12 text-pink-500",
     },
     ultimate: {
         badge: "Best Value",
-        badgeColor: "bg-orange-600",
+        badgeColor: "bg-orange-600 text-white",
         description: "For large studios and high-volume workflows.",
         accentClass: "ring-2 ring-orange-400",
-        btnClass: "bg-orange-600 text-white hover:bg-orange-700 shadow-lg shadow-orange-200",
-        checkClass: "bg-orange-100 text-orange-600",
+        btnClass: "bg-slate-800 text-white hover:bg-slate-700",
+        checkClass: "bg-orange-500/12 text-orange-500",
     },
 };
 
@@ -640,7 +640,7 @@ export default function Pricing() {
                         >
                             {/* Badge */}
                             {visual.badge && (
-                                <div className={`${visual.badgeColor} text-white text-xs font-bold py-1.5 text-center uppercase tracking-widest`}>
+                                <div className={`${visual.badgeColor} text-xs font-bold py-1.5 text-center uppercase tracking-widest`}>
                                     {visual.badge}
                                 </div>
                             )}

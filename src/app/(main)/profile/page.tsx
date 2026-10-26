@@ -874,7 +874,7 @@ export default function ProfilePage() {
 
                             {/* Scheduled Pending Plan Notification */}
                             {hasPendingPlanChange && (
-                                <div className="mt-6 rounded-2xl border border-sky-400/30 bg-sky-500/10 p-4 text-sky-200">
+                                <div className="mt-6 rounded-2xl border border-[#CA9C68]/30 bg-[#CA9C68]/10 p-4 text-[#F5E7D4]">
                                     <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-400">Scheduled Tier Upgrade</p>
                                     <p className="mt-1 text-sm font-bold text-white">
                                         {pendingPlan.name} ({pendingPlan.storageLabel}) starts {formatPlanDate(user?.pendingPlanStartDate)}.
@@ -1067,7 +1067,7 @@ export default function ProfilePage() {
                                     type="button"
                                     onClick={() => !uploading && fileInputRef.current?.click()}
                                     disabled={uploading || removingImage || saving}
-                                    className="inline-flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-xs font-black text-sky-300 transition hover:bg-sky-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="inline-flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-xs font-black text-sky-300 transition hover:bg-[#CA9C68]/15 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
                                     Change Profile Photo
