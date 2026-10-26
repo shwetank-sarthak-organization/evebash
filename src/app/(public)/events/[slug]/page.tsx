@@ -102,7 +102,7 @@ function EventPageContent() {
     const [event, setEvent] = useState<Event | any | null>(null);
     // The main event's title and category when this page is an album opened by its own link (Classic White's cover
     // shows them)
-    const [parentInfo, setParentInfo] = useState<{ title?: string; category?: string }>({});
+    const [parentInfo, setParentInfo] = useState<{ title?: string; category?: string; date?: string }>({});
     const [subEvents, setSubEvents] = useState<Event[]>([]);
     const [photos, setPhotos] = useState<any[]>([]);
     const [mediaTotals, setMediaTotals] = useState({ photos: 0, videos: 0 });
@@ -397,13 +397,15 @@ function EventPageContent() {
             // Sub-gallery links inherit the parent event's current visibility.
             let parentCategory: string | undefined;
             let mainTitle: string | undefined;
+            let parentDate: string | undefined;
             if (eventData.parentId) {
                 const parentEvent = await getEventById(eventData.parentId, true);
                 eventData.isPublic = !!parentEvent?.isPublic;
                 parentCategory = parentEvent?.category;
                 mainTitle = parentEvent?.title;
+                parentDate = parentEvent?.date;
             }
-            setParentInfo({ title: mainTitle, category: parentCategory });
+            setParentInfo({ title: mainTitle, category: parentCategory, date: parentDate });
 
             // Resolve event cover image to preview format
             const eventCategory = eventData.category || parentCategory;
@@ -929,6 +931,8 @@ function EventPageContent() {
                 // Classic White keeps the main event's title (and its theme line) on the cover in every album
                 mainTitle={activeGallery || !event.parentId ? event.title : parentInfo.title || event.title}
                 mainCategory={activeGallery || !event.parentId ? event.category : parentInfo.category || event.category}
+                // Sunlit Portrait: the main event's date decides "We're getting married" or "Happily married since"
+                mainDate={activeGallery || !event.parentId ? event.date : parentInfo.date || event.date}
                 subEvents={[]}
                 photos={[]}
                 isShared={isShared}

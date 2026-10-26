@@ -5,10 +5,10 @@ import { ArrowLeft, Check, Play, Share2 } from "lucide-react";
 import { HLSVideoPlayer } from "@/components/ui/HLSVideoPlayer";
 import type { ClassicGalleryVideo } from "@/components/classic/ClassicGalleryHeader";
 
-// Top of the gallery section in the Sunlit Portrait design (styles in src/app/sunlit-portrait.css). A thin strip with
-// Back / Share, then with a gallery video the opening fills one screen like the cover (below the navbar): the video
-// edge to edge with the date, gallery name and host's message over it at the bottom left and a play button at the
-// bottom right. Without a video the name and message sit on paper under the strip. The Photos / Videos switch, marked
+// Top of the gallery section in the Sunlit Portrait design (styles in src/app/sunlit-portrait.css). With a gallery video
+// the opening fills one screen like the cover (below the navbar): the video edge to edge with Back / Share on its top
+// edge, the date, gallery name and host's message at the bottom left and a play button at the bottom right. Without a
+// video, Back / Share sit on a thin line on paper with the name and message under it. The Photos / Videos switch, marked
 // with the navbar's dot, comes next.
 
 type MediaTab = "photos" | "videos";
@@ -42,11 +42,13 @@ function PortraitIntro({ title, details, quote }: { title: string; details?: str
     );
 }
 
-function PortraitFilm({ video, title, details, quote }: { video: ClassicGalleryVideo; title: string; details?: string; quote?: string }) {
+function PortraitFilm({ video, title, details, quote, strip }: { video: ClassicGalleryVideo; title: string; details?: string; quote?: string; strip: React.ReactNode }) {
     const [playing, setPlaying] = useState(false);
 
     return (
         <figure className="portrait-gh__film">
+            {/* Back / Share sit on the film's top edge, as the navbar sits on the cover */}
+            {strip}
             {playing ? (
                 <HLSVideoPlayer
                     src={video.src}
@@ -92,25 +94,27 @@ export function PortraitGalleryHeader({
     video,
 }: PortraitGalleryHeaderProps) {
     const quote = message?.trim();
+    const strip = (
+        <div className="portrait-gh__strip">
+            <button type="button" onClick={onBack} className="portrait-gh__link">
+                <ArrowLeft aria-hidden="true" />
+                {backLabel}
+            </button>
+            <button type="button" onClick={onShare} className="portrait-gh__link" aria-live="polite">
+                {copied ? "Link copied" : "Share"}
+                {copied ? <Check aria-hidden="true" /> : <Share2 aria-hidden="true" />}
+            </button>
+        </div>
+    );
 
     return (
         <section className="portrait-gh" aria-label={`${title} gallery`}>
             <div className={video ? "portrait-gh__screen portrait-gh__screen--film" : "portrait-gh__screen"}>
-                <div className="portrait-gh__strip">
-                    <button type="button" onClick={onBack} className="portrait-gh__link">
-                        <ArrowLeft aria-hidden="true" />
-                        {backLabel}
-                    </button>
-                    <button type="button" onClick={onShare} className="portrait-gh__link" aria-live="polite">
-                        {copied ? "Link copied" : "Share"}
-                        {copied ? <Check aria-hidden="true" /> : <Share2 aria-hidden="true" />}
-                    </button>
-                </div>
-
                 {video ? (
-                    <PortraitFilm video={video} title={title} details={details} quote={quote} />
+                    <PortraitFilm video={video} title={title} details={details} quote={quote} strip={strip} />
                 ) : (
                     <div className="portrait-gh__paper">
+                        {strip}
                         <PortraitIntro title={title} details={details} quote={quote} />
                     </div>
                 )}

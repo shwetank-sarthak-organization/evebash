@@ -92,9 +92,9 @@
 .portrait-hero__open:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
 
 /* ---------- Gallery section (src/components/portrait/PortraitGalleryHeader.tsx) ----------
-   With a gallery video the opening fills one screen like the cover: a thin strip with Back / Share, then the video edge
-   to edge with the date, gallery name and message over it at the bottom left. Without one, the name and message sit on
-   paper under the strip. Then Photos / Videos marked with the navbar's dot. */
+   With a gallery video the opening fills one screen like the cover: the video edge to edge with Back / Share on its top
+   edge and the date, gallery name and message at the bottom left. Without one, Back / Share sit on a thin line on paper
+   with the name and message under it. Then Photos / Videos marked with the navbar's dot. */
 .portrait-template { background: var(--sp-paper); color: var(--sp-ink); }
 .portrait-template ::selection { background: #A24E3033; }
 /* Any other serif text below the cover ("No photos yet." and the like) in the cover's serif, not Classic White's Playfair */
@@ -115,12 +115,15 @@
   display: inline-flex; align-items: center; gap: 8px;
   padding: 4px 0;
   background: none;
-  color: var(--sp-muted);
+  color: var(--sp-ink);
   font-family: var(--sp-display);
-  font-size: clamp(17px, 1.3vw, 19px);
-  transition: color .2s ease;
+  font-size: clamp(18px, 1.4vw, 21px);
+  /* Bold, like the cover's date line (Instrument Serif has one weight) */
+  -webkit-text-stroke: .5px currentColor;
+  paint-order: stroke fill;
+  transition: color .2s ease, opacity .2s ease;
 }
-.portrait-gh__link svg { width: 16px; height: 16px; }
+.portrait-gh__link svg { width: 17px; height: 17px; stroke-width: 2.4; }
 .portrait-gh__link:hover { color: var(--sp-ink); }
 .portrait-gh__link:focus-visible { outline: 2px solid var(--sp-ink); outline-offset: 4px; }
 
@@ -157,7 +160,7 @@
 }
 
 /* Without a film: the name and message on paper under the strip, then Photos / Videos right away */
-.portrait-gh__paper { padding-top: clamp(32px, 5vw, 64px); }
+.portrait-gh__paper .portrait-gh__strip { margin-bottom: clamp(32px, 5vw, 64px); }
 
 /* With a film: it runs edge to edge under the strip, like the cover photo; text over it, the play pill bottom right */
 .portrait-gh__film {
@@ -184,6 +187,21 @@
   text-shadow: 0 2px 24px rgba(0, 0, 0, .3);
 }
 .portrait-gh__film .portrait-gh__details { color: #fff; }
+/* Back / Share on the film's top edge in white, over a soft shade (kept while the film plays) */
+.portrait-gh__film::before {
+  content: ""; position: absolute; inset: 0 0 auto; z-index: 1; height: 120px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(20, 16, 12, .5) 0%, rgba(20, 16, 12, 0) 100%);
+}
+.portrait-gh__film .portrait-gh__strip {
+  position: absolute; z-index: 2;
+  top: 0; left: clamp(16px, 4vw, 56px); right: clamp(16px, 4vw, 56px);
+  padding: 18px 0 0;
+  border-bottom: 0;
+}
+.portrait-gh__film .portrait-gh__link { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 2px 14px rgba(0, 0, 0, .35); }
+.portrait-gh__film .portrait-gh__link svg { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .4)); }
+.portrait-gh__film .portrait-gh__link:hover { color: #fff; opacity: .8; }
+.portrait-gh__film .portrait-gh__link:focus-visible { outline-color: #fff; }
 /* Beats the shared ".themed-gallery-content h2" colour (gallery-refinements.css), which would draw the name in ink */
 .themed-gallery-content .portrait-gh__film .portrait-gh__title { color: #fff; }
 .portrait-gh__film .portrait-gh__quote { color: rgba(255, 255, 255, .92); }
