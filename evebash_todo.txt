@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 11
+Next todo number: 12
 
 Last updated: 2026-10-27
 
@@ -226,6 +226,46 @@ Brief:        The Confetti Circle theme (id "confetti") has a section under the 
               a short bio each (set a max length and check it fits the column), and up to three
               social links each. Save them on the main event and show them on every album. Hide an
               icon with no link, and the bio line when it's empty.
+
+#11 Edit the guest page from Preview Guest Theme (title, date, message, cover, video)
+Listed:       2026-10-27
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (1 or 2, decide after discussion)
+Status:       Agreed
+Effort:       L
+Suggested by: Sarthak (2026-10-27: hosts can't see how an edit looks in their theme until they
+              open it)
+Discussed:    Yes
+Decision:     2026-10-27 Sarthak (with Claude): build it as an edit mode on the real guest page,
+              frontend only (no backend or database change). Every gallery can be edited. Changes
+              are a draft until Save. Photos and videos can't be deleted or moved there (host page
+              only). The highlight video sheet picks from the gallery's own videos or uploads a new
+              one. Each theme lists its own editable fields when it is created. Cover move/zoom in
+              the preview waits for #64.
+Owner:        Unassigned
+Depends on:   #64 (only for moving/zooming the cover in the preview)
+Brief:        Today hosts edit a gallery's title, date, message, cover and highlight video in the
+              host section and only see the result by opening Preview Guest Theme. The website's
+              "Guest Home Preview" on the Design tab is only a colour sketch, and the app has no
+              preview at all. Plan: reports/Edit from guest preview plan.md (Sarthak's copy).
+              - Preview Guest Theme opens the guest page in edit mode (website: /events/<id>?edit=1,
+                app: the guest view of apps/mobile/app/events/[id].tsx). Only the event's owner and
+                admins get it (website: openGallery access "manage"; app: canManageEvent).
+              - An edit bar: "Editing: <gallery>" with a gallery switcher (hidden galleries too,
+                marked "Hidden from guests"), the theme's edit buttons, "View as guest", "Manage
+                photos" (to the host page), and "N changes in M galleries - Discard / Save".
+              - Themes aren't changed: the draft is merged into the event data the page already
+                gives the theme, so all themes show it. Save uses the existing updateEvent and
+                setGalleryVideo, sends only changed fields and checks each result (see #155).
+              - Each theme declares its editable fields in shared/themes/editableFields.ts (name,
+                type, Home only or every gallery, column). No entry = title, date, message, cover,
+                video. A field with no column yet (e.g. #10's bride/groom details) needs one new
+                events field (theme_content, JSON) first: a database change, decide when needed.
+              - A new cover is uploaded only on Save; the video sheet reuses GalleryVideoPanel.
+              - Behind NEXT_PUBLIC_GUEST_EDIT_MODE / EXPO_PUBLIC_GUEST_EDIT_MODE, off by default.
+              Phases: website text fields; website cover + video; app; cover move/zoom after #64.
+Done in:      -
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
