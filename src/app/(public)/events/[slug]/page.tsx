@@ -598,8 +598,8 @@ function EventPageContent() {
     // Royal Emerald draws its own gallery header (crest, title, welcome plaque, Back / Share, Photos / Videos)
     const isRoyalGallery = displayEvent.templateId === "royal";
     // Classic White shows the gallery message in its own gallery header and styles the shared buttons itself (classic-white.css).
-    // Sunlit Portrait uses the same gallery section below its cover photo.
-    const isClassicGallery = displayEvent.templateId === "classic" || displayEvent.templateId === "portrait";
+    // Sunlit Portrait and Confetti Circle use the same gallery section below their cover.
+    const isClassicGallery = displayEvent.templateId === "classic" || displayEvent.templateId === "portrait" || displayEvent.templateId === "confetti";
     // Midnight Hero (the default theme) draws its own gallery header (event name, star, title, count, film, Photos / Videos)
     const isMidnightGallery = (displayEvent.templateId || "hero") === "hero";
     // A new main gallery gets "Main Event: <title>" as its description; that isn't a message for guests

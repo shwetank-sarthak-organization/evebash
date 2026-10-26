@@ -10,6 +10,7 @@ import { TemplateHero } from "@/components/TemplateHero";
 import { TemplateMuseum } from "@/components/TemplateMuseum";
 import { TemplatePolaroid } from "@/components/TemplatePolaroid";
 import { TemplatePortrait } from "@/components/TemplatePortrait";
+import { TemplateConfetti } from "@/components/TemplateConfetti";
 import { TemplateRoyal } from "@/components/TemplateRoyal";
 import { TemplateScrapbook } from "@/components/TemplateScrapbook";
 import { TemplatePop } from "@/components/TemplatePop";
@@ -25,6 +26,7 @@ export const WEB_TEMPLATE_COMPONENTS: Record<string, WebTemplateComponent> = {
   classic: TemplateClassic,
   royal: TemplateRoyal,
   portrait: TemplatePortrait,
+  confetti: TemplateConfetti,
   editorial: TemplateEditorial,
   bohemian: TemplateBohemian,
   polaroid: TemplatePolaroid,

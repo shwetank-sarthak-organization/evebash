@@ -1,0 +1,213 @@
+/* ---------- Confetti Circle guest page (src/components/TemplateConfetti.tsx) ----------
+   The cover photo fills the first screen; a big white circle in the middle holds the couple's names in Bebas Neue
+   (src/components/confetti/confettiFonts.ts) in pink-to-orange, with a dark tag on its top edge and paint specks round
+   it. A torn-paper edge leads into the page, which below the photo is Classic White (classic-white.css). */
+.confetti-template, .confetti-nav {
+  --cc-display: var(--font-confetti-display), "Arial Narrow", Impact, sans-serif;
+  --cc-pink: #e8175d;
+  --cc-orange: #ff7a1a;
+  --cc-ink: #2a2727;
+}
+
+.confetti-hero {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 100vh;
+  height: 100svh;
+  min-height: 600px;
+  padding: 96px 16px 56px;
+  overflow: hidden;
+  background: #d9c7bd;
+  isolation: isolate;
+}
+.confetti-hero__photo { z-index: -2; }
+.confetti-hero__fill { z-index: -3; object-fit: cover; filter: blur(36px) saturate(1.1) brightness(.85); transform: scale(1.15); }
+.confetti-hero__empty {
+  position: absolute; inset: 0; z-index: -2;
+  background: radial-gradient(60% 70% at 75% 40%, #f3c7c9 0%, transparent 70%), linear-gradient(160deg, #efe1d6, #c9b1a5);
+}
+
+/* The circle: every size inside it is a share of its width (cqi), so it reads the same on a phone and a big screen */
+.confetti-hero__circle {
+  position: relative;
+  container-type: inline-size;
+  display: grid; place-items: center;
+  width: min(88vw, calc(100svh - 170px), 620px);
+  min-width: 280px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--cc-ink);
+  text-align: center;
+  box-shadow: 0 30px 60px -30px rgba(60, 30, 30, .35);
+}
+.confetti-hero__body {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16cqi 8cqi 0;
+}
+.confetti-hero__specks { position: absolute; inset: 0; pointer-events: none; }
+.confetti-hero__speck {
+  position: absolute;
+  border-radius: 50%;
+  background: #f28aa9;
+  transform: translate(-50%, -50%);
+}
+.confetti-hero__speck--orange { background: #ffa25e; }
+
+/* Dark tag over the circle's top edge: initials written upwards, the small line across the bottom */
+.confetti-hero__tag {
+  position: absolute;
+  top: -9cqi; left: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  width: 27cqi; height: 34cqi;
+  padding: 4cqi 2cqi 3.4cqi;
+  transform: translateX(-50%);
+  background: var(--cc-ink);
+  color: #fff;
+}
+.confetti-hero__initials {
+  flex-shrink: 0;
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--cc-display);
+  /* cqw, not cqi: in vertical text cqi would measure the circle's height axis, which isn't a query container */
+  font-size: 11cqw;
+  line-height: 1;
+  letter-spacing: .02em;
+}
+.confetti-hero__tagline {
+  font-size: max(8px, 1.9cqi);
+  font-weight: 600;
+  letter-spacing: .1em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.confetti-hero__names { position: relative; display: flex; flex-direction: column; align-items: center; }
+.confetti-hero__name {
+  display: block;
+  max-width: 84cqi;
+  font-family: var(--cc-display);
+  font-weight: 400;
+  font-size: 19cqi;
+  line-height: .9;
+  letter-spacing: .01em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+  background: linear-gradient(90deg, var(--cc-pink) 0%, var(--cc-pink) 30%, var(--cc-orange) 100%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+}
+.confetti-hero__name--second { background-image: linear-gradient(90deg, var(--cc-orange) 0%, var(--cc-pink) 75%, var(--cc-pink) 100%); }
+.confetti-hero__name--long { font-size: 14cqi; }
+.confetti-hero__name--xlong { font-size: 10cqi; }
+/* A title that isn't two names wraps instead of being cut */
+.confetti-hero__name--single { white-space: normal; overflow: visible; text-wrap: balance; }
+.confetti-hero__and {
+  margin: 1.2cqi 0 .6cqi;
+  color: var(--cc-ink);
+  font-family: var(--cc-display);
+  font-size: 4.4cqi;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+/* "March | 28 | 2025" */
+.confetti-hero__date {
+  position: relative;
+  display: flex; align-items: center; gap: 2.6cqi;
+  margin-top: 4.5cqi;
+  font-size: max(12px, 2.8cqi);
+  font-weight: 500;
+}
+.confetti-hero__date > span + span { padding-left: 2.6cqi; border-left: 1px solid rgba(42, 39, 39, .3); }
+.confetti-hero__day { font-family: var(--cc-display); font-size: 9cqi; line-height: 1; }
+.confetti-hero__date--plain { display: block; }
+.confetti-hero__place {
+  position: relative;
+  margin-top: 1.6cqi;
+  max-width: 64cqi;
+  color: #6b5f5f;
+  font-size: max(11px, 2.3cqi);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+/* Round "open gallery" button at the bottom right, above the torn edge */
+.confetti-hero__open {
+  position: absolute;
+  right: clamp(20px, 4vw, 56px);
+  bottom: clamp(44px, 7svh, 76px);
+  display: grid; place-items: center;
+  width: 48px; height: 48px;
+  border-radius: 999px;
+  background: var(--cc-ink);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+  transition: transform .2s ease;
+}
+.confetti-hero__open svg { width: 20px; height: 20px; }
+.confetti-hero__open:hover { transform: translateY(2px); }
+.confetti-hero__open:focus-visible { outline: 2px solid var(--cc-ink); outline-offset: 4px; }
+
+.confetti-hero__tear {
+  position: absolute; left: 0; right: 0; bottom: -1px; z-index: 1;
+  width: 100%; height: clamp(22px, 3vw, 44px);
+  fill: #FCFCFA;
+  pointer-events: none;
+}
+
+/* Phones: the circle fills the width and the open button moves under it */
+@media (max-width: 639px) {
+  .confetti-hero { padding-bottom: 96px; }
+  .confetti-hero__open { right: 50%; transform: translateX(50%); bottom: 36px; }
+  .confetti-hero__open:hover { transform: translateX(50%) translateY(2px); }
+}
+
+/* No sage line above the gallery: the torn edge ends the first screen */
+.confetti-template .classic-gallery-content { padding-top: clamp(32px, 4vw, 64px); }
+/* "Open gallery" stops below the navbar's solid bar, not under it */
+.confetti-template #event-content { scroll-margin-top: 68px; }
+
+/* ---------- Event navbar in the Confetti Circle design (EventNavbar variant="confetti") ----------
+   Classic White's links on a frosted white bar over the photo, with the title in Bebas Neue and a pink heart for the
+   "&"; once the guest scrolls (or opens the small-screen menu) the bar turns solid soft white. */
+.confetti-nav {
+  position: fixed; inset: 0 0 auto; z-index: 50;
+  padding: 8px clamp(16px, 4vw, 56px);
+  background: rgba(255, 255, 255, .62);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  color: var(--cc-ink);
+  border-bottom: 1px solid rgba(255, 255, 255, .5);
+  transition: background-color .3s ease, box-shadow .3s ease;
+}
+.confetti-nav--solid {
+  background: #FCFCFA;
+  box-shadow: 0 8px 24px -18px rgba(44, 53, 46, .45);
+}
+.confetti-nav__bar { width: 100%; min-height: 52px; }
+.confetti-nav .classic-nav__title {
+  font-family: var(--cc-display);
+  font-size: clamp(1.5rem, 2vw, 1.85rem);
+  font-weight: 400;
+  letter-spacing: .03em;
+  line-height: 1;
+  color: var(--cc-ink);
+}
+.confetti-nav__heart { color: var(--cc-pink); font-size: .7em; vertical-align: .15em; margin: 0 .25em; }
+.confetti-nav .classic-nav__links { gap: clamp(16px, 2.2vw, 36px); }
+.confetti-nav .classic-nav__link { color: var(--cc-ink); font-weight: 600; letter-spacing: .1em; }
+.confetti-nav .classic-nav__link::after { background: var(--cc-pink); }
+.confetti-nav .classic-nav__link:focus-visible { outline-color: var(--cc-ink); }
+/* "Download All": dark pill */
+.confetti-nav .confetti-nav__cta { padding: 9px 16px; border-radius: 6px; background: var(--cc-ink); color: #fff; }
+.confetti-nav .confetti-nav__cta::after { display: none; }
+.confetti-nav .confetti-nav__cta:hover:not(:disabled) { background: #111; }
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti-nav, .confetti-hero__open { transition: none; }
+}

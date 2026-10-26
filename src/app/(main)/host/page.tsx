@@ -286,6 +286,17 @@ const TEMPLATE_THEMES = [
         "accent": "#8B9A6E"
     },
     {
+        "id": "confetti",
+        "category": "Wedding",
+        "label": "Confetti Circle",
+        "desc": "Couple photo, white circle & pink-orange names",
+        "background": {
+            "light": "#FCFCFA",
+            "dark": "#FCFCFA"
+        },
+        "accent": "#e8175d"
+    },
+    {
         "id": "hero",
         "category": "Wedding",
         "label": "Midnight Hero",

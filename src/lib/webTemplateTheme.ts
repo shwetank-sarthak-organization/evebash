@@ -50,6 +50,8 @@ Object.assign(WEB_LIGHTBOX_THEMES.bohemian, { background: "#f3e8d3", panel: "#fa
 WEB_LIGHTBOX_THEMES.classic.muted = "#596653";
 // Sunlit Portrait: a cover photo above Classic White's gallery, so the gallery, viewer and navbar menu use its palette
 WEB_LIGHTBOX_THEMES.portrait = { ...WEB_LIGHTBOX_THEMES.classic };
+// Confetti Circle: the same, below its circle cover
+WEB_LIGHTBOX_THEMES.confetti = { ...WEB_LIGHTBOX_THEMES.classic };
 WEB_LIGHTBOX_THEMES.polaroid.muted = "#705747";
 WEB_LIGHTBOX_THEMES.brutalist.muted = "#c0b49e";
 
