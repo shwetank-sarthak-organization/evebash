@@ -26,7 +26,8 @@ export default function NotFoundContent() {
                         Go to the homepage
                         <ArrowRight className="h-4 w-4" aria-hidden />
                     </PrimaryButton>
-                    <SecondaryButton href="/find-you">Find your photos</SecondaryButton>
+                    {/* Find You searches one event, so it starts from the event page; the dashboard lists the user's events */}
+                    <SecondaryButton href="/dashboard">Go to my events</SecondaryButton>
                 </div>
                 <nav aria-label="Helpful links" className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
                     {helpfulLinks.map(({ href, label }) => (
