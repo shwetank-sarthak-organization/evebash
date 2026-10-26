@@ -1017,7 +1017,7 @@ Blocked by: -
 Found in: Event Design tab redesign (2026-10-12)
 Issue: The Midnight Hero guest page (the default template, used by every gallery without a template) ends with the footer "Delivered by Wed Album — Cinematic Editions", the old brand name (src/components/TemplateHero.tsx, footer near the end). No other template or website page has "Wed Album". Fix: change the footer text to EveBash.
 How to reproduce: Open a gallery that uses Midnight Hero (or has no template) on the website and scroll to the bottom.
-Fixed in: f319ce4 (2026-10-26). Text only; not checked in a browser (this folder's website dev server was in use by another chat).
+Fixed in: f319ce4 (2026-10-26). Checked on staging.evebash.com in the built-in browser (wedding-2-77d4, Vercel build of b773b9b): the footer reads "Delivered by EveBash — Cinematic Editions".
 
 #59
 Listed: 2026-10-12
