@@ -62,34 +62,43 @@
 }
 .confetti-hero__speck--orange { background: #ffa25e; }
 
-/* Dark tag over the circle's top edge: the initials ("S ♥ R" with a red heart), the small line under them */
+/* Dark tag over the circle's top edge: a red heart and the gallery's message (or a line by category). Longer messages
+   (up to 200 characters) get a wider tag and smaller text, at most 4 lines. */
 .confetti-hero__tag {
   position: absolute;
   top: -9cqi; left: 50%;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.4cqi;
-  width: 27cqi; height: 26cqi;
-  padding: 3cqi 1cqi;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.8cqi;
+  width: 27cqi; min-height: 26cqi;
+  padding: 3cqi 2cqi;
   transform: translateX(-50%);
   background: var(--cc-ink);
   color: #fff;
 }
-.confetti-hero__initials {
-  display: flex; align-items: center; gap: 1.6cqi;
-  white-space: nowrap;
-  font-family: var(--cc-display);
-  font-size: 11cqi;
-  line-height: 1;
-  letter-spacing: .02em;
-}
-.confetti-hero__heart { color: #e4202e; font-size: .5em; line-height: 1; }
+.confetti-hero__tag--long { width: 34cqi; }
+.confetti-hero__tag--xlong { width: 40cqi; gap: 1.2cqi; padding-block: 2.4cqi; }
+.confetti-hero__heart { color: #e4202e; font-size: 8cqi; line-height: 1; }
+.confetti-hero__tag--xlong .confetti-hero__heart { font-size: 6cqi; }
 .confetti-hero__tagline {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden;
+  max-width: 100%;
   font-size: max(8px, 1.9cqi);
   font-weight: 600;
   letter-spacing: .08em;
-  white-space: nowrap;
-  line-height: 1.3;
+  line-height: 1.35;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
+/* Sentences read better in normal letters */
+.confetti-hero__tag--long .confetti-hero__tagline,
+.confetti-hero__tag--xlong .confetti-hero__tagline {
+  -webkit-line-clamp: 4;
+  font-size: max(9px, 1.9cqi);
+  font-weight: 500;
+  letter-spacing: .02em;
+  text-transform: none;
+}
+.confetti-hero__tag--xlong .confetti-hero__tagline { font-size: max(9px, 1.75cqi); }
 
 .confetti-hero__names { position: relative; display: flex; flex-direction: column; align-items: center; }
 .confetti-hero__name {
@@ -176,6 +185,151 @@
 .confetti-template .classic-gallery-content { padding-top: clamp(32px, 4vw, 64px); }
 /* "Open gallery" stops below the navbar's solid bar, not under it */
 .confetti-template #event-content { scroll-margin-top: 68px; }
+
+/* ---------- Couple section between the cover and the gallery header (src/components/confetti/ConfettiCoupleSection.tsx)
+   A big heading; the bride, the highlight video (or cover photo) in a frame that fades out like a watercolour with a
+   white ribbon over its bottom, and the groom. Phones: heading, frame, then the bride and the groom one under the other. */
+.confetti-couple {
+  padding: clamp(8px, 2vw, 24px) 0 clamp(48px, 6vw, 88px);
+  color: var(--cc-ink);
+  text-align: center;
+}
+.confetti-couple__heading {
+  margin-bottom: clamp(28px, 4vw, 56px);
+  color: var(--cc-ink); /* not the site's heading colour */
+  font-family: var(--cc-display);
+  font-size: clamp(2.5rem, 5.2vw, 4.25rem);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: .01em;
+  text-transform: uppercase;
+}
+.confetti-couple__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 40px 24px;
+  align-items: center;
+  max-width: 1160px;
+  margin: 0 auto;
+}
+.confetti-couple__frame { grid-column: 1 / -1; grid-row: 1; }
+.confetti-couple__row--single { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1024px) {
+  .confetti-couple__row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr); gap: clamp(24px, 3vw, 56px); }
+  .confetti-couple__frame { grid-column: 2; }
+  .confetti-couple__row--single { grid-template-columns: minmax(0, 1fr); }
+  .confetti-couple__row--single .confetti-couple__frame { grid-column: 1; }
+}
+
+.confetti-couple__person { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.confetti-couple__role {
+  margin-bottom: 6px;
+  color: var(--cc-pink);
+  font-family: var(--cc-display);
+  font-size: 17px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.confetti-couple__name {
+  max-width: 100%;
+  color: var(--cc-ink);
+  font-family: var(--cc-display);
+  font-size: clamp(1.9rem, 2.8vw, 2.6rem);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: .01em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.confetti-couple__bio {
+  max-width: 300px;
+  margin-top: 16px;
+  color: #5d5555;
+  font-size: 15px;
+  line-height: 1.75;
+}
+.confetti-couple__socials { display: flex; gap: 10px; margin-top: 22px; }
+.confetti-couple__social {
+  display: grid; place-items: center;
+  width: 44px; height: 44px;
+  border: 1px solid rgba(42, 39, 39, .14);
+  border-radius: 50%;
+  color: var(--cc-ink);
+}
+.confetti-couple__social svg { width: 17px; height: 17px; }
+
+/* The frame: every size inside it is a share of its width (cqi). The media fades out at its edges; specks round it. */
+.confetti-couple__frame {
+  position: relative;
+  container-type: inline-size;
+  justify-self: center;
+  width: min(100%, 520px);
+  margin: 0;
+  padding-bottom: 6cqi;
+}
+.confetti-couple__frame::before {
+  /* A pale blue-and-pink wash behind the photo, like the watercolour in the reference */
+  content: ""; position: absolute; inset: 2% 4% 8%; z-index: 0;
+  border-radius: 46% 54% 50% 50% / 52% 46% 54% 48%;
+  background: radial-gradient(60% 55% at 40% 40%, rgba(186, 214, 232, .55), transparent 70%),
+              radial-gradient(55% 50% at 65% 70%, rgba(242, 200, 214, .45), transparent 70%);
+  filter: blur(14px);
+}
+.confetti-couple__specks { position: absolute; inset: -4%; z-index: 2; pointer-events: none; }
+.confetti-couple__media {
+  position: relative; z-index: 1;
+  aspect-ratio: 1;
+  -webkit-mask-image: radial-gradient(closest-side, #000 70%, rgba(0, 0, 0, .55) 86%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 70%, rgba(0, 0, 0, .55) 86%, transparent 100%);
+}
+.confetti-couple__still { width: 100%; height: 100%; object-fit: cover; }
+.confetti-couple__still--empty { background: linear-gradient(160deg, #efe1d6, #c9b1a5); }
+.confetti-couple__start { position: relative; display: block; width: 100%; height: 100%; cursor: pointer; }
+.confetti-couple__play {
+  position: absolute; left: 50%; top: 50%;
+  display: grid; place-items: center;
+  width: 15cqi; height: 15cqi; min-width: 56px; min-height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .85);
+  color: var(--cc-pink);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+  transform: translate(-50%, -50%);
+  transition: transform .2s ease;
+}
+.confetti-couple__play svg { width: 40%; height: 40%; margin-left: 8%; fill: currentColor; }
+.confetti-couple__start:hover .confetti-couple__play { transform: translate(-50%, -50%) scale(1.06); }
+.confetti-couple__start:focus-visible { outline: 2px solid var(--cc-ink); outline-offset: -10cqi; }
+/* Playing: the whole film in a plain 16:9 box, no fade, so nothing (controls included) is hidden */
+.confetti-couple__frame--playing .confetti-couple__media {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #000;
+  -webkit-mask-image: none; mask-image: none;
+}
+.confetti-couple__frame--playing::before, .confetti-couple__frame--playing .confetti-couple__specks { display: none; }
+.confetti-couple__player { width: 100%; height: 100%; object-fit: contain; }
+
+/* White ribbon with slanted ends over the bottom of the photo */
+.confetti-couple__ribbon {
+  position: absolute; left: 50%; bottom: 3cqi; z-index: 3;
+  display: flex; align-items: center; justify-content: center;
+  width: 74cqi; max-width: 100%;
+  padding: 2.6cqi 6cqi;
+  transform: translateX(-50%);
+  background: #fff;
+  clip-path: polygon(0 0, 100% 0, 96% 100%, 4% 100%);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .08);
+  font-family: var(--cc-display);
+  font-size: max(16px, 5.2cqi);
+  line-height: 1;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.confetti-couple__frame--playing .confetti-couple__ribbon { position: relative; bottom: auto; margin-top: -2cqi; }
+.confetti-couple__heart { color: var(--cc-pink); font-size: .7em; margin: 0 .45em; }
+@media (prefers-reduced-motion: reduce) { .confetti-couple__play { transition: none; } }
 
 /* ---------- Event navbar in the Confetti Circle design (EventNavbar variant="confetti") ----------
    Like the save-the-date it copies: the couple's names in the middle in Bebas Neue with a pink heart for the "&", and

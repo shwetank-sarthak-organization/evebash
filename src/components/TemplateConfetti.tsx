@@ -7,18 +7,19 @@ import { Event } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { coverImageStyle } from "@/lib/coverStyle";
 import { confettiDisplay } from "@/components/confetti/confettiFonts";
-import { coupleInitials, displayCoupleTitle, splitCoupleNames } from "../../shared/text/coupleNames";
+import { makeSpecks } from "@/components/confetti/confettiSpecks";
+import { displayCoupleTitle, splitCoupleNames } from "../../shared/text/coupleNames";
 
 interface TemplateConfettiProps {
     event: Event;
     /** The main event's title, shown on the cover on the main gallery and in every album (default: event.title) */
     mainTitle?: string;
-    /** The main event's category, which picks the small line on the dark tag (default: event.category) */
+    /** The main event's category, which picks the dark tag's line when the gallery has no message (default: event.category) */
     mainCategory?: string;
     children?: React.ReactNode;
 }
 
-/** The small line under the initials on the dark tag, by the main event's category */
+/** The dark tag's line when the gallery has no message, by the main event's category */
 function confettiTagLine(category?: string) {
     if (category === "Wedding") return "Happily married";
     if (category === "Anniversary") return "Still choosing each other";
@@ -36,35 +37,24 @@ function splitDate(date: string): [string, string, string] | null {
     return [month, day, match[3]];
 }
 
-// Paint specks around the circle: fixed positions (% of the circle), so the server and browser draw the same ones.
-// Most sit on the left and right edges and spill a little past them, like the splash on a printed save-the-date.
-const SPECKS = (() => {
-    let seed = 7;
-    const next = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    return Array.from({ length: 90 }, () => {
-        // Heavier on the lower left, lighter on the right
-        const angle = (next() < 0.6 ? Math.PI * 0.85 : -0.1) + (next() - 0.5) * 1.9;
-        const radius = 30 + next() ** 0.7 * 26;
-        // Rounded so the server's and the browser's numbers print the same (no hydration mismatch)
-        const round = (value: number) => Math.round(value * 100) / 100;
-        return {
-            left: round(50 + Math.cos(angle) * radius),
-            top: round(50 + Math.sin(angle) * radius),
-            size: round(0.5 + next() ** 2.6 * 4.2),
-            pink: next() < 0.6,
-            opacity: round(0.25 + next() * 0.6),
-        };
-    });
-})();
+// Specks round the circle: heavier on the lower left, lighter on the right
+const SPECKS = makeSpecks({ seed: 7, count: 90, heavyAngle: Math.PI * 0.85, lightAngle: -0.1 });
 
 // Confetti Circle (styles in src/app/confetti-circle.css): the cover photo fills the first screen with a big white
-// circle in the middle holding the couple's names in pink-to-orange capitals, a dark tag with their initials ("S ♥ R") on its
-// top edge, and a torn-paper edge into the page. The gallery below is Classic White's (.classic-template, classic-white.css).
+// circle in the middle holding the couple's names in pink-to-orange capitals, a dark tag with a red heart and the
+// gallery's message on its top edge, and a torn-paper edge into the page. The gallery below is Classic White's
+// (.classic-template, classic-white.css), with the couple section (ConfettiCoupleSection) above its header.
 export function TemplateConfetti({ event, mainTitle, mainCategory, children }: TemplateConfettiProps) {
     const reducedMotion = useReducedMotion();
     const rawTitle = mainTitle || event.title;
     const couple = splitCoupleNames(rawTitle);
-    const initials = coupleInitials(rawTitle);
+    // A new main gallery gets "Main Event: <title>" as its description; that isn't a message for guests
+    const rawMessage = event.description?.trim() || "";
+    const message = rawMessage.startsWith("Main Event: ") ? "" : rawMessage;
+    const tagText = message || confettiTagLine(mainCategory || event.category);
+    // Messages are at most 200 characters (host page and app). Longer ones get a wider tag and smaller text, and the
+    // tag shows at most 4 lines; the whole message is also in the gallery header below the cover.
+    const tagSize = tagText.length > 90 ? " confetti-hero__tag--xlong" : tagText.length > 26 ? " confetti-hero__tag--long" : "";
     const title = displayCoupleTitle(rawTitle);
     const date = event.date?.trim() || "";
     const dateParts = date ? splitDate(date) : null;
@@ -110,13 +100,9 @@ export function TemplateConfetti({ event, mainTitle, mainCategory, children }: T
                         ))}
                     </div>
 
-                    <div className="confetti-hero__tag">
-                        {initials && (
-                            <span className="confetti-hero__initials">
-                                {initials[0]}<span className="confetti-hero__heart" aria-label="and">♥</span>{initials[1]}
-                            </span>
-                        )}
-                        <span className="confetti-hero__tagline">{confettiTagLine(mainCategory || event.category)}</span>
+                    <div className={`confetti-hero__tag${tagSize}`}>
+                        <span className="confetti-hero__heart" aria-hidden="true">♥</span>
+                        <p className="confetti-hero__tagline" title={tagText}>{tagText}</p>
                     </div>
 
                     <div className="confetti-hero__body">

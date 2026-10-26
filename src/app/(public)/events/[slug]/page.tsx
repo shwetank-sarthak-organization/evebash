@@ -21,6 +21,8 @@ import { MidnightGalleryHeader } from "@/components/midnight/MidnightGalleryHead
 import { GalleryHighlightVideo } from "@/components/GalleryHighlightVideo";
 import { getWebLightboxTheme, getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { ClassicGalleryHeader } from "@/components/classic/ClassicGalleryHeader";
+import { ConfettiCoupleSection } from "@/components/confetti/ConfettiCoupleSection";
+import { coverImageStyle } from "@/lib/coverStyle";
 import { PortraitGalleryHeader } from "@/components/portrait/PortraitGalleryHeader";
 import { supabase } from "@/lib/supabase";
 import { uploadEventImage } from "@/lib/storage";
@@ -720,22 +722,35 @@ function EventPageContent() {
                         video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
                     />
                 ) : isClassicGallery ? (
-                    <ClassicGalleryHeader
-                        // The gallery's own name; the event's title is on the cover
-                        title={activeGallery ? activeGalleryTitle : event.parentId ? event.title || "Home" : "Home"}
-                        details={[displayEvent.date?.trim(), typeof displayEvent.location === "string" ? displayEvent.location.trim() : ""].filter(Boolean).join(" · ")}
-                        // Periwinkle Script shows the message in the card on its cover
-                        message={displayEvent.templateId === "periwinkle" ? "" : activeGalleryMessage}
-                        backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
-                        onBack={goBack}
-                        onShare={handleShare}
-                        copied={copied}
-                        photoCountLabel={displayedPhotoCount}
-                        videoCountLabel={displayedVideoCount}
-                        activeTab={galleryMediaTab}
-                        onTabChange={setGalleryMediaTab}
-                        video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
-                    />
+                    <>
+                        {/* Confetti Circle: "We're getting married!", the bride, the highlight video (or cover photo) and the groom,
+                            above the header, which then leaves the video out */}
+                        {displayEvent.templateId === "confetti" && (
+                            <ConfettiCoupleSection
+                                title={event.parentId ? parentInfo.title || event.title : event.title}
+                                category={event.parentId ? parentInfo.category || event.category : event.category}
+                                video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
+                                coverImage={displayEvent.coverImage}
+                                coverImageStyle={coverImageStyle(displayEvent)}
+                            />
+                        )}
+                        <ClassicGalleryHeader
+                            // The gallery's own name; the event's title is on the cover
+                            title={activeGallery ? activeGalleryTitle : event.parentId ? event.title || "Home" : "Home"}
+                            details={[displayEvent.date?.trim(), typeof displayEvent.location === "string" ? displayEvent.location.trim() : ""].filter(Boolean).join(" · ")}
+                            // Periwinkle Script shows the message in the card on its cover
+                            message={displayEvent.templateId === "periwinkle" ? "" : activeGalleryMessage}
+                            backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
+                            onBack={goBack}
+                            onShare={handleShare}
+                            copied={copied}
+                            photoCountLabel={displayedPhotoCount}
+                            videoCountLabel={displayedVideoCount}
+                            activeTab={galleryMediaTab}
+                            onTabChange={setGalleryMediaTab}
+                            video={galleryVideo && displayEvent.templateId !== "confetti" ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
+                        />
+                    </>
                 ) : (
                     <>
                         <SectionHeader
