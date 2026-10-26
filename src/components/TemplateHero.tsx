@@ -7,7 +7,7 @@ import { ArrowRight, Check, Share2 } from "lucide-react";
 import { Event } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { coverImageStyle } from "@/lib/coverStyle";
-import { midnightDisplay, midnightSans } from "@/components/midnight/midnightFonts";
+import { midnightDisplay, midnightScript } from "@/components/midnight/midnightFonts";
 import { displayCoupleTitle, splitCoupleNames } from "../../shared/text/coupleNames";
 
 interface TemplateHeroProps {
@@ -52,7 +52,7 @@ export function TemplateHero({ event, mainTitle, mainCategory, hasParent = false
   };
 
   return (
-    <div className={cn("midnight", midnightDisplay.variable, midnightSans.variable)}>
+    <div className={cn("midnight", midnightScript.variable, midnightDisplay.variable)}>
       <section ref={heroRef} className="midnight-hero" aria-label="Gallery cover">
         <motion.div className="midnight-hero__media" style={reducedMotion ? undefined : { y: photoY }}>
           {event.coverImage ? (

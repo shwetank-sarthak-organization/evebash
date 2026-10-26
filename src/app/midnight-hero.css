@@ -1,6 +1,6 @@
 /* ---------- Midnight Hero guest page (src/components/TemplateHero.tsx) ----------
    Midnight-navy velvet and the shared bronze gold (#ca9c69, the same accent as the gallery, viewer and app).
-   Fonts: Italiana (display capitals) and Manrope (labels), loaded only here (src/components/midnight/midnightFonts.ts). */
+   Fonts: Parisienne (script) and Bodoni Moda (display), loaded only here (src/components/midnight/midnightFonts.ts). */
 .midnight, .midnight-nav {
   --mh-ink: #060a18;
   --mh-velvet: #0d1430;
@@ -10,8 +10,8 @@
   --mh-gold-hi: #f1d9a0;
   --mh-gold-lo: #a87b45;
   --mh-gold-gradient: linear-gradient(135deg, #f6e4ad 0%, #dcb579 42%, #ca9c69 62%, #a87b45 100%);
-  --mh-sans: var(--font-midnight-sans, ui-sans-serif), ui-sans-serif, system-ui, sans-serif;
-  --mh-display: var(--font-midnight-display, Georgia), Georgia, serif;
+  --mh-sans: var(--font-inter-src), ui-sans-serif, system-ui, sans-serif;
+  --mh-display: var(--font-midnight-display), "Playfair Display", Georgia, serif;
 }
 .midnight { min-height: 100vh; background: var(--mh-ink); color: var(--mh-ivory); }
 .midnight ::selection { background: #ca9c6955; color: #fff; }
@@ -105,14 +105,13 @@
 .midnight-card__title {
   color: var(--mh-ivory);
   font-family: var(--mh-display);
-  font-size: clamp(30px, 3.2vw, 46px);
+  font-size: clamp(28px, 3vw, 42px);
   font-weight: 400;
   line-height: 1.12;
-  letter-spacing: .04em;
   text-wrap: balance;
   overflow-wrap: anywhere;
 }
-.midnight-card__title em { margin: 0 .14em; color: var(--mh-gold-hi); font-size: .7em; font-style: normal; letter-spacing: .08em; }
+.midnight-card__title em { margin: 0 .12em; color: var(--mh-gold-hi); font-size: .74em; font-style: italic; }
 .midnight-card__date {
   margin-top: 10px;
   color: var(--mh-mist);
@@ -133,7 +132,7 @@
   border-radius: 2px;
   background: var(--mh-gold-gradient);
   color: #17110a;
-  font: 600 13px/1 var(--mh-sans);
+  font: 700 13px/1 var(--mh-sans);
   letter-spacing: .16em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -215,9 +214,7 @@
 .midnight-gh__event {
   overflow: hidden;
   color: var(--mh-gold);
-  font: 400 clamp(16px, 1.4vw, 20px)/1.3 var(--mh-display);
-  letter-spacing: .2em;
-  text-transform: uppercase;
+  font: italic 500 clamp(18px, 1.6vw, 22px)/1.3 var(--mh-display);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -226,10 +223,10 @@
   margin: 0;
   color: var(--mh-ivory) !important;
   font-family: var(--mh-display) !important;
-  font-size: clamp(42px, 4.8vw, 72px);
-  font-weight: 400;
+  font-size: clamp(40px, 4.6vw, 68px);
+  font-weight: 500;
   line-height: 1.05;
-  letter-spacing: .03em;
+  letter-spacing: .01em;
   text-wrap: balance;
   overflow-wrap: anywhere;
 }
@@ -256,7 +253,7 @@
   max-width: 640px;
   margin: 16px auto 0;
   color: var(--mh-mist);
-  font: 400 clamp(15px, 1.1vw, 16px)/1.7 var(--mh-sans);
+  font: italic 400 clamp(15px, 1.2vw, 17px)/1.6 var(--mh-display);
   white-space: pre-line;
 }
 
@@ -291,8 +288,8 @@
   border-radius: 5px;
   background: transparent;
   color: var(--mh-gold-hi);
-  font: 600 12px/1 var(--mh-sans);
-  letter-spacing: .18em;
+  font: 600 14px/1 var(--mh-display);
+  letter-spacing: .12em;
   text-transform: uppercase;
   cursor: pointer;
   transition: background-color .2s ease, color .2s ease;
@@ -327,7 +324,7 @@
 }
 
 /* ---------- Event navbar in the Midnight Hero design (EventNavbar variant="midnight") ---------- */
-/* Wedding-invitation layout: links split either side of the centred title, plain text (no pill);
+/* Wedding-invitation layout: links split either side of the centred script title, plain text (no pill);
    once the guest scrolls the bar gets a navy backdrop. Small windows keep title left and the menu button. */
 .midnight-nav {
   position: fixed;
@@ -350,17 +347,18 @@
   min-width: 0;
   padding: 0 .2em;
   overflow: hidden;
-  color: var(--mh-gold-hi);
-  font-family: var(--mh-display);
-  font-size: clamp(20px, 1.8vw, 26px);
-  line-height: 1.3;
-  letter-spacing: .18em;
-  text-transform: uppercase;
+  background: linear-gradient(120deg, #f8e9be 0%, #dcb579 55%, #c49559 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: var(--font-midnight-script), "Brush Script MT", cursive;
+  font-size: clamp(28px, 2.7vw, 40px);
+  line-height: 1.25;
   white-space: nowrap;
   text-overflow: ellipsis;
   filter: drop-shadow(0 2px 10px #00000080);
 }
-.midnight-nav__title--long { font-size: clamp(16px, 1.4vw, 20px); letter-spacing: .12em; }
+.midnight-nav__title--long { font-size: clamp(22px, 1.9vw, 30px); }
 @media (min-width: 768px) {
   .midnight-nav > div { display: grid !important; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: clamp(20px, 3vw, 48px); }
   .midnight-nav .midnight-nav__links { display: contents !important; }
@@ -404,7 +402,7 @@
   .midnight-nav > div { gap: 16px; }
   .midnight-nav__group { gap: 14px; }
   .midnight-nav__link { font-size: 12px; letter-spacing: .1em; }
-  .midnight-nav .midnight-nav__title { font-size: 18px; letter-spacing: .12em; }
+  .midnight-nav .midnight-nav__title { font-size: 26px; }
 }
 .midnight-nav__menu-item { display: flex; width: 100%; padding: 12px 14px; text-shadow: none; }
 .midnight-nav__menu-item.midnight-nav__link--active::after { display: none; }
