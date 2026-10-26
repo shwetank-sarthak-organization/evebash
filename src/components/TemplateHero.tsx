@@ -123,7 +123,8 @@ export function TemplateHero({ event, mainTitle, mainCategory, hasParent = false
 
       {children && (
         <section id="event-content" className="midnight-content">
-          <div className="max-w-7xl mx-auto px-4">{children}</div>
+          {/* Full width with the page's side padding, like Classic White, so the photo rows run edge to edge */}
+          <div className="w-full px-4 sm:px-6 lg:px-8">{children}</div>
         </section>
       )}
     </div>
