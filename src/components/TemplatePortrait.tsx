@@ -1,12 +1,14 @@
 "use client";
 
 import Image from "next/image";
+import { useRef } from "react";
 import { useReducedMotion } from "framer-motion";
 import { ArrowDown } from "lucide-react";
 import { Event } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { coverImageStyle } from "@/lib/coverStyle";
 import { portraitDisplay } from "@/components/portrait/portraitFonts";
+import { useFitOneLine } from "@/components/portrait/useFitOneLine";
 import { eventDateValue } from "@/lib/eventSort";
 import { displayCoupleTitle } from "../../shared/text/coupleNames";
 
@@ -46,8 +48,9 @@ export function TemplatePortrait({ event, mainTitle, mainCategory, mainDate, chi
     const joinsDate = intro.endsWith("since");
     const details = [(joinsDate ? mainDate || event.date : event.date)?.trim(), location].filter(Boolean).join(", ");
     const title = displayCoupleTitle(mainTitle || event.title);
-    // Long titles get a smaller size so they stay on one or two lines
-    const titleSize = title.length > 32 ? " portrait-hero__title--xlong" : title.length > 18 ? " portrait-hero__title--long" : "";
+    // Always one line: a long title shrinks to the cover's width
+    const titleRef = useRef<HTMLHeadingElement>(null);
+    useFitOneLine(titleRef, title);
     const isFit = event.coverMode === "fit";
 
     const scrollToContent = () => {
@@ -84,7 +87,7 @@ export function TemplatePortrait({ event, mainTitle, mainCategory, mainDate, chi
                             {details && <span>{details}</span>}
                         </p>
                     )}
-                    <h1 className={`portrait-hero__title${titleSize}`}>{title}</h1>
+                    <h1 ref={titleRef} className="portrait-hero__title">{title}</h1>
                 </div>
 
                 {children && (

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { ArrowLeft, Check, Play, Share2 } from "lucide-react";
 import { HLSVideoPlayer } from "@/components/ui/HLSVideoPlayer";
 import type { ClassicGalleryVideo } from "@/components/classic/ClassicGalleryHeader";
+import { useFitOneLine } from "@/components/portrait/useFitOneLine";
 
 // Top of the gallery section in the Sunlit Portrait design (styles in src/app/sunlit-portrait.css). With a gallery video
 // the opening fills one screen like the cover (below the navbar): the video edge to edge with Back / Share on its top
@@ -33,10 +34,14 @@ interface PortraitGalleryHeaderProps {
 
 /** Date, gallery name and message: over the film, or on paper when there is none */
 function PortraitIntro({ title, details, quote }: { title: string; details?: string; quote?: string }) {
+    // Always one line: a long gallery name shrinks to the width
+    const titleRef = useRef<HTMLHeadingElement>(null);
+    useFitOneLine(titleRef, title);
+
     return (
         <div className="portrait-gh__intro">
             {details && <p className="portrait-gh__details">{details}</p>}
-            <h2 className="portrait-gh__title">{title}</h2>
+            <h2 ref={titleRef} className="portrait-gh__title">{title}</h2>
             {quote && <p className="portrait-gh__quote">&ldquo;{quote}&rdquo;</p>}
         </div>
     );

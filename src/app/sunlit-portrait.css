@@ -69,14 +69,12 @@
   font-size: clamp(3.5rem, min(15.5vw, 28svh), 15rem);
   line-height: .95;
   letter-spacing: -.005em;
-  /* Pulls the names up into the empty space above their capitals, so the date line sits just above them */
-  margin-top: -.1em;
-  overflow-wrap: anywhere;
-  text-wrap: balance;
+  /* Close under the date line, but with room for tall letters (h, k, l, 1), which rise above the capitals */
+  margin-top: -.03em;
+  /* Always one line; a long title is shrunk to fit by useFitOneLine (src/components/portrait/useFitOneLine.ts) */
+  white-space: nowrap;
   text-shadow: 0 2px 30px rgba(0, 0, 0, .25);
 }
-.portrait-hero__title--long { font-size: clamp(3rem, min(11vw, 20svh), 11rem); }
-.portrait-hero__title--xlong { font-size: clamp(2.5rem, min(6.5vw, 13svh), 6.5rem); }
 
 /* Round "open gallery" button at the bottom right */
 .portrait-hero__open {
@@ -132,7 +130,7 @@
 .portrait-gh__link:focus-visible { outline: 2px solid var(--sp-ink); outline-offset: 4px; }
 
 /* Date, gallery name and message at the bottom left, like the cover's date line and names */
-.portrait-gh__intro { display: flex; flex-direction: column; align-items: flex-start; max-width: min(100%, 64rem); }
+.portrait-gh__intro { display: flex; flex-direction: column; align-items: flex-start; width: 100%; }
 .portrait-gh__details {
   margin-bottom: clamp(6px, 1svh, 12px);
   font-family: var(--font-inter-src), ui-sans-serif, system-ui, sans-serif;
@@ -149,8 +147,9 @@
   font-weight: 400;
   line-height: .9;
   letter-spacing: -.015em;
-  overflow-wrap: anywhere;
-  text-wrap: balance;
+  /* Always one line; a long gallery name is shrunk to fit by useFitOneLine */
+  width: 100%;
+  white-space: nowrap;
 }
 .portrait-gh__quote {
   margin-top: clamp(14px, 2.4svh, 28px);

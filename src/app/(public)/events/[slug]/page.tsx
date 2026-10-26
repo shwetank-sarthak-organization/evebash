@@ -318,6 +318,18 @@ function EventPageContent() {
         setActiveGallery(eventData.parentId ? eventData : null);
         setGalleryMediaTab("photos");
         setFavouriteMediaIds(new Set());
+        // An album's cover shows its main event's title (and Sunlit Portrait's date line uses its category and date).
+        // Read through open_gallery like the album itself, so it keeps working once anonymous table reads are locked down.
+        let parent: Event | undefined;
+        if (eventData.parentId) {
+            try {
+                const openedParent = await openGallery(eventData.parentId);
+                parent = openedParent.access === "public_view" ? openedParent.event : undefined;
+            } catch (e) {
+                console.error("[EventPage] Could not read the main event of this album:", e);
+            }
+        }
+        setParentInfo({ title: parent?.title, category: parent?.category, date: parent?.date });
         await loadPublicPhotos(eventData, 0, false);
     };
 
@@ -929,10 +941,12 @@ function EventPageContent() {
             <TemplateComponent
                 event={displayEvent}
                 // Classic White keeps the main event's title (and its theme line) on the cover in every album
-                mainTitle={activeGallery || !event.parentId ? event.title : parentInfo.title || event.title}
-                mainCategory={activeGallery || !event.parentId ? event.category : parentInfo.category || event.category}
+                // On an album's own page (logged in, or a public link where the album is also the active gallery) these
+                // come from its main event
+                mainTitle={event.parentId ? parentInfo.title || event.title : event.title}
+                mainCategory={event.parentId ? parentInfo.category || event.category : event.category}
                 // Sunlit Portrait: the main event's date decides "We're getting married" or "Happily married since"
-                mainDate={activeGallery || !event.parentId ? event.date : parentInfo.date || event.date}
+                mainDate={event.parentId ? parentInfo.date || event.date : event.date}
                 subEvents={[]}
                 photos={[]}
                 isShared={isShared}
