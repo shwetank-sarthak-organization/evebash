@@ -8,8 +8,7 @@ import { Event } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { coverImageStyle } from "@/lib/coverStyle";
 import { midnightDisplay, midnightScript } from "@/components/midnight/midnightFonts";
-import { MidnightCrest } from "@/components/midnight/MidnightCrest";
-import { coupleInitials, displayCoupleTitle, splitCoupleNames } from "../../shared/text/coupleNames";
+import { displayCoupleTitle, splitCoupleNames } from "../../shared/text/coupleNames";
 
 interface TemplateHeroProps {
   event: Event;
@@ -27,14 +26,6 @@ function coupleJoiner(category?: string) {
   return (category || "").toLowerCase().includes("wedding") ? "weds" : "&";
 }
 
-/** Crest letters: the couple's initials, else the title's first letter */
-function crestLetters(title: string): string[] {
-  const initials = coupleInitials(title);
-  if (initials) return initials;
-  const first = Array.from(title.trim())[0];
-  return first && first.toLocaleUpperCase() !== first.toLocaleLowerCase() ? [first.toLocaleUpperCase()] : [];
-}
-
 export function TemplateHero({ event, mainTitle, mainCategory, hasParent = false, onShare, copied = false, children }: TemplateHeroProps) {
   const heroRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
@@ -46,7 +37,6 @@ export function TemplateHero({ event, mainTitle, mainCategory, hasParent = false
   const parentTitle = (mainTitle || "").trim();
   // Albums show their own name, with the main event above it; the couple line belongs to the main gallery
   const couple = hasParent ? null : splitCoupleNames(title);
-  const crest = crestLetters(hasParent && parentTitle ? parentTitle : title);
   const isFit = event.coverMode === "fit";
 
   const scrollToContent = () => {
@@ -85,10 +75,11 @@ export function TemplateHero({ event, mainTitle, mainCategory, hasParent = false
         </motion.div>
         <div className="midnight-hero__shade" aria-hidden="true" />
 
-        <div className="midnight-bar">
-          <div className="midnight-bar__text">
-            {hasParent && parentTitle && <p className="midnight-bar__eyebrow">{displayCoupleTitle(parentTitle)}</p>}
-            <h1 className="midnight-bar__title">
+        {/* A printed invitation: square card, thin double gold border */}
+        <div className="midnight-card">
+          <div className="midnight-card__inner">
+            {hasParent && parentTitle && <p className="midnight-card__eyebrow">{displayCoupleTitle(parentTitle)}</p>}
+            <h1 className="midnight-card__title">
               {couple ? (
                 <>
                   {couple[0]} <em>{coupleJoiner(mainCategory || event.category)}</em> {couple[1]}
@@ -97,12 +88,9 @@ export function TemplateHero({ event, mainTitle, mainCategory, hasParent = false
                 title
               )}
             </h1>
-            {event.date && <p className="midnight-bar__date">{event.date}</p>}
-          </div>
+            {event.date && <p className="midnight-card__date">{event.date}</p>}
 
-          {crest.length > 0 && <MidnightCrest letters={crest} className="midnight-bar__crest" />}
-
-          <div className="midnight-bar__actions">
+            <div className="midnight-card__actions">
             <button type="button" onClick={scrollToContent} className="midnight-enter">
               Enter Gallery
               <ArrowRight className="midnight-enter__arrow" aria-hidden="true" />
@@ -117,6 +105,7 @@ export function TemplateHero({ event, mainTitle, mainCategory, hasParent = false
               {copied ? <Check aria-hidden="true" /> : <Share2 aria-hidden="true" />}
             </button>
             <span className="sr-only" aria-live="polite">{copied ? "Gallery link copied" : ""}</span>
+            </div>
           </div>
         </div>
       </section>

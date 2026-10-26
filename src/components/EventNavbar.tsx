@@ -296,7 +296,9 @@ export function EventNavbar({
                     </Link>
 
                     {/* Right: Desktop Navigation */}
-                    <div className={cn("hidden md:flex items-center", isRoyal ? "gap-1" : isClassic ? "classic-nav__links" : isMidnight ? "midnight-nav__links" : "space-x-2")}>
+                    <div className={cn("hidden md:flex items-center", isRoyal ? "gap-1" : isClassic ? "classic-nav__links" : isMidnight ? "midnight-nav__links" : "gap-2")}>
+                        {/* Midnight Hero puts these two groups either side of the centred title (midnight-hero.css); elsewhere they don't affect the layout */}
+                        <div className={isMidnight ? "midnight-nav__group midnight-nav__group--left" : "contents"}>
                         {primaryDesktopLinks.map(renderDesktopNavItem)}
 
                         {collectionLinks.length > 0 && (
@@ -392,6 +394,8 @@ export function EventNavbar({
                             </div>
                         )}
 
+                        </div>
+                        <div className={isMidnight ? "midnight-nav__group midnight-nav__group--right" : "contents"}>
                         {utilityDesktopLinks.map(renderDesktopNavItem)}
 
                         {onDownloadZip && (
@@ -437,6 +441,7 @@ export function EventNavbar({
                                 <LogOut className="h-5 w-5" />
                             </button>
                         )}
+                        </div>
                     </div>
 
                     {/* Mobile Menu Toggle */}
