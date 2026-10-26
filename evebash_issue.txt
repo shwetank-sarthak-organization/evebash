@@ -654,17 +654,6 @@ Found in: Unused code and assets scan (2026-10-22)
 Issue: Most of the 34 website API routes in src/app/api are copies that forward to the backend, and nothing in production calls them. The website pages send their requests straight to the backend (getApiUrl in src/lib/apiBase.ts defaults to https://api-staging.evebash.com), and the app does too; the backend (apps/backend/src/server.ts) serves the same paths. The website only calls its own create-order, verify-payment, log-payment-failure, v1/pricing-plans and v1/subscriptions/apply-pending, and the app opens the /vault-pdf page. The others (media upload, find-you, contact-messages, account, the v1 copies, admin/*-billing, admin/backblaze-usage, admin/control) are reached only by the app's port-3000 fallback in dev builds (apps/mobile/lib/storage.ts, getEndpointsForPath) and by the analytics dashboard if VITE_API_BASE_URL is unset and it falls back to VITE_NEXT_PUBLIC_SITE_URL. The definitely dead ones (media/process-thumbnail, media/trigger-modal-batch, debug/video-trigger, test-deploy) are listed in #99. Two copies of each route can drift apart (a fix lands in one, not the other). Fix: confirm the dashboard's live setting points at the backend, then delete the copies that aren't used, keeping the five routes the website calls and /vault-pdf.
 How to reproduce: grep src (outside src/app/api) for fetch(" and fetch(getApiUrl: only the five routes above use a relative /api path.
 
-#106
-Listed: 2026-10-22
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Unused code and assets scan (2026-10-22)
-Issue: The app has a Shipping & Delivery Policy screen (apps/mobile/app/shipping-delivery-policy.tsx), but nothing links to it. The Home footer (apps/mobile/app/(tabs)/index.tsx) links only Privacy, Terms, Cancellation & Refund, and Digital Service Delivery; the website links all five. Fix: add it to the footer, or delete the screen if the Digital Service Delivery policy replaces it in the app.
-How to reproduce: In the app, look for a way to open the Shipping & Delivery Policy: there is none (only the deep link /shipping-delivery-policy).
-
 #101
 Listed: 2026-10-22
 Platform: Both
@@ -1043,6 +1032,19 @@ Update 2026-10-12: the host gallery page redesign (top bar with "< Galleries" an
 Update 2026-10-13: the profile page part is fixed (yellow/amber accents and the navy page background replaced with the site gold #CA9C68 and #13191F). Only the host page text-slate-700 subtitles are still open.
 Update 2026-10-26: the host page "Your Events"/"Galleries" subtitle and action-card descriptions are now text-slate-400 and the photo table values text-slate-200, with the site pages' warm grey palette (#CDB89E / #F3E8D7), as part of matching the website's colours to the app.
 Fixed in: 60118a5 (2026-10-26). Device test #144 passed 2026-10-26 (built-in browser, computer size; no real phone).
+
+#106
+Listed: 2026-10-22
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Unused code and assets scan (2026-10-22)
+Issue: The app has a Shipping & Delivery Policy screen (apps/mobile/app/shipping-delivery-policy.tsx), but nothing links to it. The Home footer (apps/mobile/app/(tabs)/index.tsx) links only Privacy, Terms, Cancellation & Refund, and Digital Service Delivery; the website links all five. Fix: add it to the footer, or delete the screen if the Digital Service Delivery policy replaces it in the app.
+How to reproduce: In the app, look for a way to open the Shipping & Delivery Policy: there is none (only the deep link /shipping-delivery-policy).
+Update 2026-10-26: the screen was only a one-line alias that rendered the Digital Service Delivery policy (it replaced Shipping & Delivery in 963f7dae, 2026-08-14), and the footer already links that. The website footer also links four policies, not five; its /shipping-delivery-policy just redirects. Deleted the screen instead of adding a duplicate footer link. Nothing in the app linked to it and the app has no universal links, so only a hand-typed evebash://shipping-delivery-policy reached it. No device test needed.
+Fixed in: 014dee4 (2026-10-26)
 
 #144
 Listed: 2026-10-25
