@@ -3714,7 +3714,7 @@ Fix ref:
 Feedback:
 
 #144 Website pages use the app's warm greys and gold
-Status:    TODO
+Status:    PASS
 Priority:  Low
 Platform:  Website (computer + phone browser)
 Brief:     The website's grey text was blue-grey while the app's is warm beige, and a few places used
@@ -3737,11 +3737,24 @@ How to test:
   6. Open /vault as a host. Expect: grey text is warm beige and everything is readable.
   7. Open two guest galleries (/events/<slug>) in different themes, e.g. Classic White and Royal Emerald.
      Expect: they look exactly as before (gallery themes keep their own colours).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Claude (built-in browser)
+Device / browser: Claude desktop app's built-in browser (Chromium), computer size; pricing also at
+                  phone size (375x812 emulated, not a real phone)
+Build / version:  staging.evebash.com with 4c809b0 (fix 60118a5)
+Date tested:      2026-10-26
+Account used:     host account already signed in to the built-in browser; pricing and forgot password
+                  also need no login
+Screenshot / recording: taken in the chat, not saved
 Fix ref:
-Feedback:
+Feedback:         1 PASS: dashboard "How to host" card dark warm brown (#1E1B17 to #12171C), gold label,
+                  red Watch on YouTube button. 2 PASS: /host grey text warm (slate-400 #CDB89E, -300
+                  #E6D8C3, -200 #F3E8D7), no blue or indigo left; "Your Events" subtitle readable; the
+                  Storage & Quota Events bar gold like Storage. The plan name there is in the plan's own
+                  colour (blue for Standard), same as the app (both use the same plan colours).
+                  3 PASS: test-face-new photo table values (6000 x 4000, 9.63 MB, JPG, 26 Oct 2026) light
+                  and readable. 4 PASS: all 8 plans; Premium gold band, ring and button with dark text;
+                  other buttons dark #2B2F2E; checks tinted (beige, teal, teal, sky, gold, violet, pink,
+                  orange); fine at phone size too. 5 PASS: gold EB, gold Send button with dark text,
+                  gold border and ring on the focused field. 6 PASS: /vault grey text warm beige.
+                  7 PASS: Royal Emerald (test-face-new-155c) and Midnight Hero (wedding-2-77d4) galleries
+                  unchanged, default greys; Classic White not opened. Not covered: a real phone.

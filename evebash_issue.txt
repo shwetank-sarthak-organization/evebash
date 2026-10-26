@@ -1031,7 +1031,7 @@ How to reproduce: Open /profile and /host while logged in and look at the yellow
 Update 2026-10-12: the host gallery page redesign (top bar with "< Galleries" and the gallery name) removed the "Managing memories for" line. The other items are still open.
 Update 2026-10-13: the profile page part is fixed (yellow/amber accents and the navy page background replaced with the site gold #CA9C68 and #13191F). Only the host page text-slate-700 subtitles are still open.
 Update 2026-10-26: the host page "Your Events"/"Galleries" subtitle and action-card descriptions are now text-slate-400 and the photo table values text-slate-200, with the site pages' warm grey palette (#CDB89E / #F3E8D7), as part of matching the website's colours to the app.
-Fixed in: 60118a5 (2026-10-26). Device test #144 left.
+Fixed in: 60118a5 (2026-10-26). Device test #144 passed 2026-10-26 (built-in browser, computer size; no real phone).
 
 #144
 Listed: 2026-10-25
