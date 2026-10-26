@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 151
+Next test number: 152
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3987,3 +3987,45 @@ Feedback:         2026-10-26 Claude, built-in browser (computer size) on staging
                   1 PASS wedding-2-77d4 opened on Videos (1), no "No photos yet."; 2 PASS clicking Photos
                   stayed on Photos; 3 PASS test-face-new-155c (42 photos, 3 videos) opened on Photos.
                   Step 4 not done (no video-only album to hand).
+
+--------------------------------------------------------------------------------
+#151 New wedding theme Confetti Circle (website, computer and phone)
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     A new wedding theme, "Confetti Circle": the cover photo fills the first screen with a big
+           white circle in the middle. In the circle: the couple's names in tall pink-to-orange
+           capitals with "- and -" between them, the date as "March | 28 | 2025" and the place; a
+           dark tag with the couple's initials and "Just married" on the circle's top edge; pink and
+           orange paint specks round the circle; a torn-paper edge at the bottom of the photo. The top
+           bar has the same links as Classic White on a frosted white bar (the "&" in the name is a
+           pink heart), solid white once you scroll. Below the photo the gallery looks like Classic White.
+Detail:    Commit ef1dece: src/components/TemplateConfetti.tsx, src/app/confetti-circle.css,
+           src/components/confetti/confettiFonts.ts, src/components/EventNavbar.tsx (variant "confetti"),
+           theme id "confetti". Website only: the app has no Confetti Circle, so don't check it in the app.
+How to test:
+  1. Log in on staging as a host, open a wedding gallery's design settings and look at the themes.
+     Expect: "Confetti Circle" is offered with the other wedding themes. Pick it and save.
+  2. Open the guest page on a computer. Expect: the circle as described above, names and date fully
+     inside the circle, the tag's initials readable, a round dark arrow button at the bottom right.
+  3. Click each top-bar link: Home, a gallery under Collections, Find You, Download All. Expect: each
+     does what it does on Classic White. Scroll down: the bar turns solid white.
+  4. Scroll back up and click the round arrow. Expect: the page scrolls to the gallery and its title
+     is not hidden under the top bar.
+  5. Try a title that isn't two names (e.g. "Sharma Wedding"): one line of big gradient capitals and
+     no initials on the tag. Try long names (e.g. "Alexandrina and Maximilian"): smaller, still inside
+     the circle. Try a gallery with no date, and a cover set to "fit" and moved / zoomed in the host page.
+  6. Open the guest page on a phone with the website (skip if it shows the "Get the app" screen,
+     #109). Expect: the circle fills the width, the tag's initials are upright and inside the tag,
+     the arrow button sits under the circle.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:         2026-10-26 Claude, built-in browser before commit (local dev server, a temporary preview
+                  page with a sample couple, since deleted): at ~800px wide and 375x812 (phone size
+                  emulated) steps 2 and 6 look as described; no console errors after fixes. Not done:
+                  steps 1, 3, 4, 5 and a real person on staging.
