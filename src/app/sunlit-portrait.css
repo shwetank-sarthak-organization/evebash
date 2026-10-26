@@ -3,7 +3,7 @@
    (src/components/portrait/portraitFonts.ts). Below the photo it reuses Classic White's gallery markup
    (classic-white.css) restyled here: warm paper, ink text, a clay accent and a centred header in the same serif.
    Palette also in src/lib/webTemplateTheme.ts: paper #FBF8F3, ink #1F1B17, muted #6B6158 (5.8:1), clay #A24E30 (5.6:1). */
-.portrait-template, .portrait-nav, .portrait-nav__menu {
+.portrait-template, .portrait-nav, .portrait-nav__menu, .portrait-footer {
   --sp-display: var(--font-portrait-display), var(--font-playfair-src), Georgia, serif;
   /* The cover's date line ("We're getting married" / "Happily married since"): size and the hairline stroke that makes
      Instrument Serif (one weight only) read as bold. Navbar links and Back / Share use the same. */
@@ -375,3 +375,73 @@
 @media (prefers-reduced-motion: reduce) {
   .portrait-nav, .portrait-hero__open { transition: none; }
 }
+
+/* ---------- Footer (src/components/portrait/PortraitFooter.tsx, on every Sunlit Portrait page) ----------
+   Confetti Circle's layout on the cover's ink: EveBash links at the far left, legal links at the far right, and in the
+   middle the date line over the couple's names (one line) with "Made with EveBash". Phones: the middle first, the two
+   link lists side by side under it. */
+.portrait-footer {
+  /* No top margin: the page wrapper behind it has no background, so a gap would show the site's body colour */
+  padding: clamp(56px, 8vw, 112px) clamp(16px, 4vw, 56px) clamp(32px, 4vw, 48px);
+  background: var(--sp-ink);
+  color: var(--sp-paper);
+}
+.portrait-footer__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+  align-items: end;
+  gap: clamp(32px, 5vw, 96px);
+}
+.portrait-footer__links { display: flex; flex-direction: column; gap: 6px; }
+.portrait-footer__links--left { align-items: flex-start; text-align: left; }
+.portrait-footer__links--right { align-items: flex-end; text-align: right; }
+/* The navbar's labels: Instrument Serif with the date line's stroke */
+.portrait-footer__link {
+  color: rgba(251, 248, 243, .78);
+  font-family: var(--sp-display);
+  font-size: clamp(18px, 1.5vw, 22px);
+  -webkit-text-stroke: var(--sp-label-stroke) currentColor;
+  paint-order: stroke fill;
+  transition: color .2s ease;
+}
+.portrait-footer__link:hover { color: #fff; }
+.portrait-footer__middle { display: flex; flex-direction: column; align-items: center; min-width: 0; text-align: center; }
+.portrait-footer__line {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 12px;
+  font-family: var(--sp-display);
+  font-size: var(--sp-label-size);
+  line-height: 1.25;
+  -webkit-text-stroke: var(--sp-label-stroke) currentColor;
+  paint-order: stroke fill;
+}
+.portrait-footer__heart { font-size: .6em; color: #E0A487; -webkit-text-stroke: 0; }
+/* The names: one line, shrunk to fit the middle column by useFitOneLine */
+.portrait-footer__couple {
+  width: 100%;
+  margin-top: 2px;
+  font-family: var(--sp-display);
+  font-size: clamp(3.5rem, 8vw, 8rem);
+  line-height: 1;
+  letter-spacing: -.01em;
+  white-space: nowrap;
+  color: #fff;
+}
+.portrait-footer__made {
+  margin-top: clamp(14px, 2vw, 24px);
+  font-size: 14px;
+  letter-spacing: .02em;
+}
+.portrait-footer__brand { color: #fff; font-family: var(--font-brand); font-size: 1.35em; transition: color .2s ease; }
+.portrait-footer__brand:hover { color: #E0A487; }
+.portrait-footer a:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+@media (max-width: 767px) {
+  .portrait-footer__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; row-gap: 36px; column-gap: 24px; }
+  .portrait-footer__middle { grid-column: 1 / -1; grid-row: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .portrait-footer__link, .portrait-footer__brand { transition: none; } }
+/* globals.css gives every footer on a guest page the theme's colours with !important; this one keeps its own */
+.event-template-shell footer.portrait-footer { background-color: var(--sp-ink) !important; border-color: transparent !important; color: var(--sp-paper) !important; }
+.event-template-shell .portrait-footer p.portrait-footer__made { color: rgba(251, 248, 243, .7) !important; }
+.event-template-shell .portrait-footer p.portrait-footer__couple { color: #fff !important; }
+/* The shared one-line event footer (Footer.tsx) steps aside on Sunlit Portrait pages */
+body:has(.portrait-footer) .event-footer { display: none; }

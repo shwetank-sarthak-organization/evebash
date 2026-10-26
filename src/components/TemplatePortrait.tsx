@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { coverImageStyle } from "@/lib/coverStyle";
 import { portraitDisplay } from "@/components/portrait/portraitFonts";
 import { useFitOneLine } from "@/components/portrait/useFitOneLine";
-import { eventDateValue } from "@/lib/eventSort";
+import { portraitIntro, portraitIntroJoinsDate } from "@/components/portrait/portraitIntro";
 import { displayCoupleTitle } from "../../shared/text/coupleNames";
 
 interface TemplatePortraitProps {
@@ -23,19 +23,6 @@ interface TemplatePortraitProps {
     children?: React.ReactNode;
 }
 
-/** The small line before the date, by the main event's category; a wedding whose date has passed reads
- *  "Happily married since <date>" (the wedding day itself still says "We're getting married") */
-function portraitIntro(category?: string, mainDate?: string) {
-    if (category === "Wedding") {
-        const weddingDay = eventDateValue(mainDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        return weddingDay !== null && weddingDay < today.getTime() ? "Happily married since" : "We're getting married";
-    }
-    if (category === "Anniversary") return "Still choosing each other";
-    return "";
-}
-
 // Sunlit Portrait (styles in src/app/sunlit-portrait.css): the cover photo fills the first screen with the couple's
 // names in a large serif along its bottom edge. The gallery below uses Classic White's markup (.classic-template,
 // classic-white.css) in its own warm paper and ink look (sunlit-portrait.css).
@@ -45,7 +32,7 @@ export function TemplatePortrait({ event, mainTitle, mainCategory, mainDate, chi
     const intro = portraitIntro(mainCategory || event.category, mainDate || event.date);
     // "Happily married since 29 September 2026" reads as one phrase (no heart) and always uses the wedding's date,
     // even in an album with a date of its own
-    const joinsDate = intro.endsWith("since");
+    const joinsDate = portraitIntroJoinsDate(intro);
     const details = [(joinsDate ? mainDate || event.date : event.date)?.trim(), location].filter(Boolean).join(", ");
     const title = displayCoupleTitle(mainTitle || event.title);
     // Always one line: a long title shrinks to the cover's width

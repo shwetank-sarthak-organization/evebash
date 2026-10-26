@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EventNavbar } from "@/components/EventNavbar";
 import { ConfettiFooter } from "@/components/confetti/ConfettiFooter";
+import { PortraitFooter } from "@/components/portrait/PortraitFooter";
 import { OpenInAppBanner } from "@/components/OpenInAppBanner";
 import {
     Event,
@@ -238,8 +239,9 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
         >
             {navigation}
             {children}
-            {/* Confetti Circle has its own footer on every page (the shared event footer hides itself then) */}
+            {/* Confetti Circle and Sunlit Portrait have their own footer on every page (the shared event footer hides itself then) */}
             {navTemplateId === "confetti" && mainEvent && <ConfettiFooter title={mainEvent.title} />}
+            {navTemplateId === "portrait" && mainEvent && <PortraitFooter event={mainEvent} />}
             <OpenInAppBanner />
         </div>
     );

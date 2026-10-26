@@ -2,23 +2,13 @@
 
 import Link from "next/link";
 import { confettiDisplay } from "@/components/confetti/confettiFonts";
+import { THEME_FOOTER_LEFT_LINKS as LEFT_LINKS, THEME_FOOTER_RIGHT_LINKS as RIGHT_LINKS } from "@/components/themeFooterLinks";
 import { coupleInitials, displayCoupleTitle } from "../../../shared/text/coupleNames";
 
 // Footer of every Confetti Circle guest page (gallery, albums, Find You), drawn by EventRouteShell in place of the
 // shared one-line event footer (styles in src/app/confetti-circle.css). A torn-paper edge, then: links to EveBash on
 // the left, the couple's initials "S ♥ R" with "Made with EveBash" under them in the middle, and the legal pages and
 // Contact us on the right. Titles that aren't two names show the title instead of initials.
-
-const LEFT_LINKS = [
-    { href: "/login?mode=signup", label: "Create your own event" },
-    { href: "/sample-galleries", label: "Sample galleries" },
-    { href: "/pricing", label: "Pricing" },
-];
-const RIGHT_LINKS = [
-    { href: "/privacy-policy", label: "Privacy" },
-    { href: "/terms-and-conditions", label: "Terms" },
-    { href: "/contact-us", label: "Contact us" },
-];
 
 export function ConfettiFooter({ title }: { title: string }) {
     const initials = coupleInitials(title);
