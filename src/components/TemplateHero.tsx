@@ -167,7 +167,7 @@ export function TemplateHero({ event, children }: TemplateHeroProps) {
 
       {/* Footer */}
       <footer className="bg-black border-t border-zinc-950 text-zinc-600 py-16 text-center text-[10px] tracking-[0.25em] uppercase relative z-10">
-        <p>Delivered by Wed Album — Cinematic Editions</p>
+        <p>Delivered by EveBash — Cinematic Editions</p>
       </footer>
     </div>
   );
