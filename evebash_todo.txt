@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 6
+Next todo number: 7
 
 Last updated: 2026-10-26
 
@@ -139,6 +139,28 @@ Brief:        Connect an event gallery to a cloud folder (Google Drive, iCloud, 
               public API for servers, so iCloud may only work from the phone's photo picker);
               one-time import or keep watching the folder; what happens to deletions; and how
               synced files count against storage limits (issue #6).
+Done in:      -
+
+#6  Crash and error reporting with Sentry (app, website, backend)
+Listed:       2026-10-26
+Platform:     Both
+Priority:     High
+Phase:        1
+Status:       Idea
+Effort:       M
+Suggested by: Sarthak (with Claude)
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   a Sentry account (free plan: 5,000 errors a month)
+Brief:        There is no crash or error reporting anywhere today (no Sentry, Crashlytics or
+              Bugsnag in any package.json), so crashes real users hit are invisible unless they
+              complain. Add Sentry to the Expo app (@sentry/react-native, with source maps
+              uploaded from EAS builds), the Next.js website (@sentry/nextjs) and the Railway
+              backend. Off by default behind a flag (no DSN = nothing sent), turned on for
+              staging first. Strip personal data (emails, photo URLs, auth tokens) before
+              sending. Then connect the Sentry connector so Claude can read real errors.
+              Should be live before the Play Store / App Store launch.
 Done in:      -
 
 =====================================================================
