@@ -37,7 +37,8 @@
   min-width: 280px;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: #fff;
+  /* A little see-through, so the photo shows faintly behind the names */
+  background: rgba(255, 255, 255, .8);
   color: var(--cc-ink);
   text-align: center;
   box-shadow: 0 30px 60px -30px rgba(60, 30, 30, .35);
@@ -174,8 +175,9 @@
 .confetti-template #event-content { scroll-margin-top: 68px; }
 
 /* ---------- Event navbar in the Confetti Circle design (EventNavbar variant="confetti") ----------
-   Classic White's links on a frosted white bar over the photo, with the title in Bebas Neue and a pink heart for the
-   "&"; once the guest scrolls (or opens the small-screen menu) the bar turns solid soft white. */
+   Like the save-the-date it copies: the couple's names in the middle in Bebas Neue with a pink heart for the "&", and
+   Classic White's links either side in the same condensed capitals, on a frosted white bar over the photo that turns
+   solid soft white once the guest scrolls (or opens the small-screen menu). Phones: names on the left, menu on the right. */
 .confetti-nav {
   position: fixed; inset: 0 0 auto; z-index: 50;
   padding: 8px clamp(16px, 4vw, 56px);
@@ -189,22 +191,38 @@
   background: #FCFCFA;
   box-shadow: 0 8px 24px -18px rgba(44, 53, 46, .45);
 }
-.confetti-nav__bar { width: 100%; min-height: 52px; }
+.confetti-nav__bar { width: 100%; min-height: 56px; }
 .confetti-nav .classic-nav__title {
   font-family: var(--cc-display);
-  font-size: clamp(1.5rem, 2vw, 1.85rem);
+  font-size: clamp(1.6rem, 2.3vw, 2.1rem);
   font-weight: 400;
-  letter-spacing: .03em;
+  letter-spacing: .02em;
   line-height: 1;
   color: var(--cc-ink);
 }
-.confetti-nav__heart { color: var(--cc-pink); font-size: .7em; vertical-align: .15em; margin: 0 .25em; }
-.confetti-nav .classic-nav__links { gap: clamp(16px, 2.2vw, 36px); }
-.confetti-nav .classic-nav__link { color: var(--cc-ink); font-weight: 600; letter-spacing: .1em; }
+.confetti-nav__heart { color: var(--cc-pink); font-size: .7em; vertical-align: .15em; margin: 0 .3em; }
+@media (min-width: 768px) {
+  .confetti-nav .confetti-nav__bar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: clamp(20px, 3.5vw, 56px); }
+  .confetti-nav .classic-nav__links { display: contents !important; }
+  .confetti-nav .classic-nav__title { grid-column: 2; grid-row: 1; max-width: 36vw; text-align: center; }
+  .confetti-nav__group { display: flex; align-items: center; gap: clamp(18px, 2.6vw, 40px); grid-row: 1; min-width: 0; }
+  .confetti-nav__group--left { grid-column: 1; justify-content: flex-end; }
+  .confetti-nav__group--right { grid-column: 3; justify-content: flex-start; }
+}
+.confetti-nav .classic-nav__link {
+  gap: 6px;
+  color: var(--cc-ink);
+  font-family: var(--cc-display);
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: .06em;
+  line-height: 1;
+}
+.confetti-nav .classic-nav__link svg { width: 14px; height: 14px; }
 .confetti-nav .classic-nav__link::after { background: var(--cc-pink); }
 .confetti-nav .classic-nav__link:focus-visible { outline-color: var(--cc-ink); }
-/* "Download All": dark pill */
-.confetti-nav .confetti-nav__cta { padding: 9px 16px; border-radius: 6px; background: var(--cc-ink); color: #fff; }
+/* "Download All": a dark tag like the one on the circle */
+.confetti-nav .confetti-nav__cta { padding: 8px 12px 7px; background: var(--cc-ink); color: #fff; }
 .confetti-nav .confetti-nav__cta::after { display: none; }
 .confetti-nav .confetti-nav__cta:hover:not(:disabled) { background: #111; }
 

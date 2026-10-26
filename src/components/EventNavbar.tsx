@@ -297,8 +297,9 @@ export function EventNavbar({
 
                     {/* Right: Desktop Navigation */}
                     <div className={cn("hidden md:flex items-center", isRoyal ? "gap-1" : isClassic ? "classic-nav__links" : isMidnight ? "midnight-nav__links" : "gap-2")}>
-                        {/* Midnight Hero puts these two groups either side of the centred title (midnight-hero.css); elsewhere they don't affect the layout */}
-                        <div className={isMidnight ? "midnight-nav__group midnight-nav__group--left" : "contents"}>
+                        {/* Midnight Hero and Confetti Circle put these two groups either side of the centred title (midnight-hero.css,
+                            confetti-circle.css); elsewhere they don't affect the layout */}
+                        <div className={isMidnight ? "midnight-nav__group midnight-nav__group--left" : isConfetti ? "confetti-nav__group confetti-nav__group--left" : "contents"}>
                         {primaryDesktopLinks.map(renderDesktopNavItem)}
 
                         {collectionLinks.length > 0 && (
@@ -395,7 +396,7 @@ export function EventNavbar({
                         )}
 
                         </div>
-                        <div className={isMidnight ? "midnight-nav__group midnight-nav__group--right" : "contents"}>
+                        <div className={isMidnight ? "midnight-nav__group midnight-nav__group--right" : isConfetti ? "confetti-nav__group confetti-nav__group--right" : "contents"}>
                         {utilityDesktopLinks.map(renderDesktopNavItem)}
 
                         {onDownloadZip && (
