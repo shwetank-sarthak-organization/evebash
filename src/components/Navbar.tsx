@@ -129,8 +129,9 @@ export default function Navbar() {
             {/* Mobile Menu Dropdown */}
             <div
                 className={cn(
-                    "lg:hidden absolute top-20 left-0 w-full bg-[var(--site-surface)] border-b border-[var(--site-border)] shadow-xl transition-all duration-300 ease-in-out origin-top overflow-hidden",
-                    isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+                    "lg:hidden absolute top-20 left-0 w-full bg-[var(--site-surface)] border-b border-[var(--site-border)] shadow-xl transition-all duration-300 ease-in-out origin-top",
+                    // Cap at the screen height below the 5rem nav and scroll, so Profile and Logout stay reachable on short phones.
+                    isOpen ? "max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain opacity-100" : "max-h-0 overflow-hidden opacity-0 pointer-events-none"
                 )}
             >
                 <div className="px-4 pt-4 pb-6 space-y-2 flex flex-col">
