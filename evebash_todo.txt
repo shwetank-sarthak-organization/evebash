@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 12
+Next todo number: 13
 
 Last updated: 2026-10-27
 
@@ -265,6 +265,45 @@ Brief:        Today hosts edit a gallery's title, date, message, cover and highl
               - A new cover is uploaded only on Save; the video sheet reuses GalleryVideoPanel.
               - Behind NEXT_PUBLIC_GUEST_EDIT_MODE / EXPO_PUBLIC_GUEST_EDIT_MODE, off by default.
               Phases: website text fields; website cover + video; app; cover move/zoom after #64.
+Done in:      -
+
+#12 Confetti Circle theme in the app
+Listed:       2026-10-27
+Platform:     App
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Agreed
+Effort:       M
+Suggested by: Sarthak (2026-10-27: "website looks done, next is mobile app for this theme")
+Discussed:    Yes
+Decision:     2026-10-27 Sarthak: the website version is done; build the app version next.
+Owner:        Unassigned
+Depends on:   - (#10 for real bride / groom details; until then the same placeholders as the website)
+Brief:        The website has the wedding theme "Confetti Circle" (id "confetti", device test #151),
+              but the app has no "confetti" entry in apps/mobile/constants/templates.ts, so the app's
+              theme picker doesn't offer it and a gallery set to it on the website isn't drawn in that
+              design in the app. Copy the website design (staging: src/components/TemplateConfetti.tsx,
+              src/components/confetti/, src/app/confetti-circle.css):
+              - Cover: the photo fills the first screen with a big 70% white circle in the middle:
+                the couple's names in Bebas Neue capitals, pink #e8175d to orange #ff7a1a, "- and -"
+                between them, then "March | 28 | 2025" and the place. On the circle's top edge a dark
+                tag with a red heart and the gallery's message in italics and quotes ("Happily
+                married" in capitals when there is none; long messages get a wider tag, at most 4
+                lines). Pink and orange paint specks round the circle, a torn-paper edge at the
+                bottom, a round dark arrow button.
+              - Top bar: frosted white over the photo, the couple's names with a pink heart for the
+                "&", links in Bebas Neue capitals; solid white once scrolled.
+              - Under the cover: "We're getting married!", the highlight video (or the cover photo)
+                in a soft-edged widescreen frame with specks and a white "Name ♥ Name" ribbon, the
+                bride and the groom with a few words and social icons (placeholders until #10).
+              - Gallery: Back / Share, "PHOTO GALLERY | <gallery name> | VIDEO GALLERY" (the pink
+                words switch photos / videos), the full message in italics when the tag cut it,
+                full-width rows of whole photos (never cropped).
+              - Footer: torn-paper edge, Create your own event / Sample galleries / Pricing at the
+                far left, "S ♥ R" with "Made with EveBash" (EveBash font) in the middle, Privacy /
+                Terms / Contact us at the far right.
+              Keep the web and app pickers the same (src/lib/hiddenTemplates.test.ts checks the app
+              list). Add a device test when it ships.
 Done in:      -
 
 =====================================================================
