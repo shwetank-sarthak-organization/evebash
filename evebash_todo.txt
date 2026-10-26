@@ -31,7 +31,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 4
+Next todo number: 6
 
 Last updated: 2026-10-26
 
@@ -95,6 +95,49 @@ Brief:        Send the user a notification when their plan is close to its end d
               7 days and 1 day before expiry; 80% and 95% of storage), push and/or email and/or
               an in-app banner, a daily backend job to check, and not repeating the same warning.
               Related: issue #6 (storage limits are web-only) and issue #58 (push settings).
+Done in:      -
+
+#4  Camera-to-cloud: photographers' cameras upload straight to a gallery
+Listed:       2026-10-26
+Platform:     Both
+Priority:     Medium
+Phase:        2
+Status:       Idea
+Effort:       L
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Let a photographer's camera send photos into an event gallery while they shoot,
+              with no card reader or manual upload, so guests see photos live. Options: an FTP
+              (or SFTP) upload address per event, which most pro Canon, Nikon and Sony cameras
+              support over Wi-Fi; a phone app that receives photos from the camera and uploads
+              them; or a partner service such as Frame.io Camera to Cloud. Nothing like this
+              exists today. To decide: which cameras to support first, how a camera is linked
+              to one event safely (per-event login or key), whether RAW files are accepted or
+              JPEG only, and how these uploads count against storage limits (issue #6).
+Done in:      -
+
+#5  Sync an event gallery with Google Drive, iCloud, Dropbox and others
+Listed:       2026-10-26
+Platform:     Both
+Priority:     Medium
+Phase:        2
+Status:       Idea
+Effort:       L
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Connect an event gallery to a cloud folder (Google Drive, iCloud, Dropbox,
+              OneDrive) so photos come in from it and/or a copy goes out to it. Nothing like
+              this exists today. To decide: import only, export only, or two-way sync; which
+              services first (Google Drive and Dropbox have public APIs; iCloud Photos has no
+              public API for servers, so iCloud may only work from the phone's photo picker);
+              one-time import or keep watching the folder; what happens to deletions; and how
+              synced files count against storage limits (issue #6).
 Done in:      -
 
 =====================================================================
