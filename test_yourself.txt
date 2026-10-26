@@ -3871,7 +3871,7 @@ Brief:     Midnight Hero, the default gallery theme, was redesigned: the cover p
            button and a round Share button, the page is midnight navy, and the top bar shows the title
            in a gold script with the same links (Home, Collections, Find You, Download All) in a glass
            pill. This checks it looks right and every button still works.
-Detail:    Commit 9abe281 (todo #7): src/components/TemplateHero.tsx, src/app/midnight-hero.css,
+Detail:    Commits 9abe281 and 9fed312 (gallery section, todo #7): src/components/TemplateHero.tsx, src/app/midnight-hero.css,
            src/components/EventNavbar.tsx. Website only: the app's Midnight Hero is unchanged.
            Test gallery: /events/wedding-2-77d4 (Midnight Hero). Any gallery with no theme also uses it.
 How to test:
@@ -3893,6 +3893,13 @@ How to test:
      gallery with no date (no date line, nothing made up).
   6. Make the browser window narrow (about 800 px wide) and short (about 600 px tall). Expect: the bar
      becomes a card (monogram, name, date, buttons) and nothing goes under the top bar or off screen.
+  7. Click Enter Gallery and look at the top of the gallery. Expect: "Back to Gallery" (or "Back to
+     Event" in an album) and "Share Gallery" in thin gold-edged boxes at the sides, the event name in
+     gold italic in the middle, a gold star, the gallery name in large letters with its last word in
+     gold, a box like "24 Photographs · 1 Film", the gallery's message in italics (none for a new main
+     gallery, no "Main Event: ..." text), the highlight film in a gold frame with a gold-ringed play
+     button (only if the host picked one), then a Photos / Videos switch with the chosen one in gold.
+     Click Videos and Photos, play the film, click Back and Share Gallery: each works as before.
 Done by:
 Device / browser:
 Build / version:

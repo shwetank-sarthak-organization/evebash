@@ -192,6 +192,8 @@
 /* Gallery under the cover */
 .midnight-content {
   position: relative;
+  /* Enter Gallery stops a little above the section so Back / Share sit below the fixed navbar */
+  scroll-margin-top: 32px;
   padding: 64px 0 96px;
   background:
     radial-gradient(70% 320px at 50% 0%, #121c4a66 0%, transparent 100%),

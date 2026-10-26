@@ -245,4 +245,5 @@ Brief:        Midnight Hero (the default theme) rated about 5/10 in the 2026-10-
               "The Celebration Of" text, description shown once, no theme footer.
               App follow-up: the app's Midnight Hero is still black with #CCA43B gold (#147)
               and a different layout, so web and app now differ more.
-Done in:      9abe281 (2026-10-26), on staging. Device test #148.
+Done in:      9abe281 (hero) and 9fed312 (gallery section header) (2026-10-26), on staging.
+              Device test #148.
