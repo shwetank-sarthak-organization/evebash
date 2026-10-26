@@ -23,6 +23,7 @@ Field values:
 - Platform:     App | Website | Both | Analytics dashboard | Backend only
 - Priority:     High | Medium | Low
 - Phase:        1 (v1 launch) | 2 (after launch, incl. business features) | 3 (later / nice to have)
+                | TBD (not decided yet, e.g. "TBD (1 or 2, decide after discussion)")
 - Status:       Idea | Agreed | In progress | Done | Dropped
 - Effort:       S (a few hours) | M (1-3 days) | L (a week or more)
 - Suggested by: a name, or where it came from (a user, an audit, a competitor)
@@ -101,7 +102,7 @@ Done in:      -
 Listed:       2026-10-26
 Platform:     Both
 Priority:     Medium
-Phase:        2
+Phase:        TBD (1 or 2, decide after discussion)
 Status:       Idea
 Effort:       L
 Suggested by: Sarthak
@@ -123,7 +124,7 @@ Done in:      -
 Listed:       2026-10-26
 Platform:     Both
 Priority:     Medium
-Phase:        2
+Phase:        TBD (1 or 2, decide after discussion)
 Status:       Idea
 Effort:       L
 Suggested by: Sarthak
