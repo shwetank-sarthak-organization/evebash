@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 148
+Next test number: 149
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -3860,3 +3860,48 @@ Feedback:         2026-10-26 steps 1-3 PASS. 1: both buttons enabled as soon as 
                   searching, then "Found 2 photos of you!" with 2 photos (/api/find-you 200 in 12.5 s).
                   3: a plain sky-and-grass picture: "No face detected in selfie", buttons usable again
                   (2.5 s). Still to do: step 4 on a phone on www.evebash.com once this is in production.
+
+--------------------------------------------------------------------------------
+#148 New Midnight Hero gallery design (website, computer)
+Status:    TODO
+Priority:  Medium
+Platform:  Website (computer; phones and tablets still get the "Get the app" screen, #109)
+Brief:     Midnight Hero, the default gallery theme, was redesigned: the cover photo fills the screen,
+           a frosted bar at the bottom shows the names, the date, a gold monogram, a gold Enter Gallery
+           button and a round Share button, the page is midnight navy, and the top bar shows the title
+           in a gold script with the same links (Home, Collections, Find You, Download All) in a glass
+           pill. This checks it looks right and every button still works.
+Detail:    Commit 9abe281 (todo #7): src/components/TemplateHero.tsx, src/app/midnight-hero.css,
+           src/components/EventNavbar.tsx. Website only: the app's Midnight Hero is unchanged.
+           Test gallery: /events/wedding-2-77d4 (Midnight Hero). Any gallery with no theme also uses it.
+How to test:
+  1. On a computer, log in on staging and open a Midnight Hero gallery. Expect: the cover photo fills
+     the whole screen; at the bottom a frosted bar with the gallery name (a couple's "A & B" title
+     shows as "A weds B" for a wedding), the date, a round gold monogram with the initials, a gold
+     "Enter Gallery" button and a round share button. No "Save The Date", no "The Celebration Of",
+     no back arrow, no "Scroll Down".
+  2. Look at the top bar. Expect: the gallery title in gold handwriting on the left; Home,
+     Collections, Find You and Download All in a rounded glass bar on the right, all readable over
+     the photo. Scroll down. Expect: the top bar gets a dark navy background.
+  3. Click each top-bar link: Home, a gallery under Collections, Find You, Download All. Expect: each
+     does what it did before (Download All asks Home or whole event, then downloads a ZIP).
+  4. Click "Enter Gallery". Expect: the page scrolls down to the photos. Click the round share button.
+     Expect: the icon turns into a tick and the gallery link is copied (paste it somewhere to check).
+  5. In the host page, change the gallery's cover position (move / zoom), save, then reopen the guest
+     page. Expect: the big cover photo follows the new position. Also try a gallery with a very long
+     title, an album under Collections (the couple's names show small above the album name), and a
+     gallery with no date (no date line, nothing made up).
+  6. Make the browser window narrow (about 800 px wide) and short (about 600 px tall). Expect: the bar
+     becomes a card (monogram, name, date, buttons) and nothing goes under the top bar or off screen.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:         2026-10-26 Claude, built-in browser at 1440x900 on staging (9abe281), wedding-2-77d4:
+                  step 1 looks as described; step 2 links are Home, Collections, Find You, Download All and
+                  the bar turns navy on scroll; step 4 Enter Gallery scrolls to the gallery and Share shows
+                  the tick (the clipboard refused the copy only because the test window was not focused).
+                  Not done: steps 3, 5, 6 and a real person's look on a real computer.

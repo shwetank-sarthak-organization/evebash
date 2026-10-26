@@ -167,12 +167,16 @@ Brief:        There is no crash or error reporting anywhere today (no Sentry, Cr
               (EAS secret + Vercel) and the @sentry/react-native Expo plugin / withSentryConfig.
 Done in:      -
 
+=====================================================================
+DONE / DROPPED (delete after 14 days)
+=====================================================================
+
 #7  Midnight Hero redesign: photo-led "midnight velvet" guest page (website)
 Listed:       2026-10-26
 Platform:     Website
 Priority:     Medium
 Phase:        1
-Status:       In progress
+Status:       Done
 Effort:       M
 Suggested by: Sarthak (reference design shared in chat, 2026-10-26)
 Discussed:    Yes
@@ -181,8 +185,8 @@ Decision:     2026-10-26 Sarthak: redesign the website's Midnight Hero like the 
               don't use the reference image, fonts can change.
 Owner:        Sarthak (with Claude)
 Depends on:   -
-Brief:        Midnight Hero (the default theme) rated about 5/10 in the 2026-10-26 review. Built,
-              not committed yet: full-screen cover that uses the host's focus point and zoom
+Brief:        Midnight Hero (the default theme) rated about 5/10 in the 2026-10-26 review. Built:
+              full-screen cover that uses the host's focus point and zoom
               (#64), a frosted "invitation bar" with the names ("Samarth weds Jyoti"), the date,
               a gold monogram crest, a gold Enter Gallery button and a round Share button; navy
               palette (#060a18) with the same bronze gold #ca9c69; Parisienne + Bodoni Moda fonts;
@@ -192,13 +196,6 @@ Brief:        Midnight Hero (the default theme) rated about 5/10 in the 2026-10-
               src/lib/webTemplateTheme.ts, src/lib/coverStyle.ts (shared by Royal and Classic).
               Also fixes from the review: no Back link to /dashboard, no "Save The Date" or
               "The Celebration Of" text, description shown once, no theme footer.
-              Left: commit and push to staging, check a real gallery on staging, add a device
-              test. App follow-up: the app's Midnight Hero is still black with #CCA43B gold (#147)
+              App follow-up: the app's Midnight Hero is still black with #CCA43B gold (#147)
               and a different layout, so web and app now differ more.
-Done in:      -
-
-=====================================================================
-DONE / DROPPED (delete after 14 days)
-=====================================================================
-
-(none yet)
+Done in:      9abe281 (2026-10-26), on staging. Device test #148.
