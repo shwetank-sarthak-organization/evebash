@@ -121,6 +121,9 @@ Found in: Website UI re-check (2026-10-11)
 Issue: The new homepage phone mockup and the Find You visual use coloured gradient squares instead of real photos, which looks unfinished for a photo product. src/components/home/GalleryPreview.tsx and FindYouFeature.tsx.
 How to reproduce: Open the homepage: the "gallery" grid in the hero is plain gradients.
 Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
+Note 2026-10-26: option to unblock it without our own gallery photos: the Unsplash connector for Claude (free photos;
+connect it in claude.ai Settings > Connectors) can find wedding/event photos to use here. Check the Unsplash licence and
+credit wording before shipping, and prefer real EveBash photos when they are ready. Sarthak to check later.
 
 #29
 Listed: 2026-10-11
