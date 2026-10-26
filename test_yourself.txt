@@ -4006,10 +4006,13 @@ Brief:     A new wedding theme, "Confetti Circle": the cover photo fills the fir
            white circle in the middle. In the circle: the couple's names in tall pink-to-orange
            capitals with "- and -" between them, the date as "March | 28 | 2025" and the place; a
            dark tag with the couple's initials and "Just married" on the circle's top edge; pink and
-           orange paint specks round the circle; a torn-paper edge at the bottom of the photo. The top
-           bar has the same links as Classic White on a frosted white bar (the "&" in the name is a
-           pink heart), solid white once you scroll. Below the photo the gallery looks like Classic White.
-Detail:    Commit ef1dece: src/components/TemplateConfetti.tsx, src/app/confetti-circle.css,
+           orange paint specks round the circle; a torn-paper edge at the bottom of the photo. The circle
+           is slightly see-through (80% white). The top bar is frosted white with the couple's names in
+           the middle (the "&" is a pink heart), Home and Collections on the left, Find You and Download
+           All on the right, all in tall narrow capitals; solid white once you scroll. On phones the names
+           are on the left and the menu button on the right. Below the photo the gallery looks like
+           Classic White.
+Detail:    Commits ef1dece and b708222 (centred navbar, see-through circle): src/components/TemplateConfetti.tsx, src/app/confetti-circle.css,
            src/components/confetti/confettiFonts.ts, src/components/EventNavbar.tsx (variant "confetti"),
            theme id "confetti". Website only: the app has no Confetti Circle, so don't check it in the app.
 How to test:
