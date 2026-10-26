@@ -3960,6 +3960,11 @@ How to test:
      thin line, the name and message under it, then Photos / Videos right away. "Photos" and
      "Videos" are in serif with the count raised; the chosen one has a small dot under it and
      switching works.
+  5b. Scroll to the bottom. Expect: a dark footer (no plain one-line footer): "Create your own event",
+     "Sample galleries", "Pricing" at the left; "Privacy", "Terms", "Contact us" at the right; in the
+     middle the same date line as the cover, the couple's names big on one line and "Made with
+     EveBash". Each link opens its page. Same footer on an album and on Find You. On a phone the
+     names come first and the two link lists sit side by side under them.
   6. In the host page, change the cover position (move / zoom), save, reopen the guest page.
      Expect: the big photo follows the new position. Also try a very long title, an album under
      Collections (the couple's names stay on the cover), and a gallery with no date.

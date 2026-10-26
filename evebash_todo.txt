@@ -199,6 +199,9 @@ Brief:        The website has a new wedding theme "Sunlit Portrait" (id "portrai
                 film" play button bottom right. Without one: Back / Share on a thin line, name and
                 message, then Photos / Videos straight away. Photos / Videos as serif words with
                 raised counts and the clay dot; photos with soft corners.
+              - Footer (every page): ink, Confetti Circle's layout; EveBash links left, legal
+                links right, the date line + couple's names (one line) + "Made with EveBash" in
+                the middle.
               Keep the web and app pickers the same (src/lib/hiddenTemplates.test.ts checks the
               app list).
 Done in:      -
