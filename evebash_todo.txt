@@ -217,7 +217,7 @@ Brief:        The cover photo fills the first screen (uses the host's focus poin
               src/app/sunlit-portrait.css, src/components/EventNavbar.tsx, EventRouteShell.tsx,
               events/[slug]/page.tsx, templateRegistry.tsx, webTemplateTheme.ts, host/page.tsx.
               App follow-up: #9.
-Done in:      38465e5 (2026-10-26), on staging; font 11f425e, gallery look 9830e96. Device test #149.
+Done in:      38465e5 (2026-10-26), on staging; font 11f425e, gallery look b9cdf78. Device test #149.
 
 #7  Midnight Hero redesign: photo-led "midnight velvet" guest page (website)
 Listed:       2026-10-26

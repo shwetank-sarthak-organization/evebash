@@ -3926,7 +3926,7 @@ Brief:     A new wedding theme, "Sunlit Portrait": the cover photo fills the fir
            photos with soft corners. This checks the theme can be picked and looks right, and every button
            works.
 Detail:    Commit 38465e5 (todo #8): src/components/TemplatePortrait.tsx, src/app/sunlit-portrait.css,
-           src/components/EventNavbar.tsx; gallery look and bolder date line in 9830e96. Website only: the app has no Sunlit Portrait yet (todo #9),
+           src/components/EventNavbar.tsx; gallery look and bolder date line in b9cdf78. Website only: the app has no Sunlit Portrait yet (todo #9),
            so don't check a Sunlit Portrait gallery in the app.
 How to test:
   1. Log in on staging as a host, open a wedding gallery's design settings and look at the themes.
