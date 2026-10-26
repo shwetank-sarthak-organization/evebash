@@ -1,6 +1,7 @@
 "use client";
 
 import { Event } from "@/lib/database";
+import { coverImageStyle } from "@/lib/coverStyle";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { ClassicCoverPrint } from "@/components/classic/ClassicCoverPrint";
 import { displayCoupleTitle } from "../../shared/text/coupleNames";
@@ -13,14 +14,6 @@ interface TemplateClassicProps {
     /** The main event's category, which picks the cover card's line (default: event.category) */
     mainCategory?: string;
     children?: React.ReactNode;
-}
-
-/** Applies the host's cover settings (focus point, zoom, fit), as the dashboard cards do. */
-function coverImageStyle(event: Event): React.CSSProperties {
-    if (event.coverMode === "fit") return { objectFit: "contain" };
-    const x = Math.max(0, Math.min(100, 50 + (event.coverOffsetX || 0)));
-    const y = Math.max(0, Math.min(100, 50 + (event.coverOffset || 0)));
-    return { objectFit: "cover", objectPosition: `${x}% ${y}%`, transform: `scale(${event.coverScale || 1})` };
 }
 
 /** Sage line, dot, line (the same divider as the app's Classic White) */

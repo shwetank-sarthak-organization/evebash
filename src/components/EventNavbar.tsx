@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { ProfileIcon } from "@/components/ProfileIcon";
 import { royalDisplay } from "@/components/royal/royalFonts";
+import { midnightScript } from "@/components/midnight/midnightFonts";
 import { displayCoupleTitle } from "../../shared/text/coupleNames";
 
 interface EventNavbarProps {
@@ -30,8 +31,9 @@ interface EventNavbarProps {
     chromeAccentColor?: string;
     chromeBorderColor?: string;
     /** "royal": floating gold-edged bar for the Royal Emerald design (styles in src/app/royal-emerald.css).
-     *  "classic": Classic White, full width between two thin sage lines (styles in src/app/classic-white.css) */
-    variant?: "royal" | "classic";
+     *  "classic": Classic White, full width between two thin sage lines (styles in src/app/classic-white.css)
+     *  "midnight": Midnight Hero, script title on the photo and the links in a glass pill (styles in src/app/midnight-hero.css) */
+    variant?: "royal" | "classic" | "midnight";
 }
 
 type EventNavLink = {
@@ -81,9 +83,10 @@ export function EventNavbar({
         }
     }, []);
 
-    // Royal Emerald: the bar sits between the hero's top corners until the guest scrolls
+    // Royal Emerald: the bar sits between the hero's top corners until the guest scrolls.
+    // Midnight Hero: the bar has no background over the cover photo until the guest scrolls.
     useEffect(() => {
-        if (variant !== "royal") return;
+        if (variant !== "royal" && variant !== "midnight") return;
         const update = () => setScrolledPastTop(window.scrollY > 40);
         const frame = window.requestAnimationFrame(update);
         window.addEventListener("scroll", update, { passive: true });
@@ -120,11 +123,13 @@ export function EventNavbar({
     const hasTemplateChrome = Boolean(chromeBackgroundColor);
     const isRoyal = variant === "royal";
     const isClassic = variant === "classic";
-    // Royal Emerald and Classic White draw their own colours from CSS classes instead of the inline theme colours
-    const useInlineChrome = !isRoyal && !isClassic && hasTemplateChrome;
-    // Royal Emerald and Classic White write a couple's joiner ("and", "AND", "weds", "+") as "&", like their titles
-    const navTitle = isRoyal || isClassic ? displayCoupleTitle(mainEventTitle) : mainEventTitle;
+    const isMidnight = variant === "midnight";
+    // Royal Emerald, Classic White and Midnight Hero draw their own colours from CSS classes instead of the inline theme colours
+    const useInlineChrome = !isRoyal && !isClassic && !isMidnight && hasTemplateChrome;
+    // These three write a couple's joiner ("and", "AND", "weds", "+") as "&", like their titles
+    const navTitle = isRoyal || isClassic || isMidnight ? displayCoupleTitle(mainEventTitle) : mainEventTitle;
     const royalLinkClass = (isActive: boolean) => cn("royal-nav__link", isActive && "royal-nav__link--active");
+    const midnightLinkClass = (isActive: boolean) => cn("midnight-nav__link", isActive && "midnight-nav__link--active");
     const navTextColor = chromeTextColor || "#0f172a";
     const navAccentColor = chromeAccentColor || "#0f172a";
     const navBorderColor = chromeBorderColor || "rgba(255,255,255,0.16)";
@@ -175,7 +180,7 @@ export function EventNavbar({
         const isActive = link.isGallery && onSelectGallery
                 ? isGalleryActive(link.gallery)
                 : isLinkActive(link.href, link.isFindYou);
-        const className = isRoyal ? royalLinkClass(isActive) : isClassic ? cn("classic-nav__link", isActive && "classic-nav__link--active") : cn(
+        const className = isRoyal ? royalLinkClass(isActive) : isMidnight ? midnightLinkClass(isActive) : isClassic ? cn("classic-nav__link", isActive && "classic-nav__link--active") : cn(
             "px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5",
             isActive
                 ? "bg-slate-900 text-white shadow-md"
@@ -236,6 +241,7 @@ export function EventNavbar({
                 animate={{ y: 0 }}
                 className={isRoyal ? cn("royal-nav", scrolledPastTop && "royal-nav--scrolled", royalDisplay.variable)
                     : isClassic ? cn("classic-nav", scrolledPastTop && "classic-nav--scrolled")
+                    : isMidnight ? cn("midnight-nav", scrolledPastTop && "midnight-nav--scrolled", midnightScript.variable)
                     : cn(
                     "fixed top-0 inset-x-0 z-50 transition-all duration-300 px-6 py-3 backdrop-blur-md shadow-sm border-b",
                     hasTemplateChrome ? "bg-transparent" : "bg-white/95 border-stone-100"
@@ -246,7 +252,7 @@ export function EventNavbar({
                     color: navTextColor,
                 } : undefined}
             >
-                <div className={cn("flex items-center justify-between gap-4", isClassic ? "classic-nav__bar" : isRoyal ? "w-full" : "max-w-7xl mx-auto")}>
+                <div className={cn("flex items-center justify-between gap-4", isClassic ? "classic-nav__bar" : isRoyal || isMidnight ? "w-full" : "max-w-7xl mx-auto")}>
                     {/* Left: Main Event Title */}
                     <Link
                         href={`${basePath}${sharedQuery}`}
@@ -256,12 +262,12 @@ export function EventNavbar({
                                 onSelectGallery(null);
                             }
                         }}
-                        title={isRoyal ? navTitle : undefined}
+                        title={isRoyal || isMidnight ? navTitle : undefined}
                         className={isRoyal ? cn(
                             "royal-nav__title",
                             // Smaller capitals for long titles; anything still too long ends in "…" with the full title on hover
                             navTitle.length > 36 ? "royal-nav__title--xlong" : navTitle.length > 24 && "royal-nav__title--long"
-                        ) : isClassic ? "classic-nav__title" : cn(
+                        ) : isClassic ? "classic-nav__title" : isMidnight ? cn("midnight-nav__title", navTitle.length > 24 && "midnight-nav__title--long") : cn(
                             "text-2xl font-serif font-bold italic tracking-tight transition-colors z-50 relative",
                             hasTemplateChrome ? "" : "text-slate-900"
                         )}
@@ -271,7 +277,7 @@ export function EventNavbar({
                     </Link>
 
                     {/* Right: Desktop Navigation */}
-                    <div className={cn("hidden md:flex items-center", isRoyal ? "gap-1" : isClassic ? "classic-nav__links" : "space-x-2")}>
+                    <div className={cn("hidden md:flex items-center", isRoyal ? "gap-1" : isClassic ? "classic-nav__links" : isMidnight ? "midnight-nav__links" : "space-x-2")}>
                         {primaryDesktopLinks.map(renderDesktopNavItem)}
 
                         {collectionLinks.length > 0 && (
@@ -282,7 +288,7 @@ export function EventNavbar({
                                         event.stopPropagation();
                                         setCollectionsOpen((open) => !open);
                                     }}
-                                    className={isRoyal ? royalLinkClass(isCollectionsActive) : isClassic ? cn("classic-nav__link", isCollectionsActive && "classic-nav__link--active") : cn(
+                                    className={isRoyal ? royalLinkClass(isCollectionsActive) : isMidnight ? midnightLinkClass(isCollectionsActive) : isClassic ? cn("classic-nav__link", isCollectionsActive && "classic-nav__link--active") : cn(
                                         "px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5",
                                         isCollectionsActive
                                             ? "bg-slate-900 text-white shadow-md"
@@ -319,7 +325,7 @@ export function EventNavbar({
                                         >
                                             {collectionLinks.map((link) => {
                                                 const isActive = isGalleryActive(link.gallery);
-                                                const className = isRoyal ? cn(royalLinkClass(isActive), "royal-nav__menu-item") : cn(
+                                                const className = isRoyal ? cn(royalLinkClass(isActive), "royal-nav__menu-item") : isMidnight ? cn(midnightLinkClass(isActive), "midnight-nav__menu-item") : cn(
                                                     "block w-full rounded-xl px-4 py-3 text-left text-xs font-bold uppercase tracking-widest transition-all",
                                                     isActive
                                                         ? "bg-slate-900 text-white"
@@ -327,7 +333,7 @@ export function EventNavbar({
                                                             ? "hover:bg-white/10"
                                                             : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                                                 );
-                                                const style = !isRoyal && hasTemplateChrome ? {
+                                                const style = !isRoyal && !isMidnight && hasTemplateChrome ? {
                                                     backgroundColor: isActive ? activeBgColor : "transparent",
                                                     color: isActive ? activeTextColor : navTextColor,
                                                 } : undefined;
@@ -374,7 +380,7 @@ export function EventNavbar({
                                 type="button"
                                 onClick={onDownloadZip}
                                 disabled={isZipping}
-                                className={isRoyal ? "royal-nav__link" : isClassic ? "classic-nav__link" : cn(
+                                className={isRoyal ? "royal-nav__link" : isMidnight ? "midnight-nav__link midnight-nav__link--outline" : isClassic ? "classic-nav__link" : cn(
                                     "px-3.5 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 border disabled:opacity-50",
                                     hasTemplateChrome
                                         ? "hover:opacity-85 hover:shadow-sm"
@@ -406,7 +412,7 @@ export function EventNavbar({
                         {activeName && !user && (
                             <button
                                 onClick={handleLogout}
-                                className={isRoyal ? "royal-nav__avatar" : "ml-4 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-all hover:bg-slate-50"}
+                                className={isRoyal ? "royal-nav__avatar" : isMidnight ? "midnight-nav__avatar" : "ml-4 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-all hover:bg-slate-50"}
                                 aria-label="Logout"
                             >
                                 <LogOut className="h-5 w-5" />

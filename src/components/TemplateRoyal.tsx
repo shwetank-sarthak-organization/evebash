@@ -4,6 +4,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Event } from "@/lib/database";
+import { coverImageStyle } from "@/lib/coverStyle";
 import { cn } from "@/lib/utils";
 import { Crown } from "lucide-react";
 import { royalDisplay, royalScript, royalSerif } from "@/components/royal/royalFonts";
@@ -41,15 +42,6 @@ function nameSizeClass(longest: number, isCouple: boolean) {
     if (longest > extraLong) return "royal-card__names--xlong";
     if (longest > long) return "royal-card__names--long";
     return undefined;
-}
-
-/** Applies the host's cover settings (focus point, zoom, fit), as the dashboard cards do.
- *  The frame is always portrait, so the focus point decides which part of a landscape cover shows. */
-function coverImageStyle(event: Event): React.CSSProperties {
-    if (event.coverMode === "fit") return { objectFit: "contain" };
-    const x = Math.max(0, Math.min(100, 50 + (event.coverOffsetX || 0)));
-    const y = Math.max(0, Math.min(100, 50 + (event.coverOffset || 0)));
-    return { objectFit: "cover", objectPosition: `${x}% ${y}%`, transform: `scale(${event.coverScale || 1})` };
 }
 
 export function TemplateRoyal({ event, children, hasParent = false }: TemplateRoyalProps) {

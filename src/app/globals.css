@@ -2,6 +2,7 @@
 @import "./royal-emerald.css";
 @import "./gallery-refinements.css";
 @import "./classic-white.css";
+@import "./midnight-hero.css";
 
 /* Suppress Native Browser Video Controls (Overflow 3-Dots & Picture-in-Picture) */
 video::-webkit-media-controls-overflow-button,

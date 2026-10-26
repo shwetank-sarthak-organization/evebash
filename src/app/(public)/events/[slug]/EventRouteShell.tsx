@@ -195,6 +195,10 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
         }
     }, [event, loadDownloadMedia, mainEvent, subEvents]);
 
+    // Midnight Hero is the default theme, so a gallery without a theme gets its navbar too
+    const navTemplateId = mainEvent?.templateId || event?.templateId || "hero";
+    const navVariant = navTemplateId === "royal" ? "royal" : navTemplateId === "classic" ? "classic" : navTemplateId === "hero" ? "midnight" : undefined;
+
     const navigation = useMemo(() => {
         if (!event || !mainEvent) return null;
         return (
@@ -214,11 +218,11 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
                 chromeBackgroundColor={chrome.background}
                 chromeTextColor={chrome.text}
                 chromeAccentColor={chrome.accent}
-                variant={(mainEvent?.templateId || event?.templateId) === "royal" ? "royal" : (mainEvent?.templateId || event?.templateId) === "classic" ? "classic" : undefined}
+                variant={navVariant}
                 chromeBorderColor={chrome.border}
             />
         );
-    }, [activePage, chrome, event, handleDownloadZip, isPublicView, isShared, isZipping, mainEvent, router, sharedQuery, subEvents, user, zipProgress]);
+    }, [activePage, chrome, event, handleDownloadZip, isPublicView, isShared, isZipping, mainEvent, navVariant, router, sharedQuery, subEvents, user, zipProgress]);
 
     return (
         <div
