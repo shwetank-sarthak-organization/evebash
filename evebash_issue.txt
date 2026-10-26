@@ -233,20 +233,6 @@ Found in: #47 investigation (2026-10-12)
 Issue: profiles has no notification_preferences column (checked 2026-10-12), but several places use it. (1) Host upload pushes never send: apps/backend/src/uploadNotifications.ts asks for push_token, notification_preferences, the lookup fails and it returns quietly, so "New photo(s) uploaded" and "New video uploaded" (including VIDEO_READY_PUSH=true from Modal's callback) never reach the host. test_yourself #51 step 5 uses the video push, so it will fail until this is fixed (use a join request instead). (2) The app's Settings > Notifications switches don't save: updateUserProfile (apps/mobile/lib/database.ts) drops columns the profile doesn't have and still reports success, so the switch flips back on the next login and nobody can turn pushes off. (3) Client-side pushes fail the same way: the app's sendPushNotificationDirectly (enquiries and vendor chat, Phase 2, see #20) and the website's sendPushNotification (old approval path). #47 fixed only the access-request, approval and deny pushes in apps/backend/src/routes/notifications.ts (select "*"). Fix options: add the column (jsonb, nullable) so settings save and count, and for (1) read the profile the way notifications.ts does; the photo-upload push has no kill switch, so put it behind a flag first, because fixing it starts a push to every host on every upload.
 How to reproduce: Upload a photo or video to someone else's gallery: the owner's phone gets nothing, and Railway logs show nothing. In the app, turn off Event invites in Settings, log out and in: it's on again.
 
-#59
-Listed: 2026-10-12
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Modal theme fix for #38 (2026-10-12)
-Issue: Some page content (not modals) is still off the dark-gold theme. The profile page uses bright yellow (yellow-300/400) for icons, the @username, the Edit and Upgrade buttons instead of #CA9C68 (the privacy switch was removed 2026-10-13) (src/app/(main)/profile/page.tsx). On the host page the "Your Events"/"Galleries" subtitle, the "Managing memories for" line and the action-card descriptions use text-slate-700, which is almost invisible on the dark background (src/app/(main)/host/page.tsx).
-How to reproduce: Open /profile and /host while logged in and look at the yellow accents and the dark-grey subtitle text.
-Update 2026-10-12: the host gallery page redesign (top bar with "< Galleries" and the gallery name) removed the "Managing memories for" line. The other items are still open.
-Update 2026-10-13: the profile page part is fixed (yellow/amber accents and the navy page background replaced with the site gold #CA9C68 and #13191F). Only the host page text-slate-700 subtitles are still open.
-Update 2026-10-26: fixed on branch fix/web-warm-greys (not merged yet): the host page "Your Events"/"Galleries" subtitle and action-card descriptions are now text-slate-400 and the photo table values text-slate-200, with the site pages' warm grey palette (#CDB89E / #F3E8D7). Device test #144. Move to RECENTLY FIXED once it is on staging.
-
 #60
 Listed: 2026-10-12
 Platform: Website
@@ -1021,6 +1007,21 @@ How to reproduce: Open any gallery on the website and look under the "Home Galle
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#59
+Listed: 2026-10-12
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Modal theme fix for #38 (2026-10-12)
+Issue: Some page content (not modals) is still off the dark-gold theme. The profile page uses bright yellow (yellow-300/400) for icons, the @username, the Edit and Upgrade buttons instead of #CA9C68 (the privacy switch was removed 2026-10-13) (src/app/(main)/profile/page.tsx). On the host page the "Your Events"/"Galleries" subtitle, the "Managing memories for" line and the action-card descriptions use text-slate-700, which is almost invisible on the dark background (src/app/(main)/host/page.tsx).
+How to reproduce: Open /profile and /host while logged in and look at the yellow accents and the dark-grey subtitle text.
+Update 2026-10-12: the host gallery page redesign (top bar with "< Galleries" and the gallery name) removed the "Managing memories for" line. The other items are still open.
+Update 2026-10-13: the profile page part is fixed (yellow/amber accents and the navy page background replaced with the site gold #CA9C68 and #13191F). Only the host page text-slate-700 subtitles are still open.
+Update 2026-10-26: the host page "Your Events"/"Galleries" subtitle and action-card descriptions are now text-slate-400 and the photo table values text-slate-200, with the site pages' warm grey palette (#CDB89E / #F3E8D7), as part of matching the website's colours to the app.
+Fixed in: 60118a5 (2026-10-26). Device test #144 left.
+
 #144
 Listed: 2026-10-25
 Platform: App

@@ -3720,7 +3720,7 @@ Platform:  Website (computer + phone browser)
 Brief:     The website's grey text was blue-grey while the app's is warm beige, and a few places used
            blue, indigo or purple where the app uses gold. The site pages now use the app's colours.
            Guest gallery pages are not changed.
-Detail:    Branch fix/web-warm-greys: src/app/globals.css (.site-palette on the (main), (vault) and (embed)
+Detail:    Commit 60118a5: src/app/globals.css (.site-palette on the (main), (vault) and (embed)
            layouts), host, dashboard, profile, pricing, forgot-password and reset-password pages. Issue #59.
 How to test:
   1. Log in as a host and open /dashboard. Expect: the "How to host" card is dark warm brown with a gold
