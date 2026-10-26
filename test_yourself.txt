@@ -4016,7 +4016,7 @@ Brief:     A new wedding theme, "Confetti Circle": the cover photo fills the fir
            All on the right, all in tall narrow capitals; solid white once you scroll. On phones the names
            are on the left and the menu button on the right. Below the photo the gallery looks like
            Classic White.
-Detail:    Commits ef1dece, b708222 (centred navbar, see-through circle) , 3f44228 (circle lower, 90%) and 9330ae5 (upright "S ♥ R" tag): src/components/TemplateConfetti.tsx, src/app/confetti-circle.css,
+Detail:    Commits ef1dece, b708222 (centred navbar, see-through circle), 3f44228 (circle lower, 90%) and a981b06 (upright "S ♥ R" tag): src/components/TemplateConfetti.tsx, src/app/confetti-circle.css,
            src/components/confetti/confettiFonts.ts, src/components/EventNavbar.tsx (variant "confetti"),
            theme id "confetti". Website only: the app has no Confetti Circle, so don't check it in the app.
 How to test:
