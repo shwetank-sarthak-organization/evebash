@@ -26,7 +26,8 @@ function portraitIntro(category?: string) {
 }
 
 // Sunlit Portrait (styles in src/app/sunlit-portrait.css): the cover photo fills the first screen with the couple's
-// names in a large serif along its bottom edge. The gallery below is Classic White's (.classic-template, classic-white.css).
+// names in a large serif along its bottom edge. The gallery below uses Classic White's markup (.classic-template,
+// classic-white.css) in its own warm paper and ink look (sunlit-portrait.css).
 export function TemplatePortrait({ event, mainTitle, mainCategory, children }: TemplatePortraitProps) {
     const reducedMotion = useReducedMotion();
     const location = "location" in event && typeof event.location === "string" ? event.location.trim() : "";
@@ -42,7 +43,7 @@ export function TemplatePortrait({ event, mainTitle, mainCategory, children }: T
     };
 
     return (
-        <div className={cn("classic-template portrait-template min-h-screen bg-[#FCFCFA] text-[#2C352E] font-sans selection:bg-[#8B9A6E]/30", portraitDisplay.variable)}>
+        <div className={cn("classic-template portrait-template min-h-screen font-sans", portraitDisplay.variable)}>
             <section className="portrait-hero" aria-label="Gallery cover">
                 {event.coverImage ? (
                     <>
