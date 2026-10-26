@@ -31,7 +31,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 3
+Next todo number: 4
 
 Last updated: 2026-10-26
 
@@ -74,6 +74,27 @@ Brief:        A plan you pay for once for a single event, instead of a subscript
               event, how long the event stays active, and whether it can be upgraded later.
               Storage/plan limits are web-only today (issue #6); this plan should be enforced
               on the app and backend too.
+Done in:      -
+
+#3  Warn users before their plan expires or their storage is full
+Listed:       2026-10-26
+Platform:     Both
+Priority:     Medium
+Phase:        1
+Status:       Idea
+Effort:       M
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   issue #104 (pushes can reach the wrong phone)
+Brief:        Send the user a notification when their plan is close to its end date
+              (profiles.plan_end_date) or their storage is close to the plan's limit. Today
+              they only find out when an upload is refused with "plan_expired" or "storage_full"
+              (apps/backend/src/services/eventUploadLimits.ts). To decide: when to warn (e.g.
+              7 days and 1 day before expiry; 80% and 95% of storage), push and/or email and/or
+              an in-app banner, a daily backend job to check, and not repeating the same warning.
+              Related: issue #6 (storage limits are web-only) and issue #58 (push settings).
 Done in:      -
 
 =====================================================================
