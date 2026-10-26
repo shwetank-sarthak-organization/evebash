@@ -3943,6 +3943,9 @@ How to test:
      Date line: if the wedding's date is today or later it says "We're getting married ♥ <date>";
      if the date has passed it says "Happily married since <date>" (no heart). Try one of each (change
      the main event's date in the host page). In an album the line follows the main event's date.
+     The names are always on one line (a long title gets smaller), with a little space between the
+     date line and tall letters like h, k, l. Open an album while logged out: the cover still shows
+     the couple's names and the same date line, not the album's name.
   3. Look at the top bar. Expect: the name on the left; Home, Collections, Find You in white and a
      white "Download All" button on the right. Scroll down. Expect: the bar turns soft white with
      dark text and Download All turns dark.
