@@ -3867,32 +3867,35 @@ Status:    TODO
 Priority:  Medium
 Platform:  Website (computer; phones and tablets still get the "Get the app" screen, #109)
 Brief:     Midnight Hero, the default gallery theme, was redesigned: the cover photo fills the screen,
-           a frosted bar at the bottom shows the names, the date, a gold monogram, a gold Enter Gallery
-           button and a round Share button, the page is midnight navy, and the top bar shows the title
-           in a gold script with the same links (Home, Collections, Find You, Download All) in a glass
-           pill. This checks it looks right and every button still works.
-Detail:    Commits 9abe281 and 9fed312 (gallery section, todo #7): src/components/TemplateHero.tsx, src/app/midnight-hero.css,
+           a square invitation card near the bottom shows the names, the date, a gold Enter Gallery
+           button and a Share button, the page is midnight navy, and the top bar shows the title in a
+           gold script in the centre with the same links (Home, Collections, Find You, Download All)
+           either side. This checks it looks right and every button still works.
+Detail:    Commits 9abe281, 9fed312 (gallery section) and f41b30d (invitation-style navbar and card),
+           todo #7: src/components/TemplateHero.tsx, src/app/midnight-hero.css,
            src/components/EventNavbar.tsx. Website only: the app's Midnight Hero is unchanged.
            Test gallery: /events/wedding-2-77d4 (Midnight Hero). Any gallery with no theme also uses it.
 How to test:
   1. On a computer, log in on staging and open a Midnight Hero gallery. Expect: the cover photo fills
-     the whole screen; at the bottom a frosted bar with the gallery name (a couple's "A & B" title
-     shows as "A weds B" for a wedding), the date, a round gold monogram with the initials, a gold
-     "Enter Gallery" button and a round share button. No "Save The Date", no "The Celebration Of",
-     no back arrow, no "Scroll Down".
-  2. Look at the top bar. Expect: the gallery title in gold handwriting on the left; Home,
-     Collections, Find You and Download All in a rounded glass bar on the right, all readable over
-     the photo. Scroll down. Expect: the top bar gets a dark navy background.
+     the whole screen; near the bottom a square card with a thin double gold border and a small gold
+     diamond on top, showing the gallery name (a couple's "A & B" title shows as "A weds B" for a
+     wedding), the date, a gold "Enter Gallery" button and a square share button. No "Save The
+     Date", no "The Celebration Of", no back arrow, no "Scroll Down".
+  2. Look at the top bar. Expect: the gallery title in gold handwriting in the centre, Home and
+     Collections to its left, Find You and Download All to its right, as plain text (the current
+     page in gold with a thin gold line under it), all readable over the photo; no rounded pill.
+     Scroll down. Expect: the top bar gets a dark navy background.
   3. Click each top-bar link: Home, a gallery under Collections, Find You, Download All. Expect: each
      does what it did before (Download All asks Home or whole event, then downloads a ZIP).
-  4. Click "Enter Gallery". Expect: the page scrolls down to the photos. Click the round share button.
+  4. Click "Enter Gallery". Expect: the page scrolls down to the photos. Click the square share button.
      Expect: the icon turns into a tick and the gallery link is copied (paste it somewhere to check).
   5. In the host page, change the gallery's cover position (move / zoom), save, then reopen the guest
      page. Expect: the big cover photo follows the new position. Also try a gallery with a very long
      title, an album under Collections (the couple's names show small above the album name), and a
      gallery with no date (no date line, nothing made up).
-  6. Make the browser window narrow (about 800 px wide) and short (about 600 px tall). Expect: the bar
-     becomes a card (monogram, name, date, buttons) and nothing goes under the top bar or off screen.
+  6. Make the browser window narrow (about 800 px wide) and short (about 600 px tall). Expect: the
+     top-bar links get smaller but still fit either side of the title, and the card and its buttons
+     stay on screen.
   7. Click Enter Gallery and look at the top of the gallery. Expect: "Back to Gallery" (or "Back to
      Event" in an album) and "Share Gallery" in thin gold-edged boxes at the sides, the event name in
      gold italic in the middle, a gold star, the gallery name in large letters with its last word in
@@ -3912,6 +3915,7 @@ Feedback:         2026-10-26 Claude, built-in browser at 1440x900 on staging (9a
                   the bar turns navy on scroll; step 4 Enter Gallery scrolls to the gallery and Share shows
                   the tick (the clipboard refused the copy only because the test window was not focused).
                   Not done: steps 3, 5, 6 and a real person's look on a real computer.
+                  (These results were for the earlier pill design; steps 1, 2 and 6 changed in f41b30d.)
 --------------------------------------------------------------------------------
 #149 New wedding theme Sunlit Portrait (website, computer and phone)
 Status:    TODO
