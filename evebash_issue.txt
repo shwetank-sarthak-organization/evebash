@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 169
+Next issue number: 172
 
 =====================================================================
 ACTIVE ISSUES
@@ -1036,6 +1036,39 @@ Blocked by: -
 Found in: Sunlit Portrait issue review (#163, 2026-10-28)
 Issue: The app carries code for a "show welcome card" switch that doesn't exist. The events table has no show_welcome_card column, yet apps/mobile/lib/database.ts maps it (showWelcomeCard in mapSqlToEvent and in the update field map), apps/mobile/app/events/[id].tsx checks (event as any).showWelcomeCard !== false before every theme's gallery message (always true, the value is always missing), and apps/mobile/app/(tabs)/gallery.tsx has a showWelcomeCard state that is never set or saved. Nothing breaks today, but it reads like a working switch (it misled #163), and passing showWelcomeCard to updateEvent would fail on the missing column. Fix: delete the mapping, the checks and the unused state; keep "clear the welcome text" as the way to hide the message (or add the column and a real switch if hosts ask for one).
 How to reproduce: select show_welcome_card from events fails with "column does not exist"; search apps/mobile for showWelcomeCard.
+
+#169
+Listed: 2026-10-28
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
+Issue: On the host page a host can't start a second set of photos or videos while one is still sending. The "Add or Drop Photos/Videos" tile is disabled (shows "Adding...") and dropped files are ignored while the page-wide status is "uploading" (src/app/(main)/host/page.tsx, the file input in the Add tile and handleGalleryDrop). The status is one value for the whole page, so an upload to one gallery also blocks every other gallery. It unlocks once all files have been sent, even while videos are still processing. The lock is also easy to get around: uploads keep running in src/context/UploadContext.tsx after leaving the page (#78), but status is page state, so going to another page and back resets it to idle and a second set starts next to the first (two sets of 3 files sending at once). The app has no such lock (it queues new sets, see #170). Fix idea: drop the page-wide lock and append new sets to the shared upload queue in UploadContext, with one shared set of upload workers, so a new set waits its turn instead of being refused or running in parallel. Note: the storage-limit check before each set doesn't count files still uploading from an earlier set.
+How to reproduce: Website, host page, pick 20 photos to upload; while they upload the Add tile shows "Adding..." and can't be clicked, and dropping files does nothing. Open another gallery: same. Now go to Dashboard and back to the host page while the upload runs: the tile works again and a second set uploads at the same time as the first.
+
+#170
+Listed: 2026-10-28
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
+Issue: Adding a new set of photos or videos in the app while an upload is running removes failed files from the queue. addToUploadQueue in apps/mobile/lib/uploadQueue.ts drops every completed and failed item before adding the new set ("Purge any stale finished items"). A failed file from the first set disappears from the upload card, so the host loses its Retry button and may not notice it never uploaded. Its durable copy in the app's upload folder is also left behind, because cleanupDurableFile only runs in clearFinishedUploads, and a failed large file's unfinished B2 upload isn't released. Fix idea: keep failed items when adding a new set (only drop completed ones), or run the same cleanup clearFinishedUploads does.
+How to reproduce: App, upload ~10 photos and make one fail (e.g. airplane mode is no longer enough since #144; use a file the server refuses, or a plan-limit failure). While the rest upload, tap Add Photo and pick more: the failed photo is gone from the upload card and can't be retried.
+
+#171
+Listed: 2026-10-28
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
+Issue: The app's upload progress counts are wrong when a second set is added while the first is uploading. The in-app upload card (apps/mobile/app/events/[id].tsx, total = uploadQueue[0]?.batchTotal) takes its total from the first set's file count but adds up progress for every file in the queue, so it can go past 100% or show e.g. "12 of 10". The phone notification (updateProgressNotification in apps/mobile/lib/uploadQueue.ts) takes the newest set's count but adds up every file for that event, so it can show "Uploading 13 of 5" (the percent is capped at 100). The "N files uploaded" notification at the end has the same mix-up. Fix idea: count the files still in the queue (or the sum of the active sets' sizes) instead of one set's batchTotal, in both places.
+How to reproduce: App, pick 10 photos to upload; while they upload, tap Add Photo and pick 5 more. Watch the upload card and the notification: the counts don't match 15 files.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
