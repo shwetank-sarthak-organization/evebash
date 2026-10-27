@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 161
+Next test number: 162
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4363,6 +4363,29 @@ How to test:
   5. App: go offline after picking a new cover photo, or tap remove cover. Expect: "Failed to update cover."
      / "Failed to remove cover." and the old cover stays.
   6. Back online, repeat steps 1, 3 and 4. Expect: the change saves and stays after a reload, as before.
+
+--------------------------------------------------------------------------------
+#161 App Settings: feedback reaches the team, dead items gone, FAQ up to date
+Status:    TODO
+Priority:  Medium
+Platform:  App
+Brief:     Report a Bug / Send Feedback used to say "Feedback Sent" and throw the message away. It now
+           saves it with the website's Contact Us messages. Discoverable Profile, Upload Quality and
+           Clear Media Cache did nothing, so they are hidden. The FAQ answers were out of date.
+Detail:    Issue #71, apps/mobile/app/settings.tsx and apps/mobile/lib/database.ts, commit 75ae2fd.
+           Needs a new app build pointed at the staging backend.
+How to test:
+  1. Sign in with an email account. Settings > Report a Bug / Send Feedback, pick Bug, type
+     "test #161 email", tap Send Feedback. Expect: "Feedback Sent". Ask Sarthak to check
+     contact_messages: a row with source "mobile", your email and "[App Bug] test #161 email".
+  2. Repeat with a phone-number account. Expect: "Feedback Sent", and the saved message shows the
+     phone number.
+  3. Turn on airplane mode and send again. Expect: an error, and the text stays in the box.
+  4. Settings > Contact Us (if reachable) still sends as before.
+  5. Scroll Settings. Expect: no Discoverable Profile, no Storage & Quality section (Upload Quality,
+     Clear Media Cache). Withdraw Find You Consent is still under Privacy.
+  6. Open each FAQ. Expect: no "250 photos", no "Register Business", no "5-character event code";
+     free plan says 1 GB and one event.
 Done by:
 Device / browser:
 Build / version:
