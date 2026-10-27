@@ -4314,8 +4314,8 @@ Brief:     Step 1 of the new video pipeline changes how the streaming copies are
            behind two keys of the Modal video switch, off by default. Before it is turned on for every
            gallery, videos made with it must play and seek normally on real phones and browsers.
 Detail:    modal_engine/main.py (_read_hls_step1_switch, _EarlySegmentUploader), switch keys gop_6s and
-           upload_early. Blocked until the Modal app is deployed with this code and both keys are set to
-           "test" for one test gallery (modal_engine/video_gpu_switch.py gop-6s test, upload-early test,
+           upload_early. The code is live on Modal v133 (deployed 2026-10-27, keys off). Blocked until both
+           keys are set to "test" for one test gallery (modal_engine/video_gpu_switch.py gop-6s test, upload-early test,
            add-test-gallery <gallery id>). Developer: set Status to TODO and write the gallery here then.
 How to test:
   1. In the test gallery, upload a phone video of about 2 min, a 4K video, an iPhone HDR video and one

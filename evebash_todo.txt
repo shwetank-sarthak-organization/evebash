@@ -401,7 +401,7 @@ Update:      2026-10-27 (quality check, reports/Video output quality check 2026-
               lower PSNR and lower SSIM at 1080p/720p, and 4 VMAF lower than p4 on 60 fps HDR. Apply the same 6 s
               keyframe change to the CPU (libx264) workers too. Final pipeline: reports/Final video pipeline recommendation 2026-10-27.md.
 Done in:      -
-Update:      2026-10-27 (on staging in 16a78cf; Modal not deployed, keys off): modal_engine/main.py. Switch key gop_6s (off | test | on, default off): the keyframe interval is 6 s of
+Update:      2026-10-27 (on staging in 16a78cf; live on Modal v133 since 2026-10-27, key off): modal_engine/main.py. Switch key gop_6s (off | test | on, default off): the keyframe interval is 6 s of
               the video's own frame rate (from ffprobe avg_frame_rate, else r_frame_rate, else 48 as before) on
               the CPU workers (-g and -keyint_min), the full-GPU worker and both steps of the all-formats GPU
               worker (-g). Keyframes stay forced at every 6 s mark. p3 is NOT part of it (dropped after the
@@ -437,7 +437,7 @@ Update:      2026-10-27: do NOT stream the original into ffmpeg. Without -reconn
               far from B2 it was 2x slower (178 vs 85 s). Final recipe: download first (as today), upload
               segments while encoding, master last. Measured as part of the new recipe (reports/Final video pipeline recommendation 2026-10-27.md).
 Done in:      -
-Update:      2026-10-27 (on staging in 16a78cf; Modal not deployed, keys off): only the upload half. The original is still
+Update:      2026-10-27 (on staging in 16a78cf; live on Modal v133 since 2026-10-27, key off): only the upload half. The original is still
               downloaded first (streaming it from B2 can end ffmpeg early with exit 0). Switch key upload_early
               (off | test | on, default off): while ffmpeg runs, each segment is uploaded once the next segment
               file exists (ffmpeg writes a VOD playlist only at the end, so the playlist can't be used for this);
