@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 157
+Next test number: 158
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4221,6 +4221,36 @@ How to test:
      "Error" box saying "Failed to update welcome message."; your text stays and Save is still shown.
   6. Turn airplane mode off and tap Save again. Expect: "Welcome message updated." Close the app, open
      it again and check the gallery: the new welcome message is shown.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+--------------------------------------------------------------------------------
+#157 Homepage shows its headline straight away on a phone (no loading screen first)
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     The homepage used to show the full-screen "Loading your gallery" screen first and the headline
+           only after the page's code ran (issue #29). Now the headline is in the first page load. This
+           checks the homepage on a slow phone, that the other pages still look and load as before, and
+           that italic text in gallery themes is still real italic.
+Detail:    Commit ae9f66e. Staging shows phones the "Get the EveBash app" screen (#109), so test the
+           homepage on www.evebash.com once production has this change, or on staging from a laptop with
+           the browser's phone view. For step 1, Chrome dev tools > Network > "Slow 4G" makes it easy to see.
+How to test:
+  1. Open the homepage on a phone (or laptop Chrome, phone view, Slow 4G, cache off). Expect: the dark
+     page with "Deliver every event's memories, beautifully organized." appears; at no point a full-screen
+     "Loading your gallery" screen. The headline may show in a plainer font for a moment, then the
+     elegant font.
+  2. Scroll down the homepage. Expect: all sections there as before (How it works, Find You, guest
+     features, who it's for, pricing, FAQ, final button), footer at the bottom.
+  3. From the homepage, tap Pricing, Log in and See a sample gallery. Expect: each opens as before.
+  4. Open a gallery in a theme with italic text (e.g. Royal Emerald or Classic White). Expect: italic
+     words look properly slanted in the theme's font, same as before.
 Done by:
 Device / browser:
 Build / version:

@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 160
+Next issue number: 162
 
 =====================================================================
 ACTIVE ISSUES
@@ -124,18 +124,6 @@ Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www
 Note 2026-10-26: option to unblock it without our own gallery photos: the Unsplash connector for Claude (free photos;
 connect it in claude.ai Settings > Connectors) can find wedding/event photos to use here. Check the Unsplash licence and
 credit wording before shipping, and prefer real EveBash photos when they are ready. Sarthak to check later.
-
-#29
-Listed: 2026-10-11
-Platform: Website
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Website UI re-check (2026-10-11)
-Issue: On phones the homepage headline (the LCP element) appears at 4.3 s; Lighthouse puts 81% of it in render delay. Likely cause: three self-hosted font families with italic styles (Inter, Playfair Display, Akaya Kanadaka in src/app/fonts.ts), with the headline waiting on Playfair. Lighthouse phone performance is 80.
-How to reproduce: npx -y lighthouse@12 https://staging.evebash.com/ --only-categories=performance and check largest-contentful-paint-element.
-Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor. Google still crawls the phone version after that too, so the search-ranking part stays.
 
 #32
 Listed: 2026-10-11
@@ -1057,9 +1045,45 @@ Found in: Fixing #155 (chat 2026-10-27)
 Issue: Same problem as #155 in more places: updateEvent returns false when a save fails, and these callers never check it, so the screen keeps the new value (and some show a success message) when nothing was saved. Website, src/app/(main)/host/page.tsx: changing the theme (handleUpdateTemplate, about :3343 and the sub-gallery cascade just below), saving a new join code when sharing (about :3079), and setting the first uploaded photo as cover (about :2687). App, apps/mobile/app/events/[id].tsx: cover upload and cover remove (about :2536 and :2604; they then update storage usage as if the cover changed), theme (about :2694), event type (about :2714), cover Fit/Fill (about :4075, toast shown before saving), cover position (about :8583, "Cover position saved" shown before saving) and linking a vendor (about :8411, Phase 2 business feature). Fix: same as #155, check the returned value, show the existing error and put the old value back. Lower priority than #155 because these are less often edited and most show the change straight away rather than a message about text.
 How to reproduce: Load the host page (website) or the event screen (app), turn the internet off, then change the theme or the cover position: the change appears to stick; reload and the old theme or position is back.
 
+#160
+Listed: 2026-10-27
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Re-measuring #29 (chat 2026-10-27)
+Issue: The phone/tablet download screen (#109) is shown to Lighthouse, so speed checks of a gated site measure the download screen, not the page. shouldShowAppGate in src/lib/appGate.ts skips visitors whose browser name matches bot|crawl|spider|slurp|lighthouse|headless|preview, but Lighthouse 12 runs as "Mozilla/5.0 (Linux; Android 11; moto g power (2022)) ... Chrome/136 Mobile Safari/537.36" with none of those words. On staging today (gate on), the #29 command reports the download screen's paragraph (src/components/MobileAppGate.tsx:67) as the LCP. Once the gate is on for www.evebash.com (#109), PageSpeed Insights phone results may do the same. Googlebot is still caught ("bot"). Fix idea: decide whether page checkers should see the website at all (real phone visitors won't), and if so match "Chrome-Lighthouse" / PageSpeed's own names, checked against a real PageSpeed run; otherwise fix the comment that says page checkers must still see the website.
+How to reproduce: npx -y lighthouse@12 https://staging.evebash.com/ --only-categories=performance --output=json, then look at largest-contentful-paint-element: it is a <p> from the download screen, not the homepage headline.
+
+#161
+Listed: 2026-10-27
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Fixing #29 (chat 2026-10-27)
+Issue: The other main pages still paint the full-screen "Loading your gallery" screen before their content on every first load, as the homepage did in #29. Each (main) section's loading.tsx (re-exporting src/components/RouteLoading.tsx) wraps its page in a Suspense boundary, and React 19.2 sends any ready content after a ~12.8 KB page shell behind the fallback, revealed by a delayed script. Checked on a local build: /pricing, /privacy-policy and /sample-galleries have the loading screen first and the page in a hidden part; /login does not. It also says "Loading your gallery" on pages that aren't galleries. Fix idea: keep loading.tsx only where the page waits on the server (pricing's layout fetch, sample-galleries/[client], profile/[id]); client pages and the policy pages don't need one. That changes what shows while moving between pages, so decide per page.
+How to reproduce: curl -s https://staging.evebash.com/pricing | grep -c 'Loading your gallery' gives 2 and the page has <template id="B:0">; on a slow phone the loading screen shows before Pricing.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#29
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: On phones the homepage headline (the LCP element) appears at 4.3 s; Lighthouse puts 81% of it in render delay. Likely cause: three self-hosted font families with italic styles (Inter, Playfair Display, Akaya Kanadaka in src/app/fonts.ts), with the headline waiting on Playfair. Lighthouse phone performance is 80.
+How to reproduce: npx -y lighthouse@12 https://staging.evebash.com/ --only-categories=performance and check largest-contentful-paint-element.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor. Google still crawls the phone version after that too, so the search-ranking part stays.
+Note 2026-10-27: re-measured. The repro command above measures the wrong page on staging: Lighthouse 12's phone browser name has no "lighthouse" in it, so the download screen (#109) is shown and Lighthouse reports a paragraph on it as the LCP (see #160). On www.evebash.com the headline was still the LCP at 3.9 s and 4.6 s (scores 78 and 58). Real cause: the homepage sat under src/app/(main)/loading.tsx, and React 19.2 sends any ready Suspense content after a ~12.8 KB page shell behind its fallback. So every first load painted the full-screen "Loading your gallery" screen first, and the headline only after a delayed swap script, waiting on the JavaScript. The fonts were a smaller part: display was already swap, but 5 font files (~195 KB, including two italics the homepage doesn't use) were preloaded.
+Fixed in: ae9f66e (2026-10-27). (1) (main)/loading.tsx is gone; each (main) section has its own loading.tsx re-exporting src/components/RouteLoading.tsx, so the other pages keep their loading screen and the homepage has none (its HTML now has the headline directly, no hidden part). (2) src/app/fonts.ts: Inter and Playfair italics are separate calls with the same family names and preload off, so 3 fonts are preloaded instead of 5; italic text still uses the real italic faces (checked in the browser). (3) src/app/globals.css: Tailwind only scans src/ (CSS 378 KB -> 311 KB; no class used in src was dropped). Checked on a local production build, Lighthouse 12 phone, median of 5 runs: score 67 -> 88, LCP 5.4 s -> 3.7 s, TBT 499 -> 106 ms; unthrottled, the headline now paints with the first paint (234 ms) instead of ~1.4 s. The 3.7 s left is Lighthouse's estimate counting ~260 KB of JavaScript that starts early. Re-run on www after production deploys (with the gate on, add --emulated-user-agent with "Chrome-Lighthouse" in it, or use www). Device test #157. Other main pages still paint the loading screen first: #161.
+
 #155
 Listed: 2026-10-27
 Platform: Both
