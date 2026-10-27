@@ -378,7 +378,7 @@
 
 /* ---------- Footer (src/components/portrait/PortraitFooter.tsx, on every Sunlit Portrait page) ----------
    Confetti Circle's layout on the cover's ink: EveBash links at the far left, legal links at the far right, and in the
-   middle the date line over the couple's names (one line) with "Made with EveBash". Phones: the middle first, the two
+   middle the couple's names (one line) with "Made with EveBash". Phones: the middle first, the two
    link lists side by side under it. */
 .portrait-footer {
   /* No top margin: the page wrapper behind it has no background, so a gap would show the site's body colour */
@@ -406,21 +406,11 @@
 }
 .portrait-footer__link:hover { color: #fff; }
 .portrait-footer__middle { display: flex; flex-direction: column; align-items: center; min-width: 0; text-align: center; }
-.portrait-footer__line {
-  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 12px;
-  font-family: var(--sp-display);
-  font-size: var(--sp-label-size);
-  line-height: 1.25;
-  -webkit-text-stroke: var(--sp-label-stroke) currentColor;
-  paint-order: stroke fill;
-}
-.portrait-footer__heart { font-size: .6em; color: #E0A487; -webkit-text-stroke: 0; }
 /* The names: one line, shrunk to fit the middle column by useFitOneLine */
 .portrait-footer__couple {
   width: 100%;
-  margin-top: 2px;
   font-family: var(--sp-display);
-  font-size: clamp(3.5rem, 8vw, 8rem);
+  font-size: clamp(2.5rem, 4.5vw, 4.5rem);
   line-height: 1;
   letter-spacing: -.01em;
   white-space: nowrap;
