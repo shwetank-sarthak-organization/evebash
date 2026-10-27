@@ -61,14 +61,14 @@ How to test:
   1. Log out (or use a private/incognito window).
   2. Open a gallery link, tap Find You.
   3. Expect: "log in" prompt, no search runs.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Website part PASS: logged out, Find You on a public event (test-face-new, made public for the test) opens /find-you with "Log in to use Find You" and Log in / Create account; no search runs. App part not checked.
 
 --------------------------------------------------------------------------------
 #3  Public gallery link - logged out = view only
@@ -82,14 +82,14 @@ How to test:
   2. Open the link logged out (incognito on web).
   3. Expect: photos and videos visible and playable.
   4. Expect: no download, like, comment buttons work (they ask to log in or are hidden).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Website part PASS: test-face-new made public for the test (set back to Private afterwards). Logged out: Photos (43) / Videos (3) show; Like, Comments and Download original all open "Log in to continue" (Create account / Log in), Escape closes it. Video playback and the app part not checked.
 
 --------------------------------------------------------------------------------
 #4  Public gallery link - logged in = joins at once
@@ -123,14 +123,14 @@ How to test:
   4. Repeat with a new account, host REJECTS -> guest sees the normal Request screen
      again and can ask again (goes back to waiting).
   5. Logged out on a private link: expect "log in", no photos visible.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Partly checked: logged out, a private event (test-face-new, wedding-2-77d4) shows "This gallery is private" with Log in / Create account. Request and host approval need a second account - needs a person.
 
 --------------------------------------------------------------------------------
 #6  Join with join code
@@ -247,21 +247,21 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #12 Sample gallery opens logged out
-Status:    TODO
+Status:    BLOCKED
 Priority:  Medium
 Platform:  Website + App
 Brief:     The sample "Wedding" gallery is read-only for anyone.
 How to test:
   1. Logged out, open the sample gallery from the homepage / app.
   2. Expect: opens, photos visible, no like/comment/download.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: No sample galleries on staging: /sample-galleries says "No sample galleries are available yet." and /sample-galleries/wedding-fdd8 is a 404. Note added to issue #32.
 
 --------------------------------------------------------------------------------
 #13 Sign-up username
@@ -311,14 +311,14 @@ How to test:
   1. Upload 20-50 photos.
   2. Expect: all show previews within a few minutes, none stuck "processing".
   3. Find You on that gallery finds the people in them.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Website PASS: 3 JPEGs (1600x1067) uploaded to a new test sub-gallery; uploaded, processed, indexed, Done in ~30 s; 480x320 thumbnail and 1600x1067 preview made; first photo became the gallery cover. Test sub-gallery deleted afterwards. App upload not checked.
 
 --------------------------------------------------------------------------------
 #16 Video upload - short and long
@@ -380,7 +380,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #19 Profile storage card shows events and EB Vault
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website + App
 Brief:     Events and EB Vault share one plan storage limit. Profile shows the total plus each part.
@@ -388,14 +388,14 @@ How to test:
   1. Open Profile (website /profile, and the app's Profile tab).
   2. Expect: "X of <plan> used", a two-colour bar, Event Storage and Vault Storage rows, and space left.
   3. Upload a file to EB Vault (test #20), reopen Profile: Vault Storage and the total go up.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device + iOS Simulator, iPhone 17 Pro, iOS 26.3 (local Release build); not a real iPhone
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c); App 1.2.4 local Release simulator build from staging e79333c
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Website and iOS simulator show the same card: 44.77 GB of 50 GB, Event Storage 44.64 GB + Vault Storage 124.76 MB, 5.23 GB free.
 
 --------------------------------------------------------------------------------
 #20 EB Vault - upload files and a folder
@@ -791,7 +791,7 @@ Feedback:  2026-10-11 all 5 parts pass. Found on the way and fixed: join box cut
 
 --------------------------------------------------------------------------------
 #39 Storage used shows the same number on website and app
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website now; App (new build from staging with 8acf63a)
 Brief:     Storage is now counted by the server for both (issue #6). The app used to leave out
@@ -799,14 +799,14 @@ Brief:     Storage is now counted by the server for both (issue #6). The app use
 How to test:
   1. Same account: website Profile -> storage, and app Profile/Usage -> storage.
   2. Expect: the same "used" number on both (small rounding differences are fine).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device + iOS Simulator, iPhone 17 Pro, iOS 26.3 (local Release build); not a real iPhone
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c); App 1.2.4 local Release simulator build from staging e79333c
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:   8acf63a (2026-10-10)
-Feedback:
+Feedback: Same numbers on website /profile and the app Profile: 44.77 GB of 50 GB (Event 44.64 GB, Vault 124.76 MB). Android app not checked.
 
 --------------------------------------------------------------------------------
 #40 Uploads stop at the gallery owner's storage limit (website and app)
@@ -874,14 +874,14 @@ How to test:
      both logged out and logged in.
      Expect: links are in the plain Inter font and easy to read; the "EveBash" logo text still uses
      the brand font; the active page is underlined (desktop) or highlighted (phone menu).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Computer PASS: no fixed chat button on /dashboard; navbar links are Inter, the EveBash logo text is Akaya Kanadaka. Phone menu not checked (staging shows phones the Get the app screen, #123).
 
 #43 Guest panel has no "View Access" switch; removing a guest still works (website and app)
 Status:    TODO
@@ -1156,14 +1156,14 @@ How to test:
      and each album opens its gallery.
   5. After the merge to main: paste https://www.evebash.com into https://search.google.com/test/rich-results.
      Expect: FAQ and Organization detected, no errors. Do the same for /pricing (Software App detected).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: 404 page PASS on computer (EB logo, "We couldn't find that page", Go to the homepage, Sample galleries, Pricing, Contact us). Note: it shows "Go to my events" (also when logged out) where the test expects "Find your photos". Sample gallery step FAILS: no sample galleries on staging (see #12, issue #32). WhatsApp previews and Rich Results need a person.
 
 #54 Typing in bottom sheets: the keyboard doesn't make the sheet flicker or cover the text box
 Status:    TODO
@@ -1352,14 +1352,14 @@ How to test:
   1. Open the app logged out, then log in. Expect: no error or red/yellow warning about a missing "social" route.
   2. Expect: the bottom tab bar has the same tabs, in the same order, as the previous build.
   3. Tap every tab and open a gallery. Expect: each opens as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: iOS Simulator, iPhone 17 Pro, iOS 26.3 (local Release build); not a real iPhone
+Build / version: App 1.2.4 local Release simulator build from staging e79333c
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: iOS simulator: app opened signed in, no error; tab bar Dashboard, Host, EB Network, Profile; Dashboard and Profile open. Logged-out start, every tab and Android not checked.
 
 --------------------------------------------------------------------------------
 #61 Event Partners is hidden until Phase 2 (website and app)
@@ -1374,14 +1374,14 @@ How to test:
   3. Website, Host -> an event: tabs are Galleries, Permissions and Design (no Partners), in one even row.
   4. App, as a guest: open a gallery. No Partners tab in the top menu.
   5. App, as the host: open the event. Tabs are Galleries, Permissions and Design (no Partners).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Website steps 1-3 PASS: gallery menu Home / Collections / Find You / Download All; /event-partners goes back to the gallery; Host event tabs Galleries, Permissions, Design, Album (no Partners). App steps not checked.
 
 --------------------------------------------------------------------------------
 #62 Host gets "New access request" when someone asks to join a private gallery
@@ -1414,7 +1414,7 @@ Feedback:  2026-10-12 partial, emulator only (Claude, for Sarthak): step 2 PASS.
 
 --------------------------------------------------------------------------------
 #63 Event visibility is now an on/off switch (website Permissions tab)
-Status:    TODO
+Status:    PASS
 Priority:  Low
 Platform:  Website (staging.evebash.com; check on a phone browser too)
 Brief:     The Private/Public drop-down on Host -> an event -> Permissions is now a card with a switch. Off = Private
@@ -1427,14 +1427,14 @@ How to test:
      Confirm: the switch turns gold, the card says Public, and it stays Public after a page reload.
   4. Click it again. Expect: it goes back to Private straight away (no confirm) and stays Private after a reload.
   5. On a sub-gallery, and as an approved guest who is not an admin: expect no visibility card.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Computer: Permissions shows Event visibility with one switch. Private -> Public asks "Make event public?" (dark card, X, Cancel / Make public) and then reads "Public - Anyone with the link can view this event and its sub-galleries." Switching back to Private works. Phone browser not possible on staging (Get the app screen, #123).
 
 --------------------------------------------------------------------------------
 #64 Website modals all look the same (dark gold) and close with an X
@@ -1460,14 +1460,14 @@ How to test:
   5. Pricing -> pick a different plan: the confirm has an X, and Cancel / Continue to Payment work as before.
   6. EB Vault: New folder, Rename, Delete, Move: each has an X; file preview X closes it.
   7. On a phone browser, repeat a few: the card fits the screen with a margin and the X is easy to tap.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Partly: Delete Gallery confirm (dark card, X, red Delete), New Sub-Gallery (dark card, X, gold button), Photo Actions (dark card, X), Delete 2 photos? confirm and Make event public? confirm all match. Other popups not checked. Note: creating a sub-gallery shows the toast "Your event has been created!" (issue #174).
 
 --------------------------------------------------------------------------------
 #65 Host Event Design tab: new layout with phone and website preview
@@ -1540,14 +1540,14 @@ How to test:
      both password boxes fill. Create Account stays greyed out until the Terms box is ticked.
   6. Let the browser autofill a saved email and password. Expect: text in the boxes is still readable.
   7. Tap "Forgot Password?", "Back to site", and the Terms / Privacy Policy links. Expect: each opens.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Computer PASS: new login page logs in with email and lands on /dashboard; sign-up page shows. Phone browsers not possible on staging (Get the app screen, #123).
 
 #68 Website: gallery page inside an event (new design) still works
 Status:    TODO
@@ -1578,14 +1578,14 @@ How to test:
      the "Source gallery" filter works.
  13. On a phone: nothing is cut off, no sideways scrolling, the Favourites and Grid/List switches sit on
      one line, and the buttons are easy to tap.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Partly PASS (computer): top bar "claude-test - Sub-Gallery" with Download / Delete, Welcome Message box, Add or Drop tile first, star and "..." always shown, Grid / List switch works, "..." opens Photo Actions, star turns gold, Favourites only count 1, Select gives gold outlines. Not checked: welcome message save, drag and drop, Move, Download zip, phone.
 
 #69 App: over-the-air updates (expo-updates) install and the app still starts
 Status:    TODO
@@ -1624,14 +1624,14 @@ How to test:
   5. Click "Create Sub-Gallery" tile and "Add Sub-Gallery". Expect: both open the New Sub-Gallery form.
   6. Event with no sub-galleries: only the Primary card and the dashed tile show.
   7. Phone width: cards stack in one column, nothing sticks out sideways; long names are cut with "...".
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Computer steps 1-6 PASS on test-face-new: heading with (i) and Add Sub-Gallery; Primary card twice as wide with Primary Collection badge and no delete; sub-gallery trash opens the delete confirm, Cancel keeps it; Create Sub-Gallery tile opens the form. Phone width not possible on staging (#123).
 
 #71 Theme pickers hide the 19 themes without a website design; old events keep theirs
 Status:    TODO
@@ -1748,14 +1748,14 @@ How to test:
   6. Open /dashboard on a phone. Expect: no sideways scroll; the button reads "Join" next to the heading; stats and
      cards stack.
   7. Account with no events. Expect: "No events yet" message, no Your memories card.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Computer: layout as described, 3 event cards + Your memories. At ~1024 px the Total Photos stat is cut off ("661 Pho...") - issue #175. Counts vs host page, Join and phone not checked.
 
 #75 Website: "Your memories" Explore All opens the full events page
 Status:    TODO
@@ -1782,14 +1782,14 @@ How to test:
   8. Account with 1-2 events: click Explore All. Expect: the page opens (it used to do nothing).
   9. Phone browser: no sideways scroll; search, sort and type stack neatly; tabs scroll inside their pill.
   10. Logged out, open /dashboard/events. Expect: sent to the login page.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Computer PASS: Explore All opens /dashboard/events (5 Collections); Hosted Galleries tab -> ?tab=hosted (4); browser Back returns to /dashboard; search and "No matches" work; logged out /dashboard/events goes to /login. Sort/type filter not tried; phone not possible on staging (#123).
 
 #76 Website: host page event cards use the dashboard card design
 Status:    TODO
@@ -1836,14 +1836,14 @@ How to test:
      support@evebash.com; About, Terms and Privacy open their pages. The Profile button goes back.
   6. Delete Account (THROWAWAY account only): type DELETE, confirm. Expect: account deleted, logged out.
   7. Phone browser: nothing sticks out sideways, texts wrap.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Computer steps 1, 3, 5 PASS: Edit Profile + Settings side by side, no Relationship / Anniversary / Privacy switch / Delete Account on /profile; Settings shows Signed in via Email, Change Password, Withdraw Find You Consent, Delete Account, Report a Bug -> /contact-us, support mailto, About / Terms / Privacy. Not run: edit-and-save, change password, delete account (would change the shared test account).
 
 #78 App: profile without relationship status, anniversary and Private Account
 Status:    TODO
@@ -1858,14 +1858,14 @@ How to test:
   2. Edit: no Relationship Status or Anniversary fields. Change the location and save. Expect: saved.
   3. Gear icon > Settings: the Privacy section only has Discoverable Profile; it still switches.
   4. Website and app on the same account: the same profile fields show on both.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: iOS Simulator, iPhone 17 Pro, iOS 26.3 (local Release build); not a real iPhone
+Build / version: App 1.2.4 local Release simulator build from staging e79333c
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: iOS simulator: Profile has no Relationship Status, Anniversary or Private Account; "Complete your profile" says location, gender and more; Settings Privacy only has Withdraw Find You Consent (Discoverable Profile was removed by #161, so step 3's text is out of date). Edit-and-save and Android not checked.
 
 #79 Wedding, Birthday and Sports events without a cover show their new default photo
 Status:    TODO
@@ -1913,14 +1913,14 @@ How to test:
      /vault; the old "Active Quota" text and the EB Vault card in the right column are gone. On the Plans
      tab the table heading reads "Plans and Quotas".
 Expected:  No bright yellow or navy anywhere on the page; amber warning badges (e.g. "Needs Entry") stay.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Computer: dark page background rgb(19,25,31); EB Vault button next to the Profile Overview / Plans switch; no "Active Quota". Colours by eye, Plans tab and phone not checked.
 
 --------------------------------------------------------------------------------
 #81 "Uploaded by" filter in the host gallery view (website and app)
@@ -2012,14 +2012,14 @@ How to test:
   6. App, logged out, public gallery: open a photo. Like, Comment, Share and Download show; each asks
      "Log in to continue" with Not now / Log in. Log in opens the login screen and returns to the gallery.
   7. A private gallery logged out: still "This gallery is private" (unchanged).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Website PASS: logged out on a public event, Like / Comments / Download original each open "Log in to continue". App not checked.
 
 --------------------------------------------------------------------------------
 #85 "Home (Primary Gallery)" name and the Galleries info icon
@@ -2035,14 +2035,14 @@ How to test:
   3. The Source gallery filter, and the Move to gallery list, say "Home (Primary Gallery)" (not "Main event").
   4. App, host view of an event: the section above the main card says HOME (PRIMARY GALLERY); the move list
      and Source gallery list say "Home (Primary Gallery)".
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Website steps 1-2 PASS: the big card says "Home (Primary Gallery)"; the (i) next to Galleries explains Home vs sub-galleries and Escape closes it. Note: the guest page heading says "Main Event: test-face-new". Step 3 and the app not checked.
 
 --------------------------------------------------------------------------------
 #86 Shared galleries show the owner's name (website and app)
@@ -2104,14 +2104,14 @@ How to test:
      Continue with Google still works.
   2. Log in with an existing email account: works. Create a new account with email: works.
   3. App login screen, both Log in and Sign up: no Email | Phone switch; Google and Apple buttons still show.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Website PASS: /login and /login?mode=signup show email + password only (no Email | Phone switch), Continue with Google shows; email login works. Account creation and the app login screen not checked.
 
 --------------------------------------------------------------------------------
 #89 Hide a sub-gallery from guests (website and app)
@@ -2154,14 +2154,14 @@ How to test:
   4. Find You with a selfie that matches a hidden photo: that photo isn't in the results.
   5. Logged out, public event: hidden items don't show.
   6. Host -> Download (or Entire event): hidden items are included for the host.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Website PASS: host selected 1 photo in a test sub-gallery -> Hide from guests -> "1 item hidden from guests." and a HIDDEN badge; logged-out view of that sub-gallery shows Photos (2) of 3. App not checked.
 
 --------------------------------------------------------------------------------
 #91 Home (Primary Gallery) shows the favourites and then its own uploads
@@ -2177,14 +2177,14 @@ How to test:
   4. Download All on Home -> "Home only": the ZIP has both the favourites and the Home uploads.
   5. The (i) next to Galleries on the host page describes Home this way.
   6. Logged out on a public event: Home shows its favourites and its own uploads.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Partly: starring a photo in a sub-gallery raised Home from 42 to 43 photos for a logged-out visitor. Other steps not checked.
 
 --------------------------------------------------------------------------------
 #92 A sub-gallery an event admin creates isn't listed as the admin's own event
@@ -2226,14 +2226,14 @@ How to test:
      Click again: it expands. There is no chevron button.
   7. Clicking Clear, Cancel all uploads or the close X does its own job and doesn't minimize the panel.
   8. Keyboard: Tab to the header, press Enter: it minimizes / expands.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Partly: the upload panel shows an X on each file and Cancel all. Cancelling and minimizing not tried.
 
 #94 Uploads and the upload panel stay when you go to another page
 Status:    TODO
@@ -2252,14 +2252,14 @@ How to test:
   6. With nothing uploading, refresh any page: no "Leave site?" question.
   7. Repeat step 1-2, but while uploading open a different gallery on the host page: uploads still finish
      and the panel shows "Indexing..." / Done for the first gallery's files.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Computer: while 3 photos were processing I clicked Dashboard; the panel stayed and finished there ("100% complete - 3 files ready"). Other steps not checked.
 
 #95 Host gallery: one Filter button holds Source gallery, Uploaded by and Select
 Status:    TODO
@@ -2293,7 +2293,7 @@ Fix ref:
 Feedback:
 
 #96 Host gallery: delete several photos and videos at once
-Status:    TODO
+Status:    FAIL
 Priority:  High
 Platform:  Website (desktop browser)
 Brief:     The selection bar (Filter > Select) now has a red Delete button. It asks first, then deletes every
@@ -2308,14 +2308,14 @@ How to test:
   5. Storage used (host page) goes down after the delete.
   6. Select 1 item and delete it: the dialog says "Delete 1 item?" / "It'll be removed...".
   7. With nothing selected, Delete is greyed out.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Select all, deselect one, Delete -> "Delete 2 photos?" -> Delete: the 2 photos go away from the grid, but the tab still says "Photos (3)" with 1 photo left (step 3 expects the count to go down). Issue #173. Video, guest page and storage steps not checked.
 
 #97 Photo pipeline v2: website bulk upload
 Status:    PASS
@@ -3049,14 +3049,14 @@ How to test:
   8. A computer (Mac and Windows): every page shows the website, no download screen.
   9. Google's Mobile-Friendly / URL Inspection test (Search Console) on the homepage: expect the website,
      not the download screen.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser, Android phone emulated (375x812); not a real phone
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Emulated Android phone, signed in: /dashboard and /events/wedding-2-77d4 show only "Get the EveBash app" with Signed in as New, Profile / Activate a plan / Log out; /privacy-policy, /contact-us, /pricing and /profile?tab=plans open normally. iPhone, iPad, tablets, logged-out and reset-password steps need a person.
 
 --------------------------------------------------------------------------------
 #124 Deleting photos and videos shows the right words and a "Deleting..." progress
@@ -3084,14 +3084,14 @@ How to test:
   6. Delete a photo. Expect: the same with "Photo".
   7. Turn on airplane mode and delete a photo. Expect: an error "Couldn't delete the photo.",
      the photo stays, the card shows it couldn't be deleted.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Partly: confirm reads "Delete 2 photos? They'll be removed from this event for everyone. This can't be undone." The Deleting... progress was too quick to see. App not checked.
 
 --------------------------------------------------------------------------------
 #125 Cancel a video or photo upload at any stage (website)
@@ -3143,14 +3143,14 @@ How to test:
   5. Phone app (new build): Profile -> Storage card, tap Event Storage. Expect the same list, arrow
      flips up/down, tap again closes it.
   6. A host with no videos/voice notes: those lines show 0 B, nothing breaks.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: iOS Simulator, iPhone 17 Pro, iOS 26.3 (local Release build); not a real iPhone
+Build / version: App 1.2.4 local Release simulator build from staging e79333c
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: iOS simulator PASS: tapping Event Storage opens Photos 5.69 GB, Videos 38.95 GB, Voice notes 23.27 KB, Album designs 2.26 MB. Website not checked.
 
 --------------------------------------------------------------------------------
 #127 Classic White guest page redesign (computer browser)
@@ -4004,14 +4004,15 @@ How to test:
   3. Open a gallery that has photos (any theme). Expect: it opens on Photos as before.
   4. Open an album under Collections that has only videos (or upload only a video to a test album).
      Expect: it opens on Videos. Switch back to an album with photos: it opens on Photos.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
 Feedback:         2026-10-26 Claude, built-in browser (computer size) on staging with 5d7fe4f, host account:
+          2026-10-28 Claude: Steps 1-3 PASS: wedding-2-77d4 (0 photos, 5 videos) opens on Videos; clicking Photos stays on Photos ("No photos yet"); test-face-new opens on Photos (42). Step 4 (videos-only album under Collections) not checked.
                   1 PASS wedding-2-77d4 opened on Videos (1), no "No photos yet."; 2 PASS clicking Photos
                   stayed on Photos; 3 PASS test-face-new-155c (42 photos, 3 videos) opened on Photos.
                   Step 4 not done (no video-only album to hand).
@@ -4141,14 +4142,14 @@ How to test:
      second or so the "Before you continue" popup appears and the page can't be used until you tick
      the box and tap Accept and continue (or Sign out).
   3. With the account from step 2, open /privacy-policy. Expect: no popup on the policy pages.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Step 1 PASS: after a fresh email login, /host -> /dashboard -> /host watched with a page observer: the "Before you continue" popup never appeared. Step 2 (new account) needs a person.
 
 --------------------------------------------------------------------------------
 #155 Download works in the main gallery and in sub-galleries (website and app)
@@ -4406,14 +4407,14 @@ How to test:
      Clear Media Cache). Withdraw Find You Consent is still under Privacy.
   6. Open each FAQ. Expect: no "250 photos", no "Register Business", no "5-character event code";
      free plan says 1 GB and one event.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: iOS Simulator, iPhone 17 Pro, iOS 26.3 (local Release build); not a real iPhone
+Build / version: App 1.2.4 local Release simulator build from staging e79333c
+Date tested: 2026-10-28
+Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: iOS simulator: step 1 shows "Feedback Sent" (message "Test #161 email (Claude simulator run 2026-10-28)", Bug) - someone must check contact_messages for the row. Steps 5-6 PASS: no Discoverable Profile, no Storage & Quality, Withdraw Find You Consent under Privacy; FAQ has no 250 photos / Register Business / 5-character code, free plan says 1 GB and one event. Steps 2-4 not checked.
 
 #162 App: new access requests show without reopening the screen
 Status:    TODO

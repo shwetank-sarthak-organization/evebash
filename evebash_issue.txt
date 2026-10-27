@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 172
+Next issue number: 176
 
 =====================================================================
 ACTIVE ISSUES
@@ -135,6 +135,7 @@ Blocked by: Real sample galleries (Sarthak)
 Found in: Website UI re-check (2026-10-11)
 Issue: Sample galleries still show test data: one sample ("Wedding") whose albums are named "Rec 1", "REc 10", "Rec 2"..., listed in text order (Rec 10 before Rec 2, localeCompare without numeric in src/lib/database.ts getSubEvents), and the "Rec 5" cover image is broken.
 How to reproduce: Open /sample-galleries/wedding-fdd8 and look at the album cards.
+Note 2026-10-28: On staging there are now no sample galleries at all: /sample-galleries says "No sample galleries are available yet." and /sample-galleries/wedding-fdd8 shows the 404 page (Claude test run, tests #12 and #53 blocked).
 
 #33
 Listed: 2026-10-11
@@ -1069,6 +1070,50 @@ Blocked by: -
 Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
 Issue: The app's upload progress counts are wrong when a second set is added while the first is uploading. The in-app upload card (apps/mobile/app/events/[id].tsx, total = uploadQueue[0]?.batchTotal) takes its total from the first set's file count but adds up progress for every file in the queue, so it can go past 100% or show e.g. "12 of 10". The phone notification (updateProgressNotification in apps/mobile/lib/uploadQueue.ts) takes the newest set's count but adds up every file for that event, so it can show "Uploading 13 of 5" (the percent is capped at 100). The "N files uploaded" notification at the end has the same mix-up. Fix idea: count the files still in the queue (or the sum of the active sets' sizes) instead of one set's batchTotal, in both places.
 How to reproduce: App, pick 10 photos to upload; while they upload, tap Add Photo and pick 5 more. Watch the upload card and the notification: the counts don't match 15 files.
+
+#172
+Listed: 2026-10-28
+Platform: Website
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Claude device-test run on staging (built-in browser, 2026-10-28)
+Issue: The Host page sometimes loads with "HOST 0 / SHARED 0 / REQUESTS 0" and "No events yet" for a host who has 4 events, and stays that way until a reload. It happened on 3 of about 7 loads of a /host?view=manage&level=event-details&eventId=...&galleryId=... link (also right after the saved sign-in was restored). A plain /host load and a second reload showed all 4 events. A host who opens a saved or shared Host link may think their events are gone. Likely cause: src/app/(main)/host/page.tsx fetchUserEvents is started from several effects with no check that the response is still the latest one (no request id / cancelled flag), so an early call made before the user, view or manage level are settled can finish last and overwrite the list with an empty one. Fix idea: guard fetchUserEvents with a request counter (ignore stale responses) and only run it once auth has loaded.
+How to reproduce: Signed in as a host on staging.evebash.com, open https://staging.evebash.com/host?view=manage&level=event-details&eventId=<your event>&mode=add-image&galleryId=<a sub-gallery> in a new tab, or reload it a few times. Sometimes the page shows "No events yet" instead of the gallery.
+
+#173
+Listed: 2026-10-28
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Device test #96, Claude run on staging (2026-10-28)
+Issue: After deleting several photos with Filter > Select > Delete in the host gallery view, the photos disappear from the grid but the tab label keeps the old count ("Photos (3)" with 1 photo left). Test #96 step 3 expects the Photos / Videos counts to go down. The count comes from currentEventMediaCounts in src/app/(main)/host/page.tsx, which the bulk delete doesn't update. Fix idea: lower currentEventMediaCounts by the number of deleted photos and videos (or re-fetch the counts) when the bulk delete finishes.
+How to reproduce: Host -> an event -> a test sub-gallery with 3 photos -> Filter -> Select -> pick 2 -> Delete -> Delete. The grid shows 1 photo; the tab still says "Photos (3)".
+
+#174
+Listed: 2026-10-28
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Claude device-test run on staging (2026-10-28)
+Issue: Creating a sub-gallery from Host -> event -> Galleries -> Create Sub-Gallery shows the toast "Your event has been created! ✨". It should say the sub-gallery (gallery) was created, since no event was made.
+How to reproduce: Host -> any event -> Galleries -> Create Sub-Gallery, type a name, Create Sub-Gallery. Read the toast.
+
+#175
+Listed: 2026-10-28
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Claude device-test run on staging (2026-10-28, test #74)
+Issue: On /dashboard at about 1024 px wide, the Total Photos stat is cut off ("661 Pho..."): the number uses class "truncate text-xl lg:text-2xl" and its box is narrower than the text (text 113 px, box 105 px). Total Videos fits. Fix idea: smaller text at lg, or let the stat wrap, or give the stat boxes more room.
+How to reproduce: Signed in with an account that has 600+ photos, open /dashboard in a 1024 px wide window. Look at the Total Photos box.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
