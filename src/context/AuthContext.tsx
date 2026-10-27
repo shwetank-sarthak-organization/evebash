@@ -105,7 +105,7 @@ function buildUserData(uid: string, email: string | null, fallbackName: string, 
     return {
         uid,
         name,
-        phone: profile?.phone || "No Phone",
+        phone: profile?.phone || "",
         role: profile?.role || "user",
         roleType: profile?.roleType || (profile?.delegatedBy ? "event" : "primary"),
         assignedEvents: profile?.assignedEvents || [],
@@ -138,7 +138,7 @@ function buildBasicUserData(uid: string, email: string | null, fallbackName: str
     return {
         uid,
         name,
-        phone: "No Phone",
+        phone: "",
         role: "user",
         roleType: "primary",
         assignedEvents: [],
