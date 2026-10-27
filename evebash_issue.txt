@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 156
+Next issue number: 157
 
 =====================================================================
 ACTIVE ISSUES
@@ -1027,6 +1027,18 @@ How to reproduce: Make updateEvent fail (e.g. go offline after the host page has
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#156
+Listed: 2026-10-27
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Chat (Sarthak saw a popup with Sign out flash when switching pages, 2026-10-27)
+Issue: Signed-in users saw the "Before you continue" terms/privacy popup (src/components/PolicyAcceptanceGate.tsx) flash for a moment on every full page load, with "Checking policy acceptance…" and Sign out / Accept and continue buttons. The gate counted "not checked yet" as "not accepted", so it opened the popup while the get_policy_acceptance call was still running and closed it when the answer came back. Switching between page groups (e.g. /host to /vault or an event page) is a full page load because (main), (public) and (vault) each have their own root layout and AuthProvider, so it showed there too.
+How to reproduce: On staging, signed in with an account that has accepted the policies, open /host, then go to /vault or reload. The popup flashed before the page showed.
+Fixed in: edb0f47 (2026-10-27). The popup now opens only once the check says "not accepted" or fails; users who never accepted are still blocked (the page shows for the second or so while the check runs). Screenshot of the old popup taken on staging in the built-in browser by holding back the check; website type check clean for the file; not yet checked in a browser after the fix. Device test #154.
+
 #151
 Listed: 2026-10-26
 Platform: Website
