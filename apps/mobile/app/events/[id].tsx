@@ -70,6 +70,7 @@ import { haptic } from '@/lib/haptics';
 import { appAlert, showToast } from '@/lib/feedback';
 import { FolderPicker } from '@/components/vault/VaultModals';
 import { getGalleryWebUrl } from '@/lib/webLinks';
+import { useReloadOnReturn } from '@/hooks/use-reload-on-return';
 
 // Approve / reject a guest with a confirming haptic
 function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'approved' | 'rejected') {
@@ -351,6 +352,9 @@ function parseEventDateValue(value?: string) {
 
   return new Date();
 }
+
+/** Guest rows for the Permissions tab: canChat is a legacy field, removed from the rows on load */
+const withoutLegacyChat = ({ canChat, ...rest }: any) => rest;
 
 /** Host view: marks a photo or video the host hid from guests */
 function HiddenMediaBadge() {
@@ -1522,10 +1526,7 @@ export default function EventDetailScreen() {
                 console.error('[Permissions] Failed to remove legacy chat permission:', err);
               });
             });
-          setGuestLogs(eventLogs.map((log: any) => {
-            const { canChat, ...rest } = log;
-            return rest;
-          }));
+          setGuestLogs(eventLogs.map(withoutLegacyChat));
         }
 
         console.log(`[PERF] loadEvent pipeline completed in ${Date.now() - perfStart}ms`);
@@ -2438,6 +2439,16 @@ export default function EventDetailScreen() {
       supabase.removeChannel(channel);
     };
   }, [liveGalleryId, liveGalleryLegacyId, hasMemberAccess]);
+
+  // New access requests (push) and coming back to the app: no Realtime, so reload the Permissions list and the
+  // gallery on screen, silently (#48)
+  useReloadOnReturn(() => {
+    if (hasMemberAccess && liveGalleryId !== 'event-partners' && liveGalleryId !== 'find-you') refreshLiveGalleryRef.current();
+    if (!user || !canManageEvent) return;
+    getEventLogs(id)
+      .then((logs) => setGuestLogs(logs.filter(l => l.eventId === id || l.parentEventId === id).map(withoutLegacyChat)))
+      .catch((err) => console.error('[EventDetail] Guest list reload failed:', err));
+  }, !!event);
 
   // Poll face indexing status when upload completes in mobile app
   useEffect(() => {

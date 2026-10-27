@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 162
+Next test number: 163
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4386,6 +4386,36 @@ How to test:
      Clear Media Cache). Withdraw Find You Consent is still under Privacy.
   6. Open each FAQ. Expect: no "250 photos", no "Register Business", no "5-character event code";
      free plan says 1 GB and one event.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#162 App: new access requests show without reopening the screen
+Status:    TODO
+Priority:  Medium
+Platform:  App
+Brief:     The Permissions tab and Gallery > Requests only loaded when the screen opened, so a new access
+           request needed a pull to refresh. Now they reload when a "New access request" push arrives
+           while the app is open, and when the app comes back from the background.
+Detail:    Issue #48. apps/mobile/hooks/use-reload-on-return.ts, used by apps/mobile/app/(tabs)/gallery.tsx
+           and apps/mobile/app/events/[id].tsx. Needs a new app build. Two accounts:
+           a host signed in on the phone, a guest on the website. The host needs Event invites push on.
+How to test:
+  1. Host: open your event > Permissions tab and leave it open. Guest (website): request access to that
+     event. Expect: the push arrives and the guest appears in the list within a few seconds, without
+     pulling to refresh.
+  2. Host: open Gallery > Requests and leave it open. Another guest requests access. Expect: the request
+     appears without pulling to refresh.
+  3. Host: open the Permissions tab, press Home. Guest requests access (dismiss the push without tapping).
+     Open the app again from the app switcher. Expect: the new request is in the list.
+  4. Host on the Galleries tab of the event: background the app for a minute and come back. Expect: no
+     full-screen spinner, the photos stay where you scrolled.
+  5. Pull to refresh still works on Gallery > Requests.
 Done by:
 Device / browser:
 Build / version:

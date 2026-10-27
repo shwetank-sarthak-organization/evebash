@@ -58,6 +58,7 @@ import { haptic } from '@/lib/haptics';
 import { appAlert, showToast } from '@/lib/feedback';
 import { getGalleryWebUrl } from '@/lib/webLinks';
 import { confirmDenyRequest } from '@/lib/denyRequest';
+import { useReloadOnReturn } from '@/hooks/use-reload-on-return';
 
 // Approve / reject a guest with a confirming haptic
 function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'approved' | 'rejected') {
@@ -219,6 +220,9 @@ export default function PortfolioTabScreen() {
       fetchData(true);
     }, [fetchData])
   );
+
+  // New access requests (push) and coming back to the app: no Realtime, so reload (#48)
+  useReloadOnReturn(() => { fetchData(true); });
 
   useEffect(() => {
     let isMounted = true;
