@@ -1,4 +1,5 @@
-@import "tailwindcss";
+/* Only scan the website code (src/) for classes; the app, backend, reports and scripts added ~18% to the CSS (#29). */
+@import "tailwindcss" source("../");
 @import "./royal-emerald.css";
 @import "./gallery-refinements.css";
 @import "./classic-white.css";
