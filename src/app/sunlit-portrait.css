@@ -278,6 +278,8 @@
 .portrait-template .classic-gallery-content [data-royal-control="segments"] [aria-pressed="true"] { background: var(--sp-ink); }
 /* "Open gallery" stops below the navbar's solid bar, not under it */
 .portrait-template #event-content { scroll-margin-top: 68px; }
+/* Less paper between the last photos and the footer than Classic White's pb-16 / pb-20 */
+.portrait-template .classic-gallery-content { padding-bottom: clamp(32px, 4vw, 48px); }
 
 /* ---------- Event navbar in the Sunlit Portrait design (EventNavbar variant="portrait") ----------
    Same links as Classic White, drawn in the cover's serif: the name on the left, the links in normal case, the
@@ -382,17 +384,17 @@
    link lists side by side under it. */
 .portrait-footer {
   /* No top margin: the page wrapper behind it has no background, so a gap would show the site's body colour */
-  padding: clamp(56px, 8vw, 112px) clamp(16px, 4vw, 56px) clamp(32px, 4vw, 48px);
+  padding: clamp(28px, 3vw, 40px) clamp(16px, 4vw, 56px);
   background: var(--sp-ink);
   color: var(--sp-paper);
 }
 .portrait-footer__inner {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
-  align-items: end;
-  gap: clamp(32px, 5vw, 96px);
+  align-items: center;
+  gap: clamp(24px, 4vw, 72px);
 }
-.portrait-footer__links { display: flex; flex-direction: column; gap: 6px; }
+.portrait-footer__links { display: flex; flex-direction: column; gap: 2px; }
 .portrait-footer__links--left { align-items: flex-start; text-align: left; }
 .portrait-footer__links--right { align-items: flex-end; text-align: right; }
 /* The navbar's labels: Instrument Serif with the date line's stroke */
@@ -417,7 +419,7 @@
   color: #fff;
 }
 .portrait-footer__made {
-  margin-top: clamp(14px, 2vw, 24px);
+  margin-top: 6px;
   font-size: 14px;
   letter-spacing: .02em;
 }
@@ -425,7 +427,7 @@
 .portrait-footer__brand:hover { color: #E0A487; }
 .portrait-footer a:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 @media (max-width: 767px) {
-  .portrait-footer__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; row-gap: 36px; column-gap: 24px; }
+  .portrait-footer__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; row-gap: 24px; column-gap: 24px; }
   .portrait-footer__middle { grid-column: 1 / -1; grid-row: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .portrait-footer__link, .portrait-footer__brand { transition: none; } }
