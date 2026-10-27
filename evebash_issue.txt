@@ -168,7 +168,7 @@ Blocked by: Device check (test_yourself #162); move to RECENTLY FIXED once it pa
 Found in: Testing the #51 push on the Android emulator (2026-10-12)
 Issue: New access requests only show in the app after the host leaves and reopens the event or pulls to refresh: the Permissions tab and Gallery > Requests load once when the screen opens, and Supabase Realtime is off (and the app has no listener on guests anyway). Fix without Realtime, app only: (1) when a "New access request" push arrives while the app is open, reload the request list; tapping the push opens that event's Permissions tab; (2) reload the current screen when the app comes back to the foreground. Pull-to-refresh stays.
 How to reproduce: Keep the event's Permissions tab open in the app, send a request from the website: it doesn't appear until you reopen the screen.
-Note 2026-10-27: Fix committed (needs a new app build): apps/mobile/hooks/use-reload-on-return.ts reloads the Permissions tab and Gallery > Requests silently when a push with an eventId arrives while the screen is open, and when the app returns from the background. The push has no type field, so any event push reloads (one small query). Tapping the push still opens the event on its Galleries tab, not Permissions. Device check: test_yourself #161.
+Note 2026-10-27: Fixed in c42c419 (needs a new app build): apps/mobile/hooks/use-reload-on-return.ts reloads the Permissions tab and Gallery > Requests silently when a push with an eventId arrives while the screen is open, and when the app returns from the background. The push has no type field, so any event push reloads (one small query). Tapping the push still opens the event on its Galleries tab, not Permissions. Device check: test_yourself #161.
 
 #49
 Listed: 2026-10-12
