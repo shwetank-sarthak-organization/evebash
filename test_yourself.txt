@@ -4372,7 +4372,7 @@ Platform:  App
 Brief:     Report a Bug / Send Feedback used to say "Feedback Sent" and throw the message away. It now
            saves it with the website's Contact Us messages. Discoverable Profile, Upload Quality and
            Clear Media Cache did nothing, so they are hidden. The FAQ answers were out of date.
-Detail:    Issue #71, apps/mobile/app/settings.tsx and apps/mobile/lib/database.ts, commit 75ae2fd.
+Detail:    Issue #71, apps/mobile/app/settings.tsx and apps/mobile/lib/database.ts, commit 02e0848.
            Needs a new app build pointed at the staging backend.
 How to test:
   1. Sign in with an email account. Settings > Report a Bug / Send Feedback, pick Bug, type
