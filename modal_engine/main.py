@@ -2652,11 +2652,105 @@ def _transcode_long(request: dict):
 def _transcode_short(request: dict):
     return _transcode_video_core(request, hardware="cpu")
 
+# Issue #157 (burst of uploads): with the "queue_aware" key of the video switch on, Modal records on the photo row
+# when a video's job was queued (transcode_queued_at: accepted from QStash, or handed from the GPU to the 16-core
+# worker) and, while a worker runs it, a heartbeat every minute (transcode_heartbeat_at). The backend watchdog
+# (VIDEO_WATCHDOG_QUEUE_AWARE=true) then leaves waiting and running videos alone instead of re-sending every video
+# still processing 15 min after upload. A worker also skips a video whose row already points at this file's
+# finished stream, so a re-sent copy that starts after the first run finished doesn't transcode it again.
+# Off (the default): none of this runs. Needs supabase/migrations/20261027000000_video_transcode_heartbeat.sql;
+# without it the writes fail, are logged once and ignored.
+_TRANSCODE_HEARTBEAT_S = 60
+
+
+def _read_queue_aware_switch() -> bool:
+    try:
+        return bool(modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True).get("queue_aware", False))
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not read the queue-aware switch, keeping the old behaviour: {err}")
+        return False
+
+
+def _video_db():
+    from supabase import create_client
+
+    return create_client(os.environ.get("NEXT_PUBLIC_SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_ROLE_KEY"))
+
+
+def _utc_now_iso() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _mark_video_queued(photo_id):
+    """Best effort: if it fails, the watchdog treats the video as it always has."""
+    if not photo_id:
+        return
+    try:
+        _video_db().table("photos").update({"transcode_queued_at": _utc_now_iso()}).eq("id", photo_id).eq("status", "processing").execute()
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not record the queued time of {photo_id}: {err}")
+
+
+def _video_already_done(photo_id, storage_key) -> bool:
+    """True when the row is processed and already points at this file's stream. Any error: False (transcode)."""
+    try:
+        res = _video_db().table("photos").select("status, url").eq("id", photo_id).maybe_single().execute()
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not check whether {photo_id} is already done: {err}")
+        return False
+    row = (getattr(res, "data", None) if res is not None else None) or {}
+    return row.get("status") == "processed" and str(row.get("url") or "").endswith(f"/hls/{storage_key}/master.m3u8")
+
+
+class _TranscodeHeartbeat:
+    """Writes transcode_heartbeat_at now and every _TRANSCODE_HEARTBEAT_S seconds until the block ends."""
+
+    def __init__(self, photo_id):
+        self.photo_id = photo_id
+        self._warned = False
+
+    def _beat(self):
+        try:
+            self._db.table("photos").update({"transcode_heartbeat_at": _utc_now_iso()}).eq("id", self.photo_id).eq("status", "processing").execute()
+        except Exception as err:
+            if not self._warned:
+                print(f"[TranscodeVideo] Heartbeat for {self.photo_id} failed (logged once): {err}")
+                self._warned = True
+
+    def _run(self):
+        while not self._stop.wait(_TRANSCODE_HEARTBEAT_S):
+            self._beat()
+
+    def __enter__(self):
+        import threading
+
+        self._stop = threading.Event()
+        try:
+            self._db = _video_db()
+        except Exception as err:
+            print(f"[TranscodeVideo] No heartbeat for {self.photo_id}: {err}")
+            self._thread = None
+            return self
+        self._beat()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc):
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=5)
+        return False
+
+
 def _transcode_once(payload: dict, transcode):
     """
     Skips a second transcode of a video that is already being transcoded, e.g. when the backend
     watchdog re-queues a long video whose first run is still going.
     """
+    import contextlib
     import time
 
     storage_key = payload.get("storage_key") or payload.get("object_key") or ""
@@ -2669,7 +2763,12 @@ def _transcode_once(payload: dict, transcode):
             return {"status": "skipped", "photo_id": photo_id}
         locks[photo_id] = now  # older than the function timeout: its run died without releasing it
     try:
-        return transcode(payload)
+        queue_aware = _read_queue_aware_switch()
+        if queue_aware and _video_already_done(photo_id, storage_key):
+            print(f"[TranscodeVideo] {photo_id} is already transcoded (re-sent copy); skipping it")
+            return {"status": "skipped", "photo_id": photo_id, "reason": "already processed"}
+        with (_TranscodeHeartbeat(photo_id) if queue_aware else contextlib.nullcontext()):
+            return transcode(payload)
     finally:
         try:
             locks.pop(photo_id, None)
@@ -2735,6 +2834,8 @@ def transcode_video_long_gpu(payload: dict):
         print(f"[VideoGPU] {payload.get('photo_id')} -> 16-core worker: {err}")
         _log_gpu_fallback(payload, str(err), time.time() - started)
         transcode_video_long.spawn(payload)
+        if _read_queue_aware_switch():
+            _mark_video_queued(payload.get("photo_id") or payload.get("id"))
         return {"status": "sent_to_cpu", "photo_id": payload.get("photo_id"), "reason": str(err)[:300]}
 
 def _transcode_long_gpu_all(request: dict):
@@ -2767,6 +2868,8 @@ def transcode_video_long_gpu_all(payload: dict):
         print(f"[VideoGPU] {payload.get('photo_id')} -> 16-core worker (both GPU steps failed): {err}")
         _log_gpu_fallback(payload, str(err), time.time() - started)
         transcode_video_long.spawn(payload)
+        if _read_queue_aware_switch():
+            _mark_video_queued(payload.get("photo_id") or payload.get("id"))
         return {"status": "sent_to_cpu", "photo_id": payload.get("photo_id"), "reason": str(err)[:300]}
 
 @app.function(image=media_image, timeout=3600, secrets=_video_secrets)
@@ -2787,6 +2890,8 @@ def watch_gpu_start(call_id: str, payload: dict, wait_s: float):
     # Best effort (a queued call can still start after cancel): if it does, it finds the "cpu" mark and skips
     modal.FunctionCall.from_id(call_id).cancel()
     transcode_video_long.spawn(payload)
+    if _read_queue_aware_switch():
+        _mark_video_queued(payload.get("photo_id") or payload.get("id"))
     return "cpu"
 
 async def _accept_video_job(request, worker):
@@ -2808,9 +2913,25 @@ async def _accept_video_job(request, worker):
             gpu_worker = transcode_video_long_gpu_all if all_formats else transcode_video_long_gpu
             call = await gpu_worker.spawn.aio(payload)
             await watch_gpu_start.spawn.aio(call.object_id, payload, wait_s)
+            await _mark_queued_if_switch_on(payload)
             return JSONResponse({"accepted": True, "photo_id": payload.get("photo_id") or payload.get("id")}, status_code=202)
     await worker.spawn.aio(payload)
+    await _mark_queued_if_switch_on(payload)
     return JSONResponse({"accepted": True, "photo_id": payload.get("photo_id") or payload.get("id")}, status_code=202)
+
+
+async def _mark_queued_if_switch_on(payload: dict):
+    """Issue #157: records that Modal accepted the job (queue_aware switch key only). Never raises."""
+    import asyncio
+
+    try:
+        switch = modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True)
+        if not bool(await switch.get.aio("queue_aware", False)):
+            return
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not read the queue-aware switch: {err}")
+        return
+    await asyncio.to_thread(_mark_video_queued, payload.get("photo_id") or payload.get("id"))
 
 # Same names as before, so the backend's URLs don't change
 @app.function(image=media_image, secrets=_video_secrets)

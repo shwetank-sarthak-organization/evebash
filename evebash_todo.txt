@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 15
+Next todo number: 19
 
 Last updated: 2026-10-27
 
@@ -364,6 +364,134 @@ Brief:        When a host uploads videos (website and app), ask once per upload:
               maybe the only option on paid plans. Storage and plan limits must count the choice the
               same way on web, app and backend (issue #6). Add a device test when it ships.
 Done in:      -
+
+#15 Long videos: NVENC preset p3 on the 1080p/720p tiers and a 6 s GOP (switch, off)
+Listed:       2026-10-27
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (decide after discussion)
+Status:       Idea
+Effort:       S
+Suggested by: GPU transcode research 2026-10-27 (reports/GPU long-video transcode research 2026-10.md)
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Measured on the production command and card (L4, 3 runs): -preset:v p3 for the 1080p and
+              720p tiers (p4 stays on 480p) plus -g = 6 s of frames (150 at 25 fps, 360 at 60) instead
+              of -g 48 makes 1080p long videos 22-26% faster (test_5 48.7 min: 190 -> 143 s; 1080p60
+              HEVC: 91 -> 71 s), leaves 4K sources as they are (they are decoder-bound) and raises VMAF
+              on every tier (+0.1 to +1.6): today's -g 48 forces two extra keyframes per 6 s segment.
+              Same files, segments and keyframes, size within 2%. Plays on iOS Safari and hls.js.
+              Ship in _nvenc_tier_args behind a video-gpu-switch key (e.g. nvenc_p3g6), off by default;
+              per-stream -preset:v:N is required (an unqualified -preset applies to every stream).
+              Then device test #153 before turning it on.
+Update:      2026-10-27 measured end to end (reports/Final video pipeline recommendation 2026-10-27.md): RTX 4000 Ada 1080p60 HEVC 119 -> 100 s,
+              test_5 209 -> 154 s; Blackwell slice -16 to -21%; Modal L4 test_5 ffmpeg 191 -> 146-150 s.
+Update:      2026-10-27 (quality check, reports/Video output quality check 2026-10-27.md): p3 is DROPPED. Keep
+              preset p4 on every tier and change only the keyframe spacing to 6 s: every tier of every test video
+              scores above today (VMAF +0.1 to +1.5, HDR +4 to +9; PSNR and SSIM also up). p3 was faster but 0.01-0.09 dB
+              lower PSNR and lower SSIM at 1080p/720p, and 4 VMAF lower than p4 on 60 fps HDR. Apply the same 6 s
+              keyframe change to the CPU (libx264) workers too. Final pipeline: reports/Final video pipeline recommendation 2026-10-27.md.
+Done in:      -
+
+#16 Long videos: read the original from B2 and upload segments while ffmpeg encodes (switch, off)
+Listed:       2026-10-27
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (decide after discussion)
+Status:       Idea
+Effort:       M
+Suggested by: GPU transcode research 2026-10-27 (reports/GPU long-video transcode research 2026-10.md)
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Measured on an L4: ffmpeg reading a presigned B2 URL as its input costs nothing extra
+              (191 vs 190 s) and removes the download step; uploading seg_N as soon as seg_N+1 exists
+              hides the upload behind the encode (192 s total instead of 190 + 33). On Modal, where the
+              download took 10-16 s and the upload 14-29 s per test_5, that is 10-18% less wall time per
+              long video (compute cost down the same; egress unchanged); on RunPod 21%. The output does
+              not change. Keep the atomic order (all segments, then variant playlists, then master.m3u8
+              last) and fall back to the download when the URL input fails. Stream-in was measured on an
+              MP4 only; try a MOV/HDR original before turning it on.
+Update:      2026-10-27: do NOT stream the original into ffmpeg. Without -reconnect B2 drops long
+              HTTP reads and ffmpeg ends early with exit 0 (every streamed 2-chunk test_5 run was ~430 s
+              short; the full-length check caught them); with -reconnect it is complete but on a 4.2 GB MOV
+              far from B2 it was 2x slower (178 vs 85 s). Final recipe: download first (as today), upload
+              segments while encoding, master last. Measured as part of the new recipe (reports/Final video pipeline recommendation 2026-10-27.md).
+Done in:      -
+
+#17 Long videos: chunk-parallel decode for 4K sources on one GPU (switch, off)
+Listed:       2026-10-27
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (decide after discussion)
+Status:       Idea
+Effort:       M
+Suggested by: GPU transcode research 2026-10-27 (reports/GPU long-video transcode research 2026-10.md)
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   #15 and #16 are independent of it; player check of a chunked output first (see Brief)
+Brief:        A single NVDEC session is the limit for 4K input (one decoder engine saturated, encoder
+              36-38% busy). Encoding K time chunks with K ffmpeg processes on the same GPU, audio in a
+              separate process, then joining the playlists, measured on the L4: 4K24 -46% (2 chunks) /
+              -57% (4), iPhone 4K60 HDR -39% / -47%, 1080p -14% (2). Output content identical to today's
+              (VMAF vs today 92-97, PSNR 47-57 dB), continuous timestamps, audio in sync. Recipe that
+              works (two earlier versions did not): per chunk -ss S (+ -t as a bound), a trim=end=len
+              filter before the split (not -t alone: it overshoots by the B-frame delay and leaves a
+              stray boundary segment), -output_ts_offset S+1.0 and -start_number for every chunk, audio
+              with -output_ts_offset 1.0 (without the constant, ffmpeg shifts chunk 0 by the B-frame
+              delay and not the others); join playlists, drop a boundary segment listed twice, master
+              from a single-process layout, then today's full-length check. The joined output has only
+              been checked with ffprobe and VMAF, never in a player: play one on iOS, Android, Safari and
+              hls.js, seeking across a chunk boundary, before the switch goes on.
+Update:      2026-10-27: chunks = number of video decoders on the card (RTX 4000 Ada 2, L4 4,
+              Blackwell slice 1 = no chunking). Measured with p3 + 6 s GOP + upload while encoding, 3 runs:
+              RTX 4000 Ada test_5 136 s / ₹2.44 (today 209 s / ₹3.63), HDR 94 s / ₹1.74 (132 s / ₹2.36);
+              Modal L4 4K24 69 s (125 s), test_5 161 s (224 s). Player check still missing (reports/Final video pipeline recommendation 2026-10-27.md).
+Update:      2026-10-27: cut chunks at the exact time of the first frame after each 6 s mark, not at round
+              6 s: round cuts repeat one frame per cut on 23.976 fps footage (1,201 vs 1,200 frames, video then 42 ms late).
+              Frame-exact cuts verified frame-for-frame on 23.976 fps, 60 fps and variable-frame-rate iPhone clips. Chunk
+              only long videos (4 chunks on 5 s pieces cost up to 0.3 VMAF GPU / 1.3 CPU). RTX 4000 Ada strict recipe:
+              test_5 163 s / ₹2.68 (today 207 s / ₹3.38), HDR 95 s / ₹1.56 (134 s / ₹2.19). CPU 32 vCPU with 4 chunks:
+              test_5 200 s / ₹1.95 (today 275 s / ₹2.67), HDR 143 s / ₹1.39 (223 s / ₹2.16).
+Done in:      -
+
+#18 Videos: QStash hands video jobs to RunPod serverless, Modal stays the backup (switch, off)
+Listed:       2026-10-27
+Platform:     Backend only
+Priority:     High
+Phase:        TBD (decide after discussion)
+Status:       Idea
+Effort:       L
+Suggested by: Burst-load review of the video pipeline (chat 2026-10-27); final pipeline in
+              reports/Final video pipeline recommendation 2026-10-27.md
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   #133 (RunPod serverless), issue #157 (watchdog), worker image in a real registry
+Brief:        Today QStash delivers each video job to a Modal endpoint. Modal answers "got it" at once and
+              keeps the job in its own queue, which nothing outside Modal can see. New flow:
+              1. QStash delivers the job to a new backend route on Railway (not to Modal).
+              2. The route picks the path with the routing rule (non-HDR up to 10 min: CPU; longer or HDR
+                 from 1 min: GPU), calls RunPod /run on that endpoint with a webhook URL and a per-job
+                 execution timeout, and saves the RunPod job id, endpoint and dispatched_at on the video row.
+              3. A backend check every minute reads RunPod /status for open jobs. IN_QUEUE past the wait
+                 limit (start at 3 min per RunPod pool, 5 min for Modal L4 as today): cancel, and only if
+                 RunPod confirms the cancel, send it to the next worker. IN_PROGRESS: leave it. FAILED or
+                 TIMED_OUT: next worker. GPU chain: RTX 4000 Ada, Blackwell 24 GB slice, CPU 32 vCPU
+                 (4 chunks), Modal L4, Modal 16-core. CPU chain: RunPod CPU 32 vCPU, Modal 4-core.
+              4. The worker never gets the Supabase service key or the main B2 key: B2 key limited to the
+                 needed prefixes; it reports the result to /internal/video-processed with a one-job signed
+                 token, and the backend does the DB update, cost log and push as today.
+              5. The worker skips a job whose row is already processed or whose master.m3u8 exists.
+              6. The watchdog (issue #157) reads this job status instead of the video's age.
+              RunPod limits to plan for: the account quota is 10 workers across all endpoints (ask RunPod
+              to raise it before launch); default execution timeout is too short for long videos; set a
+              queue TTL. Behind a new video-gpu-switch key "runpod" with its own test-gallery list, off
+              by default; with it off, today's Modal path is unchanged.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)

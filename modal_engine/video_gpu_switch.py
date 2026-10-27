@@ -16,6 +16,8 @@ long video (> 10 min), with no deploy. Run from the repo root with the Modal CLI
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py all-formats off  # GPU hands some to the 16-core
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py poster-sdr on    # HDR posters in normal colours (#145)
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py poster-sdr off   # poster = the plain frame, as before
+  modal_engine/venv/bin/python modal_engine/video_gpu_switch.py queue-aware on   # queued time + heartbeat on the row (#157)
+  modal_engine/venv/bin/python modal_engine/video_gpu_switch.py queue-aware off  # no markers, no skip, as before
 
 add-gallery sends just that gallery's long videos to the GPU while mode is off. A sub-gallery has its own id.
 A long video still goes to the 16-core worker when the GPU can't take it (10-bit, rotated phone video...),
@@ -28,6 +30,10 @@ all-formats (issue #141, long videos that go to the GPU): the GPU worker keeps 1
 formats itself instead of handing them to the 16-core worker; only a failed GPU run or no free L4 still does.
 poster-sdr (issue #145, every video, every worker): the poster of an HDR video is tone-mapped like the streams
 (not pale), and a poster bigger than 1080p is shrunk. SDR videos up to 1080p get the same poster either way.
+queue-aware (issue #157, every video, every worker): writes transcode_queued_at when Modal accepts or hands over a
+video and transcode_heartbeat_at every minute while a worker runs it, and skips a re-sent copy of a video that is
+already processed. Needs supabase/migrations/20261027000000_video_transcode_heartbeat.sql. Turn it on before the
+backend's VIDEO_WATCHDOG_QUEUE_AWARE=true, which reads these columns.
 """
 import sys
 
@@ -59,6 +65,8 @@ def main(argv):
         switch["gpu_all_formats"] = value == "on"
     elif command == "poster-sdr" and value in ("on", "off"):
         switch["poster_sdr"] = value == "on"
+    elif command == "queue-aware" and value in ("on", "off"):
+        switch["queue_aware"] = value == "on"
     elif command != "show":
         print(__doc__)
         return 1
@@ -70,6 +78,7 @@ def main(argv):
     print(f"rotation-safe probe (#119): {'on' if switch.get('probe_v2', False) else 'off'}")
     print(f"GPU takes every format (#141): {'on' if switch.get('gpu_all_formats', False) else 'off'}")
     print(f"HDR posters in normal colours (#145): {'on' if switch.get('poster_sdr', False) else 'off'}")
+    print(f"queued time, heartbeat and done-skip (#157): {'on' if switch.get('queue_aware', False) else 'off'}")
     return 0
 
 
