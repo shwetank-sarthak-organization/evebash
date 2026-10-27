@@ -147,17 +147,6 @@ Found in: Website UI re-check (2026-10-11)
 Issue: The homepage has no proof: no event or photo counts, host quotes or studio logos. This is now the lowest-scoring factor in the UI rating (3/10).
 How to reproduce: Scroll the homepage: no testimonials or numbers section.
 
-#43
-Listed: 2026-10-11
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: #17 bundle ID work (2026-10-11)
-Issue: The repo root still has an old tracked Android project (android/, 37 files) and a stub app.json, both using the package com.anonymous.weddingapp. The real app is apps/mobile, and EAS builds from there. The leftovers are confusing and show up in ID searches. Confirm nothing uses them, then delete them.
-How to reproduce: git ls-files android app.json
-
 #45
 Listed: 2026-10-12
 Platform: App
@@ -1070,6 +1059,18 @@ How to reproduce: curl -s https://staging.evebash.com/pricing | grep -c 'Loading
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#43
+Listed: 2026-10-11
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #17 bundle ID work (2026-10-11)
+Issue: The repo root still has an old tracked Android project (android/, 37 files) and a stub app.json, both using the package com.anonymous.weddingapp. The real app is apps/mobile, and EAS builds from there. The leftovers are confusing and show up in ID searches. Confirm nothing uses them, then delete them.
+How to reproduce: git ls-files android app.json
+Fixed in: 487ea68 (2026-10-27). Deleted android/ (37 files) and the root app.json. Checked first: no script, config, CI workflow or code refers to them; EAS builds and the app config use apps/mobile. No device test: the app build does not use these files.
+
 #162
 Listed: 2026-10-27
 Platform: App
