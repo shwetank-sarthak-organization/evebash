@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Modal,
   TextInput,
   KeyboardAvoidingView,
@@ -18,7 +17,6 @@ import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
 import { useRouter } from 'expo-router';
 import { updateUserProfile, submitFeedback } from '@/lib/database';
 import { supabase } from '@/lib/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { APP_VERSION } from '@/lib/appVersion';
 import { Button } from '@/components/ui/Button';
 import { appAlert, showToast } from '@/lib/feedback';
@@ -32,10 +30,6 @@ export default function SettingsScreen() {
   const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
 
-  // Core Privacy Toggles
-  const [isDiscoverable, setIsDiscoverable] = useState(user?.discoverable ?? true);
-  const [updatingSearch, setUpdatingSearch] = useState(false);
-
   // Notification Preferences
   const [notifPreferences, setNotifPreferences] = useState({
     likesAndComments: user?.notificationPreferences?.likesAndComments ?? true,
@@ -43,11 +37,6 @@ export default function SettingsScreen() {
     businessMatches: user?.notificationPreferences?.businessMatches ?? true,
     marketing: user?.notificationPreferences?.marketing ?? false,
   });
-
-  // Storage & Resolution
-  const [uploadResolution, setUploadResolution] = useState<'optimized' | 'highres'>('optimized');
-  const [clearingCache, setClearingCache] = useState(false);
-  const [cacheProgress, setCacheProgress] = useState(0);
 
   // Modals Visibility
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
@@ -70,22 +59,8 @@ export default function SettingsScreen() {
   // FAQ Accordion
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
-  // Load local storage preferences
-  useEffect(() => {
-    const loadPreferences = async () => {
-      try {
-        const val = await AsyncStorage.getItem('@high_quality_uploads');
-        if (val) setUploadResolution(val as any);
-      } catch (err) {
-        console.error('Error loading resolution preference:', err);
-      }
-    };
-    loadPreferences();
-  }, []);
-
   // Update State when User Context changes
   useEffect(() => {
-    if (user?.discoverable !== undefined) setIsDiscoverable(user.discoverable);
     if (user?.notificationPreferences) {
       setNotifPreferences({
         likesAndComments: user.notificationPreferences.likesAndComments ?? true,
@@ -95,19 +70,6 @@ export default function SettingsScreen() {
       });
     }
   }, [user]);
-
-  // Discoverability Toggle
-  const toggleDiscoverability = async () => {
-    if (!user?.uid || updatingSearch) return;
-    setUpdatingSearch(true);
-    const newStatus = !isDiscoverable;
-    const success = await updateUserProfile(user.uid, { discoverable: newStatus });
-    if (success) {
-      haptic('select');
-      setIsDiscoverable(newStatus);
-    }
-    setUpdatingSearch(false);
-  };
 
   // Notifications Toggle Helper
   const toggleNotificationSetting = async (key: keyof typeof notifPreferences) => {
@@ -130,36 +92,6 @@ export default function SettingsScreen() {
       setNotifPreferences(notifPreferences);
       appAlert('Error', 'Failed to update preferences. Try again.');
     }
-  };
-
-  // Resolution Preference Toggle
-  const changeResolution = async (value: 'optimized' | 'highres') => {
-    setUploadResolution(value);
-    try {
-      await AsyncStorage.setItem('@high_quality_uploads', value);
-    } catch (err) {
-      console.error('Error saving resolution preference:', err);
-    }
-  };
-
-  // Simulated Clear Cache Workflow
-  const handleClearCache = () => {
-    setClearingCache(true);
-    setCacheProgress(0);
-
-    const interval = setInterval(() => {
-      setCacheProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setClearingCache(false);
-            appAlert('Cache Wiped', 'Successfully cleared 24.2 MB of temporary media logs.');
-          }, 300);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 150);
   };
 
   // Password Change Handler
@@ -201,19 +133,14 @@ export default function SettingsScreen() {
 
     setSubmittingFeedback(true);
     try {
-      const success = await submitFeedback(
-        user.uid,
-        user.name,
-        feedbackText.trim(),
-        feedbackCategory
-      );
+      const result = await submitFeedback(user, feedbackText.trim(), feedbackCategory);
 
-      if (success) {
+      if (result.success) {
         appAlert('Feedback Sent', 'Thank you for your valuable feedback! Our team will review this shortly.');
         setFeedbackModalVisible(false);
         setFeedbackText('');
       } else {
-        appAlert('Error', 'Failed to submit feedback. Please try again.');
+        appAlert('Error', result.error || 'Failed to submit feedback. Please try again.');
       }
     } catch (err) {
       console.error('Error submitting feedback:', err);
@@ -281,16 +208,20 @@ export default function SettingsScreen() {
   // FAQ Accordion Content
   const faqs = [
     {
-      q: 'How many photos can I upload?',
-      a: 'Depending on your active plan, standard hosts can upload up to 250 photos per event. Upgrading to premium unlocks unlimited high-resolution photo and video uploads.',
+      q: 'How much can I upload?',
+      a: 'The free plan includes one event and 1 GB of storage, free forever, with videos up to 200 MB each. Paid plans start at ₹150 a month and add more events and storage.',
     },
     {
       q: 'Can anyone view my private events?',
-      a: 'No. Private events require guests to use a unique 5-character event code or link to join, and hosts can set permissions to manually approve guest login logs.',
+      a: 'No. A private gallery opens only for people the host shares its link or QR code with, and the host can choose who gets access.',
     },
     {
-      q: 'How do I upgrade to a Business account?',
-      a: 'Navigate to the Menu tab, select "Register Business", and choose a category. Business profiles gain access to service listings near you and lead enquiries.',
+      q: 'How does Find You work?',
+      a: 'Upload a selfie and EveBash matches it against the event\'s photos to show the ones you appear in. Only guests with access to the gallery can use it, and you can withdraw your consent above at any time.',
+    },
+    {
+      q: 'Can guests download photos?',
+      a: 'Yes. They can save photos one at a time, or download the whole gallery with Download All.',
     },
   ];
 
@@ -380,25 +311,6 @@ export default function SettingsScreen() {
         {/* Privacy Settings */}
         <Text style={styles.sectionLabel}>Privacy</Text>
         <View style={styles.settingsCard}>
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={toggleDiscoverability} disabled={updatingSearch} accessibilityRole="switch" accessibilityLabel="Discoverable profile" accessibilityState={{ checked: isDiscoverable, disabled: updatingSearch }}>
-            <View style={[styles.infoIconBox, { backgroundColor: isDiscoverable ? 'rgba(16, 185, 129, 0.1)' : 'rgba(100, 116, 139, 0.1)' }]}>
-              <IconSymbol name="magnifyingglass" size={18} color={isDiscoverable ? MidnightColors.success : MidnightColors.slate600} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionText}>Discoverable Profile</Text>
-              <Text style={styles.actionSubtext}>Let people find you in Explore feeds</Text>
-            </View>
-            <View style={[styles.toggleBtn, isDiscoverable && styles.toggleBtnActive]}>
-              {updatingSearch ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <View style={[styles.toggleDot, isDiscoverable && styles.toggleDotActive]} />
-              )}
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={withdrawFindYouConsent} accessibilityRole="button" accessibilityLabel="Withdraw Find You consent">
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
               <IconSymbol name="person.fill" size={18} color={MidnightColors.gold} />
@@ -458,52 +370,6 @@ export default function SettingsScreen() {
             <View style={[styles.toggleBtn, notifPreferences.marketing && styles.toggleBtnActive]}>
               <View style={[styles.toggleDot, notifPreferences.marketing && styles.toggleDotActive]} />
             </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Media Storage & Cache */}
-        <Text style={styles.sectionLabel}>Storage & Quality</Text>
-        <View style={styles.settingsCard}>
-          <View style={styles.actionItemRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionText}>Upload Quality</Text>
-              <Text style={styles.actionSubtext}>Choose image rendering preference</Text>
-            </View>
-            <View style={styles.pickerSegmentContainer}>
-              <TouchableOpacity
-                style={[styles.segmentPill, uploadResolution === 'optimized' && styles.segmentPillActive]}
-                onPress={() => changeResolution('optimized')}
-              >
-                <Text style={[styles.segmentPillText, uploadResolution === 'optimized' && styles.segmentPillTextActive]}>Speed</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.segmentPill, uploadResolution === 'highres' && styles.segmentPillActive]}
-                onPress={() => changeResolution('highres')}
-              >
-                <Text style={[styles.segmentPillText, uploadResolution === 'highres' && styles.segmentPillTextActive]}>High-Res</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={handleClearCache} disabled={clearingCache}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionText}>Clear Media Cache</Text>
-              {clearingCache ? (
-                <View style={styles.progressContainer}>
-                  <View style={[styles.progressBar, { width: `${cacheProgress}%` }]} />
-                  <Text style={styles.progressText}>Cleaning... {cacheProgress}%</Text>
-                </View>
-              ) : (
-                <Text style={styles.actionSubtext}>Frees up local device storage space</Text>
-              )}
-            </View>
-            {!clearingCache && (
-              <View style={[styles.infoIconBox, { backgroundColor: 'rgba(100, 116, 139, 0.1)' }]}>
-                <IconSymbol name="clock.fill" size={16} color={MidnightColors.slate600} />
-              </View>
-            )}
           </TouchableOpacity>
         </View>
 
@@ -964,52 +830,6 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     height: 1,
     backgroundColor: colors.cardBorder,
     marginVertical: 16,
-  },
-  pickerSegmentContainer: {
-    flexDirection: 'row',
-    backgroundColor: isDark ? 'rgba(0, 0, 0, 0.25)' : 'rgba(0, 0, 0, 0.05)',
-    borderRadius: 12,
-    padding: 2,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  segmentPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  segmentPillActive: {
-    backgroundColor: colors.gold,
-  },
-  segmentPillText: {
-    fontSize: 11,
-    fontFamily: 'Inter_600SemiBold',
-    color: colors.slate400,
-  },
-  segmentPillTextActive: {
-    color: colors.onAccent,
-    fontFamily: 'Inter_700Bold',
-  },
-  progressContainer: {
-    marginTop: 6,
-    height: 14,
-    backgroundColor: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.06)',
-    borderRadius: 7,
-    overflow: 'hidden',
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: colors.gold,
-  },
-  progressText: {
-    position: 'absolute',
-    alignSelf: 'center',
-    fontSize: 10,
-    fontFamily: 'Inter_700Bold',
-    color: colors.white,
   },
   faqHeader: {
     flexDirection: 'row',

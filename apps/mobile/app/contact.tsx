@@ -5,6 +5,7 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { MidnightColors } from '@/constants/theme';
 import { Stack, useRouter } from 'expo-router';
 import { Button } from '@/components/ui/Button';
+import { sendContactMessage } from '@/lib/database';
 
 export default function ContactUsScreen() {
   const router = useRouter();
@@ -18,8 +19,6 @@ export default function ContactUsScreen() {
   const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState('');
 
-  const apiBaseUrl = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '');
-
   const clearSubmitState = () => {
     setSubmitError('');
     setSubmitSuccess('');
@@ -32,20 +31,9 @@ export default function ContactUsScreen() {
     setSubmitSuccess('');
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/contact-messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName,
-          lastName,
-          email,
-          message,
-          source: 'mobile',
-        }),
-      });
-      const result = await response.json().catch(() => ({}));
+      const result = await sendContactMessage({ firstName, lastName, email, message });
 
-      if (!response.ok || !result.success) {
+      if (!result.success) {
         throw new Error(result.error || 'Unable to send message right now.');
       }
 

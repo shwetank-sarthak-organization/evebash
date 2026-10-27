@@ -1107,14 +1107,40 @@ export async function updateUserProfile(uid: string, updateData: Partial<UserPro
     }
 }
 
-export async function submitFeedback(userId: string, userName: string, text: string, category: string) {
+/** Saves a message to contact_messages through the backend, the same place the website's Contact Us sends to. */
+export async function sendContactMessage(input: { firstName: string; lastName: string; email: string; message: string }): Promise<{ success: boolean; error?: string }> {
     try {
-        console.log(`[Supabase] Feedback received: ${userName} (${userId}) - [${category}] ${text}`);
-        return true;
+        const apiBaseUrl = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '');
+        const response = await fetch(`${apiBaseUrl}/api/v1/contact-messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...input, source: 'mobile' }),
+        });
+        const result = await response.json().catch(() => ({}));
+        return response.ok && result.success ? { success: true } : { success: false, error: result.error || 'Unable to send message right now.' };
     } catch (error) {
-        console.error("Error submitting feedback:", error);
-        return false;
+        console.error('Error sending contact message:', error);
+        return { success: false, error: 'Please check your connection and try again.' };
     }
+}
+
+/** Settings > Report a Bug / Send Feedback: sent as a contact message tagged with the category and account. */
+export async function submitFeedback(
+    user: { uid: string; name: string; email: string | null; phone?: string },
+    text: string,
+    category: string,
+) {
+    const [firstName, ...rest] = (user.name || 'App user').trim().split(/\s+/);
+    const isPhoneLogin = !user.email || user.email.endsWith('@phone-login.local');
+    const contact = isPhoneLogin ? `Phone: ${user.phone || 'unknown'}` : `Email: ${user.email}`;
+    return sendContactMessage({
+        firstName: firstName || 'App',
+        // The backend needs a last name; one-word names get a dash
+        lastName: rest.join(' ') || '-',
+        // Phone logins have no real email; their placeholder address still passes the backend's email check
+        email: user.email || `${user.uid}@phone-login.local`,
+        message: `[App ${category}] ${text}\n\nUser ID: ${user.uid}\n${contact}`,
+    });
 }
 
 export async function getUserPhotosCount(uid: string): Promise<number> {
