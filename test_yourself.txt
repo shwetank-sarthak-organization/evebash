@@ -4291,7 +4291,12 @@ How to test:
      EveBash".
   7. Log out and open a public Sunlit Portrait gallery link. Expect: the same cover; at the bottom a
      white "Enter the Celebration" card with a black "Log in to join" button. An empty album shows
-     "No photos yet." in the serif.
+     "No photos yet." in the serif. Open an album's own link while logged out: its cover still shows
+     the couple's names and "Happily married since".
+  8. Scroll into the photos. Expect: the strip above the pinned tabs (under the clock) is solid
+     off-white, nothing shows through, and the clock is dark there (white again over the cover).
+     Open a photo: the viewer is off-white with dark controls. Play the highlight film: Back / Share
+     disappear while it plays and the player's own buttons at the top work.
 Done by:
 Device / browser:
 Build / version:

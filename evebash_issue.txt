@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 163
+Next issue number: 168
 
 =====================================================================
 ACTIVE ISSUES
@@ -1033,6 +1033,61 @@ Blocked by: -
 Found in: Fixing #29 (chat 2026-10-27)
 Issue: The other main pages still paint the full-screen "Loading your gallery" screen before their content on every first load, as the homepage did in #29. Each (main) section's loading.tsx (re-exporting src/components/RouteLoading.tsx) wraps its page in a Suspense boundary, and React 19.2 sends any ready content after a ~12.8 KB page shell behind the fallback, revealed by a delayed script. Checked on a local build: /pricing, /privacy-policy and /sample-galleries have the loading screen first and the page in a hidden part; /login does not. It also says "Loading your gallery" on pages that aren't galleries. Fix idea: keep loading.tsx only where the page waits on the server (pricing's layout fetch, sample-galleries/[client], profile/[id]); client pages and the policy pages don't need one. That changes what shows while moving between pages, so decide per page.
 How to reproduce: curl -s https://staging.evebash.com/pricing | grep -c 'Loading your gallery' gives 2 and the page has <template id="B:0">; on a slow phone the loading screen shows before Pricing.
+
+#163
+Listed: 2026-10-27
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Sunlit Portrait review (2026-10-27)
+Issue: The host's "show welcome card" switch (events.show_welcome_card) only works in the app. The app hides the gallery message when it is off (apps/mobile/app/events/[id].tsx, every theme's gallery header); the website shows it anyway (src/app/(public)/events/[slug]/page.tsx, activeGalleryMessage is passed to every gallery header). So the same gallery shows its message on the website but not in the app. Fix: map show_welcome_card in src/lib/database.ts and pass the message only when it isn't false, like the app.
+How to reproduce: In the app, turn the gallery's welcome card off. Open the gallery on the website and in the app: the website still shows the message.
+
+#164
+Listed: 2026-10-27
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Sunlit Portrait review (2026-10-27)
+Issue: While a gallery's highlight film starts in Sunlit Portrait, the video player's "loading" badge (src/components/ui/HLSVideoPlayer.tsx, top left) sits on top of "Back to Gallery" on the film's top edge (src/components/portrait/PortraitGalleryHeader.tsx). It goes away once the film plays. Fix: hide Back / Share while the film plays (as the app now does) or move the badge for this theme.
+How to reproduce: Open a Sunlit Portrait gallery that has a highlight film on the website and press play: "Back to Gallery" and the loading badge overlap for a moment.
+
+#165
+Listed: 2026-10-27
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Sunlit Portrait review (2026-10-27)
+Issue: "Back to Gallery" on a main gallery goes to /dashboard (goBack in src/app/(public)/events/[slug]/page.tsx), not back to the gallery. A guest who isn't logged in lands on the login page. Same in Sunlit Portrait, Classic White and the other themes that show the button. Fix: on the main gallery, scroll to the top / cover instead (or hide the button), and keep /dashboard only for logged-in hosts.
+How to reproduce: Open a public gallery link while logged out, scroll to the gallery and press "Back to Gallery": the login page opens.
+
+#166
+Listed: 2026-10-27
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Sunlit Portrait review (2026-10-27)
+Issue: Sunlit Portrait's date line ("Happily married since ..."), navbar links and Back / Share look lighter in the app than on the website. The website makes Instrument Serif (one weight only) read as bold with a 0.6px text stroke (src/app/sunlit-portrait.css, --sp-label-stroke); React Native can't draw a text stroke, so the app shows the plain weight. Fix options: a slightly larger size or stronger shadow in apps/mobile/components/portrait, or a heavier serif for those labels only (would need a new font).
+How to reproduce: Compare the cover's date line on the website and in the app: the app's is thinner.
+
+#167
+Listed: 2026-10-27
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Sunlit Portrait review (2026-10-27)
+Issue: App builds made before e4091d4 (2026-10-27) don't know the "portrait" theme id. A gallery set to Sunlit Portrait opens in those builds in the generic layout with the first theme's colours (Royal Emerald), since MOBILE_TEMPLATE_THEMES has no entry for it. Only testers on older staging builds see this (nothing has launched), but any theme added later will do the same on older app versions. Fix: fall back to a neutral theme (e.g. Classic White) for unknown ids instead of the first in the list, and ship that before the first store release.
+How to reproduce: Install a staging build from before 2026-10-27 and open a Sunlit Portrait gallery: it shows Royal Emerald colours.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
