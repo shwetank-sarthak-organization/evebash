@@ -2552,6 +2552,9 @@ export default function EventDetailScreen() {
           coverScale: 1.0
         };
 
+        const saved = await updateEvent(target.id, updatedFields);
+        if (!saved) throw new Error('updateEvent returned false');
+
         if (selectedAdminGallery) {
           const newSub = { ...selectedAdminGallery, ...updatedFields };
           setSelectedAdminGallery(newSub);
@@ -2564,7 +2567,6 @@ export default function EventDetailScreen() {
           setEvent({ ...event, ...updatedFields });
         }
 
-        await updateEvent(target.id, updatedFields);
         const usageSaved = await saveCoverUsagePhoto({
           eventId: target.id,
           storageKey: upload.storageKey || upload.publicId || upload.url,
@@ -2620,6 +2622,9 @@ export default function EventDetailScreen() {
                 coverScale: 1.0
               };
 
+              const saved = await updateEvent(target.id, updatedFields);
+              if (!saved) throw new Error('updateEvent returned false');
+
               if (selectedAdminGallery) {
                 const newSub = { ...selectedAdminGallery, ...updatedFields };
                 setSelectedAdminGallery(newSub);
@@ -2632,7 +2637,6 @@ export default function EventDetailScreen() {
                 setEvent({ ...event, ...updatedFields });
               }
 
-              await updateEvent(target.id, updatedFields);
               const usageDeleted = await deleteCoverUsagePhoto(target.id, coverUrlToRemove);
               if (!usageDeleted) {
                 console.warn("[EventDetail] Cover removed, but storage usage could not be synced.");
@@ -2722,9 +2726,11 @@ export default function EventDetailScreen() {
     setUpdating(true);
     try {
       setEvent({ ...event, templateId });
-      await updateEvent(event.id, { templateId });
+      const saved = await updateEvent(event.id, { templateId });
+      if (!saved) throw new Error('updateEvent returned false');
       setShowTemplateModal(false);
     } catch (err) {
+      setEvent(event);
       appAlert("Error", "Failed to update theme.");
     } finally {
       setUpdating(false);
@@ -2742,8 +2748,10 @@ export default function EventDetailScreen() {
       };
 
       setEvent({ ...event, ...updates });
-      await updateEvent(event.id, updates);
+      const saved = await updateEvent(event.id, updates);
+      if (!saved) throw new Error('updateEvent returned false');
     } catch (err) {
+      setEvent(event);
       appAlert("Error", "Failed to update event type.");
     } finally {
       setUpdating(false);
@@ -4107,6 +4115,9 @@ export default function EventDetailScreen() {
                       coverScale: 1.0
                     };
 
+                    const saved = await updateEvent(target.id, updatedFields);
+                    if (!saved) throw new Error('updateEvent returned false');
+
                     if (selectedAdminGallery) {
                       const newSub = { ...selectedAdminGallery, ...updatedFields };
                       setSelectedAdminGallery(newSub as any);
@@ -4120,9 +4131,9 @@ export default function EventDetailScreen() {
                     }
 
                     showToast(newMode === 'fit' ? 'Cover set to Fit' : 'Cover set to Fill');
-                    await updateEvent(target.id, updatedFields);
                   } catch (err) {
                     console.log('Error updating cover mode:', err);
+                    appAlert("Error", "Failed to update cover.");
                   } finally {
                     setUpdating(false);
                   }
@@ -8654,6 +8665,9 @@ export default function EventDetailScreen() {
                     coverScale: tempCoverScale
                   };
 
+                  const saved = await updateEvent(target.id, updatedFields);
+                  if (!saved) throw new Error('updateEvent returned false');
+
                   if (selectedAdminGallery) {
                     const newSub = { ...selectedAdminGallery, ...updatedFields };
                     setSelectedAdminGallery(newSub);
@@ -8667,9 +8681,9 @@ export default function EventDetailScreen() {
                   }
 
                   showToast('Cover position saved');
-                  await updateEvent(target.id, updatedFields);
                 } catch (err) {
                   console.log('Error saving cover position:', err);
+                  appAlert("Error", "Failed to save cover position.");
                 } finally {
                   setUpdating(false);
                 }

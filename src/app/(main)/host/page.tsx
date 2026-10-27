@@ -2684,8 +2684,10 @@ function DashboardContent() {
 
             if (uploadKind === "photos" && isPlaceholder && firstUploadedUrl) {
                 console.log("[Dashboard] Replacing placeholder with first uploaded image as cover");
-                await updateEvent(selectedEventId, { coverImage: firstUploadedUrl });
-                syncCoverImageForEvent(selectedEventId, firstUploadedUrl);
+                const coverSaved = await updateEvent(selectedEventId, { coverImage: firstUploadedUrl });
+                // The upload itself worked, so a failed cover save only keeps the placeholder
+                if (coverSaved) syncCoverImageForEvent(selectedEventId, firstUploadedUrl);
+                else console.warn("[Dashboard] Could not save the first uploaded image as cover");
             }
 
             const hasVideoUploads = uploadResults.some(item => item.photo.mediaType === "video" || item.photo.resourceType === "video");
@@ -3076,7 +3078,8 @@ function DashboardContent() {
 
         const joinId = generateEventJoinId(eventToShare.id);
         const eventWithJoinId = { ...eventToShare, joinId };
-        await updateEvent(eventToShare.id, { joinId });
+        const saved = await updateEvent(eventToShare.id, { joinId });
+        if (!saved) throw new Error("updateEvent returned false");
         setUserEvents(prev => prev.map(evt => evt.id === eventToShare.id ? { ...evt, joinId } : evt));
         setSharedEvents(prev => prev.map(evt => evt.id === eventToShare.id ? { ...evt, joinId } : evt));
         setEventDetailGalleries(prev => prev.map(evt => evt.id === eventToShare.id ? { ...evt, joinId } : evt));
@@ -3342,7 +3345,8 @@ function DashboardContent() {
 
         try {
             // Update main event
-            await updateEvent(templateTargetEvent.id, { templateId });
+            const saved = await updateEvent(templateTargetEvent.id, { templateId });
+            if (!saved) throw new Error("updateEvent returned false");
 
             // If it's a main event, cascade the update to all its sub-events
             if (templateTargetEvent.type === 'main') {
@@ -3354,7 +3358,8 @@ function DashboardContent() {
                     updateEvent(subEvent.id, { templateId })
                 );
 
-                await Promise.all(updatePromises);
+                const subResults = await Promise.all(updatePromises);
+                if (subResults.some(saved => !saved)) throw new Error("updateEvent returned false for a sub-gallery");
                 console.log(`[Dashboard] Cascaded template change '${templateId}' to ${subEvents.length} sub-events.`);
             }
 
