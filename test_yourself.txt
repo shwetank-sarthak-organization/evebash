@@ -4344,7 +4344,21 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  2026-10-27 partial run by Claude (developer check, not a tester PASS). Four test videos uploaded to
+           wedding-2-77d4 through the website (host newone@email.com): t159_phone_2min (1080p25, 2 min),
+           t159_iphone_hdr (iPhone 4K60 HLG HDR, 22 s), t159_4k24 (4K 23.976, 50 s), t159_long_12min (1080p25,
+           12 min, went to the GPU worker). All four: Modal used the new settings (keyframes every 150/360
+           frames = 6 s; 68/84, 8/16 (log) and 15/27, 444/484 (storage times) segments uploaded while
+           converting), streams complete (no missing or stray segments, full length, every sampled segment
+           starts on a keyframe with no extra keyframes inside).
+           Played: computer, website player in Chromium (built-in browser): phone, 4K and 12-min videos play,
+           seeks to the middle and near the end land exactly and keep playing, 0 dropped frames, no errors
+           (2-4 s per seek while the line was busy, 27 ms once idle, same as an older video in the gallery).
+           iPhone Safari (iOS 26.3 simulator, stream opened directly): phone video plays and seeks to 1:23
+           cleanly; HDR video plays in normal colours.
+           STILL TO DO by a tester: real iPhone and Android phones, the EveBash app on both, Safari on a Mac,
+           the website gallery page on phones, and step 4 (slow mobile data). The four test videos stay in
+           the gallery for this.
 
 --------------------------------------------------------------------------------
 #160 Theme, cover and share saves that fail say so and keep the old value (issue #159)
