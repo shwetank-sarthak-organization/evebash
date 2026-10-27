@@ -709,24 +709,6 @@ export function safeParseDateToISO(dateInput?: string | Date): string | null {
 // --- Database Functions ---
 
 /**
- * Fetches all events from the events table.
- */
-export async function getEvents(): Promise<Event[]> {
-    try {
-        const { data, error } = await supabase
-            .from('events')
-            .select('*')
-            .order('title', { ascending: true });
-
-        if (error) throw error;
-        return (data || []).map(mapSqlToEvent);
-    } catch (error) {
-        console.error("Error fetching events:", error);
-        return [];
-    }
-}
-
-/**
  * Fetches public sample galleries selected by the admin.
  */
 export async function getSampleGalleryEvents(): Promise<Event[]> {
@@ -3020,58 +3002,6 @@ export async function getApprovedSharedEventsForUser(identifiers: string | strin
             .sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
     } catch (error) {
         console.error("Error fetching approved shared events:", error);
-        return [];
-    }
-}
-
-export async function getUserPendingVisits(identifier: string): Promise<any[]> {
-    try {
-        const { data, error } = await supabase
-            .from('guests')
-            .select('*')
-            .eq('status', 'pending')
-            .order('login_at', { ascending: false });
-
-        if (error) throw error;
-        return (data || [])
-            .filter(row => guestLogMatchesIdentifier(row, identifier))
-            .map(mapSqlToGuestLog);
-    } catch (error) {
-        console.error("Error fetching user pending visits:", error);
-        return [];
-    }
-}
-
-export async function getPendingSharedEventsForUser(identifiers: string | string[]): Promise<Event[]> {
-    try {
-        const ids = Array.isArray(identifiers) ? identifiers.filter(Boolean) : [identifiers].filter(Boolean);
-        if (ids.length === 0) return [];
-
-        const visitsByIdentifier = await Promise.all(ids.map((identifier) => getUserPendingVisits(identifier)));
-        const visits = visitsByIdentifier.flat();
-
-        const eventVisits: { [eventId: string]: any[] } = {};
-        visits.forEach(v => {
-            const eid = v.eventId;
-            if (eid) {
-                if (!eventVisits[eid]) eventVisits[eid] = [];
-                eventVisits[eid].push(v);
-            }
-        });
-
-        const eventIds = Object.keys(eventVisits).filter(eid => {
-            const vList = eventVisits[eid];
-            return vList.some(v => v.status === "pending");
-        });
-
-        const uniqueEventIds = [...new Set(eventIds)];
-        const events = await Promise.all(uniqueEventIds.map((eventId) => getEventById(eventId)));
-
-        return events
-            .filter((event): event is Event => event !== null)
-            .sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
-    } catch (error) {
-        console.error("Error fetching pending shared events:", error);
         return [];
     }
 }
