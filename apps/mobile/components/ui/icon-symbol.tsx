@@ -106,6 +106,7 @@ const MAPPING = {
   'location.fill': 'my-location',
   'calendar.badge.plus': 'event',
   'arrow.right': 'arrow-forward',
+  'arrow.down': 'arrow-downward',
   'qrcode.viewfinder': 'qr-code-scanner',
   'moon.fill': 'nights-stay',
   'sun.max.fill': 'wb-sunny',

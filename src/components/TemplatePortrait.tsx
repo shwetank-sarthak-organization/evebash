@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { coverImageStyle } from "@/lib/coverStyle";
 import { portraitDisplay } from "@/components/portrait/portraitFonts";
 import { useFitOneLine } from "@/components/portrait/useFitOneLine";
-import { portraitIntro, portraitIntroJoinsDate } from "@/components/portrait/portraitIntro";
+import { portraitIntro, portraitIntroJoinsDate } from "../../shared/themes/portraitIntro";
 import { displayCoupleTitle } from "../../shared/text/coupleNames";
 
 interface TemplatePortraitProps {

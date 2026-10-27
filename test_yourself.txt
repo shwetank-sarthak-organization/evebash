@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 158
+Next test number: 159
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4259,3 +4259,48 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback:
+--------------------------------------------------------------------------------
+#158 Sunlit Portrait theme in the app (iPhone and Android)
+Status:    TODO
+Priority:  Medium
+Platform:  App
+Brief:     The wedding theme Sunlit Portrait (#149 on the website) now has an app version: the cover
+           photo fills the screen with "We're getting married" / "Happily married since <date>" and
+           the couple's names in a serif; the gallery tabs, gallery opening (with or without a
+           highlight film), photo rows and footer copy the website's design on warm off-white.
+Detail:    Todo #9. Needs the new app code on a staging build or the dev app with Metro; no new native
+           build is needed (the new font loads like the other theme fonts). Pick the theme on the
+           website host page (or the app's theme picker) for a wedding gallery first.
+How to test:
+  1. Open a Sunlit Portrait wedding gallery in the app. Expect: the cover photo fills the screen; at
+     the bottom left "Happily married since" over the date (or "We're getting married" before the
+     wedding date), then the couple's names in a thin serif on one line ("A and B" shows as "A & B");
+     a round white arrow at the bottom right; round Back and Share buttons at the top.
+  2. Tap the arrow. Expect: the page scrolls to the gallery. A pale bar pins at the top with Home,
+     Collections and Find You in the serif; the chosen one has a small reddish-brown dot under it.
+  3. Gallery with a highlight video: expect the video's picture to fill the screen under the bar, with
+     "Back to Gallery" and "Share" at its top, the date, gallery name and message at the bottom left
+     and a round white play button. Tap play: the film plays in place. Gallery without a video: Back /
+     Share on a thin line, then the date, name and message on the off-white page.
+  4. Below that: "Photos" and "Videos" in the serif with the count raised and a dot under the chosen
+     one; switching works. Photos sit in rows with small gaps and soft corners; tap one, the viewer
+     opens.
+  5. Tap Collections. Expect: an off-white menu of albums in the serif. Open one: the cover still shows
+     the couple's names; the gallery opening shows the album's name and message.
+  6. Scroll to the bottom. Expect: a dark footer with the couple's names on one line and "Made with
+     EveBash".
+  7. Log out and open a public Sunlit Portrait gallery link. Expect: the same cover; at the bottom a
+     white "Enter the Celebration" card with a black "Log in to join" button. An empty album shows
+     "No photos yet." in the serif.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:         2026-10-27 Claude, iOS simulator (iPhone 17 Pro, dev app on a local Metro with every
+                  gallery shown in Sunlit Portrait), gallery "samarth weds Jyoti": steps 1-4 and 6 look as
+                  described (film plays not tried); step 5: Collections menu and album "Rec 1" (no
+                  video: opening, Photos / Videos, Favourites) look right, its cover not looked at.
+                  Not done: step 7 (logged out), Android, a real phone.

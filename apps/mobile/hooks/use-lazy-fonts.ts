@@ -3,7 +3,8 @@ import { Platform } from 'react-native';
 import { isLoaded, loadAsync, type FontSource } from 'expo-font';
 
 // A theme's own fonts, loaded only when a gallery in that theme opens, under their own names: app start-up maps
-// the shared font names to Inter (app/_layout.tsx), and that stays as it is. Used by Royal Emerald and Classic White.
+// the shared font names to Inter (app/_layout.tsx), and that stays as it is. Used by Royal Emerald, Classic White and
+// Sunlit Portrait.
 
 const FALLBACK = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 

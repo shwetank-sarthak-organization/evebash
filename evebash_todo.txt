@@ -173,13 +173,13 @@ Listed:       2026-10-26
 Platform:     App
 Priority:     Medium
 Phase:        1 (v1 launch)
-Status:       Agreed
+Status:       In progress
 Effort:       M
 Suggested by: Sarthak (2026-10-26: "first create for website")
 Discussed:    Yes
 Decision:     2026-10-26 Sarthak: build the website version first (#8), the app after;
               2026-10-26 Sarthak asked again to have this on the list ("create theme for app too").
-Owner:        Unassigned
+Owner:        Sarthak (with Claude)
 Depends on:   #8
 Brief:        The website has a new wedding theme "Sunlit Portrait" (id "portrait", #8), but the
               app has no "portrait" entry in apps/mobile/constants/templates.ts, so the app's theme
@@ -204,6 +204,13 @@ Brief:        The website has a new wedding theme "Sunlit Portrait" (id "portrai
                 in the middle.
               Keep the web and app pickers the same (src/lib/hiddenTemplates.test.ts checks the
               app list).
+              Progress 2026-10-27: built on the app, on staging (device test #158):
+              components/portrait/ (PortraitHero, PortraitGalleryHeader, PortraitFooter,
+              portraitFonts with @expo-google-fonts/instrument-serif, agreed 2026-10-27),
+              gallery tabs in components/event/ThemeHeader.tsx, event screen wiring in
+              app/events/[id].tsx, photo rows from Classic White (ClassicPhotoRows, 8px gaps,
+              rounded). The date line comes from shared/themes/portraitIntro.ts (one copy for
+              website and app). Checked in the iOS simulator on a real gallery with a film.
 Done in:      -
 
 #10 Confetti Circle: bride and groom details in the theme editor

@@ -7,6 +7,7 @@ import { retroArcadeStyles } from './eventStyles/retroArcadeStyles';
 import { visitorImmersiveStyles } from './eventStyles/visitorImmersiveStyles';
 import { royalStyles } from './eventStyles/royalStyles';
 import { classicStyles } from './eventStyles/classicStyles';
+import { portraitStyles } from './eventStyles/portraitStyles';
 import { gardenStyles } from './eventStyles/gardenStyles';
 import { bohemianStyles } from './eventStyles/bohemianStyles';
 import { museumStyles } from './eventStyles/museumStyles';
@@ -27,6 +28,7 @@ export const styles = StyleSheet.create({
   ...visitorImmersiveStyles,
   ...royalStyles,
   ...classicStyles,
+  ...portraitStyles,
   ...gardenStyles,
   ...bohemianStyles,
   ...museumStyles,

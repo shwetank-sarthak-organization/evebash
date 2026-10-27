@@ -36,7 +36,7 @@ import { getPlanDetails, getUsagePercent } from '@/lib/planLimits';
 import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 
 // ── Extracted modular components ──
-import { SHOW_EVENT_PARTNERS, ThemeHeader } from '../../components/event/ThemeHeader';
+import { PORTRAIT_TABS_HEIGHT, SHOW_EVENT_PARTNERS, ThemeHeader } from '../../components/event/ThemeHeader';
 import { ThemeDivider } from '../../components/event/ThemeDivider';
 import { GalleryAccessGate, GalleryGateState } from '../../components/event/GalleryAccessGate';
 import { RenameEventModal } from '../../components/event/modals/RenameEventModal';
@@ -53,6 +53,10 @@ import { ClassicHero } from '../../components/classic/ClassicHero';
 import { ClassicGalleryHeader } from '../../components/classic/ClassicGalleryHeader';
 import { useClassicFonts } from '../../components/classic/classicFonts';
 import { ClassicPhotoRows } from '../../components/classic/ClassicPhotoRows';
+import { PortraitHero } from '../../components/portrait/PortraitHero';
+import { PortraitGalleryHeader } from '../../components/portrait/PortraitGalleryHeader';
+import { PortraitFooter } from '../../components/portrait/PortraitFooter';
+import { usePortraitFonts } from '../../components/portrait/portraitFonts';
 import { ThemedAppBar } from '../../components/navigation/ThemedAppBar';
 import { isMissingUploadedFile } from '../../../../shared/media/missingUpload';
 import { appTabBarMetrics } from '../../components/navigation/appTabs';
@@ -79,7 +83,7 @@ const PHOTO_PAGE_SIZE = 20;
 // Logged-out public view pages through previews (get_public_gallery_media)
 const PUBLIC_PAGE_SIZE = 60;
 // Visitor templates that draw their own back/share buttons inside the hero instead of the native header
-const NATIVE_HEADER_HIDDEN_TEMPLATES = ['royal', 'classic', 'hero', 'pop', 'ethereal', 'cyber_tech', 'retro_arcade', 'academic_editorial', 'neon_carnival', 'garden', 'bohemian', 'tech_sleek', 'executive'];
+const NATIVE_HEADER_HIDDEN_TEMPLATES = ['royal', 'classic', 'portrait', 'hero', 'pop', 'ethereal', 'cyber_tech', 'retro_arcade', 'academic_editorial', 'neon_carnival', 'garden', 'bohemian', 'tech_sleek', 'executive'];
 const FREE_PLAN_VIDEO_LIMIT_BYTES = 200 * 1024 * 1024;
 const SPORTS_TEMPLATE_IDS = [
   'bohemian',
@@ -884,7 +888,7 @@ export default function EventDetailScreen() {
     ? 400
     : isSportsTemplate
       ? 555 + insets.top
-    : event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'hero'
+    : event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'portrait' || event?.templateId === 'hero'
       // The cover fills the screen above the bottom bar when it shows
       ? windowHeight - themedAppBarHeight
       : event?.templateId === 'ethereal'
@@ -2257,16 +2261,22 @@ export default function EventDetailScreen() {
   // Royal Emerald guest view: the website's design (components/royal); its fonts load only for this theme
   const isRoyalGuest = !showAdminView && event?.templateId === 'royal';
   const isClassicGuest = !showAdminView && event?.templateId === 'classic';
+  // Sunlit Portrait guest view: the website's design (components/portrait), on Classic White's photo rows
+  const isPortraitGuest = !showAdminView && event?.templateId === 'portrait';
   const royalFonts = useRoyalFonts(event?.templateId === 'royal');
   const classicFonts = useClassicFonts(event?.templateId === 'classic');
-  // An album opened by its own link: Classic White's cover still shows the main event's title and theme line
-  const [classicParent, setClassicParent] = useState<{ title?: string; category?: string } | null>(null);
-  const classicParentId = isClassicGuest ? event?.parentId : undefined;
+  const portraitFonts = usePortraitFonts(event?.templateId === 'portrait');
+  // Sunlit Portrait's photo rows: a little more space and soft corners, as on its website
+  const portraitRowProps = isPortraitGuest ? { gap: 8, tileRadius: 6, placeholderColor: 'rgba(162,78,48,0.08)' } : {};
+  // An album opened by its own link: Classic White's and Sunlit Portrait's covers still show the main event's title and
+  // theme line (Sunlit Portrait's line also needs the wedding's date)
+  const [classicParent, setClassicParent] = useState<{ title?: string; category?: string; date?: string } | null>(null);
+  const classicParentId = isClassicGuest || isPortraitGuest ? event?.parentId : undefined;
   useEffect(() => {
     if (!classicParentId) { setClassicParent(null); return; }
     let active = true;
     getEventById(classicParentId)
-      .then((parent) => { if (active) setClassicParent(parent ? { title: parent.title, category: parent.category } : null); })
+      .then((parent) => { if (active) setClassicParent(parent ? { title: parent.title, category: parent.category, date: parent.date } : null); })
       .catch(() => { if (active) setClassicParent(null); });
     return () => { active = false; };
   }, [classicParentId]);
@@ -3578,6 +3588,23 @@ export default function EventDetailScreen() {
               <View style={styles.popBackgroundShapeBlue} />
               <View style={styles.popBackgroundShapePink} />
             </View>
+          ) : isPortraitGuest ? (
+            <PortraitHero
+              gallery={currentActiveEvent || event!}
+              mainTitle={classicParent?.title || event!.title}
+              mainCategory={classicParent?.category || event!.category}
+              mainDate={classicParent?.date || event!.date}
+              coverSource={activeCoverSource}
+              width={windowWidth}
+              height={heroHeight}
+              insetTop={insets.top}
+              // The pinned gallery tabs' top spacer overlaps the cover's bottom edge
+              insetBottom={Math.max(insets.bottom, stickyTabsTopInset)}
+              fonts={portraitFonts}
+              onOpenGallery={() => scrollViewRef.current?.scrollTo({ y: heroHeight - stickyTabsTopInset, animated: true })}
+              onBack={handleEventBack}
+              onShare={() => setShowShareModal(true)}
+            />
           ) : isClassicGuest ? (
             <ClassicHero
               gallery={currentActiveEvent || event!}
@@ -4018,7 +4045,7 @@ export default function EventDetailScreen() {
               blurRadius={isGoldenYearsTemplate ? 0.8 : (isVintageTemplate ? 1.1 : 0)}
             />
           )}
-          {!isSportsTemplate && !isRoyalGuest && selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && selectedTemplate.id !== 'garden' && selectedTemplate.id !== 'bohemian' && selectedTemplate.id !== 'museum' && selectedTemplate.id !== 'brutalist' && selectedTemplate.id !== 'tech_sleek' && selectedTemplate.id !== 'executive' && (
+          {!isSportsTemplate && !isRoyalGuest && selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'portrait' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && selectedTemplate.id !== 'garden' && selectedTemplate.id !== 'bohemian' && selectedTemplate.id !== 'museum' && selectedTemplate.id !== 'brutalist' && selectedTemplate.id !== 'tech_sleek' && selectedTemplate.id !== 'executive' && (
             <LinearGradient
               colors={selectedTemplate.overlay as any}
               style={styles.heroGradient}
@@ -4134,7 +4161,7 @@ export default function EventDetailScreen() {
           )}
 
 
-          {(!showAdminView && (isSportsTemplate || event?.templateId === 'academic_editorial' || event?.templateId === 'bohemian' || event?.templateId === 'museum' || event?.templateId === 'brutalist' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (isRoyalGuest || isClassicGuest) ? null : (!showAdminView && event?.templateId === 'ethereal') ? (
+          {(!showAdminView && (isSportsTemplate || event?.templateId === 'academic_editorial' || event?.templateId === 'bohemian' || event?.templateId === 'museum' || event?.templateId === 'brutalist' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (isRoyalGuest || isClassicGuest || isPortraitGuest) ? null : (!showAdminView && event?.templateId === 'ethereal') ? (
             <View style={styles.etherealOverlayContainer}>
               {/* Back button at top left */}
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
@@ -4958,6 +4985,7 @@ export default function EventDetailScreen() {
               handleSubEventChange={handleSubEventChange}
               styles={styles}
               royalFontFamily={isRoyalGuest ? royalFonts.displayBold : undefined}
+              portraitFontFamily={isPortraitGuest ? portraitFonts.serif : undefined}
             />
           </View>
         )}
@@ -6344,7 +6372,28 @@ export default function EventDetailScreen() {
                   />
                 )}
 
-                {!isRoyalGuest && !isClassicGuest && (event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
+                {isPortraitGuest && onGalleryPage && (
+                  <PortraitGalleryHeader
+                    // The gallery's own name; the event's title is on the cover
+                    title={activeSubEvent ? activeSubEvent.title : event.parentId ? event.title || 'Home' : 'Home'}
+                    details={(shownGallery?.date || event.date || '').trim()}
+                    message={(event as any).showWelcomeCard !== false ? (activeSubEvent ? activeSubEvent.description : event.description) : undefined}
+                    video={galleryVideo}
+                    fonts={portraitFonts}
+                    width={windowWidth}
+                    // With a highlight film the opening fills the screen under the pinned gallery tabs
+                    screenHeight={windowHeight - stickyTabsTopInset - PORTRAIT_TABS_HEIGHT}
+                    backLabel={event.parentId ? 'Back to Event' : 'Back to Gallery'}
+                    onBack={handleEventBack}
+                    onShare={() => setShowShareModal(true)}
+                    photoCount={String(displayedPhotoCount)}
+                    videoCount={String(displayedVideoCount)}
+                    activeTab={galleryMediaTab}
+                    onTabChange={setGalleryMediaTab}
+                  />
+                )}
+
+                {!isRoyalGuest && !isClassicGuest && !isPortraitGuest && (event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
                   <View style={[
                     styles.mainInfoBox,
                     {
@@ -6663,7 +6712,7 @@ export default function EventDetailScreen() {
                   </View>
                 )}
 
-                {galleryVideo && !isRoyalGuest && !isClassicGuest && (
+                {galleryVideo && !isRoyalGuest && !isClassicGuest && !isPortraitGuest && (
                   <GalleryHighlightVideo
                     video={galleryVideo}
                     title={shownGallery?.title || event.title}
@@ -6690,21 +6739,21 @@ export default function EventDetailScreen() {
                 )}
 
                 {/* Classic White's photos start right under its Photos / Videos tabs, as on the website */}
-                {!isClassicGuest && <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />}
+                {!isClassicGuest && !isPortraitGuest && <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />}
 
                 {/* Find You and Event partners are for signed-in guests; logged-out visitors get a log-in prompt */}
                 {isPublicView && !user && (activeSubEvent?.id === 'find-you' || activeSubEvent?.id === 'event-partners') ? (
-                  <View style={isClassicGuest ? styles.classicGuestSection : styles.guestSection}>
-                    <Text style={isClassicGuest ? [styles.classicGuestTitle, { fontFamily: classicFonts.serif }] : styles.guestTitle}>
+                  <View style={isClassicGuest ? styles.classicGuestSection : isPortraitGuest ? styles.portraitGuestSection : styles.guestSection}>
+                    <Text style={isClassicGuest ? [styles.classicGuestTitle, { fontFamily: classicFonts.serif }] : isPortraitGuest ? [styles.portraitGuestTitle, { fontFamily: portraitFonts.serif }] : styles.guestTitle}>
                       {activeSubEvent?.id === 'find-you' ? 'Find yourself in the photos' : 'Meet the event partners'}
                     </Text>
-                    <Text style={isClassicGuest ? styles.classicGuestSub : styles.guestSub}>
+                    <Text style={isClassicGuest ? styles.classicGuestSub : isPortraitGuest ? styles.portraitGuestSub : styles.guestSub}>
                       {activeSubEvent?.id === 'find-you'
                         ? "Log in to use Find You: take a selfie and we'll show the photos you're in."
                         : 'Log in to see the vendors behind this event.'}
                     </Text>
-                    <TouchableOpacity style={isClassicGuest ? styles.classicAccessBtn : styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
-                      <Text style={isClassicGuest ? styles.classicAccessBtnText : styles.accessBtnText}>Log in</Text>
+                    <TouchableOpacity style={isClassicGuest ? styles.classicAccessBtn : isPortraitGuest ? styles.portraitAccessBtn : styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
+                      <Text style={isClassicGuest ? styles.classicAccessBtnText : isPortraitGuest ? styles.portraitAccessBtnText : styles.accessBtnText}>Log in</Text>
                     </TouchableOpacity>
                   </View>
                 ) : activeSubEvent?.id === 'find-you' ? (
@@ -6855,7 +6904,7 @@ export default function EventDetailScreen() {
                   </View>
                 ) : (
                   <>
-                {!isRoyalGuest && !isClassicGuest && (<>
+                {!isRoyalGuest && !isClassicGuest && !isPortraitGuest && (<>
                 <View style={[
                   styles.galleryHeader,
                   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 16 },
@@ -7140,16 +7189,18 @@ export default function EventDetailScreen() {
                     { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4, marginBottom: 14, borderRadius: 12, borderWidth: 1, borderColor: showOnlyFavourites ? selectedTemplate.accent : 'rgba(148,163,184,0.22)', backgroundColor: showOnlyFavourites ? selectedTemplate.accentBg : 'rgba(27,33,31,0.06)', paddingHorizontal: 12, paddingVertical: 10 },
                     // Classic White: a hairline card with square corners on the soft-white page
                     isClassicGuest && { borderRadius: 2, borderColor: showOnlyFavourites ? '#8B9A6E' : '#E6E6E0', backgroundColor: showOnlyFavourites ? 'rgba(139,154,110,0.10)' : '#F6F6F2' },
+                    // Sunlit Portrait: a white card with a hairline on the warm paper
+                    isPortraitGuest && { borderColor: showOnlyFavourites ? '#A24E30' : '#E7DFD4', backgroundColor: showOnlyFavourites ? 'rgba(162,78,48,0.08)' : '#FFFFFF' },
                   ]}
                 >
-                  <View style={[{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: showOnlyFavourites ? selectedTemplate.accent : 'rgba(100,116,139,0.12)' }, isClassicGuest && { borderRadius: 2, backgroundColor: showOnlyFavourites ? '#596653' : 'rgba(139,154,110,0.14)' }]}>
+                  <View style={[{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: showOnlyFavourites ? selectedTemplate.accent : 'rgba(100,116,139,0.12)' }, isClassicGuest && { borderRadius: 2, backgroundColor: showOnlyFavourites ? '#596653' : 'rgba(139,154,110,0.14)' }, isPortraitGuest && !showOnlyFavourites && { backgroundColor: 'rgba(162,78,48,0.08)' }]}>
                     <IconSymbol name={showOnlyFavourites ? 'star.fill' : 'star'} size={16} color={showOnlyFavourites ? '#ffffff' : selectedTemplate.muted} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: showOnlyFavourites ? selectedTemplate.accent : selectedTemplate.text, fontSize: 13, fontFamily: Fonts.inter.bold }}>Favourites only</Text>
                     <Text style={{ color: selectedTemplate.muted, fontSize: 11, marginTop: 2 }}>{activeFavouriteCount} in {galleryMediaTab === 'videos' ? 'Videos' : 'Photos'}</Text>
                   </View>
-                  <View style={{ width: 44, height: 24, borderRadius: 12, padding: 2, backgroundColor: showOnlyFavourites ? (isClassicGuest ? '#596653' : selectedTemplate.accent) : (isClassicGuest ? 'rgba(89,102,83,0.35)' : 'rgba(100,116,139,0.55)') }}>
+                  <View style={{ width: 44, height: 24, borderRadius: 12, padding: 2, backgroundColor: showOnlyFavourites ? (isClassicGuest ? '#596653' : selectedTemplate.accent) : (isClassicGuest ? 'rgba(89,102,83,0.35)' : isPortraitGuest ? 'rgba(107,97,88,0.35)' : 'rgba(100,116,139,0.55)') }}>
                     <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignSelf: showOnlyFavourites ? 'flex-end' : 'flex-start' }} />
                   </View>
                 </TouchableOpacity>
@@ -7160,7 +7211,8 @@ export default function EventDetailScreen() {
                     <ActivityIndicator color={isCyberTechTemplate ? '#00f0ff' : selectedTemplate.accent} />
                   </View>
                 ) : (
-                  <View style={styles.photoGrid}>
+                  // Sunlit Portrait's photos line up with its tabs and title, as on the website
+                  <View style={[styles.photoGrid, isPortraitGuest && { paddingHorizontal: 0 }]}>
                     {activeGalleryItems.length === 0 && isPrimaryGalleryView && !isFavouriteFilterActive
                       && guestSubEvents.length > 0 && displayedPhotoCount === 0 && displayedVideoCount === 0 ? (
                       // Home has no highlights yet, but the sub-galleries may: point guests to them
@@ -7206,25 +7258,27 @@ export default function EventDetailScreen() {
                       </View>
                     ) : activeGalleryItems.length === 0 ? (
                       <View style={styles.emptyGallery}>
-                        <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={40} color={isCyberTechTemplate ? 'rgba(0, 240, 255, 0.15)' : isClassicGuest ? 'rgba(139,154,110,0.55)' : 'rgba(255,255,255,0.05)'} />
-                        <Text style={[styles.emptyText, isCyberTechTemplate && styles.cyberEmptyText, isClassicGuest && [styles.classicEmptyText, { fontFamily: classicFonts.serifItalic, fontStyle: 'normal' }]]}>
+                        <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={40} color={isCyberTechTemplate ? 'rgba(0, 240, 255, 0.15)' : isClassicGuest ? 'rgba(139,154,110,0.55)' : isPortraitGuest ? 'rgba(162,78,48,0.45)' : 'rgba(255,255,255,0.05)'} />
+                        <Text style={[styles.emptyText, isCyberTechTemplate && styles.cyberEmptyText, isClassicGuest && [styles.classicEmptyText, { fontFamily: classicFonts.serifItalic, fontStyle: 'normal' }], isPortraitGuest && [styles.portraitEmptyText, { fontFamily: portraitFonts.serif }]]}>
                           {isFavouriteFilterActive
                             ? `No favourite ${galleryMediaTab === 'videos' ? 'videos' : 'photos'} in this gallery yet.`
                             : isCyberTechTemplate ? '// NO_DATA_AVAILABLE' : (galleryMediaTab === 'videos' ? 'No videos yet.' : 'No photos yet.')}
                         </Text>
                       </View>
-                    ) : galleryMediaTab === 'videos' && isClassicGuest ? (
-                      // Classic White: videos in the same full-width rows as the photos, poster with a frosted play button
+                    ) : galleryMediaTab === 'videos' && (isClassicGuest || isPortraitGuest) ? (
+                      // Classic White and Sunlit Portrait: videos in the same full-width rows as the photos, poster with a
+                      // frosted play button
                       <ClassicPhotoRows
                               scrollY={coarseScrollY}
                               viewportHeight={windowHeight}
+                              {...portraitRowProps}
                         items={filteredVideoItems.map((video: any) => ({ ...video, width: video.width || 16, height: video.height || 9 }))}
                         renderTile={(video: any, idx) => {
                           const posterUri = video.thumbnailUrl || video.posterUrl || video.previewUrl || '';
                           const blurred = shouldBlurMediaForPlan(video);
                           return (
                             <TouchableOpacity
-                              style={{ flex: 1, backgroundColor: '#E6E6E0', alignItems: 'center', justifyContent: 'center' }}
+                              style={{ flex: 1, backgroundColor: isPortraitGuest ? '#E7DFD4' : '#E6E6E0', alignItems: 'center', justifyContent: 'center' }}
                               activeOpacity={0.9}
                               onPress={() => openViewer(idx)}
                               accessibilityRole="button"
@@ -7257,12 +7311,13 @@ export default function EventDetailScreen() {
                       </View>
                     ) : (
                       (() => {
-                        // Classic White: rows that fill the width with thin gaps, like the website
-                        if (isClassicGuest) {
+                        // Classic White and Sunlit Portrait: rows that fill the width with thin gaps, like the website
+                        if (isClassicGuest || isPortraitGuest) {
                           return (
                             <ClassicPhotoRows
                               scrollY={coarseScrollY}
                               viewportHeight={windowHeight}
+                              {...portraitRowProps}
                               items={filteredPhotoItems}
                               renderTile={(photo, idx) => {
                                 const blurred = shouldBlurMediaForPlan(photo);
@@ -7702,20 +7757,21 @@ export default function EventDetailScreen() {
                 )}
 
                 {/* Classic White ends the gallery with the photos, as on the website */}
-                {!isClassicGuest && <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />}
+                {!isClassicGuest && !isPortraitGuest && <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />}
 
                 {/* Logged-out visitors of a public gallery see previews only */}
                 {isPublicView && !user && activeSubEvent?.id !== 'find-you' && activeSubEvent?.id !== 'event-partners' && (
-                  <View style={isClassicGuest ? styles.classicGuestSection : styles.guestSection}>
-                    <Text style={isClassicGuest ? [styles.classicGuestTitle, { fontFamily: classicFonts.serif }] : styles.guestTitle}>Enter the Celebration</Text>
-                    <Text style={isClassicGuest ? styles.classicGuestSub : styles.guestSub}>Log in to join this gallery, see full-size photos, like and comment</Text>
-                    <TouchableOpacity style={isClassicGuest ? styles.classicAccessBtn : styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
-                      <Text style={isClassicGuest ? styles.classicAccessBtnText : styles.accessBtnText}>Log in to join</Text>
+                  <View style={isClassicGuest ? styles.classicGuestSection : isPortraitGuest ? styles.portraitGuestSection : styles.guestSection}>
+                    <Text style={isClassicGuest ? [styles.classicGuestTitle, { fontFamily: classicFonts.serif }] : isPortraitGuest ? [styles.portraitGuestTitle, { fontFamily: portraitFonts.serif }] : styles.guestTitle}>Enter the Celebration</Text>
+                    <Text style={isClassicGuest ? styles.classicGuestSub : isPortraitGuest ? styles.portraitGuestSub : styles.guestSub}>Log in to join this gallery, see full-size photos, like and comment</Text>
+                    <TouchableOpacity style={isClassicGuest ? styles.classicAccessBtn : isPortraitGuest ? styles.portraitAccessBtn : styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
+                      <Text style={isClassicGuest ? styles.classicAccessBtnText : isPortraitGuest ? styles.portraitAccessBtnText : styles.accessBtnText}>Log in to join</Text>
                     </TouchableOpacity>
                   </View>
                 )}
                   </View>
                 {isRoyalGuest && <RoyalFooter title={event.title} fonts={royalFonts} bottomInset={insets.bottom} />}
+                {isPortraitGuest && <PortraitFooter title={classicParent?.title || event.title} fonts={portraitFonts} bottomInset={insets.bottom} />}
             </>
           )}
         </View>

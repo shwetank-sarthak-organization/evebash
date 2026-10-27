@@ -9,14 +9,14 @@ import {
 } from '../../apps/mobile/constants/templates';
 
 // Hidden themes stay defined; they only leave the pickers.
-assert.equal(MOBILE_TEMPLATE_THEMES.length, 32);
+assert.equal(MOBILE_TEMPLATE_THEMES.length, 33);
 assert.equal(HIDDEN_TEMPLATE_IDS.length, 19);
 for (const id of HIDDEN_TEMPLATE_IDS) assert.ok(MOBILE_TEMPLATE_THEMES.some(t => t.id === id), `${id} still defined`);
 
 const expected: Record<string, string[]> = {
-  Wedding: ['royal', 'classic', 'hero'],
+  Wedding: ['royal', 'classic', 'portrait', 'hero'],
   Birthday: ['scrapbook', 'neon', 'pop'],
-  Anniversary: ['royal', 'classic', 'hero'],
+  Anniversary: ['royal', 'classic', 'portrait', 'hero'],
   Corporate: ['museum', 'brutalist'],
   Sports: ['bohemian', 'cinematic', 'polaroid', 'editorial'],
   College: ['cyber_tech'],
@@ -29,8 +29,8 @@ for (const [category, ids] of Object.entries(expected)) {
 assert.equal(getDefaultTemplateForEventCategory(undefined).id, 'royal');
 
 // An event already on a hidden theme still sees it, first, as the current choice.
-assert.deepEqual(getPickerTemplatesForEventCategory('Anniversary', 'golden_years').map(t => t.id), ['golden_years', 'royal', 'classic', 'hero']);
-assert.deepEqual(getPickerTemplatesForEventCategory('Wedding', 'classic').map(t => t.id), ['royal', 'classic', 'hero']);
+assert.deepEqual(getPickerTemplatesForEventCategory('Anniversary', 'golden_years').map(t => t.id), ['golden_years', 'royal', 'classic', 'portrait', 'hero']);
+assert.deepEqual(getPickerTemplatesForEventCategory('Wedding', 'classic').map(t => t.id), ['royal', 'classic', 'portrait', 'hero']);
 
 // The website host page hides the same ids.
 const hostPage = readFileSync(join(__dirname, '../app/(main)/host/page.tsx'), 'utf8');

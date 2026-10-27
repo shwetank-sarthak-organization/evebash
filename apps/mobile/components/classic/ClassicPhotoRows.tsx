@@ -7,6 +7,7 @@ import { View, type LayoutChangeEvent } from 'react-native';
 // Given the screen's scroll position, only rows within a few screens of it draw their photos; the rest keep their
 // size as plain tinted blocks, so big galleries don't hold hundreds of images in memory.
 
+// Space between photos (Sunlit Portrait passes 8, as on its website)
 const GAP = 4;
 // Rows this many screens above / below the visible area still draw their photos
 const KEEP_ABOVE = 1.5;
@@ -25,11 +26,11 @@ type Row<T> = { items: { item: T; idx: number; ratio: number }[]; height: number
  * Splits the photos into rows about `target` tall: photos are added while the row would still be taller than the
  * target, then the row ends where its height is closest to the target.
  */
-function buildRows<T extends Item>(items: T[], width: number, target: number): Row<T>[] {
+function buildRows<T extends Item>(items: T[], width: number, target: number, gap: number): Row<T>[] {
   const rows: Row<T>[] = [];
   let current: Row<T>['items'] = [];
   let ratioSum = 0;
-  const heightFor = (sum: number, count: number) => (width - GAP * (count - 1)) / sum;
+  const heightFor = (sum: number, count: number) => (width - gap * (count - 1)) / sum;
 
   items.forEach((item, idx) => {
     const ratio = aspectOf(item);
@@ -58,6 +59,9 @@ export function ClassicPhotoRows<T extends Item>({
   renderTile,
   scrollY,
   viewportHeight,
+  gap = GAP,
+  tileRadius = 0,
+  placeholderColor = 'rgba(139,154,110,0.12)',
 }: {
   items: T[];
   /** Draws one photo filling a box of the given size */
@@ -65,6 +69,11 @@ export function ClassicPhotoRows<T extends Item>({
   /** The screen's scroll position (a rough value is enough); without it every row draws its photos */
   scrollY?: number;
   viewportHeight?: number;
+  gap?: number;
+  /** Rounded photo corners (Sunlit Portrait: 6) */
+  tileRadius?: number;
+  /** Tint of rows far off screen, drawn without their photos */
+  placeholderColor?: string;
 }) {
   const [width, setWidth] = useState(0);
   // Where the grid starts in the scrolled content: its position on screen plus the scroll position, measured again
@@ -86,7 +95,7 @@ export function ClassicPhotoRows<T extends Item>({
     measure();
   };
   // Rows a little taller than half the width: two portrait photos, or one landscape, per row
-  const rows = width ? buildRows(items, width, Math.round(width * 0.62)) : [];
+  const rows = width ? buildRows(items, width, Math.round(width * 0.62), gap) : [];
 
   const windowing = scrollY !== undefined && !!viewportHeight;
   const screen = viewportHeight || 0;
@@ -96,15 +105,15 @@ export function ClassicPhotoRows<T extends Item>({
   let rowTop = 0;
 
   return (
-    <View ref={gridRef} onLayout={onLayout} style={{ width: '100%', gap: GAP }}>
+    <View ref={gridRef} onLayout={onLayout} style={{ width: '100%', gap }}>
       {rows.map((row) => {
         const top = rowTop;
-        rowTop += row.height + GAP;
+        rowTop += row.height + gap;
         const drawn = !windowing || (top + row.height >= keepFrom && top <= keepTo);
         return (
-          <View key={row.items[0].item.id} style={{ flexDirection: 'row', gap: GAP, height: row.height }}>
+          <View key={row.items[0].item.id} style={{ flexDirection: 'row', gap, height: row.height }}>
             {row.items.map(({ item, idx, ratio }) => (
-              <View key={item.id} style={{ width: ratio * row.height, height: row.height, overflow: 'hidden', backgroundColor: drawn ? undefined : 'rgba(139,154,110,0.12)' }}>
+              <View key={item.id} style={{ width: ratio * row.height, height: row.height, overflow: 'hidden', borderRadius: tileRadius, backgroundColor: drawn ? undefined : placeholderColor }}>
                 {drawn && renderTile(item, idx, { width: ratio * row.height, height: row.height })}
               </View>
             ))}

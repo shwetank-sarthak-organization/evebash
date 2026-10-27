@@ -51,6 +51,24 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     useSerif: true
   },
   {
+    // Sunlit Portrait: full-screen cover photo, the names in Instrument Serif; warm paper, ink and clay below it
+    // (website: src/components/TemplatePortrait.tsx, src/app/sunlit-portrait.css)
+    id: 'portrait',
+    category: 'Wedding',
+    label: 'Sunlit Portrait',
+    desc: 'Full-screen couple photo & big serif names',
+    background: { light: '#FBF8F3', dark: '#FBF8F3' },
+    panel: { light: '#ffffff', dark: '#ffffff' },
+    text: { light: '#1F1B17', dark: '#1F1B17' },
+    muted: { light: '#6B6158', dark: '#6B6158' },
+    accent: '#A24E30',
+    accentBg: { light: 'rgba(162,78,48,0.1)', dark: 'rgba(162,78,48,0.1)' },
+    tileBg: { light: '#ffffff', dark: '#ffffff' },
+    radius: 6,
+    overlay: { light: ['rgba(251,248,243,0.1)', 'rgba(251,248,243,1)'], dark: ['rgba(251,248,243,0.1)', 'rgba(251,248,243,1)'] },
+    useSerif: true
+  },
+  {
     id: 'hero',
     category: 'Wedding',
     label: 'Midnight Hero',

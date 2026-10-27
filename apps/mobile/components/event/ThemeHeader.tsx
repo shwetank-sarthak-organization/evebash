@@ -13,6 +13,8 @@ interface ThemeHeaderProps {
   styles: any;
   /** Royal Emerald: its Cinzel font, loaded by the event screen (components/royal/royalFonts.ts) */
   royalFontFamily?: string;
+  /** Sunlit Portrait: its Instrument Serif, loaded by the event screen (components/portrait/portraitFonts.ts) */
+  portraitFontFamily?: string;
 }
 
 /** Event Partners is hidden until Phase 2 (it comes with EB Business and EB Network). */
@@ -50,6 +52,8 @@ const SPORTS_HEADER_THEMES: Record<string, any> = {
 
 // Height of a tab in the Royal Emerald / Classic White bar, so the Collections menu opens below it
 const COLLECTIONS_TAB_HEIGHT = 40;
+// Height of Sunlit Portrait's pinned tab bar; its gallery header's film opening fills the screen under it
+export const PORTRAIT_TABS_HEIGHT = 56;
 
 const getSportsHeaderTheme = (templateId?: string) => SPORTS_HEADER_THEMES[templateId || ''] || SPORTS_HEADER_THEMES.bohemian;
 
@@ -61,18 +65,23 @@ export function ThemeHeader({
   handleSubEventChange,
   styles,
   royalFontFamily,
+  portraitFontFamily,
 }: ThemeHeaderProps) {
   // Website navbar links: Cinzel, gold when chosen
   const royalTabText = (active: boolean) => isRoyalFont && { fontFamily: royalFontFamily, fontWeight: 'normal' as const, letterSpacing: 1.6, color: active ? '#f3d68f' : '#cdb48a' };
   const templateId = event?.templateId;
   const isRoyal = templateId === 'royal';
+  // Sunlit Portrait (website: its navbar in sunlit-portrait.css): the serif in normal case, ink when chosen with a clay
+  // dot under it, muted brown otherwise, on the warm paper
+  const isPortrait = templateId === 'portrait';
+  const portraitTabText = (active: boolean) => isPortrait && !!portraitFontFamily && { fontFamily: portraitFontFamily, fontWeight: 'normal' as const, textTransform: 'none' as const, letterSpacing: 0, fontSize: 20, color: active ? '#1F1B17' : '#6B6158' };
   const isRoyalFont = isRoyal && !!royalFontFamily;
   const { width: windowWidth } = useWindowDimensions();
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [collectionsAnchor, setCollectionsAnchor] = useState<{ x: number; y: number } | null>(null);
   const isClassic = templateId === 'classic';
-  // Royal Emerald and Classic White group the albums under one Collections tab, like the website's navbar
-  const groupsCollections = isRoyalFont || isClassic;
+  // Royal Emerald, Classic White and Sunlit Portrait group the albums under one Collections tab, like the website's navbar
+  const groupsCollections = isRoyalFont || isClassic || isPortrait;
   const isHero = templateId === 'hero';
   const isEthereal = templateId === 'ethereal';
   const isScrapbook = templateId === 'scrapbook';
@@ -95,7 +104,7 @@ export function ThemeHeader({
   const isBrutalist = templateId === 'brutalist';
   const isTechSleek = templateId === 'tech_sleek';
   const isExecutive = templateId === 'executive';
-  const isThemeHeader = isRoyal || isClassic || isHero || isEthereal || isGarden;
+  const isThemeHeader = isRoyal || isClassic || isPortrait || isHero || isEthereal || isGarden;
 
   const birthdayTextColor = isSportsTemplate ? sportsHeaderTheme.text : (isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#F2E7D2' : (isRoseGarden ? '#562733' : (isMinimalLove ? '#4a2f1d' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : (isMuseum ? '#9b7a44' : (isBrutalist ? '#111113' : (isTechSleek ? '#7dd3fc' : (isExecutive ? '#e8d8b8' : '#cca43b')))))))))))))));
 
@@ -142,12 +151,13 @@ export function ThemeHeader({
   });
 
   const themeTextColor = (active: boolean) => active
-    ? (isGarden ? '#FFFFFF' : (isHero ? '#cca43b' : (isRoyal ? '#fff' : (isEthereal ? selectedTemplate.accent : (isClassic ? '#2C352E' : '#cca43b')))))
+    ? (isGarden ? '#FFFFFF' : (isHero ? '#cca43b' : (isRoyal ? '#fff' : (isEthereal ? selectedTemplate.accent : (isClassic ? '#2C352E' : (isPortrait ? '#1F1B17' : '#cca43b'))))))
     : (isGarden ? '#64748b' : (isHero ? '#CDB89E' : selectedTemplate.muted));
 
   // The Collections tab and its menu items: Royal Emerald's gold Cinzel, Classic White like its other tabs
   const collectionTabText = (active: boolean) => isRoyalFont
     ? royalTabText(active)
+    : isPortrait ? [{ color: themeTextColor(active), fontFamily: selectedTemplate.bodyMedium }, portraitTabText(active)]
     : { color: themeTextColor(active), fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold' as const, textTransform: 'uppercase' as const, letterSpacing: 1.5, fontSize: 13 };
 
   const academicTabStyle = {
@@ -201,6 +211,7 @@ export function ThemeHeader({
         isSportsTemplate && [styles.sportsVisitorTabText, { color: sportsHeaderTheme.text }],
         !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
         royalTabText(isActive),
+        portraitTabText(isActive),
         isAcademicEditorial && {
           fontFamily: selectedTemplate.serifBold,
           fontSize: 13,
@@ -228,6 +239,12 @@ export function ThemeHeader({
       <View style={{ alignItems: 'center', marginTop: 3 }}>
         <View style={{ width: 28, height: 1.5, backgroundColor: selectedTemplate.accent }} />
         <View style={{ width: 4, height: 4, marginTop: 2, backgroundColor: selectedTemplate.accent, transform: [{ rotate: '45deg' }] }} />
+      </View>
+    );
+    // Below the label without taking room, so the chosen tab's label stays level with the others
+    if (isPortrait && isActive) return (
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: -4, alignItems: 'center' }}>
+        <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: '#A24E30' }} />
       </View>
     );
     if (isClassic && isActive) return (
@@ -304,6 +321,7 @@ export function ThemeHeader({
         ? { height: 60, marginTop: 0, marginBottom: 0, backgroundColor: '#021a15', borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(202,156,105,0.3)' }
         : { height: 70, marginTop: 12, marginBottom: 0 }),
       isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#FCFCFA' },
+      isPortrait && { height: PORTRAIT_TABS_HEIGHT, marginTop: 0, marginBottom: 0, borderBottomWidth: 1, borderBottomColor: '#E7DFD4', backgroundColor: '#FBF8F3' },
       isHero && { height: 64, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', backgroundColor: '#000000' },
       isEthereal && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.accent + '26', backgroundColor: selectedTemplate.background },
       isAcademicEditorial && { height: 52, marginTop: 12, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.text + '1a', backgroundColor: selectedTemplate.background },
@@ -371,7 +389,7 @@ export function ThemeHeader({
             onPress={openCollections}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <Text style={[styles.visitorTabText, collectionTabText(isCollectionActive)]}>COLLECTIONS</Text>
+              <Text style={[styles.visitorTabText, collectionTabText(isCollectionActive)]}>{isPortrait ? 'Collections' : 'COLLECTIONS'}</Text>
               <IconSymbol name="chevron.down" size={12} color={isRoyalFont ? (isCollectionActive ? '#f3d68f' : '#cdb48a') : themeTextColor(isCollectionActive)} />
             </View>
             {renderUnderline(isCollectionActive)}
@@ -428,6 +446,7 @@ export function ThemeHeader({
               isSportsTemplate && [styles.sportsVisitorTabText, { color: sportsHeaderTheme.text }],
               !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
               royalTabText(isPartnersActive),
+        portraitTabText(isPartnersActive),
               isAcademicEditorial && {
                 fontFamily: selectedTemplate.serifBold,
                 fontSize: 13,
@@ -497,6 +516,7 @@ export function ThemeHeader({
               isSportsTemplate && [styles.sportsVisitorTabText, { color: sportsHeaderTheme.text }],
               !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
               royalTabText(isFindYouActive),
+        portraitTabText(isFindYouActive),
               isAcademicEditorial && {
                 fontFamily: selectedTemplate.serifBold,
                 fontSize: 13,
@@ -509,7 +529,7 @@ export function ThemeHeader({
               {(isCyberTech || isNeonCarnival) ? (isFindYouActive ? '[ FIND YOU ]' : '  FIND YOU  ') : (
                 isRetroArcade ? 'FIND YOU 📸' : (
                   isAcademicEditorial ? `${String(subEvents.length + 4).padStart(2, '0')} / FIND YOU` : (
-                    (isSportsTemplate || isMuseum || isBrutalist || isTechSleek || isExecutive || isRoyalFont || isClassic) ? 'Find You' : <>Find You <Text style={{ fontSize: 10 }}>📸</Text></>
+                    (isSportsTemplate || isMuseum || isBrutalist || isTechSleek || isExecutive || isRoyalFont || isClassic || isPortrait) ? 'Find You' : <>Find You <Text style={{ fontSize: 10 }}>📸</Text></>
                   )
                 )
               )}
@@ -532,12 +552,12 @@ export function ThemeHeader({
                 width: 240,
                 maxHeight: 360,
                 paddingVertical: 6,
-                borderRadius: isClassic ? 2 : 14,
+                borderRadius: isClassic ? 2 : isPortrait ? 12 : 14,
                 borderWidth: 1,
-                borderColor: isClassic ? '#E6E6E0' : 'rgba(202,156,105,0.55)',
-                backgroundColor: isClassic ? '#FCFCFA' : '#021a15',
-                shadowColor: isClassic ? '#2C352E' : '#000',
-                shadowOpacity: isClassic ? 0.18 : 0.5,
+                borderColor: isClassic ? '#E6E6E0' : isPortrait ? '#E7DFD4' : 'rgba(202,156,105,0.55)',
+                backgroundColor: isClassic ? '#FCFCFA' : isPortrait ? '#FBF8F3' : '#021a15',
+                shadowColor: isClassic ? '#2C352E' : isPortrait ? '#1F1B17' : '#000',
+                shadowOpacity: isClassic || isPortrait ? 0.18 : 0.5,
                 shadowRadius: 16,
                 shadowOffset: { width: 0, height: 8 },
                 elevation: 12,
@@ -560,10 +580,10 @@ export function ThemeHeader({
                         paddingVertical: 12,
                         paddingHorizontal: 14,
                         borderRadius: isClassic ? 0 : 10,
-                        backgroundColor: active ? (isClassic ? 'rgba(139,154,110,0.14)' : 'rgba(202,156,105,0.16)') : 'transparent',
+                        backgroundColor: active ? (isClassic ? 'rgba(139,154,110,0.14)' : isPortrait ? 'rgba(162,78,48,0.08)' : 'rgba(202,156,105,0.16)') : 'transparent',
                       }}
                     >
-                      <Text numberOfLines={1} style={[{ fontSize: 13, textTransform: 'uppercase' }, collectionTabText(active)]}>{sub.title}</Text>
+                      <Text numberOfLines={1} style={[{ fontSize: 13, textTransform: 'uppercase' }, collectionTabText(active), isPortrait && { fontSize: 19 }]}>{sub.title}</Text>
                     </TouchableOpacity>
                   );
                 })}

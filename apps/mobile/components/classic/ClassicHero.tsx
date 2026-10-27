@@ -56,8 +56,9 @@ export function ClassicDivider({ style }: { style?: object }) {
   );
 }
 
-/** The host's cover settings, as on the website: the focus point decides which part of the cover shows */
-function coverPosition(gallery: ClassicHeroProps['gallery']) {
+/** The host's cover settings, as on the website: the focus point decides which part of the cover shows (also used by
+ *  Sunlit Portrait's cover) */
+export function coverPosition(gallery: ClassicHeroProps['gallery']) {
   const x = Math.max(0, Math.min(100, 50 + (gallery.coverOffsetX || 0)));
   const y = Math.max(0, Math.min(100, 50 + (gallery.coverOffset || 0)));
   return { left: `${x}%`, top: `${y}%` } as const;
