@@ -9,9 +9,10 @@ import { PORTRAIT, type PortraitFontSet } from './portraitFonts';
 
 // Top of the gallery section in Sunlit Portrait, from the website (src/components/portrait/PortraitGalleryHeader.tsx).
 // With a highlight film the opening fills the screen under the gallery tabs, like the cover: the film edge to edge
-// with Back / Share on its top edge (hidden while it plays), the date, gallery name and host's message at the bottom
-// left and a round play button at the bottom right. Without one, Back / Share sit on a thin line with the name and
-// message under it on paper. Then "Photos" and "Videos" in the serif with the count raised, the chosen one marked with a clay dot.
+// with Back / Share on its top edge, the date, gallery name and host's message at the bottom left and a round play
+// button at the bottom right. Once it plays, and without a film, Back / Share sit on a thin line on paper with the name
+// and message under it; a playing film keeps its own shape between them. Then "Photos" and "Videos" in the serif with the
+// count raised, the chosen one marked with a clay dot.
 
 type MediaTab = 'photos' | 'videos';
 
@@ -59,7 +60,7 @@ function Intro({ onFilm, title, details, message, fonts, width }: { onFilm: bool
       {!!details && <Text style={[local.details, onFilm && { color: '#ffffff' }]}>{details.toUpperCase()}</Text>}
       {/* Always one line: a long gallery name shrinks to the width */}
       <Text
-        style={[local.title, { fontFamily: fonts.serif, fontSize: size, color: onFilm ? '#ffffff' : PORTRAIT.ink }, onFilm && local.onFilmShadow]}
+        style={[local.title, { fontFamily: fonts.serif, fontSize: size, lineHeight: Math.round(size * 1.05), color: onFilm ? '#ffffff' : PORTRAIT.ink }, onFilm && local.onFilmShadow]}
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.3}
@@ -83,35 +84,36 @@ export function PortraitGalleryHeader(props: PortraitGalleryHeaderProps) {
 
   return (
     <View accessibilityLabel={`${title} gallery`}>
-      {video ? (
+      {video && playing ? (
+        // Playing: on the paper, like a gallery without a film, with the film at its own shape between Back / Share and
+        // the date, name and message (its player's own buttons sit on it, clear of Back / Share)
+        <View>
+          <Strip onFilm={false} {...props} />
+          <View style={[local.playingFilm, { aspectRatio: video.width && video.height ? video.width / video.height : 16 / 9 }]}>
+            <HighlightPlayer src={video.streamUrl} />
+          </View>
+          <View style={{ marginTop: 16 }}>
+            <Intro onFilm={false} title={title} details={details} message={quote} fonts={fonts} width={width - 48} />
+          </View>
+        </View>
+      ) : video ? (
         // The film runs edge to edge (the event screen's content has 24px side padding) and starts right under the tabs
         <View style={[local.film, { height: Math.max(screenHeight, 420) }]}>
-          {playing ? (
-            <HighlightPlayer src={video.streamUrl} />
+          {video.posterUrl ? (
+            <ExpoImage source={{ uri: video.posterUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
           ) : (
-            <>
-              {video.posterUrl ? (
-                <ExpoImage source={{ uri: video.posterUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
-              ) : (
-                <LinearGradient colors={['#6B6158', PORTRAIT.ink]} style={StyleSheet.absoluteFill} />
-              )}
-              <LinearGradient colors={['rgba(20,16,12,0)', 'rgba(20,16,12,0.3)', 'rgba(20,16,12,0.7)']} locations={[0, 0.4, 1]} style={[local.shade, { bottom: 0, height: '60%' }]} pointerEvents="none" />
-              <View style={local.filmText}>
-                <Intro onFilm title={title} details={details} message={quote} fonts={fonts} width={width - 96} />
-              </View>
-              <TouchableOpacity onPress={() => setPlaying(true)} accessibilityRole="button" accessibilityLabel={`Play the ${title} highlight film`} style={local.play} activeOpacity={0.85}>
-                <IconSymbol name="play.fill" size={22} color={PORTRAIT.ink} />
-              </TouchableOpacity>
-            </>
+            <LinearGradient colors={['#6B6158', PORTRAIT.ink]} style={StyleSheet.absoluteFill} />
           )}
-          {/* Back / Share on the film's top edge, over a soft shade; they step aside while the film plays, where the
-              player puts its own full-screen, picture-in-picture and volume buttons */}
-          {!playing && (
-            <>
-              <LinearGradient colors={['rgba(20,16,12,0.5)', 'rgba(20,16,12,0)']} style={[local.shade, { top: 0, height: 96 }]} pointerEvents="none" />
-              <Strip onFilm {...props} />
-            </>
-          )}
+          <LinearGradient colors={['rgba(20,16,12,0)', 'rgba(20,16,12,0.3)', 'rgba(20,16,12,0.7)']} locations={[0, 0.4, 1]} style={[local.shade, { bottom: 0, height: '60%' }]} pointerEvents="none" />
+          <View style={local.filmText}>
+            <Intro onFilm title={title} details={details} message={quote} fonts={fonts} width={width - 96} />
+          </View>
+          <TouchableOpacity onPress={() => setPlaying(true)} accessibilityRole="button" accessibilityLabel={`Play the ${title} highlight film`} style={local.play} activeOpacity={0.85}>
+            <IconSymbol name="play.fill" size={22} color={PORTRAIT.ink} />
+          </TouchableOpacity>
+          {/* Back / Share on the film's top edge, over a soft shade */}
+          <LinearGradient colors={['rgba(20,16,12,0.5)', 'rgba(20,16,12,0)']} style={[local.shade, { top: 0, height: 96 }]} pointerEvents="none" />
+          <Strip onFilm {...props} />
         </View>
       ) : (
         <View>
@@ -160,10 +162,12 @@ const local = StyleSheet.create({
   link: { fontSize: 20, lineHeight: 26 },
   details: { marginBottom: 2, color: PORTRAIT.clay, fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 2.6 },
   title: { letterSpacing: -0.5 },
-  quote: { marginTop: 10, fontSize: 20, lineHeight: 26 },
+  quote: { marginTop: 4, fontSize: 20, lineHeight: 26 },
   film: { marginHorizontal: -24, marginTop: -24, overflow: 'hidden', backgroundColor: PORTRAIT.ink },
   shade: { position: 'absolute', left: 0, right: 0 },
   filmText: { position: 'absolute', left: 20, right: 76, bottom: 32 },
+  // While the film plays: close under Back / Share, lined up with the text and photos, soft corners like the photos
+  playingFilm: { width: '100%', marginTop: 14, borderRadius: 6, overflow: 'hidden', backgroundColor: '#000' },
   play: {
     position: 'absolute',
     right: 20,

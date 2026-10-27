@@ -4280,7 +4280,8 @@ How to test:
      Collections and Find You in the serif; the chosen one has a small reddish-brown dot under it.
   3. Gallery with a highlight video: expect the video's picture to fill the screen under the bar, with
      "Back to Gallery" and "Share" at its top, the date, gallery name and message at the bottom left
-     and a round white play button. Tap play: the film plays in place. Gallery without a video: Back /
+     and a round white play button. Tap play: the page turns off-white; the film plays at its own shape
+     close under Back / Share, with the date, name and message close under it. Gallery without a video: Back /
      Share on a thin line, then the date, name and message on the off-white page.
   4. Below that: "Photos" and "Videos" in the serif with the count raised and a dot under the chosen
      one; switching works. Photos sit in rows with small gaps and soft corners; tap one, the viewer
@@ -4295,8 +4296,8 @@ How to test:
      the couple's names and "Happily married since".
   8. Scroll into the photos. Expect: the strip above the pinned tabs (under the clock) is solid
      off-white, nothing shows through, and the clock is dark there (white again over the cover).
-     Open a photo: the viewer is off-white with dark controls. Play the highlight film: Back / Share
-     disappear while it plays and the player's own buttons at the top work.
+     Open a photo: the viewer is off-white with dark controls. Play the highlight film: Back / Share and the
+     name / message stay on the off-white page around it, and the player's own buttons on the film work.
 Done by:
 Device / browser:
 Build / version:
