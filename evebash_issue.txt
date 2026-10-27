@@ -180,17 +180,6 @@ Found in: Discussing live updates while testing #51 (2026-10-12)
 Issue: Supabase Realtime is off (the supabase_realtime publication has no tables since 2026-09-30, the user's choice). Decision 2026-10-12: keep it off for the v1 launch and turn it on later per table, only where a feature needs it (first candidate: Phase 2 vendor chat, messages and chat_rooms; then maybe comments and likes; guests only if #48 isn't enough). Before turning any table on: (1) #21 must be applied, or Realtime sends row changes to anyone listening; (2) add tables one at a time, not all; (3) review the existing listeners first: the app subscribes to photos, events, profiles, likes, comments, chat, businesses (all dormant now), and the Gallery and Usage tabs create a new randomly named channel each time they open (apps/mobile/app/(tabs)/gallery.tsx, usage.tsx), so check they unsubscribe; (4) check the Supabase plan's limits on live connections and messages.
 How to reproduce: In Supabase, Database > Publications > supabase_realtime: no tables.
 
-#55
-Listed: 2026-10-12
-Platform: Website
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: #52 scan for whole-table loads (2026-10-12)
-Issue: Unused website functions in src/lib/database.ts still load whole tables and filter on the device: getEvents() (every gallery), and getUserPendingVisits / getPendingSharedEventsForUser (every pending guests row, matched on the device like getUserVisits before #52). Nothing calls them, so nothing is affected now, but reusing them would bring the problem back. Fix: delete them (or, if a "pending requests I sent" list is wanted, filter on the server the way getUserVisits does now).
-How to reproduce: grep src for getEvents( / getUserPendingVisits( / getPendingSharedEventsForUser(: only the definitions.
-
 #58
 Listed: 2026-10-12
 Platform: Both
@@ -1048,6 +1037,18 @@ How to reproduce: curl -s https://staging.evebash.com/pricing | grep -c 'Loading
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#55
+Listed: 2026-10-12
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #52 scan for whole-table loads (2026-10-12)
+Issue: Unused website functions in src/lib/database.ts still load whole tables and filter on the device: getEvents() (every gallery), and getUserPendingVisits / getPendingSharedEventsForUser (every pending guests row, matched on the device like getUserVisits before #52). Nothing calls them, so nothing is affected now, but reusing them would bring the problem back. Fix: delete them (or, if a "pending requests I sent" list is wanted, filter on the server the way getUserVisits does now).
+How to reproduce: grep src for getEvents( / getUserPendingVisits( / getPendingSharedEventsForUser(: only the definitions.
+Fixed in: b0bd3db (2026-10-27). Deleted getEvents, getUserPendingVisits and getPendingSharedEventsForUser from src/lib/database.ts. Nothing called them (searched src, apps and shared); guestLogMatchesIdentifier and mapSqlToGuestLog stay because other functions use them. Checked: tsc has no errors. No device test: no screen used these functions.
+
 #56
 Listed: 2026-10-12
 Platform: Website
