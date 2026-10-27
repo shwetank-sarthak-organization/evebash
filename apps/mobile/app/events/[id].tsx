@@ -1746,12 +1746,14 @@ export default function EventDetailScreen() {
     setUpdating(true);
     try {
       if (activeSubEvent) {
-        await updateEvent(activeSubEvent.id, { description: galleryDescText.trim() });
+        const saved = await updateEvent(activeSubEvent.id, { description: galleryDescText.trim() });
+        if (!saved) throw new Error('updateEvent returned false');
         setActiveSubEvent({ ...activeSubEvent, description: galleryDescText.trim() });
         const loadedSubs = await getSubEvents(event.id, event.legacyId);
         setSubEvents(loadedSubs);
       } else {
-        await updateEvent(event.id, { description: galleryDescText.trim() });
+        const saved = await updateEvent(event.id, { description: galleryDescText.trim() });
+        if (!saved) throw new Error('updateEvent returned false');
         setEvent({ ...event, description: galleryDescText.trim() });
       }
       setGalleryDescModalVisible(false);
@@ -5263,8 +5265,11 @@ export default function EventDetailScreen() {
                                     style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
                                     onPress={async () => {
                                       const targetId = selectedAdminGallery === null ? event!.id : selectedAdminGallery.id;
-                                      const { updateEvent } = await import('@/lib/database');
-                                      await updateEvent(targetId, { description: galleryDescText });
+                                      const saved = await updateEvent(targetId, { description: galleryDescText });
+                                      if (!saved) {
+                                        appAlert("Error", "Failed to update welcome message.");
+                                        return;
+                                      }
 
                                       if (selectedAdminGallery === null) {
                                         event!.description = galleryDescText;

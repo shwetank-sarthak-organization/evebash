@@ -3249,7 +3249,8 @@ function DashboardContent() {
         setStatus("success");
 
         try {
-            await updateEvent(currentRenamingEvent.id, { title: newTitle, date: newDate });
+            const saved = await updateEvent(currentRenamingEvent.id, { title: newTitle, date: newDate });
+            if (!saved) throw new Error("updateEvent returned false");
             setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
             if (currentRenamingEvent.id === selectedEventId) {
                 setSelectedEventName(newTitle);
@@ -3277,7 +3278,8 @@ function DashboardContent() {
         setMessage("Saving gallery message...");
 
         try {
-            await updateEvent(activeEventDetailEvent.id, { description: nextDescription });
+            const saved = await updateEvent(activeEventDetailEvent.id, { description: nextDescription });
+            if (!saved) throw new Error("updateEvent returned false");
             setUserEvents(prev => prev.map(evt => evt.id === activeEventDetailEvent.id ? { ...evt, description: nextDescription } : evt));
             setEventDetailGalleries(prev => prev.map(evt => evt.id === activeEventDetailEvent.id ? { ...evt, description: nextDescription } : evt));
             setSelectedMainEvent(prev => prev?.id === activeEventDetailEvent.id ? { ...prev, description: nextDescription } : prev);
