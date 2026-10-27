@@ -24,7 +24,7 @@ Next test number: 163
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -3951,13 +3951,17 @@ How to test:
      dark text and Download All turns dark.
   4. Click each top-bar link: Home, a gallery under Collections, Find You, Download All. Expect: each
      does what it does on Classic White (Download All asks Home or whole event, then downloads a ZIP).
+     On the Find You page the top bar is off-white with dark links from the start (no cover there).
   5. Scroll back up and click the round arrow. If the host picked a gallery video, expect: the opening
      fills exactly one screen under the top bar, like the cover: the video's picture edge to edge,
      "Back to Gallery" and "Share" in bold white on its top edge, the date, the gallery name (big,
      white) and the gallery message at the bottom left, and a white "Highlight film" button at the
-     bottom right (just a round play button on a phone); press it and the film plays, Back / Share
-     stay on top and work. Without a video: no full screen; bold "Back to Gallery" and "Share" on a
-     thin line, the name and message under it, then Photos / Videos right away. "Photos" and
+     bottom right (just a round play button on a phone); press it: the page turns off-white, "Back to
+     Gallery" and "Share" stay on a thin line at the top, the film plays at its own shape right under
+     them (no loading badge over "Back to Gallery"), and the date, name and message sit right under
+     the film. Without a video: no full screen; bold "Back to Gallery" and "Share" on a thin line,
+     the name and message under it, then Photos / Videos right away. Logged out, on a main gallery,
+     "Back to Gallery" scrolls back up to the cover (no login page); logged in it opens your events. "Photos" and
      "Videos" are in serif with the count raised; the chosen one has a small dot under it and
      switching works.
   5b. Scroll to the bottom. Expect: a dark footer (no plain one-line footer): "Create your own event",
@@ -4268,14 +4272,15 @@ Brief:     The wedding theme Sunlit Portrait (#149 on the website) now has an ap
            photo fills the screen with "We're getting married" / "Happily married since <date>" and
            the couple's names in a serif; the gallery tabs, gallery opening (with or without a
            highlight film), photo rows and footer copy the website's design on warm off-white.
-Detail:    Todo #9. Needs the new app code on a staging build or the dev app with Metro; no new native
+Detail:    Todo #9 (e4091d4, review fixes dc91889, film layout 1056d05, bolder labels c1373c6). Needs the new app code on a staging build or the dev app with Metro; no new native
            build is needed (the new font loads like the other theme fonts). Pick the theme on the
            website host page (or the app's theme picker) for a wedding gallery first.
 How to test:
   1. Open a Sunlit Portrait wedding gallery in the app. Expect: the cover photo fills the screen; at
      the bottom left "Happily married since" over the date (or "We're getting married" before the
      wedding date), then the couple's names in a thin serif on one line ("A and B" shows as "A & B");
-     a round white arrow at the bottom right; round Back and Share buttons at the top.
+     a round white arrow at the bottom right; round Back and Share buttons at the top. The date line,
+     tabs and Back / Share look about as bold as on the website.
   2. Tap the arrow. Expect: the page scrolls to the gallery. A pale bar pins at the top with Home,
      Collections and Find You in the serif; the chosen one has a small reddish-brown dot under it.
   3. Gallery with a highlight video: expect the video's picture to fill the screen under the bar, with

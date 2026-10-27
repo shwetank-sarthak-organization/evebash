@@ -34,7 +34,7 @@ Field values:
 
 Next todo number: 19
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
 
 =====================================================================
 ACTIVE TODOS
@@ -165,52 +165,6 @@ Brief:        There is no crash or error reporting anywhere today (no Sentry, Cr
               Left after the first version (branch feat/sentry-crash-reporting): source maps are
               not uploaded yet, so stack traces show minified code. Needs a SENTRY_AUTH_TOKEN
               (EAS secret + Vercel) and the @sentry/react-native Expo plugin / withSentryConfig.
-Done in:      -
-
-
-#9  Sunlit Portrait theme in the app
-Listed:       2026-10-26
-Platform:     App
-Priority:     Medium
-Phase:        1 (v1 launch)
-Status:       In progress
-Effort:       M
-Suggested by: Sarthak (2026-10-26: "first create for website")
-Discussed:    Yes
-Decision:     2026-10-26 Sarthak: build the website version first (#8), the app after;
-              2026-10-26 Sarthak asked again to have this on the list ("create theme for app too").
-Owner:        Sarthak (with Claude)
-Depends on:   #8
-Brief:        The website has a new wedding theme "Sunlit Portrait" (id "portrait", #8), but the
-              app has no "portrait" entry in apps/mobile/constants/templates.ts, so the app's theme
-              picker doesn't offer it and a gallery set to it on the website isn't drawn in that
-              design in the app. Copy the website design (staging, src/components/TemplatePortrait.tsx,
-              src/components/portrait/, src/app/sunlit-portrait.css):
-              - Cover: full-screen photo (host's focus point / zoom); at the bottom left "We're
-                getting married ♥ <date>" before the main event's date, "Happily married since
-                <date>" after it (Anniversary: "Still choosing each other"), then the names in
-                Instrument Serif; round white arrow button bottom right.
-              - Top bar: same links as Classic White in Instrument Serif, a clay dot under the
-                chosen one, Download All as a rounded pill; white on the photo, warm paper once
-                scrolled.
-              - Gallery: warm paper #FBF8F3, ink #1F1B17, muted #6B6158, clay #A24E30. With a
-                highlight film the opening fills one screen: the film edge to edge, bold Back /
-                Share on its top edge, date + gallery name + message at the bottom left, a "Highlight
-                film" play button bottom right. Without one: Back / Share on a thin line, name and
-                message, then Photos / Videos straight away. Photos / Videos as serif words with
-                raised counts and the clay dot; photos with soft corners.
-              - Footer (every page): ink, Confetti Circle's layout; EveBash links left, legal
-                links right, the couple's names (one line, no date line) + "Made with EveBash"
-                in the middle.
-              Keep the web and app pickers the same (src/lib/hiddenTemplates.test.ts checks the
-              app list).
-              Progress 2026-10-27: built on the app, on staging (device test #158):
-              components/portrait/ (PortraitHero, PortraitGalleryHeader, PortraitFooter,
-              portraitFonts with @expo-google-fonts/instrument-serif, agreed 2026-10-27),
-              gallery tabs in components/event/ThemeHeader.tsx, event screen wiring in
-              app/events/[id].tsx, photo rows from Classic White (ClassicPhotoRows, 8px gaps,
-              rounded). The date line comes from shared/themes/portraitIntro.ts (one copy for
-              website and app). Checked in the iOS simulator on a real gallery with a film.
 Done in:      -
 
 #10 Confetti Circle: bride and groom details in the theme editor
@@ -524,6 +478,54 @@ Brief:        Today QStash delivers each video job to a Modal endpoint. Modal an
 =====================================================================
 DONE / DROPPED (delete after 14 days)
 =====================================================================
+
+#9  Sunlit Portrait theme in the app
+Listed:       2026-10-26
+Platform:     App
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       M
+Suggested by: Sarthak (2026-10-26: "first create for website")
+Discussed:    Yes
+Decision:     2026-10-26 Sarthak: build the website version first (#8), the app after;
+              2026-10-26 Sarthak asked again to have this on the list ("create theme for app too").
+Owner:        Sarthak (with Claude)
+Depends on:   #8
+Brief:        The website has a new wedding theme "Sunlit Portrait" (id "portrait", #8), but the
+              app has no "portrait" entry in apps/mobile/constants/templates.ts, so the app's theme
+              picker doesn't offer it and a gallery set to it on the website isn't drawn in that
+              design in the app. Copy the website design (staging, src/components/TemplatePortrait.tsx,
+              src/components/portrait/, src/app/sunlit-portrait.css):
+              - Cover: full-screen photo (host's focus point / zoom); at the bottom left "We're
+                getting married ♥ <date>" before the main event's date, "Happily married since
+                <date>" after it (Anniversary: "Still choosing each other"), then the names in
+                Instrument Serif; round white arrow button bottom right.
+              - Top bar: same links as Classic White in Instrument Serif, a clay dot under the
+                chosen one, Download All as a rounded pill; white on the photo, warm paper once
+                scrolled.
+              - Gallery: warm paper #FBF8F3, ink #1F1B17, muted #6B6158, clay #A24E30. With a
+                highlight film the opening fills one screen: the film edge to edge, bold Back /
+                Share on its top edge, date + gallery name + message at the bottom left, a "Highlight
+                film" play button bottom right. Without one: Back / Share on a thin line, name and
+                message, then Photos / Videos straight away. Photos / Videos as serif words with
+                raised counts and the clay dot; photos with soft corners.
+              - Footer (every page): ink, Confetti Circle's layout; EveBash links left, legal
+                links right, the couple's names (one line, no date line) + "Made with EveBash"
+                in the middle.
+              Keep the web and app pickers the same (src/lib/hiddenTemplates.test.ts checks the
+              app list).
+              Built 2026-10-27 (device test #158):
+              components/portrait/ (PortraitHero, PortraitGalleryHeader, PortraitFooter,
+              portraitFonts with @expo-google-fonts/instrument-serif, agreed 2026-10-27),
+              gallery tabs in components/event/ThemeHeader.tsx, event screen wiring in
+              app/events/[id].tsx, photo rows from Classic White (ClassicPhotoRows, 8px gaps,
+              rounded). The date line comes from shared/themes/portraitIntro.ts (one copy for
+              website and app). Checked in the iOS simulator on a real gallery with a film.
+              2026-10-27/28: review fixes (viewer colours, solid strip above the tabs, album
+              cover for logged-out guests, film controls), the film plays on white between
+              Back / Share and the name / message, labels drawn bolder (#166).
+Done in:      e4091d4 (2026-10-27), dc91889, 1056d05, c1373c6 (2026-10-28), on staging. Device test #158.
 
 #8  New wedding theme "Sunlit Portrait" (website)
 Listed:       2026-10-26

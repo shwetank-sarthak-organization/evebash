@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 168
+Next issue number: 169
 
 =====================================================================
 ACTIVE ISSUES
@@ -562,13 +562,13 @@ How to reproduce: Phone with the app: sign in as A, log out, sign in as B. Anoth
 Listed: 2026-10-22
 Platform: App
 Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
+Status: Open
+Owner: Unassigned
 Blocked by: -
 Found in: App size check with expo export (2026-10-22)
 Issue: The app bundle ships about 15 MB of font files it never loads. Importing from a @expo-google-fonts package's root (import { Inter_400Regular } from '@expo-google-fonts/inter') pulls in every weight, because the package index require()s all of them. (1) apps/mobile/app/_layout.tsx uses 6 Inter weights but ships all 18 (about 4.1 MB extra). (2) The in-progress Royal Emerald work, apps/mobile/components/royal/royalFonts.ts, uses 2 Cinzel and 2 Cormorant Garamond faces but ships 6 and 10 (about 4.6 MB extra). (3) All 7 Material Symbols weights (about 6.7 MB) come in through expo-symbols (expo-router native tabs and components/ui/icon-symbol*.tsx); the app draws its Android icons with MaterialIcons, so these may not be needed - test before removing. Fix for (1) and (2): import each face from its own file, e.g. require('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'). Fonts that aren't loaded don't slow startup; this is download and install size only.
 How to reproduce: cd apps/mobile && npx expo export --platform android --output-dir /tmp/x: the Assets list shows all Inter, Cinzel, Cormorant Garamond and Material Symbols weights.
-Note 2026-10-28: Sunlit Portrait's Instrument Serif (apps/mobile/components/portrait/portraitFonts.ts) now imports its one face from its own file, not the package root (which also bundled the unused italic, ~70 KB). Still open: royalFonts.ts and Material Symbols.
+Note 2026-10-28: Sunlit Portrait's Instrument Serif (apps/mobile/components/portrait/portraitFonts.ts) now imports its one face from its own file (c1373c6), not the package root (which also bundled the unused italic, ~70 KB). Still open: royalFonts.ts and Material Symbols.
 Note 2026-10-27: Part (1) fixed: apps/mobile/app/_layout.tsx now imports each Inter weight from its own file (@expo-google-fonts/inter/400Regular etc.). expo export --platform android now lists only the 6 Inter weights used (about 2 MB). Needs a new app build to reach phones. Parts (2) royalFonts.ts (left alone, belongs to the Royal Emerald work in #97) and (3) Material Symbols are still open.
 
 #102
@@ -1026,64 +1026,81 @@ Found in: Fixing #29 (chat 2026-10-27)
 Issue: The other main pages still paint the full-screen "Loading your gallery" screen before their content on every first load, as the homepage did in #29. Each (main) section's loading.tsx (re-exporting src/components/RouteLoading.tsx) wraps its page in a Suspense boundary, and React 19.2 sends any ready content after a ~12.8 KB page shell behind the fallback, revealed by a delayed script. Checked on a local build: /pricing, /privacy-policy and /sample-galleries have the loading screen first and the page in a hidden part; /login does not. It also says "Loading your gallery" on pages that aren't galleries. Fix idea: keep loading.tsx only where the page waits on the server (pricing's layout fetch, sample-galleries/[client], profile/[id]); client pages and the policy pages don't need one. That changes what shows while moving between pages, so decide per page.
 How to reproduce: curl -s https://staging.evebash.com/pricing | grep -c 'Loading your gallery' gives 2 and the page has <template id="B:0">; on a slow phone the loading screen shows before Pricing.
 
+#168
+Listed: 2026-10-28
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Sunlit Portrait issue review (#163, 2026-10-28)
+Issue: The app carries code for a "show welcome card" switch that doesn't exist. The events table has no show_welcome_card column, yet apps/mobile/lib/database.ts maps it (showWelcomeCard in mapSqlToEvent and in the update field map), apps/mobile/app/events/[id].tsx checks (event as any).showWelcomeCard !== false before every theme's gallery message (always true, the value is always missing), and apps/mobile/app/(tabs)/gallery.tsx has a showWelcomeCard state that is never set or saved. Nothing breaks today, but it reads like a working switch (it misled #163), and passing showWelcomeCard to updateEvent would fail on the missing column. Fix: delete the mapping, the checks and the unused state; keep "clear the welcome text" as the way to hide the message (or add the column and a real switch if hosts ask for one).
+How to reproduce: select show_welcome_card from events fails with "column does not exist"; search apps/mobile for showWelcomeCard.
+
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #163
 Listed: 2026-10-27
 Platform: Both
 Priority: Low
-Status: In progress
+Status: Fixed
 Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Sunlit Portrait review (2026-10-27)
 Issue: The host's "show welcome card" switch (events.show_welcome_card) only works in the app. The app hides the gallery message when it is off (apps/mobile/app/events/[id].tsx, every theme's gallery header); the website shows it anyway (src/app/(public)/events/[slug]/page.tsx, activeGalleryMessage is passed to every gallery header). So the same gallery shows its message on the website but not in the app. Fix: map show_welcome_card in src/lib/database.ts and pass the message only when it isn't false, like the app.
 How to reproduce: In the app, turn the gallery's welcome card off. Open the gallery on the website and in the app: the website still shows the message.
+Fixed in: no change needed (2026-10-28). Not a bug: the events table has no show_welcome_card column (checked in the database 2026-10-28) and nothing in the app or website sets it, so there is no switch to respect; the app's check reads a value that is always missing and always shows the message, same as the website. A host hides the message by clearing the gallery's welcome text. The app's unused switch code is #168.
 
 #164
 Listed: 2026-10-27
 Platform: Website
 Priority: Low
-Status: In progress
+Status: Fixed
 Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Sunlit Portrait review (2026-10-27)
 Issue: While a gallery's highlight film starts in Sunlit Portrait, the video player's "loading" badge (src/components/ui/HLSVideoPlayer.tsx, top left) sits on top of "Back to Gallery" on the film's top edge (src/components/portrait/PortraitGalleryHeader.tsx). It goes away once the film plays. Fix: hide Back / Share while the film plays (as the app now does) or move the badge for this theme.
 How to reproduce: Open a Sunlit Portrait gallery that has a highlight film on the website and press play: "Back to Gallery" and the loading badge overlap for a moment.
+Fixed in: c1373c6 (2026-10-28). Once the film plays, the Sunlit Portrait opening becomes the paper layout, as in the app: Back / Share on their line, the film at its own shape under them (as big as fits on the screen with the strip and the name, soft corners), the date, name and message under it (src/components/portrait/PortraitGalleryHeader.tsx, .portrait-gh__playing-film in src/app/sunlit-portrait.css). The loading badge is now inside the film box. Checked in the built-in browser at 1280x800 (film below the strip; a test video stood in for the film). Device test #149 step 5.
 
 #165
 Listed: 2026-10-27
 Platform: Website
 Priority: Low
-Status: In progress
+Status: Fixed
 Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Sunlit Portrait review (2026-10-27)
 Issue: "Back to Gallery" on a main gallery goes to /dashboard (goBack in src/app/(public)/events/[slug]/page.tsx), not back to the gallery. A guest who isn't logged in lands on the login page. Same in Sunlit Portrait, Classic White and the other themes that show the button. Fix: on the main gallery, scroll to the top / cover instead (or hide the button), and keep /dashboard only for logged-in hosts.
 How to reproduce: Open a public gallery link while logged out, scroll to the gallery and press "Back to Gallery": the login page opens.
+Fixed in: c1373c6 (2026-10-28). goBack in src/app/(public)/events/[slug]/page.tsx: an album goes to its main gallery as before; on a main gallery a signed-in viewer still goes to /dashboard and a guest who isn't signed in scrolls back up to the cover. The cover's own back buttons (onBack passed to the theme) use the same rule. Checked in the built-in browser logged out: Back to Gallery kept the page and scrolled to the top. Device test #149 step 5.
 
 #166
 Listed: 2026-10-27
 Platform: App
 Priority: Low
-Status: In progress
+Status: Fixed
 Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Sunlit Portrait review (2026-10-27)
 Issue: Sunlit Portrait's date line ("Happily married since ..."), navbar links and Back / Share look lighter in the app than on the website. The website makes Instrument Serif (one weight only) read as bold with a 0.6px text stroke (src/app/sunlit-portrait.css, --sp-label-stroke); React Native can't draw a text stroke, so the app shows the plain weight. Fix options: a slightly larger size or stronger shadow in apps/mobile/components/portrait, or a heavier serif for those labels only (would need a new font).
 How to reproduce: Compare the cover's date line on the website and in the app: the app's is thinner.
+Fixed in: c1373c6 (2026-10-28). apps/mobile/components/portrait/PortraitBoldText.tsx draws a label twice, the second copy 0.6pt to the right, which thickens the strokes like the website's 0.6px text stroke. Used for the cover's date line, Back / Share and the gallery tabs (Home, Collections and its menu, Find You). Checked in the iOS simulator: visibly heavier, the two copies line up. Device test #158.
 
 #167
 Listed: 2026-10-27
 Platform: App
 Priority: Low
-Status: In progress
+Status: Fixed
 Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Sunlit Portrait review (2026-10-27)
 Issue: App builds made before e4091d4 (2026-10-27) don't know the "portrait" theme id. A gallery set to Sunlit Portrait opens in those builds in the generic layout with the first theme's colours (Royal Emerald), since MOBILE_TEMPLATE_THEMES has no entry for it. Only testers on older staging builds see this (nothing has launched), but any theme added later will do the same on older app versions. Fix: fall back to a neutral theme (e.g. Classic White) for unknown ids instead of the first in the list, and ship that before the first store release.
 How to reproduce: Install a staging build from before 2026-10-27 and open a Sunlit Portrait gallery: it shows Royal Emerald colours.
+Fixed in: c1373c6 (2026-10-28). Closed as not needed before launch (Sarthak, 2026-10-28: the app isn't live, the new build knows the theme). Kept for after launch: the event screen falls back to Midnight Hero, the default, for a theme id it doesn't know (apps/mobile/app/events/[id].tsx), and the host's design section says "A newer theme (update the app)" instead of a blank. Type-checked only.
 
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
 #159
 Listed: 2026-10-27
 Platform: Both
