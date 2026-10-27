@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 159
+Next issue number: 160
 
 =====================================================================
 ACTIVE ISSUES
@@ -1014,17 +1014,6 @@ Found in: Sentry crash reporting work (todo #6, 2026-10-26)
 Issue: The backend cannot import shared/: Railway builds evebash-api-staging-backend with Root Directory /apps/backend, so files outside it don't exist at runtime (only backend tests import shared/ today). Code needed by website, app and backend has to be copied, and copies drift. First case: the Sentry personal-data scrubber exists in shared/monitoring/sentryScrub.ts (website, app) and again in apps/backend/src/sentry.ts. Fix options: set Railway's Root Directory to the repo root with a backend build/start command and watch paths, or copy shared/ into apps/backend at build time; then delete the backend copy.
 How to reproduce: Import anything from ../../../shared in apps/backend/src and deploy to staging: the service fails to start with "Cannot find module".
 
-#155
-Listed: 2026-10-27
-Platform: Both
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Planning todo #11 (edit from Preview Guest Theme), 2026-10-27
-Issue: Some saves tell the host "updated" even when nothing was saved. updateEvent (src/lib/database.ts and apps/mobile/lib/database.ts) returns false when the save fails instead of throwing, but these callers only catch errors and never check the result: website host page, renaming a gallery's title and date (handleRenameSubmit, src/app/(main)/host/page.tsx:3252, shows "Event updated!" / "Gallery updated!") and the gallery message (handleSaveGalleryMessage, :3280, "Gallery message updated."); app, the gallery message (handleSaveGalleryDesc, apps/mobile/app/events/[id].tsx:1749 and :1754, "Gallery message updated successfully!") and the welcome message save button (:5267, "Welcome message updated."). The screen also shows the new text, so the host only finds out when they reload or a guest sees the old one. Fix: check the returned value, show the existing error message and put the old value back when it is false.
-How to reproduce: Make updateEvent fail (e.g. go offline after the host page has loaded, or block the request to the events table in the browser's dev tools), then rename a gallery or change its message: the success message appears; reload and the old title or message is still there.
-
 #157
 Listed: 2026-10-27
 Platform: Both
@@ -1057,9 +1046,32 @@ Issue: With VIDEO_READY_PUSH on, the gallery owner gets one push per processed v
 How to reproduce: Upload 5 videos to a gallery you own with VIDEO_READY_PUSH on: 5 separate pushes.
 Fix idea: route video-ready notifications through the same grouped outbox/debounce as photo uploads ("5 new videos"). Plan (2026-10-27): the video-ready step adds the video to the gallery's outbox instead of pushing; the outbox sends one push per gallery after a few quiet minutes ("5 new videos are ready"), with the same per-owner claim so nothing is sent twice. Behind a switch, off by default.
 
+#159
+Listed: 2026-10-27
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Fixing #155 (chat 2026-10-27)
+Issue: Same problem as #155 in more places: updateEvent returns false when a save fails, and these callers never check it, so the screen keeps the new value (and some show a success message) when nothing was saved. Website, src/app/(main)/host/page.tsx: changing the theme (handleUpdateTemplate, about :3343 and the sub-gallery cascade just below), saving a new join code when sharing (about :3079), and setting the first uploaded photo as cover (about :2687). App, apps/mobile/app/events/[id].tsx: cover upload and cover remove (about :2536 and :2604; they then update storage usage as if the cover changed), theme (about :2694), event type (about :2714), cover Fit/Fill (about :4075, toast shown before saving), cover position (about :8583, "Cover position saved" shown before saving) and linking a vendor (about :8411, Phase 2 business feature). Fix: same as #155, check the returned value, show the existing error and put the old value back. Lower priority than #155 because these are less often edited and most show the change straight away rather than a message about text.
+How to reproduce: Load the host page (website) or the event screen (app), turn the internet off, then change the theme or the cover position: the change appears to stick; reload and the old theme or position is back.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#155
+Listed: 2026-10-27
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Planning todo #11 (edit from Preview Guest Theme), 2026-10-27
+Issue: Some saves tell the host "updated" even when nothing was saved. updateEvent (src/lib/database.ts and apps/mobile/lib/database.ts) returns false when the save fails instead of throwing, but these callers only catch errors and never check the result: website host page, renaming a gallery's title and date (handleRenameSubmit, src/app/(main)/host/page.tsx:3252, shows "Event updated!" / "Gallery updated!") and the gallery message (handleSaveGalleryMessage, :3280, "Gallery message updated."); app, the gallery message (handleSaveGalleryDesc, apps/mobile/app/events/[id].tsx:1749 and :1754, "Gallery message updated successfully!") and the welcome message save button (:5267, "Welcome message updated."). The screen also shows the new text, so the host only finds out when they reload or a guest sees the old one. Fix: check the returned value, show the existing error message and put the old value back when it is false.
+How to reproduce: Make updateEvent fail (e.g. go offline after the host page has loaded, or block the request to the events table in the browser's dev tools), then rename a gallery or change its message: the success message appears; reload and the old title or message is still there.
+Fixed in: 7203a2f (2026-10-27). All four callers now check what updateEvent returns: the website rename shows "Failed to save changes." and puts the old name back; the website gallery message shows "Failed to update gallery message." and keeps the typed text for a retry; the app Welcome Message box shows "Failed to update welcome message." and keeps the text; the app gallery-message popup (handleSaveGalleryDesc) checks it too, though nothing in the current app opens that popup. Successful saves behave as before. Checked with tsc (website clean; app shows only its existing errors in other files); the failed-save path was not run, so device test #156 covers it (app part needs a new build). The same problem in other save buttons is #159.
+
 #156
 Listed: 2026-10-27
 Platform: Website

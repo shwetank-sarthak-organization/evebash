@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 156
+Next test number: 157
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4184,6 +4184,43 @@ How to test:
  12. App, first download ever: when the phone asks for photo access, tap Don't Allow. Expect: "Allow
      access to save" with Open Settings. Allow access in Settings and download again. Expect: saved.
  13. App, logged out, a PUBLIC gallery: open a photo and tap Download. Expect: the log-in prompt.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#156 A save that fails says so and keeps the old text (gallery name and messages)
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App (computer browser, iPhone and Android app)
+Brief:     Renaming a gallery and saving the gallery message used to say "updated" even when nothing was
+           saved (for example with no internet). Now a failed save shows an error and the old name or
+           message stays, and a save that works still says "updated" as before.
+Detail:    Fix for issue #155 (commit 7203a2f, 2026-10-27). Website part: staging.evebash.com. App part needs a
+           new app build (or update) with the fix. The easiest way to make a save fail is to turn the
+           internet off AFTER the page or screen has loaded (Wi-Fi off, airplane mode, or in Chrome on a
+           computer: DevTools -> Network -> Offline).
+How to test:
+  1. Website, logged in as the host: Host -> an event -> rename a gallery (edit its name) with the
+     internet on. Expect: "Gallery updated!" (or "Event updated!"), and the new name is still there after
+     a reload.
+  2. Open the rename box again and type a different name. Turn the internet off, then press Save.
+     Expect: "Failed to save changes." and the gallery shows its old name again. Turn the internet on and
+     reload: the old name is still there.
+  3. Same event, gallery message box: type a new message, turn the internet off, press Save. Expect:
+     "Failed to update gallery message."; your text stays in the box and the Save button is still there.
+  4. Turn the internet on and press Save again. Expect: "Gallery message updated." and, after a reload,
+     the new message is shown.
+  5. App, logged in as the host: open the event -> Galleries tab -> tap a gallery (PRIMARY or a
+     sub-gallery) -> Welcome Message. Change the text, turn on airplane mode, tap Save. Expect: an
+     "Error" box saying "Failed to update welcome message."; your text stays and Save is still shown.
+  6. Turn airplane mode off and tap Save again. Expect: "Welcome message updated." Close the app, open
+     it again and check the gallery: the new welcome message is shown.
 Done by:
 Device / browser:
 Build / version:
