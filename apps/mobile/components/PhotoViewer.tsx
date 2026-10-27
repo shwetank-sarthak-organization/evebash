@@ -1065,7 +1065,7 @@ export default function PhotoViewer({
       ? selectedTemplate.overlay
       : ['rgba(0,0,0,0.05)', background]);
 
-    const lightTemplates = ['classic', 'ethereal', 'pastel', 'pop', 'academic_editorial', 'garden', 'museum'];
+    const lightTemplates = ['classic', 'portrait', 'ethereal', 'pastel', 'pop', 'academic_editorial', 'garden', 'museum'];
     const isLight = lightTemplates.includes(id);
     const controlBg = palette?.controlBg || (isLight ? 'rgba(255,255,255,0.84)' : 'rgba(0,0,0,0.42)');
     const controlText = palette?.controlText || (isLight ? text : '#ffffff');

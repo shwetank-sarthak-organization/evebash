@@ -9,9 +9,9 @@ import { PORTRAIT, type PortraitFontSet } from './portraitFonts';
 
 // Top of the gallery section in Sunlit Portrait, from the website (src/components/portrait/PortraitGalleryHeader.tsx).
 // With a highlight film the opening fills the screen under the gallery tabs, like the cover: the film edge to edge
-// with Back / Share on its top edge, the date, gallery name and host's message at the bottom left and a round play
-// button at the bottom right. Without one, Back / Share sit on a thin line with the name and message under it on
-// paper. Then "Photos" and "Videos" in the serif with the count raised, the chosen one marked with a clay dot.
+// with Back / Share on its top edge (hidden while it plays), the date, gallery name and host's message at the bottom
+// left and a round play button at the bottom right. Without one, Back / Share sit on a thin line with the name and
+// message under it on paper. Then "Photos" and "Videos" in the serif with the count raised, the chosen one marked with a clay dot.
 
 type MediaTab = 'photos' | 'videos';
 
@@ -104,9 +104,14 @@ export function PortraitGalleryHeader(props: PortraitGalleryHeaderProps) {
               </TouchableOpacity>
             </>
           )}
-          {/* Back / Share stay on the film's top edge, over a soft shade, also while it plays */}
-          <LinearGradient colors={['rgba(20,16,12,0.5)', 'rgba(20,16,12,0)']} style={[local.shade, { top: 0, height: 96 }]} pointerEvents="none" />
-          <Strip onFilm {...props} />
+          {/* Back / Share on the film's top edge, over a soft shade; they step aside while the film plays, where the
+              player puts its own full-screen, picture-in-picture and volume buttons */}
+          {!playing && (
+            <>
+              <LinearGradient colors={['rgba(20,16,12,0.5)', 'rgba(20,16,12,0)']} style={[local.shade, { top: 0, height: 96 }]} pointerEvents="none" />
+              <Strip onFilm {...props} />
+            </>
+          )}
         </View>
       ) : (
         <View>

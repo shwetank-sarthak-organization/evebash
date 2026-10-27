@@ -254,7 +254,9 @@ export function EventNavbar({
                 initial={{ y: -100 }}
                 animate={{ y: 0 }}
                 className={isRoyal ? cn("royal-nav", scrolledPastTop && "royal-nav--scrolled", royalDisplay.variable)
-                    : isPortrait ? cn("portrait-nav", (scrolledPastTop || mobileMenuOpen) && "portrait-nav--solid", portraitDisplay.variable)
+                    // Sunlit Portrait is see-through only over the gallery's cover photo; Find You and Event Partners have no
+                    // cover, so their bar is solid from the top (white links would vanish on the paper)
+                    : isPortrait ? cn("portrait-nav", (scrolledPastTop || mobileMenuOpen || activePage !== "gallery") && "portrait-nav--solid", portraitDisplay.variable)
                     : isConfetti ? cn("confetti-nav", (scrolledPastTop || mobileMenuOpen) && "confetti-nav--solid", confettiDisplay.variable)
                     : isPeriwinkle ? cn("periwinkle-nav", scrolledPastTop && "periwinkle-nav--solid", periwinkleScript.variable, periwinkleSerif.variable)
                     : isClassic ? cn("classic-nav", scrolledPastTop && "classic-nav--scrolled")

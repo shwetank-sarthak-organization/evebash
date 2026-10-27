@@ -2,6 +2,7 @@ import EventVisibilityControl from '../../components/EventVisibilityControl';
 import VideoThumbnailPicker, { type ThumbnailVideo } from '../../components/VideoThumbnailPicker';
 import { galleryActionText } from '../../constants/galleryContrast';
 import React, { useCallback, useEffect, useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import LoadingScreen from '@/components/LoadingScreen';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler, PanResponder, Animated as RNAnimated, type ViewStyle } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
@@ -634,6 +635,11 @@ export default function EventDetailScreen() {
   // Scroll position in coarse steps, for the Classic White grid, which only draws photos near the screen
   const [coarseScrollY, setCoarseScrollY] = useState(0);
   const coarseScrollYRef = React.useRef(0);
+  // Whether the gallery tabs are pinned at the top (scrolled past the cover); set where the cover's height is known.
+  // Sunlit Portrait turns the clock dark on its paper bar then, light over the cover photo
+  const tabsPinThresholdRef = React.useRef(Number.POSITIVE_INFINITY);
+  const tabsPinnedRef = React.useRef(false);
+  const [tabsPinned, setTabsPinned] = useState(false);
   const handleScrollNearEnd = useCallback((e: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
     const distanceFromEnd = contentSize.height - (contentOffset.y + layoutMeasurement.height);
@@ -641,6 +647,11 @@ export default function EventDetailScreen() {
     if (Math.abs(contentOffset.y - coarseScrollYRef.current) > 200) {
       coarseScrollYRef.current = contentOffset.y;
       setCoarseScrollY(contentOffset.y);
+    }
+    const pinned = contentOffset.y >= tabsPinThresholdRef.current - 1;
+    if (pinned !== tabsPinnedRef.current) {
+      tabsPinnedRef.current = pinned;
+      setTabsPinned(pinned);
     }
   }, []);
   // Bottom edge (window coords) of the floating back/share header buttons, measured on layout
@@ -920,6 +931,8 @@ export default function EventDetailScreen() {
                         : event?.templateId === 'pop' || event?.templateId === 'neon_carnival'
                           ? 465 + insets.top
                           : 400;
+  // Where the pinned gallery tabs reach the top (their spacer overlaps the cover unless the themed bottom bar shows)
+  tabsPinThresholdRef.current = showsThemedAppBar ? heroHeight : heroHeight - stickyTabsTopInset;
   const isScrapbookTemplate = !showAdminView && event?.templateId === 'scrapbook';
   const isNeonTemplate = !showAdminView && event?.templateId === 'neon';
   const isPastelTemplate = !showAdminView && event?.templateId === 'pastel';
@@ -2275,11 +2288,17 @@ export default function EventDetailScreen() {
   useEffect(() => {
     if (!classicParentId) { setClassicParent(null); return; }
     let active = true;
-    getEventById(classicParentId)
+    // Logged-out guests (public view) read it through open_gallery, like the album itself, so it keeps working once
+    // anonymous table reads are locked down (RLS part 2, #21); open_gallery would join a logged-in viewer, so they keep
+    // the direct read
+    const loadParent = isPublicView
+      ? openGallery(classicParentId).then((opened) => (opened.access === 'public_view' ? opened.event ?? null : null))
+      : getEventById(classicParentId);
+    loadParent
       .then((parent) => { if (active) setClassicParent(parent ? { title: parent.title, category: parent.category, date: parent.date } : null); })
       .catch(() => { if (active) setClassicParent(null); });
     return () => { active = false; };
-  }, [classicParentId]);
+  }, [classicParentId, isPublicView]);
 
   // Cinematic highlight video of the gallery being shown (Home or an album), under the welcome message
   // (Find You and Event partners are pages, not galleries: no video there)
@@ -4960,7 +4979,10 @@ export default function EventDetailScreen() {
             pointerEvents="box-none"
             // With the themed bottom bar (Classic White) the spacer starts below the cover instead of overlapping it: the
             // list's sticky wrapper catches taps, so the cover's bottom buttons must not sit under it
-            style={{ marginTop: showsThemedAppBar ? 0 : -stickyTabsTopInset, paddingTop: stickyTabsTopInset, backgroundColor: isRoyalGuest ? '#021a15' : undefined }}
+            // React Native's sticky wrapper takes this style (and so the spacer's paddingTop) onto itself, outside the fading
+            // background below, so the spacer stays see-through when pinned. Sunlit Portrait draws its spacer inside instead,
+            // where the background covers it
+            style={{ marginTop: showsThemedAppBar ? 0 : -stickyTabsTopInset, paddingTop: isPortraitGuest ? 0 : stickyTabsTopInset, backgroundColor: isRoyalGuest ? '#021a15' : undefined }}
             onLayout={(e) => setStickyTabsY(e.nativeEvent.layout.y)}
           >
             <RNAnimated.View
@@ -4977,6 +4999,7 @@ export default function EventDetailScreen() {
                 },
               ]}
             />
+            {isPortraitGuest && <View pointerEvents="none" style={{ height: stickyTabsTopInset }} />}
             <ThemeHeader
               event={event}
               selectedTemplate={selectedTemplate}
@@ -7776,6 +7799,9 @@ export default function EventDetailScreen() {
           )}
         </View>
       </RNAnimated.ScrollView>
+
+      {/* Sunlit Portrait: a light clock over the cover photo, a dark one on the pinned tabs' paper bar */}
+      {isPortraitGuest && <StatusBar style={tabsPinned ? 'dark' : 'light'} />}
 
       {showsThemedAppBar && (
         <ThemedAppBar colors={{ background: '#FCFCFA', border: '#E6E6E0', active: '#2C352E', inactive: '#8B9A6E' }} />
