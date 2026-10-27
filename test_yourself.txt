@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 155
+Next test number: 156
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4137,6 +4137,53 @@ How to test:
      second or so the "Before you continue" popup appears and the page can't be used until you tick
      the box and tap Accept and continue (or Sign out).
   3. With the account from step 2, open /privacy-policy. Expect: no popup on the policy pages.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#155 Download works in the main gallery and in sub-galleries (website and app)
+Status:    TODO
+Priority:  High
+Platform:  Website + App (computer browser, phone browser, iPhone and Android app)
+Brief:     A full check of every Download button, in the main gallery (Home) and in a sub-gallery, for
+           photos and videos, as a guest and as the host. Files must save at full quality: photos as the
+           original, videos as a playable .mp4 (never a small .m3u8 file).
+Detail:    Use one test event with a main gallery and at least one sub-gallery, each holding photos and at
+           least one finished video. Website: download icon on each photo card, Download in the full-screen
+           viewer, and Download All in the gallery menu (zip). App: Download in the full-screen viewer only
+           (the app has no Download All, decided 2026-10-25). Earlier, narrower checks: #83 and #87.
+How to test:
+  1. Website, logged in as a guest of the event, main gallery (Home): point at a photo (tap it on a
+     phone) and press its download icon. Expect: the original photo downloads (full size, not a blurry
+     thumbnail) and opens.
+  2. Same gallery: open a photo full screen and press Download. Expect: same original photo. Then open a
+     video full screen and press Download. Expect: a playable .mp4 that plays with sound.
+  3. Main gallery: Download All. Expect: "What would you like to download?" Pick "Home (Primary Gallery)
+     only". Expect: "N%" while zipping, then a zip. Unzip it: the photos and videos shown on Home are
+     there, videos as playable .mp4. Repeat with "Entire event". Expect: one folder per gallery.
+  4. Open a sub-gallery and repeat steps 1 and 2 there. Expect: same results.
+  5. Sub-gallery: Download All. Expect: no question; a zip of only that sub-gallery's photos and videos.
+  6. Website, logged in as the host: Host -> the event -> main gallery, then a sub-gallery: Download.
+     Expect: as #87 (Photos tab gives photos, Videos tab gives videos, filters are followed).
+  7. Website, logged out, a PUBLIC gallery: press download on a photo and Download All. Expect: a prompt
+     to log in; nothing downloads.
+  8. App (iPhone and Android), logged in as a guest, main gallery: open a photo full screen and tap
+     Download. Expect: "Downloading original..." then "Photo saved to your gallery."; the photo is in the
+     phone's Photos / Gallery app at full size.
+  9. App: open a video full screen and tap Download. Expect: "Video saved to your gallery."; it plays in
+     the phone's gallery with sound. (A video still being prepared says "Not available yet".)
+ 10. App: open a sub-gallery and repeat steps 8 and 9. Expect: same results.
+ 11. App, logged in as the host: open a photo in the event and use the download button in the top
+     toolbar. Expect: saved to the phone's gallery.
+ 12. App, first download ever: when the phone asks for photo access, tap Don't Allow. Expect: "Allow
+     access to save" with Open Settings. Allow access in Settings and download again. Expect: saved.
+ 13. App, logged out, a PUBLIC gallery: open a photo and tap Download. Expect: the log-in prompt.
 Done by:
 Device / browser:
 Build / version:
