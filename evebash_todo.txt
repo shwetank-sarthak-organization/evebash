@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 13
+Next todo number: 15
 
 Last updated: 2026-10-27
 
@@ -307,6 +307,62 @@ Brief:        The website has the wedding theme "Confetti Circle" (id "confetti"
                 Terms / Contact us at the far right.
               Keep the web and app pickers the same (src/lib/hiddenTemplates.test.ts checks the app
               list). Add a device test when it ships.
+Done in:      -
+
+#13 Videos: add a 4K stream when the upload is 4K (never above the upload's own size)
+Listed:       2026-10-27
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (decide after discussion)
+Status:       Idea
+Effort:       M
+Suggested by: Sarthak (2026-10-27: "4k transcoding of video if 4k is sent for processing along with
+              480, 720 and 1080")
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   - (fits with the long-video GPU worker, Modal v132)
+Brief:        Today every video gets at most three streams: 1080p, 720p and 480p (_HLS_TIERS and the
+              CPU command in modal_engine/main.py). A 4K upload is shrunk to 1080p, so guests never see
+              it in 4K. Wanted:
+              - A 4K upload also gets a 2160p stream next to 1080p, 720p and 480p.
+              - Never make a stream bigger than the upload: a 1080p upload tops out at 1080p, a 720p
+                upload at 720p, and so on. This already works today for 1080/720/480
+                (out_dirs in modal_engine/main.py: 1080p only if the source is at least 1080, 720p
+                only if at least 720, 480p always); the new 4K stream must follow the same rule, and
+                portrait / rotated videos must use the short side (probe_v2).
+              To decide: bitrate for 4K (e.g. ~15-20 Mbit/s), whether it is for paid plans only (it
+              adds storage and B2 egress), whether the player should pick 4K by itself or only when
+              the guest asks, and the extra GPU cost (4K encodes are decoder-bound, see
+              reports/GPU long-video transcode research 2026-10.md). Put it
+              behind a video-gpu-switch key, off by default, and add a device test (4K phone video on
+              iPhone Safari and Android Chrome) before turning it on.
+Done in:      -
+
+#14 Video upload: ask whether to keep the original, showing how much extra space it takes
+Listed:       2026-10-27
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (decide after discussion)
+Status:       Idea
+Effort:       M
+Suggested by: Sarthak (2026-10-27: "if user uploads video ask him to keep original or not, telling him
+              how much extra size will be occupied if he keeps original")
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   #13 (the size estimate depends on which streams are made)
+Brief:        When a host uploads videos (website and app), ask once per upload: keep the original
+              files or keep only the streaming copies? Show the extra space in plain numbers, e.g.
+              "Keeping originals uses 3.2 GB more of your 50 GB plan". The original size is known
+              before upload; the streaming copies' size can be estimated from length x the streams'
+              bitrates. Without the original, "Download" gives the best stream (1080p or 4K), not the
+              camera file. To decide / check first: what happens to video originals today (kept in
+              B2 and counted in storage?), whether the choice can be changed later (deleting the
+              original afterwards is easy, getting it back is not), and how this fits paid plans:
+              paid customers expect us to keep all their data, so "keep" should be the default and
+              maybe the only option on paid plans. Storage and plan limits must count the choice the
+              same way on web, app and backend (issue #6). Add a device test when it ships.
 Done in:      -
 
 =====================================================================
