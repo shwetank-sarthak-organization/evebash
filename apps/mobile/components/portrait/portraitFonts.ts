@@ -1,8 +1,9 @@
-import { InstrumentSerif_400Regular } from '@expo-google-fonts/instrument-serif';
+import { InstrumentSerif_400Regular } from '@expo-google-fonts/instrument-serif/400Regular';
 import { useLazyFonts, type LazyFontSet } from '@/hooks/use-lazy-fonts';
 
 // Sunlit Portrait's serif, Instrument Serif, the same as the website (src/components/portrait/portraitFonts.ts).
-// Loaded only when a Sunlit Portrait gallery opens.
+// Loaded only when a Sunlit Portrait gallery opens. Imported from its own file: the package root would also bundle
+// the italic, which isn't used (#105).
 const NAMES = {
   serif: 'PortraitInstrumentSerif',
 } as const;

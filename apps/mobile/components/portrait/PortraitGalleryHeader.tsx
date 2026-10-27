@@ -6,6 +6,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { HighlightPlayer } from '@/components/event/GalleryHighlightVideo';
 import type { GalleryVideo } from '@/lib/database';
 import { PORTRAIT, type PortraitFontSet } from './portraitFonts';
+import { PortraitBoldText } from './PortraitBoldText';
 
 // Top of the gallery section in Sunlit Portrait, from the website (src/components/portrait/PortraitGalleryHeader.tsx).
 // With a highlight film the opening fills the screen under the gallery tabs, like the cover: the film edge to edge
@@ -43,10 +44,10 @@ function Strip({ onFilm, backLabel, onBack, onShare, fonts }: { onFilm: boolean 
     <View style={[local.strip, onFilm ? local.stripOnFilm : local.stripOnPaper]}>
       <TouchableOpacity onPress={onBack} accessibilityRole="button" style={local.linkRow} activeOpacity={0.7} hitSlop={8}>
         <IconSymbol name="chevron.left" size={16} color={color} />
-        <Text style={text}>{backLabel}</Text>
+        <PortraitBoldText style={text}>{backLabel}</PortraitBoldText>
       </TouchableOpacity>
       <TouchableOpacity onPress={onShare} accessibilityRole="button" accessibilityLabel="Share event" style={local.linkRow} activeOpacity={0.7} hitSlop={8}>
-        <Text style={text}>Share</Text>
+        <PortraitBoldText style={text}>Share</PortraitBoldText>
         <IconSymbol name="square.and.arrow.up" size={15} color={color} />
       </TouchableOpacity>
     </View>

@@ -625,8 +625,16 @@ function EventPageContent() {
     // A new main gallery gets "Main Event: <title>" as its description; that isn't a message for guests
     const midnightMessage = activeGalleryMessage?.trim() === `Main Event: ${event.title}` ? "" : activeGalleryMessage;
     const ownHeader = isRoyalGallery || isClassicGallery || isMidnightGallery;
+    // An album goes back to its main gallery. On the main gallery, signed-in viewers go to their events; a guest who
+    // isn't signed in would land on the login page, so they go back up to the cover instead (#165)
     const goBack = () => {
-        router.push(event?.parentId ? `/events/${event.parentId}${isShared ? "?shared=true" : ""}` : "/dashboard");
+        if (event?.parentId) {
+            router.push(`/events/${event.parentId}${isShared ? "?shared=true" : ""}`);
+        } else if (user) {
+            router.push("/dashboard");
+        } else {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
     };
 
     const renderContent = () => (
@@ -722,7 +730,7 @@ function EventPageContent() {
                         videoCountLabel={displayedVideoCount}
                         activeTab={galleryMediaTab}
                         onTabChange={setGalleryMediaTab}
-                        video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
+                        video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl, width: galleryVideo.width, height: galleryVideo.height } : null}
                     />
                 ) : isClassicGallery ? (
                     <>
@@ -985,9 +993,7 @@ function EventPageContent() {
                 photos={[]}
                 isShared={isShared}
                 user={user}
-                onBack={() => {
-                    router.push(event?.parentId ? `/events/${event.parentId}${isShared ? "?shared=true" : ""}` : "/dashboard");
-                }}
+                onBack={goBack}
                 onShare={handleShare}
                 canManage={false}
                 hasParent={!!event?.parentId}

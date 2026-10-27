@@ -7,6 +7,7 @@ import { coverPosition, type ClassicHeroProps } from '@/components/classic/Class
 import { displayCoupleTitle } from '../../../../shared/text/coupleNames';
 import { portraitIntro } from '../../../../shared/themes/portraitIntro';
 import { PORTRAIT, type PortraitFontSet } from './portraitFonts';
+import { PortraitBoldText } from './PortraitBoldText';
 
 // Sunlit Portrait cover for phones, from the website (src/components/TemplatePortrait.tsx): the cover photo fills the
 // screen; at the bottom left "We're getting married" (or "Happily married since" once the wedding date has passed) over
@@ -75,8 +76,8 @@ export function PortraitHero({ gallery, mainTitle, mainCategory, mainDate, cover
 
       <View style={[local.text, { bottom: insetBottom + 30 }]}>
         {/* On a phone the line and the date take a line each, so no heart between them (as on the website) */}
-        {!!intro && <Text style={[local.details, { fontFamily: fonts.serif }]}>{intro}</Text>}
-        {!!date && <Text style={[local.details, { fontFamily: fonts.serif }]}>{date}</Text>}
+        {!!intro && <PortraitBoldText style={[local.details, { fontFamily: fonts.serif }]}>{intro}</PortraitBoldText>}
+        {!!date && <PortraitBoldText style={[local.details, { fontFamily: fonts.serif }]}>{date}</PortraitBoldText>}
         {!!title && (
           <Text
             style={[local.title, { fontFamily: fonts.serif, fontSize: titleSize, marginTop: Math.round(titleSize * 0.04) }]}

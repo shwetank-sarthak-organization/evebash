@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, useWindowDi
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Fonts } from '../../constants/theme';
 import { BohemianEqualizer } from './BohemianEqualizer';
+import { PortraitBoldText } from '../portrait/PortraitBoldText';
 
 interface ThemeHeaderProps {
   event: any;
@@ -74,6 +75,8 @@ export function ThemeHeader({
   // Sunlit Portrait (website: its navbar in sunlit-portrait.css): the serif in normal case, ink when chosen with a clay
   // dot under it, muted brown otherwise, on the warm paper
   const isPortrait = templateId === 'portrait';
+  // Its labels are drawn a little bolder, as on the website (components/portrait/PortraitBoldText.tsx, #166)
+  const TabLabel = isPortrait ? PortraitBoldText : Text;
   const portraitTabText = (active: boolean) => isPortrait && !!portraitFontFamily && { fontFamily: portraitFontFamily, fontWeight: 'normal' as const, textTransform: 'none' as const, letterSpacing: 0, fontSize: 20, color: active ? '#1F1B17' : '#6B6158' };
   const isRoyalFont = isRoyal && !!royalFontFamily;
   const { width: windowWidth } = useWindowDimensions();
@@ -190,7 +193,7 @@ export function ThemeHeader({
     );
 
     return (
-      <Text style={[
+      <TabLabel style={[
         styles.visitorTabText,
         { color: isThemeHeader ? themeTextColor(isActive) : birthdayTextColor },
         isScrapbook && styles.scrapbookVisitorTabText,
@@ -230,7 +233,7 @@ export function ThemeHeader({
         isActive && !isThemeHeader && !isAcademicEditorial && resolvedActiveText
       ]}>
         {displayTitle}
-      </Text>
+      </TabLabel>
     );
   };
 
@@ -389,7 +392,7 @@ export function ThemeHeader({
             onPress={openCollections}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <Text style={[styles.visitorTabText, collectionTabText(isCollectionActive)]}>{isPortrait ? 'Collections' : 'COLLECTIONS'}</Text>
+              <TabLabel style={[styles.visitorTabText, collectionTabText(isCollectionActive)]}>{isPortrait ? 'Collections' : 'COLLECTIONS'}</TabLabel>
               <IconSymbol name="chevron.down" size={12} color={isRoyalFont ? (isCollectionActive ? '#f3d68f' : '#cdb48a') : themeTextColor(isCollectionActive)} />
             </View>
             {renderUnderline(isCollectionActive)}
@@ -495,7 +498,7 @@ export function ThemeHeader({
               ]}>FIND YOU 📸</Text>
             </View>
           ) : (
-            <Text style={[
+            <TabLabel style={[
               styles.visitorTabText,
               { color: isThemeHeader ? themeTextColor(isFindYouActive) : birthdayTextColor },
               isScrapbook && styles.scrapbookVisitorTabText,
@@ -516,7 +519,7 @@ export function ThemeHeader({
               isSportsTemplate && [styles.sportsVisitorTabText, { color: sportsHeaderTheme.text }],
               !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
               royalTabText(isFindYouActive),
-        portraitTabText(isFindYouActive),
+              portraitTabText(isFindYouActive),
               isAcademicEditorial && {
                 fontFamily: selectedTemplate.serifBold,
                 fontSize: 13,
@@ -533,7 +536,7 @@ export function ThemeHeader({
                   )
                 )
               )}
-            </Text>
+            </TabLabel>
           )}
           {renderUnderline(isFindYouActive)}
         </TouchableOpacity>
@@ -583,7 +586,7 @@ export function ThemeHeader({
                         backgroundColor: active ? (isClassic ? 'rgba(139,154,110,0.14)' : isPortrait ? 'rgba(162,78,48,0.08)' : 'rgba(202,156,105,0.16)') : 'transparent',
                       }}
                     >
-                      <Text numberOfLines={1} style={[{ fontSize: 13, textTransform: 'uppercase' }, collectionTabText(active), isPortrait && { fontSize: 19 }]}>{sub.title}</Text>
+                      <TabLabel numberOfLines={1} style={[{ fontSize: 13, textTransform: 'uppercase' }, collectionTabText(active), isPortrait && { fontSize: 19 }]}>{sub.title}</TabLabel>
                     </TouchableOpacity>
                   );
                 })}

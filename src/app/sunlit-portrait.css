@@ -164,6 +164,18 @@
 
 /* Without a film: the name and message on paper under the strip, then Photos / Videos right away */
 .portrait-gh__paper .portrait-gh__strip { margin-bottom: clamp(32px, 5vw, 64px); }
+/* A playing film (#164): close under Back / Share at its own shape (--ar, width / height), at most what fits on the
+   screen with the strip and the name, soft corners like the photos; the name and message close under it */
+.portrait-gh__paper--playing .portrait-gh__strip { margin-bottom: clamp(14px, 1.6vw, 20px); }
+.portrait-gh__playing-film {
+  position: relative;
+  width: min(100%, calc((100svh - 68px - 300px) * var(--ar)));
+  aspect-ratio: var(--ar);
+  margin-bottom: clamp(16px, 2vw, 24px);
+  overflow: hidden;
+  border-radius: 8px;
+  background: #000;
+}
 
 /* With a film: it runs edge to edge under the strip, like the cover photo; text over it, the play pill bottom right */
 .portrait-gh__film {

@@ -15,6 +15,9 @@ export type ClassicGalleryVideo = {
     src: string;
     mediaId?: string;
     poster?: string;
+    /** The video's size, when known (Sunlit Portrait plays it at its own shape) */
+    width?: number;
+    height?: number;
 };
 
 interface ClassicGalleryHeaderProps {

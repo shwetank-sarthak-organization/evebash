@@ -857,7 +857,9 @@ export default function EventDetailScreen() {
     // If we are in Admin/Management View, we ALWAYS lock the palette to the default 'hero' (Midnight theme)
     // to keep the back-office controls consistent and standard for the app shell.
     const activeTemplateId = showAdminView ? 'hero' : (event?.templateId || 'hero');
-    const base = MOBILE_TEMPLATE_THEMES.find((theme) => theme.id === activeTemplateId) || MOBILE_TEMPLATE_THEMES[0];
+    // A theme this app version doesn't know yet (added on the website later) shows in Midnight Hero, the default theme,
+    // instead of the first theme in the list (Royal Emerald)
+    const base = MOBILE_TEMPLATE_THEMES.find((theme) => theme.id === activeTemplateId) || MOBILE_TEMPLATE_THEMES.find((theme) => theme.id === 'hero') || MOBILE_TEMPLATE_THEMES[0];
     const isClassic = base.id === 'classic';
     const isHero = base.id === 'hero';
     const isEthereal = base.id === 'ethereal';
@@ -6299,7 +6301,7 @@ export default function EventDetailScreen() {
                     >
                       <View style={styles.designInfo}>
                         <Text style={styles.designLabel}>Change Template</Text>
-                        <Text style={styles.designValue}>{event.templateId ? MOBILE_TEMPLATE_THEMES.find(t => t.id === event.templateId)?.label : 'Hero (Default)'}</Text>
+                        <Text style={styles.designValue}>{event.templateId ? MOBILE_TEMPLATE_THEMES.find(t => t.id === event.templateId)?.label ?? 'A newer theme (update the app)' : 'Hero (Default)'}</Text>
                       </View>
                       <IconSymbol name="chevron.right" size={16} color={MidnightColors.gold} />
                     </TouchableOpacity>
@@ -6316,7 +6318,7 @@ export default function EventDetailScreen() {
                       <View style={styles.designInfo}>
                         <Text style={[styles.designLabel, { color: '#cca43b' }]}>Preview Guest Theme</Text>
                         <Text style={[styles.designValue, { color: '#cbd5e1', fontSize: 12, fontFamily: Fonts.inter.regular, marginTop: 2 }]}>
-                          See how guests view your {event.templateId ? MOBILE_TEMPLATE_THEMES.find(t => t.id === event.templateId)?.label : 'Hero'} theme
+                          See how guests view your {event.templateId ? MOBILE_TEMPLATE_THEMES.find(t => t.id === event.templateId)?.label ?? 'new' : 'Hero'} theme
                         </Text>
                       </View>
                       <IconSymbol name="eye.fill" size={16} color="#cca43b" />

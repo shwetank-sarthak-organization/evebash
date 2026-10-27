@@ -8,9 +8,10 @@ import { useFitOneLine } from "@/components/portrait/useFitOneLine";
 
 // Top of the gallery section in the Sunlit Portrait design (styles in src/app/sunlit-portrait.css). With a gallery video
 // the opening fills one screen like the cover (below the navbar): the video edge to edge with Back / Share on its top
-// edge, the date, gallery name and host's message at the bottom left and a play button at the bottom right. Without a
-// video, Back / Share sit on a thin line on paper with the name and message under it. The Photos / Videos switch, marked
-// with the navbar's dot, comes next.
+// edge, the date, gallery name and host's message at the bottom left and a play button at the bottom right. Once it
+// plays, and without a video, Back / Share sit on a thin line on paper with the name and message under it; a playing
+// video keeps its own shape between them, as in the app (#164). The Photos / Videos switch, marked with the navbar's
+// dot, comes next.
 
 type MediaTab = "photos" | "videos";
 
@@ -47,39 +48,23 @@ function PortraitIntro({ title, details, quote }: { title: string; details?: str
     );
 }
 
-function PortraitFilm({ video, title, details, quote, strip }: { video: ClassicGalleryVideo; title: string; details?: string; quote?: string; strip: React.ReactNode }) {
-    const [playing, setPlaying] = useState(false);
-
+function PortraitFilm({ video, title, details, quote, strip, onPlay }: { video: ClassicGalleryVideo; title: string; details?: string; quote?: string; strip: React.ReactNode; onPlay: () => void }) {
     return (
         <figure className="portrait-gh__film">
             {/* Back / Share sit on the film's top edge, as the navbar sits on the cover */}
             {strip}
-            {playing ? (
-                <HLSVideoPlayer
-                    src={video.src}
-                    mediaId={video.mediaId}
-                    poster={video.poster}
-                    autoPlay
-                    controls
-                    playsInline
-                    className="portrait-gh__player"
-                />
+            {video.poster ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={video.poster} alt="" className="portrait-gh__poster" />
             ) : (
-                <>
-                    {video.poster ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={video.poster} alt="" className="portrait-gh__poster" />
-                    ) : (
-                        <span className="portrait-gh__poster portrait-gh__poster--empty" />
-                    )}
-                    <span className="portrait-gh__film-shade" aria-hidden="true" />
-                    <PortraitIntro title={title} details={details} quote={quote} />
-                    <button type="button" className="portrait-gh__play" onClick={() => setPlaying(true)} aria-label={`Play the ${title} highlight film`}>
-                        <Play aria-hidden="true" />
-                        <span className="portrait-gh__play-label">Highlight film</span>
-                    </button>
-                </>
+                <span className="portrait-gh__poster portrait-gh__poster--empty" />
             )}
+            <span className="portrait-gh__film-shade" aria-hidden="true" />
+            <PortraitIntro title={title} details={details} quote={quote} />
+            <button type="button" className="portrait-gh__play" onClick={onPlay} aria-label={`Play the ${title} highlight film`}>
+                <Play aria-hidden="true" />
+                <span className="portrait-gh__play-label">Highlight film</span>
+            </button>
         </figure>
     );
 }
@@ -99,6 +84,7 @@ export function PortraitGalleryHeader({
     video,
 }: PortraitGalleryHeaderProps) {
     const quote = message?.trim();
+    const [playing, setPlaying] = useState(false);
     const strip = (
         <div className="portrait-gh__strip">
             <button type="button" onClick={onBack} className="portrait-gh__link">
@@ -114,9 +100,28 @@ export function PortraitGalleryHeader({
 
     return (
         <section className="portrait-gh" aria-label={`${title} gallery`}>
-            <div className={video ? "portrait-gh__screen portrait-gh__screen--film" : "portrait-gh__screen"}>
-                {video ? (
-                    <PortraitFilm video={video} title={title} details={details} quote={quote} strip={strip} />
+            <div className={video && !playing ? "portrait-gh__screen portrait-gh__screen--film" : "portrait-gh__screen"}>
+                {video && playing ? (
+                    <div className="portrait-gh__paper portrait-gh__paper--playing">
+                        {strip}
+                        <div
+                            className="portrait-gh__playing-film"
+                            style={{ "--ar": video.width && video.height ? video.width / video.height : 16 / 9 } as React.CSSProperties}
+                        >
+                            <HLSVideoPlayer
+                                src={video.src}
+                                mediaId={video.mediaId}
+                                poster={video.poster}
+                                autoPlay
+                                controls
+                                playsInline
+                                className="portrait-gh__player"
+                            />
+                        </div>
+                        <PortraitIntro title={title} details={details} quote={quote} />
+                    </div>
+                ) : video ? (
+                    <PortraitFilm video={video} title={title} details={details} quote={quote} strip={strip} onPlay={() => setPlaying(true)} />
                 ) : (
                     <div className="portrait-gh__paper">
                         {strip}
