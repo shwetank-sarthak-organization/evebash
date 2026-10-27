@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 159
+Next test number: 160
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4304,3 +4304,33 @@ Feedback:         2026-10-27 Claude, iOS simulator (iPhone 17 Pro, dev app on a 
                   described (film plays not tried); step 5: Collections menu and album "Rec 1" (no
                   video: opening, Photos / Videos, Favourites) look right, its cover not looked at.
                   Not done: step 7 (logged out), Android, a real phone.
+
+#159 Videos made with 6 s keyframes and upload-while-encoding play everywhere (todos #15, #16)
+Status:    BLOCKED
+Priority:  Medium
+Platform:  Website + App
+Brief:     Step 1 of the new video pipeline changes how the streaming copies are made (keyframes every
+           6 s instead of every 48 frames, segments uploaded while the video is still converting). It is
+           behind two keys of the Modal video switch, off by default. Before it is turned on for every
+           gallery, videos made with it must play and seek normally on real phones and browsers.
+Detail:    modal_engine/main.py (_read_hls_step1_switch, _EarlySegmentUploader), switch keys gop_6s and
+           upload_early. Blocked until the Modal app is deployed with this code and both keys are set to
+           "test" for one test gallery (modal_engine/video_gpu_switch.py gop-6s test, upload-early test,
+           add-test-gallery <gallery id>). Developer: set Status to TODO and write the gallery here then.
+How to test:
+  1. In the test gallery, upload a phone video of about 2 min, a 4K video, an iPhone HDR video and one
+     video over 10 min. Wait until each shows as ready.
+  2. Play each one on an iPhone (app and Safari), an Android phone (app and Chrome) and a computer
+     (Chrome and Safari). Expect: starts within a few seconds, no green or grey frames, sound in sync.
+  3. Seek to the middle and near the end of each video, several times. Expect: playback resumes at the
+     new point within a couple of seconds, no freeze, no jump back.
+  4. On a slow connection (phone on mobile data), play the long video. Expect: quality may drop but
+     playback doesn't stop or show errors.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

@@ -18,6 +18,10 @@ long video (> 10 min), with no deploy. Run from the repo root with the Modal CLI
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py poster-sdr off   # poster = the plain frame, as before
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py queue-aware on   # queued time + heartbeat on the row (#157)
   modal_engine/venv/bin/python modal_engine/video_gpu_switch.py queue-aware off  # no markers, no skip, as before
+  modal_engine/venv/bin/python modal_engine/video_gpu_switch.py gop-6s test        # 6 s keyframes, test galleries only (#15)
+  modal_engine/venv/bin/python modal_engine/video_gpu_switch.py upload-early test  # upload while encoding, test galleries (#16)
+  modal_engine/venv/bin/python modal_engine/video_gpu_switch.py add-test-gallery <gallery id>
+  modal_engine/venv/bin/python modal_engine/video_gpu_switch.py remove-test-gallery <gallery id>
 
 add-gallery sends just that gallery's long videos to the GPU while mode is off. A sub-gallery has its own id.
 A long video still goes to the 16-core worker when the GPU can't take it (10-bit, rotated phone video...),
@@ -34,6 +38,10 @@ queue-aware (issue #157, every video, every worker): writes transcode_queued_at 
 video and transcode_heartbeat_at every minute while a worker runs it, and skips a re-sent copy of a video that is
 already processed. Needs supabase/migrations/20261027000000_video_transcode_heartbeat.sql. Turn it on before the
 backend's VIDEO_WATCHDOG_QUEUE_AWARE=true, which reads these columns.
+gop-6s and upload-early (todos #15 and #16, every video, every worker; each off, test or on): gop-6s sets the
+keyframe interval to 6 s of the video's frames instead of 48 frames (keyframes stay forced every 6 s, so segments
+don't change); upload-early uploads segments while ffmpeg still encodes, playlists and master.m3u8 still last.
+"test" applies them only to the galleries added with add-test-gallery (a sub-gallery has its own id).
 """
 import sys
 
@@ -67,6 +75,14 @@ def main(argv):
         switch["poster_sdr"] = value == "on"
     elif command == "queue-aware" and value in ("on", "off"):
         switch["queue_aware"] = value == "on"
+    elif command in ("gop-6s", "upload-early") and value in ("off", "test", "on"):
+        switch[command.replace("-", "_")] = value
+    elif command == "add-test-gallery" and value:
+        galleries = switch.get("hls_test_events", [])
+        if value not in galleries:
+            switch["hls_test_events"] = galleries + [value]
+    elif command == "remove-test-gallery" and value:
+        switch["hls_test_events"] = [g for g in switch.get("hls_test_events", []) if g != value]
     elif command != "show":
         print(__doc__)
         return 1
@@ -79,6 +95,9 @@ def main(argv):
     print(f"GPU takes every format (#141): {'on' if switch.get('gpu_all_formats', False) else 'off'}")
     print(f"HDR posters in normal colours (#145): {'on' if switch.get('poster_sdr', False) else 'off'}")
     print(f"queued time, heartbeat and done-skip (#157): {'on' if switch.get('queue_aware', False) else 'off'}")
+    print(f"6 s keyframes (#15): {switch.get('gop_6s', 'off')}")
+    print(f"upload while encoding (#16): {switch.get('upload_early', 'off')}")
+    print(f"test galleries for test mode: {switch.get('hls_test_events', []) or 'none'}")
     return 0
 
 

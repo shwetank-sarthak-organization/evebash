@@ -377,12 +377,12 @@ Listed:       2026-10-27
 Platform:     Both
 Priority:     Medium
 Phase:        TBD (decide after discussion)
-Status:       Idea
+Status:       In progress
 Effort:       S
 Suggested by: GPU transcode research 2026-10-27 (reports/GPU long-video transcode research 2026-10.md)
 Discussed:    No
 Decision:     -
-Owner:        Unassigned
+Owner:        Sarthak (with Claude)
 Depends on:   -
 Brief:        Measured on the production command and card (L4, 3 runs): -preset:v p3 for the 1080p and
               720p tiers (p4 stays on 480p) plus -g = 6 s of frames (150 at 25 fps, 360 at 60) instead
@@ -401,18 +401,28 @@ Update:      2026-10-27 (quality check, reports/Video output quality check 2026-
               lower PSNR and lower SSIM at 1080p/720p, and 4 VMAF lower than p4 on 60 fps HDR. Apply the same 6 s
               keyframe change to the CPU (libx264) workers too. Final pipeline: reports/Final video pipeline recommendation 2026-10-27.md.
 Done in:      -
+Update:      2026-10-27 (built, not committed, not deployed): modal_engine/main.py on branch
+              feat/video-step1. Switch key gop_6s (off | test | on, default off): the keyframe interval is 6 s of
+              the video's own frame rate (from ffprobe avg_frame_rate, else r_frame_rate, else 48 as before) on
+              the CPU workers (-g and -keyint_min), the full-GPU worker and both steps of the all-formats GPU
+              worker (-g). Keyframes stay forced at every 6 s mark. p3 is NOT part of it (dropped after the
+              quality check); p4 stays on every tier. With the key off every command is byte-for-byte as before
+              (checked against staging for every GPU builder and the CPU command). Tested on the production
+              ffmpeg builds (7.0.2, Jellyfin 7.1.4) on CPU and an L4: every segment starts on a keyframe, no
+              extra keyframes inside segments, same segment count and length. Device test #159 before turning
+              it on for everyone.
 
 #16 Long videos: read the original from B2 and upload segments while ffmpeg encodes (switch, off)
 Listed:       2026-10-27
 Platform:     Both
 Priority:     Medium
 Phase:        TBD (decide after discussion)
-Status:       Idea
+Status:       In progress
 Effort:       M
 Suggested by: GPU transcode research 2026-10-27 (reports/GPU long-video transcode research 2026-10.md)
 Discussed:    No
 Decision:     -
-Owner:        Unassigned
+Owner:        Sarthak (with Claude)
 Depends on:   -
 Brief:        Measured on an L4: ffmpeg reading a presigned B2 URL as its input costs nothing extra
               (191 vs 190 s) and removes the download step; uploading seg_N as soon as seg_N+1 exists
@@ -428,6 +438,15 @@ Update:      2026-10-27: do NOT stream the original into ffmpeg. Without -reconn
               far from B2 it was 2x slower (178 vs 85 s). Final recipe: download first (as today), upload
               segments while encoding, master last. Measured as part of the new recipe (reports/Final video pipeline recommendation 2026-10-27.md).
 Done in:      -
+Update:      2026-10-27 (built, not committed, not deployed): only the upload half. The original is still
+              downloaded first (streaming it from B2 can end ffmpeg early with exit 0). Switch key upload_early
+              (off | test | on, default off): while ffmpeg runs, each segment is uploaded once the next segment
+              file exists (ffmpeg writes a VOD playlist only at the end, so the playlist can't be used for this);
+              the remaining segments, the variant playlists and master.m3u8 still go up after the run passed its
+              checks, master last. A failed attempt's early uploads are removed after a later attempt succeeds;
+              after a failed or handed-over run they are removed unless the video is already playable. Tested
+              locally with the real worker code (fake B2/DB) and on the production ffmpeg builds: on a 90 s
+              clip 40-48 segments went up during encoding and none changed afterwards.
 
 #17 Long videos: chunk-parallel decode for 4K sources on one GPU (switch, off)
 Listed:       2026-10-27
@@ -488,8 +507,11 @@ Brief:        Today QStash delivers each video job to a Modal endpoint. Modal an
               3. A backend check every minute reads RunPod /status for open jobs. IN_QUEUE past the wait
                  limit (start at 3 min per RunPod pool, 5 min for Modal L4 as today): cancel, and only if
                  RunPod confirms the cancel, send it to the next worker. IN_PROGRESS: leave it. FAILED or
-                 TIMED_OUT: next worker. GPU chain: RTX 4000 Ada, Blackwell 24 GB slice, CPU 32 vCPU
-                 (4 chunks), Modal L4, Modal 16-core. CPU chain: RunPod CPU 32 vCPU, Modal 4-core.
+                 TIMED_OUT: next worker. GPU chain for 4K, 50/60 fps or HDR: RTX 4000 Ada, Blackwell
+                 24 GB slice, CPU 32 vCPU (4 chunks), Modal L4, Modal 16-core. GPU chain for plain 1080p (short
+                 side up to 1080 px, up to 30 fps, SDR): RTX 4000 Ada, CPU 32 vCPU (4 chunks), Blackwell slice,
+                 Modal L4, Modal 16-core (2026-10-27: on 48.7-min 1080p25 the CPU beat the Blackwell slice,
+                 200 s ₹1.95 vs 267 s ₹5.18). CPU chain: RunPod CPU 32 vCPU, Modal 4-core.
               4. The worker never gets the Supabase service key or the main B2 key: B2 key limited to the
                  needed prefixes; it reports the result to /internal/video-processed with a one-job signed
                  token, and the backend does the DB update, cost log and push as today.

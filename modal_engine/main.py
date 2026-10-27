@@ -1826,7 +1826,7 @@ def _gpu_decode_problem(stream: dict):
     return None
 
 
-def _full_gpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio):
+def _full_gpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, gop="48"):
     """The full-GPU ffmpeg command: same tiers, bitrates, 6 s keyframes and HLS layout as the CPU command.
     The production image's ffmpeg has libnpp but no scale_cuda, so resizing uses scale_npp."""
     tiers = [t for t in _HLS_TIERS if t[0] in out_dirs]
@@ -1841,7 +1841,7 @@ def _full_gpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio):
     var_stream_parts = []
     for m, (name, _w, _h, bitrate, maxrate, bufsize) in enumerate(tiers):
         cmd += ["-map", f"[v{m + 1}out]", f"-c:v:{m}", "h264_nvenc", "-preset", "p4", "-profile:v", "high",
-                "-rc", "vbr", "-g", "48", "-no-scenecut", "1", "-forced-idr", "1",
+                "-rc", "vbr", "-g", gop, "-no-scenecut", "1", "-forced-idr", "1",
                 "-force_key_frames", "expr:gte(t,n_forced*6)",
                 f"-b:v:{m}", bitrate, f"-maxrate:{m}", maxrate, f"-bufsize:{m}", bufsize]
         var_stream_parts.append(f"v:{m},agroup:audio,name:{name}" if has_audio else f"v:{m},name:{name}")
@@ -1920,10 +1920,10 @@ def _gpu_all_plan(stream: dict) -> dict:
     }
 
 
-def _nvenc_tier_args(m, bitrate, maxrate, bufsize):
+def _nvenc_tier_args(m, bitrate, maxrate, bufsize, gop="48"):
     """Same bitrates, 6 s keyframes and 8-bit High profile as the other workers' tiers."""
     return [f"-c:v:{m}", "h264_nvenc", "-preset", "p4", "-profile:v", "high", "-rc", "vbr",
-            "-g", "48", "-no-scenecut", "1", "-forced-idr", "1",
+            "-g", gop, "-no-scenecut", "1", "-forced-idr", "1",
             "-force_key_frames", "expr:gte(t,n_forced*6)",
             f"-b:v:{m}", bitrate, f"-maxrate:{m}", maxrate, f"-bufsize:{m}", bufsize]
 
@@ -1945,7 +1945,7 @@ def _hls_output_args(tmp_path, out_dirs, has_audio, tiers):
     ]
 
 
-def _gpu_all_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, stream):
+def _gpu_all_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, stream, gop="48"):
     """Step 1: everything after decoding runs on the L4 (and decoding too when NVDEC can)."""
     plan = _gpu_all_plan(stream)
     tiers = [t for t in _HLS_TIERS if t[0] in out_dirs]
@@ -1971,11 +1971,11 @@ def _gpu_all_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, stream):
                        f":format=nv12:interp_algo={_GPU_SCALER}[v{i}out];")
     cmd += ["-filter_complex", filter_str.rstrip(";")]
     for m, (_name, _w, _h, bitrate, maxrate, bufsize) in enumerate(tiers):
-        cmd += ["-map", f"[v{m + 1}out]"] + _nvenc_tier_args(m, bitrate, maxrate, bufsize)
+        cmd += ["-map", f"[v{m + 1}out]"] + _nvenc_tier_args(m, bitrate, maxrate, bufsize, gop)
     return cmd + _hls_output_args(tmp_path, out_dirs, has_audio, tiers)
 
 
-def _mixed_gpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, stream):
+def _mixed_gpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, stream, gop="48"):
     """Step 2, still on the L4 container: the CPU decodes, turns and converts to 8-bit SDR (the same filters as
     the CPU workers), NVENC encodes."""
     tiers = [t for t in _HLS_TIERS if t[0] in out_dirs]
@@ -1986,7 +1986,7 @@ def _mixed_gpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, stream):
                        f"scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p[v{i}out];")
     cmd = ["ffmpeg", "-y", "-i", input_path, "-filter_complex", filter_str.rstrip(";")]
     for m, (_name, _w, _h, bitrate, maxrate, bufsize) in enumerate(tiers):
-        cmd += ["-map", f"[v{m + 1}out]"] + _nvenc_tier_args(m, bitrate, maxrate, bufsize)
+        cmd += ["-map", f"[v{m + 1}out]"] + _nvenc_tier_args(m, bitrate, maxrate, bufsize, gop)
     return cmd + _hls_output_args(tmp_path, out_dirs, has_audio, tiers)
 
 
@@ -2112,6 +2112,144 @@ def _poster_filter(stream: dict) -> str:
     return ""
 
 
+# ---------------------------------------------------------------------------
+# New video pipeline, step 1 (todos #15 and #16)
+# ---------------------------------------------------------------------------
+# Two keys of the video switch, each "off" (the default: as before), "test" (only galleries listed in the
+# "hls_test_events" key) or "on" (every video). modal_engine/video_gpu_switch.py shows and sets them.
+#   gop_6s        keyframe interval = 6 s of the video's own frames instead of 48 frames, on every worker.
+#                 Keyframes are still forced at every 6 s mark, so the segments and their names don't change; the
+#                 48-frame interval only added 2-4 extra keyframes inside every segment, which cost quality.
+#                 Measured 2026-10-27 over full length on real footage: VMAF +0.1 to +1.5 on 1080p, +4 to +9 on
+#                 iPhone HDR, no tier lower than before, every segment starts on a keyframe, tiers aligned.
+#   upload_early  segments go up to B2 while ffmpeg is still encoding the rest. The variant playlists and
+#                 master.m3u8 still go up only after the whole run passed its checks, master last, so a video
+#                 never plays half-made. Measured: 10-20% less time per video.
+_HLS_STEP1_KEYS = ("gop_6s", "upload_early")
+
+
+def _read_hls_step1_switch(event_id):
+    """Returns (gop_6s, upload_early) for this gallery. If the switch can't be read: (False, False), as before."""
+    try:
+        switch = modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True)
+        in_test = bool(event_id) and event_id in (switch.get("hls_test_events", []) or [])
+        values = [switch.get(key, "off") for key in _HLS_STEP1_KEYS]
+        return tuple(v == "on" or (v == "test" and in_test) for v in values)
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not read the step-1 switch, keeping the old settings: {err}")
+        return False, False
+
+
+def _gop_from_rates(*rates) -> str:
+    """Frames in 6 s from the first readable ffprobe rate ("30000/1001", "60/1"), else "48" (the old value)."""
+    for rate in rates:
+        try:
+            num, _, den = str(rate or "").partition("/")
+            fps = float(num) / float(den or 1)
+        except (ValueError, ZeroDivisionError):
+            continue
+        if 1 <= fps <= 240:
+            return str(int(round(6 * fps)))
+    return "48"
+
+
+def _gop_frames(input_path) -> str:
+    import json
+    import subprocess
+
+    try:
+        probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                                "stream=avg_frame_rate,r_frame_rate", "-of", "json", input_path],
+                               capture_output=True, text=True)
+        stream = (json.loads(probe.stdout or "{}").get("streams") or [{}])[0]
+        return _gop_from_rates(stream.get("avg_frame_rate"), stream.get("r_frame_rate"))
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not read the frame rate, keeping 48-frame keyframes: {err}")
+        return "48"
+
+
+def _finished_segments(out_dir):
+    """Segments of one stream folder that ffmpeg has finished: every one except the highest-numbered, because ffmpeg
+    only creates segment N+1 after it closed segment N (a VOD playlist is written only at the very end, so it can't
+    tell). Sorted by number: seg_1000.ts comes after seg_999.ts."""
+    import re
+
+    numbered = []
+    for path in out_dir.glob("seg_*.ts"):
+        match = re.fullmatch(r"seg_(\d+)\.ts", path.name)
+        if match:
+            numbered.append((int(match.group(1)), path))
+    numbered.sort()
+    return [path for _n, path in numbered[:-1]]
+
+
+class _EarlySegmentUploader:
+    """While one ffmpeg run writes the streams, uploads every segment it has finished (upload_early). finish()
+    returns the B2 keys that went up; a failed upload is simply left for the normal upload after ffmpeg."""
+
+    def __init__(self, upload, tmp_path, out_dirs, hls_prefix, threads=8, every_s=2.0):
+        import concurrent.futures
+        import threading
+
+        self.upload, self.tmp_path, self.out_dirs, self.hls_prefix = upload, tmp_path, out_dirs, hls_prefix
+        self.every_s = every_s
+        self.futures = {}
+        self.executor = concurrent.futures.ThreadPoolExecutor(threads)
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+
+    def _scan(self):
+        for out_dir in self.out_dirs:
+            for path in _finished_segments(self.tmp_path / out_dir):
+                key = f"{self.hls_prefix}/{out_dir}/{path.name}"
+                if key not in self.futures:
+                    self.futures[key] = self.executor.submit(self.upload, (path, key, "video/MP2T"))
+
+    def _loop(self):
+        while not self._stop.wait(self.every_s):
+            try:
+                self._scan()
+            except Exception as err:  # never stop ffmpeg over this; the normal upload catches up
+                print(f"[TranscodeVideo] Early upload scan failed: {err}")
+
+    def start(self):
+        self._thread.start()
+        return self
+
+    def finish(self) -> set:
+        self._stop.set()
+        self._thread.join()
+        uploaded = set()
+        for key, future in self.futures.items():
+            try:
+                future.result()
+                uploaded.add(key)
+            except Exception as err:
+                print(f"[TranscodeVideo] Early upload of {key} failed, it goes up after ffmpeg: {err}")
+        self.executor.shutdown()
+        return uploaded
+
+
+def _remove_hls_versions(b2_client, bucket_name, hls_prefix, keys, keep_latest_of=()):
+    """Deletes every stored version of `keys` under hls_prefix, except the newest version of keys in keep_latest_of
+    (a later attempt overwrote them). Plain deletes only hide a file in B2 and it stays billed. Never raises."""
+    keys, keep = set(keys), set(keep_latest_of)
+    if not keys:
+        return 0
+    try:
+        doomed = []
+        for page in b2_client.get_paginator("list_object_versions").paginate(Bucket=bucket_name, Prefix=f"{hls_prefix}/"):
+            for v in page.get("Versions", []) + page.get("DeleteMarkers", []):
+                if v["Key"] in keys and not (v["Key"] in keep and v.get("IsLatest")):
+                    doomed.append({"Key": v["Key"], "VersionId": v["VersionId"]})
+        for i in range(0, len(doomed), 1000):
+            b2_client.delete_objects(Bucket=bucket_name, Delete={"Objects": doomed[i:i + 1000], "Quiet": True})
+        return len(doomed)
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not remove {len(keys)} left-over segments: {err}")
+        return 0
+
+
 def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_gb=None, function_name=None):
     import boto3
     import json
@@ -2158,6 +2296,47 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
     raw_url = f"https://{media_domain}/{storage_key}"
 
     print(f"[TranscodeVideo-{hardware.upper()}] Processing video {storage_key}")
+
+    gop_6s, upload_early = _read_hls_step1_switch(request.get("event_id"))
+    upload_early = upload_early and hardware in ("cpu", "gpu_full", "gpu_all")
+    gop_6s = gop_6s and hardware in ("cpu", "gpu_full", "gpu_all")
+    early = {"last": set(), "failed": set()}  # segments the last ffmpeg run / failed runs uploaded while encoding
+
+    def upload_file_worker(args):
+        file_path, s3_key, content_type = args
+        b2_client.upload_file(
+            str(file_path), bucket_name, s3_key,
+            ExtraArgs={"ContentType": content_type, "CacheControl": "public, max-age=31536000, immutable"}
+        )
+
+    def run_ffmpeg(ffmpeg_cmd, out_dirs, tmp_path):
+        """subprocess.run, plus (upload_early) the finished segments going up meanwhile."""
+        if not upload_early:
+            return subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        early["failed"] |= early["last"]  # a run before this one didn't produce the final streams
+        # A retry (e.g. the CPU workers' plain 8-bit retry) must not have the failed run's playlists read as its own
+        _clear_hls_dirs(tmp_path, out_dirs)
+        uploader = _EarlySegmentUploader(upload_file_worker, tmp_path, out_dirs, hls_prefix).start()
+        try:
+            return subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        finally:
+            early["last"] = uploader.finish()
+
+    def remove_early_uploads_unless_live():
+        """After a failed or handed-over run: delete what it uploaded early, unless the video is already playable
+        (a re-run of a processed video only overwrote its segments)."""
+        uploaded = early["last"] | early["failed"]
+        if not uploaded:
+            return
+        try:
+            row = supabase.table("photos").select("status").eq("id", photo_id).maybe_single().execute()
+            if ((getattr(row, "data", None) if row is not None else None) or {}).get("status") == "processed":
+                return
+        except Exception as err:
+            print(f"[TranscodeVideo-{hardware.upper()}] Keeping early uploads (status unknown): {err}")
+            return
+        removed = _remove_hls_versions(b2_client, bucket_name, hls_prefix, uploaded)
+        print(f"[TranscodeVideo-{hardware.upper()}] Removed {removed} early-uploaded segment versions of a run that did not finish")
 
     try:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -2229,6 +2408,10 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 except Exception:
                     pass
 
+            gop = _gop_frames(input_path) if gop_6s else "48"
+            if gop_6s:
+                print(f"[TranscodeVideo-{hardware.upper()}] Keyframe interval {gop} frames (6 s), upload while encoding: {upload_early}")
+
             # The GPU can't take every video: check before writing anything, so a video handed to the 16-core
             # worker doesn't get its poster written twice (issue #134: the older copy survived the delete)
             if hardware == "gpu_full":
@@ -2295,8 +2478,7 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
             print(f"[TranscodeVideo-{hardware.upper()}] Starting single-pass multi-output FFmpeg...")
 
             if hardware == "gpu_full":
-                proc = subprocess.run(_full_gpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio),
-                                      capture_output=True, text=True)
+                proc = run_ffmpeg(_full_gpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, gop), out_dirs, tmp_path)
                 if proc.returncode != 0:
                     raise _UseCpuWorker(f"GPU ffmpeg failed: {(proc.stderr or '')[-500:]}")
                 problem = _hls_length_problem(tmp_path, out_dirs, video_duration_seconds)
@@ -2311,7 +2493,7 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                     # As on the CPU workers: HDR the CPU tone map can't read (e.g. no primaries tag) still gets an 8-bit stream
                     attempts.append(("mixed (plain 8-bit)", _mixed_gpu_ffmpeg_cmd, {**stream, "color_transfer": None}))
                 for path_name, build, attempt_stream in attempts:
-                    proc = subprocess.run(build(input_path, tmp_path, out_dirs, has_audio, attempt_stream), capture_output=True, text=True)
+                    proc = run_ffmpeg(build(input_path, tmp_path, out_dirs, has_audio, attempt_stream, gop), out_dirs, tmp_path)
                     problem = (f"ffmpeg failed: {(proc.stderr or '')[-300:]}" if proc.returncode != 0
                                else _hls_length_problem(tmp_path, out_dirs, video_duration_seconds))
                     if not problem:
@@ -2369,7 +2551,7 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 if hardware == "gpu":
                     cmd += ["-cq", "28", "-force_key_frames", "expr:gte(t,n_forced*6)"]
                 else:
-                    cmd += ["-g", "48", "-keyint_min", "48", "-sc_threshold", "0", "-force_key_frames", "expr:gte(t,n_forced*6)"]
+                    cmd += ["-g", gop, "-keyint_min", gop, "-sc_threshold", "0", "-force_key_frames", "expr:gte(t,n_forced*6)"]
                 cmd += [f"-b:v:{map_idx}", bitrate, f"-maxrate:{map_idx}", maxrate, f"-bufsize:{map_idx}", bufsize]
                 if has_audio:
                     var_stream_parts.append(f"v:{map_idx},agroup:audio,name:{out_name}")
@@ -2400,14 +2582,14 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
             ]
 
             if hardware not in ("gpu_full", "gpu_all"):  # the GPU run above already made the streams
-                proc = subprocess.run(cmd, capture_output=True, text=True)
+                proc = run_ffmpeg(cmd, out_dirs, tmp_path)
                 if proc.returncode != 0 and "tonemap" in sdr_prefix:
                     # zscale can't convert colours it can't identify (e.g. HDR without primaries tags):
                     # still give an 8-bit stream that plays, just without the tone map
                     print(f"[TranscodeVideo-{hardware.upper()}] HDR conversion failed, retrying as plain 8-bit: {proc.stderr[-300:]}")
                     fc = cmd.index("-filter_complex") + 1
                     cmd[fc] = cmd[fc].replace(sdr_prefix, "format=yuv420p,", 1)
-                    proc = subprocess.run(cmd, capture_output=True, text=True)
+                    proc = run_ffmpeg(cmd, out_dirs, tmp_path)
 
             # GPU Fallback to CPU if hardware acceleration fails
             if proc.returncode != 0 and hardware == "gpu":
@@ -2463,12 +2645,6 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
 
             # 5. Atomic Parallel Upload Fleet
             print(f"[TranscodeVideo-{hardware.upper()}] Transcode complete. Starting strict-order atomic B2 uploads...")
-            def upload_file_worker(args):
-                file_path, s3_key, content_type = args
-                b2_client.upload_file(
-                    str(file_path), bucket_name, s3_key,
-                    ExtraArgs={"ContentType": content_type, "CacheControl": "public, max-age=31536000, immutable"}
-                )
 
             # Phase 1: Upload all .ts chunks
             chunk_tasks = []
@@ -2476,6 +2652,10 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 res_path = tmp_path / out_dir
                 for seg_path in res_path.glob("seg_*.ts"):
                     chunk_tasks.append((seg_path, f"{hls_prefix}/{out_dir}/{seg_path.name}", "video/MP2T"))
+            final_segment_keys = {task[1] for task in chunk_tasks}
+            if early["last"]:
+                chunk_tasks = [task for task in chunk_tasks if task[1] not in early["last"]]
+                print(f"[TranscodeVideo-{hardware.upper()}] -> {len(early['last'])} chunks already went up while encoding")
 
             print(f"[TranscodeVideo-{hardware.upper()}] -> Uploading {len(chunk_tasks)} video chunks...")
             with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
@@ -2502,6 +2682,13 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 str(master_file), bucket_name, f"{hls_prefix}/master.m3u8",
                 ExtraArgs={"ContentType": "application/x-mpegURL", "CacheControl": "public, max-age=3600"}
             )
+
+        if early["failed"]:
+            # An earlier attempt of this run uploaded segments before it failed: drop the ones the final streams
+            # don't use, and the old versions of the ones the final attempt overwrote
+            removed = _remove_hls_versions(b2_client, bucket_name, hls_prefix, early["failed"],
+                                           keep_latest_of=early["failed"] & final_segment_keys)
+            print(f"[TranscodeVideo-{hardware.upper()}] Removed {removed} segment versions left by a failed attempt")
 
         # 6. Streaming copy size, from what is now in B2. It used to be summed from the temporary folder after
         # that folder had been deleted, so every video was saved with overhead_size 0 and its streaming copy
@@ -2628,8 +2815,10 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
         return {"status": "success", "hls_master_url": hls_master_url}
 
     except _UseCpuWorker:
+        remove_early_uploads_unless_live()  # the 16-core worker makes and uploads every segment again
         raise  # not a failure: transcode_video_long_gpu hands the video to the 16-core worker
     except Exception as e:
+        remove_early_uploads_unless_live()
         error_details = str(e)
         try:
             supabase.table("photos").update({"status": "failed", "processing_error": error_details[:1000]}).eq("id", photo_id).execute()
