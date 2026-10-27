@@ -19,14 +19,13 @@ import * as Notifications from 'expo-notifications';
 import { SCREEN_ORIENTATION_LOCK, lockScreenOrientation } from '@/lib/screenOrientation';
 import { markStartup } from '@/lib/startupTiming';
 import { useFonts } from 'expo-font';
-import { 
-  Inter_400Regular, 
-  Inter_500Medium, 
-  Inter_600SemiBold, 
-  Inter_700Bold,
-  Inter_800ExtraBold,
-  Inter_900Black
-} from '@expo-google-fonts/inter';
+// Import each weight from its own file: the package root require()s all 18 weights into the bundle (#105).
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
+import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
+import { Inter_900Black } from '@expo-google-fonts/inter/900Black';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
