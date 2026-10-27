@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 160
+Next test number: 161
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4331,6 +4331,38 @@ How to test:
      new point within a couple of seconds, no freeze, no jump back.
   4. On a slow connection (phone on mobile data), play the long video. Expect: quality may drop but
      playback doesn't stop or show errors.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#160 Theme, cover and share saves that fail say so and keep the old value (issue #159)
+Status:    TODO
+Priority:  Low
+Platform:  Website + App
+Brief:     Some saves used to look saved when nothing was saved (theme, cover picture, cover Fit/Fill
+           and position, event type, share code). Now a failed save shows an error and the old value
+           stays on screen. Successful saves should work exactly as before.
+Detail:    Fix 4fce1b3 (issue #159). App part needs a new app build from staging. To make a save fail,
+           load the page first, then turn the internet off (phone: airplane mode; computer: browser dev
+           tools > Network > Offline). Turn it back on between steps.
+How to test:
+  1. Website, host page: open Change theme on a gallery, go offline, pick another theme. Expect:
+     "Failed to save changes." and, once back online, the old theme is still there after a reload.
+  2. Website: on a new gallery that has never been shared, go offline and tap Share. Expect: "Unable to
+     prepare share invitation." and no share box with a link.
+  3. App, event screen: go offline, then change the theme, then the event type. Expect each time: an error
+     alert and the old theme / type on screen.
+  4. App: go offline, then tap Fit/Fill on the cover, then reposition the cover and tap Save. Expect: an
+     error alert, no "Cover set to..." or "Cover position saved" message, and the cover looks as before.
+  5. App: go offline after picking a new cover photo, or tap remove cover. Expect: "Failed to update cover."
+     / "Failed to remove cover." and the old cover stays.
+  6. Back online, repeat steps 1, 3 and 4. Expect: the change saves and stays after a reload, as before.
 Done by:
 Device / browser:
 Build / version:

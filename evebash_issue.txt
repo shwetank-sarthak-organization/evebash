@@ -1001,17 +1001,6 @@ Issue: With VIDEO_READY_PUSH on, the gallery owner gets one push per processed v
 How to reproduce: Upload 5 videos to a gallery you own with VIDEO_READY_PUSH on: 5 separate pushes.
 Fix idea: route video-ready notifications through the same grouped outbox/debounce as photo uploads ("5 new videos"). Plan (2026-10-27): the video-ready step adds the video to the gallery's outbox instead of pushing; the outbox sends one push per gallery after a few quiet minutes ("5 new videos are ready"), with the same per-owner claim so nothing is sent twice. Behind a switch, off by default.
 
-#159
-Listed: 2026-10-27
-Platform: Both
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Fixing #155 (chat 2026-10-27)
-Issue: Same problem as #155 in more places: updateEvent returns false when a save fails, and these callers never check it, so the screen keeps the new value (and some show a success message) when nothing was saved. Website, src/app/(main)/host/page.tsx: changing the theme (handleUpdateTemplate, about :3343 and the sub-gallery cascade just below), saving a new join code when sharing (about :3079), and setting the first uploaded photo as cover (about :2687). App, apps/mobile/app/events/[id].tsx: cover upload and cover remove (about :2536 and :2604; they then update storage usage as if the cover changed), theme (about :2694), event type (about :2714), cover Fit/Fill (about :4075, toast shown before saving), cover position (about :8583, "Cover position saved" shown before saving) and linking a vendor (about :8411, Phase 2 business feature). Fix: same as #155, check the returned value, show the existing error and put the old value back. Lower priority than #155 because these are less often edited and most show the change straight away rather than a message about text.
-How to reproduce: Load the host page (website) or the event screen (app), turn the internet off, then change the theme or the cover position: the change appears to stick; reload and the old theme or position is back.
-
 #160
 Listed: 2026-10-27
 Platform: Website
@@ -1092,6 +1081,18 @@ How to reproduce: Install a staging build from before 2026-10-27 and open a Sunl
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#159
+Listed: 2026-10-27
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Fixing #155 (chat 2026-10-27)
+Issue: Same problem as #155 in more places: updateEvent returns false when a save fails, and these callers never check it, so the screen keeps the new value (and some show a success message) when nothing was saved. Website, src/app/(main)/host/page.tsx: changing the theme (handleUpdateTemplate, about :3343 and the sub-gallery cascade just below), saving a new join code when sharing (about :3079), and setting the first uploaded photo as cover (about :2687). App, apps/mobile/app/events/[id].tsx: cover upload and cover remove (about :2536 and :2604; they then update storage usage as if the cover changed), theme (about :2694), event type (about :2714), cover Fit/Fill (about :4075, toast shown before saving), cover position (about :8583, "Cover position saved" shown before saving) and linking a vendor (about :8411, Phase 2 business feature). Fix: same as #155, check the returned value, show the existing error and put the old value back. Lower priority than #155 because these are less often edited and most show the change straight away rather than a message about text.
+How to reproduce: Load the host page (website) or the event screen (app), turn the internet off, then change the theme or the cover position: the change appears to stick; reload and the old theme or position is back.
+Fixed in: 4fce1b3 (2026-10-27). Every listed save except the vendor link (Phase 2) now checks what updateEvent returns. Website: a failed theme change (or sub-gallery cascade) shows "Failed to save changes." and reloads the old theme; a failed join-code save shows "Unable to prepare share invitation." instead of opening the share box; a failed first-upload cover save keeps the placeholder. App: cover upload, cover remove, Fit/Fill and cover position now save first and only change the screen, storage usage and toast when the save worked, otherwise an error alert; theme and event type put the old value back and show the existing error. Checked with tsc (website clean; app shows only its existing errors in other files); the failed-save path was not run, so device test #160 covers it (app part needs a new build).
+
 #55
 Listed: 2026-10-12
 Platform: Website
