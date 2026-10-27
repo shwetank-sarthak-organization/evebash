@@ -4311,7 +4311,7 @@ Feedback:         2026-10-27 Claude, iOS simulator (iPhone 17 Pro, dev app on a 
                   Not done: step 7 (logged out), Android, a real phone.
 
 #159 Videos made with 6 s keyframes and upload-while-encoding play everywhere (todos #15, #16)
-Status:    BLOCKED
+Status:    TODO
 Priority:  Medium
 Platform:  Website + App
 Brief:     Step 1 of the new video pipeline changes how the streaming copies are made (keyframes every
@@ -4319,11 +4319,11 @@ Brief:     Step 1 of the new video pipeline changes how the streaming copies are
            behind two keys of the Modal video switch, off by default. Before it is turned on for every
            gallery, videos made with it must play and seek normally on real phones and browsers.
 Detail:    modal_engine/main.py (_read_hls_step1_switch, _EarlySegmentUploader), switch keys gop_6s and
-           upload_early. The code is live on Modal v133 (deployed 2026-10-27, keys off). Blocked until both
-           keys are set to "test" for one test gallery (modal_engine/video_gpu_switch.py gop-6s test, upload-early test,
-           add-test-gallery <gallery id>). Developer: set Status to TODO and write the gallery here then.
+           upload_early. Live on Modal v133. Since 2026-10-27 both keys are "test" for the gallery
+           wedding-2-77d4 only (staging.evebash.com/events/wedding-2-77d4); every other gallery is unchanged.
+           Upload into that main gallery itself: a sub-gallery has its own id and does not get the change.
 How to test:
-  1. In the test gallery, upload a phone video of about 2 min, a 4K video, an iPhone HDR video and one
+  1. In the gallery wedding-2-77d4 (not a sub-gallery), upload a phone video of about 2 min, a 4K video, an iPhone HDR video and one
      video over 10 min. Wait until each shows as ready.
   2. Play each one on an iPhone (app and Safari), an Android phone (app and Chrome) and a computer
      (Chrome and Safari). Expect: starts within a few seconds, no green or grey frames, sound in sync.
