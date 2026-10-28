@@ -980,7 +980,7 @@ Platform: Both
 Priority: High
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: Sarthak: apply the migration, then turn the two switches on (see Built below). Modal v133 has the code (deployed 2026-10-27, queue-aware off)
+Blocked by: turn the two switches on (Modal queue-aware first, then VIDEO_WATCHDOG_QUEUE_AWARE=true on Railway). Migration applied 2026-10-28; Modal v133 has the code (queue-aware off)
 Found in: Burst-load review of the video pipeline (chat 2026-10-27)
 Issue: A backlog of videos makes the watchdog re-send them and then mark them failed. apps/backend/src/services/watchdog.ts (every 10 min) treats any video still in 'processing' 15 min after upload as stuck, re-enqueues it (up to 3 times) and then sets status 'failed'. But Modal caps the video workers (transcode_video_short max 10, long-video GPU 5 + 16-core 5), so in a burst (e.g. 30-50 long recordings from a wedding) videos simply wait in Modal's queue for longer than 15 min. The re-enqueue is not deduplicated (QStash's dedup window is 10 min and the watchdog fires later), and the Modal lock (video-transcode-locks) only skips a copy while the first one is running: a copy that starts after the first finished transcodes the whole video again (double cost, more backlog, more re-sends). After 3 rounds (~45 min) a still-waiting video is shown as failed, then flips to processed when its real run finishes.
 How to reproduce: Code check (watchdog.ts lines 31-90, modal_engine/main.py _transcode_once). Load test: upload 20+ videos over 10 min to one gallery and watch transcode_attempts and modal_cost_logs for duplicate process_video_* rows per photo.
