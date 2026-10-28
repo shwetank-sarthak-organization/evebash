@@ -10,6 +10,7 @@ import { createVendorLeadsRouter } from "./routes/vendorLeads.js";
 import { findYouRouter } from "./routes/findYou.js";
 import { infrastructureRouter } from "./routes/infrastructure.js";
 import { mediaRouter } from "./routes/media.js";
+import { videoWorkerRouter } from "./routes/videoWorker.js";
 import { pricingPlansRouter } from "./routes/pricingPlans.js";
 import { applyDuePlanChanges, subscriptionRouter } from "./routes/subscription.js";
 import { paymentsRouter } from "./routes/payments.js";
@@ -112,6 +113,8 @@ app.use("/api/v1/vendor-leads", vendorLeadsLimiter, createVendorLeadsRouter());
 app.use("/api/find-you", findYouRouter);
 app.use("/api/media", mediaRouter);
 app.use("/api/v1/media", mediaRouter);
+// Todo #18: RunPod video workers and their QStash checks (idle unless VIDEO_RUNPOD sends videos there)
+app.use("/api/v1/video-worker", videoWorkerRouter);
 app.use("/api/pricing-plans", pricingPlansRouter);
 app.use("/api/v1/pricing-plans", pricingPlansRouter);
 app.use("/api/subscription", subscriptionRouter);

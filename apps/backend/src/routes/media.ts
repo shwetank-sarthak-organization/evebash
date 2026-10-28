@@ -37,6 +37,7 @@ import {
   sendOwnerUploadNotification,
 } from "../uploadNotifications.js";
 import { runMediaWatchdog } from "../services/watchdog.js";
+import { notifyVideoProcessed } from "../services/videoProcessedNotify.js";
 import { checkEventUpload, isEventUploadLimitEnabled } from "../services/eventUploadLimits.js";
 import { buildRotatedLinks, isRotateVersionedLinksEnabled, previousOriginalLinks } from "../services/rotateLinks.js";
 import { isRotateUprightFirstEnabled, rotateImage } from "../services/rotateImage.js";
@@ -1535,42 +1536,7 @@ mediaRouter.post("/internal/video-processed", asyncRoute(async (request, respons
   const photoId = String(request.body?.photoId || "").trim();
   if (!photoId) return jsonError(response, 400, "Missing photoId");
 
-  if (!isVideoReadyPushEnabled()) {
-    response.json({ success: true, skipped: "disabled" });
-    return;
-  }
-
-  const supabaseAdmin = getSupabaseAdminClient();
-  const { data: photo, error } = await supabaseAdmin
-    .from("photos")
-    .select("id, event_id, user_id, status, media_type, resource_type")
-    .eq("id", photoId)
-    .maybeSingle();
-  if (error) throw error;
-
-  const isVideo = photo?.media_type === "video" || photo?.resource_type === "video";
-  if (!photo || !isVideo || photo.status !== "processed") {
-    response.json({ success: true, skipped: "not_a_processed_video" });
-    return;
-  }
-
-  // Claim the row first: Modal can report the same video more than once (QStash retries, watchdog recovery)
-  const { data: claimed, error: claimError } = await supabaseAdmin
-    .from("photos")
-    .update({ owner_notified_at: new Date().toISOString() })
-    .eq("id", photoId)
-    .is("owner_notified_at", null)
-    .select("id");
-  if (claimError) throw claimError;
-  if (!claimed || claimed.length === 0) {
-    response.json({ success: true, skipped: "already_notified" });
-    return;
-  }
-
-  background("VideoProcessedNotify", () =>
-    sendOwnerUploadNotification(photo.event_id, photo.user_id, "🎥 New video uploaded", "Someone added a video to your event", { eventId: photo.event_id }),
-  );
-  response.json({ success: true, notified: true });
+  response.json({ success: true, ...(await notifyVideoProcessed(photoId)) });
 }));
 
 mediaRouter.get("/indexing-status", asyncRoute(async (request, response) => {

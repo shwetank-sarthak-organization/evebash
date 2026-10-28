@@ -2250,6 +2250,105 @@ def _remove_hls_versions(b2_client, bucket_name, hls_prefix, keys, keep_latest_o
         return 0
 
 
+# Shared by the Modal workers below and the RunPod worker (runpod_worker/handler.py imports this file), so both
+# make exactly the same streams. Moved here unchanged from _transcode_video_core.
+def _hls_out_dirs(src_height, has_audio):
+    """Stream folders for a source of this height: no tier above the source, 480p always, audio if it has sound."""
+    out_dirs = []
+    if src_height >= 1080: out_dirs.append("1080p")
+    if src_height >= 720:  out_dirs.append("720p")
+    out_dirs.append("480p") # Always generate at least 480p
+    if has_audio:
+        out_dirs.append("audio")
+    return out_dirs
+
+
+def _gpu_all_attempts(stream):
+    """The all-formats GPU worker's attempts in order: (name, command builder, stream fields to build it with)."""
+    attempts = [("GPU decode" if _gpu_all_plan(stream)["gpu_decode"] else "CPU decode", _gpu_all_ffmpeg_cmd, stream),
+                ("mixed (CPU filters)", _mixed_gpu_ffmpeg_cmd, stream)]
+    if _gpu_all_plan(stream)["hdr"]:
+        # As on the CPU workers: HDR the CPU tone map can't read (e.g. no primaries tag) still gets an 8-bit stream
+        attempts.append(("mixed (plain 8-bit)", _mixed_gpu_ffmpeg_cmd, {**stream, "color_transfer": None}))
+    return attempts
+
+
+def _without_tone_map(cmd, sdr_prefix):
+    """The CPU command again without the HDR tone map, for HDR that zscale can't convert (e.g. no primaries tag)."""
+    cmd = list(cmd)
+    fc = cmd.index("-filter_complex") + 1
+    cmd[fc] = cmd[fc].replace(sdr_prefix, "format=yuv420p,", 1)
+    return cmd
+
+
+def _cpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, sdr_prefix="", gop="48", hardware="cpu"):
+    """The CPU workers' single ffmpeg command: libx264 veryfast on every tier (h264_nvenc for the old "gpu" value)."""
+    cmd = ["ffmpeg", "-y", "-i", input_path]
+
+    # Build filter complex dynamically
+    split_count = len([d for d in out_dirs if d != "audio"])
+    filter_str = f"[0:v]{sdr_prefix}split={split_count}" + "".join(f"[v{i+1}]" for i in range(split_count)) + ";"
+        
+    idx = 1
+    if "1080p" in out_dirs:
+        filter_str += f"[v{idx}]scale=w=1920:h=1080:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+        idx += 1
+        
+    if "720p" in out_dirs:
+        filter_str += f"[v{idx}]scale=w=1280:h=720:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+        idx += 1
+        
+    if "480p" in out_dirs:
+        filter_str += f"[v{idx}]scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+
+    cmd += ["-filter_complex", filter_str.rstrip(";")]
+
+    vcodec = "h264_nvenc" if hardware == "gpu" else "libx264"
+    vpreset = "p4" if hardware == "gpu" else "veryfast"
+    
+    idx = 1
+    map_idx = 0
+    var_stream_parts = []
+    
+    # Codec settings injected into each map
+    def add_video_map(out_name, bitrate, maxrate, bufsize):
+        nonlocal cmd, idx, map_idx, var_stream_parts
+        cmd += ["-map", f"[v{idx}out]", f"-c:v:{map_idx}", vcodec, "-preset", vpreset]
+        if hardware == "gpu":
+            cmd += ["-cq", "28", "-force_key_frames", "expr:gte(t,n_forced*6)"]
+        else:
+            cmd += ["-g", gop, "-keyint_min", gop, "-sc_threshold", "0", "-force_key_frames", "expr:gte(t,n_forced*6)"]
+        cmd += [f"-b:v:{map_idx}", bitrate, f"-maxrate:{map_idx}", maxrate, f"-bufsize:{map_idx}", bufsize]
+        if has_audio:
+            var_stream_parts.append(f"v:{map_idx},agroup:audio,name:{out_name}")
+        else:
+            var_stream_parts.append(f"v:{map_idx},name:{out_name}")
+        idx += 1
+        map_idx += 1
+
+    if "1080p" in out_dirs: add_video_map("1080p", "4000k", "4500k", "8000k")
+    if "720p" in out_dirs: add_video_map("720p", "2500k", "3000k", "5000k")
+    if "480p" in out_dirs: add_video_map("480p", "1000k", "1200k", "2000k")
+
+    # Audio
+    if has_audio:
+        cmd += ["-map", "0:a?", "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2"]
+        var_stream_parts.insert(0, "a:0,agroup:audio,default:yes,name:audio")
+
+    var_stream = " ".join(var_stream_parts)
+
+    # Global HLS Settings
+    cmd += [
+        "-f", "hls", "-hls_time", "6", "-hls_playlist_type", "vod",
+        "-hls_flags", "independent_segments",
+        "-hls_segment_filename", str(tmp_path / "%v/seg_%03d.ts"),
+        "-master_pl_name", "master.m3u8",
+        "-var_stream_map", var_stream,
+        str(tmp_path / "%v/playlist.m3u8")
+    ]
+    return cmd
+
+
 def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_gb=None, function_name=None):
     import boto3
     import json
@@ -2464,14 +2563,7 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
 
             # 4. Single-Pass Multi-Output FFmpeg Generation
             # Dynamic tiers based on source height (Don't upscale)
-            out_dirs = []
-            if src_height >= 1080: out_dirs.append("1080p")
-            if src_height >= 720:  out_dirs.append("720p")
-            out_dirs.append("480p") # Always generate at least 480p
-            
-            if has_audio:
-                out_dirs.append("audio")
-                
+            out_dirs = _hls_out_dirs(src_height, has_audio)
             for out_dir in out_dirs:
                 (tmp_path / out_dir).mkdir(parents=True, exist_ok=True)
 
@@ -2487,11 +2579,7 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
 
             if hardware == "gpu_all":
                 failures = []
-                attempts = [("GPU decode" if _gpu_all_plan(stream)["gpu_decode"] else "CPU decode", _gpu_all_ffmpeg_cmd, stream),
-                            ("mixed (CPU filters)", _mixed_gpu_ffmpeg_cmd, stream)]
-                if _gpu_all_plan(stream)["hdr"]:
-                    # As on the CPU workers: HDR the CPU tone map can't read (e.g. no primaries tag) still gets an 8-bit stream
-                    attempts.append(("mixed (plain 8-bit)", _mixed_gpu_ffmpeg_cmd, {**stream, "color_transfer": None}))
+                attempts = _gpu_all_attempts(stream)
                 for path_name, build, attempt_stream in attempts:
                     proc = run_ffmpeg(build(input_path, tmp_path, out_dirs, has_audio, attempt_stream, gop), out_dirs, tmp_path)
                     problem = (f"ffmpeg failed: {(proc.stderr or '')[-300:]}" if proc.returncode != 0
@@ -2517,69 +2605,9 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 if sdr_prefix:
                     print(f"[TranscodeVideo-{hardware.upper()}] Converting to 8-bit SDR: {sdr_prefix.rstrip(',')}")
 
-            cmd = ["ffmpeg", "-y", "-i", input_path]
-
-            # Build filter complex dynamically
+            cmd = _cpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, sdr_prefix, gop, hardware)
             split_count = len([d for d in out_dirs if d != "audio"])
-            filter_str = f"[0:v]{sdr_prefix}split={split_count}" + "".join(f"[v{i+1}]" for i in range(split_count)) + ";"
-                
-            idx = 1
-            if "1080p" in out_dirs:
-                filter_str += f"[v{idx}]scale=w=1920:h=1080:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
-                idx += 1
-                
-            if "720p" in out_dirs:
-                filter_str += f"[v{idx}]scale=w=1280:h=720:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
-                idx += 1
-                
-            if "480p" in out_dirs:
-                filter_str += f"[v{idx}]scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
-
-            cmd += ["-filter_complex", filter_str.rstrip(";")]
-
-            vcodec = "h264_nvenc" if hardware == "gpu" else "libx264"
-            vpreset = "p4" if hardware == "gpu" else "veryfast"
-            
-            idx = 1
-            map_idx = 0
-            var_stream_parts = []
-            
-            # Codec settings injected into each map
-            def add_video_map(out_name, bitrate, maxrate, bufsize):
-                nonlocal cmd, idx, map_idx, var_stream_parts
-                cmd += ["-map", f"[v{idx}out]", f"-c:v:{map_idx}", vcodec, "-preset", vpreset]
-                if hardware == "gpu":
-                    cmd += ["-cq", "28", "-force_key_frames", "expr:gte(t,n_forced*6)"]
-                else:
-                    cmd += ["-g", gop, "-keyint_min", gop, "-sc_threshold", "0", "-force_key_frames", "expr:gte(t,n_forced*6)"]
-                cmd += [f"-b:v:{map_idx}", bitrate, f"-maxrate:{map_idx}", maxrate, f"-bufsize:{map_idx}", bufsize]
-                if has_audio:
-                    var_stream_parts.append(f"v:{map_idx},agroup:audio,name:{out_name}")
-                else:
-                    var_stream_parts.append(f"v:{map_idx},name:{out_name}")
-                idx += 1
-                map_idx += 1
-
-            if "1080p" in out_dirs: add_video_map("1080p", "4000k", "4500k", "8000k")
-            if "720p" in out_dirs: add_video_map("720p", "2500k", "3000k", "5000k")
-            if "480p" in out_dirs: add_video_map("480p", "1000k", "1200k", "2000k")
-
-            # Audio
-            if has_audio:
-                cmd += ["-map", "0:a?", "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2"]
-                var_stream_parts.insert(0, "a:0,agroup:audio,default:yes,name:audio")
-
-            var_stream = " ".join(var_stream_parts)
-
-            # Global HLS Settings
-            cmd += [
-                "-f", "hls", "-hls_time", "6", "-hls_playlist_type", "vod",
-                "-hls_flags", "independent_segments",
-                "-hls_segment_filename", str(tmp_path / "%v/seg_%03d.ts"),
-                "-master_pl_name", "master.m3u8",
-                "-var_stream_map", var_stream,
-                str(tmp_path / "%v/playlist.m3u8")
-            ]
+            var_stream = cmd[cmd.index("-var_stream_map") + 1]
 
             if hardware not in ("gpu_full", "gpu_all"):  # the GPU run above already made the streams
                 proc = run_ffmpeg(cmd, out_dirs, tmp_path)
@@ -2587,8 +2615,7 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                     # zscale can't convert colours it can't identify (e.g. HDR without primaries tags):
                     # still give an 8-bit stream that plays, just without the tone map
                     print(f"[TranscodeVideo-{hardware.upper()}] HDR conversion failed, retrying as plain 8-bit: {proc.stderr[-300:]}")
-                    fc = cmd.index("-filter_complex") + 1
-                    cmd[fc] = cmd[fc].replace(sdr_prefix, "format=yuv420p,", 1)
+                    cmd = _without_tone_map(cmd, sdr_prefix)
                     proc = run_ffmpeg(cmd, out_dirs, tmp_path)
 
             # GPU Fallback to CPU if hardware acceleration fails

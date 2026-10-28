@@ -1,4 +1,5 @@
 import { getSupabaseAdminClient } from "./supabase.js";
+import { buildChain, isRunpodVideoActive, type DispatchState } from "./services/runpodVideo.js";
 
 type PhotoPayload = {
   id: string;
@@ -27,7 +28,7 @@ function getInternalJobSecret() {
   ).trim();
 }
 
-function getInternalJobForwardHeaders() {
+export function getInternalJobForwardHeaders() {
   const secret = getInternalJobSecret();
   if (!secret) {
     throw new Error("INTERNAL_JOB_SECRET, CRON_SECRET, or QSTASH_TOKEN must be configured");
@@ -35,7 +36,7 @@ function getInternalJobForwardHeaders() {
   return { "Upstash-Forward-Authorization": `Bearer ${secret}` };
 }
 
-function getBackendBaseUrl(origin?: string) {
+export function getBackendBaseUrl(origin?: string) {
   const explicitApiUrl = (process.env.NEXT_PUBLIC_API_URL || process.env.API_BASE_URL || "")
     .trim()
     .replace(/\/+$/, "");
@@ -357,9 +358,7 @@ export async function publishManifestAssemblyTask(payload: {
     isLongVideo = fileSize > 350 * 1024 * 1024;
   }
 
-  const targetUrl = isLongVideo
-    ? (process.env.MODAL_GPU_WEBHOOK_URL || "https://shwetank-sarthak--wedding-media-engine-process-video-gpu.modal.run").trim()
-    : (process.env.MODAL_CPU_WEBHOOK_URL || "https://shwetank-sarthak--wedding-media-engine-process-video-cpu.modal.run").trim();
+  const targetUrl = modalVideoWebhookUrl(isLongVideo);
 
   console.log(
     `[VideoRouting] ${photoId}: duration=${duration ? `${duration}s` : 'unknown'}, size=${fileSize ? `${(fileSize / (1024 * 1024)).toFixed(1)}MB` : 'unknown'} -> ${
@@ -395,10 +394,26 @@ export async function publishManifestAssemblyTask(payload: {
 
   // Sanitize key for QStash deduplication ID (alphanumeric, -, _)
   const cleanKey = (payload.storage_key || payload.id).replace(/[^a-zA-Z0-9_-]/g, "-");
+
+  // Todo #18: with VIDEO_RUNPOD on for this gallery, RunPod converts it first and Modal is the backup
+  if (isRunpodVideoActive(normalizedPayload.event_id)) {
+    if (await publishRunpodDispatch(normalizedPayload, isLongVideo, `video-runpod-${cleanKey}`)) return true;
+    console.warn(`[VideoRouting] ${photoId}: RunPod dispatch could not be queued; sending it to Modal as before`);
+  }
+
   const deduplicationId = `video-transcode-${cleanKey}`;
-
   console.log(`[QStash] Publishing assemble_fmp4_manifest task for ${payload.storage_key} (dedup: ${deduplicationId})`);
+  return enqueueModalTranscode(normalizedPayload, targetUrl, deduplicationId);
+}
 
+function modalVideoWebhookUrl(isLongVideo: boolean) {
+  return isLongVideo
+    ? (process.env.MODAL_GPU_WEBHOOK_URL || "https://shwetank-sarthak--wedding-media-engine-process-video-gpu.modal.run").trim()
+    : (process.env.MODAL_CPU_WEBHOOK_URL || "https://shwetank-sarthak--wedding-media-engine-process-video-cpu.modal.run").trim();
+}
+
+async function enqueueModalTranscode(normalizedPayload: Record<string, unknown>, targetUrl: string, deduplicationId: string): Promise<boolean> {
+  const qstashToken = process.env.QSTASH_TOKEN;
   const queueName = (process.env.QSTASH_QUEUE_NAME || "EveBash").trim();
   const enqueueEndpoint = `https://qstash-us-east-1.upstash.io/v2/enqueue/${queueName}/${targetUrl}`;
 
@@ -433,5 +448,56 @@ export async function publishManifestAssemblyTask(payload: {
   }
 }
 
+/** The last step of a RunPod backup chain (todo #18): today's Modal path, with its own dedup id. */
+export async function sendVideoToModal(payload: Record<string, unknown>, isLongVideo: boolean, dedupSuffix: string): Promise<boolean> {
+  const cleanKey = String(payload.storage_key || payload.id || "").replace(/[^a-zA-Z0-9_-]/g, "-");
+  return enqueueModalTranscode(payload, modalVideoWebhookUrl(isLongVideo), `video-transcode-${cleanKey}-${dedupSuffix}`.slice(0, 200));
+}
 
+async function publishToVideoWorker(path: "dispatch" | "check", state: DispatchState, extraHeaders: Record<string, string>) {
+  const qstashToken = process.env.QSTASH_TOKEN;
+  if (!qstashToken) throw new Error("QSTASH_TOKEN is not configured");
+  const targetUrl = `${getBackendBaseUrl()}/api/v1/video-worker/${path}`;
+  const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/publish/${targetUrl}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${qstashToken}`,
+      "Content-Type": "application/json",
+      "Upstash-Timeout": "120s",
+      "Upstash-Retries": "3",
+      ...getInternalJobForwardHeaders(),
+      ...extraHeaders,
+    },
+    body: JSON.stringify(state),
+  });
+  if (!response.ok) throw new Error(`QStash ${path} publish failed with status ${response.status}: ${await response.text().catch(() => "")}`);
+}
 
+/** Queues /api/v1/video-worker/dispatch for a new video (todo #18). False if QStash refused it. */
+export async function publishRunpodDispatch(normalizedPayload: Record<string, any>, isLongVideo: boolean, deduplicationId: string): Promise<boolean> {
+  const state: DispatchState = {
+    photoId: String(normalizedPayload.photo_id || normalizedPayload.id),
+    storageKey: String(normalizedPayload.storage_key),
+    eventId: String(normalizedPayload.event_id || ""),
+    userId: normalizedPayload.user_id,
+    duration: normalizedPayload.duration ? Number(normalizedPayload.duration) : undefined,
+    fileSize: normalizedPayload.fileSize ? Number(normalizedPayload.fileSize) : undefined,
+    isLongVideo,
+    chain: buildChain(isLongVideo),
+    index: 0,
+    modalPayload: normalizedPayload,
+  };
+  try {
+    await publishToVideoWorker("dispatch", state, { "Upstash-Deduplication-Id": deduplicationId });
+    console.log(`[VideoRouting] ${state.photoId}: queued for RunPod (${state.chain.join(" -> ")})`);
+    return true;
+  } catch (error) {
+    console.error("[QStash] Error publishing RunPod dispatch:", error);
+    return false;
+  }
+}
+
+/** Queues the next /api/v1/video-worker/check of a RunPod job after `delaySeconds`. Throws if QStash refused. */
+export async function scheduleRunpodCheck(state: DispatchState, delaySeconds: number): Promise<void> {
+  await publishToVideoWorker("check", state, { "Upstash-Delay": `${Math.max(1, Math.round(delaySeconds))}s` });
+}

@@ -4,6 +4,8 @@ export type BackblazeAuth = {
   authorizationToken: string;
   apiUrl: string;
   downloadUrl?: string;
+  /** S3-compatible endpoint of the account, e.g. https://s3.ca-east-006.backblazeb2.com (signed links, todo #18) */
+  s3ApiUrl?: string;
 };
 
 export type BackblazeUploadUrl = {
@@ -51,6 +53,7 @@ export async function getCachedBackblazeAuth(): Promise<BackblazeAuth> {
         authorizationToken: data.authorizationToken,
         apiUrl: data.apiInfo.storageApi.apiUrl,
         downloadUrl: data.apiInfo.storageApi.downloadUrl,
+        s3ApiUrl: data.apiInfo.storageApi.s3ApiUrl,
       };
     } catch (err) {
       authPromise = null;
