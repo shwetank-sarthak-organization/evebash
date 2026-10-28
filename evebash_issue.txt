@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 176
+Next issue number: 179
 
 =====================================================================
 ACTIVE ISSUES
@@ -1114,6 +1114,39 @@ Blocked by: -
 Found in: Claude device-test run on staging (2026-10-28, test #74)
 Issue: On /dashboard at about 1024 px wide, the Total Photos stat is cut off ("661 Pho..."): the number uses class "truncate text-xl lg:text-2xl" and its box is narrower than the text (text 113 px, box 105 px). Total Videos fits. Fix idea: smaller text at lg, or let the stat wrap, or give the stat boxes more room.
 How to reproduce: Signed in with an account that has 600+ photos, open /dashboard in a 1024 px wide window. Look at the Total Photos box.
+
+#176
+Listed: 2026-10-28
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Device test #95, Claude run on staging (2026-10-28)
+Issue: In Host -> event -> Home (Primary Gallery) -> Filter, the Source gallery list counts only the photos already loaded on the page, not the whole gallery. test-face-new shows "Photos (42)" but the list offers only "All galleries (17)" and "Home (Primary Gallery) (17)"; sub-galleries whose favourites aren't loaded yet (check-fail-test, new_check, newcheck) are missing, so the host can't filter by them. In src/app/(main)/host/page.tsx, sourceGalleryOptions and the "All galleries (N)" label are built from selectedMediaItems (currentEventPhotos, which loads in pages); Uploaded by already loads everyone when opened ("Loading everyone..."), Source gallery doesn't. Fix idea: load all media (or ask the server for per-gallery counts) when the Filter panel opens, like Uploaded by does, and show "N+" while more pages are left.
+How to reproduce: Host -> test-face-new -> Galleries -> Home (Primary Gallery). Don't scroll. Filter -> Source gallery: compare the numbers with the Photos (42) tab, and look for the sub-gallery names.
+
+#177
+Listed: 2026-10-28
+Platform: Website
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Device test #58, Claude run on staging (2026-10-28)
+Issue: Tapping the heart on a photo in the website gallery grid saves the like (POST /likes 201) but the heart and the like count don't change until the page is reloaded. Tapping again (because nothing seemed to happen) silently removes the like. Unlike has the same problem. src/components/ui/MasonryGrid.tsx handleToggleLike calls toggleLike and then waits for onPhotoInteractions (src/lib/database.ts) to refresh the likes, but that only refreshes on Supabase Realtime postgres_changes, and Realtime is off (issue #49). Comments in the grid count pill have the same dependency. Fix idea: update the likes list in the tile straight after toggleLike succeeds (optimistic, roll back on error), or re-fetch the photo's likes after the call.
+How to reproduce: Signed in, open a gallery (e.g. /events/test-face-new-155c), tap the heart on a photo that has no likes. The heart stays white and no "1" pill appears. Reload: the photo shows as liked with "1".
+
+#178
+Listed: 2026-10-28
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Device tests #64, #110, #111, Claude run on staging (2026-10-28)
+Issue: The website's gallery photo viewer (src/components/page-flip/PageFlipSocialBar.tsx, used by MasonryGrid for every guest gallery since the page-flip viewer, 6a7e38ea) is behind the older Lightbox (src/components/ui/Lightbox.tsx, now only used on the host page): (1) no Reply button and no reply threads at all, so test #111 can't be done on the website and the app's replies don't show as threads there; (2) Delete on your own comment removes it at once with no "Delete comment?" confirm (test #64 step 2); (3) right after posting, your new comment has no Delete button until you close and reopen the photo; (4) the header reads "1 shared thoughts". Fix idea: bring reply threads and confirmDialog into PageFlipSocialBar (reuse Lightbox's logic, ideally shared), set the new comment's user id so Delete shows at once, and fix the singular.
+How to reproduce: Signed in, open /events/test-face-new-155c, open a photo, open Comments, post a comment: no Reply button; no Delete until reopening; then Delete removes it without asking.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

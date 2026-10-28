@@ -409,14 +409,14 @@ How to test:
   3. + New > Upload folder: pick a folder with a subfolder. Expect the same folder tree with the files inside.
   4. Drag a file onto the page (desktop). Expect it uploads.
   5. Cancel one upload midway. Expect "Cancelled" and the file is not listed.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
+Date tested: 2026-10-28
+Account used: host newone@email.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Website partly PASS: /vault, + New > Upload files with 3 small files (jpg + 2 txt): progress panel, then all listed ("Uploads complete"); dropping a file on the page uploads it. Not checked: a file over 100 MB, folder upload with subfolders, cancel midway, phone. Test files moved to Trash afterwards.
 
 --------------------------------------------------------------------------------
 #21 EB Vault - previews (especially PDF on phones)
@@ -449,14 +449,14 @@ How to test:
   3. Make a copy of a file. Expect "<name> (1)" and storage goes up by its size.
   4. Star a file: it appears under Starred. Recent shows recently changed files.
   5. Search part of a file name: it is found. Another account's files never appear.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
+Date tested: 2026-10-28
+Account used: host newone@email.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Website PASS for: New folder, Rename folder, Move a file into it, Make a copy ("claude-vault-a (1).txt"), Star -> shows under Starred, Recent lists the new files, Search "vault-b" finds the file inside the folder. Not checked: moving a folder into its own subfolder, storage going up after a copy (files too small to show), another account's files.
 
 --------------------------------------------------------------------------------
 #23 EB Vault - Trash, restore and delete forever
@@ -468,14 +468,14 @@ How to test:
   2. Storage used does NOT go down yet (Trash still counts).
   3. Restore the folder: it returns with its files.
   4. Delete forever one file, then Empty Trash. Expect storage used goes down.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
+Date tested: 2026-10-28
+Account used: host newone@email.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Steps 1-3 PASS: a folder and a file moved to Trash show "Deleted 28 Oct 2026 - Gone forever on 27 Nov 2026"; Restore brings the folder back with its file inside. Step 4 (Delete forever / Empty Trash) not done: Claude isn't allowed to delete data permanently. Trash now holds only Claude's test files (claude-test-folder-renamed, claude-vault-*.txt / .jpg) - press Empty Trash to finish step 4 and clean up.
 
 --------------------------------------------------------------------------------
 #24 EB Vault - privacy and storage limits
@@ -737,14 +737,14 @@ How to test:
      Then "Register another business" shows the empty form again.
   6. Check the website page on a phone too: no sideways scrolling, form is easy to fill.
   7. Tell the team the TEST entry's name so they can remove it from vendor_leads.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
+Date tested: 2026-10-28
+Account used: host newone@email.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Website steps 2-4 PASS: /eb-network shows Coming soon, "Find trusted event vendors, all in one place.", How it works (3 steps), A first look, Why list your business, List your business form; the top List your business link goes to #list-your-business; filling the form without a category shows "Please choose a category." and sends nothing. Step 5 (real TEST submit) and the app not done.
 
 --------------------------------------------------------------------------------
 #37 Guest gets a push when their request is approved
@@ -1285,7 +1285,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #58 Website gallery: like, comment and download sit on the photo
-Status:    TODO
+Status:    FAIL
 Priority:  Medium
 Platform:  Website (staging.evebash.com), computer and phone
 Brief:     The white strip under each photo is gone. The icons sit on the bottom of the photo over a soft fade:
@@ -1300,14 +1300,14 @@ How to test:
   5. Phone browser: the icons are always visible on every photo and are easy to tap.
   6. Check 2-3 gallery designs (e.g. Royal Emerald and two others): icons readable on bright photos.
   7. Logged out on a public gallery: no icons, as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
+Date tested: 2026-10-28
+Account used: host newone@email.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Tile icons: Like photo / Comments / Download original on each tile. Step 4 FAILS: tapping the heart saves the like (server 201) but the heart and the count pill don't change until a reload; a second tap removes the like without showing anything. Cause: the tile waits for Realtime, which is off. Issue #177. Like was removed again afterwards. Hover look not judged (the pane freezes this theme's animations).
 
 --------------------------------------------------------------------------------
 #59 Host's guest details panel shows the same details as before
@@ -1468,6 +1468,7 @@ Account used: host newone@email.com (logged-out checks: signed-out state in the 
 Screenshot / recording:
 Fix ref:
 Feedback: Partly: Delete Gallery confirm (dark card, X, red Delete), New Sub-Gallery (dark card, X, gold button), Photo Actions (dark card, X), Delete 2 photos? confirm and Make event public? confirm all match. Other popups not checked. Note: creating a sub-gallery shows the toast "Your event has been created!" (issue #174).
+          2026-10-28 Claude (2nd run): Comment delete in the photo viewer: no themed confirm - the comment is deleted at once (issue #178).
 
 --------------------------------------------------------------------------------
 #65 Host Event Design tab: new layout with phone and website preview
@@ -1492,14 +1493,14 @@ How to test:
   6. Event with a very long title: the title stops at two lines with "..." and nothing spills out of the frames.
   7. Tab key: Event Type, Template and Preview Guest Theme can be reached and opened with Enter.
   8. On a phone browser: the cards stack, the phone sketch sits above the browser sketch, no sideways scrolling.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
+Date tested: 2026-10-28
+Account used: host newone@email.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Steps 1, 2, 5 PASS on test-face-new: Event Type Wedding, Template "Royal Emerald" in gold, right card with name, description and Preview Guest Theme; phone and browser sketches show the cover, title, date, Home, sub-gallery names (phone) / Collections (browser) and Find You. Template opens Choose Style. Not checked: picking another template, light theme, long title, keyboard, phone.
 
 --------------------------------------------------------------------------------
 #66 App: after logging out, "Continue with Google" lets you pick the account
@@ -1655,14 +1656,14 @@ How to test:
      FIRST and ticked as the current choice, followed by the visible themes. Pick another theme. Expect: it
      changes; reopen Choose Style and the hidden theme is gone from the list.
   6. Change an event's type in the app (Event type). Expect: theme resets to the first visible theme of that type.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
+Date tested: 2026-10-28
+Account used: host newone@email.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Website host picker (Choose Style) lists only 6 templates: Royal Emerald, Classic White, Sunlit Portrait, Confetti Circle, Periwinkle Script, Midnight Hero. Old events with hidden themes and the app not checked.
 
 #72 Website: "Open in app" bar on event pages (Android phones only, behind a flag)
 Status:    TODO
@@ -1807,14 +1808,14 @@ How to test:
   5. An event with a custom date text (not a normal date): the text shows unchanged.
   6. /dashboard: cards show the short date and the icons too.
   7. Phone browser: cards stack, nothing sticks out sideways.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
+Date tested: 2026-10-28
+Account used: host newone@email.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Partly: /host cards show photo, title, short date ("9 Oct 26") and guest count, and open the event's manage view. Not checked: "..." menu, Shared tab owner name, guest count vs Permissions, custom date text, phone.
 
 #77 Website: new Settings page; profile without relationship, anniversary and privacy
 Status:    TODO
@@ -2043,6 +2044,7 @@ Account used: host newone@email.com (logged-out checks: signed-out state in the 
 Screenshot / recording:
 Fix ref:
 Feedback: Website steps 1-2 PASS: the big card says "Home (Primary Gallery)"; the (i) next to Galleries explains Home vs sub-galleries and Escape closes it. Note: the guest page heading says "Main Event: test-face-new". Step 3 and the app not checked.
+          2026-10-28 Claude (2nd run): Also: the Primary gallery page heading reads "test-face-new · Home (Primary Gallery)".
 
 --------------------------------------------------------------------------------
 #86 Shared galleries show the owner's name (website and app)
@@ -2262,7 +2264,7 @@ Fix ref:
 Feedback: Computer: while 3 photos were processing I clicked Dashboard; the panel stayed and finished there ("100% complete - 3 files ready"). Other steps not checked.
 
 #95 Host gallery: one Filter button holds Source gallery, Uploaded by and Select
-Status:    TODO
+Status:    FAIL
 Priority:  Medium
 Platform:  Website (desktop browser and phone browser)
 Brief:     Above the photos, the Source gallery (or Favourites only) and Uploaded by filters and the Select
@@ -2283,14 +2285,14 @@ How to test:
      right-aligned, a tick on the current choice. Escape closes just the open list; a second Escape closes
      the panel.
   9. Phone browser: the panel fits the screen (no sideways scroll) and the lists open normally.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
+Date tested: 2026-10-28
+Account used: host newone@email.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Steps 1, 7 PASS: only a Filter button left of the grid/list toggle; panel has Source gallery, Uploaded by and Select; Escape closes it. Step 2 FAILS: Source gallery only offers "All galleries (17)" and "Home (Primary Gallery) (17)" while the tab says Photos (42); sub-galleries are missing because counts use only the photos loaded so far. Issue #176.
 
 #96 Host gallery: delete several photos and videos at once
 Status:    FAIL
@@ -2724,18 +2726,18 @@ How to test:
   8. Empty, very long (300+ characters), emoji and a comment with a line of only spaces: empty/space-only
      can't be sent; long and emoji ones show in full without breaking the layout.
   9. Try in at least two themes (e.g. Royal Emerald and Classic): comment text and buttons are readable.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
+Date tested: 2026-10-28
+Account used: host newone@email.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Host part (step 6) partly: as host, posted a comment from the photo viewer; it showed at once with the name New and a time ("01:40", not "just now"). Problems (issue #178): no Delete on the new comment until the photo is reopened; Delete then removes it with no confirm; header says "1 shared thoughts". Test comment deleted. Guest A / B steps and the app need other accounts.
 
 --------------------------------------------------------------------------------
 #111 Comment threads (replies) on photos (website and app)
-Status:    TODO
+Status:    FAIL
 Priority:  Medium
 Platform:  Website + App (Android and iOS)
 Brief:     Replies sit under the comment they answer, on both the website and the app, and show the same on both.
@@ -2757,14 +2759,14 @@ How to test:
      deletes their own comment that has replies: write down what happens to the replies (disappear, or
      stay without a parent) on website and app; both should behave the same.
   9. Guest B (comments OFF): sees the thread but no Reply buttons.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
+Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
+Date tested: 2026-10-28
+Account used: host newone@email.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: The website gallery photo viewer has no Reply button at all (src/components/page-flip/PageFlipSocialBar.tsx has no reply threads); replies only exist in the old Lightbox, which is now used only on the host page. Issue #178.
 
 #113 Website: Royal Emerald gallery controls and phone hero (issues #86-#90, #94, #96)
 Status:    TODO
