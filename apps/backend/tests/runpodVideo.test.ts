@@ -123,6 +123,25 @@ test("dispatch: a worker that can't start or has no endpoint is skipped; Modal e
   assert.equal(r2.worker, "runpod_cpu32", "Ada and Blackwell skipped without endpoints");
 });
 
+test("dispatch: a worker that can't be prepared (signing fails, RunPod unreachable) is skipped, never stuck", async () => {
+  const f = fakeDeps({}, {
+    signSource: async () => { throw new Error("Event bucket S3 access is not configured"); },
+  });
+  const r = await dispatchStep(baseState(), f.deps);
+  assert.equal(r.action, "modal", "every RunPod worker failed to prepare -> Modal");
+  assert.equal(f.modal.length, 1);
+  assert.match(f.modal[0].history!.join(), /runpod_ada: could not start \(Event bucket S3 access is not configured\)/);
+
+  const g = fakeDeps({ "^POST cpu1/run$": () => ({ status: 200, json: { id: "job-c" } }) });
+  const realFetch = g.deps.fetch;
+  g.deps.fetch = (async (url: string, init: any) => {
+    if (String(url).includes("ada1") || String(url).includes("bw1")) throw new TypeError("fetch failed");
+    return realFetch(url as any, init);
+  }) as any;
+  const r2 = await dispatchStep(baseState(), g.deps);
+  assert.equal(r2.worker, "runpod_cpu32", "network errors on Ada and Blackwell -> CPU 32 vCPU");
+});
+
 test("check: waiting within the limit -> check again; past the limit -> cancel, then the next worker", async () => {
   const f = fakeDeps({
     "^GET ada1/status/job-1$": () => ({ status: 200, json: { status: "IN_QUEUE" } }),

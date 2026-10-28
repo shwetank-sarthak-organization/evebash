@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 179
+Next issue number: 180
 
 =====================================================================
 ACTIVE ISSUES
@@ -1148,6 +1148,18 @@ Blocked by: -
 Found in: Device tests #64, #110, #111, Claude run on staging (2026-10-28)
 Issue: The website's gallery photo viewer (src/components/page-flip/PageFlipSocialBar.tsx, used by MasonryGrid for every guest gallery since the page-flip viewer, 6a7e38ea) is behind the older Lightbox (src/components/ui/Lightbox.tsx, now only used on the host page): (1) no Reply button and no reply threads at all, so test #111 can't be done on the website and the app's replies don't show as threads there; (2) Delete on your own comment removes it at once with no "Delete comment?" confirm (test #64 step 2); (3) right after posting, your new comment has no Delete button until you close and reopen the photo; (4) the header reads "1 shared thoughts". Fix idea: bring reply threads and confirmDialog into PageFlipSocialBar (reuse Lightbox's logic, ideally shared), set the new comment's user id so Delete shows at once, and fix the singular.
 How to reproduce: Signed in, open /events/test-face-new-155c, open a photo, open Comments, post a comment: no Reply button; no Delete until reopening; then Delete removes it without asking.
+
+#179
+Listed: 2026-10-28
+Platform: Backend only
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Backend test runs while building todo #18 (chat 2026-10-28)
+Issue: apps/backend/tests/albums.test.ts fails now and then when the whole suite runs (npm test), each time a different test: "album proofing is off unless switched on" once, "albums made before roles existed ask for roles before anything else" once, in 5 full runs; the file alone and the other 3 full runs passed (127/127). Unrelated to the change being tested, so a flaky test can hide or fake a real failure.
+How to reproduce: cd apps/backend && npm test several times; look for a failing album test.
+Fix idea: look for shared state or timing in albums.test.ts (environment variables set by one test and read by another, or real timers), and isolate it.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

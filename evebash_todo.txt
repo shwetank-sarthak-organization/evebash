@@ -499,6 +499,14 @@ Update:      2026-10-28 (on staging in 8bfc220; switch off; image built and publ
               Blackwell needs the probe), HDR >= 1 min to the GPU path (routing is by length only, as
               today), chunked encoding (todo #17), heartbeat columns for the #157 watchdog (duplicates are
               stopped by the worker's /start check instead). Device test #163.
+Update:      2026-10-28: RunPod endpoints created with scripts/runpod_video_endpoints.py (template
+              evebash-video-worker ylw1kolbh6, image :staging, credential ghcr-evebash, 0-3 workers each):
+              RUNPOD_ENDPOINT_ADA=edmhlavj9brf9f, RUNPOD_ENDPOINT_BLACKWELL=aamn0ziocgowue,
+              RUNPOD_ENDPOINT_CPU32=aisjrpy8ekvuqt. The CPU endpoint pulled the image and had a worker ready
+              within a minute. Dispatch fix: anything that stops a worker from starting (signing the
+              download link, RunPod unreachable) now moves the video to the next worker instead of retrying,
+              so it always ends at Modal. Still off: Railway needs RUNPOD_API_KEY (Sarthak), the three ids,
+              VIDEO_RUNPOD=test and VIDEO_RUNPOD_TEST_EVENTS=wedding-2-77d4.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)

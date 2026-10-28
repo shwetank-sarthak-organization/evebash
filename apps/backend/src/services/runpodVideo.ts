@@ -218,22 +218,31 @@ export async function dispatchStep(state: DispatchState, deps: RunpodDeps): Prom
     const now = deps.now();
     const timeoutMs = executionTimeoutMs(state.duration);
     const ttlMs = timeoutMs + deps.config.queueWaitMs + 2 * 3600 * 1000;
-    const token = deps.signToken({ p: state.photoId, k: state.storageKey, e: state.eventId, w: step, n: newNonce(), x: now + ttlMs + 3600 * 1000 });
-    const sourceUrl = await deps.signSource(state.storageKey, Math.ceil((ttlMs + 3600 * 1000) / 1000));
-    const result = await runpod(deps, "POST", `${endpointId}/run`, {
-      input: {
-        photo_id: state.photoId,
-        storage_key: state.storageKey,
-        event_id: state.eventId,
-        source_url: sourceUrl,
-        callback_url: deps.callbackUrl,
-        job_token: token,
-        hardware: WORKER_HARDWARE[step],
-        worker: step,
-        duration: state.duration || null,
-      },
-      policy: { executionTimeout: timeoutMs, ttl: ttlMs },
-    });
+    let result: Awaited<ReturnType<typeof runpod>>;
+    try {
+      // Anything that stops this worker from starting (signing, RunPod down) moves the video to the next one,
+      // so a missing setting can never leave it stuck: the chain always ends with Modal
+      const token = deps.signToken({ p: state.photoId, k: state.storageKey, e: state.eventId, w: step, n: newNonce(), x: now + ttlMs + 3600 * 1000 });
+      const sourceUrl = await deps.signSource(state.storageKey, Math.ceil((ttlMs + 3600 * 1000) / 1000));
+      result = await runpod(deps, "POST", `${endpointId}/run`, {
+        input: {
+          photo_id: state.photoId,
+          storage_key: state.storageKey,
+          event_id: state.eventId,
+          source_url: sourceUrl,
+          callback_url: deps.callbackUrl,
+          job_token: token,
+          hardware: WORKER_HARDWARE[step],
+          worker: step,
+          duration: state.duration || null,
+        },
+        policy: { executionTimeout: timeoutMs, ttl: ttlMs },
+      });
+    } catch (err) {
+      history.push(`${step}: could not start (${String((err as Error)?.message || err).slice(0, 160)})`);
+      deps.log(`[RunPodVideo] ${state.photoId}: ${history[history.length - 1]}`);
+      continue;
+    }
     if (!result.ok || !result.json?.id) {
       history.push(`${step}: could not start (${result.status} ${String(result.text).slice(0, 120)})`);
       deps.log(`[RunPodVideo] ${state.photoId}: ${history[history.length - 1]}`);
