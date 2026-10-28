@@ -4489,3 +4489,15 @@ Feedback:  2026-10-28 developer run by Claude (not a tester PASS), host newone@e
            Found and fixed: the cost log row failed (cpu_cores / memory_gb are required), fix 9aeb90e.
            NOT done: iPhone and Android phones, both apps, Mac Safari (the iOS simulator was in use by
            another session). The four test videos stay in the gallery for this.
+           2026-10-28 simulator run by Claude (not a tester PASS; simulators are not real phones):
+           - iPhone 17 Pro simulator, Safari, t163_long_11min stream: loads and plays cleanly.
+           - iPhone 17 Pro simulator, EveBash app (newone@email.com), t163_long_11min: plays smoothly to
+             1:29, the +10 s buttons jump and playback carries on.
+           - Android emulator (Pixel, Android 16), EveBash app: t163_iphone_hdr plays with normal colours (not
+             washed out), +10 s lands at the right time; t163_long_11min plays, the player log shows the
+             buffer well ahead and no errors.
+           - Phone browsers (Safari, Chrome): staging.evebash.com shows "Get the EveBash app" on phones, so
+             galleries are app-only there; nothing to test.
+           - Found: dragging the seek bar in the app viewer changes to the next/previous video instead of
+             seeking (both apps; not RunPod related). Logged as issue #180. Tapping +10/-10 works.
+           Still needed: real iPhone and Android phones (app), Safari on a Mac (website).
