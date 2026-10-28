@@ -4362,6 +4362,20 @@ Feedback:  2026-10-27 partial run by Claude (developer check, not a tester PASS)
            STILL TO DO by a tester: real iPhone and Android phones, the EveBash app on both, Safari on a Mac,
            the website gallery page on phones, and step 4 (slow mobile data). The four test videos stay in
            the gallery for this.
+           2026-10-28 simulator run by Claude (not a tester PASS; simulators are not real phones):
+           - Android emulator (Android 16), EveBash app, all four t159 videos: play, normal colours (4K and
+             HDR not washed out, no green or grey frames). Seeks by tapping the bar, read from the player
+             log: 12-min video to 5:58 and 9:33 (playing again within 2.1 s) and 10:45 (~10 s, once);
+             4K to 0:25 and 0:45, HDR to 0:11 and 0:19 (played to the end), 2-min to 1:00 and 1:48 - each
+             landed where tapped and resumed within 0.1-1.8 s, no errors.
+           - iPhone 17 Pro simulator, EveBash app: all four play (normal colours). Seeking there could only
+             be done with the +10 s button (worked; see #163); the bar can't be hit before the controls hide.
+           - Step 4 (slow data) NOT testable on the emulator: its network throttle stalls every video, even
+             a video made before step 1 (PART-06, 24 Oct) and even at the 14 Mbps "HSDPA" setting.
+           - Website on phones: shows "Get the EveBash app", so galleries are app-only there; nothing to test.
+           - Dragging the seek bar in the app changes video (issue #180, not caused by step 1).
+           STILL TO DO by a tester: real iPhone and Android phones (app), Safari on a Mac, step 4 on real
+           mobile data.
 
 --------------------------------------------------------------------------------
 #160 Theme, cover and share saves that fail say so and keep the old value (issue #159)
