@@ -185,6 +185,18 @@ def gpu_name():
         return None
 
 
+def host_size():
+    """(CPU count, memory in GB) of this worker, for the cost log."""
+    memory_gb = None
+    try:
+        with open("/proc/meminfo") as meminfo:
+            kb = next(int(line.split()[1]) for line in meminfo if line.startswith("MemTotal:"))
+        memory_gb = round(kb / 1024 / 1024, 1)
+    except (OSError, StopIteration, ValueError):
+        pass
+    return os.cpu_count(), memory_gb
+
+
 def make_poster(input_path, poster_path, video, use_sdr_poster):
     cmd = ["ffmpeg", "-y", "-i", str(input_path), "-ss", "00:00:01", "-vframes", "1", "-q:v", "2", str(poster_path)]
     vf = recipe._poster_filter(video) if use_sdr_poster else ""
@@ -310,9 +322,12 @@ def transcode_job(job_input, session=None, workdir=None):
         files = sorted(uploader.rel(k) for k in final_keys | {k for _p, k, _c in playlists}) + ["master.m3u8"]
         if poster_path.exists():
             files.append("poster.jpg")
+        cpu_count, memory_gb = host_size()
         summary = {
             "worker": worker,
             "hardware": hardware,
+            "cpu_count": cpu_count,
+            "memory_gb": memory_gb,
             "gpu_name": gpu_name() if hardware == "gpu" else None,
             "path": path_used,
             "gop": gop,

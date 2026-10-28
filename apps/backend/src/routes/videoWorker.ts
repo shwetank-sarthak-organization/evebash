@@ -78,6 +78,13 @@ videoWorkerRouter.post("/check", asyncRoute(async (request, response) => {
   response.json(await checkStep(state, makeRunpodDeps()));
 }));
 
+/** cpu_cores / memory_gb for the cost log; left out (table default 1.0) when unknown, never null. */
+export function hostSize(body: any, worker: string): { cpu_cores?: number; memory_gb?: number } {
+  const cpu = Number(body?.cpu_count) || (worker === "runpod_cpu32" ? 32 : 0);
+  const memory = Number(body?.memory_gb) || (worker === "runpod_cpu32" ? 64 : 0);
+  return { ...(cpu > 0 ? { cpu_cores: cpu } : {}), ...(memory > 0 ? { memory_gb: memory } : {}) };
+}
+
 function jobClaims(request: Request): JobClaims | null {
   return verifyJobToken(request.body?.job_token, getInternalJobSecret());
 }
@@ -185,8 +192,8 @@ videoWorkerRouter.post("/complete", asyncRoute(async (request, response) => {
     media_type: "video",
     media_size: Number(body.source_bytes) || null,
     video_duration_seconds: Number.isFinite(duration) ? duration : null,
-    cpu_cores: claims.w === "runpod_cpu32" ? 32 : null,
-    memory_gb: null,
+    // Required columns (no nulls): what the worker reported, else the CPU endpoint's known size, else the table default
+    ...hostSize(body, claims.w),
     gpu_type: body.gpu_name || (claims.w === "runpod_cpu32" ? null : claims.w),
     execution_time_seconds: seconds,
     estimated_cost_inr: Math.round(usd * INR_PER_USD() * 100000) / 100000,

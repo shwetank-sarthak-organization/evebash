@@ -298,3 +298,10 @@ test("upload links: signed for hls/<storage_key>/<file> only, with the headers t
   assert.equal((await call({ job_token: token + "x", keys: ["master.m3u8"] })).status, 401);
   assert.equal((await call({ job_token: token, keys: [] })).status, 400);
 });
+
+test("cost log size: reported values, else the CPU endpoint's size, never null", async () => {
+  const { hostSize } = await import("../src/routes/videoWorker.js");
+  assert.deepEqual(hostSize({ cpu_count: 16, memory_gb: 31.2 }, "runpod_ada"), { cpu_cores: 16, memory_gb: 31.2 });
+  assert.deepEqual(hostSize({}, "runpod_cpu32"), { cpu_cores: 32, memory_gb: 64 });
+  assert.deepEqual(hostSize({ cpu_count: null, memory_gb: null }, "runpod_ada"), {}, "unknown -> left out, table default applies");
+});
