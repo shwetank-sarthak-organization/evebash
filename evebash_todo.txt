@@ -475,8 +475,10 @@ Brief:        Today QStash delivers each video job to a Modal endpoint. Modal an
               to raise it before launch); default execution timeout is too short for long videos; set a
               queue TTL. Behind a new video-gpu-switch key "runpod" with its own test-gallery list, off
               by default; with it off, today's Modal path is unchanged.
-Update:      2026-10-28 (built on branch feat/runpod-video, commit 8bfc220; not pushed, nothing deployed,
-              switch off). Pieces:
+Update:      2026-10-28 (on staging in 8bfc220; switch off; image built and published by GitHub Actions run #1:
+              ghcr.io/shwetank-sarthak-organization/evebash-video-worker:staging, all smoke tests passed. The
+              repository is public, so the image is public too (no secrets in it). RunPod endpoints not created yet,
+              Railway variables not set). Pieces:
               - runpod_worker/handler.py + Dockerfile: one RunPod job = one video; the command builders are
                 imported from modal_engine/main.py (6 s keyframes, upload while encoding, master last).
                 Downloads the original and uploads each output file through links the backend signs for
