@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 163
+Next test number: 164
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4439,6 +4439,34 @@ How to test:
   4. Host on the Galleries tab of the event: background the app for a minute and come back. Expect: no
      full-screen spinner, the photos stay where you scrolled.
   5. Pull to refresh still works on Gallery > Requests.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#163 Videos converted on RunPod play everywhere, and the backup chain works (todo #18)
+Status:    BLOCKED
+Priority:  High
+Platform:  Website + App
+Brief:     With VIDEO_RUNPOD=test for a test gallery, its videos are converted on RunPod (GPU for videos over
+           10 min, 32-core CPU for shorter ones) instead of Modal. They must look and play the same as
+           Modal's, and a video must still finish on Modal when RunPod has no worker.
+Detail:    Todo #18. Blocked until the branch is on staging, the image is built, the RunPod endpoints exist
+           and Railway has VIDEO_RUNPOD=test + VIDEO_RUNPOD_TEST_EVENTS=<gallery>. Developer: set TODO and
+           write the gallery here then.
+How to test:
+  1. Upload a 2-minute phone video, an iPhone HDR video and one video over 10 minutes to the test gallery.
+     Expect: each becomes playable within a few minutes; the owner gets one "new video" push per video.
+  2. Play and seek each on an iPhone (app and Safari), an Android phone (app and Chrome) and a computer.
+     Expect: same picture and sound as before, seeking lands where you tap, no green or grey frames.
+  3. (Developer) Railway logs show "[RunPodVideo] ... processed by runpod_..." for each; the cost log has a
+     process_video_runpod_* row per video.
+  4. (Developer) Set RUNPOD_QUEUE_WAIT_S=1 and RUNPOD_ENDPOINT_ADA to a wrong id, upload a long video.
+     Expect: it still finishes (Blackwell, CPU 32 vCPU or Modal). Then restore both settings.
 Done by:
 Device / browser:
 Build / version:

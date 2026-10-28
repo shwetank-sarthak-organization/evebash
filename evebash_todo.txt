@@ -443,13 +443,14 @@ Listed:       2026-10-27
 Platform:     Backend only
 Priority:     High
 Phase:        TBD (decide after discussion)
-Status:       Idea
+Status:       In progress
 Effort:       L
 Suggested by: Burst-load review of the video pipeline (chat 2026-10-27); final pipeline in
               reports/Final video pipeline recommendation 2026-10-27.md
-Discussed:    No
-Decision:     -
-Owner:        Unassigned
+Discussed:    Yes
+Decision:     2026-10-28: build it (user). Image on GitHub's container registry, private, built by GitHub
+              Actions; RunPod pulls it with the read-only credential ghcr-evebash.
+Owner:        Sarthak (with Claude)
 Depends on:   #133 (RunPod serverless), issue #157 (watchdog), worker image in a real registry
 Brief:        Today QStash delivers each video job to a Modal endpoint. Modal answers "got it" at once and
               keeps the job in its own queue, which nothing outside Modal can see. New flow:
@@ -474,6 +475,28 @@ Brief:        Today QStash delivers each video job to a Modal endpoint. Modal an
               to raise it before launch); default execution timeout is too short for long videos; set a
               queue TTL. Behind a new video-gpu-switch key "runpod" with its own test-gallery list, off
               by default; with it off, today's Modal path is unchanged.
+Update:      2026-10-28 (built on branch feat/runpod-video, commit 8bfc220; not pushed, nothing deployed,
+              switch off). Pieces:
+              - runpod_worker/handler.py + Dockerfile: one RunPod job = one video; the command builders are
+                imported from modal_engine/main.py (6 s keyframes, upload while encoding, master last).
+                Downloads the original and uploads each output file through links the backend signs for
+                that one file; holds no storage or database key.
+              - backend: services/runpodVideo.ts (switch, job tokens, chain), routes/videoWorker.ts
+                (/api/v1/video-worker: /dispatch and /check via QStash; /start, /upload-urls, /complete for
+                the worker), services/eventBucketS3.ts. Checks are delayed QStash messages (no table):
+                waiting past RUNPOD_QUEUE_WAIT_S (180) -> cancel -> next worker; failed -> next worker.
+                Chain: long videos Ada -> Blackwell -> CPU 32 vCPU -> Modal; others CPU 32 vCPU -> Modal.
+              - .github/workflows/runpod-video-worker.yml: builds, smoke-tests and publishes
+                ghcr.io/shwetank-sarthak-organization/evebash-video-worker (:<commit> and :staging).
+              - scripts/runpod_video_endpoints.py: creates the template + 3 endpoints (0 idle workers).
+              To turn on for the test gallery: push to staging (builds the image), run
+              `python3 scripts/runpod_video_endpoints.py create`, then on Railway set RUNPOD_API_KEY,
+              RUNPOD_ENDPOINT_ADA / _BLACKWELL / _CPU32 (printed by the script), B2_BUCKET_NAME if missing,
+              VIDEO_RUNPOD=test and VIDEO_RUNPOD_TEST_EVENTS=wedding-2-77d4. Rollback: VIDEO_RUNPOD=off.
+              Not done yet: a real RunPod run (GPU path in this image), the plain-1080p order (Ada -> CPU ->
+              Blackwell needs the probe), HDR >= 1 min to the GPU path (routing is by length only, as
+              today), chunked encoding (todo #17), heartbeat columns for the #157 watchdog (duplicates are
+              stopped by the worker's /start check instead). Device test #163.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)

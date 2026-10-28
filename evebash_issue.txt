@@ -858,6 +858,7 @@ EXACT costs from both providers' bills (2026-10-26; RunPod = each endpoint's bil
 - Long, RunPod RTX 4000 Ada / Blackwell 24 GB / Modal L4: test_5 48.7 min ₹4.67 / ₹6.92 / ₹20.55 (₹9.66 + ₹10.89); 4K HDR portrait ₹3.26 / ₹3.31 / ₹8.12 (₹5.58 + ₹2.54); 4K 24 fps ₹2.60 / ₹2.46 / ₹8.17 (₹5.68 + ₹2.49); 1080p 60 fps HEVC ₹2.79 / ₹3.33 / ₹7.90 (₹5.31 + ₹2.59). Ada saving vs Modal: 77% / 60% / 68% / 65% incl. egress (52% / 42% / 54% / 47% compute only).
 - Short, Modal 4-core vs RunPod cpu5g 8 vCPU: 4K 50 s ₹0.62 (₹0.43 + ₹0.19 egress) vs ₹0.08; iPhone HDR ₹0.53 vs ₹0.09; 4K 25 s ₹0.18 vs ₹0.04; HEVC 60 fps ₹0.28 vs ₹0.05 -> 78-87% saving. Other CPU types per clip: cpu5c 8 ₹0.03-0.07, cpu3c 8 ₹0.03-0.07, cpu3g 8 ₹0.04-0.13, cpu5c 16 ₹0.05-0.11, cpu5c 4 ₹0.02-0.04.
 - Billed rates: RTX 4000 Ada $0.000162/s, 24 GB tier $0.000192/s, cpu5g-8-32 $0.0000203/s, cpu5c-8-16 $0.0000159/s, cpu3c-8-16 $0.0000136/s, cpu3g-8-32 $0.0000228/s, cpu5c-16-32 $0.0000316/s, cpu5c-4-8 $0.0000083/s; no egress on RunPod.
+Update 2026-10-28: the RunPod path is built behind VIDEO_RUNPOD (off) on branch feat/runpod-video (8bfc220), see todo #18. Not pushed or deployed; no RunPod endpoint created yet.
 
 #135
 Listed: 2026-10-24
