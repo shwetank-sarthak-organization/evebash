@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 19
+Next todo number: 20
 
 Last updated: 2026-10-28
 
@@ -512,6 +512,34 @@ Update:      2026-10-28: ON for the test gallery wedding-2-77d4 (Railway: RUNPOD
               iPhone HDR on RunPod CPU 32 vCPU (16.6 s, 31 s), 11.7-min 1080p on RTX 4000 Ada (67.4 s, GPU decode);
               all processed, pushed, complete and playable; fallback to Modal verified with a wrong endpoint id.
               Cost log fixed in 9aeb90e (cpu_cores/memory_gb are NOT NULL). Device test #163 (phones still to do).
+
+#19 Research where Cloudflare (CF) could help EveBash (cost, speed, safety)
+Listed:       2026-10-28
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (decide after the research)
+Status:       Idea
+Effort:       M
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Today Cloudflare runs the evebash.com DNS and the worker evebash-media-worker
+              (cloudflare-worker/evebash-media-worker/), which serves every photo and video on
+              media.evebash.com from the private B2 bucket, with the edge cache from issue #120.
+              Open Cloudflare issues: #122 (clear the cached copy when a photo is deleted or
+              reprocessed), #132 (free Workers plan: ~100,000 requests a day, one big wedding can use
+              it up), #139 (visitors in India are served from Marseille).
+              Research what else Cloudflare could do for us and whether it beats what we use now,
+              with real prices at launch traffic. Ideas to check: R2 storage next to or instead of
+              B2; Cloudflare image resizing instead of making thumbnails on Modal; Cloudflare Stream
+              vs our own video pipeline (Modal/RunPod); Workers Paid or Pro plan (#132, #139);
+              Turnstile against bots on sign-up and forms; WAF and rate limits in front of the
+              Railway API; Queues vs QStash; Pages vs Vercel for the website.
+              Result: a short report in reports/ with a yes/no and cost for each idea, then new
+              todos for the ones we pick.
+Done in:      -
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
