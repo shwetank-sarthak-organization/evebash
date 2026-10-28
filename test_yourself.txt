@@ -4449,15 +4449,15 @@ Fix ref:
 Feedback:
 
 #163 Videos converted on RunPod play everywhere, and the backup chain works (todo #18)
-Status:    BLOCKED
+Status:    TODO
 Priority:  High
 Platform:  Website + App
 Brief:     With VIDEO_RUNPOD=test for a test gallery, its videos are converted on RunPod (GPU for videos over
            10 min, 32-core CPU for shorter ones) instead of Modal. They must look and play the same as
            Modal's, and a video must still finish on Modal when RunPod has no worker.
-Detail:    Todo #18. Blocked until the branch is on staging, the image is built, the RunPod endpoints exist
-           and Railway has VIDEO_RUNPOD=test + VIDEO_RUNPOD_TEST_EVENTS=<gallery>. Developer: set TODO and
-           write the gallery here then.
+Detail:    Todo #18. Since 2026-10-28 RunPod is on for the gallery wedding-2-77d4 only
+           (VIDEO_RUNPOD=test on the staging backend); every other gallery still uses Modal. Upload into that
+           main gallery itself (a sub-gallery has its own id). Rollback: VIDEO_RUNPOD=off on Railway.
 How to test:
   1. Upload a 2-minute phone video, an iPhone HDR video and one video over 10 minutes to the test gallery.
      Expect: each becomes playable within a few minutes; the owner gets one "new video" push per video.
@@ -4474,4 +4474,18 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  2026-10-28 developer run by Claude (not a tester PASS), host newone@email.com, via the website:
+           - t163_phone_2min (1080p25, 2 min): RunPod CPU 32 vCPU, 16.6 s of work, 68/84 segments uploaded
+             while converting; playable ~26 s after the upload finished.
+           - t163_iphone_hdr (iPhone 4K60 HLG, 22 s): RunPod CPU 32 vCPU, 31 s; stream is 8-bit BT.709
+             (tone mapped properly in the RunPod image).
+           - t163_long_11min (1080p25, 11.7 min): RunPod RTX 4000 Ada, GPU decode path, 67.4 s, 456/468
+             segments uploaded while converting.
+           All three: rows processed with poster thumbnail and owner push, streams complete (no missing or
+           stray segments, full length, sampled segments start on a keyframe with none inside), play and
+           seek in the website player on a computer (Chromium), 0 dropped frames.
+           Step 4 variant: with RUNPOD_ENDPOINT_CPU32 set to a wrong id, t163_fallback_25s was refused by
+           RunPod (404) and handed to Modal within 1 s; Modal processed it. Setting restored afterwards.
+           Found and fixed: the cost log row failed (cpu_cores / memory_gb are required), fix 9aeb90e.
+           NOT done: iPhone and Android phones, both apps, Mac Safari (the iOS simulator was in use by
+           another session). The four test videos stay in the gallery for this.

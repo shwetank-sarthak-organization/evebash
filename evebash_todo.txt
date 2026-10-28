@@ -507,6 +507,11 @@ Update:      2026-10-28: RunPod endpoints created with scripts/runpod_video_endp
               download link, RunPod unreachable) now moves the video to the next worker instead of retrying,
               so it always ends at Modal. Still off: Railway needs RUNPOD_API_KEY (Sarthak), the three ids,
               VIDEO_RUNPOD=test and VIDEO_RUNPOD_TEST_EVENTS=wedding-2-77d4.
+Update:      2026-10-28: ON for the test gallery wedding-2-77d4 (Railway: RUNPOD_API_KEY, the 3 endpoint ids,
+              VIDEO_RUNPOD=test, VIDEO_RUNPOD_TEST_EVENTS=wedding-2-77d4). First real run: 2-min 1080p and 22 s
+              iPhone HDR on RunPod CPU 32 vCPU (16.6 s, 31 s), 11.7-min 1080p on RTX 4000 Ada (67.4 s, GPU decode);
+              all processed, pushed, complete and playable; fallback to Modal verified with a wrong endpoint id.
+              Cost log fixed in 9aeb90e (cpu_cores/memory_gb are NOT NULL). Device test #163 (phones still to do).
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
