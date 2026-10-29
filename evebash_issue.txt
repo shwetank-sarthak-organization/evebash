@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 181
+Next issue number: 184
 
 =====================================================================
 ACTIVE ISSUES
@@ -1152,6 +1152,39 @@ Found in: Device test #163 simulator run (chat 2026-10-28)
 Issue: In the photo/video viewer, dragging the video seek bar sideways changes to the next or previous item instead of seeking. The viewer's swipe handler (apps/mobile/components/PhotoViewer.tsx handleViewerTouchStart / handleViewerTouchEnd, raw onTouchStart / onTouchEnd on the media frame) sees every touch inside the frame, including the seek bar's, and navigates on any move over 45 px. Seen on the Android emulator (a drag on the bar went from 2/9 to 1/9, twice, with the controls showing); on the iOS simulator taps on the bar did not seek either. The +10 / -10 buttons work.
 How to reproduce: open a gallery with 2+ videos in the app, open a video, show the controls, drag the seek bar thumb to the right.
 Fix idea: ignore the swipe when the touch started on the video controls (e.g. set a "scrubbing" ref in the seek bar's onResponderGrant and clear it on release; handleViewerTouchEnd returns early while it is set), then check tap-to-seek on the bar too.
+
+#181
+Listed: 2026-10-29
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Porting the video pipeline to another project (chat 2026-10-29)
+Issue: The media worker on media.evebash.com (cloudflare-worker/evebash-media-worker/worker.js) never passes the viewer's Range header on to B2: it sends only Authorization and Accept. So a request for part of a file gets the whole file (200, not 206), while the reply still says "Accept-Ranges: bytes". HLS streams are not affected (players fetch whole segments). Plain MP4 playback is: the raw-video fallback in src/components/ui/HLSVideoPlayer.tsx (used when an HLS stream fails), the Vault video preview (src/components/vault/VideoPreview.tsx, if its link goes through media.evebash.com), and resuming a big download. Safari and iPhones need partial replies to play or seek an MP4, so those probably fail there (not checked on a device). B2 itself answers Range correctly (206, checked directly on B2 on 2026-10-29). Fix idea: pass the Range header to B2 behind a worker var (e.g. MEDIA_FORWARD_RANGE), keep Range requests out of the edge cache as today, add Range to Access-Control-Allow-Headers and Content-Range to Access-Control-Expose-Headers, then play a raw MP4 in iPhone Safari.
+How to reproduce: curl -A "Mozilla/5.0" -H "Range: bytes=0-99" -o /dev/null -w "%{http_code} %{size_download}\n" https://media.evebash.com/<a video's storage_key> prints "200 10961412" (the whole file) instead of "206 100".
+
+#182
+Listed: 2026-10-29
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Porting the video pipeline to another project (chat 2026-10-29)
+Issue: Videos shorter than 1 second get a broken thumbnail. Both video workers take the poster frame at 1 s (modal_engine/main.py _transcode_video_core: ffmpeg -ss 00:00:01 -vframes 1; runpod_worker/handler.py make_poster: the same). For a shorter video ffmpeg writes nothing ("Conversion failed!", checked 2026-10-29 with that exact command on a 0.5 s clip), so no poster.jpg is uploaded. But thumbnail_url is still set to hls/<storage_key>/poster.jpg (main.py, the update after the uploads; apps/backend/src/routes/videoWorker.ts line 159 for RunPod), so the gallery shows a broken image. No such video exists yet (0 processed videos under 1 s on 2026-10-29). Fix idea: if the 1 s frame gives nothing, take the first frame (-ss 0); set thumbnail_url only when a poster was really uploaded. Behind a video-gpu-switch key (Modal) and the RunPod options, like poster_sdr.
+How to reproduce: make a 0.5 s clip (ffmpeg -i any.mp4 -t 0.5 -an short.mp4), upload it to a test gallery: once processed, its tile has a broken thumbnail and B2 has no hls/<storage_key>/poster.jpg.
+
+#183
+Listed: 2026-10-29
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Porting the video pipeline to another project (chat 2026-10-29)
+Issue: A video still "processing" more than 6 hours after upload stays "processing" forever. The watchdog (apps/backend/src/services/watchdog.ts, runMediaWatchdog) only reads processing videos uploaded between 15 minutes and 6 hours ago (.gt("uploaded_at", sixHoursAgo)), so an older one is never re-sent and never marked failed: guests never see it and the uploader sees "processing" with no error. Normally every video finishes or fails well within 6 hours (3 Modal retries, 3 watchdog re-sends), so this needs the watchdog to miss that window: the backend down for hours, MEDIA_WATCHDOG_ENABLED=false, or a long Modal outage. None today (0 videos processing for over 6 h on 2026-10-29). Fix idea: in the same run, mark videos still processing after 24 h as failed ("Transcoding did not finish within 24 hours"), behind a flag.
+How to reproduce: on a staging test gallery, set one video's status to 'processing' and uploaded_at to 7 hours ago, then POST /api/v1/media/watchdog/run: the video is not in the report and stays processing.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
