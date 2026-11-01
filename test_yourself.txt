@@ -4526,10 +4526,13 @@ Brief:     Seven fixes from the app screen review (issues #192 to #198). Guest e
 Detail:    App code only, no new native build needed. Commit d331316 on staging.
            2026-11-01 simulator run by Claude (not a tester PASS; simulators are not real phones):
            - iPhone 16e simulator, signed out: step 1 passed.
-           - Android emulator (Pixel 8), host account: steps 2 to 7 looked right, including Host and EB Network on the
-             event bottom bar. Not run: the HIDDEN label (hiding a gallery changes real data), step 8, and steps 2 to
-             7 on iPhone (the signed-in iPhone simulator was in use by another session). The iPhone icon fix in step 3
-             was only checked against the iOS symbol list, so check it on a real iPhone.
+           - Android emulator (Pixel 8), host account: steps 2, 3, 5 and 6 looked right. Step 4 on Dashboard and Profile
+             only, step 7 on normal tiles only.
+           - iPhone 17 Pro simulator, host account, same code as staging: steps 3, 5 and 6 looked right, and the bottom
+             bar in step 2 looked right but its tabs were not tapped. Step 4 on Dashboard and Profile only, step 7 on
+             normal tiles only.
+           - Not run on either: scrolling Host and EB Network and pull to refresh in step 4, the HIDDEN label in step 7
+             (hiding a gallery changes real data), step 8, and real phones.
 How to test:
   1. Sign out. On the login screen tap Forgot Password?. Expect: the Reset Password page opens, with no extra bar on
      top. Tap Back to Login. Expect: you return to login.

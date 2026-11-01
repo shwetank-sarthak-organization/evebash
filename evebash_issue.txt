@@ -1300,7 +1300,7 @@ Blocked by: -
 Found in: App screen review (chat 2026-11-01)
 Issue: The host event screen had its own hand-built copy of the bottom bar in apps/mobile/app/events/[id].tsx, out of step with the real tab bar: 5 tabs in a different order, with EB Business showing although it is hidden for v1 (Phase 2). Host had no action at all, so tapping it did nothing. EB Business and EB Network opened hidden Phase 2 pages (businesses, explore-business) instead of the EB Network coming soon page. Fix: use the shared ThemedAppBar (components/navigation/ThemedAppBar.tsx), which already has the right 4 tabs.
 How to reproduce: Open an event you host. Before the fix: the bottom bar shows Host, EB Business, Dashboard, EB Network, Profile, and tapping Host does nothing.
-Fixed in: d331316 (2026-11-01). The event screen now uses ThemedAppBar. Checked on the Pixel 8 emulator: Dashboard, Host, EB Network, Profile with Host in gold; Host opens the Host tab and EB Network opens the coming soon page. Not yet seen on an iPhone. Device test #164.
+Fixed in: d331316 (2026-11-01). The event screen now uses ThemedAppBar. Checked on the Pixel 8 emulator: Dashboard, Host, EB Network, Profile with Host in gold; Host opens the Host tab and EB Network opens the coming soon page. The bar also looks right on the iPhone 17 Pro simulator, where its tabs were not tapped. Device test #164.
 
 #194
 Listed: 2026-11-01
@@ -1312,7 +1312,7 @@ Blocked by: -
 Found in: App screen review (chat 2026-11-01)
 Issue: Plan & Usage (apps/mobile/app/(tabs)/usage.tsx) showed "Active Businesses 1 / 0" in red with a full red bar, which reads as an over-limit warning for a Phase 2 feature nobody can use in v1. Fix: hide the row behind SHOW_BUSINESS_USAGE (off until Phase 2).
 How to reproduce: Profile > Usage & Plan on an account with a business row. Before the fix: red Active Businesses row.
-Fixed in: d331316 (2026-11-01). SHOW_BUSINESS_USAGE is off until Phase 2. Checked on the Pixel 8 emulator: the row is gone. Device test #164.
+Fixed in: d331316 (2026-11-01). SHOW_BUSINESS_USAGE is off until Phase 2. Checked on the Pixel 8 emulator and the iPhone 17 Pro simulator: the row is gone. Device test #164.
 
 #195
 Listed: 2026-11-01
@@ -1324,7 +1324,7 @@ Blocked by: -
 Found in: App screen review (chat 2026-11-01)
 Issue: Blank icons on iPhone. calendar.fill and sparkles.fill are not real iOS symbol names, so iOS draws nothing: Upgrade Plan showed an empty box and Active Events had no icon on Plan & Usage. Checked every icon name against the iOS symbol list: calendar.fill, sparkles.fill, mappin.fill and photo.on.rectangle.fill are not real. Android is fine because it uses its own map (components/ui/icon-symbol.tsx). Fixed on v1 screens (usage.tsx and (tabs)/index.tsx). Left as they are on Phase 2 business pages: (tabs)/business/[id].tsx, (tabs)/businesses.tsx, (tabs)/explore-business.tsx, shortlist.tsx, profile/[id].tsx. Fix those when Phase 2 starts.
 How to reproduce: Profile > Usage & Plan on an iPhone. Before the fix: empty box beside Upgrade Plan, no icon beside Active Events.
-Fixed in: d331316 (2026-11-01). v1 screens now use calendar, sparkles and mappin.and.ellipse, all in the iOS symbol list. Not yet seen on an iPhone. The Phase 2 pages listed above keep the old names. Device test #164.
+Fixed in: d331316 (2026-11-01). v1 screens now use calendar, sparkles and mappin.and.ellipse, all in the iOS symbol list. Checked on the iPhone 17 Pro simulator: both Plan & Usage icons show. The About page icons in (tabs)/index.tsx were not opened. The Phase 2 pages listed above keep the old names. Device test #164.
 
 #196
 Listed: 2026-11-01
@@ -1336,7 +1336,7 @@ Blocked by: -
 Found in: App screen review (chat 2026-11-01)
 Issue: On Dashboard, Host, Profile, EB Network and Your Events the header scrolled away with the page, so photos and text slid under the clock and Dynamic Island with nothing behind them. The host event screen had the same problem once its cover scrolled off. Fix: the shared TabScreenHeader now sits above the scroll area on those tabs (Settings already worked this way), and the host event screen has a strip in the page colour that fades in behind the clock as the cover scrolls away (host view only, guest themes untouched).
 How to reproduce: Scroll down on Dashboard, or on an event you host. Before the fix: content runs under the clock.
-Fixed in: d331316 (2026-11-01). Header moved above the scroll area on Dashboard, Host, Profile, EB Network and Your Events, and a strip added on the host event screen. Checked on the Pixel 8 emulator on Dashboard, Profile and the host event screen. Not yet seen on an iPhone. Device test #164.
+Fixed in: d331316 (2026-11-01). Header moved above the scroll area on Dashboard, Host, Profile, EB Network and Your Events, and a strip added on the host event screen. Checked on the Pixel 8 emulator and the iPhone 17 Pro simulator on Dashboard, Profile and the host event screen. Device test #164.
 
 #197
 Listed: 2026-11-01
@@ -1348,7 +1348,7 @@ Blocked by: -
 Found in: App screen review (chat 2026-11-01)
 Issue: On the Host page the red Requests badge sat on top of the word "Requests" (apps/mobile/app/(tabs)/gallery.tsx, tabBadge). Fix: move it to the corner of the tab.
 How to reproduce: Host > any pending request. Before the fix: the badge covers the end of the word.
-Fixed in: d331316 (2026-11-01). Checked on the Pixel 8 emulator: the badge sits on the corner and the word is readable. Device test #164.
+Fixed in: d331316 (2026-11-01). Checked on the Pixel 8 emulator and the iPhone 17 Pro simulator: the badge sits on the corner and the word is readable. Device test #164.
 
 #198
 Listed: 2026-11-01
@@ -1360,7 +1360,7 @@ Blocked by: -
 Found in: App screen review (chat 2026-11-01)
 Issue: On the host Galleries tab the SUB-GALLERY label ran into the eye button, and HIDDEN FROM GUESTS was longer still. The labels were also only 8pt, below the app's 10pt smallest size. Fix: drop the label on normal tiles (the section heading already says Sub-Galleries), show a short HIDDEN label only on hidden tiles, and set the PRIMARY and HIDDEN labels to 10pt (apps/mobile/app/events/[id].tsx, components/eventStyles/baseStyles.ts; both styles are used on these tiles only).
 How to reproduce: Open an event you host > Galleries, with at least one sub-gallery. Before the fix: the label touches the eye button.
-Fixed in: d331316 (2026-11-01). Checked on the Pixel 8 emulator: nothing touches the eye and delete buttons, and PRIMARY is 10pt. The HIDDEN label was not seen because hiding a gallery changes real data. Device test #164.
+Fixed in: d331316 (2026-11-01). Checked on the Pixel 8 emulator: nothing touches the eye and delete buttons, and PRIMARY is 10pt. The tiles also look right on the iPhone 17 Pro simulator. The HIDDEN label was not seen because hiding a gallery changes real data. Device test #164.
 
 #157
 Listed: 2026-10-27
