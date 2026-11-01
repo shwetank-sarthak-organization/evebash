@@ -88,6 +88,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     const isPublicRoute =
       root === undefined ||
       root === 'login' ||
+      // Linked from the login screen, and people who can't sign in are the ones who need it
+      root === 'forgot-password' ||
       (root === '(tabs)' && (tab === undefined || tab === 'gallery' || tab === 'menu' || tab === 'business')) ||
       root === 'business' ||
       root === 'profile' ||
@@ -199,6 +201,7 @@ function RootLayoutContent() {
           {/* Redirect-only route; without this its default header ("index") flashes at startup */}
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           <Stack.Screen name="settings" options={{ headerShown: false }} />

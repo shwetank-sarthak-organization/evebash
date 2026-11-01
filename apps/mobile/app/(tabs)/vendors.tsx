@@ -135,13 +135,12 @@ export default function EbNetworkScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.mainContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <TabScreenHeader title="EB Network" />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{ paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
       >
-        <TabScreenHeader title="EB Network" />
-
         <View style={styles.header}>
           <View style={styles.badge}>
             <IconSymbol name="sparkles" size={14} color={colors.gold} />

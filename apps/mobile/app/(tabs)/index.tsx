@@ -52,7 +52,7 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.heroChip}>
-              <IconSymbol name="sparkles.fill" size={14} color={colors.gold} />
+              <IconSymbol name="sparkles" size={14} color={colors.gold} />
               <Text style={styles.heroChipText}>Private Event Galleries</Text>
             </View>
 
@@ -174,7 +174,7 @@ export default function HomeScreen() {
           <View style={styles.footerSection}>
             <Text style={styles.footerHeading}>Contact Us</Text>
             <View style={styles.contactRow}>
-              <IconSymbol name="mappin.fill" size={17} color={colors.gold} />
+              <IconSymbol name="mappin.and.ellipse" size={17} color={colors.gold} />
               <Text style={styles.contactText}>Dehradun, Uttarakhand, India - 248001</Text>
             </View>
             <TouchableOpacity onPress={() => Linking.openURL('tel:+919871264964')} activeOpacity={0.75} style={styles.contactRow}>

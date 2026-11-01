@@ -14,6 +14,9 @@ import { APP_VERSION } from '@/lib/appVersion';
 
 const { width } = Dimensions.get('window');
 
+/** Business listings are hidden until Phase 2 (they come with EB Business and EB Network). */
+const SHOW_BUSINESS_USAGE = false;
+
 export default function UsageScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -134,17 +137,17 @@ export default function UsageScreen() {
       value: stats.eventCount.toString(),
       limit: plan.eventLabel,
       progress: eventProgress,
-      icon: 'calendar.fill',
+      icon: 'calendar',
       isOver: isEventsOver
     },
-    {
+    ...(SHOW_BUSINESS_USAGE ? [{
       label: 'Active Businesses',
       value: stats.businessCount.toString(),
       limit: businessLabel,
       progress: businessProgress,
       icon: 'briefcase.fill',
       isOver: isBizOver
-    },
+    }] : []),
   ];
 
   return (
@@ -249,7 +252,7 @@ export default function UsageScreen() {
             >
               <View style={styles.listItemLeft}>
                 <View style={[styles.listIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-                  <IconSymbol name="sparkles.fill" size={18} color="#CA9C68" />
+                  <IconSymbol name="sparkles" size={18} color="#CA9C68" />
                 </View>
                 <Text style={styles.itemText}>Upgrade Plan</Text>
               </View>

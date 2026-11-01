@@ -10,7 +10,6 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import Svg, { Path, Rect } from 'react-native-svg';
 import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, GuestProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery, getGalleryVideo, setGalleryVideo, type GalleryVideo } from '@/lib/database';
 import { confirmDenyRequest } from '@/lib/denyRequest';
 import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDetails } from '@/lib/uploaders';
@@ -5215,13 +5214,14 @@ export default function EventDetailScreen() {
                                   style={StyleSheet.absoluteFillObject}
                                 />
 
-                                {/* Sub-gallery Badge */}
-                                <View style={styles.badgeContainer}>
-                                  <View style={styles.subBadge}>
-                                    <IconSymbol name={sub.isHidden ? 'eye.slash.fill' : 'photo.on.rectangle'} size={10} color="rgba(255, 255, 255, 0.9)" />
-                                    <Text style={styles.subBadgeTextLabel}>{sub.isHidden ? 'HIDDEN FROM GUESTS' : 'SUB-GALLERY'}</Text>
+                                {/* Only when hidden: the section heading already says these are sub-galleries, and the tile is narrow */}
+                                {sub.isHidden && (
+                                  <View style={styles.badgeContainer}>
+                                    <View style={styles.subBadge}>
+                                      <Text style={styles.subBadgeTextLabel}>HIDDEN</Text>
+                                    </View>
                                   </View>
-                                </View>
+                                )}
 
                                 {/* Hide from guests / show again */}
                                 <TouchableOpacity
@@ -8542,97 +8542,34 @@ export default function EventDetailScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* ── CUSTOM BOTTOM APP NAV BAR (Only visible in Host/Management View) ── */}
+      {/* Host view: a strip in the page colour fades in as the cover scrolls away, so content doesn't run under the clock */}
       {showAdminView && (
-        <View style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 55 + insets.bottom,
-          backgroundColor: MidnightColors.background,
-          borderTopWidth: 1,
-          borderTopColor: MidnightColors.cardBorder,
-          flexDirection: 'row',
-          paddingTop: 8,
-          paddingBottom: insets.bottom > 0 ? insets.bottom - 5 : 10,
-          zIndex: 1000,
-        }}>
-          {/* TAB 1: Host (Active Gold since we are in Event Management) */}
-          <TouchableOpacity
-            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-            activeOpacity={0.8}
-          >
-            <IconSymbol size={28} name="calendar" color={MidnightColors.gold} />
-            <Text style={{ color: MidnightColors.gold, fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Host</Text>
-          </TouchableOpacity>
+        <RNAnimated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: insets.top,
+            zIndex: 1000,
+            backgroundColor: pageBackground,
+            opacity: scrollYAnim.interpolate({
+              inputRange: [heroHeight - 120 - insets.top, heroHeight - 60 - insets.top],
+              outputRange: [0, 1],
+              extrapolate: 'clamp',
+            }),
+          }}
+        />
+      )}
 
-          {/* TAB 2: EB Business (Matches TabLayout Svg exactly) */}
-          <TouchableOpacity
-            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-            onPress={() => router.replace('/(tabs)/businesses')}
-            activeOpacity={0.8}
-          >
-            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={MidnightColors.slate400} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <Path d="m11 17 2 2a1 1 0 1 0 3-3"/>
-              <Path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/>
-              <Path d="m21 3 1 11h-2"/>
-              <Path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/>
-              <Path d="M3 4h8"/>
-            </Svg>
-            <Text
-              numberOfLines={2}
-              style={{
-                color: MidnightColors.slate400,
-                fontSize: 9,
-                lineHeight: 10,
-                fontFamily: Fonts.inter.medium,
-                marginTop: 4,
-                textAlign: 'center'
-              }}
-            >
-              EB Business
-            </Text>
-          </TouchableOpacity>
-
-          {/* TAB 3: Dashboard (Matches TabLayout Svg exactly) */}
-          <TouchableOpacity
-            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-            onPress={() => router.replace('/(tabs)/dashboard')}
-            activeOpacity={0.8}
-          >
-            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={MidnightColors.slate400} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <Rect width="7" height="9" x="3" y="3" rx="1" />
-              <Rect width="7" height="5" x="14" y="3" rx="1" />
-              <Rect width="7" height="9" x="14" y="12" rx="1" />
-              <Rect width="7" height="5" x="3" y="16" rx="1" />
-            </Svg>
-            <Text style={{ color: MidnightColors.slate400, fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Dashboard</Text>
-          </TouchableOpacity>
-
-          {/* TAB 4: EB Network */}
-          <TouchableOpacity
-            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-            onPress={() => router.replace('/(tabs)/explore-business')}
-            activeOpacity={0.8}
-          >
-            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={MidnightColors.slate400} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <Path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/>
-              <Path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/>
-              <Path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/>
-            </Svg>
-            <Text style={{ color: MidnightColors.slate400, fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>EB Network</Text>
-          </TouchableOpacity>
-
-          {/* TAB 5: Profile */}
-          <TouchableOpacity
-            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-            onPress={() => router.replace('/(tabs)/profile')}
-            activeOpacity={0.8}
-          >
-            <IconSymbol size={28} name="person.fill" color={MidnightColors.slate400} />
-            <Text style={{ color: MidnightColors.slate400, fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Profile</Text>
-          </TouchableOpacity>
+      {/* The app's bottom bar (Host/Management View) */}
+      {showAdminView && (
+        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1000 }}>
+          <ThemedAppBar
+            colors={{ background: MidnightColors.background, border: MidnightColors.cardBorder, active: MidnightColors.gold, inactive: MidnightColors.slate400 }}
+            activeTab="gallery"
+          />
         </View>
       )}
       {/* ── REPOSITION TOOLBAR OVERLAY ── */}

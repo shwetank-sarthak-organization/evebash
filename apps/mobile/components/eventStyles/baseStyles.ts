@@ -1785,9 +1785,9 @@ headerGreeting: {
   subArrowCircle: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(255, 255, 255, 0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 0.5, borderColor: 'rgba(255, 255, 255, 0.3)' },
   badgeContainer: { position: 'absolute', top: 10, left: 10, zIndex: 10 },
   badgeGradient: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  badgeTextLabel: { color: '#000000', fontSize: 8, fontFamily: Fonts.inter.bold, letterSpacing: 0.5 },
+  badgeTextLabel: { color: '#000000', fontSize: 10, fontFamily: Fonts.inter.bold, letterSpacing: 0.5 },
   subBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0, 0, 0, 0.65)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 0.5, borderColor: 'rgba(255, 255, 255, 0.2)' },
-  subBadgeTextLabel: { color: 'rgba(255, 255, 255, 0.95)', fontSize: 8, fontFamily: Fonts.inter.bold, letterSpacing: 0.5 },
+  subBadgeTextLabel: { color: 'rgba(255, 255, 255, 0.95)', fontSize: 10, fontFamily: Fonts.inter.bold, letterSpacing: 0.5 },
 
   // Logs
   logCard: { backgroundColor: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 16, borderLeftWidth: 3, borderLeftColor: MidnightColors.gold, marginBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

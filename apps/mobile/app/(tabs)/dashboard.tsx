@@ -500,25 +500,24 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.safeArea}>
+      {/* ── HEADER ── */}
+      <TabScreenHeader
+        title="Dashboard"
+        right={
+          <HeaderAction
+            onPress={handleOpenNotifications}
+            accessibilityLabel={hasUnreadNotifications ? 'Notifications, new' : 'Notifications'}
+            showBadge={hasUnreadNotifications}
+          >
+            <IconSymbol name="bell.fill" size={20} color={colors.gold} />
+          </HeaderAction>
+        }
+      />
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MidnightColors.gold} />}
       >
-        {/* ── HEADER ── */}
-        <TabScreenHeader
-          title="Dashboard"
-          right={
-            <HeaderAction
-              onPress={handleOpenNotifications}
-              accessibilityLabel={hasUnreadNotifications ? 'Notifications, new' : 'Notifications'}
-              showBadge={hasUnreadNotifications}
-            >
-              <IconSymbol name="bell.fill" size={20} color={colors.gold} />
-            </HeaderAction>
-          }
-        />
-
         {loading && !refreshing && events.length === 0
           ? (
             <View style={styles.collectionSection} accessible accessibilityLabel="Loading your events">

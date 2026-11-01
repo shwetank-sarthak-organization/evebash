@@ -439,17 +439,17 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.safeArea}>
+      {/* Profile Header */}
+      <TabScreenHeader
+        title="Profile"
+        right={
+          <HeaderAction onPress={() => router.push('/settings' as any)} accessibilityLabel="Settings">
+            <SettingsIcon size={22} color={MidnightColors.gold} />
+          </HeaderAction>
+        }
+      />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         
-        {/* Profile Header */}
-        <TabScreenHeader
-          title="Profile"
-          right={
-            <HeaderAction onPress={() => router.push('/settings' as any)} accessibilityLabel="Settings">
-              <SettingsIcon size={22} color={MidnightColors.gold} />
-            </HeaderAction>
-          }
-        />
         <View style={styles.header}>
           <View style={styles.profileRow}>
             <View style={styles.avatarRing}>

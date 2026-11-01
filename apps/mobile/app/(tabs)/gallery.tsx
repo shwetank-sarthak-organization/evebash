@@ -551,25 +551,23 @@ export default function PortfolioTabScreen() {
 
   return (
     <View style={styles.safeArea}>
+      {/* ── HEADER ── */}
+      <TabScreenHeader
+        title="Host"
+        right={
+          <HeaderAction onPress={() => setCreateModalVisible(true)} accessibilityLabel="Create event">
+            <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <Path d="M5 12h14" />
+              <Path d="M12 5v14" />
+            </Svg>
+          </HeaderAction>
+        }
+      />
       <ScrollView
         style={styles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* ── HEADER ── */}
-        <TabScreenHeader
-          title="Host"
-          right={
-            <HeaderAction onPress={() => setCreateModalVisible(true)} accessibilityLabel="Create event">
-              <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <Path d="M5 12h14" />
-                <Path d="M12 5v14" />
-              </Svg>
-            </HeaderAction>
-          }
-        />
-
-
         {/* ── TABS (Segmented Control Style) ── */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
@@ -1487,7 +1485,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  tabBadge: { position: 'absolute', top: 4, right: 8, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: colors.background },
+  tabBadge: { position: 'absolute', top: -6, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: colors.background },
   tabBadgeText: { color: colors.white, fontSize: 10, fontFamily: Fonts.inter.bold },
   // Selected tab uses the Dashboard "Join Event" button colours
   tabButtonActive: {

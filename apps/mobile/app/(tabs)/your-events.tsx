@@ -235,6 +235,20 @@ export default function YourEventsScreen() {
     <View style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
 
+      <TabScreenHeader
+        title="Gallery"
+        right={events.length > 0 ? (
+          <HeaderAction
+            onPress={() => setShowFilters(true)}
+            accessibilityLabel={filtersActive ? 'Sort and filter events, filters on' : 'Sort and filter events'}
+            showBadge={filtersActive}
+          >
+            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+              <Path d="M10 5H3" /><Path d="M12 19H3" /><Path d="M14 3v4" /><Path d="M16 17v4" /><Path d="M21 12h-9" /><Path d="M21 19h-5" /><Path d="M21 5h-7" /><Path d="M8 10v4" /><Path d="M8 12H3" />
+            </Svg>
+          </HeaderAction>
+        ) : undefined}
+      />
       <ScrollView
         style={styles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
@@ -242,21 +256,6 @@ export default function YourEventsScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <TabScreenHeader
-          title="Gallery"
-          right={events.length > 0 ? (
-            <HeaderAction
-              onPress={() => setShowFilters(true)}
-              accessibilityLabel={filtersActive ? 'Sort and filter events, filters on' : 'Sort and filter events'}
-              showBadge={filtersActive}
-            >
-              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                <Path d="M10 5H3" /><Path d="M12 19H3" /><Path d="M14 3v4" /><Path d="M16 17v4" /><Path d="M21 12h-9" /><Path d="M21 19h-5" /><Path d="M21 5h-7" /><Path d="M8 10v4" /><Path d="M8 12H3" />
-              </Svg>
-            </HeaderAction>
-          ) : undefined}
-        />
-
         {events.length > 0 && (
           <View style={styles.searchSection}>
             <View style={styles.searchBox}>
