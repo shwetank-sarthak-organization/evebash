@@ -4523,7 +4523,7 @@ Priority:  High (launch blocker, test first)
 Platform:  App (Android first; iPhone was only checked on a simulator)
 Brief:     Issue #184. When a page fails to draw, the app now shows "Something went wrong" with Try again and
            Go back instead of closing. Normal use should look exactly the same as before.
-Detail:    App code only, no new native build needed. Commit e91ceac, not on staging yet, so test once it is there.
+Detail:    App code only, no new native build needed. On staging in 6653ed4.
            Normal use can't trigger this, so a developer has to set it up. Add a temporary file
            apps/mobile/app/events/crash-test.tsx containing:
              export default function CrashTest(): null { throw new Error('crash test'); }
