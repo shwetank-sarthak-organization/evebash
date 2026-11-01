@@ -1278,6 +1278,90 @@ How to reproduce: Not run. Tap a chat or enquiry push: expect the Unmatched Rout
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#192
+Listed: 2026-11-01
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: Forgot Password never opened for signed-out people, the only people who need it. The login screen links to /forgot-password, but that route was missing from the public list in AuthGate (apps/mobile/app/_layout.tsx), so the app sent them straight back to login. Once it opened, the default navigation bar also sat on top of the page with the raw route names ("login", "forgot-password") and covered the page's own Back to Login button. Fix: add the route to the public list and hide that bar.
+How to reproduce: Sign out, tap Forgot Password? on the login screen. Before the fix: nothing happens, you stay on login.
+Fixed in: d331316 (2026-11-01). Added forgot-password to the public routes and hid the default bar. Checked on the iPhone 16e simulator, signed out: the page opens and Back to Login works. Sending a reset email was not run. Device test #164.
+
+#193
+Listed: 2026-11-01
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: The host event screen had its own hand-built copy of the bottom bar in apps/mobile/app/events/[id].tsx, out of step with the real tab bar: 5 tabs in a different order, with EB Business showing although it is hidden for v1 (Phase 2). Host had no action at all, so tapping it did nothing. EB Business and EB Network opened hidden Phase 2 pages (businesses, explore-business) instead of the EB Network coming soon page. Fix: use the shared ThemedAppBar (components/navigation/ThemedAppBar.tsx), which already has the right 4 tabs.
+How to reproduce: Open an event you host. Before the fix: the bottom bar shows Host, EB Business, Dashboard, EB Network, Profile, and tapping Host does nothing.
+Fixed in: d331316 (2026-11-01). The event screen now uses ThemedAppBar. Checked on the Pixel 8 emulator: Dashboard, Host, EB Network, Profile with Host in gold; Host opens the Host tab and EB Network opens the coming soon page. Not yet seen on an iPhone. Device test #164.
+
+#194
+Listed: 2026-11-01
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: Plan & Usage (apps/mobile/app/(tabs)/usage.tsx) showed "Active Businesses 1 / 0" in red with a full red bar, which reads as an over-limit warning for a Phase 2 feature nobody can use in v1. Fix: hide the row behind SHOW_BUSINESS_USAGE (off until Phase 2).
+How to reproduce: Profile > Usage & Plan on an account with a business row. Before the fix: red Active Businesses row.
+Fixed in: d331316 (2026-11-01). SHOW_BUSINESS_USAGE is off until Phase 2. Checked on the Pixel 8 emulator: the row is gone. Device test #164.
+
+#195
+Listed: 2026-11-01
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: Blank icons on iPhone. calendar.fill and sparkles.fill are not real iOS symbol names, so iOS draws nothing: Upgrade Plan showed an empty box and Active Events had no icon on Plan & Usage. Checked every icon name against the iOS symbol list: calendar.fill, sparkles.fill, mappin.fill and photo.on.rectangle.fill are not real. Android is fine because it uses its own map (components/ui/icon-symbol.tsx). Fixed on v1 screens (usage.tsx and (tabs)/index.tsx). Left as they are on Phase 2 business pages: (tabs)/business/[id].tsx, (tabs)/businesses.tsx, (tabs)/explore-business.tsx, shortlist.tsx, profile/[id].tsx. Fix those when Phase 2 starts.
+How to reproduce: Profile > Usage & Plan on an iPhone. Before the fix: empty box beside Upgrade Plan, no icon beside Active Events.
+Fixed in: d331316 (2026-11-01). v1 screens now use calendar, sparkles and mappin.and.ellipse, all in the iOS symbol list. Not yet seen on an iPhone. The Phase 2 pages listed above keep the old names. Device test #164.
+
+#196
+Listed: 2026-11-01
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: On Dashboard, Host, Profile, EB Network and Your Events the header scrolled away with the page, so photos and text slid under the clock and Dynamic Island with nothing behind them. The host event screen had the same problem once its cover scrolled off. Fix: the shared TabScreenHeader now sits above the scroll area on those tabs (Settings already worked this way), and the host event screen has a strip in the page colour that fades in behind the clock as the cover scrolls away (host view only, guest themes untouched).
+How to reproduce: Scroll down on Dashboard, or on an event you host. Before the fix: content runs under the clock.
+Fixed in: d331316 (2026-11-01). Header moved above the scroll area on Dashboard, Host, Profile, EB Network and Your Events, and a strip added on the host event screen. Checked on the Pixel 8 emulator on Dashboard, Profile and the host event screen. Not yet seen on an iPhone. Device test #164.
+
+#197
+Listed: 2026-11-01
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: On the Host page the red Requests badge sat on top of the word "Requests" (apps/mobile/app/(tabs)/gallery.tsx, tabBadge). Fix: move it to the corner of the tab.
+How to reproduce: Host > any pending request. Before the fix: the badge covers the end of the word.
+Fixed in: d331316 (2026-11-01). Checked on the Pixel 8 emulator: the badge sits on the corner and the word is readable. Device test #164.
+
+#198
+Listed: 2026-11-01
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: On the host Galleries tab the SUB-GALLERY label ran into the eye button, and HIDDEN FROM GUESTS was longer still. The labels were also only 8pt, below the app's 10pt smallest size. Fix: drop the label on normal tiles (the section heading already says Sub-Galleries), show a short HIDDEN label only on hidden tiles, and set the PRIMARY and HIDDEN labels to 10pt (apps/mobile/app/events/[id].tsx, components/eventStyles/baseStyles.ts; both styles are used on these tiles only).
+How to reproduce: Open an event you host > Galleries, with at least one sub-gallery. Before the fix: the label touches the eye button.
+Fixed in: d331316 (2026-11-01). Checked on the Pixel 8 emulator: nothing touches the eye and delete buttons, and PRIMARY is 10pt. The HIDDEN label was not seen because hiding a gallery changes real data. Device test #164.
+
 #157
 Listed: 2026-10-27
 Platform: Both
@@ -1619,25 +1703,6 @@ Update 5 (2026-10-25): device test #140 steps 1, 2 and 4 passed on staging (webs
 How to reproduce: Open rec-7-6230 as the host: 26 photos with "Processing Failed". Before this change, guests saw 16+ "Image unavailable" cards. curl -I https://media.evebash.com/events/rec-7-6230/photos/e8848fc1-d1b0-4d83-84a0-5b9b26f3f9e9-1790513547861-c9fd11a5-899f-482b-b4d3-b7e460ad0002-7C0A9725.JPG returns 404.
 Fixed in: bd16cdc (guests don't see such photos) and ed13daa (server refuses rows without a file, VERIFY_UPLOAD_BEFORE_SAVE on in staging) (2026-10-25). Device test #140 passed (all steps). The 26 old rows in rec-7-6230 were deleted. Production Railway still needs VERIFY_UPLOAD_BEFORE_SAVE=true before launch. Follow-up: #144 (app gives up on uploads while offline).
 
-#116
-Listed: 2026-10-24
-Platform: Both
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Classic White (Wedding) theme review, code only (2026-10-24)
-Issue: The website and app Classic White are two different designs. The website is a centred title, quote and tilted white-matted cover (src/components/TemplateClassic.tsx); the app is a cover photo with the title on it, a sage frame and a dotted divider (apps/mobile/components/eventStyles/classicStyles.ts, apps/mobile/components/event/ThemeHeader.tsx). With the app download screen (#109) on, phone guests only ever see the app version.
-How to reproduce: Open the same Classic White gallery on the website and in the app.
-Update 1 (2026-10-24): App cover and gallery header now match the website (apps/mobile/components/classic/). Cover: date, title in capitals as "X & Y" in real Playfair (the app had Playfair mapped to Inter), sage divider, tilted white-mounted print (portrait on phones) with the theme line card, outlined "Open Gallery". Header: Back / Share, gallery name, date, the message in quotes, video in a white mat, [ Photos ] [ Videos ]. Album tabs sage instead of gold. Still different: the photo grid (2 columns of white-matted cards vs the website's justified rows) and the sage divider above the grid.
-Update 2 (2026-10-24): Website and app: the cover always shows the main event's title (and its theme line), also inside albums and on an album opened by its own link; the header next to the video shows the gallery's own name ("Home", "Rec 1"). App: albums grouped under one Collections tab with a menu, like the website.
-Update 3 (2026-10-24): App photo grid now justified rows like the website (two portraits or one landscape per row, 4px gaps, no white mats); sage divider above the grid removed; Photos / Videos tabs centred on the phone.
-Update 4 (2026-10-24): App Back and Share moved from the gallery header to the cover, as square icon-only buttons on either side of Open Gallery.
-Update 5 (2026-10-25, 963e5f5): App log-in prompts, empty gallery, Favourites switch and Videos tab in the Classic look; no empty band under the cover buttons (the pinned tabs' spacer now starts below the cover); the photo rows only draw photos near the screen. Still different: the video controls in the viewer (#142).
-Update 6 (2026-10-25): device test #132 passed on the iOS simulator (iPhone 17 Pro); found and fixed in d3a65ef: photo rows stayed empty after an album switch. Still open: Android, a smaller iPhone and the untested steps.
-Update 7 (2026-10-25): test #132 run again on the Android emulator and the iPhone 16e simulator (logged out, public Classic gallery): all pass; video plays on Android. Only video playback on a real iPhone is left.
-Fixed in: cb4bba6 (2026-10-24) and the Classic White app commits after it, last d3a65ef (2026-10-25). Device test #132 passed on the iOS simulator (iPhone 17 Pro, iPhone 16e) and the Android emulator. Closed by Sarthak without the real-iPhone video check: the highlight video uses the shared app player (only the white frame is Classic), so check video playback on a physical iPhone in the next device-testing round.
-
 #136
 Listed: 2026-10-25
 Platform: Both
@@ -1657,67 +1722,6 @@ Fixed in: 66ea6c9 (2026-10-25) + Railway B2_DELETE_ALL_FILE_VERSIONS=true (2026-
 
 2026-10-25: #131 (no Download All for guests in the app) closed as not needed (Sarthak): the app won't get a Download All button; guests keep saving single photos from the viewer. Download All stays on the website.
 
-#112
-Listed: 2026-10-24
-Platform: Website
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Classic White (Wedding) theme review, code only (2026-10-24)
-Issue: Classic White doesn't use its own colours. The theme is sage #8B9A6E / dark green #2C352E / muted #596653 on ivory #F7F2EB (src/lib/webTemplateTheme.ts), but src/components/TemplateClassic.tsx uses Tailwind slate text, a fourth green #64764c for the dividers and a pink text selection (selection:bg-rose-200). "Open Guest Gallery", "Add photos" and "Load More Media" are near-black (bg-slate-900). The gallery section is plain white and the photo cards are white too, so cards have no edge. The empty gallery text sits under opacity-50 (about 2.5:1 contrast, fails WCAG AA). The selected Photos/Videos tab is black text on sage while other buttons are white text.
-How to reproduce: Open a Classic White gallery on a computer: compare the hero text and buttons with the sage/ivory palette; open an empty album and check the text contrast.
-Update 2026-10-24: fixed in bc6e3b2, pushed to staging: theme colours, deep sage #596653 buttons and selected tab (white text, 6:1), ivory gallery section with white bordered cards, empty text at full strength (src/app/classic-white.css). Device test #127.
-Fixed in: bc6e3b2 (2026-10-24) and the Classic White commits after it, last 76e0064 (2026-10-25). Device test #127 passed 2026-10-25 (Sarthak).
-
-#113
-Listed: 2026-10-24
-Platform: Website
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Classic White (Wedding) theme review, code only (2026-10-24)
-Issue: Classic White text problems. (1) An empty description shows the made-up wedding line "Join us in celebrating our special day." in quotes, on the event and on every album without a description. (2) An album description shows twice: as the hero quote and again above the photos. (3) Headings stack: album title in the hero, then "The Gallery", then the album title again (main page: "The Gallery" then "Home Gallery"). (4) The date and location are never shown. (5) Without a cover image guests see a grey box saying "No Cover Image". (6) The description is always wrapped in quote marks and line breaks are lost. (7) The page has two footers: the theme's "Title — <this year>" line (wrong year for older events) and the site footer.
-How to reproduce: Open a Classic White gallery with no description and no cover, then an album with a description.
-Update 2026-10-24: fixed in bc6e3b2, pushed to staging: no made-up text, the album message only in the hero, "The Gallery" heading and the theme footer removed, date and place shown, no cover = no frame, no quote marks, line breaks kept. Device test #127.
-Fixed in: bc6e3b2 (2026-10-24) and the Classic White commits after it, last 76e0064 (2026-10-25). Device test #127 passed 2026-10-25 (Sarthak).
-
-#114
-Listed: 2026-10-24
-Platform: Website
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Classic White (Wedding) theme review, code only (2026-10-24)
-Issue: Classic White uses only a narrow middle part of a computer screen: the hero text is max-w-4xl (896px), the cover frame max-w-3xl (768px) and the gallery max-w-7xl (1280px) with at most 3 photo columns (src/app/gallery-refinements.css), so a 1920px screen has wide empty sides. The cover is object-contain inside a fixed 16:9 frame, so most photos get blank bars. Long titles go up to text-8xl with tight tracking and nothing stops them overflowing. Phones are not affected while the app download screen (#109) is on.
-How to reproduce: Open a Classic White gallery on a 1440-1920px wide screen; try a gallery with a 40+ character title and a portrait cover.
-Update 2026-10-24: fixed in bc6e3b2, pushed to staging: cover up to 1400px wide following the host's focus/zoom/fit, gallery up to 1800px with 4 columns at 1280px+ and 5 at 1680px+ (Classic only), title sized with clamp() and wrapping. Device test #127.
-Update 2026-10-24 (2): per Sarthak, following photos.knotsbyamp.com: navbar, gallery and guest footer now run the full width with the same 32px side gap at every screen size (no 1280/1800px caps), photos in justified rows (equal-height rows, 4px gaps, MasonryGrid layout="justified", Classic only), cover smaller (max 672px, thin mat).
-Update 2026-10-24 (3): gallery header redesigned from Sarthak's mockup (src/components/classic/ClassicGalleryHeader.tsx): Back / Share, the gallery name in large capitals, date and place, [ Photos ] [ Videos ] tabs with an underline, the gallery video in a white mat on the right.
-Update 2026-10-24 (4): the first screen (navbar space, text, cover, Open Gallery) is exactly the window height (at least 640px); the cover takes the space left, keeping 3:2 (up to 1170px wide). Checked 1280x650 to 2560x1440 and a 430-character description.
-Update 2026-10-24 (5): Classic navbar redesigned from Sarthak's image (EventNavbar variant="classic", styles in src/app/classic-white.css): ivory bar between two sage lines, title left, capital links right; same links and positions.
-Update 2026-10-24 (6): cover redesigned from Sarthak's image (src/components/classic/ClassicCoverPrint.tsx): photo print in a thick white mount, message on an ivory card with sage sprigs over its top edge; checked messages from 10 to 463 characters, line breaks, no message and no cover at 1366x768, 1600x900, 1920x1080.
-Update 2026-10-24 (7): Classic White switched from beige to soft white on the website and the app (Sarthak): background #FCFCFA, message card #F6F6F2, lines #E6E6E0 (src/lib/webTemplateTheme.ts, classic-white.css, page-flip, host picker; apps/mobile/constants/templates.ts, viewerPalettes.ts, ThemeHeader.tsx). Picker text now "Soft white & vintage sage elegance". Cover print tilted to -2.2deg.
-Update 2026-10-24 (8): per Sarthak, the host's gallery message moved from the cover card into the gallery header (under the name and date); the cover card shows a fixed line chosen by category (Wedding "Two hearts, one holy union.", Anniversary "Still choosing each other, every year.", other "Moments worth keeping, forever."). Gallery header text column runs the height of the video: Back / Share top, name/date/message middle, tabs bottom.
-Update 2026-10-24 (9): title always in capitals with "and" / "weds" / "+" between two short names shown as "&" (displayCoupleTitle, also in the Classic navbar); long titles step down in size; date line 18px in the same 20px line (nothing below moves, measured); gallery video column narrower (7fr / 5fr, thinner mat).
-Fixed in: bc6e3b2 (2026-10-24) and the Classic White commits after it, last 76e0064 (2026-10-25). Device test #127 passed 2026-10-25 (Sarthak).
-
-#115
-Listed: 2026-10-24
-Platform: Website
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Classic White (Wedding) theme review, code only (2026-10-24)
-Issue: Classic White serif text is plain Georgia: gallery-refinements.css forces Georgia for every theme's font-serif although Playfair Display is already loaded. The title (the page's largest text) is hidden by a fade-in until the scripts run, which delays it. The cover image has no sizes, so the browser downloads a full-screen-width image for a smaller frame. TemplateClassic.tsx imports Link and motion without using them.
-How to reproduce: Open a Classic White gallery and check the title font; in DevTools check the cover image's downloaded width.
-Update 2026-10-24: fixed in bc6e3b2, pushed to staging: Playfair for Classic serif text, title shown without the fade, cover sizes set, unused imports removed. Device test #127.
-Update 2026-10-25 (76e0064): the navbar's small-screen menu (outside .classic-template) still fell back to Georgia; it now uses Playfair too. The Classic page uses two fonts: Playfair Display and Inter.
-Fixed in: bc6e3b2 (2026-10-24) and the Classic White commits after it, last 76e0064 (2026-10-25). Device test #127 passed 2026-10-25 (Sarthak).
-
 #130
 Listed: 2026-10-24
 Platform: Both
@@ -1732,155 +1736,3 @@ Fixed in: 7ab5b6c (2026-10-25). One copy in shared/text/coupleNames.ts (the app'
 
 2026-10-25: Modal v131 deployed (22ba209, 10:26 IST; rollback v130). gpu_all_formats is off, so long videos still use the old GPU worker in the test galleries and the 16-core worker elsewhere. Live now regardless of the switch: handoffs from the old GPU worker and from watch_gpu_start are logged to modal_cost_logs (process_video_gpu_fallback). Checked: video endpoints reject unsigned calls (401), all five video functions present.
 
-#134
-Listed: 2026-10-24
-Platform: Both
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Device test #128 delete step (2026-10-24)
-Issue: Deleting a video can leave part of its streaming copy in B2. deleteB2Prefix in apps/backend/src/routes/media.ts (used for hls/<storage_key>/ when DELETE_VIDEO_STREAM_ON_DELETE=true) lists files with b2_list_file_names, which returns only the newest version of each file, and deletes that version. When a file was written twice, the older version becomes visible again and stays billed. This happens whenever a worker writes the same file twice: the GPU-to-16-core handoff (#117) always writes poster.jpg twice (the GPU worker uploads the poster before it checks the video), Modal retries re-upload segments, and re-processing rewrites everything. Seen 2026-10-24: after deleting test128_portrait_10min.mp4 (rotated, so handed off) from test-face-new-155c, the photos row, the original and all segments were gone but hls/<key>/poster.jpg (143 KB) was still there (removed by hand). The admin delete paths (deleteB2Prefix in routes/admin.ts) may have the same problem; not checked. Fix: list with b2_list_file_versions and delete every version (as scripts/b2_hls_orphan_sweep.py and the Modal cancelled-upload cleanup already do), behind a flag; optionally move the GPU check before the poster upload in _transcode_video_core so a handoff doesn't write the poster twice. Then sweep existing leftovers with b2_hls_orphan_sweep.py.
-How to reproduce: In a gallery on the GPU switch, upload a portrait phone video over 10 minutes, wait until it plays, delete it, then list hls/<storage_key>/ in B2: poster.jpg is still there.
-Fix (code, flag off, not live): (1) Backend: new apps/backend/src/services/b2DeleteAllVersions.ts lists with b2_list_file_versions and deletes every version and hide marker under a prefix (refuses a prefix without a trailing slash). Both deleteB2Prefix copies (routes/media.ts user delete, routes/admin.ts admin delete) use it only when Railway B2_DELETE_ALL_VERSIONS=true; otherwise the old name-only delete runs unchanged. 5 unit tests (tests/b2DeleteAllVersions.test.ts); full backend suite 95/95. Real B2 check under bench/t134/ (poster written twice + a segment): old delete left poster.jpg visible (3 versions -> 1), new delete left nothing (3 -> 0), a neighbouring folder untouched in both; test files removed. (2) Modal: the GPU worker now checks whether it can take the video BEFORE uploading the poster, so a handoff to the 16-core worker no longer writes the poster twice (needs a Modal deploy; GPU ffmpeg failures can still write it twice, which (1) covers). Not changed: deleteB2File (single files: original, preview, thumbnail, grid) also deletes only the newest version; photos rewritten by retries could leave an old preview behind. Still to do after the flag is on: sweep existing leftovers with scripts/b2_hls_orphan_sweep.py.
-2026-10-24: Modal v129 deployed (a2380ea, 23:57 IST; rollback v128, which also has #121). Checked: video endpoints reject unsigned calls (401), all four video functions present, switch unchanged.
-2026-10-25: B2_DELETE_ALL_VERSIONS=true set on Railway api-staging (Sarthak). Checked end to end: test_3.mp4 in wedding-2-77d4 with a second poster.jpg version added on purpose (23 versions, 22 files) deleted from the website: 0 versions and 0 hide markers left under hls/<key>/, and the original, preview, thumbnail and <key>-hls/ all gone. Left over, now issue #136: single-file deletes (deleteB2File) and existing leftovers.
-Fixed in: a2380ea (2026-10-24) + Railway B2_DELETE_ALL_VERSIONS=true (2026-10-25), Modal v129.
-
-#125
-Listed: 2026-10-24
-Platform: Both
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: grid image check of wedding-fdd8 (2026-10-24)
-Issue: 18 photos in album Rec 1 (rec-1-f165, uploaded 2026-07-17, VIS_5710, VIS_5729, VIS_6172-6193) had landscape sizes saved (6000x4000) for portrait pictures, so the justified grid drew landscape tiles and cropped them hard. Their camera stores them sideways with an EXIF mark; the thumbnail maker in use in July turned them upright but saved the sideways size. Checked all 4,978 photos with thumbnails: these 18 are the only ones. Current uploads can't get it: both photo workers (process_photo_preview, PhotoProcessorV2) and RAW reading turn the photo upright before saving its size, and complete_media_job keeps the worker's size.
-Fix: swapped width/height for the 18 rows in photos (database update; previous values kept in the session scratchpad, rec1-sizes-backup.json). Grid checked after: all 23 tiles of wedding-fdd8 match their photo's shape.
-Fixed in: database update, no code (2026-10-24)
-
-#77
-Listed: 2026-10-19
-Platform: Both
-Priority: High
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Photo cost review and Modal benchmark (2026-10-13), plan agreed 2026-10-19
-Issue: Photo processing on Modal costs about 4x more than it needs to, and it is our second-biggest cost after B2 storage (about 31% of the infra bill at scale). Each photo runs through two workers (process_photo_preview, then FaceIndexer in modal_engine/main.py): two container start-ups, two idle windows (60 s and 45 s, both billed), the preview downloaded and decoded twice, and all 5 AuraFace models run on every face although only detection and recognition are used. Measured on 40 real 24 MP photos (2026-10-13 Modal bills): ₹0.0303 per photo for bulk uploads and ₹0.1695 for guest uploads (a few photos at a time). A merged worker with only the 2 models we use, a 15 s idle window and up to 4 photos per container cost ₹0.0076 and ₹0.0229 (-75% / -86%) with identical faces. Fix: add PhotoProcessorV2 (Modal only) behind a runtime switch (Modal Dict, default v1 = today), keep process_photo_preview and FaceIndexer deployed and unchanged for instant switch-back, test on one gallery, then switch everyone.
-How to reproduce: Upload 1-3 photos to any gallery, then run modal billing report for that hour: both process_photo_preview and FaceIndexer containers start and stay up after the work; the cost per photo is far above the logged execution cost.
-2026-10-22 21:07 IST: 2 of 35 test photos (test-face-new-155c) stalled in v2's face step with nothing in the logs; the 5-minute claim then the maintenance job recovered them after ~8 min, nothing lost. Fix (not deployed yet): v2 now has a 2-minute time limit (was Modal's 5-minute default) and claims a photo for 150 s instead of 300 s, so a stuck photo is retried ~2.5 min earlier; a photo still running after 60 s prints which step it is on and the code line it is waiting at. Tested with fakes: normal output identical; the time limit stopped a stuck input while another photo in the same container finished.
-2026-10-23: the 5-minute maintenance job (sweep_stuck_jobs and dispatch_outbox_jobs) sent every retry to the old workers, so retried photos cost ~4x more, skipped the face filter (#101) and failed if RAW (#80). Fix (not deployed yet): retries follow the same switch as new uploads; previews go to PhotoProcessorV2.process, face-only retries to the new PhotoProcessorV2.index_faces (v2's face step on the saved preview, cost-log function index_faces_v2). Tested with fakes: normal v2 output identical to v122; face-only retries give the same faces; a missing preview marks the faces failed; routing follows the switch (mode v1 still uses the old workers).
-Fixed in: 3034f8c (v2 worker, Modal v118) and 09c320c (v119), every gallery on v2 since 2026-10-21 23:54 IST; follow-ups RAW 5a3b95a (v120), face filter 4e9d37a (v121), stall limits c8fa9f3 (v122), retries on v2 f6c3b2e (v123). Measured: ₹0.018 vs ₹0.064 per photo on the same 55-photo upload (-72%), one-at-a-time ₹0.037 vs ₹0.165 (-78%), faces identical, median upload-to-done 7 s. Health check 2026-10-21..23 (scripts/photo_v2_health.py): 223 photos on v2, 0 on v1 after the switch, 0 failed (the 76 RAW failures reprocessed), 0 stuck. Rollback stays available: modal_engine/photo_pipeline_switch.py mode v1.
-
-#110
-Listed: 2026-10-23
-Platform: Both
-Priority: High
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Video upload/cancel test (2026-10-23)
-Issue: Videos' streaming copies never count toward storage. Modal's transcoder (_transcode_video_core in modal_engine/main.py) summed the HLS files from its temporary folder after the `with tempfile.TemporaryDirectory()` block had already deleted it, so every video since 2026-09-27 was saved with overhead_size 0 (37 of 67 videos; the 30 from 2026-09-24/25 predate the bug). Their streaming copies are 12.71 GB in B2 (originals of all 67: 14.34 GB), and storage totals, plan limits and the deletion ledger all leave them out. Per owner: e8848fc1 22 videos +9.05 GB, 7ef17a61 7 +2.20 GB, b7ab6182 5 +1.02 GB, f78d1089 3 +0.45 GB.
-Fix: the transcoder now adds up the video's hls/<storage_key>/ files in B2 after uploading them (not deployed yet). Existing videos: set overhead_size to their measured B2 folder size (needs OK: it raises those hosts' storage used).
-How to reproduce: Upload a video, wait until it plays: photos.overhead_size is 0.
-2026-10-23: Modal v125 (6ea9e30, 22:27 IST) live. With Sarthak's OK the 37 videos were set to their measured B2 streaming sizes (+12.71 GB); all processed videos now have a size, totalling the 20.7 GB in hls/.
-Fixed in: 6ea9e30 (2026-10-23), Modal v125; the 37 older videos filled in by hand. Checked: test_3.mp4 uploaded to wedding-2-77d4 after v125 recorded 22.9 MB, the same as its hls/ folder in B2 (original 114 MB).
-
-#79
-Listed: 2026-10-21
-Platform: Both
-Priority: High
-Status: Fixed
-Owner: Sarthak (decision)
-Blocked by: -
-Found in: Photo pipeline v2 website test (#77), 2026-10-19
-Issue: Photos take 2-7 minutes to appear once more than 1,000 are uploaded in a day (UTC). The backend sends one QStash message per photo (publishFastMediaTask in apps/backend/src/routes/media.ts), and our QStash plan allows 1,000 messages a day. After that, QStash refuses with 429 "daily ratelimit 1000 exceeded" (seen in the staging backend's Railway logs 2026-10-19; 1,199 messages were sent that UTC day). Photos are then only picked up by the 5-minute maintenance job on Modal (dispatch_outbox_jobs / sweep_stuck_jobs), and that job always uses the old photo workers, even for galleries on photo pipeline v2. Nothing is lost, but uploads look slow and cost more. One wedding can pass 1,000 photos. Fix options: (1) move QStash to pay-as-you-go ($1 per 100,000 messages), a setting in the Upstash account; (2) send one message per upload batch instead of per photo (Modal's generate_photo_preview already accepts {"photos": [...]}), which cuts messages ~99% (backend change, flag-gated).
-Also (2026-10-22): RAW camera files only work on PhotoProcessorV2 (#80), so a RAW photo picked up by the maintenance job fails; fixing this issue (or making the job use v2) closes that gap.
-How to reproduce: Upload more than 1,000 photos in one UTC day (or after others have), then upload 1 more: it shows up only after the next 5-minute maintenance run, and Railway logs show "QStash publish failed with status 429".
-Decision 2026-10-22 (Sarthak): go with option (1), QStash pay-as-you-go, once a card is added to Upstash. No code change needed. After the switch, check the next >1,000-photo day for no 429s (Railway logs) and that RAW photos still process.
-2026-10-22: card added to the Upstash account (Sarthak). Once the plan shows Pay as you go, check the next >1,000-photo UTC day: no "daily ratelimit" 429s in Railway logs, photos and RAW files processed by v2 (scripts/photo_v2_health.py: QStash msgs over 1,000 with 0 photos on v1). Then move to RECENTLY FIXED.
-2026-10-23: Upstash console shows QStash (US region, AWS us-east-1, the endpoint the backend uses) on Pay as You Go (screenshot from Sarthak). Retries from the maintenance job also go to v2 since Modal v123, so even a photo that falls to it is processed with RAW support. Left: confirm no 429s on the next day with more than 1,000 photos, then move to RECENTLY FIXED.
-Fixed in: QStash switched to Pay as You Go (confirmed by Sarthak 2026-10-23, Upstash console: US region, us-east-1); maintenance retries on v2 since Modal v123 (f6c3b2e). scripts/photo_v2_health.py still flags any UTC day over 1,000 messages, so a 429 would show up there.
-
-#76
-Listed: 2026-10-13
-Platform: Both
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Cost analysis chat, checking what deleting a gallery removes (2026-10-13)
-Issue: When a host deletes a video (or a whole gallery) from the website or app, the streaming copy stays in B2 and we keep paying for it. Modal writes the transcoded video under hls/<storage_key>/ (modal_engine/main.py, hls_prefix), but the user delete route only removes <storage_key>-hls/ (custom thumbnails), plus the original, preview and thumbnail (apps/backend/src/routes/media.ts, POST /delete). The admin delete paths (apps/backend/src/deleteGalleryMedia.ts, routes/admin.ts) already remove both prefixes. The HLS copy counts toward overhead_size, so it can be a large share of each video's storage, and every video deleted this way so far has probably left one behind (not checked in B2 yet). Fix: also delete the hls/<storage_key>/ prefix in the user route, and sweep the orphaned hls/ folders whose photos row no longer exists (backend change: flag-gate per change-safety rules).
-How to reproduce: Upload a video to a test gallery, wait for it to play, note its storage_key, delete the gallery, then list B2 files with prefix hls/<storage_key>/: the playlist and segments are still there.
-Checked 2026-10-22 (read-only B2 scan): hls/ holds 144 streaming folders, 31.05 GB; 78 of them (10.6 GB, ~a third) belong to videos no longer in the photos table (45 in deleted galleries, 33 deleted one by one from galleries that still exist); every existing video has its folder. At B2's $6/TB-month that's ~₹6/month now, growing with each deleted video. Both the website and the app delete through the backend POST /api/v1/media/delete (gallery delete calls it per item), so one fix covers both.
-Fix (code, flag off): media.ts POST /delete also deletes hls/<storage_key>/ for videos when DELETE_VIDEO_STREAM_ON_DELETE=true on Railway. Still to do: remove the 78 leftover folders (list-and-delete script was not written: deleting needs Sarthak's go-ahead).
-2026-10-23: DELETE_VIDEO_STREAM_ON_DELETE=true added on Railway api-staging (Sarthak). Leftovers deleted with Sarthak's OK by scripts/b2_hls_orphan_sweep.py (list by default, --delete to remove; skips folders changed in the last 2 days and anything inside an existing video's folder): 30 deleted videos' folders, 7,352 file versions, 10.4 GB. Correction to the 2026-10-22 count: there were 30 such videos, not 78; the first count also split each video's audio/ sub-folder into a separate entry (27 of them belonged to existing videos; the fixed script keeps them). Checked after: 66 existing videos, all 66 folders still in B2 (20.65 GB), audio files in place, a sample video's playlists load (HTTP 200).
-Fixed in: 4e9d37a (2026-10-22) + Railway api-staging DELETE_VIDEO_STREAM_ON_DELETE=true (2026-10-23); leftovers removed with 14dce93. Checked 2026-10-23: a 4K video uploaded to wedding-2-77d4, its 32 streaming files in hls/<storage_key>/, deleted from the website: 0 files left in B2.
-
-#107
-Listed: 2026-10-23
-Platform: Both
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Album proofing build (2026-10-23, branch feat/album-proofing)
-Issue: Album voice notes recorded in Firefox are saved as WebM/Opus (Firefox can't record AAC), and the iPhone app can't play WebM. Chrome, Edge and Safari record AAC (.m4a), which plays everywhere, and so does the app. The backend stores what the browser sends (apps/backend/src/routes/albums.ts, PUT .../voice). Fix: convert WebM to AAC on upload (needs ffmpeg, which the Railway backend doesn't have), or ask Firefox users to type or use another browser.
-How to reproduce: Record an album voice note in Firefox on the website, then try to play it in the iPhone app.
-Fix: when the browser can't record AAC (Firefox), the website records 16 kHz mono WAV instead (Web Audio API), which plays on iPhones, Android and every browser. Chrome, Safari and Edge still record AAC. Notes Firefox recorded before the fix stay WebM.
-Fixed in: e3f6752 (2026-10-23)
-
-#108
-Listed: 2026-10-23
-Platform: Both
-Priority: Low
-Status: Fixed
-Owner: Sarthak (decision)
-Blocked by: -
-Found in: Album proofing build (2026-10-23, branch feat/album-proofing)
-Issue: Album proof files (page previews, thumbnails, voice notes) count towards the gallery owner's plan storage (vault_event_storage_bytes, migration 20261022010000), but the plan-expiry rules don't know about them: when a paid plan expires they stay visible and aren't part of the retained 1 GB (eb_private.media_plan_limit, vault_retained_item_ids). They're small (about 1 MB per page version), so this only matters for consistency.
-How to reproduce: Let a paid plan with album proofs expire past the grace period: gallery media gets hidden, album pages stay visible.
-Closed 2026-10-23 as by design (Sarthak): album proofs stay visible and usable after a paid plan expires; they are small working files, not gallery media. No code change.
-Fixed in: decision only, no code (2026-10-23)
-
-#103
-Listed: 2026-10-23
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Google Play Data safety review (2026-10-23)
-Issue: Sending a business enquiry silently read the user's location and sent it to the phone's reverse-geocoder (Google on Android) to get a city, and picked a random Indian city ("mock data diversity") when that failed. addEnquiry never saved the city, so the lookup only leaked location for nothing. The vendor's Audience Reach chart (manage-business) counted every enquiry without a city as Mumbai, so vendors always saw "Mumbai 100%".
-How to reproduce: Before the fix: send an enquiry with location allowed (location is read without notice); open Manage Business > analytics: Audience Reach shows Mumbai 100%.
-Fixed in: 7e65b4b (2026-10-23). Enquiries no longer read location; Audience Reach leaves out enquiries without a real city and shows "No location details for this period." App only: needs the next app build (test_yourself #112).
-
-#100
-Listed: 2026-10-22
-Platform: Both
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Photo cost review (#77 follow-up)
-Issue: Face data takes more database space than it needs. faces.descriptor stores each face's 512 numbers as float8[] (8 bytes each): 32,122 faces = 115 MB of the 148 MB database (2026-10-22), growing ~6.5 faces per photo. Measured with temporary copies: halfvec(512) (2 bytes each) = 51 MB (-55%); vector(512) = 98 MB (-15% only, still too big to fit in the row). Find You with halfvec, 300 real faces searched against their galleries: 75,403 photo checks, 6,532 matches either way, 0 results changed, largest score change 0.00009 (threshold 0.40).
-Plan: supabase/migrations/20261022010000_faces_halfvec.sql changes the column and, in the same transaction, replace_photo_faces (photo workers) and match_faces (Find You); no app, backend or Modal change needed. Dry run first (docs/database/faces-halfvec-dryrun.py: applies it in a transaction that always rolls back, re-runs 20 Find You searches before/after, re-saves one photo's faces, checks the REST insert format). Rollback: docs/database/faces-halfvec-rollback.sql. The column change rewrites the table and locks it for a few seconds (face saves and Find You wait).
-Dry run 2026-10-22 (rolled back, database checked unchanged afterwards): column became halfvec(512), 1,032 bytes per face; 20 Find You searches gave the same photos (388 matches before and after, same faces compared), largest score change 0.00007; replace_photo_faces re-saved one photo's 10 faces; a REST-style insert gave 512 numbers.
-APPLIED to the live database 2026-10-22 20:39-20:40 IST (one transaction, faces locked ~19 s): column halfvec(512), faces table 110 MB -> 53 MB, 32,122 faces kept; the same 20 Find You searches before/after: identical photos (388 matches), largest score change 0.00007.
-How to reproduce: select pg_size_pretty(pg_total_relation_size('public.faces')), avg(pg_column_size(descriptor)) from public.faces;
-Fixed in: 41b0bd2 (2026-10-22), applied to the live database 20:40 IST. Checked after: 8 new photos in test-face-new-155c saved 51 faces as halfvec(512) (lengths 1.0000) via v2 on the first try; a website Find You search there used match_faces, compared all 51 faces and found 5 photos.
-
-#80
-Listed: 2026-10-22
-Platform: Both
-Priority: High
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Photo pipeline v2 health check (2026-10-21)
-Issue: RAW camera files never get a preview, thumbnail or faces. 76 photos uploaded on 2026-10-20 (61 Canon .CR3, 15 Sony .ARW, ~32 MB each, in galleries traditional-1-93df, -8-c3cb, -9-40d8, -10-63c8) failed with "cannot identify image file" and used up their 3 attempts, so they show no preview and aren't in Find You. Both photo workers (old process_photo_preview and PhotoProcessorV2 in modal_engine/main.py) open images with Pillow, which can't read RAW. The upload accepts these files and counts them against storage. Photographers often shoot RAW. Fix options: (1) in the worker, read the full-size JPEG preview every RAW file carries (e.g. rawpy/libraw or exiftool) and use it for the preview, thumbnail and faces; (2) or reject .cr3/.cr2/.nef/.arw/.dng at upload with a clear message. Failed photos then need their attempts reset so the maintenance job retries them.
-Decision 2026-10-22 (Sarthak): support RAW; next photo-pipeline task. Plan: in PhotoProcessorV2 only (old workers unchanged), detect RAW by extension/magic bytes and pull out the camera's built-in full-size JPEG with rawpy (LibRaw: CR3, CR2, ARW, NEF, DNG...), then make the preview, thumbnail and faces exactly as for a JPEG; import rawpy only when a RAW arrives so JPEG photos cost and start the same as today. Don't develop the RAW sensor data (3-5x the CPU for no gain). Estimated Modal cost for RAW: ~+0.5 s and +5-20% per photo (about +₹1-4 per 1,000); the main cost is B2 storage (~3x per photo). Test first on copies of a few of the 76 failed files (read-only, test app), compare JPEG cost before/after, then reset media_attempt on the 76 so the maintenance job reprocesses them.
-Progress 2026-10-22: built in PhotoProcessorV2 (modal_engine/main.py: _open_raw_photo, RAW_EXTENSIONS; v2 uses photo_v2_image = image + rawpy 0.27.1, old workers keep their image). Tested in a temporary Modal app with a fake database and B2: all 76 failed files open (61 CR3 6000x4000, 15 ARW 7008x4672; 7 portrait ones come out upright); 4 copies went through the whole v2 flow in 1.7-2.4 s with 5-19 faces each, peak memory 1.4 GB of 2 GB; 12 JPEGs gave byte-identical previews, thumbnails and faces to the current v2 at the same speed. Test copies deleted. Not deployed yet. Note: the 5-minute maintenance job still uses the old workers, so resetting media_attempt alone would fail the 76 again; after the deploy they must be sent to PhotoProcessorV2 directly (and a RAW photo that falls to the maintenance job on a day over the QStash limit, #79, still fails until the job uses v2). Device test: #107.
-How to reproduce: Upload a .CR3 or .ARW file to any gallery: it never shows a preview; photos.media_status = failed, processing_error "cannot identify image file", media_attempt 3.
-Fixed in: 5a3b95a (2026-10-22), Modal v120 (15:27 IST). The 76 failed RAW photos were reset and sent straight to PhotoProcessorV2: all 76 ready and indexed on the first try, 633 faces, 7 portrait ones stored upright. Device check: test_yourself #107. Remaining gap: on a day over the QStash limit a RAW photo can fall to the 5-minute maintenance job, which still uses the old workers and fails it (tracked in #79).

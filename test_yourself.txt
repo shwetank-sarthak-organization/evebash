@@ -4517,6 +4517,44 @@ Feedback:  2026-10-28 developer run by Claude (not a tester PASS), host newone@e
            Still needed: real iPhone and Android phones (app), Safari on a Mac (website).
 
 --------------------------------------------------------------------------------
+#164 App screen fixes: Forgot Password, event bottom bar, Plan & Usage, scrolling under the clock
+Status:    TODO
+Priority:  High (launch blocker, test first)
+Platform:  App (iPhone and Android)
+Brief:     Seven fixes from the app screen review (issues #192 to #198). Guest event themes are not part of
+           this and should look exactly as before.
+Detail:    App code only, no new native build needed. Commit d331316 on staging.
+           2026-11-01 simulator run by Claude (not a tester PASS; simulators are not real phones):
+           - iPhone 16e simulator, signed out: step 1 passed.
+           - Android emulator (Pixel 8), host account: steps 2 to 7 looked right, including Host and EB Network on the
+             event bottom bar. Not run: the HIDDEN label (hiding a gallery changes real data), step 8, and steps 2 to
+             7 on iPhone (the signed-in iPhone simulator was in use by another session). The iPhone icon fix in step 3
+             was only checked against the iOS symbol list, so check it on a real iPhone.
+How to test:
+  1. Sign out. On the login screen tap Forgot Password?. Expect: the Reset Password page opens, with no extra bar on
+     top. Tap Back to Login. Expect: you return to login.
+  2. Sign in and open an event you host. Expect: the bottom bar shows Dashboard, Host, EB Network, Profile, the same
+     order as everywhere else, with Host in gold. Tap each one. Expect: Host opens the Host tab, EB Network opens the
+     coming soon page, and no EB Business page opens from here.
+  3. Profile > Usage & Plan. Expect: no Active Businesses row, an icon beside Active Events and beside Upgrade Plan.
+  4. Scroll down on Dashboard, Host, Profile and EB Network. Expect: the header stays at the top and nothing slides
+     under the clock. Pull down on Dashboard. Expect: it still refreshes.
+  5. Open an event you host and scroll down slowly. Expect: as the cover leaves, the area behind the clock fills in
+     and text no longer runs under the clock.
+  6. Host tab, with a pending request. Expect: the red badge sits on the corner of Requests and the word is readable.
+  7. Open an event you host > Galleries. Expect: normal sub-gallery tiles have no label and nothing touches the eye
+     and delete buttons. Hide one with the eye button. Expect: it shows a small HIDDEN label. Show it again.
+  8. Open any guest gallery. Expect: the theme looks the same as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
 #165 A page that fails shows an error screen instead of closing the app
 Status:    TODO
 Priority:  High (launch blocker, test first)
