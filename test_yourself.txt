@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 164
+Next test number: 166
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-10-28
+Last updated: 2026-11-01
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -4515,3 +4515,35 @@ Feedback:  2026-10-28 developer run by Claude (not a tester PASS), host newone@e
            - Found: dragging the seek bar in the app viewer changes to the next/previous video instead of
              seeking (both apps; not RunPod related). Logged as issue #180. Tapping +10/-10 works.
            Still needed: real iPhone and Android phones (app), Safari on a Mac (website).
+
+--------------------------------------------------------------------------------
+#165 A page that fails shows an error screen instead of closing the app
+Status:    TODO
+Priority:  High (launch blocker, test first)
+Platform:  App (Android first; iPhone was only checked on a simulator)
+Brief:     Issue #184. When a page fails to draw, the app now shows "Something went wrong" with Try again and
+           Go back instead of closing. Normal use should look exactly the same as before.
+Detail:    App code only, no new native build needed. Commit e91ceac, not on staging yet, so test once it is there.
+           Normal use can't trigger this, so a developer has to set it up. Add a temporary file
+           apps/mobile/app/events/crash-test.tsx containing:
+             export default function CrashTest(): null { throw new Error('crash test'); }
+           Make a test build from that, then delete the file. Never commit it. To open the link on Android:
+           adb shell am start -a android.intent.action.VIEW -d evebash://events/crash-test
+           2026-11-01 simulator run by Claude (not a tester PASS): steps 1 to 4 passed on the iPhone 17 Pro simulator
+           with a release bundle. Not run on Android or a real phone. Step 5 not run: that bundle has no Sentry DSN.
+How to test:
+  1. Open evebash://events/crash-test. Expect: "Something went wrong" with Try again and Go back, the app stays
+     open, and no page name such as events/crash-test shows at the top.
+  2. Tap Try again. This page keeps failing, so expect: the app reloads and lands on the Dashboard, with no crash.
+  3. Open the link again and tap Go back. Expect: you land on the Dashboard.
+  4. Open a real gallery, scroll, open a photo, then go back. Expect: everything works as it did before.
+  5. In a staging build with Sentry on (test #145), repeat step 1. Expect: the error appears in Sentry with no
+     personal data in it.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

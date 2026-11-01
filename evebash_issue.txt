@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 184
+Next issue number: 199
 
 =====================================================================
 ACTIVE ISSUES
@@ -1185,6 +1185,95 @@ Blocked by: -
 Found in: Porting the video pipeline to another project (chat 2026-10-29)
 Issue: A video still "processing" more than 6 hours after upload stays "processing" forever. The watchdog (apps/backend/src/services/watchdog.ts, runMediaWatchdog) only reads processing videos uploaded between 15 minutes and 6 hours ago (.gt("uploaded_at", sixHoursAgo)), so an older one is never re-sent and never marked failed: guests never see it and the uploader sees "processing" with no error. Normally every video finishes or fails well within 6 hours (3 Modal retries, 3 watchdog re-sends), so this needs the watchdog to miss that window: the backend down for hours, MEDIA_WATCHDOG_ENABLED=false, or a long Modal outage. None today (0 videos processing for over 6 h on 2026-10-29). Fix idea: in the same run, mark videos still processing after 24 h as failed ("Transcoding did not finish within 24 hours"), behind a flag.
 How to reproduce: on a staging test gallery, set one video's status to 'processing' and uploaded_at to 7 hours ago, then POST /api/v1/media/watchdog/run: the video is not in the report and stays processing.
+
+#184
+Listed: 2026-11-01
+Platform: App
+Priority: High
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #165); move to RECENTLY FIXED once it passes
+Found in: App crash audit (chat 2026-11-01)
+Issue: The app has no error boundary anywhere: no route exports ErrorBoundary, and there is no Sentry.ErrorBoundary or global error handler. expo-router only catches a screen's error if that route exports ErrorBoundary (node_modules/expo-router/build/useScreens.js), so in a release build any error while drawing a screen closes the whole app instead of showing a "Something went wrong" screen. The audit found no such error today (tsc clean, no hook-order errors, no raw text or numbers outside <Text>, events.title and guests.name are NOT NULL), but 289 "any" types hide bad data from the type checker, and one unexpected backend value on the 9,085-line event screen (apps/mobile/app/events/[id].tsx) would take the whole app down. Fix: export ErrorBoundary from apps/mobile/app/_layout.tsx (a plain "Something went wrong / Try again" screen using its retry prop) and from app/events/[id].tsx, and send the error to Sentry.
+How to reproduce: Not run (it needs a code change). Add a temporary throw to the render of any screen in a release build: expect the app to close instead of showing an error screen.
+Note 2026-11-01: Fix on staging in 6653ed4. New apps/mobile/components/ui/ScreenErrorBoundary.tsx (reuses ErrorState, which gained an optional icon and second button) is exported as ErrorBoundary from app/_layout.tsx, app/events/[id].tsx and app/events/sub/[id].tsx; lib/sentry.ts gained reportError so these caught errors reach Sentry. It covers errors while drawing a page. An error in a button press or a timer doesn't reach it and can still close the app. Checked on the iPhone 17 Pro simulator with a release bundle and temporary crash pages: a page with no boundary of its own, a page with its own boundary, and one that recovers on Try again all behaved correctly, Go back and Try again both reached the Dashboard, and a real gallery opened normally. The first run showed the raw route name at the top of the error page, so the boundary now hides the header. Not run on Android or a real phone, and sending to Sentry wasn't checked (no DSN in that bundle). Device test #165.
+
+#185
+Listed: 2026-11-01
+Platform: App
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: Two of the main photo grids keep every loaded photo on screen in memory, so scrolling a big gallery can run the phone out of memory, and the system then kills the app. Only Classic White and Sunlit Portrait guests get the windowed grid (apps/mobile/components/classic/ClassicPhotoRows.tsx draws only rows near the screen). Not windowed: (1) the host grid on every gallery (Sortable.Grid, apps/mobile/app/events/[id].tsx, about line 5737); (2) the guest masonry grid for Midnight Hero and Royal Emerald (same file, about line 7389; 29 of 74 galleries, including the biggest, reception-0e42 with 790 photos). Measured 2026-11-01 on the iPhone 17 Pro simulator (release bundle built 2026-10-28), gallery rec-8-3d4d (214 photos, 7 videos): the guest Portrait grid stayed at 85-94 MB all the way down; the host grid on the same photos went from 190 MB to 317 MB and was still rising, with CPU at 60-90% while scrolling. That is roughly 0.6-1 MB per photo (estimate: the exact number of photos loaded wasn't counted), so a 3,000-photo gallery would need about 2-3 GB. As a rough guide iOS stops an app at about half the phone's RAM, and low-end Android phones have less. The simulator has no memory limit, so it did not crash, and the masonry grid wasn't measured (same pattern, no windowing). The host grid also runs filteredPhotoItems.findIndex for every tile on every render, and the "Uploaded by" filter (loadAllAdminMedia) loads the whole gallery and draws every tile at once. Fix: reuse the ClassicPhotoRows windowing for the masonry grid; for hosts, show a windowed grid and only use Sortable.Grid in a separate Reorder mode (it draws every item); look up tile positions from a map instead of findIndex.
+How to reproduce: On a low-memory phone, open a gallery with 1,000+ photos in Midnight Hero or Royal Emerald (or any gallery as its host) and keep scrolling. Expect: the app gets slow, then closes.
+
+#186
+Listed: 2026-11-01
+Platform: App
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: Production builds won't report crashes, so launch-day crashes would be invisible. apps/mobile/lib/sentry.ts only starts when EXPO_PUBLIC_SENTRY_DSN is set; apps/mobile/eas.json sets it only in the staging profile, and the EAS production environment has just three variables (Supabase URL, Supabase key, Google iOS client ID). The rest of todo #6 is also still open: no Sentry Expo plugin or SENTRY_AUTH_TOKEN, so stack traces stay minified and native crashes unreadable. The only EAS build listed (Android staging, versionCode 25, 2026-10-12, commit b1f34f8) is older than Sentry, so Sentry has no app data yet. Fix: set the DSN and EXPO_PUBLIC_SENTRY_ENVIRONMENT=production for the production profile, add the plugin and auth token, make a new staging build, run device test #145.
+How to reproduce: Read apps/mobile/eas.json (build.production has no env block) and run: eas env:list --environment production --format short
+
+#187
+Listed: 2026-11-01
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: Voice notes can't be recorded on Android. apps/mobile/app.json sets "recordAudioAndroid": false under the expo-camera plugin, which blocks android.permission.RECORD_AUDIO for the whole app, and that beats expo-audio's own request for it (npx expo config --type introspect shows RECORD_AUDIO with tools:node="remove"). apps/mobile/components/album/VoiceNote.tsx can then only get "denied", so the host is told to allow the microphone in Settings, where the app has no microphone switch. Not a crash, and not run on a device (device test #117 is still TODO). Related hazard: the local apps/mobile/ios folder is older than voice notes (Info.plist from 2026-10-12, and the 2026-10-28 simulator build, have no NSMicrophoneUsageDescription), so iOS would close a build made from that folder when it asks for the microphone. EAS builds regenerate the folder and do include the text. Fix: remove "recordAudioAndroid": false (needs a new build); run npx expo prebuild --clean before testing voice notes from a local build.
+How to reproduce: On Android, in an album page comment, tap Record a voice note. Expect (today): no microphone prompt, and the "Allow microphone access in Settings" message.
+
+#188
+Listed: 2026-11-01
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: Over-the-air updates can crash older builds at launch. apps/mobile/app.json uses runtimeVersion policy "appVersion", and the version stays 1.2.4 across native changes: since the 2026-10-12 EAS build, @sentry/react-native, expo-audio and expo-updates were all added with no version bump. An update reaches every build with the same version, so code that imports a native module missing from an older build fails at startup. Sentry and expo-audio are guarded by hand (lib/sentry.ts, lib/voiceNotes.ts), but nothing protects the next one. Nothing is affected today: no update has been published and the only EAS build has no expo-updates. Fix: switch to runtimeVersion policy "fingerprint" before the first store upload.
+How to reproduce: Not run. Add a native module without changing the version, publish an update, open it on an older build of the same version: expect a crash at launch.
+
+#189
+Listed: 2026-11-01
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: Google sign-in on iPhone would crash the app if the iOS client ID is ever missing or wrong. apps/mobile/context/AuthContext.tsx falls back to 'YOUR_IOS_CLIENT_ID_HERE'. Google's SDK then raises a native exception ("Your app is missing support for the following URL schemes"), and react-native-google-signin only catches it in DEBUG builds (ios/RNGoogleSignin.mm), so a release build closes when the user taps Continue with Google. Not happening today: the value in EAS production, EAS preview and the local .env all match iosUrlScheme in app.json. Fix: remove the placeholder, and when the value is missing hide the Google button on iPhone or show a normal error.
+How to reproduce: Not run. Make an iOS release build with EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID unset and tap Continue with Google: expect the app to close.
+
+#190
+Listed: 2026-11-01
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: A very large upload queue can disappear after a restart. apps/mobile/lib/uploadQueue.ts saves the whole queue as one AsyncStorage value and rewrites it on every change. One item is about 570 bytes, so about 3,500 files reach Android's 2 MB limit for reading one row, and about 10,500 reach AsyncStorage's default 6 MB database limit. Past that the read or save fails. The error is caught, so the app doesn't crash, but pending uploads silently vanish after a restart and their copies stay in the app's documents folder. Sizes are calculated, not reproduced. Fix: store one row per item or per batch, and clean up orphaned copies at startup.
+How to reproduce: Not run. On Android, queue 4,000 photos, close the app before they finish, and reopen it: expect the queue to be empty.
+
+#191
+Listed: 2026-11-01
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: Two kinds of push open pages that don't exist. apps/mobile/app/_layout.tsx sends chat pushes to /chat/<id> and enquiry pushes to /enquiries, but the routes are app/chat.tsx (no id route) and app/business-enquiries.tsx, and there is no +not-found screen, so the user lands on expo-router's default "Unmatched Route" page. Not a crash; both are Phase 2 features. Fix: point them at the real routes and add a branded app/+not-found.tsx.
+How to reproduce: Not run. Tap a chat or enquiry push: expect the Unmatched Route page.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
