@@ -79,6 +79,9 @@ function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'appro
 }
 
 
+// A gallery that fails to draw shows an error page here, so the rest of the app keeps working (#184)
+export { ScreenErrorBoundary as ErrorBoundary } from '@/components/ui/ScreenErrorBoundary';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GRID_GAP = 3;
 const PHOTO_PAGE_SIZE = 20;

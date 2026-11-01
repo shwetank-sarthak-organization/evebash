@@ -5,6 +5,7 @@
 import { scrubSentryEvent } from '../../../shared/monitoring/sentryScrub';
 
 const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN?.trim();
+let sentry: typeof import('@sentry/react-native') | null = null;
 
 if (dsn) {
   try {
@@ -18,7 +19,17 @@ if (dsn) {
       beforeSend: (event) => scrubSentryEvent(event),
       beforeBreadcrumb: (breadcrumb) => scrubSentryEvent(breadcrumb),
     });
+    sentry = Sentry;
   } catch (err) {
     console.warn('[Sentry] failed to start; continuing without it:', err);
+  }
+}
+
+/** Sends an error the app recovered from, which Sentry's crash handler never sees. Does nothing while Sentry is off. */
+export function reportError(error: unknown) {
+  try {
+    sentry?.captureException(error);
+  } catch (err) {
+    console.warn('[Sentry] failed to send an error:', err);
   }
 }

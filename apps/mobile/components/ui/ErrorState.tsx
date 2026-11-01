@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
 import { Button } from '@/components/ui/Button';
 import { MidnightColors } from '@/constants/theme';
 import { FontFamily, FontSize } from '@/constants/typography';
@@ -10,6 +10,10 @@ type ErrorStateProps = {
   message?: string;
   onRetry: () => void;
   retrying?: boolean;
+  icon?: IconSymbolName;
+  /** Optional second button under Try again */
+  secondaryLabel?: string;
+  onSecondary?: () => void;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -19,12 +23,15 @@ export function ErrorState({
   message = 'Check your internet connection and try again.',
   onRetry,
   retrying = false,
+  icon = 'cloud.fill',
+  secondaryLabel,
+  onSecondary,
   style,
 }: ErrorStateProps) {
   return (
     <View style={[styles.container, style]} accessibilityRole="alert">
       <View style={styles.iconRing}>
-        <IconSymbol name="cloud.fill" size={26} color={MidnightColors.gold} />
+        <IconSymbol name={icon} size={26} color={MidnightColors.gold} />
       </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
@@ -38,6 +45,9 @@ export function ErrorState({
         onPress={onRetry}
         style={styles.button}
       />
+      {!!secondaryLabel && !!onSecondary && (
+        <Button title={secondaryLabel} variant="ghost" size="md" fullWidth={false} onPress={onSecondary} style={styles.secondaryButton} />
+      )}
     </View>
   );
 }
@@ -74,5 +84,8 @@ const styles = StyleSheet.create({
   },
   button: {
     minWidth: 160,
+  },
+  secondaryButton: {
+    marginTop: 8,
   },
 });

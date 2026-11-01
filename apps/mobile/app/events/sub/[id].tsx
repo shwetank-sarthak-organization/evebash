@@ -14,6 +14,9 @@ import * as ImagePicker from 'expo-image-picker';
 
 
 
+// A gallery that fails to draw shows an error page here, so the rest of the app keeps working (#184)
+export { ScreenErrorBoundary as ErrorBoundary } from '@/components/ui/ScreenErrorBoundary';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
 const IMAGE_SIZE = (SCREEN_WIDTH - 24) / COLUMN_COUNT;

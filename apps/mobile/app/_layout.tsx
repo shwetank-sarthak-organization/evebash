@@ -59,6 +59,9 @@ LogBox.ignoreLogs([
   'userInterfaceStyle prop is not available on Android',
 ]);
 
+// A screen that fails to draw shows an error page instead of closing the app (#184)
+export { ScreenErrorBoundary as ErrorBoundary } from '@/components/ui/ScreenErrorBoundary';
+
 export const unstable_settings = {
   // Ensure any route can link back to `/`
   initialRouteName: 'dashboard',
