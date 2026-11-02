@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 199
+Next issue number: 206
 
 =====================================================================
 ACTIVE ISSUES
@@ -1254,9 +1254,92 @@ Found in: App crash audit (chat 2026-11-01)
 Issue: Two kinds of push open pages that don't exist. apps/mobile/app/_layout.tsx sends chat pushes to /chat/<id> and enquiry pushes to /enquiries, but the routes are app/chat.tsx (no id route) and app/business-enquiries.tsx, and there is no +not-found screen, so the user lands on expo-router's default "Unmatched Route" page. Not a crash; both are Phase 2 features. Fix: point them at the real routes and add a branded app/+not-found.tsx.
 How to reproduce: Not run. Tap a chat or enquiry push: expect the Unmatched Route page.
 
+#205
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: On iPhone, the New Event name placeholder showed wide letter spacing ("e . g .  W e d d i n g") after the Join Event sheet had been opened in the same run. Seen once on the iPhone 17 Pro simulator on 2026-11-02; the placeholder looked normal on 2026-11-01 when New Event was opened first. Neither field's style was changed. Likely cause, not confirmed: iOS reuses the text box from the Join Event code field, which has letterSpacing 4 (apps/mobile/app/(tabs)/dashboard.tsx). Not checked on a real iPhone.
+How to reproduce: Start the app, open Dashboard > Join Event and close it, then Host > + . Look at the Event Name placeholder.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#199
+Listed: 2026-11-02
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: Phase 2 wording shows in v1. The empty Notifications sheet told people to "Follow users, join events, or shortlist businesses" (apps/mobile/app/(tabs)/dashboard.tsx), and Settings had a "Local Match Enquiries" switch for business leads (apps/mobile/app/settings.tsx). Fix: new wording, and the switch sits behind SHOW_BUSINESS_ALERTS (off until Phase 2). The saved preference is not changed.
+How to reproduce: Open Notifications with none waiting, or Settings > Notifications. Before the fix: the wording and the switch above.
+Fixed in: b14706e (2026-11-02). New wording, and the Local Match Enquiries switch is behind SHOW_BUSINESS_ALERTS. Checked on the iPhone 17 Pro simulator (Notifications wording) and the Pixel 8 emulator (no switch in Settings). Device test #166.
+
+#200
+Listed: 2026-11-02
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: Profile said GUEST for someone hosting events, in both the top badge and the "I am a" row (apps/mobile/app/(tabs)/profile.tsx). The label comes from the saved persona, which defaults to Guest. Fix: anyone with at least one hosted event shows as Host / Organizer. This is display only: the saved value and the edit form do not change.
+How to reproduce: Open Profile on an account with hosted events and no saved persona. Before the fix: GUEST.
+Fixed in: b14706e (2026-11-02). Display only, the saved persona and the edit form are unchanged. Checked on the iPhone 17 Pro simulator (top badge) and the Pixel 8 emulator ("I am a" row). The edit form was not opened. Device test #166.
+
+#201
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: Plan & Usage had its own header: all caps, a different font and the EB logo beside the Back button (apps/mobile/app/(tabs)/usage.tsx). Fix: use TabScreenHeader with a Back button, the same as Settings.
+How to reproduce: Profile > Usage & Plan. Before the fix: "PLAN & USAGE" in capitals.
+Fixed in: b14706e (2026-11-02). Uses TabScreenHeader with Back, like Settings. Checked on the Pixel 8 emulator. Back was not tapped, and it was not seen on an iPhone. Device test #166.
+
+#202
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: The password box on the login and sign-up screens had a visible seam, because the field and the eye button were two separately bordered boxes (apps/mobile/app/login.tsx). Fix: one border around both.
+How to reproduce: Open the login screen and look at the right side of the password box.
+Fixed in: b14706e (2026-11-02). One border around the field and the eye. Checked on the iPhone 16e simulator on login and Sign Up; the eye still toggles. Device test #166.
+
+#203
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: Sheet headers didn't match. The Notifications title sat higher than its bell and close button, and the close buttons were different colours on Join Event, Notifications and New Event. Fix: a shared BottomSheetHeader (apps/mobile/components/ui/BottomSheet.tsx) used by all three. Sort & filter and the EB Vault sheets have a different layout and were left as they are.
+How to reproduce: Open Join Event, Notifications and New Event. Before the fix: the headers differ.
+Fixed in: b14706e (2026-11-02). Shared BottomSheetHeader. Checked on the iPhone 17 Pro simulator on all three sheets. Device test #166.
+
+#204
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: Two small problems on the host event screen. The "Event Design" heading touched the first card (apps/mobile/app/events/[id].tsx), and the Cinematic Highlight Video card used navy and blue-grey colours that aren't in the app's palette (apps/mobile/components/event/GalleryVideoPanel.tsx, host view only). Fix: add space under the heading and use the app's colours. Guest themes are not touched.
+How to reproduce: Open an event you host > Design, then Galleries > the primary gallery. Before the fix: the heading touches the card and the video card looks blue.
+Fixed in: b14706e (2026-11-02). Checked on the Pixel 8 emulator. The Change picker was not opened, and it was not seen on an iPhone. Device test #166.
+
 #188
 Listed: 2026-11-01
 Platform: App
@@ -1675,69 +1758,4 @@ Found in: App Classic White check in the simulator (2026-10-25)
 Issue: In the app's photo viewer on Classic White, the video controls bar (play, previous/next, time, volume, settings, full screen) draws dark green icons on its dark gradient, so the controls are almost invisible. The viewer itself follows the Classic colours (white background, light action panel). apps/mobile/components/PhotoViewer.tsx; it had uncommitted work from another session at the time, so it wasn't changed here.
 How to reproduce: App, Classic White gallery, Videos tab, open a video: the bar at the bottom of the video is dark with near-invisible dark icons.
 Fixed in: 844ba19 (2026-10-26). The bar's icons and time are white in every theme (it always has a dark gradient); this affected all light themes (Classic White, Ethereal, Pastel, Pop, Academic, Garden, Museum), not only Classic. Checked on Classic White in the iOS simulator, with the +/-10 s seek buttons from #135.
-
-#143
-Listed: 2026-10-25
-Platform: Both
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Device test #132 in the iOS simulator (2026-10-25)
-Issue: In an album, the guest "Favourites only" switch always says "0 in Photos" and shows nothing, although the host has favourited photos in that album (wedding-fdd8: 5 in Rec 1, 2 in Rec 10, 3 in Reception 5). The host's favourites are saved under the main event (event_favourite_photos.event_id = the main gallery), but in an album the app loads favourites by the album's own id (loadPhotos in apps/mobile/app/events/[id].tsx calls getEventFavouritePhotos(album id)). Home is right (it loads favourites for the main event and all albums). Existing since 2026-09-21, not from the Classic White work. Check the website's album view for the same behaviour before fixing.
-How to reproduce: App, as a guest, open wedding-fdd8 > Collections > Rec 1: "Favourites only: 0 in Photos". Home shows the 10 favourites.
-Fixed in: 336231b (2026-10-25). Cause was on both platforms: the website host page saved stars under the main event, the app under the album, and both guest album views read only the album's. Now both save under the main event and album views read the album's and the main event's stars; un-starring removes a star saved under an album too. Checked rec-1-f165: Favourites only 5 on the website and in the app.
-
-#140
-Listed: 2026-10-25
-Platform: Both
-Priority: High
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: "Image unavailable" in the guest grid of rec-7-6230 (Rec 7 of wedding-fdd8), 2026-10-25
-Issue: Some uploads leave a photos row with no file in storage. In rec-7-6230, 26 of 68 photos (full camera JPEGs of 9-10 MB, uploaded 2026-09-27 12:47-12:52 UTC, right after photos of the same batch that worked) have status failed, no thumbnail and processing_error "An error occurred (NoSuchKey) when calling the GetObject operation: Key not found": the photo worker found no file. The original and every version (-thumbnail, -preview, -grid .webp) return 404 "File with such name does not exist." from media.evebash.com. The row is written before the file finishes uploading, and nothing removes or flags it when the upload never completes (phone asleep or app closed mid-upload, network drop, upload URL expiring on large files?). The guest grid showed "Image unavailable" for each and counted them in Photos (n).
-Guest side fixed (this change): website and app guest loads leave these photos out (shared/media/missingUpload.ts); the logged-out view already skipped them. The host still sees them: website host grid "Processing Failed" badge, app host grid "Upload failed" label.
-Still to do: (1) find which upload path leaves the row without a file (website and app; check upload logs around 2026-09-27 12:47 UTC for rec-7-6230) and make the row only count once the file is in storage, or mark it failed with a clear "upload didn't finish" reason the host can act on (re-upload); (2) count how many galleries have such rows (status failed + NoSuchKey) and decide whether to delete the rows or ask the hosts to re-upload; (3) don't count them against storage.
-Update 1 (2026-10-25): Likely causes found in the save routes (apps/backend/src/routes/media.ts). (a) No save route checked that the file was in B2: /save-photo and /save-photo-batch (website) saved any storageKey, and /mobile/save-photo-batch checked but saved anyway (its not_uploaded answer was never used, although the app re-uploads on it). (b) /save-photo deleted the uploaded file when its database save failed (rollbackB2Upload) and returned 500, and the website (src/lib/storage.ts) retries a 500, so the retry saved a row for the file the first try had just deleted. The rec-7-6230 keys have the website's name format (user-time-uuid-name). Fixed in ed13daa behind VERIFY_UPLOAD_BEFORE_SAVE (off): all three routes refuse rows whose file B2 says isn't there (a failed check doesn't block), /save-photo keeps the file on a database error, and the host page shows such files as failed ("Didn't finish uploading"). Still to do: switch it on in Railway staging and run test #140; count affected galleries and decide on the existing rows (rec-7-6230 has 26).
-Update 2 (2026-10-25): VERIFY_UPLOAD_BEFORE_SAVE=true is on in Railway (staging), set by Sarthak. Checked against api-staging: /save-photo answered 409 and saved nothing, /save-photo-batch and /mobile/save-photo-batch reported the missing file (notUploaded / not_uploaded) and saved nothing; real uploads through the website and app routes saved and were processed (thumbnails 200). Test photos deleted afterwards. Still to do: device test #140; count galleries with such rows (rec-7-6230 has 26) and decide delete or re-upload; check they don't count against storage.
-
-Update 3 (2026-10-25): Counted on live data: only rec-7-6230 has such rows (26 photos, 233 MB); no other gallery. They count against the host's storage: the event storage total (vault_event_storage_bytes, supabase/migrations/20261022010000_album_proofing.sql) sums photos.size for every row, whatever its status. Decision needed: delete the 26 rows (their files don't exist; frees 233 MB of counted storage) or ask the host to re-upload.
-Update 4 (2026-10-25): Decision (Sarthak): delete. The 26 rows in rec-7-6230 were deleted through /api/media/delete (26 x 200). Checked after: rec-7-6230 has 42 rows, none failed, all with thumbnails; the host's event storage went from 39,317 MB to 39,084 MB (233 MB freed); the guest page shows Photos (42) and no "Image unavailable". No other gallery had such rows. Only device test #140 is left.
-Update 5 (2026-10-25): device test #140 steps 1, 2 and 4 passed on staging (website host page and guest page, app guest view): missing files are refused and shown as "Didn't finish uploading", real uploads save normally. Only step 3 (app, airplane mode) is left.
-How to reproduce: Open rec-7-6230 as the host: 26 photos with "Processing Failed". Before this change, guests saw 16+ "Image unavailable" cards. curl -I https://media.evebash.com/events/rec-7-6230/photos/e8848fc1-d1b0-4d83-84a0-5b9b26f3f9e9-1790513547861-c9fd11a5-899f-482b-b4d3-b7e460ad0002-7C0A9725.JPG returns 404.
-Fixed in: bd16cdc (guests don't see such photos) and ed13daa (server refuses rows without a file, VERIFY_UPLOAD_BEFORE_SAVE on in staging) (2026-10-25). Device test #140 passed (all steps). The 26 old rows in rec-7-6230 were deleted. Production Railway still needs VERIFY_UPLOAD_BEFORE_SAVE=true before launch. Follow-up: #144 (app gives up on uploads while offline).
-
-#136
-Listed: 2026-10-25
-Platform: Both
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: #134 fix (2026-10-24)
-Issue: Two loose ends from #134. (1) deleteB2File in apps/backend/src/routes/media.ts (deleting a single file: a photo/video original, preview, thumbnail, grid image) still lists file names only, so a file written twice (e.g. a preview remade by a photo retry or by rotate) leaves its older version in B2 after the delete; B2_DELETE_ALL_VERSIONS doesn't cover it. (2) Videos deleted before 2026-10-25 may have left older file versions in hls/ (any video that was retried or handed from the GPU to the 16-core worker). Fix: use b2_list_file_versions in deleteB2File too, behind the same flag; run scripts/b2_hls_orphan_sweep.py (list first, delete with Sarthak's OK) to find leftovers.
-How to reproduce: Upload a photo, have its preview remade, delete the photo, list versions of <key>-preview.webp in B2: one version is left.
-Fix (code, flag off, not live): new deleteAllB2FileVersions in apps/backend/src/services/b2DeleteAllVersions.ts lists b2_list_file_versions for the exact file name and deletes every version (names that only start with it, like <key>-preview.webp next to <key>, are left alone). Both deleteB2File copies (routes/media.ts: photo/video delete, cancelled uploads, profile picture, album files, replaced video thumbnails; routes/admin.ts: admin deletes) use it only when Railway B2_DELETE_ALL_FILE_VERSIONS=true. Its own flag, not B2_DELETE_ALL_VERSIONS as first suggested above, because that one is already on and would have switched this on at the next Railway deploy. Nothing relies on old versions: rotate's "versioned links" are ?v= cache-busting in the URL, and rotate already deletes the old versions itself. 4 new unit tests (9 in the file), backend suite 99/99. Real B2 check under bench/t136/ (a preview written 3 times next to its original): old delete 3 -> 2 versions and the preview still visible; new delete 3 -> 0, original and a neighbour file kept; test files removed.
-Leftovers: new scripts/b2_old_versions_sweep.py lists (read-only by default) every file version billed for nothing, per top-level folder: "hidden" (all versions of a file whose newest entry is a delete marker) and "older" (older versions under a file that is still there; the newest is always kept); files changed in the last 2 days are skipped; --delete <prefix> ... removes them, only with Sarthak's OK.
-Scan 2026-10-25 (read-only): 35,634 files, 130.34 GB, 0 hidden and 0 older versions anywhere; scripts/b2_hls_orphan_sweep.py: 68 streaming folders (23.57 GB), 0 orphans. Why nothing: the EveBash bucket has a lifecycle rule daysFromHidingToDeleting=1, so B2 deletes every replaced or hidden version one day later. So this bug only leaves a file behind when it is deleted within about a day of being rewritten (e.g. a photo deleted right after a retry or rotate); the leftover is then the visible older version, which the lifecycle rule does not remove. Low impact; turn the flag on when convenient. Nothing to clean up now.
-2026-10-25: B2_DELETE_ALL_FILE_VERSIONS=true set on Railway api-staging and deployed (Sarthak).
-Checked 2026-10-25: a test photo in test-face-new-155c (Copy-of-0D2A5285-1-.JPG) given a second preview version on purpose, deleted from the website: photos row gone, 0 versions left of its original, preview and thumbnail in B2.
-Fixed in: 66ea6c9 (2026-10-25) + Railway B2_DELETE_ALL_FILE_VERSIONS=true (2026-10-25).
-
-2026-10-25: #131 (no Download All for guests in the app) closed as not needed (Sarthak): the app won't get a Download All button; guests keep saving single photos from the viewer. Download All stays on the website.
-
-#130
-Listed: 2026-10-24
-Platform: Both
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: App Classic White rebuild (#116), 2026-10-24
-Issue: The couple-title helper (splitCoupleNames, coupleInitials, displayCoupleTitle) has two copies that must be kept in step by hand: src/components/royal/coupleNames.ts (website) and apps/mobile/components/royal/coupleNames.ts (app). Royal Emerald and Classic White on both platforms use it to show "X & Y". Fix: move it to shared/ (plain logic, like shared/themes/classicCoverLine.ts) and import it from both; keep the app's run-time Unicode regex fallback.
-How to reproduce: Code check: compare the two files.
-Fixed in: 7ab5b6c (2026-10-25). One copy in shared/text/coupleNames.ts (the app's version); both old copies deleted.
-
-2026-10-25: Modal v131 deployed (22ba209, 10:26 IST; rollback v130). gpu_all_formats is off, so long videos still use the old GPU worker in the test galleries and the 16-core worker elsewhere. Live now regardless of the switch: handoffs from the old GPU worker and from watch_gpu_start are logged to modal_cost_logs (process_video_gpu_fallback). Checked: video endpoints reject unsigned calls (401), all five video functions present.
 

@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 166
+Next test number: 167
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-01
+Last updated: 2026-11-02
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -4583,6 +4583,45 @@ How to test:
   4. Open a real gallery, scroll, open a photo, then go back. Expect: everything works as it did before.
   5. In a staging build with Sentry on (test #145), repeat step 1. Expect: the error appears in Sentry with no
      personal data in it.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#166 App polish: sheet headers, Plan & Usage header, Profile role, password box, Phase 2 wording
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone and Android)
+Brief:     Six small design fixes from the app screen review (issues #199 to #204). Guest event themes are not part
+           of this and should look exactly as before.
+Detail:    App code only, no new native build needed. Commit b14706e on staging.
+           2026-11-02 simulator run by Claude (not a tester PASS; simulators are not real phones):
+           - iPhone 16e simulator, signed out: step 1 looked right on login and Sign Up, with an empty password. The
+             eye icon changes when tapped.
+           - iPhone 17 Pro simulator, host account: step 2 looked right, and in step 3 the wording and the top badge.
+             Another session then took over this simulator.
+           - Android emulator (Pixel 8), host account: the "I am a" row in step 3, the missing switch in step 5, the
+             title in step 6, and the heading and card in step 7 looked right.
+           Not run: step 4, tapping the other switches in step 5, Back in step 6, the Change picker in step 7, step 8
+           and real phones. Steps 5 to 7 were not seen on an iPhone.
+How to test:
+  1. Open the login screen. Expect: the password box is one clean shape with no line beside the eye button. Tap the
+     eye. Expect: it shows and hides the password. Do the same on Sign Up.
+  2. Dashboard: open Join Event, then the bell. Host: tap +. Expect: all three sheets have the same title size, and
+     the same close button. The bell lines up with the Notifications title.
+  3. With no notifications waiting, open the bell. Expect: "Join or host an event and your updates will show up
+     here." On Profile, on an account that hosts events, expect Host / Organizer at the top and in the "I am a" row.
+  4. Profile > Edit. Expect: the form still shows what was saved. Close it without saving.
+  5. Profile > gear icon > Notifications. Expect: no Local Match Enquiries switch, and the other switches still work.
+  6. Profile > Usage & Plan. Expect: the title is in the gold script font, like Settings, and Back works.
+  7. Open an event you host. Design tab: expect space under "Event Design". Galleries > primary gallery: expect the
+     Cinematic Highlight Video card in the app's warm colours. Tap Change and check the picker too.
+  8. Open any guest gallery. Expect: the theme looks the same as before.
 Done by:
 Device / browser:
 Build / version:
