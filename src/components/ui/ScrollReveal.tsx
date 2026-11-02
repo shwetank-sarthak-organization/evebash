@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { motion, useInView, useReducedMotion, type Easing } from "framer-motion";
+import { domAnimation, LazyMotion, m, useInView, useReducedMotion, type Easing } from "framer-motion";
 
 interface ScrollRevealProps {
     children: React.ReactNode;
@@ -71,14 +71,17 @@ export const ScrollReveal = ({
 
     return (
         <div ref={ref} style={{ width, overflow: "hidden" }} className={className}>
-            <motion.div
-                className="h-full"
-                variants={getVariants()}
-                initial={false}
-                animate={show ? "visible" : "hidden"}
-            >
-                {children}
-            </motion.div>
+            {/* Slim framer-motion: loads only the animation features this needs, on any page. */}
+            <LazyMotion features={domAnimation}>
+                <m.div
+                    className="h-full"
+                    variants={getVariants()}
+                    initial={false}
+                    animate={show ? "visible" : "hidden"}
+                >
+                    {children}
+                </m.div>
+            </LazyMotion>
         </div>
     );
 };

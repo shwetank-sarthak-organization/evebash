@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { Download, Images, Palette, Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playfair } from "@/app/fonts";
@@ -152,7 +152,7 @@ export default function HeroShowcase() {
                     <div className="relative aspect-[1280/860] overflow-hidden" style={{ background: mh.ink, color: mh.ivory }}>
                         <AnimatePresence initial={false}>
                             {frame.feature === 0 ? (
-                                <motion.div key={design.id} className="absolute inset-0" {...fade}>
+                                <m.div key={design.id} className="absolute inset-0" {...fade}>
                                     <Image
                                         src={`/home/designs/${design.id}.jpg`}
                                         alt=""
@@ -164,9 +164,9 @@ export default function HeroShowcase() {
                                     <span className="absolute right-3 top-3 rounded-full bg-black/65 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur">
                                         {design.name}
                                     </span>
-                                </motion.div>
+                                </m.div>
                             ) : (
-                                <motion.div key="gallery" className="absolute inset-0" {...fade}>
+                                <m.div key="gallery" className="absolute inset-0" {...fade}>
                                     <div className="relative h-[34%] overflow-hidden">
                                         <Image src={photos.couple.src} alt="" fill sizes="(min-width: 1024px) 45vw, 95vw" className="object-cover object-[center_35%]" />
                                         <div className="absolute inset-0" style={{ background: `linear-gradient(to top, ${mh.ink}, transparent 80%)` }} />
@@ -203,7 +203,7 @@ export default function HeroShowcase() {
                                         {album.tiles.map(({ photo, position }, index) => (
                                             <div key={index} className="relative aspect-square overflow-hidden rounded-md" style={{ background: mh.velvet }}>
                                                 <AnimatePresence initial={false}>
-                                                    <motion.div
+                                                    <m.div
                                                         key={`${photo.src}-${position}`}
                                                         className="absolute inset-0"
                                                         initial={reducedMotion ? false : { opacity: 0, scale: 1.04 }}
@@ -211,7 +211,7 @@ export default function HeroShowcase() {
                                                         exit={{ opacity: 0, transition: { duration: 0.2 } }}
                                                     >
                                                         <Image src={photo.src} alt="" fill sizes="(min-width: 1024px) 14vw, 30vw" className="object-cover" style={{ objectPosition: position }} />
-                                                    </motion.div>
+                                                    </m.div>
                                                 </AnimatePresence>
                                                 {index === 0 && (
                                                     <span className="absolute bottom-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur">
@@ -225,17 +225,17 @@ export default function HeroShowcase() {
                                     {/* The video player, over the album */}
                                     <AnimatePresence>
                                         {frame.feature === 2 && (
-                                            <motion.div
+                                            <m.div
                                                 className="absolute inset-x-1.5 bottom-1.5 top-[calc(34%+3rem)] overflow-hidden rounded-md bg-black"
                                                 initial={reducedMotion ? false : { opacity: 0, scale: 0.96 }}
                                                 animate={{ opacity: 1, scale: 1, transition: { duration: 0.3, ease: homeEase } }}
                                                 exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.2 } }}
                                             >
                                                 <EventFilm autoPlay={!reducedMotion} />
-                                            </motion.div>
+                                            </m.div>
                                         )}
                                     </AnimatePresence>
-                                </motion.div>
+                                </m.div>
                             )}
                         </AnimatePresence>
                     </div>
@@ -258,7 +258,7 @@ export default function HeroShowcase() {
                             )}
                         >
                             {active && (
-                                <motion.span
+                                <m.span
                                     key={`${index}-${paused}`}
                                     aria-hidden
                                     className="absolute inset-0 origin-left bg-royal-gold/15"

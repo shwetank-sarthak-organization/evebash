@@ -1,7 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
-import { motion, useMotionValue, useReducedMotion, useScroll, useTransform, type MotionValue } from "framer-motion";
+import { m, useMotionValue, useReducedMotion, useScroll, useTransform, type MotionValue } from "framer-motion";
 import { displayFont, Reveal, SectionHeader } from "./HomeUI";
 import { cn } from "@/lib/utils";
 
@@ -32,9 +32,9 @@ function StepDot({ index, progress }: { index: number; progress: MotionValue<num
     return (
         <div className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-full lg:left-1/2 lg:-translate-x-1/2 border border-[var(--site-border)] bg-[var(--site-surface)] text-sm font-semibold text-[var(--site-muted)]">
             {index + 1}
-            <motion.span style={{ opacity: lit }} className="absolute inset-0 flex items-center justify-center rounded-full bg-[image:var(--home-gold)] text-[#13191F]">
+            <m.span style={{ opacity: lit }} className="absolute inset-0 flex items-center justify-center rounded-full bg-[image:var(--home-gold)] text-[#13191F]">
                 {index + 1}
-            </motion.span>
+            </m.span>
         </div>
     );
 }
@@ -73,9 +73,9 @@ export default function HowItWorks() {
                 <ol ref={ref} className="relative mt-14 grid gap-12 lg:grid-cols-4 lg:gap-8">
                     {/* The line: down the left on small screens, across the top on large ones, dot 1 to dot 4. */}
                     <div aria-hidden style={down} className="absolute left-5 w-px bg-[var(--site-border)] lg:hidden" />
-                    <motion.div aria-hidden style={{ ...down, scaleY: progress }} className="absolute left-5 w-0.5 origin-top -translate-x-px bg-[image:var(--home-gold)] lg:hidden" />
+                    <m.div aria-hidden style={{ ...down, scaleY: progress }} className="absolute left-5 w-0.5 origin-top -translate-x-px bg-[image:var(--home-gold)] lg:hidden" />
                     <div aria-hidden style={across} className="absolute top-5 hidden h-px bg-[var(--site-border)] lg:block" />
-                    <motion.div aria-hidden style={{ ...across, scaleX: progress }} className="absolute top-5 hidden h-0.5 origin-left -translate-y-px bg-[image:var(--home-gold)] lg:block" />
+                    <m.div aria-hidden style={{ ...across, scaleX: progress }} className="absolute top-5 hidden h-0.5 origin-left -translate-y-px bg-[image:var(--home-gold)] lg:block" />
 
                     {steps.map(({ title, text }, index) => (
                         <li key={title} className="relative pl-16 lg:pl-0 lg:pt-16 lg:text-center">

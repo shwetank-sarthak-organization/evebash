@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Check, Download, FolderClosed, Lock, ScanFace, Users } from "lucide-react";
-import { AnimatePresence, motion, useInView, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useInView, useReducedMotion } from "framer-motion";
 import { playfair } from "@/app/fonts";
 import { cn } from "@/lib/utils";
 import { homeEase } from "./HomeUI";
@@ -38,14 +38,14 @@ function UsualWay({ animate }: { animate: boolean }) {
                     <p className="truncate text-sm font-semibold text-[var(--site-text)]">Wedding family group</p>
                     <p className="text-xs text-[var(--site-muted)]">243 members</p>
                 </div>
-                <motion.span {...appear(animate, 2.6, { opacity: 0, scale: 0.6 })} className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold text-[var(--site-text)]">
+                <m.span {...appear(animate, 2.6, { opacity: 0, scale: 0.6 })} className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold text-[var(--site-text)]">
                     128 unread
-                </motion.span>
+                </m.span>
             </div>
 
             <div className="flex flex-1 flex-col justify-end gap-2.5 overflow-hidden pt-3">
                 {chat.map((message, index) => (
-                    <motion.div key={index} {...appear(animate, 0.3 + index * 0.5)} className="max-w-[85%]">
+                    <m.div key={index} {...appear(animate, 0.3 + index * 0.5)} className="max-w-[85%]">
                         <p className="mb-0.5 text-[11px] font-semibold text-[var(--site-muted)]">{message.who}</p>
                         {message.drive ? (
                             <div className="flex items-center gap-3 rounded-2xl rounded-tl-sm bg-white/[0.07] px-3 py-2.5">
@@ -61,7 +61,7 @@ function UsualWay({ animate }: { animate: boolean }) {
                         ) : (
                             <p className="rounded-2xl rounded-tl-sm bg-white/[0.07] px-3 py-2 text-sm text-[var(--site-subtle)]">{message.text}</p>
                         )}
-                    </motion.div>
+                    </m.div>
                 ))}
             </div>
         </div>
@@ -71,7 +71,7 @@ function UsualWay({ animate }: { animate: boolean }) {
 function WithEveBash({ animate }: { animate: boolean }) {
     return (
         <div className="flex h-full flex-col justify-center gap-3">
-            <motion.div {...appear(animate, 0.2, { opacity: 0, scale: 0.94 })} className="overflow-hidden rounded-2xl border border-[var(--site-border)] bg-[#060A18]">
+            <m.div {...appear(animate, 0.2, { opacity: 0, scale: 0.94 })} className="overflow-hidden rounded-2xl border border-[var(--site-border)] bg-[#060A18]">
                 <div className="relative h-24 sm:h-28">
                     <Image src={photos.couple.src} alt="" fill sizes="(min-width: 1024px) 35vw, 90vw" className="object-cover object-[center_30%]" />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#060A18] to-transparent" />
@@ -80,7 +80,7 @@ function WithEveBash({ animate }: { animate: boolean }) {
                     </p>
                 </div>
                 <div className="space-y-3 p-3">
-                    <motion.div {...appear(animate, 0.6)} className="flex gap-1.5">
+                    <m.div {...appear(animate, 0.6)} className="flex gap-1.5">
                         {["Haldi", "Sangeet", "Reception"].map((album, index) => (
                             <span
                                 key={album}
@@ -92,15 +92,15 @@ function WithEveBash({ animate }: { animate: boolean }) {
                                 {album}
                             </span>
                         ))}
-                    </motion.div>
+                    </m.div>
                     <div className="grid grid-cols-3 gap-1.5">
                         {[photos.haldi, photos.celebration, photos.matched1].map((photo, index) => (
-                            <motion.div key={photo.src} {...appear(animate, 0.8 + index * 0.12, { opacity: 0, scale: 0.9 })} className="relative aspect-square overflow-hidden rounded-md">
+                            <m.div key={photo.src} {...appear(animate, 0.8 + index * 0.12, { opacity: 0, scale: 0.9 })} className="relative aspect-square overflow-hidden rounded-md">
                                 <Image src={photo.src} alt="" fill sizes="(min-width: 1024px) 12vw, 28vw" className="object-cover" />
-                            </motion.div>
+                            </m.div>
                         ))}
                     </div>
-                    <motion.div {...appear(animate, 1.3)} className="flex gap-2">
+                    <m.div {...appear(animate, 1.3)} className="flex gap-2">
                         <span className="home-btn-gold flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-xs font-semibold">
                             <ScanFace className="h-3.5 w-3.5" aria-hidden />
                             Find my photos
@@ -109,13 +109,13 @@ function WithEveBash({ animate }: { animate: boolean }) {
                             <Download className="h-3.5 w-3.5" aria-hidden />
                             Download all
                         </span>
-                    </motion.div>
+                    </m.div>
                 </div>
-            </motion.div>
-            <motion.p {...appear(animate, 1.8)} className="flex items-center justify-center gap-2 text-sm font-semibold text-[var(--site-text)]">
+            </m.div>
+            <m.p {...appear(animate, 1.8)} className="flex items-center justify-center gap-2 text-sm font-semibold text-[var(--site-text)]">
                 <Check className="h-4 w-4 text-[var(--home-accent)]" aria-hidden />
                 Shared with 243 guests by one link
-            </motion.p>
+            </m.p>
         </div>
     );
 }
@@ -145,7 +145,7 @@ export default function FinalCtaDemo() {
         <div ref={ref} role="img" aria-label="A busy family group chat with a Drive link that needs access, replaced by one EveBash gallery shared with all the guests">
             <div className="relative h-[400px] overflow-hidden">
                 <AnimatePresence initial={false} mode="wait">
-                    <motion.div
+                    <m.div
                         key={`${shown}-${plays}`}
                         className="h-full"
                         initial={animate ? { opacity: 0, scale: 0.98 } : false}
@@ -153,7 +153,7 @@ export default function FinalCtaDemo() {
                         exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.2 } }}
                     >
                         {shown === 0 ? <UsualWay animate={animate} /> : <WithEveBash animate={animate} />}
-                    </motion.div>
+                    </m.div>
                 </AnimatePresence>
             </div>
             <div className="mt-3 flex justify-center gap-2 text-xs font-semibold">

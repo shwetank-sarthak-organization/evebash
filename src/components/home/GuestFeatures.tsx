@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { Briefcase, Download, Heart, LockKeyhole, Palette, PartyPopper, QrCode, ScanFace, Sparkles, Trophy } from "lucide-react";
 import { displayFont, homeEase, Reveal, SectionHeader } from "./HomeUI";
 import { cn } from "@/lib/utils";
@@ -91,7 +91,7 @@ export default function GuestFeatures() {
                         {/* The event type's photo */}
                         <div className="relative aspect-[4/3] overflow-hidden rounded-3xl border border-[var(--site-border)] lg:aspect-auto lg:min-h-[500px]">
                             <AnimatePresence initial={false}>
-                                <motion.div
+                                <m.div
                                     key={eventType.label}
                                     className="absolute inset-0"
                                     initial={reducedMotion ? false : { opacity: 0 }}
@@ -99,7 +99,7 @@ export default function GuestFeatures() {
                                     exit={{ opacity: 0, transition: { duration: 0.2 } }}
                                 >
                                     <Image src={eventType.photo.src} alt={eventType.photo.alt} fill sizes="(min-width: 1024px) 50vw, 95vw" className="object-cover" />
-                                </motion.div>
+                                </m.div>
                             </AnimatePresence>
                             <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-[#09090B]/30 to-transparent" />
                             <div className="absolute inset-x-0 bottom-0 p-6 md:p-8">
@@ -114,7 +114,7 @@ export default function GuestFeatures() {
                             <p className="mt-1.5 text-sm leading-relaxed text-[var(--site-subtle)]">Every day, session or ceremony gets its own album.</p>
                             <div className="mt-4 flex flex-wrap gap-2">
                                 {eventType.albums.map((album, index) => (
-                                    <motion.span
+                                    <m.span
                                         key={`${eventType.label}-${album}`}
                                         initial={reducedMotion ? false : { opacity: 0, y: 4 }}
                                         animate={{ opacity: 1, y: 0, transition: { duration: 0.2, delay: index * 0.03, ease: homeEase } }}
@@ -124,7 +124,7 @@ export default function GuestFeatures() {
                                         )}
                                     >
                                         {album}
-                                    </motion.span>
+                                    </m.span>
                                 ))}
                             </div>
 

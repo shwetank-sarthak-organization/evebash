@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, domAnimation, LazyMotion, m } from "framer-motion";
 import { Check, Image as ImageIcon, Loader2, Trash2, Video, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
@@ -323,6 +323,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             {children}
 
             {/* Upload and delete panels share the bottom-right corner, the delete panel above */}
+            {/* Slim framer-motion: loads only the animation features the panels need. */}
+            <LazyMotion features={domAnimation}>
             <div className="pointer-events-none fixed bottom-6 right-6 z-[100] flex w-96 max-w-[calc(100vw-2rem)] flex-col items-stretch gap-3">
             <AnimatePresence>
                 {deleteQueue.length > 0 && (() => {
@@ -335,7 +337,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                             ? `${deleteQueue.length - failed} deleted · ${failed} couldn't be deleted`
                             : `✓ ${describeMediaCount(deleteQueue)} deleted`;
                     return (
-                        <motion.div
+                        <m.div
                             key="delete-panel"
                             initial={{ opacity: 0, y: 50, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -392,7 +394,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
                             <AnimatePresence initial={false}>
                                 {!isDeletePanelMinimized && (
-                                    <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
+                                    <m.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
                                         <div className="max-h-56 overflow-y-auto divide-y divide-slate-900">
                                             {deleteQueue.map(item => (
                                                 <div key={item.id} className="flex items-center justify-between gap-3 p-3">
@@ -413,10 +415,10 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                                                 </div>
                                             ))}
                                         </div>
-                                    </motion.div>
+                                    </m.div>
                                 )}
                             </AnimatePresence>
-                        </motion.div>
+                        </m.div>
                     );
                 })()}
             </AnimatePresence>
@@ -424,7 +426,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
             {/* Floating Upload Queue Panel (Google Drive style) */}
             <AnimatePresence>
                 {(isUploadPanelOpen || hasUnfinishedUploads) && uploadQueue.length > 0 && (
-                    <motion.div
+                    <m.div
                         initial={{ opacity: 0, y: 50, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 50, scale: 0.95 }}
@@ -499,7 +501,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                         {/* Body (List of items) */}
                         <AnimatePresence initial={false}>
                             {!isUploadPanelMinimized && (
-                                <motion.div
+                                <m.div
                                     initial={{ height: 0 }}
                                     animate={{ height: "auto" }}
                                     exit={{ height: 0 }}
@@ -596,13 +598,14 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                                             </div>
                                         ))}
                                     </div>
-                                </motion.div>
+                                </m.div>
                             )}
                         </AnimatePresence>
-                    </motion.div>
+                    </m.div>
                 )}
             </AnimatePresence>
             </div>
+            </LazyMotion>
         </UploadContext.Provider>
     );
 }

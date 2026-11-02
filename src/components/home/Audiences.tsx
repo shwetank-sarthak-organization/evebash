@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { Camera, CalendarCheck, Check, Users } from "lucide-react";
 import { displayFont, homeEase, PrimaryButton, Reveal, SectionHeader } from "./HomeUI";
 import { cn } from "@/lib/utils";
@@ -104,7 +104,7 @@ export default function Audiences() {
                 >
                     <div className="relative order-last aspect-[4/3] overflow-hidden rounded-3xl">
                         <AnimatePresence initial={false}>
-                            <motion.div
+                            <m.div
                                 key={audience.label}
                                 className="absolute inset-0"
                                 initial={{ opacity: 0 }}
@@ -112,7 +112,7 @@ export default function Audiences() {
                                 exit={{ opacity: 0, transition: { duration: 0.3 } }}
                             >
                                 <Image src={audience.photo.src} alt={audience.photo.alt} fill sizes="(min-width: 1024px) 45vw, 90vw" className="object-cover" />
-                            </motion.div>
+                            </m.div>
                         </AnimatePresence>
                     </div>
 

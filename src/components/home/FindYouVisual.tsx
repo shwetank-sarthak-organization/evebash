@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ScanFace } from "lucide-react";
-import { AnimatePresence, motion, useInView, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useInView, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { homeEase } from "./HomeUI";
 import { photos, type Photo } from "./photos";
@@ -56,7 +56,7 @@ export default function FindYouVisual() {
                 {/* The selfie, with a scan line */}
                 <div className="relative aspect-[3/4] overflow-hidden rounded-[1.75rem] ring-1 ring-[var(--site-border)]">
                     <AnimatePresence initial={false}>
-                        <motion.div
+                        <m.div
                             key={key}
                             className="absolute inset-0"
                             initial={animate ? { opacity: 0, x: -16 } : false}
@@ -65,14 +65,14 @@ export default function FindYouVisual() {
                         >
                             <Image src={selfie.src} alt="" fill sizes="(min-width: 1024px) 22vw, 42vw" className="object-cover" />
                             {/* Full-size layer with the line on its bottom edge, so the sweep is the selfie's own height. */}
-                            <motion.div
+                            <m.div
                                 className="absolute inset-0"
                                 initial={animate ? { y: "-100%", opacity: 0 } : false}
                                 animate={{ y: "0%", opacity: [0, 1, 1, 0], transition: { duration: 0.9, delay: 0.25, ease: "easeInOut" } }}
                             >
                                 <div className="absolute inset-x-0 bottom-0 h-0.5 bg-[image:var(--home-gold)] shadow-[0_0_16px_3px_rgba(220,181,121,0.7)]" />
-                            </motion.div>
-                        </motion.div>
+                            </m.div>
+                        </m.div>
                     </AnimatePresence>
                     <div className="absolute inset-x-3 bottom-3 flex items-center justify-center gap-2 rounded-full bg-[#09090B]/80 px-3 py-2 text-xs font-semibold text-[var(--site-text)] backdrop-blur">
                         <ScanFace className="h-4 w-4 text-[var(--home-accent)]" aria-hidden />
@@ -83,28 +83,28 @@ export default function FindYouVisual() {
                 {/* The photos they're in */}
                 <div key={key} className={cn("grid gap-2 sm:gap-3", columns, rows)}>
                     {matches.map((photo, index) => (
-                        <motion.div
+                        <m.div
                             key={photo.src}
                             className="relative min-h-0 overflow-hidden rounded-2xl ring-2 ring-[var(--home-accent)]"
                             initial={animate ? { opacity: 0, scale: 0.94 } : false}
                             animate={{ opacity: 1, scale: 1, transition: { duration: 0.3, delay: 1 + index * 0.1, ease } }}
                         >
                             <Image src={photo.src} alt="" fill sizes="(min-width: 1024px) 14vw, 28vw" className="object-cover" style={{ objectPosition: focus[photo.src] }} />
-                        </motion.div>
+                        </m.div>
                     ))}
                 </div>
             </div>
 
             <div className="mt-4 flex items-center justify-between gap-4">
-                <motion.p
+                <m.p
                     key={key}
                     className="text-sm font-semibold text-[var(--site-text)]"
                     initial={animate ? { opacity: 0 } : false}
                     animate={{ opacity: 1, transition: { duration: 0.2, delay: 1.1 + matches.length * 0.1, ease } }}
                 >
                     {matches.length} photos found from one selfie
-                </motion.p>
-                <div className="flex gap-2">
+                </m.p>
+                <div className="flex gap-1">
                     {rounds.map((_, index) => (
                         <button
                             key={index}
@@ -112,11 +112,16 @@ export default function FindYouVisual() {
                             aria-label={`Show guest ${index + 1}`}
                             aria-pressed={index === round}
                             onClick={() => setRound(index)}
-                            className={cn(
-                                "h-2.5 rounded-full transition-[width,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--home-accent)]",
-                                index === round ? "w-6 bg-[image:var(--home-gold)]" : "w-2.5 bg-[var(--site-surface-2)] hover:bg-[var(--site-muted)]"
-                            )}
-                        />
+                            className="group flex h-6 min-w-6 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--home-accent)]"
+                        >
+                            {/* The dot stays small; the button around it is a 24px tap target. */}
+                            <span
+                                className={cn(
+                                    "h-2.5 rounded-full transition-[width,background-color] duration-200",
+                                    index === round ? "w-6 bg-[image:var(--home-gold)]" : "w-2.5 bg-[var(--site-surface-2)] group-hover:bg-[var(--site-muted)]"
+                                )}
+                            />
+                        </button>
                     ))}
                 </div>
             </div>

@@ -110,7 +110,7 @@ export default function Footer() {
 
                     {columns.map(({ title, links }) => (
                         <div key={title}>
-                            <h4 className={cn(playfair.className, "flex h-10 items-center text-lg text-[var(--site-text)]")}>{title}</h4>
+                            <h3 className={cn(playfair.className, "flex h-10 items-center text-lg text-[var(--site-text)]")}>{title}</h3>
                             <ul className="mt-4 space-y-2.5 text-sm">
                                 {links.map(({ label, href }) => (
                                     <li key={label}>
@@ -123,7 +123,7 @@ export default function Footer() {
 
                     {/* Contact */}
                     <div className="col-span-2 md:col-span-1">
-                        <h4 className={cn(playfair.className, "flex h-10 items-center text-lg text-[var(--site-text)]")}>Contact</h4>
+                        <h3 className={cn(playfair.className, "flex h-10 items-center text-lg text-[var(--site-text)]")}>Contact</h3>
                         <div className="mt-4 space-y-3 text-sm">
                             <p className="flex items-start gap-2.5">
                                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#CA9C68]" aria-hidden />

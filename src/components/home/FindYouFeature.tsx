@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import FindYouVisual from "./FindYouVisual";
+import { LazyFindYouVisual } from "./LazyDemos";
 import { Reveal, SectionHeader } from "./HomeUI";
 
 const points = [
@@ -30,7 +30,7 @@ export default function FindYouFeature() {
 
                 {/* Visual on the left on large screens (sections alternate sides); text stays first on phones */}
                 <div className="lg:order-first">
-                    <FindYouVisual />
+                    <LazyFindYouVisual />
                 </div>
             </div>
         </section>

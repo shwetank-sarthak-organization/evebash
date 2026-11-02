@@ -1,4 +1,4 @@
-import FinalCtaDemo from "./FinalCtaDemo";
+import { LazyFinalCtaDemo } from "./LazyDemos";
 import { displayFont, PrimaryButton, Reveal, SecondaryButton } from "./HomeUI";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +23,7 @@ export default function FinalCta() {
                         </div>
                     </div>
 
-                    <FinalCtaDemo />
+                    <LazyFinalCtaDemo />
                 </div>
             </Reveal>
         </section>

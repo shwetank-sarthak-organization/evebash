@@ -8,6 +8,7 @@ import Audiences from "@/components/home/Audiences";
 import PricingPreview from "@/components/home/PricingPreview";
 import HomeFaq, { faqs } from "@/components/home/HomeFaq";
 import FinalCta from "@/components/home/FinalCta";
+import HomeMotion from "@/components/home/HomeMotion";
 import { jsonLd } from "@/lib/seo";
 
 const title = "EveBash | Event media platform for photographers and organizers";
@@ -36,15 +37,17 @@ const faqJsonLd = {
 export default function Home() {
     return (
         <div className="home-palette flex flex-col bg-[var(--site-bg)] font-sans text-[var(--site-text)] selection:bg-royal-gold/30">
-            <HomeHero />
-            <HowItWorks />
-            <FindYouFeature />
-            <AlbumProofing />
-            <GuestFeatures />
-            <Audiences />
-            <PricingPreview />
-            <FinalCta />
-            <HomeFaq />
+            <HomeMotion>
+                <HomeHero />
+                <HowItWorks />
+                <FindYouFeature />
+                <AlbumProofing />
+                <GuestFeatures />
+                <Audiences />
+                <PricingPreview />
+                <FinalCta />
+                <HomeFaq />
+            </HomeMotion>
             <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(faqJsonLd)} />
         </div>
     );
