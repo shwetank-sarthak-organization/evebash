@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 219
+Next issue number: 220
 
 =====================================================================
 ACTIVE ISSUES
@@ -1250,50 +1250,6 @@ Found in: App screen review (chat 2026-11-01)
 Issue: On iPhone, the New Event name placeholder showed wide letter spacing ("e . g .  W e d d i n g") after the Join Event sheet had been opened in the same run. Seen once on the iPhone 17 Pro simulator on 2026-11-02; the placeholder looked normal on 2026-11-01 when New Event was opened first. Neither field's style was changed. Likely cause, not confirmed: iOS reuses the text box from the Join Event code field, which has letterSpacing 4 (apps/mobile/app/(tabs)/dashboard.tsx). Not checked on a real iPhone.
 How to reproduce: Start the app, open Dashboard > Join Event and close it, then Host > + . Look at the Event Name placeholder.
 
-#208
-Listed: 2026-11-02
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: The app never shows upload progress on the gallery screen. renderUploadProgressCard in apps/mobile/app/events/[id].tsx (progress, failed count, Retry, Cancel) is defined but never rendered, so during an upload the screen shows nothing; progress is only in the phone notification. Cancelling is only possible from Dashboard > bell > "Uploading Media" > "Yes, Cancel All", which cancels everything.
-How to reproduce: Open a gallery you host, Add Photo, pick 2 photos. Nothing on the screen changes until the "Upload Complete" pop-up.
-
-#209
-Listed: 2026-11-02
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: Offline uploads aren't explained. With no connection the phone notification keeps saying "Uploading 1 file — 41.jpg (0%)" and the Dashboard entry "Uploading: 0/1 files (0%)". apps/mobile/lib/uploadQueue.ts sets the item's error to "Waiting for connection" (#144) but nothing shows it.
-How to reproduce: Turn on airplane mode, Add Photo, pick a photo, pull down the notifications.
-
-#210
-Listed: 2026-11-02
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: A blocking "Upload Complete" pop-up (apps/mobile/app/events/[id].tsx) appears about 20 seconds after an upload finishes, wherever the person is, and needs Done. The phone notification ("2 files uploaded") already says it; a toast would do.
-How to reproduce: Upload 2 photos and wait.
-
-#211
-Listed: 2026-11-02
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: Failed uploads show raw technical errors. The "Upload Details" dialog lists item.error from apps/mobile/lib/uploadQueue.ts, for example "Server did not find B2 file, retrying", "Rejected by server", "File failed to verify on server" or "Network request failed", including our storage provider's name. These need plain wording.
-How to reproduce: Not run on a device (needs a failed upload); read in the code.
-
 #212
 Listed: 2026-11-02
 Platform: App
@@ -1326,6 +1282,7 @@ Blocked by: -
 Found in: Upload flow review (chat 2026-11-02)
 Issue: Upload wording and naming. Progress text is technical ("Uploading Media (3/10)", "2 upload(s) failed. (Tap to view details)", "AI face indexing and thumbnail generation..."; the notification says "AI Face Indexing"), and telling guests their faces are being indexed right after they upload could alarm them. The button says "Add Photo" although several can be picked, and the empty state "No photos yet. Tap Add Photo!". The upload notification uses the yellow gold #CCA43B (see #147). Sub-galleries have three names: "Sub-Galleries" for hosts, "Collections" for guests, and the guest upload hint says "Open an album to add your photos." while "Album" is also the album proofing tab.
 How to reproduce: Read on the device and in apps/mobile/app/events/[id].tsx and apps/mobile/lib/uploadQueue.ts.
+Note 2026-11-02: Fixed in 3236073: plain progress wording in the card, notification and Dashboard entry, "Add Photos" / "Add Videos", and brand gold on the upload notification. Still open: the three names for sub-galleries.
 
 #215
 Listed: 2026-11-02
@@ -1372,9 +1329,68 @@ Issue: Find You downloads and shares the preview, not the photo. Face records (f
 How to reproduce: Website: open a gallery's Find You page, search with a selfie, open a match and click Download: a small .webp. App: gallery > Find You, open a match, Download: the saved photo is about 1600 px.
 Note 2026-11-02: FIND_YOU_ORIGINAL_URL=true set on the staging backend (Railway, deploy 0c8d6b74 SUCCESS). A real search on staging (signed-in host, test-face-new-155c, POST api-staging.evebash.com/api/find-you) returned 2 matches whose url is the original .JPG (11.35 and 11.05 MB image/jpeg), with imageUrl, previewUrl and thumbnailUrl still the 0.22 MB previews. Download and Share buttons not clicked yet (device test #168).
 
+#219
+Listed: 2026-11-02
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Upload feedback fix (chat 2026-11-02)
+Issue: Offline, the host gallery looks empty. With airplane mode on, an event's gallery manager showed "Photos (0)", "Videos (0)", "All galleries · 0", Storage Usage "0 GB / 50 GB" and "No photos yet. Tap Add Photos." for a gallery of 44 photos (apps/mobile/app/events/[id].tsx). A host at a venue with bad signal would think their photos are gone. It should keep what was already loaded, or say it couldn't load.
+How to reproduce: Open an event you host > Galleries > a gallery with photos, turn on airplane mode, start an upload or pull to refresh.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#208
+Listed: 2026-11-02
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: The app never shows upload progress on the gallery screen. renderUploadProgressCard in apps/mobile/app/events/[id].tsx (progress, failed count, Retry, Cancel) is defined but never rendered, so during an upload the screen shows nothing; progress is only in the phone notification. Cancelling is only possible from Dashboard > bell > "Uploading Media" > "Yes, Cancel All", which cancels everything.
+How to reproduce: Open a gallery you host, Add Photo, pick 2 photos. Nothing on the screen changes until the "Upload Complete" pop-up.
+Fixed in: 3236073 (2026-11-02). Host view: the progress card now shows (Uploading photos (x of y), Finalizing, Getting your photos ready, Waiting for connection) with Cancel, and failed files stay on it with Retry and Dismiss instead of being cleared. Checked on the Pixel 8 emulator: one-photo upload, offline upload and Cancel. Guest pages are unchanged (themes have their own design; they keep the pop-ups). Device test #170.
+
+#209
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Offline uploads aren't explained. With no connection the phone notification keeps saying "Uploading 1 file — 41.jpg (0%)" and the Dashboard entry "Uploading: 0/1 files (0%)". apps/mobile/lib/uploadQueue.ts sets the item's error to "Waiting for connection" (#144) but nothing shows it.
+How to reproduce: Turn on airplane mode, Add Photo, pick a photo, pull down the notifications.
+Fixed in: 3236073 (2026-11-02). The card, the phone notification and the Dashboard entry say "Waiting for connection". Checked on the Pixel 8 emulator (card and notification). Device test #170.
+
+#210
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: A blocking "Upload Complete" pop-up (apps/mobile/app/events/[id].tsx) appears about 20 seconds after an upload finishes, wherever the person is, and needs Done. The phone notification ("2 files uploaded") already says it; a toast would do.
+How to reproduce: Upload 2 photos and wait.
+Fixed in: 3236073 (2026-11-02). Host view shows a short toast ("1 photo uploaded") instead of the pop-up; guest pages keep theirs. Checked on the Pixel 8 emulator. Device test #170.
+
+#211
+Listed: 2026-11-02
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Failed uploads show raw technical errors. The "Upload Details" dialog lists item.error from apps/mobile/lib/uploadQueue.ts, for example "Server did not find B2 file, retrying", "Rejected by server", "File failed to verify on server" or "Network request failed", including our storage provider's name. These need plain wording.
+How to reproduce: Not run on a device (needs a failed upload); read in the code.
+Fixed in: 3236073 (2026-11-02). uploadErrorMessage (apps/mobile/lib/uploadQueue.ts) turns item.error into plain words for the card's "Tap to see why"; item.error itself is unchanged. Not seen on a device (needs a failed upload). Device test #170.
+
 
 #28
 Listed: 2026-10-11

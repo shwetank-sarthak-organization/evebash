@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 170
+Next test number: 171
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4703,6 +4703,39 @@ How to test:
   6. Check the footer on the homepage and on Pricing or Privacy policy. Expect: same new footer, no broken links.
   7. iPhone: Settings > Accessibility > Motion > Reduce Motion on, reload. Expect: nothing loops; tabs still work.
   8. Scroll the whole page on a low-end Android phone (if the website shows). Expect: smooth, no jank.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#170 Upload feedback in the app: progress card, offline message, toast, plain errors
+Status:    TODO
+Priority:  High (launch blocker, test first)
+Platform:  App (iPhone and Android)
+Brief:     Hosts now see upload progress on the gallery screen, with Cancel, a "Waiting for connection" message
+           offline, a short "uploaded" message instead of a pop-up, and plain reasons when a file fails (issues #208
+           to #211, part of #214). Guest pages are unchanged.
+Detail:    App code only, no new native build needed. Commit 3236073 on staging. Uploads add
+           photos to the gallery you pick; use a test gallery and delete them afterwards.
+           2026-11-02 emulator run by Claude (not a tester PASS): steps 1 to 4 looked right on the Pixel 8 emulator.
+           Not run: step 5 (needs a failed upload), guest pages, iPhone, real phones.
+How to test:
+  1. Open an event you host > Galleries > a gallery. Expect: the button says Add Photos. Pick 2 photos. Expect: a card
+     above the bottom bar: "Uploading photos (0 of 2)" with the file name and %, then "Getting your photos ready"
+     with "You can leave this screen", then a short "2 photos uploaded" message. No pop-up to close.
+  2. Pull down the phone's notifications during step 1. Expect: "Uploading 2 files", then "2 files uploaded".
+  3. Turn on airplane mode and pick a photo. Expect: the card and the notification say "Waiting for connection".
+     Turn airplane mode off. Expect: the upload carries on by itself.
+  4. Pick a photo again and tap Cancel on the card, then "Cancel uploads". Expect: the card closes, the
+     notification goes, and the photo does not appear in the gallery.
+  5. If a file fails (for example a gallery that was deleted), expect the card to stay with Retry and Dismiss, and
+     "Tap to see why" to give a plain reason (no "B2", "server" or code words).
+  6. Open a guest gallery and upload as a guest. Expect: the same as before this change.
 Done by:
 Device / browser:
 Build / version:
