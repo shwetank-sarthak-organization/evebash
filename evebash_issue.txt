@@ -110,21 +110,6 @@ Update 2026-10-22 (Google Play review): section 29 now says the apps sell nothin
 Update 2026-10-22: migration 20261011000000_find_you_consent.sql applied to Supabase (shared staging/production project). Table has RLS on and no client access; the three consent functions are for logged-in users only.
 Update 2026-10-22 (after release PR #8): privacy section 20 and /delete-account said the website's Delete Account is under Profile; it moved to Settings, fixed. Their Apple/Google subscription wording now says plans are bought on the website.
 
-#28
-Listed: 2026-10-11
-Platform: Website
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: Real gallery photos with permission (Sarthak)
-Found in: Website UI re-check (2026-10-11)
-Issue: The new homepage phone mockup and the Find You visual use coloured gradient squares instead of real photos, which looks unfinished for a photo product. src/components/home/GalleryPreview.tsx and FindYouFeature.tsx.
-How to reproduce: Open the homepage: the "gallery" grid in the hero is plain gradients.
-Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
-Note 2026-10-26: option to unblock it without our own gallery photos: the Unsplash connector for Claude (free photos;
-connect it in claude.ai Settings > Connectors) can find wedding/event photos to use here. Check the Unsplash licence and
-credit wording before shipping, and prefer real EveBash photos when they are ready. Sarthak to check later.
-
 #32
 Listed: 2026-10-11
 Platform: Website
@@ -1390,6 +1375,23 @@ Note 2026-11-02: FIND_YOU_ORIGINAL_URL=true set on the staging backend (Railway,
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#28
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: Real gallery photos with permission (Sarthak)
+Found in: Website UI re-check (2026-10-11)
+Issue: The new homepage phone mockup and the Find You visual use coloured gradient squares instead of real photos, which looks unfinished for a photo product. src/components/home/GalleryPreview.tsx and FindYouFeature.tsx.
+How to reproduce: Open the homepage: the "gallery" grid in the hero is plain gradients.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
+Note 2026-10-26: option to unblock it without our own gallery photos: the Unsplash connector for Claude (free photos;
+connect it in claude.ai Settings > Connectors) can find wedding/event photos to use here. Check the Unsplash licence and
+credit wording before shipping, and prefer real EveBash photos when they are ready. Sarthak to check later.
+Fixed in: 6bb4817 (2026-11-02). The homepage redesign replaced the phone mockup and the Find You visual with real photos (Pexels, free to use; Indian wedding, haldi, fest, sports and corporate shots). Checked in the browser before pushing. Device test #169.
+
 #207
 Listed: 2026-11-02
 Platform: Both

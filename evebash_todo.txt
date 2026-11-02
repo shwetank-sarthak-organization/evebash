@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 21
+Next todo number: 22
 
 Last updated: 2026-11-02
 
@@ -543,12 +543,35 @@ Brief:        Today Cloudflare runs the evebash.com DNS and the worker evebash-m
               todos for the ones we pick.
 Done in:      -
 
+#21 Wire up "Book a demo" and the footer social links (website)
+Listed:       2026-11-02
+Platform:     Website
+Priority:     Low
+Phase:        1 (v1 launch)
+Status:       Idea
+Effort:       S (a few hours)
+Suggested by: Sarthak (homepage redesign, 2026-11-02)
+Discussed:    Yes
+Decision:     2026-11-02 Sarthak asked for both as placeholders for now ("we'll integrate later").
+Owner:        Unassigned
+Depends on:   The account URLs and where "Book a demo" should go (Sarthak)
+Brief:        The homepage "Made for everyone at the event" tabs have a "Book a demo" button that does nothing
+              yet (src/components/home/Audiences.tsx, title "Coming soon"). The footer shows Instagram,
+              YouTube, Facebook and LinkedIn icons that aren't links yet (src/components/Footer.tsx, the
+              socials list: add each href and it becomes a link that opens in a new tab). Decide the demo
+              destination (booking page, form, WhatsApp or calendar link) and send the four account URLs.
+Done in:      -
+
+=====================================================================
+DONE / DROPPED (delete after 14 days)
+=====================================================================
+
 #20 Homepage motion pass (website)
 Listed:       2026-11-02
 Platform:     Website
 Priority:     Low
 Phase:        1 (v1 launch)
-Status:       In progress
+Status:       Done
 Effort:       S (step A); M with step B
 Suggested by: Sarthak (homepage rating vs samaro.ai, 2026-11-02)
 Discussed:    Yes
@@ -558,7 +581,10 @@ Decision:     2026-11-02 Sarthak asked for a plan. Use framer-motion (already in
               committed on the local branch preview/home-motion, not pushed yet. Same day he asked for
               a bolder look: hero is now a self-playing gallery demo (real Wedding design captures with a
               sample couple, album switching, a Pexels wedding clip that loads only in that scene),
-              photo-led sections, mixed-size feature tiles, tabbed audiences. Kept local only.
+              photo-led sections, mixed-size feature tiles, tabbed audiences. Then the full redesign
+              agreed in the same session (Noir and gold look, Pexels Indian event photos, event-type
+              tabs, 3-guest Find You loop, 4-scene album proofing demo, closing chat-vs-gallery demo,
+              all-events copy, new footer, original fonts kept). Pushed to staging on Sarthak's go.
 Owner:        Sarthak (with Claude)
 Depends on:   Step B: real photos (#28), real numbers and logos (#33), sample galleries (#32)
 Brief:        The 2026-11-02 rating gave the homepage 4/10 for motion (samaro.ai 9/10): today every
@@ -581,11 +607,8 @@ Brief:        The 2026-11-02 rating gave the homepage 4/10 for motion (samaro.ai
               visible when JavaScript is off or the tab is hidden (ScrollReveal's current rule);
               Lighthouse phone stays at 79 or better with CLS 0. Add a device test (real Android
               phone scroll smoothness, iPhone with Reduce Motion on) when it ships.
-Done in:      -
-
-=====================================================================
-DONE / DROPPED (delete after 14 days)
-=====================================================================
+Done in:      6bb4817 (2026-11-02). Device test #169. "Book a demo" and the footer social icons are
+              placeholders: todo #21.
 
 #9  Sunlit Portrait theme in the app
 Listed:       2026-10-26

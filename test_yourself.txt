@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 169
+Next test number: 170
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4671,6 +4671,38 @@ How to test:
   3. Tap Share on a match and send it to yourself. Expect: the full-size photo, not a small .webp.
   4. Website: open the gallery's Find You page, search with a selfie, open a match and click Download.
      Expect: a .jpg/.jpeg of several MB, not a .webp.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#169 Homepage redesign: demos, tabs, footer and speed
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     The homepage was redesigned (todo #20): black and gold look, real event photos, a hero gallery that
+           demos itself, a 3-guest Find You loop, a 4-scene album proofing demo, event-type tabs, a closing
+           chat-vs-gallery demo and a new footer. The navbar button now says "Create event" on every page.
+Detail:    Commit 6bb4817 on staging (staging.evebash.com). Phones and tablets may see the "download the app"
+           screen instead (#109); test on a laptop or desktop browser, and on a phone only if the website shows.
+How to test:
+  1. Open staging.evebash.com on a laptop. Expect: black background, gold headline, the hero gallery cycles
+     through designs, albums and a video. Tap Designs / Albums / Videos. Expect: each jumps to that part.
+  2. Scroll to "Guests skip the scrolling". Expect: three selfies in turn with 4, then 6, then 2 photos found;
+     the dots switch guests.
+  3. Scroll to "Album proofing". Expect: 4 scenes (client picks, photographer designs, live review, approved);
+     the step bar switches scenes.
+  4. In "Built for every kind of event", tap Wedding / Fest / Sports / Corporate. Expect: photo, line and album
+     chips change. In "Made for everyone", tap each tab. Expect: its own photo and 7 points.
+  5. Watch the closing section. Expect: a busy group chat, then a clean EveBash gallery card.
+  6. Check the footer on the homepage and on Pricing or Privacy policy. Expect: same new footer, no broken links.
+  7. iPhone: Settings > Accessibility > Motion > Reduce Motion on, reload. Expect: nothing loops; tabs still work.
+  8. Scroll the whole page on a low-end Android phone (if the website shows). Expect: smooth, no jank.
 Done by:
 Device / browser:
 Build / version:
