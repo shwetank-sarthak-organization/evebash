@@ -6287,7 +6287,7 @@ export default function EventDetailScreen() {
 
               {activeTab === 'design' && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Event Design</Text>
+                  <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>Event Design</Text>
 
                   {/* Step 1: Event Type */}
                   <TouchableOpacity style={styles.designCard} onPress={() => setShowCategoryModal(true)}>

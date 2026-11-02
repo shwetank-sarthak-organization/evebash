@@ -24,6 +24,9 @@ import { haptic } from '@/lib/haptics';
 import * as Clipboard from 'expo-clipboard';
 import { MidnightColors } from '@/constants/theme';
 
+/** Business lead alerts are hidden until Phase 2 (they come with EB Business and EB Network). */
+const SHOW_BUSINESS_ALERTS = false;
+
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const { colors, isDark } = useAppTheme();
@@ -350,17 +353,21 @@ export default function SettingsScreen() {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('businessMatches')} accessibilityRole="switch" accessibilityLabel="Local match enquiry notifications" accessibilityState={{ checked: notifPreferences.businessMatches }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionText}>Local Match Enquiries</Text>
-              <Text style={styles.actionSubtext}>New lead alerts matching your area</Text>
-            </View>
-            <View style={[styles.toggleBtn, notifPreferences.businessMatches && styles.toggleBtnActive]}>
-              <View style={[styles.toggleDot, notifPreferences.businessMatches && styles.toggleDotActive]} />
-            </View>
-          </TouchableOpacity>
+          {SHOW_BUSINESS_ALERTS && (
+            <>
+              <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('businessMatches')} accessibilityRole="switch" accessibilityLabel="Local match enquiry notifications" accessibilityState={{ checked: notifPreferences.businessMatches }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.actionText}>Local Match Enquiries</Text>
+                  <Text style={styles.actionSubtext}>New lead alerts matching your area</Text>
+                </View>
+                <View style={[styles.toggleBtn, notifPreferences.businessMatches && styles.toggleBtnActive]}>
+                  <View style={[styles.toggleDot, notifPreferences.businessMatches && styles.toggleDotActive]} />
+                </View>
+              </TouchableOpacity>
 
-          <View style={styles.divider} />
+              <View style={styles.divider} />
+            </>
+          )}
 
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('marketing')} accessibilityRole="switch" accessibilityLabel="Marketing offer notifications" accessibilityState={{ checked: notifPreferences.marketing }}>
             <View style={{ flex: 1 }}>

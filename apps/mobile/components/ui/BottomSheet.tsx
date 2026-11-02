@@ -6,6 +6,8 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  Text,
+  TouchableOpacity,
   View,
   useWindowDimensions,
   type StyleProp,
@@ -21,8 +23,9 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MidnightColors } from '@/constants/theme';
+import { Fonts, MidnightColors } from '@/constants/theme';
 import { Radius, Spacing } from '@/constants/layout';
+import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
 
 type BottomSheetProps = {
   visible: boolean;
@@ -128,7 +131,49 @@ export function BottomSheet({ visible, onClose, children, style }: BottomSheetPr
   );
 }
 
+type BottomSheetHeaderProps = {
+  title: string;
+  /** Gold icon before the title */
+  icon?: IconSymbolName;
+  onClose: () => void;
+};
+
+/** Title row for a sheet, so every sheet has the same title and close button. */
+export function BottomSheetHeader({ title, icon, onClose }: BottomSheetHeaderProps) {
+  return (
+    <View style={styles.header}>
+      <View style={styles.headerTitleRow}>
+        {icon && <IconSymbol name={icon} size={22} color={MidnightColors.gold} />}
+        <Text style={styles.headerTitle} accessibilityRole="header" numberOfLines={1}>{title}</Text>
+      </View>
+      <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" hitSlop={10}>
+        <IconSymbol name="xmark.circle.fill" size={24} color={MidnightColors.slate400} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 24,
+  },
+  headerTitleRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerTitle: {
+    flexShrink: 1,
+    fontSize: 24,
+    color: MidnightColors.white,
+    fontFamily: Fonts.outfit.extraBold,
+    letterSpacing: -0.5,
+  },
   flex: {
     flex: 1,
   },

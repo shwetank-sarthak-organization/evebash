@@ -43,7 +43,7 @@ import { Image as ExpoImage } from 'expo-image';
 import CakeIcon from '@/components/icons/CakeIcon';
 import HandshakeIcon from '@/components/icons/HandshakeIcon';
 import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
-import { BottomSheet } from '@/components/ui/BottomSheet';
+import { BottomSheet, BottomSheetHeader } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -691,17 +691,7 @@ export default function DashboardScreen() {
 
               {/* ── JOIN EVENT MODAL ── */}
               <BottomSheet visible={showJoinModal} onClose={() => { setShowJoinModal(false); setIsScanning(false); }}>
-                    <View style={styles.modalHeader}>
-                      <Text style={styles.modalTitle}>Join Event</Text>
-                      <TouchableOpacity
-                        onPress={() => { setShowJoinModal(false); setIsScanning(false); }}
-                        accessibilityRole="button"
-                        accessibilityLabel="Close"
-                        hitSlop={10}
-                      >
-                        <IconSymbol name="xmark.circle.fill" size={24} color={MidnightColors.slate600} />
-                      </TouchableOpacity>
-                    </View>
+                    <BottomSheetHeader title="Join Event" onClose={() => { setShowJoinModal(false); setIsScanning(false); }} />
 
                     {isScanning ? (
                       <View style={styles.scannerContainer}>
@@ -767,20 +757,7 @@ export default function DashboardScreen() {
 
               {/* ── NOTIFICATIONS MODAL ── */}
               <BottomSheet visible={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} style={{ maxHeight: height * 0.85 }}>
-                    <View style={styles.modalHeader}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <IconSymbol name="bell.fill" size={22} color={colors.gold} />
-                        <Text style={styles.modalTitle}>Notifications</Text>
-                      </View>
-                      <TouchableOpacity
-                        onPress={() => setShowNotificationsModal(false)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Close"
-                        hitSlop={10}
-                      >
-                        <IconSymbol name="xmark.circle.fill" size={24} color={MidnightColors.slate600} />
-                      </TouchableOpacity>
-                    </View>
+                    <BottomSheetHeader title="Notifications" icon="bell.fill" onClose={() => setShowNotificationsModal(false)} />
 
                     {loadingNotifications ? (
                       <View style={{ paddingVertical: 40, justifyContent: 'center', alignItems: 'center' }}>
@@ -793,7 +770,7 @@ export default function DashboardScreen() {
                         </View>
                         <Text style={styles.emptyNotifTitle}>All caught up</Text>
                         <Text style={styles.emptyNotifBody}>
-                          Follow users, join events, or shortlist businesses to receive real-time updates here.
+                          Join or host an event and your updates will show up here.
                         </Text>
                       </View>
                     ) : (
@@ -1482,7 +1459,6 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   modalCloseBtnText: { color: colors.deepSlate, fontFamily: 'Outfit_800ExtraBold', fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
 
   // ── Join Event Modal Specific ──
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   form: { gap: 16 },
   inputGroup: { gap: 8 },
   inputLabel: { fontSize: 13, color: colors.gold, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 0.5 },

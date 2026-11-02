@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
@@ -9,7 +8,7 @@ import { getUserEventCount, getUserTotalStorage, getUserBusinesses } from '@/lib
 import { getPlanDetails, getUsagePercent } from '@/lib/planLimits';
 import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 import { supabase } from '@/lib/supabase';
-import { EveBashLogoBadge } from '@/components/EveBashLogo';
+import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
 import { APP_VERSION } from '@/lib/appVersion';
 
 const { width } = Dimensions.get('window');
@@ -151,28 +150,21 @@ export default function UsageScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
-      <LinearGradient
-        colors={['#1B211F', '#13191F']}
-        style={styles.header}
-      >
-        <View style={styles.headerRow}>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
+      <TabScreenHeader
+        title="Plan & Usage"
+        left={
+          <HeaderAction
             onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
-            style={styles.backButton}
+            accessibilityLabel="Back"
           >
             <IconSymbol name="chevron.left" size={24} color="#CA9C68" />
-          </TouchableOpacity>
-          <View style={styles.headingLogoRow}>
-            <EveBashLogoBadge />
-            <Text style={styles.headerTitle}>Plan & Usage</Text>
-          </View>
-          <View style={{ width: 40 }} />
-        </View>
-      </LinearGradient>
+          </HeaderAction>
+        }
+      />
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
@@ -314,45 +306,13 @@ export default function UsageScreen() {
         </View>
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#13191F' },
   container: { flex: 1 },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 24,
-    alignItems: 'center',
-    borderBottomWidth: 1.5,
-    borderBottomColor: 'rgba(202, 156, 104, 0.2)',
-  },
-  headerTitle: {
-    fontSize: 28,
-    lineHeight: 38,
-    fontFamily: 'Inter_700Bold',
-    color: '#CDB89E',
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    includeFontPadding: false,
-  },
-  headingLogoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 38 },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
   planCard: {
     backgroundColor: '#1B211F',
     marginHorizontal: 24,

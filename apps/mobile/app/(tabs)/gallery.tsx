@@ -33,7 +33,7 @@ import { MidnightColors, Fonts } from '../../constants/theme';
 import { EventGrid, getEventGridCardWidth } from '../../constants/layout';
 import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory, isTemplateHidden } from '../../constants/templates';
 import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
-import { BottomSheet } from '@/components/ui/BottomSheet';
+import { BottomSheet, BottomSheetHeader } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -1235,15 +1235,13 @@ export default function PortfolioTabScreen() {
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.createForm}
             >
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>New Event</Text>
-                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => {
+              <BottomSheetHeader
+                title="New Event"
+                onClose={() => {
                   setShowCreateDatePicker(false);
                   setCreateModalVisible(false);
-                }}>
-                  <IconSymbol name={"xmark.circle.fill" as any} size={24} color={colors.slate400} />
-                </TouchableOpacity>
-              </View>
+                }}
+              />
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Event Name</Text>

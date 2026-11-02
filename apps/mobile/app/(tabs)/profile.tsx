@@ -426,7 +426,11 @@ export default function ProfileScreen() {
   if (!user) return null;
 
   const planDetails = getPlanDetails(user.role);
-  const personas = getPersonasArray(user.persona);
+  const savedPersonas = getPersonasArray(user.persona);
+  // Someone who hosts events shows as a host, whatever was saved (display only: the edit form still shows the saved value)
+  const personas = activityStats.eventsOrganized > 0 && !savedPersonas.includes('Host / Organizer')
+    ? ['Host / Organizer', ...savedPersonas.filter((item) => item !== 'Guest')]
+    : savedPersonas;
   const optionalProfileFields: { label: string; value?: string; icon: IconSymbolName; short: string }[] = [
     { label: 'Location', value: user.location, icon: 'mappin.and.ellipse', short: 'location' },
     { label: 'Gender', value: user.gender, icon: 'person.fill', short: 'gender' },
@@ -627,8 +631,8 @@ export default function ProfileScreen() {
               <View style={styles.infoTextContainer}>
                 <Text style={styles.infoLabel}>I am a</Text>
                 <View style={styles.badgeRow}>
-                  {getPersonasArray(user.persona).length > 0 ? (
-                    getPersonasArray(user.persona).map((item) => (
+                  {personas.length > 0 ? (
+                    personas.map((item) => (
                       <View key={item} style={styles.badgePill}>
                         <Text style={styles.badgeText}>{item}</Text>
                       </View>

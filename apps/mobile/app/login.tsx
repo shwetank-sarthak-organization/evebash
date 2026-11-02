@@ -576,20 +576,17 @@ const styles = StyleSheet.create({
   passwordRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  passwordInput: {
-    flex: 1,
-    borderTopRightRadius: 0,
-    borderBottomRightRadius: 0,
-    borderRightWidth: 0,
-  },
-  eyeBtn: {
     backgroundColor: '#FFF7EB',
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderLeftWidth: 0,
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
+    borderRadius: 14,
+  },
+  passwordInput: {
+    flex: 1,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+  },
+  eyeBtn: {
     paddingHorizontal: 14,
     paddingVertical: 14,
     alignItems: 'center',

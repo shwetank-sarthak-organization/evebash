@@ -3,6 +3,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, Touc
 import { Image as ExpoImage } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { MidnightColors } from '@/constants/theme';
 import { getGalleryVideos, type Event, type Photo } from '@/lib/database';
 import { HighlightPlayer } from './GalleryHighlightVideo';
 
@@ -74,7 +75,7 @@ function GalleryVideoChooser({ videos, currentId, onChoose, onClose }: {
         <View style={local.sheetHeader}>
           <Text style={local.sheetTitle}>Choose the cinematic highlight video</Text>
           <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" hitSlop={10}>
-            <IconSymbol name="xmark" size={18} color="#cbd5e1" />
+            <IconSymbol name="xmark" size={18} color={MidnightColors.slate300} />
           </TouchableOpacity>
         </View>
         <Text style={local.sheetSub}>Videos uploaded to this gallery, newest first.</Text>
@@ -226,31 +227,31 @@ export function GalleryVideoPanel({ gallery, canUpload, uploading, onUpload, onC
 }
 
 const local = StyleSheet.create({
-  panel: { marginBottom: 24, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(202,156,104,0.55)', backgroundColor: 'rgba(2,6,23,0.4)', padding: 16 },
+  panel: { marginBottom: 24, borderRadius: 16, borderWidth: 1, borderColor: MidnightColors.border, backgroundColor: 'rgba(255,255,255,0.05)', padding: 16 },
   title: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  sub: { color: '#94a3b8', fontSize: 12, lineHeight: 18, marginTop: 4, marginBottom: 14 },
-  thumb: { width: '100%', aspectRatio: 16 / 9, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(202,156,104,0.45)', backgroundColor: '#0f172a' },
+  sub: { color: MidnightColors.slate400, fontSize: 12, lineHeight: 18, marginTop: 4, marginBottom: 14 },
+  thumb: { width: '100%', aspectRatio: 16 / 9, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(202,156,104,0.45)', backgroundColor: MidnightColors.surface },
   hiddenBadge: { position: 'absolute', left: 8, top: 8, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.75)', paddingHorizontal: 8, paddingVertical: 2 },
   hiddenBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
-  processingBadge: { position: 'absolute', bottom: 8, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: 'rgba(2,6,23,0.85)', paddingHorizontal: 10, paddingVertical: 4 },
+  processingBadge: { position: 'absolute', bottom: 8, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.75)', paddingHorizontal: 10, paddingVertical: 4 },
   processingText: { color: '#F5E7D4', fontSize: 11, fontWeight: '600' },
   playOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   playButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(202,156,104,0.92)', alignItems: 'center', justifyContent: 'center', paddingLeft: 3 },
-  status: { color: '#cbd5e1', fontSize: 13, lineHeight: 19, textAlign: 'left' },
+  status: { color: MidnightColors.slate300, fontSize: 13, lineHeight: 19, textAlign: 'left' },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   button: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(202,156,104,0.45)', paddingHorizontal: 14, paddingVertical: 9 },
   buttonText: { fontSize: 13, fontWeight: '700' },
   empty: { alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(202,156,104,0.4)', paddingHorizontal: 12, paddingVertical: 20 },
-  note: { color: '#64748b', fontSize: 11, textAlign: 'center' },
+  note: { color: MidnightColors.slate600, fontSize: 11, textAlign: 'center' },
   uploading: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
   uploadingText: { flex: 1, color: '#E2B77F', fontSize: 12, lineHeight: 17 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet: { maxHeight: '75%', backgroundColor: '#0b1120', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderColor: 'rgba(202,156,104,0.35)', paddingHorizontal: 16, paddingTop: 16 },
+  sheet: { maxHeight: '75%', backgroundColor: MidnightColors.deepSlate, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderColor: 'rgba(202,156,104,0.35)', paddingHorizontal: 16, paddingTop: 16 },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   sheetTitle: { flex: 1, color: '#fff', fontSize: 16, fontWeight: '700' },
-  sheetSub: { color: '#94a3b8', fontSize: 12, marginTop: 4, marginBottom: 12 },
+  sheetSub: { color: MidnightColors.slate400, fontSize: 12, marginTop: 4, marginBottom: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: 8 },
   gridItem: { width: '48%', borderRadius: 14, padding: 4 },
   gridItemCurrent: { backgroundColor: 'rgba(202,156,104,0.25)', borderWidth: 2, borderColor: GOLD },
-  gridLabel: { color: '#cbd5e1', fontSize: 11, marginTop: 6, paddingHorizontal: 2 },
+  gridLabel: { color: MidnightColors.slate300, fontSize: 11, marginTop: 6, paddingHorizontal: 2 },
 });
