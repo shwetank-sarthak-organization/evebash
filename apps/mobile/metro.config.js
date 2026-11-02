@@ -1,10 +1,11 @@
 const path = require('node:path');
-const { getDefaultConfig } = require('expo/metro-config');
+const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, '../..');
 
-const config = getDefaultConfig(projectRoot);
+// Expo's default config plus debug ids, which match Sentry errors to their uploaded source maps
+const config = getSentryExpoConfig(projectRoot);
 // The website and native apps bundle the same policy content.
 config.watchFolders = [...new Set([
   ...(config.watchFolders || []),

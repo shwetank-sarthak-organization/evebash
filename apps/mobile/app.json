@@ -112,6 +112,14 @@
       ],
       "expo-sharing",
       [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "organization": "evebash",
+          "project": "react-native"
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "ios": {
@@ -135,7 +143,7 @@
     },
     "owner": "elnino_009",
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "fingerprint"
     },
     "updates": {
       "url": "https://u.expo.dev/c56e7efd-1e46-4243-a77c-bff834914615"
