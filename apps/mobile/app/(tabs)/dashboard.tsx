@@ -31,7 +31,7 @@ import {
   requestGalleryAccess,
   getGalleryRequestStatus,
 } from '@/lib/database';
-import { subscribeToUploadQueue, UploadQueueItem } from '@/lib/uploadQueue';
+import { subscribeToUploadQueue, UploadQueueItem, WAITING_FOR_CONNECTION } from '@/lib/uploadQueue';
 import { markStartup } from '@/lib/startupTiming';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -146,10 +146,13 @@ function buildUploadQueueNotification(queueItems: UploadQueueItem[]): any {
   const overallPercentage = total > 0 ? progressSum / (total * 100) * 100 : 0;
 
   if (active.length > 0) {
+    const waiting = active.every(i => i.status === 'pending' && i.error === WAITING_FOR_CONNECTION);
     return {
       id: 'upload-active',
-      title: 'Uploading Media',
-      body: `Uploading: ${completedCount}/${total} files (${Math.round(overallPercentage)}%)`,
+      title: 'Uploading',
+      body: waiting
+        ? `Waiting for connection: ${completedCount} of ${total} uploaded. Tap to cancel.`
+        : `${completedCount} of ${total} uploaded (${Math.round(overallPercentage)}%). Tap to cancel.`,
       createdAt: new Date(),
       type: 'upload_progress',
       targetId: 'upload_queue'
@@ -158,7 +161,7 @@ function buildUploadQueueNotification(queueItems: UploadQueueItem[]): any {
   if (processing.length > 0) {
     return {
       id: 'upload-processing',
-      title: 'Processing Media',
+      title: 'Getting files ready',
       body: `Preparing ${processing.length} ${processing.length === 1 ? 'file' : 'files'}...`,
       createdAt: new Date(),
       type: 'upload_processing',
@@ -168,8 +171,8 @@ function buildUploadQueueNotification(queueItems: UploadQueueItem[]): any {
   if (failed.length > 0) {
     return {
       id: 'upload-failed',
-      title: 'Some Uploads Failed',
-      body: `Succeeded: ${completedCount}, Failed: ${failed.length}. Tap to retry.`,
+      title: "Some files didn't upload",
+      body: `${completedCount} uploaded, ${failed.length} didn't. Tap to retry.`,
       createdAt: new Date(),
       type: 'upload_failed',
       targetId: 'upload_queue'

@@ -24,7 +24,7 @@ import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../.
 import * as ImagePicker from 'expo-image-picker';
 import { uploadEventImage, uploadEventMedia } from '@/lib/storage';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { subscribeToUploadQueue, addToUploadQueue, retryUploadItem, cancelUploadItem, clearFinishedUploads, resetUploadQueue, UploadQueueItem } from '@/lib/uploadQueue';
+import { subscribeToUploadQueue, addToUploadQueue, retryUploadItem, cancelUploadItem, clearFinishedUploads, resetUploadQueue, UploadQueueItem, WAITING_FOR_CONNECTION, uploadErrorMessage } from '@/lib/uploadQueue';
 import { validateVideoAsset } from '@/lib/videoValidation';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -849,6 +849,9 @@ export default function EventDetailScreen() {
   // Otherwise, we default to the premium Visitor view.
   const [isAdminViewActive, setIsAdminViewActive] = useState(mode === 'admin');
   const showAdminView = isAdminViewActive && canManageEvent;
+  // Read by the upload-queue listener, which is set up once per gallery
+  const showAdminViewRef = React.useRef(showAdminView);
+  showAdminViewRef.current = showAdminView;
 
   // Theme colors are intentionally FIXED to the light palette for the visitor event view —
   // the selected template must look the same regardless of the device OS dark/light setting.
@@ -2363,12 +2366,21 @@ export default function EventDetailScreen() {
       prevActiveCountRef.current = activeItems.length;
 
       if (prevActiveCount > 0 && activeItems.length === 0) {
-        if (failedItems.length > 0) {
-          setShowUploadFailedModal(true);
-        } else if (completedItems.length > 0) {
-          setShowUploadCompleteModal(true);
+        if (showAdminViewRef.current) {
+          // Host view: the progress card keeps failed files (with Retry and Dismiss); success is a short toast
+          if (failedItems.length === 0 && completedItems.length > 0) {
+            const noun = completedItems.every(i => i.mediaType === 'video') ? 'video' : completedItems.every(i => i.mediaType === 'photo') ? 'photo' : 'file';
+            showToast(`${completedItems.length} ${noun}${completedItems.length === 1 ? '' : 's'} uploaded`);
+            clearFinishedUploads();
+          }
+        } else {
+          if (failedItems.length > 0) {
+            setShowUploadFailedModal(true);
+          } else if (completedItems.length > 0) {
+            setShowUploadCompleteModal(true);
+          }
+          clearFinishedUploads();
         }
-        clearFinishedUploads();
         completedIdsRef.current = [];
       }
 
@@ -3069,6 +3081,8 @@ export default function EventDetailScreen() {
 
     const total = uploadQueue[0]?.batchTotal || uploadQueue.length;
     const completed = uploadQueue.filter(i => i.status === 'completed').length;
+    const noun = uploadQueue.every(i => i.mediaType === 'video') ? 'videos' : uploadQueue.every(i => i.mediaType === 'photo') ? 'photos' : 'files';
+    const waitingForConnection = active.some(i => i.status === 'pending' && i.error === WAITING_FOR_CONNECTION);
     const currentUploading = uploadQueue.find(
       i => i.status === 'uploading' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation'
     );
@@ -3085,21 +3099,25 @@ export default function EventDetailScreen() {
     const bottomPosition = showAdminView ? 70 + insets.bottom : 20 + insets.bottom;
 
     return (
-      <View style={[localStyles.progressCard, { bottom: bottomPosition, backgroundColor: selectedTemplate.panel, borderColor: selectedTemplate.accentBg }]}>
+      <View style={[localStyles.progressCard, { bottom: bottomPosition, backgroundColor: MidnightColors.deepSlate, borderColor: MidnightColors.border }]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flex: 1, marginRight: 8 }}>
             <Text style={localStyles.progressCardTitle}>
               {isProcessingOnly
-                ? `Processing Media (${total} files)`
+                ? `Getting your ${noun} ready`
                 : active.length > 0
-                  ? `Uploading Media (${completed}/${total})`
-                  : 'Some Uploads Failed'}
+                  ? `Uploading ${noun} (${completed} of ${total})`
+                  : `${failed.length} ${failed.length === 1 ? noun.replace(/s$/, '') : noun} didn't upload`}
             </Text>
             {isProcessingOnly ? (
               <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
                 {active.every(i => i.mediaType === 'video')
                   ? `Preparing ${active.length > 1 ? 'videos' : 'video'} for playback...`
-                  : `AI face indexing and thumbnail generation... (${Math.round(overallPercent)}%)`}
+                  : `You can leave this screen · ${Math.round(overallPercent)}%`}
+              </Text>
+            ) : waitingForConnection && !currentUploading ? (
+              <Text style={localStyles.progressCardSubtitle} numberOfLines={2}>
+                Waiting for connection. Uploads carry on when you're back online.
               </Text>
             ) : currentUploading ? (
               <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
@@ -3117,12 +3135,12 @@ export default function EventDetailScreen() {
             {failed.length > 0 && (
               <TouchableOpacity
                 onPress={() => {
-                  const errors = failed.map(item => `${item.fileName}: ${item.error || 'Unknown error'}`).join('\n\n');
-                  appAlert('Upload Details', errors);
+                  const errors = failed.map(item => `${item.fileName}: ${uploadErrorMessage(item.error)}`).join('\n\n');
+                  appAlert("Why it didn't upload", errors);
                 }}
               >
-                <Text style={[localStyles.progressCardSubtitle, { color: '#f87171', textDecorationLine: 'underline' }]}>
-                  {failed.length} upload(s) failed. (Tap to view details)
+                <Text style={[localStyles.progressCardSubtitle, { color: MidnightColors.dangerSoft, textDecorationLine: 'underline' }]}>
+                  {active.length > 0 ? `${failed.length} didn't upload. ` : ''}Tap to see why
                 </Text>
               </TouchableOpacity>
             )}
@@ -3145,12 +3163,12 @@ export default function EventDetailScreen() {
               onPress={async () => {
                 if (active.length > 0) {
                   appAlert(
-                    "Cancel Uploads",
-                    "Are you sure you want to cancel all ongoing uploads?",
+                    "Cancel uploads?",
+                    "Files that haven't finished uploading won't be sent.",
                     [
-                      { text: "No", style: "cancel" },
+                      { text: "Keep uploading", style: "cancel" },
                       {
-                        text: "Yes, Cancel All",
+                        text: "Cancel uploads",
                         style: "destructive",
                         onPress: async () => {
                           await resetUploadQueue();
@@ -3163,7 +3181,7 @@ export default function EventDetailScreen() {
                 }
               }}
             >
-              <Text style={{ color: '#cbd5e1', fontSize: 11, fontWeight: 'bold' }}>
+              <Text style={{ color: MidnightColors.slate300, fontSize: 11, fontWeight: 'bold' }}>
                 {active.length > 0 ? 'Cancel' : 'Dismiss'}
               </Text>
             </TouchableOpacity>
@@ -3172,7 +3190,7 @@ export default function EventDetailScreen() {
 
         {/* Progress Bar */}
         <View style={localStyles.progressBarBg}>
-          <View style={[localStyles.progressBarFill, { width: `${overallPercent}%`, backgroundColor: selectedTemplate.accent }]} />
+          <View style={[localStyles.progressBarFill, { width: `${overallPercent}%`, backgroundColor: MidnightColors.gold }]} />
         </View>
       </View>
     );
@@ -5439,7 +5457,7 @@ export default function EventDetailScreen() {
                           >
                             <IconSymbol name="plus" size={13} color={MidnightColors.gold} />
                             <Text style={{ color: MidnightColors.gold, fontSize: 12, fontWeight: '600' }}>
-                              {galleryMediaTab === 'videos' ? 'Add Video' : 'Add Photo'}
+                              {galleryMediaTab === 'videos' ? 'Add Videos' : 'Add Photos'}
                             </Text>
                           </TouchableOpacity>}
                         </View>
@@ -5600,7 +5618,7 @@ export default function EventDetailScreen() {
                           <Text style={{ color: MidnightColors.slate400, marginTop: 10, fontSize: 14 }}>
                             {isFavouriteFilterActive
                               ? `No favourite ${galleryMediaTab === 'videos' ? 'videos' : 'photos'} in this gallery yet.`
-                              : galleryMediaTab === 'videos' ? 'No videos yet. Tap Add Video!' : 'No photos yet. Tap Add Photo!'}
+                              : galleryMediaTab === 'videos' ? 'No videos yet. Tap Add Videos.' : 'No photos yet. Tap Add Photos.'}
                           </Text>
                         </View>
                       ) : galleryMediaTab === 'videos' ? (
@@ -8667,7 +8685,8 @@ export default function EventDetailScreen() {
         </View>
       )}
 
-      {/* ── UPLOAD PROGRESS CARD OVERLAY (Managed in Dashboard Notifications Modal) ── */}
+      {/* ── UPLOAD PROGRESS CARD (host view; guest pages keep their own pop-ups) ── */}
+      {showAdminView && renderUploadProgressCard()}
 
       {/* ── CUSTOM THEME-STYLED UPLOAD COMPLETE MODAL ── */}
       <Modal

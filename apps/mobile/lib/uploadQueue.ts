@@ -40,6 +40,23 @@ function waitForConnection(): Promise<void> {
   return connectionWait;
 }
 
+/** Set as an item's error while it waits for the phone to get a connection back (#144) */
+export const WAITING_FOR_CONNECTION = 'Waiting for connection';
+
+/**
+ * What to tell people about a failed upload. item.error keeps the technical reason for logs and the startup
+ * clean-up; this turns it into plain words. Plan-limit messages come from the server already written for people.
+ */
+export function uploadErrorMessage(error?: string): string {
+  const text = error || '';
+  if (/no longer on the device|deleted from device/i.test(text)) return 'This file is no longer on your phone. Pick it again to upload it.';
+  if (/does not exist|foreign key/i.test(text)) return 'This gallery no longer exists, so the file was not uploaded.';
+  if (/could not be processed/i.test(text)) return text;
+  if (/storage|plan/i.test(text) && !/B2|server/i.test(text)) return text;
+  if (NETWORK_ERROR.test(text)) return 'The connection dropped. Tap Retry to try again.';
+  return "This file didn't upload. Tap Retry to try again.";
+}
+
 // The server refused an upload because of the gallery owner's plan (storage full or plan expired).
 // Retrying can't help, so the item fails at once; the reason is shown once per minute, not once per file.
 const PLAN_LIMIT_CODES = new Set(['storage_full', 'plan_expired']);
@@ -703,7 +720,7 @@ async function uploadWorker(item: UploadQueueItem) {
           target.status = 'pending';
           target.progress = 0;
           target.storageKey = undefined; // Fresh upload URL once back online
-          target.error = 'Waiting for connection';
+          target.error = WAITING_FOR_CONNECTION;
         }
       });
       await waitForConnection();
@@ -1413,14 +1430,18 @@ async function performNotificationUpdate() {
     const displayName = fileName.length > 20 ? `${fileName.substring(0, 17)}...` : fileName;
     const filePercent = Math.round(currentItem?.progress || 0);
 
-    if (batchTotal > 1) {
+    if (currentItem?.error === WAITING_FOR_CONNECTION) {
+      bodyText = batchTotal > 1
+        ? `Waiting for connection • ${uploadedCount} of ${batchTotal} uploaded`
+        : 'Waiting for connection';
+    } else if (batchTotal > 1) {
       bodyText = `Uploading ${currentIndex} of ${batchTotal} • ${displayName} (${filePercent}%)`;
     } else {
       bodyText = `${displayName} (${filePercent}%)`;
     }
   } else {
     // ── PROCESSING & AI INDEXING PHASE (Google Drive style) ──
-    title = batchTotal > 1 ? `Processing ${batchTotal} files` : 'Processing 1 file';
+    title = batchTotal > 1 ? `Preparing ${batchTotal} files` : 'Preparing 1 file';
     const indexingData = lastIndexingStatus.get(currentEventId);
     const processingItems = currentBatchItems.filter(i => i.status === 'processing');
 
@@ -1431,10 +1452,10 @@ async function performNotificationUpdate() {
         : 'Preparing video for playback...';
     } else if (indexingData && indexingData.total > 0) {
       subtitle = `${indexingData.percentComplete}%`;
-      bodyText = `AI Face Indexing: ${indexingData.indexed} of ${indexingData.total} (${indexingData.percentComplete}%)`;
+      bodyText = `Getting photos ready: ${indexingData.indexed} of ${indexingData.total}`;
     } else {
       subtitle = 'Processing';
-      bodyText = `Processing photos and indexing faces... (${overallPercentage}%)`;
+      bodyText = `Getting your photos ready... (${overallPercentage}%)`;
     }
   }
 
@@ -1446,7 +1467,7 @@ async function performNotificationUpdate() {
         subtitle,
         body: bodyText,
         sound: false,
-        color: '#CCA43B',
+        color: '#CA9C68',
         sticky: true,
         autoDismiss: false,
         android: {
@@ -1482,8 +1503,8 @@ async function notifyQueueDrained() {
         await Notifications.scheduleNotificationAsync({
           identifier: PROGRESS_NOTIFICATION_ID,
           content: {
-            title: 'Upload finished with issues',
-            body: `${succeeded.length} uploaded, ${failed.length} failed. Tap to retry.`,
+            title: "Some files didn't upload",
+            body: `${succeeded.length} uploaded, ${failed.length} didn't. Open the gallery to retry.`,
             sound: true,
             sticky: false,
             autoDismiss: true,
