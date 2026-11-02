@@ -3773,6 +3773,8 @@ Detail:    Branch feat/sentry-crash-reporting. Env vars: NEXT_PUBLIC_SENTRY_DSN 
            NEXT_PUBLIC_SENTRY_ENVIRONMENT=staging) on Vercel evebash-staging, SENTRY_DSN (+ SENTRY_ENVIRONMENT=staging)
            on Railway evebash-api-staging-backend, EXPO_PUBLIC_SENTRY_DSN in the EAS "staging" profile.
            The app part has native code: it needs a NEW staging build (an OTA update to an old build does nothing).
+           2026-11-02 (issue #186): the EAS production profile now sets the DSN too, so production app builds report
+           errors, and app builds upload source maps once SENTRY_AUTH_TOKEN is an EAS secret. Website production is unchanged.
 How to test:
   1. Website: open staging.evebash.com, use it normally for a minute (log in, open a gallery). Expect: works
      exactly as before. In Sentry (project evebash-web / Next.js) nothing new unless something broke.
@@ -3785,8 +3787,9 @@ How to test:
   5. App: turn on airplane mode mid-upload and back off. Expect: upload behaves as before (test #143).
   6. Backend: after SENTRY_DSN is set on Railway staging, the deploy log shows "Sentry error reporting on"
      and the API still answers /health.
-  7. Production website and production app build: Expect: no requests to "ingest.us.sentry.io" in the
-     network tab (Sentry is off there).
+  7. Production website: Expect: no requests to "ingest.us.sentry.io" in the network tab (Sentry is off there).
+  8. App: once SENTRY_AUTH_TOKEN is an EAS secret, open an app error in Sentry from a build made after that.
+     Expect: real file and function names, not minified code. In the EAS build log, expect no "sentry-cli" failure.
 Done by:
 Device / browser:
 Build / version:

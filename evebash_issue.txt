@@ -1213,34 +1213,13 @@ How to reproduce: On a low-memory phone, open a gallery with 1,000+ photos in Mi
 Listed: 2026-11-01
 Platform: App
 Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: SENTRY_AUTH_TOKEN as an EAS secret (Sarthak), then a new EAS staging build
 Found in: App crash audit (chat 2026-11-01)
 Issue: Production builds won't report crashes, so launch-day crashes would be invisible. apps/mobile/lib/sentry.ts only starts when EXPO_PUBLIC_SENTRY_DSN is set; apps/mobile/eas.json sets it only in the staging profile, and the EAS production environment has just three variables (Supabase URL, Supabase key, Google iOS client ID). The rest of todo #6 is also still open: no Sentry Expo plugin or SENTRY_AUTH_TOKEN, so stack traces stay minified and native crashes unreadable. The only EAS build listed (Android staging, versionCode 25, 2026-10-12, commit b1f34f8) is older than Sentry, so Sentry has no app data yet. Fix: set the DSN and EXPO_PUBLIC_SENTRY_ENVIRONMENT=production for the production profile, add the plugin and auth token, make a new staging build, run device test #145.
 How to reproduce: Read apps/mobile/eas.json (build.production has no env block) and run: eas env:list --environment production --format short
-
-#187
-Listed: 2026-11-01
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: App crash audit (chat 2026-11-01)
-Issue: Voice notes can't be recorded on Android. apps/mobile/app.json sets "recordAudioAndroid": false under the expo-camera plugin, which blocks android.permission.RECORD_AUDIO for the whole app, and that beats expo-audio's own request for it (npx expo config --type introspect shows RECORD_AUDIO with tools:node="remove"). apps/mobile/components/album/VoiceNote.tsx can then only get "denied", so the host is told to allow the microphone in Settings, where the app has no microphone switch. Not a crash, and not run on a device (device test #117 is still TODO). Related hazard: the local apps/mobile/ios folder is older than voice notes (Info.plist from 2026-10-12, and the 2026-10-28 simulator build, have no NSMicrophoneUsageDescription), so iOS would close a build made from that folder when it asks for the microphone. EAS builds regenerate the folder and do include the text. Fix: remove "recordAudioAndroid": false (needs a new build); run npx expo prebuild --clean before testing voice notes from a local build.
-How to reproduce: On Android, in an album page comment, tap Record a voice note. Expect (today): no microphone prompt, and the "Allow microphone access in Settings" message.
-
-#188
-Listed: 2026-11-01
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: App crash audit (chat 2026-11-01)
-Issue: Over-the-air updates can crash older builds at launch. apps/mobile/app.json uses runtimeVersion policy "appVersion", and the version stays 1.2.4 across native changes: since the 2026-10-12 EAS build, @sentry/react-native, expo-audio and expo-updates were all added with no version bump. An update reaches every build with the same version, so code that imports a native module missing from an older build fails at startup. Sentry and expo-audio are guarded by hand (lib/sentry.ts, lib/voiceNotes.ts), but nothing protects the next one. Nothing is affected today: no update has been published and the only EAS build has no expo-updates. Fix: switch to runtimeVersion policy "fingerprint" before the first store upload.
-How to reproduce: Not run. Add a native module without changing the version, publish an update, open it on an older build of the same version: expect a crash at launch.
+Note 2026-11-02: Fix on staging in dee60da. apps/mobile/eas.json: the production profile now sets EXPO_PUBLIC_SENTRY_DSN (same Sentry project as staging) and EXPO_PUBLIC_SENTRY_ENVIRONMENT=production. apps/mobile/app.json: @sentry/react-native/expo plugin (org evebash, project react-native; those names come from the 2026-10-26 setup and weren't checked against Sentry). apps/mobile/metro.config.js: getSentryExpoConfig, which adds the debug ids that match errors to source maps. SENTRY_ALLOW_FAILURE=true in both profiles, because a missing token otherwise fails the build: tested, sentry-cli exits 1 without it and 0 with it, and the step that bundles the app still runs. A clean prebuild wires Sentry into both platforms, iOS and Android bundles built with debug ids, and the iOS bundle started on the simulator. Still needed: SENTRY_AUTH_TOKEN as an EAS secret; until then builds pass but upload nothing, so stack traces stay minified. No native build was run, so the upload itself is unproven until the next EAS build (device test #145). Over-the-air updates need their own upload: npx sentry-expo-upload-sourcemaps dist.
 
 #189
 Listed: 2026-11-01
@@ -1278,6 +1257,32 @@ How to reproduce: Not run. Tap a chat or enquiry push: expect the Unmatched Rout
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#188
+Listed: 2026-11-01
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: Over-the-air updates can crash older builds at launch. apps/mobile/app.json uses runtimeVersion policy "appVersion", and the version stays 1.2.4 across native changes: since the 2026-10-12 EAS build, @sentry/react-native, expo-audio and expo-updates were all added with no version bump. An update reaches every build with the same version, so code that imports a native module missing from an older build fails at startup. Sentry and expo-audio are guarded by hand (lib/sentry.ts, lib/voiceNotes.ts), but nothing protects the next one. Nothing is affected today: no update has been published and the only EAS build has no expo-updates. Fix: switch to runtimeVersion policy "fingerprint" before the first store upload.
+How to reproduce: Not run. Add a native module without changing the version, publish an update, open it on an older build of the same version: expect a crash at launch.
+Note 2026-11-02: runtimeVersion policy is now fingerprint. New apps/mobile/fingerprint.config.js keeps the version and build number out of the fingerprint, because EAS raises the build number on every production build and updates would otherwise miss builds. Tested in a clean copy: same result twice; changing the version and build number keeps it; without the config file they change it; a plugin change changes it. Each platform has its own fingerprint. If a Mac and EAS ever disagree, an update just doesn't reach that build (no crash), and eas fingerprint:compare shows why.
+Fixed in: dee60da (2026-11-02). Reaches phones with the next new build; no device test needed.
+
+#187
+Listed: 2026-11-01
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: Voice notes can't be recorded on Android. apps/mobile/app.json sets "recordAudioAndroid": false under the expo-camera plugin, which blocks android.permission.RECORD_AUDIO for the whole app, and that beats expo-audio's own request for it (npx expo config --type introspect shows RECORD_AUDIO with tools:node="remove"). apps/mobile/components/album/VoiceNote.tsx can then only get "denied", so the host is told to allow the microphone in Settings, where the app has no microphone switch. Not a crash, and not run on a device (device test #117 is still TODO). Related hazard: the local apps/mobile/ios folder is older than voice notes (Info.plist from 2026-10-12, and the 2026-10-28 simulator build, have no NSMicrophoneUsageDescription), so iOS would close a build made from that folder when it asks for the microphone. EAS builds regenerate the folder and do include the text. Fix: remove "recordAudioAndroid": false (needs a new build); run npx expo prebuild --clean before testing voice notes from a local build.
+How to reproduce: On Android, in an album page comment, tap Record a voice note. Expect (today): no microphone prompt, and the "Allow microphone access in Settings" message.
+Note 2026-11-02: Not a bug; this entry was wrong. npx expo config --type introspect reads the old local apps/mobile/android folder, which still removes RECORD_AUDIO from when the microphone was off. A clean npx expo prebuild, which is what EAS runs, has RECORD_AUDIO in the manifest with no app.json change: expo-audio and expo-image-picker add it, and "recordAudioAndroid": false on expo-camera only stops that one plugin adding it. Not run on a device; device test #117 covers it. The related hazard stands: a build made from the old local android or ios folder has no microphone access, so run npx expo prebuild --clean before testing voice notes from a local build.
+Fixed in: no code change needed (2026-11-02).
+
 #192
 Listed: 2026-11-01
 Platform: App
