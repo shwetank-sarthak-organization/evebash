@@ -2,7 +2,47 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Mail, Phone, MapPin } from "lucide-react";
+import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Youtube } from "lucide-react";
+import { playfair } from "@/app/fonts";
+import { EveBashLogo } from "@/components/EveBashLogo";
+import { cn } from "@/lib/utils";
+
+// Add each account's URL when it's ready; until then the icon shows but isn't a link.
+const socials: { label: string; icon: typeof Instagram; href?: string }[] = [
+    { label: "Instagram", icon: Instagram },
+    { label: "YouTube", icon: Youtube },
+    { label: "Facebook", icon: Facebook },
+    { label: "LinkedIn", icon: Linkedin },
+];
+
+const columns = [
+    {
+        title: "Product",
+        links: [
+            { label: "Find You", href: "/#find-you" },
+            { label: "Album proofing", href: "/#album-proofing" },
+            { label: "Gallery designs", href: "/#features" },
+            { label: "Sample galleries", href: "/sample-galleries" },
+            { label: "Pricing", href: "/pricing" },
+        ],
+    },
+    {
+        title: "Company",
+        links: [
+            { label: "EB Network", href: "/eb-network" },
+            { label: "Contact us", href: "/contact-us" },
+        ],
+    },
+    {
+        title: "Legal",
+        links: [
+            { label: "Privacy policy", href: "/privacy-policy" },
+            { label: "Terms and conditions", href: "/terms-and-conditions" },
+            { label: "Cancellation and refund", href: "/cancellation-refund-policy" },
+            { label: "Digital service delivery", href: "/digital-service-delivery-policy" },
+        ],
+    },
+];
 
 export default function Footer() {
     const pathname = usePathname();
@@ -38,117 +78,75 @@ export default function Footer() {
     }
 
     return (
-        <footer className="bg-[var(--site-bg)] text-[var(--site-muted)] pt-16 pb-8 border-t border-[var(--site-border)]">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-4">
-                    {/* Brand Section */}
-                    <div className="space-y-6">
-                        <Link href="/" className="inline-block">
-                            <h3 className="font-brand text-3xl font-normal tracking-wide text-[var(--site-text)] hover:text-[#CA9C68] transition-colors">
-                                EveBash
-                            </h3>
+        <footer className="relative bg-[var(--site-bg)] pb-8 pt-10 text-[var(--site-muted)] before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[linear-gradient(90deg,transparent,rgba(220,181,121,0.45),transparent)]">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-12 md:grid-cols-4 lg:grid-cols-[1.5fr_0.9fr_0.8fr_1.1fr_1.4fr]">
+                    {/* Brand, tagline and the main action */}
+                    <div className="col-span-2 lg:col-span-1">
+                        <Link href="/" className="group inline-flex h-10 items-center gap-3">
+                            <span className="rounded-xl border border-[#CA9C68]/35 bg-[#CA9C68]/10 p-2 transition-colors group-hover:border-[#CA9C68]/65">
+                                <EveBashLogo className="h-6 w-6 text-[#CA9C68]" aria-hidden="true" />
+                            </span>
+                            <span className="font-brand text-[1.75rem] leading-none tracking-wide text-[var(--site-text)] transition-colors group-hover:text-[#CA9C68]">EveBash</span>
                         </Link>
-                        <p className="text-[var(--site-muted)] leading-relaxed font-light text-base">
-                            An event media platform for photographers and event organizers.
-                            Upload, organize and share every event&apos;s photos and videos with your clients and guests.
+                        <p className={cn(playfair.className, "mt-4 max-w-xs text-base leading-snug text-[var(--site-text)]")}>
+                            One gallery for every moment of every event.
                         </p>
+                        <div className="mt-5 flex gap-2.5">
+                            {socials.map(({ label, icon: Icon, href }) => {
+                                const className = "flex h-9 w-9 items-center justify-center rounded-full border border-[#CA9C68]/30 text-[#DCB579] transition-colors";
+                                return href ? (
+                                    <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={`EveBash on ${label}`} className={cn(className, "hover:border-[#DCB579] hover:bg-[#CA9C68]/10")}>
+                                        <Icon className="h-4 w-4" aria-hidden />
+                                    </a>
+                                ) : (
+                                    <span key={label} title={`${label} coming soon`} aria-label={`${label}, coming soon`} role="img" className={className}>
+                                        <Icon className="h-4 w-4" aria-hidden />
+                                    </span>
+                                );
+                            })}
+                        </div>
                     </div>
 
-                    {/* Quick Links */}
-                    <div className="space-y-6 lg:pl-8">
-                        <h4 className="font-brand text-2xl text-[var(--site-text)] font-normal tracking-wide">Explore</h4>
-                        <ul className="space-y-3 text-base">
-                            <li>
-                                <Link href="/sample-galleries" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors flex items-center group">
-                                    <span className="w-1 h-1 rounded-full bg-[var(--site-muted)] mr-2 group-hover:bg-[#CA9C68] transition-colors"></span>
-                                    Sample Galleries
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="/pricing" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors flex items-center group">
-                                    <span className="w-1 h-1 rounded-full bg-[var(--site-muted)] mr-2 group-hover:bg-[#CA9C68] transition-colors"></span>
-                                    Pricing
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="/eb-network" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors flex items-center group">
-                                    <span className="w-1 h-1 rounded-full bg-[var(--site-muted)] mr-2 group-hover:bg-[#CA9C68] transition-colors"></span>
-                                    EB Network
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="/contact-us" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors flex items-center group">
-                                    <span className="w-1 h-1 rounded-full bg-[var(--site-muted)] mr-2 group-hover:bg-[#CA9C68] transition-colors"></span>
-                                    Contact Us
-                                </Link>
-                            </li>
-                        </ul>
-                    </div>
+                    {columns.map(({ title, links }) => (
+                        <div key={title}>
+                            <h4 className={cn(playfair.className, "flex h-10 items-center text-lg text-[var(--site-text)]")}>{title}</h4>
+                            <ul className="mt-4 space-y-2.5 text-sm">
+                                {links.map(({ label, href }) => (
+                                    <li key={label}>
+                                        <Link href={href} className="transition-colors hover:text-[#DCB579]">{label}</Link>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
 
-                    {/* Legal Links */}
-                    <div className="space-y-6">
-                        <h4 className="font-brand text-2xl text-[var(--site-text)] font-normal tracking-wide">Legal</h4>
-                        <ul className="space-y-3 text-base">
-                            <li>
-                                <Link href="/privacy-policy" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors flex items-center group">
-                                    <span className="w-1 h-1 rounded-full bg-[var(--site-muted)] mr-2 group-hover:bg-[#CA9C68] transition-colors"></span>
-                                    Privacy Policy
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="/terms-and-conditions" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors flex items-center group">
-                                    <span className="w-1 h-1 rounded-full bg-[var(--site-muted)] mr-2 group-hover:bg-[#CA9C68] transition-colors"></span>
-                                    Terms & Conditions
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="/cancellation-refund-policy" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors flex items-center group">
-                                    <span className="w-1 h-1 rounded-full bg-[var(--site-muted)] mr-2 group-hover:bg-[#CA9C68] transition-colors"></span>
-                                    Cancellation & Refund
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="/digital-service-delivery-policy" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors flex items-center group">
-                                    <span className="w-1 h-1 rounded-full bg-[var(--site-muted)] mr-2 group-hover:bg-[#CA9C68] transition-colors"></span>
-                                    Digital Service Delivery
-                                </Link>
-                            </li>
-                        </ul>
-                    </div>
-
-                    {/* Contact Info */}
-                    <div className="space-y-6">
-                        <h4 className="font-brand text-2xl text-[var(--site-text)] font-normal tracking-wide">Contact Us</h4>
-                        <div className="space-y-4 text-base">
-                            <div className="flex items-start">
-                                <MapPin className="w-4 h-4 text-[#CA9C68] mt-1 shrink-0" />
-                                <p className="ml-3">
-                                    Dehradun, Uttarakhand, India - 248001
-                                </p>
-                            </div>
-                            <div className="flex items-center">
-                                <Phone className="w-4 h-4 text-[#CA9C68] shrink-0" />
-                                <div className="ml-3">
-                                    <p><a href="tel:+919871264964" className="hover:text-[#CA9C68] transition-colors">+91 98712 64964</a></p>
-                                    <p><a href="tel:+918535029872" className="hover:text-[#CA9C68] transition-colors">+91 85350 29872</a></p>
+                    {/* Contact */}
+                    <div className="col-span-2 md:col-span-1">
+                        <h4 className={cn(playfair.className, "flex h-10 items-center text-lg text-[var(--site-text)]")}>Contact</h4>
+                        <div className="mt-4 space-y-3 text-sm">
+                            <p className="flex items-start gap-2.5">
+                                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#CA9C68]" aria-hidden />
+                                Dehradun, Uttarakhand, India 248001
+                            </p>
+                            <div className="flex items-start gap-2.5">
+                                <Phone className="mt-0.5 h-4 w-4 shrink-0 text-[#CA9C68]" aria-hidden />
+                                <div className="space-y-1">
+                                    <a href="tel:+919871264964" className="block whitespace-nowrap transition-colors hover:text-[#DCB579]">+91 98712 64964</a>
+                                    <a href="tel:+918535029872" className="block whitespace-nowrap transition-colors hover:text-[#DCB579]">+91 85350 29872</a>
                                 </div>
                             </div>
-                            <div className="flex items-center">
-                                <Mail className="w-4 h-4 text-[#CA9C68] shrink-0" />
-                                <a href="mailto:support@evebash.com" className="ml-3 hover:text-[#CA9C68] transition-colors">support@evebash.com</a>
-                            </div>
+                            <p className="flex items-start gap-2.5">
+                                <Mail className="mt-0.5 h-4 w-4 shrink-0 text-[#CA9C68]" aria-hidden />
+                                <a href="mailto:support@evebash.com" className="whitespace-nowrap transition-colors hover:text-[#DCB579]">support@evebash.com</a>
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                {/* Copyright */}
-                <div className="mt-16 pt-8 border-t border-[var(--site-border)] flex flex-col md:flex-row justify-between items-center bg-[var(--site-bg)]">
-                    <p className="text-sm text-[var(--site-muted)]">
-                        &copy; {new Date().getFullYear()} EveBash. All rights reserved.
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--site-muted)] md:mt-0">
-                        Designed with <span className="text-[#CA9C68]">♥</span>
-                    </p>
+                <div className="mt-10 flex flex-col items-center justify-between gap-2 border-t border-[var(--site-border)] pt-6 text-sm md:flex-row">
+                    <p>&copy; {new Date().getFullYear()} EveBash. All rights reserved.</p>
+                    <p>Made in India</p>
                 </div>
             </div>
         </footer>

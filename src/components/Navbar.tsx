@@ -105,9 +105,10 @@ export default function Navbar() {
                                 </Link>
                                 <Link
                                     href="/login?mode=signup"
+                                    data-nav-cta
                                     className="px-6 py-2.5 bg-[#CA9C68] text-[#13191F] text-[15px] font-bold rounded-full hover:bg-[#D7AE7D] transition-colors shadow-sm"
                                 >
-                                    Create event free
+                                    Create event
                                 </Link>
                             </div>
                         )}
@@ -192,9 +193,10 @@ export default function Navbar() {
                                 <Link
                                     href="/login?mode=signup"
                                     onClick={() => setIsOpen(false)}
+                                    data-nav-cta
                                     className="block w-full text-center px-4 py-3 bg-[#CA9C68] text-[#13191F] rounded-lg text-lg font-medium hover:bg-[#D7AE7D] transition-colors"
                                 >
-                                    Create event free
+                                    Create event
                                 </Link>
                                 <Link
                                     href="/login"

@@ -32,9 +32,9 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 20
+Next todo number: 21
 
-Last updated: 2026-10-28
+Last updated: 2026-11-02
 
 =====================================================================
 ACTIVE TODOS
@@ -541,6 +541,46 @@ Brief:        Today Cloudflare runs the evebash.com DNS and the worker evebash-m
               Railway API; Queues vs QStash; Pages vs Vercel for the website.
               Result: a short report in reports/ with a yes/no and cost for each idea, then new
               todos for the ones we pick.
+Done in:      -
+
+#20 Homepage motion pass (website)
+Listed:       2026-11-02
+Platform:     Website
+Priority:     Low
+Phase:        1 (v1 launch)
+Status:       In progress
+Effort:       S (step A); M with step B
+Suggested by: Sarthak (homepage rating vs samaro.ai, 2026-11-02)
+Discussed:    Yes
+Decision:     2026-11-02 Sarthak asked for a plan. Use framer-motion (already installed and already
+              loaded on the homepage by ScrollReveal); copy any motion-primitives ideas by hand, no
+              new package. 2026-11-02 Sarthak saw step A in a local preview and said keep it;
+              committed on the local branch preview/home-motion, not pushed yet. Same day he asked for
+              a bolder look: hero is now a self-playing gallery demo (real Wedding design captures with a
+              sample couple, album switching, a Pexels wedding clip that loads only in that scene),
+              photo-led sections, mixed-size feature tiles, tabbed audiences. Kept local only.
+Owner:        Sarthak (with Claude)
+Depends on:   Step B: real photos (#28), real numbers and logos (#33), sample galleries (#32)
+Brief:        The 2026-11-02 rating gave the homepage 4/10 for motion (samaro.ai 9/10): today every
+              section only fades up (src/components/ui/ScrollReveal.tsx, 0.8 s, 50 px).
+              Step A, no new content needed (src/components/home/):
+              1. ScrollReveal: add a distance prop; homepage sections pass 300 ms and 16 px. Other
+                 pages keep today's values.
+              2. Hero phone mockup (GalleryPreview.tsx): tiles fade in one by one after first
+                 paint, then the "Your photos are ready" card slides up, telling the Find You
+                 story. Small pointer tilt on desktop only.
+              3. Find You visual (FindYouFeature.tsx): plays once when scrolled to: selfie ring
+                 sweeps, then the four matches appear one by one.
+              4. How it works (HowItWorks.tsx): a gold line joins the four steps and fills as you
+                 scroll; each step lights up as the line reaches it.
+              5. Feature cards, buttons: CSS hover only (gold border, arrow moves 4 px), 150 ms.
+              Step B, after the content arrives: moving studio-logo strip and counting-up stats
+              (#33), real photo tiles (#28), a gallery-design switcher like Samaro's live demo.
+              Rules: the hero headline never animates (it is the LCP, see the 2026-10-27 speed
+              fix); transform and opacity only; everything off with reduced motion; content stays
+              visible when JavaScript is off or the tab is hidden (ScrollReveal's current rule);
+              Lighthouse phone stays at 79 or better with CLS 0. Add a device test (real Android
+              phone scroll smoothness, iPhone with Reduce Motion on) when it ships.
 Done in:      -
 
 =====================================================================
