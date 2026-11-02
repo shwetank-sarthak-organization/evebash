@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 207
+Next issue number: 218
 
 =====================================================================
 ACTIVE ISSUES
@@ -1265,9 +1265,131 @@ Found in: App screen review (chat 2026-11-01)
 Issue: On iPhone, the New Event name placeholder showed wide letter spacing ("e . g .  W e d d i n g") after the Join Event sheet had been opened in the same run. Seen once on the iPhone 17 Pro simulator on 2026-11-02; the placeholder looked normal on 2026-11-01 when New Event was opened first. Neither field's style was changed. Likely cause, not confirmed: iOS reuses the text box from the Join Event code field, which has letterSpacing 4 (apps/mobile/app/(tabs)/dashboard.tsx). Not checked on a real iPhone.
 How to reproduce: Start the app, open Dashboard > Join Event and close it, then Host > + . Look at the Event Name placeholder.
 
+#208
+Listed: 2026-11-02
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: The app never shows upload progress on the gallery screen. renderUploadProgressCard in apps/mobile/app/events/[id].tsx (progress, failed count, Retry, Cancel) is defined but never rendered, so during an upload the screen shows nothing; progress is only in the phone notification. Cancelling is only possible from Dashboard > bell > "Uploading Media" > "Yes, Cancel All", which cancels everything.
+How to reproduce: Open a gallery you host, Add Photo, pick 2 photos. Nothing on the screen changes until the "Upload Complete" pop-up.
+
+#209
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Offline uploads aren't explained. With no connection the phone notification keeps saying "Uploading 1 file — 41.jpg (0%)" and the Dashboard entry "Uploading: 0/1 files (0%)". apps/mobile/lib/uploadQueue.ts sets the item's error to "Waiting for connection" (#144) but nothing shows it.
+How to reproduce: Turn on airplane mode, Add Photo, pick a photo, pull down the notifications.
+
+#210
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: A blocking "Upload Complete" pop-up (apps/mobile/app/events/[id].tsx) appears about 20 seconds after an upload finishes, wherever the person is, and needs Done. The phone notification ("2 files uploaded") already says it; a toast would do.
+How to reproduce: Upload 2 photos and wait.
+
+#211
+Listed: 2026-11-02
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Failed uploads show raw technical errors. The "Upload Details" dialog lists item.error from apps/mobile/lib/uploadQueue.ts, for example "Server did not find B2 file, retrying", "Rejected by server", "File failed to verify on server" or "Network request failed", including our storage provider's name. These need plain wording.
+How to reproduce: Not run on a device (needs a failed upload); read in the code.
+
+#212
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: The notification permission prompt appears right after someone picks photos, with no explanation: addToUploadQueue calls checkNotificationPermission first (apps/mobile/lib/uploadQueue.ts). Anyone who taps Don't Allow gets no upload progress notifications, which today are the only progress shown (see #208).
+How to reproduce: Fresh install, Add Photo, pick a photo. Not seen on 2026-11-02: the emulator had already allowed notifications.
+
+#213
+Listed: 2026-11-02
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Choosing photos starts the upload straight away, with no step to confirm, and nothing says which gallery they go into. The target is whichever gallery or sub-gallery is open (handleUploadGalleryMedia in apps/mobile/app/events/[id].tsx), so uploading to the wrong one is easy.
+How to reproduce: Open a sub-gallery, Add Photo, pick photos: they upload at once with no gallery name shown anywhere.
+
+#214
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Upload wording and naming. Progress text is technical ("Uploading Media (3/10)", "2 upload(s) failed. (Tap to view details)", "AI face indexing and thumbnail generation..."; the notification says "AI Face Indexing"), and telling guests their faces are being indexed right after they upload could alarm them. The button says "Add Photo" although several can be picked, and the empty state "No photos yet. Tap Add Photo!". The upload notification uses the yellow gold #CCA43B (see #147). Sub-galleries have three names: "Sub-Galleries" for hosts, "Collections" for guests, and the guest upload hint says "Open an album to add your photos." while "Album" is also the album proofing tab.
+How to reproduce: Read on the device and in apps/mobile/app/events/[id].tsx and apps/mobile/lib/uploadQueue.ts.
+
+#215
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Some numbers are stale after an upload or a lost connection. (1) The Dashboard keeps "Couldn't load your events" after the connection returns until Try again is tapped. (2) The host gallery's "Source gallery: All galleries · N" counts only the items loaded so far (selectedMediaItems in apps/mobile/app/events/[id].tsx): it showed 36, then 16, for a gallery of 44 photos. (3) Storage Usage stayed at 46.24 GB after an upload.
+How to reproduce: Seen on the Pixel 8 emulator on 2026-11-02 in test-face-new.
+
+#216
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Uploads go one file at a time (CONCURRENCY = 1 in apps/mobile/lib/uploadQueue.ts), so a guest sending 300 photos over venue Wi-Fi waits a long time. This may be deliberate for reliability; measure before changing.
+How to reproduce: Read in the code.
+
+#217
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: apps/mobile/app/events/sub/[id].tsx has its own simpler copy of the photo upload code (no video checks, no shared checks), and nothing in the app seems to link to that screen any more. Remove it or route it through the event screen's upload code.
+How to reproduce: Read in the code (grep found no links to /events/sub).
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#207
+Listed: 2026-11-02
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Signing out on one device signs the account out everywhere: every phone and the website. supabase.auth.signOut() defaults to scope 'global', which ends all of the account's sessions, and every sign-out in apps/mobile/context/AuthContext.tsx, src/context/AuthContext.tsx and the admin dashboard's Sign Out (apps/analytics-dashboard/src/App.tsx) used the default. A host who signs out on a laptop is signed out of the app on their phone, people sharing an account sign each other out, and queued uploads stop until they sign in again. Probably why the Pixel 8 emulator lost its sign-in on 2026-11-02 ("Invalid Refresh Token: Refresh Token Not Found"), not confirmed. Fix: scope 'local' (this device only) everywhere except the admin dashboard's sign-out after a password change, which stays global on purpose.
+How to reproduce: Sign in to the same account on two phones (or a phone and the website). Sign out on one, then reopen the app on the other: it is back on the login screen.
+Fixed in: d2770d9 (2026-11-02). Every sign-out now passes scope 'local', except the admin dashboard's sign-out after a password change. Checked in the Supabase library code that the default is 'global' and 'local' ends only this device's session; app, website and dashboard type-check (the dashboard's one error is an unused import in an untouched file). Not tested on a device. Device test #167.
+
 #206
 Listed: 2026-11-02
 Platform: Website

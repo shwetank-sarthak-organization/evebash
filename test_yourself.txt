@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 167
+Next test number: 168
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4622,6 +4622,30 @@ How to test:
   7. Open an event you host. Design tab: expect space under "Event Design". Galleries > primary gallery: expect the
      Cinematic Highlight Video card in the app's warm colours. Tap Change and check the picker too.
   8. Open any guest gallery. Expect: the theme looks the same as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#167 Signing out on one device keeps your other devices signed in
+Status:    TODO
+Priority:  High (launch blocker, test first)
+Platform:  Website + App
+Brief:     Signing out used to end the account's sessions everywhere: every phone and the website (issue #207). Now it
+           only signs out the device you tap it on.
+Detail:    App code (no new native build needed) and website. Commit d2770d9 on staging.
+           Use a test account you can sign in to on two devices.
+How to test:
+  1. Sign in to the same account in the app on two phones (or one phone and the website).
+  2. On phone A: Profile > Sign Out. Expect: phone A goes to the login screen.
+  3. On phone B: close the app fully and open it again. Expect: still signed in, your events load.
+  4. Sign in again on phone A. On the website, sign out. Reopen the app on both phones. Expect: both still signed in.
+  5. Optional: wait an hour with phone B open, then pull to refresh. Expect: still signed in.
 Done by:
 Device / browser:
 Build / version:
