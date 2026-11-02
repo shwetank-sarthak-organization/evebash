@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 218
+Next issue number: 219
 
 =====================================================================
 ACTIVE ISSUES
@@ -1374,6 +1374,17 @@ Blocked by: -
 Found in: Upload flow review (chat 2026-11-02)
 Issue: apps/mobile/app/events/sub/[id].tsx has its own simpler copy of the photo upload code (no video checks, no shared checks), and nothing in the app seems to link to that screen any more. Remove it or route it through the event screen's upload code.
 How to reproduce: Read in the code (grep found no links to /events/sub).
+
+#218
+Listed: 2026-11-02
+Platform: Both
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Switch FIND_YOU_ORIGINAL_URL=true on the staging backend (Railway), then device test #168
+Found in: Download route audit (chat 2026-11-02)
+Issue: Find You downloads and shares the preview, not the photo. Face records (faces.image_url) only keep each photo's preview (-preview.webp, about 1600 px, 0.1-0.8 MB), and the backend (apps/backend/src/routes/findYou.ts) sends it as every match's url. So the app's Download and Share (PhotoViewer uses url) and the website's Find You page (src/app/(public)/events/[slug]/find-you/page.tsx, which also put the preview in src) save the preview instead of the original (10-12 MB JPEGs in the 4 matches checked). Fix in 2f6818d, behind FIND_YOU_ORIGINAL_URL (off by default; turn it off to undo): the backend looks up each match's photos.url and sends it as url (the preview fields the apps show are unchanged; playlists and failed lookups keep the preview). MasonryGrid takes an optional downloadUrl and the Find You page passes the match url. Old app builds get the fix too (no new build). Checked: backend Find You tests 5/5, no new backend or website type errors, the real lookup on 4 face records gave the original JPEGs through Cloudflare. Not clicked yet: needs the switch on.
+How to reproduce: Website: open a gallery's Find You page, search with a selfie, open a match and click Download: a small .webp. App: gallery > Find You, open a match, Download: the saved photo is about 1600 px.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

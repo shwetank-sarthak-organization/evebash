@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 168
+Next test number: 169
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4646,6 +4646,31 @@ How to test:
   3. On phone B: close the app fully and open it again. Expect: still signed in, your events load.
   4. Sign in again on phone A. On the website, sign out. Reopen the app on both phones. Expect: both still signed in.
   5. Optional: wait an hour with phone B open, then pull to refresh. Expect: still signed in.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#168 Find You downloads give the original photo, not the preview
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Find You used to download and share a small preview of each matched photo (issue #218). With the backend
+           switch on, Download and Share give the full original photo. What you see on screen stays the same.
+Detail:    Commit 2f6818d on staging. Needs FIND_YOU_ORIGINAL_URL=true on the staging backend (Railway).
+           App: no new build needed. Use a gallery where your face is in some photos.
+How to test:
+  1. App: open the gallery > Find You and search with a selfie. Expect: your photos appear as before.
+  2. Open a match and tap Download, then open it in Photos and check its details. Expect: full size (several MB,
+     camera resolution, usually 4000+ px wide), not about 1600 px.
+  3. Tap Share on a match and send it to yourself. Expect: the full-size photo, not a small .webp.
+  4. Website: open the gallery's Find You page, search with a selfie, open a match and click Download.
+     Expect: a .jpg/.jpeg of several MB, not a .webp.
 Done by:
 Device / browser:
 Build / version:
