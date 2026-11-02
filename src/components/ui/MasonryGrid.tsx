@@ -22,6 +22,8 @@ interface Photo {
     height?: number;
     width?: number;
     filename?: string;
+    /** What Download saves when src is only a preview (Find You results, issue #218) */
+    downloadUrl?: string;
     mediaType?: "photo" | "video";
     resourceType?: "image" | "video" | string;
 }
@@ -149,7 +151,7 @@ function PhotoCard({
         setIsDownloading(true);
         try {
             // Videos: the uploaded file, not the streaming playlist
-            const downloadUrl = getOriginalMediaUrl(photo.src);
+            const downloadUrl = getOriginalMediaUrl(photo.downloadUrl || photo.src);
 
             const link = document.createElement('a');
             link.href = downloadUrl;
@@ -424,7 +426,7 @@ export function MasonryGrid({
             id: photo.id,
             type: isVideo ? "video" : "image",
             previewUrl,
-            originalUrl: photo.src,
+            originalUrl: photo.downloadUrl || photo.src,
             thumbnailUrl: photo.thumbnailUrl || (isVideo ? undefined : getGridThumbnail(photo.src)),
             alt: photo.alt,
             filename: photo.filename,

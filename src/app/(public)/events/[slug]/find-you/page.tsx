@@ -132,6 +132,8 @@ function FindYouContent({ slug }: { slug: string }) {
                     return {
                         id: p.id || p.imageId,
                         src: p.previewUrl || p.thumbnailUrl || p.url || p.imageUrl || `https://${mediaDomain}/${storageKey}-preview.webp`,
+                        // The uploaded photo once the backend sends it (FIND_YOU_ORIGINAL_URL), else the full preview
+                        downloadUrl: p.url || p.imageUrl,
                         width: p.width,
                         height: p.height,
                         alt: `Found in ${p.eventId || slug}`
