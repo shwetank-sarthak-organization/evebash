@@ -1,5 +1,7 @@
 # Infrastructure Financial Model & Cost Analysis (INR)
 
+> **Out of date (2026-09-27).** Use `cost_analysis.txt` at the repo root instead (updated 2026-11-02).
+
 This is a comprehensive financial model for your startup. *All costs are converted to Indian Rupees (INR) at an exchange rate of $1 = ₹100.*
 
 ---

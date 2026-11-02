@@ -1,0 +1,513 @@
+EVEBASH COST ANALYSIS
+=====================
+
+What our infrastructure costs per customer as we grow, and what profit a plan makes.
+
+Last updated: 2026-11-02 by Sarthak (with Claude)
+Prices checked: 2026-10-30, on each provider's own pricing page
+Replaces: COST_ANALYSIS.md (2026-09-27), which is out of date
+Live dashboard (switches for customer size and video setup; private, ask Sarthak for access):
+  https://claude.ai/artifact/M4DonHXnn3r9ucRdUcNhPH
+
+How to use this file (people and Claude sessions alike):
+- Read it before changing a plan's price or storage, picking a provider plan, or changing how photos,
+  videos or guests use a paid service.
+- Money is per month unless it says "a year". ₹95 = $1. Rupee figures are rounded.
+- Infra only. Salaries, marketing and tax are not in these numbers. Apple Developer and Google Play
+  fees are left out. Razorpay's fee (2% + GST) is charged to the customer, so it's ₹0 to us.
+- "Measured" = read from our database, bucket or a real bill. "Estimate" = a guess to replace with
+  real numbers after launch (section 10). Guest numbers are the biggest estimate.
+- To update: re-check section 10 first (every table depends on it), recompute with section 12,
+  change the date above and add a line to the CHANGE LOG at the end.
+- Bugs go in evebash_issue.txt, planned work in evebash_todo.txt. This file only records costs.
+
+Contents:
+  1. Summary
+  2. Services we pay for
+  3. How the pipelines run today
+  4. Typical customer, 1 to 1,000 customers
+  5. Cost to serve one more customer, and margin by plan
+  6. When bills step up
+  7. 1,000 GB plan at ₹25,000 a year: profit at 1, 10, 100, 500 customers
+  8. Each service in plain words
+  9. Savings from the new pipelines, and what-ifs
+  10. Assumptions and measured inputs
+  11. Risks and open questions
+  12. How to recompute the numbers
+  13. Change log
+
+
+=====================================================================
+1. SUMMARY
+=====================================================================
+
+- A typical customer (Pro plan, 120 GB stored, one 200-guest event a month) costs us ₹7,511 a month
+  when they're our only customer, ₹224 at 100 customers and ₹152 at 1,000.
+- Cost to serve one more typical customer: ₹114 a month, ₹80 of it storage. Shared bills spread
+  over more customers, so the cost per customer falls towards this.
+- About 13 Pro customers pay all the infra bills. At 1,000, infra takes 23% of the Pro price.
+- Storage is about half the bill at every size. The new photo and video pipelines cut processing by
+  63%, but cost to serve fell only about 20% (₹142 to ₹114) because storage prices didn't change.
+- 1,000 GB plan at ₹25,000 a year: breaks even at about 10 customers who fill it, then makes
+  ₹7,700 to ₹9,100 per customer a year (about ₹16,500 if customers average 500 GB).
+- Biggest open risk: Cloudflare's terms on video and large files (section 11).
+
+
+=====================================================================
+2. SERVICES WE PAY FOR
+=====================================================================
+
+Backblaze B2 - storage
+  Does:     Stores every original, preview, thumbnail and streaming copy (bucket region ca-east-006).
+  Today:    136 GB stored (2026-10-30). Pay as you go.
+  Price:    $6.95 per TB per 30 days, billed by the hour; first 10 GB free; API calls free.
+            Downloads free up to 3x what's stored. Downloads through Cloudflare are free on top of
+            that (Backblaze "favored" line, seen on the 2026-11-02 estimate).
+            The real bill adds 18% GST. The tables below leave GST out (section 11).
+
+Modal - photos, faces, Find You, backup video worker
+  Today:    Starter plan, pay as you go. App wedding-media-engine.
+  Price:    Per second of compute. $30 free credit a month and 1 TiB of network free a month.
+            Use `modal billing report` for real numbers; modal_cost_logs undercounts about 12.5x.
+
+RunPod - video conversion
+  Today:    Test gallery wedding-2-77d4 only. Prepaid, pay as you go.
+  Assumed:  All videos, Modal as backup.
+  Price:    ₹0.16 per video minute on our billed test jobs (2026-10-28).
+
+Upstash QStash - job queue
+  Price:    $1 per 100,000 messages, pay as you go.
+
+Supabase - database and sign-in
+  Today:    Free plan, 95 MB.
+  Assumed:  Pro from launch.
+  Price:    $25 a month with $10 server credit, 8 GB disk, 1 lakh monthly users included.
+            Bigger servers: Small $15, Medium $60, Large $110, XL $210, 2XL $410.
+            Extra disk $0.125 per GB. Extra monthly users $0.00325 each.
+
+Railway - backend (production and staging)
+  Today:    Plan not readable with our token. Both backends use about $4.13 a month.
+  Assumed:  Hobby ($5 minimum), then Pro ($20 minimum) at 250 typical customers.
+  Price:    Like a meter, by computing power and memory. You pay the minimum even if you use less.
+
+Vercel - website
+  Today:    Hobby (free). Hobby is for non-commercial use only.
+  Assumed:  Pro from launch, 2 seats.
+  Price:    $20 per seat. Includes 1,000 GB of data and 1 crore page requests a month.
+
+Cloudflare - DNS and media delivery (worker evebash-media-worker on media.evebash.com)
+  Today:    Free zone. Workers plan not confirmed.
+  Assumed:  Workers Paid from launch (issue #132: the free plan caps at 1 lakh requests a day).
+  Price:    $5 a month with 1 crore requests, then $0.30 per 10 lakh. Data delivered isn't charged.
+
+Sentry - error tracking
+  Today:    Plan not readable.
+  Assumed:  Free, then Team at 25 typical customers.
+  Price:    $29 a month on Team.
+
+Expo EAS - app builds and over-the-air app updates
+  Today:    Plan not readable. The app has over-the-air updates set up (expo-updates, channels
+            staging and production; it checks for an update each time it opens).
+  Assumed:  Free, then Starter, then Production, as update downloads grow.
+  Price:    Free: 1,000 people. Starter $19: 3,000 people, then $0.005 each.
+            Production $199: 50,000 people, then $0.005 each. "People" = different installs that
+            download an update in the month. App builds are not counted here.
+
+Hostinger - domain and email
+  Today:    Renews 2027-05-23.
+  Price:    Not known yet. ₹300 a month placeholder.
+
+Razorpay - customer payments
+  Price:    2% + GST per payment, charged to the customer. ₹0 to us.
+
+Free at this scale: Expo Push, Firebase, Google sign-in, GitHub, QR codes.
+
+
+=====================================================================
+3. HOW THE PIPELINES RUN TODAY (2026-11-02)
+=====================================================================
+
+- Photos: PhotoProcessorV2 for all galleries (since 2026-10-21).
+- Long videos: Modal GPU worker for all galleries (since 2026-10-26). One-week check on 2026-11-02:
+  keep on, but no real customer long videos yet.
+- RunPod video, 6-second keyframes and upload while encoding: test gallery wedding-2-77d4 only.
+
+The tables use the "new video setup" (RunPod for video, Modal as backup) unless they say otherwise.
+Today's Modal-only setup costs about the same: ₹5 more per typical customer at 1,000, and slightly
+less below about 100 customers, because Modal's free credit covers the work.
+
+
+=====================================================================
+4. TYPICAL CUSTOMER, 1 TO 1,000 CUSTOMERS
+=====================================================================
+
+Typical customer: Pro plan, 120 GB stored, 10 GB uploaded and one event of 200 guests a month.
+
+  Customers   Total bill a month   Per customer a month
+  1           ₹7,511               ₹7,511
+  10          ₹8,288               ₹829
+  25          ₹14,142              ₹566
+  50          ₹16,774              ₹335
+  100         ₹22,383              ₹224
+  250         ₹48,092              ₹192
+  500         ₹82,650              ₹165
+  1,000       ₹1,51,601            ₹152
+
+Bill at 1,000 typical customers, by service:
+
+  Service      A month     Share
+  Backblaze    ₹80,392     53.0%
+  Expo         ₹18,905     12.5%
+  Modal        ₹18,848     12.4%
+  Supabase     ₹12,921      8.5%
+  Cloudflare   ₹5,890       3.9%
+  RunPod       ₹5,120       3.4%
+  Vercel       ₹3,800       2.5%
+  Sentry       ₹2,755       1.8%
+  Railway      ₹1,900       1.3%
+  QStash       ₹770         0.5%
+  Hostinger    ₹300         0.2%
+  Razorpay     ₹0           0%
+  Total        ₹1,51,601
+
+Other customer sizes, at 1,000 customers:
+
+  Size                              Per customer a month   Cost to serve   Break-even customers
+  Light (Standard plan, 30 GB)      ₹53                    ₹28             45
+  Typical (Pro plan, 120 GB)        ₹152                   ₹114            13
+  Heavy (Ultimate plan, 600 GB)     ₹836                   ₹568            6
+
+Break-even = customers on that plan's yearly price needed to pay all the infra bills.
+
+
+=====================================================================
+5. COST TO SERVE ONE MORE CUSTOMER, AND MARGIN BY PLAN
+=====================================================================
+
+Cost to serve = what one more customer adds once shared bills are spread out. It doesn't fall
+with scale.
+
+Typical customer, ₹114 a month:
+  Storage ₹80, photos ₹12, Find You ₹10, Cloudflare requests ₹6, video ₹5, queue ₹1.
+
+Plan prices (src/lib/pricingPlans.ts, discounted yearly price ÷ 12) against cost to serve:
+
+  Plan       Storage   Yearly price   A month   Cost at 60% full   Margin   Cost at 100% full   Margin
+  Free       1 GB      ₹0             ₹0        ₹0.6               -        ₹0.9                -
+  Starter    10 GB     ₹1,000         ₹83       ₹5.7               93%      ₹9.5                89%
+  Basic      25 GB     ₹2,000         ₹167      ₹14.2              91%      ₹23.7               86%
+  Standard   50 GB     ₹3,000         ₹250      ₹28.4              89%      ₹47.4               81%
+  Premium    100 GB    ₹5,000         ₹417      ₹56.8              86%      ₹94.7               77%
+  Pro        200 GB    ₹8,000         ₹667      ₹113.7             83%      ₹189.4              72%
+  Elite      500 GB    ₹15,000        ₹1,250    ₹284.1             77%      ₹473.5              62%
+  Ultimate   1,024 GB  ₹25,000        ₹2,083    ₹581.9             72%      ₹969.8              53%
+
+This is cost to serve only. Shared bills come on top, and they matter until there are a few hundred
+customers (section 4). With shared bills included, a typical Pro customer's margin is 77% at 1,000.
+
+
+=====================================================================
+6. WHEN BILLS STEP UP (typical customers)
+=====================================================================
+
+  Customers   What happens
+  21          Expo Starter plan ($19)
+  25          Sentry Team plan ($29)
+  50          Supabase Small server
+  51          Cloudflare's 1 crore included requests run out
+  113         Supabase database passes the 8 GB included disk
+  131         Modal's $30 monthly credit is used up
+  250         Supabase Medium server, Railway Pro ($20 minimum)
+  750         Supabase Large server
+  781         Expo Production plan ($199)
+  991         Supabase passes 1 lakh monthly users
+
+Heavier customers reach these sooner. Section 12 steps by load, not customer count.
+
+
+=====================================================================
+7. 1,000 GB PLAN AT ₹25,000 A YEAR: PROFIT AT 1, 10, 100, 500 CUSTOMERS
+=====================================================================
+
+Profit = price - infra cost. New video setup. Rounded to ₹100. This is the Ultimate plan
+(1,024 GB in src/lib/pricingPlans.ts); 1,000 GB is used here.
+
+Every customer fills 1,000 GB all year (83 GB uploaded, about 8 events and 1,667 guests a month):
+
+  Customers   Infra cost per customer a year   Profit per customer a year   Total profit a year
+  1           ₹97,700                          -₹72,700                     -₹72,700
+  10          ₹24,500                          ₹500                         ₹4,800
+  100         ₹15,900                          ₹9,100                       ₹9.13 lakh
+  500         ₹17,300                          ₹7,700                       ₹38.5 lakh
+
+Customers average 500 GB (filling up steadily over their first year):
+
+  Customers   Infra cost per customer a year   Profit per customer a year   Total profit a year
+  1           ₹93,400                          -₹68,400                     -₹68,400
+  10          ₹18,700                          ₹6,300                       ₹63,000
+  100         ₹8,500                           ₹16,500                      ₹16.5 lakh
+  500         ₹8,300                           ₹16,700                      ₹83.5 lakh
+
+Notes:
+- With 1 customer, ₹89,100 of the yearly cost is fixed bills we pay with or without customers.
+- Full-use profit per customer falls between 100 and 500 because app guests pass Supabase's 1 lakh
+  free monthly users (about ₹98,000 a month at 500) and the database needs a bigger server.
+- Today's Modal-only video setup: full-use profit ₹8,700 at 100 and ₹6,900 at 500.
+- Cost to serve one more full customer: ₹947 a month (storage ₹670, photos ₹97, Find You ₹83,
+  Cloudflare requests ₹47, video ₹43, queue ₹6).
+
+Where the money goes at 100 customers who fill 1,000 GB:
+
+  Service      Whole bill a month   Per customer a year   Share    500 GB average, per customer a year
+  Backblaze    ₹66,993              ₹8,039                50.7%    ₹4,020
+  Expo         ₹18,905              ₹2,269                14.3%    ₹1,233
+  Modal        ₹15,236              ₹1,828                11.5%    ₹745
+  Supabase     ₹12,474              ₹1,497                 9.4%    ₹885
+  Cloudflare   ₹4,940               ₹593                   3.7%    ₹308
+  RunPod       ₹4,267               ₹512                   3.2%    ₹256
+  Vercel       ₹3,800               ₹456                   2.9%    ₹456
+  Sentry       ₹2,755               ₹331                   2.1%    ₹331
+  Railway      ₹1,900               ₹228                   1.4%    ₹228
+  QStash       ₹641                 ₹77                    0.5%    ₹38
+  Hostinger    ₹300                 ₹36                    0.2%    ₹36
+  Total        ₹1,32,211            ₹15,865                        ₹8,536
+
+"Per customer a year" for Expo, Supabase, Vercel, Sentry, Railway and Hostinger is a share of one
+shared bill (bill x 12 ÷ 100), not a charge for each customer. Those bills stay the same for 99 or
+101 customers until usage forces a bigger plan. Backblaze, Modal, RunPod and QStash really do grow
+with each customer's uploads. Cloudflare is mostly usage.
+
+What could change the profit per customer a year (full use):
+
+  Change                                                        Effect
+  Cloudflare's terms force media onto Bunny                     ₹2,400 to ₹14,300 less
+    (42 TB delivered a month at 100 customers, 208 TB at 500)   (the top end makes it a loss)
+  Guests double to 400 an event                                 Profit ₹3,100 at 100, ₹400 at 500
+  Events are 50 GB, not 10 GB (fewer guests)                    Profit ₹13,400 at 100, ₹13,900 at 500
+  ₹25,000 includes 18% GST                                      ₹3,800 less (we keep ₹21,186)
+  18% GST on Backblaze can't be claimed back                    ₹1,400 less
+  Uploads past 1,000 GB (limits are web-only, issue #6)         More storage the customer doesn't pay for
+
+
+=====================================================================
+8. EACH SERVICE IN PLAIN WORDS
+=====================================================================
+
+Example: 100 customers who each fill 1,000 GB. In a month that's 100 TB stored, 8.3 TB uploaded,
+3.24 lakh photos, 26,667 video minutes, 833 events and 1.67 lakh guests (half on the app).
+
+EXPO - ₹18,905 a month
+  What it does: normally a fix means a new app version, store review and waiting for people to
+  update. Expo sends the fix straight to phones; the app picks it up the next time it opens.
+  How it charges: by how many different people download a fix in a month. Someone who downloads
+  five fixes counts once. A guest who installs the app for one wedding still counts.
+  How we got the number: 1.67 lakh guests, half on the app = 83,333; half of those download a
+  fix = 41,667. Starter would be $19 + 38,667 x $0.005 = $212, so Production ($199, 50,000 people)
+  is cheaper.
+  What we control: we only pay if we publish fixes this way.
+    People downloading a fix   Bill a month
+    0                          ₹0
+    5,000                      ₹2,755
+    20,000                     ₹9,880
+    41,667                     ₹18,905
+  After we publish one, new installs also download it until the next store release, so one fix
+  can keep counting for weeks. Use it for urgent fixes and follow with a store release.
+
+SUPABASE - ₹12,474 a month
+  What it does: the master register. Who has an account, which events exist, which photos belong
+  to which event, who can see what. Photos sit in Backblaze; Supabase keeps about 15 KB of details
+  per photo. It also handles sign-in. App guests must sign in; website guests can view without
+  an account, so they don't count as users.
+    Part            Why                                                        A month
+    Pro plan        Free pauses a project after a week with no activity and    ₹2,375
+                    has no automatic backups
+    Bigger server   Many guests opening galleries at once (Large, my estimate) ₹9,500
+    Extra disk      Database about 58 GB; Pro includes 8 GB                    ₹599
+    Monthly users   83,433, under the 1 lakh included                          ₹0
+  Server sizes, extra over Pro's credit: Small ₹475, Medium ₹4,750, Large ₹9,500 a month. Large
+  was chosen for about 28 events a day; it isn't load tested. Start smaller and move up when real
+  load needs it.
+  Big jump: monthly users pass 1 lakh at about 120 full customers; each extra person is $0.00325.
+  At 500 full customers that's about ₹98,000 a month.
+
+VERCEL - ₹3,800 a month
+  What it does: sends the website pages when someone opens evebash.com.
+  How it charges: by seats (team members who can publish the site). 2 x $20 = $40.
+  Why pay: Hobby (free, used today) doesn't allow commercial use.
+  Why it stays low: photos and videos come through Cloudflare, not Vercel. At 100 customers about
+  83,333 website guests use 125 GB and 33 lakh page requests; Pro includes 1,000 GB and 1 crore.
+  Extra charges start at about 300 full customers; at 500 the bill is about ₹5,000.
+
+RAILWAY - ₹1,900 a month
+  What it does: runs the backend, which handles requests from the app and website all day. Heavy
+  photo and video work runs on Modal and RunPod, which keeps Railway cheap.
+  How it charges: like an electricity meter, with a monthly minimum you pay even if you use less.
+  How we got the number: $4.13 today + 83.3 lakh requests (50 per guest) x $1.50 per 10 lakh
+  (estimate) = about $17, under Pro's $20 minimum, so $20.
+  Usage passes $20 at about 130 full customers, then adds about ₹12 a month per extra customer.
+
+BACKBLAZE - ₹66,993 a month: 100 TB at $7.05 per TB a month. Biggest bill, because paid customers
+  keep everything. Only storing less lowers it.
+MODAL - ₹15,236 a month: photos ₹9,725 (₹0.03 each) + Find You ₹8,333 (₹0.05 per guest) + ₹28
+  idle - ₹2,850 free credit.
+RUNPOD - ₹4,267 a month: 26,667 video minutes x ₹0.16. Rate from 3 test jobs.
+CLOUDFLARE - ₹4,940 a month: $5 plan + about 16.7 crore media requests (1,000 per guest) after the
+  first 1 crore. It doesn't charge for data delivered, which is why its terms are a risk.
+SENTRY - ₹2,755 a month: flat $29 Team plan. The free plan is for one person with a small error limit.
+QSTASH - ₹641 a month: 2 messages per photo + 1 per video minute = 6.75 lakh messages at $1 per lakh.
+HOSTINGER - ₹300 a month: placeholder price for the domain and email.
+
+
+=====================================================================
+9. SAVINGS FROM THE NEW PIPELINES, AND WHAT-IFS
+=====================================================================
+
+  Item                                    Before   After    Change   Basis
+  Photo, bulk upload                      ₹0.064   ₹0.018   -72%     Real bill, same 55 photos, 2026-10-21
+  Photo, one at a time (app, guests)      ₹0.165   ₹0.037   -78%     Real bill, 2026-10-21
+  48.7-minute video                       ₹12.7    ₹2.68    -79%     Modal 16-core vs RunPod Ada, new recipe
+  Background jobs while idle, a month     ₹959     ₹28      -97%     Modal bill, early vs quiet October days
+  Typical customer's processing, a month  ₹45      ₹17      -63%     389 photos and 32 video minutes
+
+What-ifs, typical customer at 1,000 customers (base ₹152 a month):
+
+  Change                                        Per customer   Difference
+  Customers keep their plan full (200 GB)       ₹265           +₹113
+  Guests per event double to 400                ₹223           +₹71
+  Guests per event halve to 100                 ₹137           -₹15
+  All guests sign in on the app                 ₹206           +₹54
+  No over-the-air app updates                   ₹133           -₹19
+  Second backup copy of every file              ₹232           +₹80
+  Rupee weakens to ₹100 per dollar              ₹160           +₹8
+  Media moves to Bunny, low-cost network        ₹175           +₹23
+  Media moves to Bunny, Asia network            ₹294           +₹142
+  Modal does all video, as it does today        ₹157           +₹5
+
+
+=====================================================================
+10. ASSUMPTIONS AND MEASURED INPUTS
+=====================================================================
+
+Estimates (replace with real numbers after launch):
+  Stored per customer            30, 120 or 600 GB (Standard, Pro, Ultimate at 60% full). Counts
+                                 previews and streaming copies, as plan limits do.
+  Uploads                        Stored GB ÷ 12 a month (a customer keeps about a year of work)
+  Events                         1 per 10 GB uploaded
+  Guests per event               200 (same figure as issue #132)
+  Guests who sign in on the app  50%
+  App users who download an update  50%
+  Media requests per guest       1,000 (issue #132 estimates about 410 on the first evening)
+  Data delivered per guest       0.25 GB (used only for the Cloudflare risk)
+  Find You                       1 search per guest at ₹0.05
+  Backend requests per guest     50, at $1.50 per 10 lakh on Railway
+  Website weight                 1.5 MB and 40 requests per web guest (staging homepage 0.4 MB)
+  Supabase server sizes          Small at 50, Medium at 250, Large at 750 typical customers;
+                                 XL at 1,500 and 2XL at 2,500 (not load tested)
+  Hostinger                      ₹300 a month placeholder
+  Exchange rate                  ₹95 per dollar
+
+Measured (2026-10-30 unless noted):
+  Photos per stored GB           38.9 (5,077 photos in the live database)
+  Video minutes per stored GB    3.2 (81 videos, half the minutes from videos over 10 minutes)
+  Streaming copies               56 MB per video minute
+  Database per photo             15 KB (faces, photo row and job rows)
+  Railway when idle              $4.13 a month (both backends, 7 days)
+  Bucket                         136.47 GB, 37,573 files (2026-10-31)
+  Real data so far               5,158 test items across 74 events; no real wedding yet
+
+From real bills:
+  Modal when idle                $0.29 a month (quiet October days)
+  Photo processing               ₹0.03 per photo (₹0.018 bulk, ₹0.037 one at a time, rounded up
+                                 for the grid image added later)
+  Video on RunPod                ₹0.16 per video minute (3 test jobs, 2026-10-28: GPU ₹0.12,
+                                 CPU ₹0.21)
+  Video on Modal                 ₹0.24 per video minute (compute only; first 1 TiB network free)
+  Backblaze first bill           $16.50 for 2026-09-29 to 10-29, of which $15.92 was extra
+                                 downloads from our own October video tests (one-off), plus 18% GST
+
+
+=====================================================================
+11. RISKS AND OPEN QUESTIONS
+=====================================================================
+
+- Cloudflare's delivery rules: its terms say video and mostly large files need its paid products,
+  and it may limit accounts that break this. 1,000 typical customers would deliver about 50 TB a
+  month through it. If media moves to Bunny: ₹23 to ₹142 per typical customer a month.
+- Plan limits are web-only (issue #6): event uploads can go past a plan's storage. Any GB past
+  the plan is storage we pay for and the customer doesn't.
+- Guest numbers are estimates. No real wedding has run yet. Doubling guests adds ₹71 per typical
+  customer; halving saves ₹15.
+- Real uploads may look different: sizes come from test data. A video minute stores about 0.12 GB.
+- Thin RunPod billing history: the rate comes from 3 billed jobs. Video is under 5% of typical
+  cost to serve, so the effect is small.
+- Only one copy of customer files. A second copy adds ₹80 per typical customer.
+- Supabase server sizes are a judgement call, not load tested. Each size up to Large adds ₹475 to
+  ₹4,750 a month (more above Large) and could come sooner.
+- Dollar bills: almost every bill is in dollars. Each ₹5 on the dollar adds about 5%. Bank and
+  card currency fees are not counted.
+- GST on foreign bills: Backblaze charges 18% GST, which these numbers leave out. If we can't
+  claim it back: +₹14 per typical customer a month, +₹121 per full 1,000 GB customer. Other
+  foreign bills may add it too.
+- GST on our prices: not decided whether plan prices include GST. The plan pricing code adds none,
+  and the policy text says prices "may include or exclude" it. If included, we keep price ÷ 1.18.
+- Launch plan switches assumed in every table: Supabase Pro, Vercel Pro (Hobby is non-commercial),
+  Cloudflare Workers Paid (issue #132).
+- The dashboard steps Supabase, Railway and Sentry by customer count, sized for a 120 GB customer.
+  For heavy customers it reads a little low (Heavy is about ₹29 a month low at 1,000). Section 7
+  and section 12 step by load instead.
+
+
+=====================================================================
+12. HOW TO RECOMPUTE THE NUMBERS
+=====================================================================
+
+For n customers who each store S GB (all copies counted), per month:
+
+  Uploads per customer        U = S ÷ 12 GB
+  Guests                      G = n x (U ÷ 10 events) x 200 guests
+  App guests                  50% of G; web guests are the rest
+  Photos                      n x U x 38.9
+  Video minutes               n x U x 3.2
+  Load                        n x (S ÷ 120) x (10 ÷ GB per event), in typical customers
+
+  Backblaze    n x S x $6.95 per TB per 30 days (x 30.44 ÷ 30 for a calendar month)
+  Modal        photos x ₹0.03 + G x ₹0.05 + $0.29 idle - $30 credit (never below 0)
+               If Modal does video: + video minutes x ₹0.24 + network over 1 TiB at $0.04 per GiB
+               (56 MB per video minute)
+  RunPod       video minutes x ₹0.16
+  QStash       (2 x photos + video minutes) ÷ 1 lakh x $1
+  Cloudflare   $5 + (G x 1,000 requests - 1 crore) x $0.30 per 10 lakh
+  Supabase     $25 + server + (database GB - 8) x $0.125 + (app guests + n - 1 lakh) x $0.00325
+               database GB = 0.1 + n x S x 38.9 x 15 KB
+               server, over the $10 credit, by load: Small $5 from 50, Medium $50 from 250,
+               Large $100 from 750, XL $200 from 1,500, 2XL $400 from 2,500
+  Railway      the larger of: $5 ($20 from load 250), or $4.13 + G x 50 requests x $1.50 per 10 lakh
+  Vercel       2 seats x $20 + data over 1,000 GB x $0.15 + requests over 1 crore x $2 per 10 lakh
+               (web guests x 1.5 MB, web guests x 40 requests)
+  Sentry       $29 from load 25, else $0
+  Expo         people downloading an update = 50% of app guests; cheapest of Free ($0 up to 1,000),
+               Starter ($19 with 3,000, then $0.005 each), Production ($199 with 50,000, then
+               $0.005 each)
+  Hostinger    ₹300
+
+  Per customer = total ÷ n. Cost to serve = storage + photos + video + Find You + Cloudflare
+  requests + queue for one customer.
+  Negative leftovers (for example usage under an included amount) count as 0.
+
+To re-measure the inputs (all read-only):
+  - Photos and video minutes per GB, database per photo: SQL on the live database (photos table,
+    media_type 'photo' or 'video'; table sizes).
+  - Bucket size: list every file version in the B2 bucket with the root .env B2 keys.
+  - Modal: `modal billing report` (not modal_cost_logs).
+  - RunPod: per-job billing on the endpoints.
+  - Railway: service metrics for both backends.
+  - Prices: each provider's pricing page (links in the dashboard's infra table).
+
+
+=====================================================================
+13. CHANGE LOG
+=====================================================================
+
+2026-11-02  First version (Sarthak with Claude). Based on the 2026-10-30 analysis after the new
+            photo and video pipelines. Adds the 1,000 GB plan profit, per-service explanations,
+            Backblaze GST and load-based server sizing.
