@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, canCommentOnPhoto } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
 import { getImageUrl } from "@/lib/imageUrl";
+import { getOriginalMediaUrl } from "@/lib/zipDownload";
 import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2, Loader2, Image as ImageIcon, RotateCcw, RotateCw, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HLSVideoPlayer } from "@/components/ui/HLSVideoPlayer";
@@ -249,7 +250,8 @@ export function Lightbox({
         e.stopPropagation();
         if (!photo || disableDownload) return;
         try {
-            const downloadUrl = photo.src;
+            // Videos: the uploaded file, not the streaming playlist
+            const downloadUrl = getOriginalMediaUrl(photo.src);
             const link = document.createElement('a');
             link.href = downloadUrl;
             link.setAttribute('download', photo.filename || 'wedding-photo');
