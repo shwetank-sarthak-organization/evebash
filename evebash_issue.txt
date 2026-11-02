@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 206
+Next issue number: 207
 
 =====================================================================
 ACTIVE ISSUES
@@ -1268,6 +1268,18 @@ How to reproduce: Start the app, open Dashboard > Join Event and close it, then 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#206
+Listed: 2026-11-02
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Download route audit (chat 2026-11-02)
+Issue: On the host page, Download in the full-screen viewer (src/components/ui/Lightbox.tsx) saved a processed video's streaming playlist (master.m3u8, about 0.5 KB) instead of the video, because it linked to the item's url as it is. The grid (MasonryGrid) and the page-flip viewer already turn that url into the uploaded file with getOriginalMediaUrl (src/lib/zipDownload.ts). Photos were not affected.
+How to reproduce: Signed in as host, open /host, open a processed video in the full-screen viewer and click Download. Before the fix: a small .m3u8 file instead of the video.
+Fixed in: 4c08a95 (2026-11-02). The viewer's Download uses getOriginalMediaUrl, like the grid. Checked: website type check has no errors in src (only stale .next/types files); the helper on 3 real wedding-2-77d4 videos gives the MP4 at its stored size through media.evebash.com (the old link was a 520-598 byte playlist), and a photo link is unchanged. Not clicked in a browser yet (localhost was signed out): check on staging after deploy.
+
 #199
 Listed: 2026-11-02
 Platform: App
