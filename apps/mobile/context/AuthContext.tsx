@@ -157,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (isRefreshTokenError) {
             console.warn('[Auth] Stale or invalid refresh token found. Clearing session via signOut.');
             try {
-              await supabase.auth.signOut();
+              await supabase.auth.signOut({ scope: 'local' });
             } catch (signOutErr) {
               console.warn('[Auth] Failed to sign out during session cleanup:', signOutErr);
             }
@@ -180,7 +180,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       settingUpUserId = supabaseUser.id;
       try {
         if (needsEmailVerification(supabaseUser)) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: 'local' });
           finishAuthLoading();
           return;
         }
@@ -370,7 +370,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (error) throw error;
       if (data.user && needsEmailVerification(data.user)) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
         return {
           success: false,
           error: 'A confirmation link has been sent to your email. Please confirm your email before signing in.',
@@ -409,7 +409,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const needsEmailVerification = !!(data.user && data.session === null);
 
       if (needsEmailVerification) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
         return { success: true, needsEmailVerification: true };
       }
 
@@ -561,7 +561,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
+      // Only this device: the default ('global') also signs the account out on its other phones and browsers
+      await supabase.auth.signOut({ scope: 'local' });
     } catch (err) {
       console.warn('[Auth] Error during supabase.auth.signOut():', err);
     }

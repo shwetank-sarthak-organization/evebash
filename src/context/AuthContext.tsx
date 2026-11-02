@@ -258,7 +258,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         setUser(null);
                         localStorage.removeItem("wedding_guest_user");
                         setTimeout(() => {
-                            void supabase.auth.signOut().catch((error) => {
+                            void supabase.auth.signOut({ scope: 'local' }).catch((error) => {
                                 console.error("[Auth] Deferred sign out failed:", error);
                             });
                         }, 0);
@@ -319,7 +319,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         setUser(null);
                         localStorage.removeItem("wedding_guest_user");
                         setTimeout(() => {
-                            void supabase.auth.signOut().catch((error) => {
+                            void supabase.auth.signOut({ scope: 'local' }).catch((error) => {
                                 console.error("[Auth] Deferred sign out failed:", error);
                             });
                         }, 0);
@@ -368,7 +368,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { data, error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) throw error;
             if (data.user && needsEmailVerification(data.user)) {
-                await supabase.auth.signOut();
+                await supabase.auth.signOut({ scope: 'local' });
                 return {
                     success: false,
                     error: "A confirmation link has been sent to your email. Please confirm your email before signing in.",
@@ -420,7 +420,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return { success: false, error: existingAccountMessage };
             }
             if (data.user && data.session === null) {
-                await supabase.auth.signOut();
+                await supabase.auth.signOut({ scope: 'local' });
                 return { success: true, needsEmailVerification: true };
             }
             if (data.user) {
@@ -469,7 +469,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (!loginError && loginData.user) {
             if (needsEmailVerification(loginData.user)) {
-                await supabase.auth.signOut();
+                await supabase.auth.signOut({ scope: 'local' });
                 return {
                     success: false,
                     error: "A confirmation link has been sent to your email. Please confirm your email before signing in.",
@@ -505,7 +505,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (signupData.session === null && !email.endsWith("@phone-login.local")) {
-            await supabase.auth.signOut();
+            await supabase.auth.signOut({ scope: 'local' });
             return { success: true, needsEmailVerification: true };
         }
 
@@ -526,7 +526,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const logout = async () => {
         try {
-            await supabase.auth.signOut();
+            // Only this device: the default ('global') also signs the account out on its other phones and browsers
+            await supabase.auth.signOut({ scope: 'local' });
         } catch (error) {
             console.error("Supabase logout error:", error);
         }
