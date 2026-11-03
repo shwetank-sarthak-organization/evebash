@@ -1817,8 +1817,11 @@ export async function addComment(photoId: string, userId: string, userName: stri
 export function onPhotoInteractions(photoId: string, callback: (data: { likes: any[], comments: any[] }) => void) {
     let currentLikes: any[] = [];
     let currentComments: any[] = [];
+    let closed = false;
+    let latestFetch = 0;
 
     const fetchAndTrigger = async () => {
+        const fetchId = ++latestFetch;
         // Signed in: names come from profile_cards (name and photo only), since other people's profiles aren't
         // readable once RLS is on. Signed out keeps the old embed; likes and comments are members-only after the lockdown.
         const { data: { session } } = await supabase.auth.getSession();
@@ -1827,6 +1830,8 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
             supabase.from('likes').select(`id, created_at, user_id, ${people}`).eq('photo_id', photoId),
             supabase.from('comments').select(`id, text, created_at, user_id, parent_id, ${people}`).eq('photo_id', photoId)
         ]);
+        // Only the newest read counts, and none after the caller has stopped listening
+        if (closed || fetchId !== latestFetch) return;
 
         if (!likesRes.error && likesRes.data) {
             currentLikes = likesRes.data.map((l: any) => ({
@@ -1867,9 +1872,11 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
         .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter: `photo_id=eq.${photoId}` }, () => fetchAndTrigger())
         .subscribe();
 
-    return () => {
+    // Realtime is off (#49), so callers also call refresh() after their own like or comment changes (#235)
+    return Object.assign(() => {
+        closed = true;
         supabase.removeChannel(interactionsChannel);
-    };
+    }, { refresh: fetchAndTrigger });
 }
 
 export async function deletePhotoComment(commentId: string) {

@@ -11,6 +11,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useNavigation } from 'expo-router';
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, canCommentOnPhoto, Event as DatabaseEvent } from '@/lib/database';
+import { formatCommentTime } from '../../../shared/text/commentTime';
 import { getImageUrl, getOriginalMediaUrl } from '@/lib/imageUrl';
 import { SCREEN_ORIENTATION_LOCK, canLockScreenOrientation, lockScreenOrientation } from '@/lib/screenOrientation';
 import { MidnightColors, Fonts } from '../constants/theme';
@@ -497,6 +498,12 @@ function ViewerVideo({
         activePlayer.pause();
         setIsPlaying(false);
       } else {
+        // A finished video doesn't restart by itself (#238): start it again from the beginning
+        const total = Number(activePlayer.duration);
+        if (Number.isFinite(total) && total > 0 && activePlayer.currentTime >= total - 0.25) {
+          activePlayer.currentTime = 0;
+          setCurrentTime(0);
+        }
         activePlayer.play();
         setIsPlaying(true);
       }
@@ -878,6 +885,7 @@ export default function PhotoViewer({
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(initialIndex);
   const [likes, setLikes] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
+  const refreshInteractionsRef = useRef<(() => Promise<void>) | null>(null);
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
@@ -1140,9 +1148,18 @@ export default function PhotoViewer({
       setLikes(data.likes || []);
       setComments(data.comments || []);
     });
+    refreshInteractionsRef.current = unsubscribe.refresh;
 
-    return () => unsubscribe();
+    return () => {
+      refreshInteractionsRef.current = null;
+      unsubscribe();
+    };
   }, [visible, currentPhoto?.id, readOnly]);
+
+  // Realtime is off, so after our own like or comment change, read the photo's likes and comments again (#235)
+  const refreshInteractions = () => {
+    refreshInteractionsRef.current?.().catch((err) => console.warn('[PhotoViewer] Reloading likes and comments failed:', err));
+  };
 
   useEffect(() => {
     setCanPostComment(false);
@@ -1156,12 +1173,18 @@ export default function PhotoViewer({
     if (!currentPhoto?.id || isLiking) return;
     if (!isLiked) haptic('tap');
     setIsLiking(true);
+    // Show the heart change at once; the reload afterwards puts back the saved state if the call failed
+    const photoId = currentPhoto.id;
+    setLikes((prev) => (isLiked
+      ? prev.filter((like) => like.userId !== viewerIdentity.id)
+      : [{ id: `pending-${photoId}`, photoId, userId: viewerIdentity.id, userName: viewerIdentity.name, profileImage: null, createdAt: new Date().toISOString() }, ...prev]));
     try {
-      await toggleLike(currentPhoto.id, viewerIdentity.id, viewerIdentity.name);
+      await toggleLike(photoId, viewerIdentity.id, viewerIdentity.name);
     } catch (err) {
       console.error('[PhotoViewer] Like failed:', err);
     } finally {
       setIsLiking(false);
+      refreshInteractions();
     }
   };
 
@@ -1173,6 +1196,7 @@ export default function PhotoViewer({
       setNewComment('');
       setReplyingTo(null);
       Keyboard.dismiss();
+      refreshInteractions();
     } catch (err) {
       console.error('[PhotoViewer] Comment failed:', err);
     } finally {
@@ -1189,6 +1213,7 @@ export default function PhotoViewer({
         onPress: async () => {
           try {
             await deletePhotoComment(commentId);
+            refreshInteractions();
           } catch (err) {
             console.error('[PhotoViewer] Delete comment failed:', err);
           }
@@ -1380,7 +1405,7 @@ export default function PhotoViewer({
                           { color: viewerTheme.text }
                         ]} numberOfLines={1}>{commentName}</Text>
                         <Text style={[styles.commentTime, { color: viewerTheme.muted }]}>
-                          {comment.createdAt ? new Date(comment.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                          {formatCommentTime(comment.createdAt)}
                         </Text>
                       </View>
                       <View style={[
@@ -1441,7 +1466,7 @@ export default function PhotoViewer({
                                 { color: viewerTheme.text }
                               ]} numberOfLines={1}>{replyName}</Text>
                               <Text style={[styles.commentTime, { color: viewerTheme.muted }]}>
-                                {reply.createdAt ? new Date(reply.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                                {formatCommentTime(reply.createdAt)}
                               </Text>
                             </View>
                             <View style={[
