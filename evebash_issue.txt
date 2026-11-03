@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 230
+Next issue number: 235
 
 =====================================================================
 ACTIVE ISSUES
@@ -1440,6 +1440,66 @@ How to reproduce: Not a bug; read todo #18 and reports/Final video pipeline reco
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#230
+Listed: 2026-11-03
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01, item 8)
+Issue: Host event screens are pure black while the rest of the app is charcoal (#13191F). The host view always borrows the Midnight Hero guest theme (apps/mobile/app/events/[id].tsx, selectedTemplate locks to 'hero': background #000000, muted text #94a3b8, tiles #09090b), so the page is black above a charcoal bottom bar, and the host-only markup mixes in blue-grey and navy (#94a3b8, #cbd5e1, #0f172a, slate-blue Design cards and video sheet). The Midnight Hero guest theme itself must stay as it is.
+How to reproduce: Open an event you host: the page behind Galleries, Permissions, Design and Album is black, the bottom bar is charcoal, and the Design cards are slate blue.
+Fixed in: f203787 (2026-11-03). The host view uses the app's colours (charcoal #13191F, warm text) instead of Midnight Hero's black: selectedTemplate gets host colours when showAdminView, and the blue-grey and navy in the host-only markup map to MidnightColors; the Design card is warm grey. Guests on Midnight Hero are unchanged. Checked on the Pixel 8 emulator (Galleries, gallery page, Permissions, Design). Device test #173.
+
+#231
+Listed: 2026-11-03
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01, item 9)
+Issue: Host event screens use the yellow gold #CCA43B (rgba(204,164,59,...)) next to the brand gold #CA9C68: the PRIMARY badge, Preview Guest Theme, Select and Retry buttons, toggles and highlights in apps/mobile/app/events/[id].tsx. Guest themes are covered by #147 and are not part of this.
+How to reproduce: Open an event you host > Galleries: compare the PRIMARY badge with the gold tabs and buttons.
+Fixed in: f203787 (2026-11-03). rgba(204,164,59,...) and #CCA43B on host screens are now the brand gold; the PRIMARY badge is brand gold with dark text. Guest themes stay with #147. Checked on the Pixel 8 emulator. Device test #173.
+
+#232
+Listed: 2026-11-03
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01, item 14)
+Issue: Access request rows use bright, unlabelled red and green circles (an X and a tick) and squeeze the guest's name to make room for them. Same on Host > Requests (apps/mobile/app/(tabs)/gallery.tsx) and an event's Permissions tab (apps/mobile/app/events/[id].tsx). The request detail sheet's Approve button is bright green too.
+How to reproduce: Have a guest request access to an event you host, then open Host > Requests or the event's Permissions tab.
+Fixed in: f203787 (2026-11-03). Both lists show the guest's name on its own line with labelled Deny (outlined) and Approve (gold) buttons from components/ui/Button; the request sheet's Approve Access is gold. Not seen on screen yet (no pending requests): device test #173 step 4.
+
+#233
+Listed: 2026-11-03
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01, item 15)
+Issue: The Permissions tab is rough: the Event visibility card's Public button and border are slate blue (apps/mobile/components/EventVisibilityControl.tsx), each guest row shows unlabelled role icons (eye, shield, camera, bubble) and a "#01" number that means nothing to a host, and "Guest List" sits tight under the visibility card.
+How to reproduce: Open an event you host > Permissions.
+Fixed in: f203787 (2026-11-03). Guest rows show the name, phone and a line such as "Admin: full access" or "Can view, upload and comment", with no "#01"; EventVisibilityControl uses MidnightColors; more room above Guest List. Checked on the Pixel 8 emulator (samarth weds Jyoti). Device test #173.
+
+#234
+Listed: 2026-11-03
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review (chat 2026-11-01, item 21)
+Issue: On sign-up (apps/mobile/app/login.tsx), Google and Apple come after the whole email form, below the fold, and the Terms and Privacy links appear twice (a links row under the checkbox and the "Review our Terms" footer). Separately, the gold category tags on event cards (apps/mobile/components/ui/EventGridCard.tsx) are hard to read over busy cover photos.
+How to reproduce: Signed out, open the app > Sign Up. For the tags: Dashboard or Host, cards with busy cover photos.
+Fixed in: f203787 (2026-11-03). Sign-up shows Google and Apple, then OR, then the form; the bottom "Review our Terms" line shows only on Sign In. Category tags sit on a nearly solid charcoal backing. Checked on the iPhone 16e simulator (sign-up) and the Pixel 8 emulator (Dashboard). Device test #173.
+
 #219
 Listed: 2026-11-02
 Platform: App

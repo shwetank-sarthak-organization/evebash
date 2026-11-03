@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 172
+Next test number: 174
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4770,6 +4770,45 @@ How to test:
   4. Turn airplane mode off and tap Retry. Expect: the sub-gallery's photos load. Write down roughly how long it took.
   5. With the connection on the whole time, open galleries, add a photo and delete it. Expect: everything works as
      before this change.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#173 Host screens use the app's colours; clearer request and guest rows; sign-up shows Google and Apple first
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone and Android)
+Brief:     Host event screens are now charcoal like the rest of the app instead of black, with no blue-grey, navy or
+           yellow gold (issues #230, #231). Access requests have labelled Deny and Approve buttons under the guest's
+           name (#232). Guest rows say what each guest can do in words, without the "#01" number, and the Event
+           visibility card uses the app's colours (#233). Sign-up shows Google and Apple before the form, the Terms
+           links appear once, and the category tags on event cards are easier to read (#234). Guest theme pages are
+           unchanged.
+Detail:    App code only, no new native build needed. Commit f203787 on staging.
+           2026-11-03 run by Claude (not a tester PASS): host Galleries, gallery page, Permissions (guest row on
+           samarth weds Jyoti), Design and Dashboard tags looked right on the Pixel 8 emulator; sign-up order looked
+           right on the iPhone 16e simulator. Not seen: request rows (no pending requests), the request detail sheet,
+           iPhone host screens, real phones.
+How to test:
+  1. Open an event you host from Host. Expect: the page behind Galleries, Permissions, Design and Album is the same
+     charcoal as the bottom bar (not black), the cover photo fades into it, and the PRIMARY badge is the same gold as
+     the tabs. No blue-grey or navy anywhere on these tabs.
+  2. Design tab. Expect: warm grey cards, and "Preview Guest Theme" in the same gold as the tabs.
+  3. Permissions tab. Expect: the Event visibility card has a gold border and a dark (not blue) Public button. Each
+     guest shows their name, phone if any, and a line such as "Admin: full access" or "Can view, upload and
+     comment". No "#01".
+  4. From another account, request access to the event. Open Host > Requests, then the event's Permissions tab.
+     Expect: the guest's full name, then "Deny" and "Approve" buttons under it (no red and green circles). Tap the
+     row: the sheet's Approve Access button is gold, not green. Approve or deny and check it works.
+  5. Sign out, tap Sign Up. Expect: Google (and Apple on iPhone) at the top, then OR, then the form. The Terms and
+     Privacy links appear once, next to the checkbox, and not again at the bottom. Sign In looks as before.
+  6. Dashboard and Host. Expect: the SPORTS / WEDDING tags on cards are easy to read over busy photos.
+  7. Open a gallery as a guest, including one on Midnight Hero. Expect: exactly as before (themes unchanged).
 Done by:
 Device / browser:
 Build / version:
