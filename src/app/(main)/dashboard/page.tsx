@@ -32,7 +32,7 @@ import {
 const DEFAULT_EVENT_COVER_IMAGE = "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop";
 // The two stat boxes and the Join button share one size. The height is inline so it never depends on a newly
 // generated Tailwind class.
-const STAT_BOX = "flex min-w-0 flex-col justify-center rounded-2xl border border-[#273034] bg-[#0E141A] px-5 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:px-6";
+const STAT_BOX = "flex min-w-0 flex-col justify-center rounded-2xl border border-[var(--site-line)] bg-[var(--site-bg)] px-5 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:px-6";
 const STAT_BOX_SIZE: React.CSSProperties = { height: 74 };
 
 const MEMORIES_CARD_IMAGE = "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2071&auto=format&fit=crop";
@@ -144,8 +144,8 @@ export default function DashboardHub() {
 
     if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-slate-950">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber-400 border-t-transparent" />
+            <div className="flex min-h-screen items-center justify-center bg-[var(--site-bg)]">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--site-gold)] border-t-transparent" />
             </div>
         );
     }
@@ -153,25 +153,25 @@ export default function DashboardHub() {
     if (!user) return null;
 
     return (
-        <div className="min-h-screen bg-[#0E141A] font-sans text-white">
+        <div className="min-h-screen bg-[var(--site-bg)] font-sans text-[var(--site-text)]">
             <main className="relative z-20 mx-auto max-w-7xl space-y-8 px-4 pt-12 pb-24 sm:px-6 lg:px-8">
-                <section className="rounded-[2rem] border border-[#273034] bg-[#121820] p-5 shadow-2xl shadow-black/25 sm:p-8 lg:p-10">
+                <section className="rounded-[2rem] border border-[var(--site-line)] bg-[var(--site-surface)] p-5 shadow-2xl shadow-black/25 sm:p-8 lg:p-10">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#CA9C68]">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[var(--site-gold)]">
                                 <CollectionsIcon className="h-6 w-6" aria-hidden="true" />
                             </div>
                             <div className="min-w-0">
-                                <h1 className="truncate font-brand font-normal tracking-wide text-[#F5EFE6]" style={{ fontSize: 28, lineHeight: "30px" }}>
-                                    Collections <span className="text-[#CA9C68]">|</span> {user.name || user.email || "My Dashboard"}
+                                <h1 className="home-gold-text truncate font-serif text-[26px] font-semibold tracking-[-0.015em] sm:text-[28px]" style={{ lineHeight: "30px" }}>
+                                    Collections <span className="text-[var(--site-gold)]">|</span> {user.name || user.email || "My Dashboard"}
                                 </h1>
-                                <p className="truncate font-sans text-slate-400" style={{ fontSize: 12, lineHeight: "18px" }}>Memories curated for you</p>
+                                <p className="truncate font-sans text-[var(--site-muted)]" style={{ fontSize: 12, lineHeight: "18px" }}>Memories curated for you</p>
                             </div>
                         </div>
                         <button
                             type="button"
                             onClick={() => setShowJoinModal(true)}
-                            className="flex h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-[#CA9C68] px-4 font-sans text-sm font-black text-slate-950 transition-colors hover:bg-[#D7AE7D] sm:px-5"
+                            className="flex h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-full home-btn-gold px-4 font-sans text-sm font-black sm:px-5"
                             aria-label="Join Event"
                         >
                             <Plus className="h-4 w-4" />
@@ -182,66 +182,66 @@ export default function DashboardHub() {
 
                     <div className="mt-8 grid gap-4 sm:grid-cols-3">
                         <div className={STAT_BOX} style={STAT_BOX_SIZE}>
-                            <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-400">
-                                <PhotosStatIcon className="h-5 w-5 text-[#CA9C68]" aria-hidden="true" />
+                            <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-[var(--site-muted)]">
+                                <PhotosStatIcon className="h-5 w-5 text-[var(--site-gold)]" aria-hidden="true" />
                                 Total Photos
                             </span>
-                            <span className="truncate text-xl text-[#CA9C68] lg:text-2xl" style={SERIF}>
+                            <span className="truncate text-xl text-[var(--site-gold)] xl:text-2xl" style={SERIF}>
                                 {statsLoaded ? totalPhotos.toLocaleString("en-US") : "—"} {totalPhotos === 1 ? "Photo" : "Photos"}
                             </span>
                         </div>
                         <div className={STAT_BOX} style={STAT_BOX_SIZE}>
-                            <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-400">
-                                <VideosStatIcon className="h-5 w-5 text-[#CA9C68]" aria-hidden="true" />
+                            <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-[var(--site-muted)]">
+                                <VideosStatIcon className="h-5 w-5 text-[var(--site-gold)]" aria-hidden="true" />
                                 Total Videos
                             </span>
-                            <span className="truncate text-xl text-[#CA9C68] lg:text-2xl" style={SERIF}>
+                            <span className="truncate text-xl text-[var(--site-gold)] xl:text-2xl" style={SERIF}>
                                 {statsLoaded ? totalVideos.toLocaleString("en-US") : "—"} {totalVideos === 1 ? "Video" : "Videos"}
                             </span>
                         </div>
                         <div className={STAT_BOX} style={STAT_BOX_SIZE}>
-                            <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-400">
-                                <EventsJoinedStatIcon className="h-5 w-5 text-[#CA9C68]" aria-hidden="true" />
+                            <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-[var(--site-muted)]">
+                                <EventsJoinedStatIcon className="h-5 w-5 text-[var(--site-gold)]" aria-hidden="true" />
                                 Events Joined
                             </span>
-                            <span className="truncate text-xl text-white lg:text-2xl" style={SERIF}>
-                                {attendedCount}
+                            <span className="truncate text-xl text-[var(--site-gold)] xl:text-2xl" style={SERIF}>
+                                {attendedCount.toLocaleString("en-US")} {attendedCount === 1 ? "Event" : "Events"}
                             </span>
                         </div>
                     </div>
 
                     {isLoadingEvents ? (
                         <div className="flex justify-center py-16">
-                            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#2B2F2E] border-t-[#CA9C68]" />
+                            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--site-line)] border-t-[var(--site-gold)]" />
                         </div>
                     ) : (
                         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                             {visibleEvents.map((event) => (
-                                <DashboardEventCard key={event.id} event={event} guests={eventStats[event.id]?.guests} />
+                                <DashboardEventCard key={event.id} event={event} guests={eventStats[event.id]?.guests} className="bg-[var(--site-bg)]" />
                             ))}
 
                             {events.length === 0 ? (
-                                <div className="col-span-full rounded-2xl border border-dashed border-[#CA9C68]/25 p-10 text-center text-slate-400">
-                                    <p className="text-2xl text-white" style={SERIF}>No events yet</p>
+                                <div className="col-span-full rounded-2xl border border-dashed border-[var(--site-gold)]/25 p-10 text-center text-[var(--site-muted)]">
+                                    <p className="text-2xl text-[var(--site-text)]" style={SERIF}>No events yet</p>
                                     <p className="mt-2 text-sm font-medium">Join an event or create your first hosted collection.</p>
                                 </div>
                             ) : (
                                 <Link
                                     href="/dashboard/events"
-                                    className="group relative block min-h-64 overflow-hidden rounded-2xl border border-dashed border-[#CA9C68]/35 bg-[#0E141A] text-center transition-colors hover:border-[#CA9C68]/60"
+                                    className="group relative block min-h-64 overflow-hidden rounded-2xl border border-dashed border-[var(--site-gold)]/35 bg-[var(--site-bg)] text-center transition-colors hover:border-[var(--site-gold)]/60"
                                 >
                                     <img
                                         src={MEMORIES_CARD_IMAGE}
                                         alt=""
                                         className="absolute inset-0 h-full w-full object-cover opacity-25 transition-transform duration-700 group-hover:scale-105"
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-[#0E141A] via-[#0E141A]/75 to-[#0E141A]/40" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--site-bg)] via-[var(--site-bg)]/75 to-[var(--site-bg)]/40" />
                                     <div className="relative z-10 flex h-full min-h-64 flex-col items-center justify-center p-6">
-                                        <h3 className="text-2xl text-white" style={SERIF}>Your memories</h3>
+                                        <h3 className="text-2xl text-[var(--site-text)]" style={SERIF}>Your memories</h3>
                                         <div className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold">
                                             {events.length} {events.length === 1 ? "Collection" : "Collections"}
                                         </div>
-                                        <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#13191F]">
+                                        <div className="mt-6 inline-flex items-center gap-2 rounded-full home-btn-glass px-[15px] py-[7px] text-xs font-bold uppercase tracking-widest">
                                             <span>Explore All</span>
                                             <ArrowRight className="h-4 w-4" />
                                         </div>
@@ -255,18 +255,18 @@ export default function DashboardHub() {
                 <div className="grid gap-6 md:grid-cols-2">
                     <section
                         onClick={() => router.push("/host")}
-                        className="group relative flex min-h-[220px] cursor-pointer flex-col justify-between overflow-hidden rounded-[2rem] border border-[#CA9C68]/20 bg-[#151B21] p-6 shadow-xl shadow-black/20 sm:p-8"
+                        className="group relative flex min-h-[220px] cursor-pointer flex-col justify-between overflow-hidden rounded-[2rem] border border-[var(--site-gold)]/20 bg-[var(--site-surface)] p-6 shadow-xl shadow-black/20 sm:p-8"
                     >
                         <div className="relative z-10 flex flex-col gap-4">
-                            <div className="w-fit rounded-full border border-[#CA9C68]/20 bg-[#CA9C68]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#CA9C68]">
+                            <div className="w-fit rounded-full border border-[var(--site-gold)]/20 bg-[var(--site-gold)]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--site-gold)]">
                                 For Hosts
                             </div>
                             <div>
-                                <h2 className="text-2xl font-black text-white">Host an Event</h2>
-                                <p className="mt-2 text-sm font-semibold text-slate-400">Create a private gallery for weddings, parties or corporate meets.</p>
+                                <h2 className="text-2xl font-black text-[var(--site-text)]">Host an Event</h2>
+                                <p className="mt-2 text-sm font-semibold text-[var(--site-muted)]">Create a private gallery for weddings, parties or corporate meets.</p>
                             </div>
                         </div>
-                        <div className="relative z-10 mt-6 flex w-fit items-center rounded-xl border border-[#CA9C68]/30 bg-[#CA9C68]/10 px-4 py-2.5 text-xs font-black text-[#CA9C68] backdrop-blur-md transition-colors group-hover:bg-[#CA9C68]/15">
+                        <div className="relative z-10 mt-6 flex w-fit items-center rounded-full home-btn-glass px-4 py-2.5 text-xs font-black backdrop-blur-md">
                             <span>Create Now</span>
                             <ArrowRight className="ml-2 h-4 w-4" />
                         </div>
@@ -274,16 +274,16 @@ export default function DashboardHub() {
 
                     <section
                         onClick={() => window.open("https://www.youtube.com/@EveBashApp", "_blank")}
-                        className="group relative flex flex-col justify-between cursor-pointer overflow-hidden rounded-[2rem] border border-[#CA9C68]/15 bg-gradient-to-br from-[#1E1B17] to-[#12171C] p-6 sm:p-8 shadow-xl shadow-black/30 min-h-[220px]"
+                        className="group relative flex flex-col justify-between cursor-pointer overflow-hidden rounded-[2rem] border border-[var(--site-gold)]/15 bg-gradient-to-br from-[var(--site-surface-2)] to-[var(--site-surface)] p-6 sm:p-8 shadow-xl shadow-black/30 min-h-[220px]"
                     >
-                        <div className="absolute right-0 top-0 h-48 w-48 -translate-y-1/2 translate-x-1/4 rounded-full bg-[#CA9C68]/10 blur-2xl" />
+                        <div className="absolute right-0 top-0 h-48 w-48 -translate-y-1/2 translate-x-1/4 rounded-full bg-[var(--site-gold)]/10 blur-2xl" />
                         <div className="relative z-10 flex flex-col gap-4">
-                            <div className="w-fit rounded-lg border border-[#CA9C68]/20 bg-[#CA9C68]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#CA9C68]">
+                            <div className="w-fit rounded-lg border border-[var(--site-gold)]/20 bg-[var(--site-gold)]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--site-gold)]">
                                 How To Host
                             </div>
                             <div>
-                                <h2 className="text-2xl font-black text-white">Host Your Perfect Event</h2>
-                                <p className="mt-2 text-sm font-semibold text-white/80">Watch our step-by-step tutorials and host your event like a pro.</p>
+                                <h2 className="text-2xl font-black text-[var(--site-text)]">Host Your Perfect Event</h2>
+                                <p className="mt-2 text-sm font-semibold text-[var(--site-text)]/80">Watch our step-by-step tutorials and host your event like a pro.</p>
                             </div>
                         </div>
                         <div className="relative z-10 mt-6 flex w-fit items-center rounded-xl bg-[#FF0000] px-4 py-2.5 text-xs font-black text-white transition-colors group-hover:bg-[#CC0000]">
@@ -337,7 +337,7 @@ export default function DashboardHub() {
                                     className={cn(modalStyles.primary, "w-full py-4")}
                                 >
                                     {isJoining ? (
-                                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950" />
+                                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--site-on-gold)]/30 border-t-[var(--site-on-gold)]" />
                                     ) : (
                                         "Join with Code"
                                     )}
@@ -357,7 +357,7 @@ export default function DashboardHub() {
                                     }}
                                     className={cn(modalStyles.secondary, "mt-6 w-full py-4")}
                                 >
-                                    <QrCode className="h-5 w-5 text-[#CA9C68]" />
+                                    <QrCode className="h-5 w-5 text-[var(--site-gold)]" />
                                     <span>Scan QR Code</span>
                                 </button>
                             </form>

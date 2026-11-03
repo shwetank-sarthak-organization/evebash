@@ -101,18 +101,20 @@ function GuestsIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 // Also used by the host page's Host / Shared grid, which opens the event's manage view (onOpen) and adds a footer
-export function DashboardEventCard({ event, guests, onOpen, footer }: {
+export function DashboardEventCard({ event, guests, onOpen, footer, className }: {
     event: Event;
     guests?: number | null;
     onOpen?: () => void;
     footer?: React.ReactNode;
+    // e.g. a darker background when the card sits inside a panel (Dashboard)
+    className?: string;
 }) {
     const coverImage = resolveEventCoverImage(event.coverImage, "thumbnail", event.category);
     return (
         <button
             type="button"
             onClick={onOpen || (() => window.open(`/events/${event.id}?mode=visitor`, "_blank", "noopener,noreferrer"))}
-            className="group flex flex-col rounded-2xl border border-[var(--site-line)] bg-[var(--site-surface)] p-3 text-left font-sans transition-all hover:-translate-y-1 hover:border-[var(--site-gold)]/40"
+            className={cn("group flex flex-col rounded-2xl border border-[var(--site-line)] bg-[var(--site-surface)] p-3 text-left font-sans transition-all hover:-translate-y-1 hover:border-[var(--site-gold)]/40", className)}
         >
             <div className="relative w-full overflow-hidden rounded-xl bg-[var(--site-bg)]" style={{ aspectRatio: "16 / 10" }}>
                 <img
