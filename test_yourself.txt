@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 175
+Next test number: 176
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4885,6 +4885,41 @@ How to test:
   6. Make the browser window phone-narrow (about 375 px). Expect: "Host Console" fits on one line, no sideways
      scrolling.
   7. Open a guest gallery (for example /events/wedding-2-77d4). Expect: exactly as before this change.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#175 Dashboard in the Noir homepage look (website)
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     The Dashboard and its "Your memories" page now match the Noir homepage and the Host page: near-black
+           panels instead of blue-grey, one gold, a gold-foil "Join Event" pill, frosted "Explore all" and "Create
+           now" pills, and "Collections | <your name>" in the gold heading font. "Events Joined" now shows "1 Event"
+           in gold like the photo and video counts. Sizes, spacing and what buttons do are unchanged.
+Detail:    Commit c76732f (branch claude/host-page-noir-d86982). NOT on staging yet: test once it is pushed.
+           Files: src/app/(main)/dashboard/page.tsx, src/app/(main)/dashboard/events/page.tsx,
+           src/components/dashboard/DashboardEvents.tsx. Before this, "665 Photos" was cut to "665 Pho..." at about
+           1024-1100 px window width.
+           2026-11-03 check by Claude (not a tester PASS): built-in browser on a local server at 1280, 1024, 800 and
+           375 px (phone size emulated, not a real phone): Dashboard, Join Event pop-up, Your memories page.
+           Layout measured the same as staging at 1280 px.
+How to test:
+  1. On a computer, open Dashboard. Expect: no blue-grey panels; the Collections panel, stat boxes and event cards
+     are near-black like the Host page; "Join Event" is a gold-foil pill; the title is in gold serif letters.
+  2. Look at the three stat boxes. Expect: Total Photos, Total Videos and Events Joined all show a gold number with a
+     word ("665 Photos", "68 Videos", "1 Event").
+  3. Make the window about 1024 px wide, then about 800 px. Expect: no stat is cut off with "...".
+  4. Click Join Event. Expect: near-black pop-up with a gold-foil "Join with code" pill. Close it.
+  5. Click "Explore all" on the Your memories card. Expect: the list page in the same look; the filter tabs, search
+     and dropdowns readable; the event cards open the gallery as before.
+  6. Open Host. Expect: the event cards there look the same as before this change.
 Done by:
 Device / browser:
 Build / version:
