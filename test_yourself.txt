@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 182
+Next test number: 183
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5135,6 +5135,42 @@ How to test:
   6. Android: Dashboard > Join Event > tap the Join ID box. Expect: the sheet sits above the keyboard and
      doesn't flicker (same as before).
   7. iPhone: steps 1 to 3. Expect: the panel still moves up for the keyboard as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#182 Pricing, Contact us and EB Network in the Noir homepage look (website)
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     Pricing, Contact us and EB Network now match the Noir homepage and the other site pages. Pricing: the
+           Premium button is a gold-foil pill and every other plan button a frosted pill, in normal case ("Choose
+           Premium", not "CHOOSE PREMIUM"); "Best Value" on Ultimate is a quiet gold instead of orange; the heading is
+           in gold lettering. Contact us: gold-foil "Send message" and small gold labels. EB Network: gold-foil "List
+           your business" and "Register interest". Sizes, spacing and what buttons do are unchanged.
+Detail:    Commit 509ded9 on staging (website only, live after the Vercel staging build).
+           Files: src/app/(main)/pricing/page.tsx, src/app/(main)/contact-us/page.tsx,
+           src/app/(main)/eb-network/page.tsx, src/components/eb-network/EbNetworkComingSoon.tsx.
+           2026-11-03 check by Claude (not a tester PASS): built-in browser on a local server at 1280, 800 and 375 px
+           (phone size emulated, not a real phone). Layout measured the same as staging at 1280 px. Checkout, the
+           contact form and the EB Network form were not submitted.
+How to test:
+  1. Open Pricing. Expect: gold heading; "Most Popular" band and the active billing tab (Monthly) in gold;
+     "Choose Premium" gold-foil pill; "Get Started", "Choose Starter", "Choose Ultimate" frosted pills, all the
+     same height; Ultimate's "Best Value" band and ticks in a quiet gold, no orange.
+  2. Switch between Monthly / 3 months / 6 months / Yearly. Expect: prices change as before.
+  3. Click "Choose Premium" (signed in). Expect: the same checkout confirmation as before. Cancel it.
+  4. Open Contact us. Expect: ADDRESS, PHONE, EMAIL, BUSINESS HOURS and the form labels in small gold capitals;
+     "Send message" is a gold-foil pill. Send a test message only if you want to check the form still works.
+  5. Open EB Network. Expect: "List your business" gold-foil pill; it scrolls to the form; "Register interest" is
+     a gold-foil pill.
+  6. Check all three at about 800 px and phone width. Expect: nothing cut off, no sideways scrolling.
 Done by:
 Device / browser:
 Build / version:
