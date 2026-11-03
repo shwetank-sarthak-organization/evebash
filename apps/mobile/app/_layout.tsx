@@ -4,10 +4,11 @@ import { safeReturnTo } from '@/lib/loginReturn';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import * as React from 'react';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import LoadingScreen from '@/components/LoadingScreen';
+import AppIntro from '@/components/intro/AppIntro';
 import { FeedbackHost } from '@/components/feedback/FeedbackHost';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
@@ -30,12 +31,12 @@ import { Inter_900Black } from '@expo-google-fonts/inter/900Black';
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
-// The native splash stays up until AuthGate can show the first screen, but never longer than
-// this, so a slow session refresh shows the branded loading screen instead of a frozen splash.
+// The native splash is a plain background; it hides as soon as the app-open animation draws its
+// first frame (AppIntro), and never later than this in case the animation can't draw.
 const SPLASH_MAX_MS = 2000;
 let splashHidden = false;
 
-function hideSplash(reason: 'ready' | 'timeout') {
+function hideSplash(reason: 'intro' | 'ready' | 'timeout') {
   if (splashHidden) return;
   splashHidden = true;
   markStartup(`splash hidden (${reason})`);
@@ -68,7 +69,7 @@ export const unstable_settings = {
 };
 
 // Auth gate: redirects unauthenticated users to /login
-function AuthGate({ children }: { children: React.ReactNode }) {
+function AuthGate({ children, onReady }: { children: React.ReactNode; onReady: () => void }) {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -152,8 +153,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   useEffect(() => {
-    if (!loading && rootNavigationState?.key) hideSplash('ready');
-  }, [loading, rootNavigationState?.key]);
+    if (!loading && rootNavigationState?.key) {
+      hideSplash('ready');
+      onReady();
+    }
+  }, [loading, rootNavigationState?.key, onReady]);
 
   if (loading || !rootNavigationState?.key) {
     return <LoadingScreen message="Loading your account" />;
@@ -162,7 +166,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function RootLayoutContent() {
+function RootLayoutContent({ onReady }: { onReady: () => void }) {
   const { isDark, colors } = useAppTheme();
 
   useEffect(() => {
@@ -190,7 +194,7 @@ function RootLayoutContent() {
 
   return (
     <ThemeProvider value={customTheme}>
-      <AuthGate>
+      <AuthGate onReady={onReady}>
         <Stack screenOptions={{
           ...(Platform.OS === 'ios' ? { headerBackTitle: '' } : {}),
           headerTintColor: colors.white,
@@ -280,14 +284,25 @@ export default function RootLayout() {
     return () => clearTimeout(timer);
   }, []);
 
+  // The app-open animation plays once per cold start, over the app while the account loads
+  const [appReady, setAppReady] = useState(false);
+  const [introDone, setIntroDone] = useState(Platform.OS === 'web');
+  const markAppReady = useCallback(() => setAppReady(true), []);
+  const finishIntro = useCallback(() => {
+    markStartup('intro finished');
+    setIntroDone(true);
+  }, []);
+  const introShown = useCallback(() => hideSplash('intro'), []);
+
   // AuthProvider mounts before fonts finish loading so the session check starts right away
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppThemeProvider>
         <AuthProvider>
-          {fontsReady ? <RootLayoutContent /> : <LoadingScreen message="Starting up" />}
+          {fontsReady ? <RootLayoutContent onReady={markAppReady} /> : <LoadingScreen message="Starting up" />}
         </AuthProvider>
       </AppThemeProvider>
+      {!introDone && <AppIntro ready={appReady} onFinish={finishIntro} onShown={introShown} />}
     </GestureHandlerRootView>
   );
 }
