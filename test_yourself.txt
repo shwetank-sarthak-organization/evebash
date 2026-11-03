@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 179
+Next test number: 182
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5028,6 +5028,72 @@ How to test:
   5. Open a Classic White or Sunlit Portrait gallery as a guest and scroll. Expect: unchanged.
   6. Optional, iPhone connected to Xcode: watch the memory gauge during step 4. Expect: memory levels off instead of
      rising all the way down.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+--------------------------------------------------------------------------------
+#180 Android: does the keyboard hide any text box? (pop-ups and forms, issue #243)
+Status:    TODO
+Priority:  Medium
+Platform:  App (Android phone)
+Brief:     On Android the keyboard covered the photo comment box (#242). These other places use the same
+           pattern, or have no keyboard handling at all, so they may have the same problem. This test finds
+           out which ones really break, so only those get fixed (#243).
+Detail:    Nothing was changed for this test. Use an Android phone with its normal on-screen keyboard (not a
+           Bluetooth keyboard, not the floating keyboard). The Android emulator can't show this: with its
+           hardware keyboard on, Gboard only shows a floating keyboard. In Feedback, list the numbers that fail.
+How to test:
+  For each place: tap the text box, then look before typing. Expect: the box and its button (Save, Send,
+  Create, Rename) stay visible above the keyboard, or you can scroll to them.
+  1. Album tab of an event you host: open a page for review. Tap "Write a reply", then "Describe the change
+     (optional)".
+  2. Host page of an event > Galleries > Add Sub-Gallery: tap the name box.
+  3. Profile > EB Vault > + > New folder: tap the name box. Then a file's ... > Rename.
+  4. Host tab > an event's options > Rename Event: tap the name box.
+  5. Host page of an event > pencil next to the event title (Edit Event Title): tap the box.
+  6. Profile > Edit: tap the lowest boxes (location, birthday).
+  7. Profile > Usage & Plan > Support Chat (opens the contact form): tap "Tell us more about your event...".
+  8. Host page of an event > Galleries > Welcome Message > Edit: tap the message box.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+--------------------------------------------------------------------------------
+#181 App photo viewer comments: nothing behind the panel; Android keyboard doesn't hide the comment box
+Status:    TODO
+Priority:  Medium
+Platform:  App (Android phone + iPhone)
+Brief:     In guest galleries the Like / Comment / Share / Download row showed through the comment panel and
+           the empty message was cut off (#237). On Android the keyboard covered the comment box, so you
+           couldn't see what you typed or the Send button (#242). Now the row is hidden while comments are
+           open, and on Android the panel moves up above the keyboard.
+Detail:    Commit 40a55ee on staging (app only: needs the next app build or update to reach phones).
+           2026-11-03 check by Claude (not a tester PASS): Android emulator, step 1, and step 3 only with
+           Gboard's floating keyboard (the panel correctly stays put). The normal docked keyboard and the
+           iPhone were not checked. The Join Event sheet now uses the same keyboard code, so step 6 checks it
+           still works.
+How to test:
+  1. In a guest gallery (any theme), open a photo with no comments and tap the comment icon. Expect: "No
+     whispers yet..." and "Write the first beautiful word." both fully visible, and no Like / Share /
+     Download buttons showing through the panel. Close the panel. Expect: the buttons are back.
+  2. Same on a photo that has a comment. Expect: nothing shows through.
+  3. Android phone, normal on-screen keyboard: tap "Share a wish...". Expect: the panel moves up; the box,
+     what you type and the Send button stay visible above the keyboard. Send a comment, then delete it.
+  4. Android: tap Reply on a comment. Expect: same as step 3.
+  5. Android, as the host: open a photo from your event's host page, open its comments, tap the box.
+     Expect: the page scrolls so the box and Send stay above the keyboard.
+  6. Android: Dashboard > Join Event > tap the Join ID box. Expect: the sheet sits above the keyboard and
+     doesn't flicker (same as before).
+  7. iPhone: steps 1 to 3. Expect: the panel still moves up for the keyboard as before.
 Done by:
 Device / browser:
 Build / version:

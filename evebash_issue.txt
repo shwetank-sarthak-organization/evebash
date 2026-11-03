@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 243
+Next issue number: 244
 
 =====================================================================
 ACTIVE ISSUES
@@ -143,6 +143,7 @@ Blocked by: -
 Found in: Sarthak testing the Join Event sheet on the Android emulator (2026-10-12)
 Issue: On Android, tapping the Join ID box in the Join Event sheet makes the sheet flicker non-stop. The shared BottomSheet (apps/mobile/components/ui/BottomSheet.tsx) used KeyboardAvoidingView with behavior "height" on Android. With a floating keyboard (Gboard's small toolbar when a hardware keyboard is attached, as on the emulator), the keyboard events made it shrink the sheet, the toolbar hid and re-showed, and the sheet snapped back, forever. The New Event sheet (Host) has text boxes in the same sheet, so it was affected too; the other sheets have no text boxes. Fix (da340bd, needs a new app build): on Android the sheet now pads by the keyboard height from the IME insets (0 for a floating keyboard) instead; iOS unchanged. Device check: test_yourself #54.
 How to reproduce: Android emulator with the hardware keyboard on: Dashboard > Join Event > tap the Join ID box. The sheet jumps up and down, and the dashboard tab bar shows through under it.
+Note 2026-11-03: the sheet's Android keyboard code moved to apps/mobile/hooks/use-android-keyboard-height.ts (shared with the photo viewer's comment panel, #242); the sheet behaves as before.
 
 #48
 Listed: 2026-10-12
@@ -1440,17 +1441,6 @@ Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: The RunPod-first pipeline adds a lot of moving parts for a small saving today: a RunPod account, a worker image built by GitHub Actions and stored on ghcr.io, three RunPod endpoints, a backend route and a check every minute. Only 8 videos over 10 minutes have ever been uploaded, 7 of them our own tests, so the saving is a few rupees per video. The proven Modal path (4-core for short videos, 16-core for long ones, GPU mode off since 2026-11-03) is enough for launch. Decision needed: launch on Modal only and turn RunPod on later (for example when long videos reach a few hundred a month), or turn it on at launch after issues #221, #222 and #227 are done.
 How to reproduce: Not a bug; read todo #18 and reports/Final video pipeline recommendation 2026-10-27.md.
 
-#237
-Listed: 2026-11-03
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: App screen review, photo viewer comments (chat 2026-11-03)
-Issue: In the full-screen photo viewer that guest galleries use (the "dashboard" layout in apps/mobile/components/PhotoViewer.tsx, from about line 1736; seen in Royal Emerald), the Guestbook panel is see-through. Its background is the theme's panel colour, which is mostly transparent (the default is rgba(255,255,255,0.08)). The Like / Comment / Share / Download row stays underneath and shows through, right on top of the "No whispers yet..." empty state. The empty state's second line, "Write the first beautiful word.", is hidden behind the comment box. Fix idea that keeps each theme's colours: hide the action row while comments are open (the other layout raises it with viewerActionsRaised) and put a solid backing behind the panel's theme colour; then check every guest theme.
-How to reproduce: Android emulator, test-face-new-155c guest view (Royal Emerald), open any photo, tap the comment icon.
-
 #239
 Listed: 2026-11-03
 Platform: App
@@ -1488,16 +1478,40 @@ How to reproduce: Android emulator, Profile > EB Vault; compare with Profile > U
 Listed: 2026-11-03
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device test #181 (normal Android keyboard on a phone)
 Found in: Testing the #235 fix on the Android emulator (chat 2026-11-03)
 Issue: On Android, the keyboard covers the comment box in the photo viewer, so you can't see what you are typing or the send button. The Guestbook panel (renderGuestbookPanel in apps/mobile/components/PhotoViewer.tsx) uses KeyboardAvoidingView only on iOS (behavior is undefined on Android), and inside the viewer's Modal the screen doesn't shrink for the keyboard. Fix idea: give Android a behavior too (or move the panel up by the keyboard height from Keyboard events), then check typing a comment and a reply on Android and iPhone.
 How to reproduce: Android emulator, test-face-new-155c guest view, open a photo, tap the comment icon, tap "Share a wish...": the keyboard opens over the whole panel.
+Note 2026-11-03: fix on staging in 40a55ee. On Android the bottom-pinned comment panel moves up by the keyboard height (and gets shorter if space is tight), and the host viewer scrolls its panel above the keyboard. The keyboard listener now lives in apps/mobile/hooks/use-android-keyboard-height.ts, shared with BottomSheet. Checked on the emulator only with Gboard's floating keyboard (the panel correctly stays put); the normal docked keyboard isn't checked yet. Move to RECENTLY FIXED once device test #181 passes on an Android phone. Other places with the same risk: #243.
+
+#243
+Listed: 2026-11-03
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: Device test #180 (which places really break on a phone)
+Found in: Searching the app for the #242 pattern (chat 2026-11-03)
+Issue: Other places where the Android keyboard may cover a text box or its button, like #242. Not checked on a phone yet: the emulator here only shows Gboard's floating keyboard. Same pattern as #242 (keyboard handling only on iOS, inside a pop-up): (1) album page review, "Write a reply" and "Describe the change (optional)" (apps/mobile/components/album/PageReviewer.tsx, about line 416); (2) host page > Add Sub-Gallery (apps/mobile/components/event/modals/SubEventModal.tsx); (3) EB Vault > New folder and Rename (NamePrompt in apps/mobile/components/vault/VaultModals.tsx). No keyboard handling at all, in a pop-up in the middle of the screen, so the keyboard may hide its lower half and the Save button: (4) Host tab > an event's options > Rename Event (apps/mobile/app/(tabs)/gallery.tsx, about line 1186); (5) host event page > pencil next to the title, "Edit Event Title" (apps/mobile/components/event/modals/RenameEventModal.tsx). Full screens with no keyboard handling, fine if Android shrinks the screen for the keyboard: (6) Profile > Edit (the lowest boxes, location and birthday); (7) Contact us (the message box, apps/mobile/app/contact.tsx); (8) the host page's welcome message editor (apps/mobile/app/events/[id].tsx, about line 5413). Not listed: the business screens (Phase 2: chat, vendors, manage business) use the same iOS-only pattern. Fix idea: for each place that fails device test #180, lift the pop-up by the keyboard height with apps/mobile/hooks/use-android-keyboard-height.ts (added for #242; the bottom sheets use it too).
+How to reproduce: Device test #180 on an Android phone with its normal on-screen keyboard.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#237
+Listed: 2026-11-03
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review, photo viewer comments (chat 2026-11-03)
+Issue: In the full-screen photo viewer that guest galleries use (the "dashboard" layout in apps/mobile/components/PhotoViewer.tsx, from about line 1736; seen in Royal Emerald), the Guestbook panel is see-through. Its background is the theme's panel colour, which is mostly transparent (the default is rgba(255,255,255,0.08)). The Like / Comment / Share / Download row stays underneath and shows through, right on top of the "No whispers yet..." empty state. The empty state's second line, "Write the first beautiful word.", is hidden behind the comment box. Fix idea that keeps each theme's colours: hide the action row while comments are open (the other layout raises it with viewerActionsRaised) and put a solid backing behind the panel's theme colour; then check every guest theme.
+How to reproduce: Android emulator, test-face-new-155c guest view (Royal Emerald), open any photo, tap the comment icon.
+Fixed in: 40a55ee (2026-11-03). In the guest viewer the Like / Comment / Share / Download row is hidden (its space kept) while the comment panel is open, and the empty message has less padding so both lines fit (apps/mobile/components/PhotoViewer.tsx, apps/mobile/components/eventStyles/visitorImmersiveStyles.ts); theme colours unchanged. Correction to the text above: the Royal Emerald panel is 94% opaque (rgba(2,35,28,0.94)), not mostly transparent; the row showed faintly because it sat right under it. Checked on the Android emulator in Royal Emerald (photo with no comments): nothing shows through, both lines fit, the row comes back when the panel closes. Device test #181.
+
 #235
 Listed: 2026-11-03
 Platform: App
