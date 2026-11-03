@@ -86,6 +86,10 @@ export { ScreenErrorBoundary as ErrorBoundary } from '@/components/ui/ScreenErro
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GRID_GAP = 3;
+// Host Gallery Media grid: square tiles per row, and the gap between tiles (both directions)
+const HOST_GRID_COLUMNS = 2;
+const HOST_GRID_GAP = 10;
+const HOST_TILE_RADIUS = 14;
 const PHOTO_PAGE_SIZE = 20;
 // Logged-out public view pages through previews (get_public_gallery_media)
 const PUBLIC_PAGE_SIZE = 60;
@@ -361,22 +365,119 @@ function parseEventDateValue(value?: string) {
 /** Guest rows for the Permissions tab: canChat is a legacy field, removed from the rows on load */
 const withoutLegacyChat = ({ canChat, ...rest }: any) => rest;
 
-/** Host view: marks a photo or video the host hid from guests */
-function HiddenMediaBadge() {
+/** Host view: marks a photo or video the host hid from guests. `top` moves the label below a video's status label */
+function HiddenMediaBadge({ top = 8 }: { top?: number }) {
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 10, backgroundColor: 'rgba(2,6,23,0.45)' }}>
-      <View style={{ position: 'absolute', left: 4, bottom: 4, flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.75)' }}>
-        <IconSymbol name="eye.slash.fill" size={10} color="#fff" />
-        <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.8 }}>HIDDEN</Text>
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: HOST_TILE_RADIUS, backgroundColor: 'rgba(2,6,23,0.45)' }}>
+      <View style={{ position: 'absolute', left: 8, top, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.75)' }}>
+        <IconSymbol name="eye.slash.fill" size={11} color="#fff" />
+        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.8 }}>HIDDEN</Text>
       </View>
     </View>
+  );
+}
+
+/** Host Gallery Media grid: a round button on a tile (favourite, actions, delete) */
+function HostTileButton({
+  icon,
+  label,
+  onPress,
+  active = false,
+  danger = false,
+}: {
+  icon: React.ComponentProps<typeof IconSymbol>['name'];
+  label: string;
+  onPress: () => void;
+  /** Gold fill, e.g. a favourite */
+  active?: boolean;
+  /** Red fill, for delete */
+  danger?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={6}
+      activeOpacity={0.75}
+      onPress={(e) => {
+        e.stopPropagation();
+        onPress();
+      }}
+      style={{
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: active ? MidnightColors.gold : danger ? 'rgba(220,38,38,0.88)' : 'rgba(19,25,31,0.72)',
+        borderWidth: 1,
+        borderColor: active || danger ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.14)',
+      }}
+    >
+      <IconSymbol name={icon} size={danger ? 13 : 15} color={active ? '#13191F' : '#fff'} />
+    </TouchableOpacity>
+  );
+}
+
+/** Host Gallery Media grid: moves a tile one place earlier or later, the way to reorder without dragging */
+function HostTileMoveButtons({
+  kind,
+  canMoveEarlier,
+  canMoveLater,
+  onMove,
+}: {
+  kind: 'photo' | 'video';
+  canMoveEarlier: boolean;
+  canMoveLater: boolean;
+  onMove: (direction: -1 | 1) => void;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', borderRadius: 15, overflow: 'hidden', backgroundColor: 'rgba(19,25,31,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' }}>
+      {([-1, 1] as const).map((direction) => {
+        const enabled = direction === -1 ? canMoveEarlier : canMoveLater;
+        return (
+          <TouchableOpacity
+            key={direction}
+            accessibilityRole="button"
+            accessibilityLabel={`Move ${kind} ${direction === -1 ? 'earlier' : 'later'}`}
+            accessibilityState={{ disabled: !enabled }}
+            disabled={!enabled}
+            hitSlop={{ top: 6, bottom: 6 }}
+            onPress={(e) => {
+              e.stopPropagation();
+              onMove(direction);
+            }}
+            style={{ width: 32, height: 28, alignItems: 'center', justifyContent: 'center', opacity: enabled ? 1 : 0.35 }}
+          >
+            <IconSymbol name={direction === -1 ? 'chevron.left' : 'chevron.right'} size={16} color="#fff" />
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Host Gallery Media grid: the select-mode checkbox over a whole tile (top-right, where favourite and actions sit) */
+function HostTileSelectOverlay({ selected, onToggle }: { selected: boolean; onToggle: () => void }) {
+  return (
+    <TouchableOpacity
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel="Select"
+      onPress={onToggle}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: HOST_TILE_RADIUS, borderWidth: selected ? 3 : 0, borderColor: MidnightColors.gold, backgroundColor: selected ? 'rgba(202,156,104,0.18)' : 'rgba(0,0,0,0.15)' }}
+    >
+      <View style={{ position: 'absolute', top: 8, right: 8, width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: selected ? MidnightColors.gold : '#fff', backgroundColor: selected ? MidnightColors.gold : 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+        {selected && <IconSymbol name="checkmark" size={15} color="#13191F" />}
+      </View>
+    </TouchableOpacity>
   );
 }
 
 /** Host view: a photo whose file never reached storage (guests don't see it), so the host knows to upload it again */
 function FailedUploadBadge() {
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 10, backgroundColor: 'rgba(2,6,23,0.55)', alignItems: 'center', justifyContent: 'center' }}>
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: HOST_TILE_RADIUS, backgroundColor: 'rgba(2,6,23,0.55)', alignItems: 'center', justifyContent: 'center' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 999, backgroundColor: 'rgba(220, 38, 38, 0.92)' }}>
         <IconSymbol name="exclamationmark.triangle.fill" size={10} color="#fff" />
         <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.6 }}>UPLOAD FAILED</Text>
@@ -448,6 +549,7 @@ function GalleryVideoCard({
   compact = false,
   minimalPreview = false,
   blurred = false,
+  radius,
 }: {
   video: any;
   accent?: string;
@@ -455,6 +557,8 @@ function GalleryVideoCard({
   compact?: boolean;
   minimalPreview?: boolean;
   blurred?: boolean;
+  /** Corner radius; defaults to 10 compact, 18 full */
+  radius?: number;
 }) {
   const posterUri = video.thumbnailUrl || video.thumbnail_url || video.posterUrl || video.previewUrl || '';
   const [showPoster, setShowPoster] = useState(!!posterUri);
@@ -469,7 +573,7 @@ function GalleryVideoCard({
 
   return (
     <View style={{
-      borderRadius: compact ? 10 : 18,
+      borderRadius: radius ?? (compact ? 10 : 18),
       overflow: 'hidden',
       backgroundColor: 'rgba(27, 33, 31, 0.92)',
       borderWidth: 1,
@@ -5703,325 +5807,164 @@ export default function EventDetailScreen() {
                           </Text>
                         </View>
                       ) : galleryMediaTab === 'videos' ? (
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                          {filteredVideoItems.map((video, idx) => {
-                            const shouldBlurVideo = shouldBlurMediaForPlan(video);
-                            const isFavouriteVideo = eventFavouritePhotoIds.has(video.id);
-                            const canMoveVideoUp = idx > 0;
-                            const canMoveVideoDown = idx < filteredVideoItems.length - 1;
-                            return (
-                              <View key={video.id} style={{ position: 'relative', width: '31.5%', aspectRatio: 1 }}>
-                              <GalleryVideoCard
-                                video={video}
-                                accent={MidnightColors.gold}
-                                compact
-                                blurred={shouldBlurVideo}
-                                onOpen={() => isSelectingMedia ? toggleMediaSelection(video.id) : openViewer(idx)}
-                              />
-                              {video.isHidden && <HiddenMediaBadge />}
-                              {isSelectingMedia && (
-                                <TouchableOpacity
-                                  accessibilityRole="checkbox"
-                                  accessibilityState={{ checked: selectedMediaIds.has(video.id) }}
-                                  accessibilityLabel="Select for moving"
-                                  onPress={() => toggleMediaSelection(video.id)}
-                                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 10, borderWidth: selectedMediaIds.has(video.id) ? 3 : 0, borderColor: MidnightColors.gold, backgroundColor: selectedMediaIds.has(video.id) ? 'rgba(202,156,104,0.18)' : 'rgba(0,0,0,0.15)' }}
-                                >
-                                  <View style={{ position: 'absolute', top: 6, left: 6, width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: selectedMediaIds.has(video.id) ? MidnightColors.gold : '#fff', backgroundColor: selectedMediaIds.has(video.id) ? MidnightColors.gold : 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
-                                    {selectedMediaIds.has(video.id) && <IconSymbol name={"checkmark" as any} size={13} color="#13191F" />}
+                        <View style={{ gap: HOST_GRID_GAP }}>
+                          {/* Rows of HOST_GRID_COLUMNS square tiles, like the photos; a short last row keeps its tile size */}
+                          {Array.from({ length: Math.ceil(filteredVideoItems.length / HOST_GRID_COLUMNS) }, (_, row) => (
+                            <View key={row} style={{ flexDirection: 'row', gap: HOST_GRID_GAP }}>
+                              {Array.from({ length: HOST_GRID_COLUMNS }, (_, column) => {
+                                const idx = row * HOST_GRID_COLUMNS + column;
+                                const video = filteredVideoItems[idx];
+                                if (!video) return <View key={`empty-${column}`} style={{ flex: 1 }} />;
+                                const isFavouriteVideo = eventFavouritePhotoIds.has(video.id);
+                                // The card shows Processing / Failed top-left; the Hidden label goes under it
+                                const hasVideoStatusLabel = video.status === 'processing' || video.status === 'failed';
+                                return (
+                                  <View key={video.id} style={{ position: 'relative', flex: 1, aspectRatio: 1 }}>
+                                    <GalleryVideoCard
+                                      video={video}
+                                      accent={MidnightColors.gold}
+                                      compact
+                                      radius={HOST_TILE_RADIUS}
+                                      blurred={shouldBlurMediaForPlan(video)}
+                                      onOpen={() => isSelectingMedia ? toggleMediaSelection(video.id) : openViewer(idx)}
+                                    />
+                                    {video.isHidden && <HiddenMediaBadge top={hasVideoStatusLabel ? 36 : 8} />}
+                                    {isSelectingMedia ? (
+                                      <HostTileSelectOverlay selected={selectedMediaIds.has(video.id)} onToggle={() => toggleMediaSelection(video.id)} />
+                                    ) : (
+                                      <>
+                                        <View style={{ position: 'absolute', top: 8, right: 8, flexDirection: 'row', gap: 6 }}>
+                                          <HostTileButton
+                                            icon={isFavouriteVideo ? 'star.fill' : 'star'}
+                                            label={isFavouriteVideo ? 'Remove from favourites' : 'Add to favourites'}
+                                            active={isFavouriteVideo}
+                                            onPress={() => handleToggleEventFavourite(video.id)}
+                                          />
+                                          <HostTileButton icon="ellipsis" label="Video actions" onPress={() => setVideoActionItem(video)} />
+                                        </View>
+                                        {!isOrderLocked && filteredVideoItems.length > 1 && (
+                                          <View style={{ position: 'absolute', left: 8, bottom: 8 }}>
+                                            <HostTileMoveButtons
+                                              kind="video"
+                                              canMoveEarlier={idx > 0}
+                                              canMoveLater={idx < filteredVideoItems.length - 1}
+                                              onMove={(direction) => moveGalleryMedia(video.id, direction)}
+                                            />
+                                          </View>
+                                        )}
+                                      </>
+                                    )}
                                   </View>
-                                </TouchableOpacity>
-                              )}
-                              {!isSelectingMedia && (<>
-                              <TouchableOpacity accessibilityRole="button" accessibilityLabel={isFavouriteVideo ? "Remove from favourites" : "Add to favourites"}
-                                style={{
-                                  position: 'absolute',
-                                  top: 4,
-                                  right: 30,
-                                  width: 22,
-                                  height: 22,
-                                  borderRadius: 11,
-                                  backgroundColor: isFavouriteVideo ? MidnightColors.gold : 'rgba(27, 33, 31,0.85)',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  borderWidth: 1,
-                                  borderColor: isFavouriteVideo ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)',
-                                }}
-                                onPress={(e) => {
-                                  e.stopPropagation();
-                                  handleToggleEventFavourite(video.id);
-                                }}
-                                activeOpacity={0.75}
-                              >
-                                <IconSymbol
-                                  name={isFavouriteVideo ? 'star.fill' : 'star'}
-                                  size={11}
-                                  color={isFavouriteVideo ? '#13191F' : '#fff'}
-                                />
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={{
-                                  position: 'absolute',
-                                  top: 4,
-                                  right: 4,
-                                  width: 22,
-                                  height: 22,
-                                  borderRadius: 11,
-                                  backgroundColor: 'rgba(27, 33, 31,0.92)',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}
-                                accessibilityRole="button"
-                                accessibilityLabel="Video actions"
-                                hitSlop={10}
-                                onPress={() => setVideoActionItem(video)}
-                              >
-                                <IconSymbol name="ellipsis" size={14} color="#fff" />
-                              </TouchableOpacity>
-                              {!isOrderLocked && filteredVideoItems.length > 1 && (
-                                <View
-                                  style={{
-                                    position: 'absolute',
-                                    left: 4,
-                                    bottom: 4,
-                                    flexDirection: 'row',
-                                    borderRadius: 13,
-                                    overflow: 'hidden',
-                                    backgroundColor: 'rgba(27, 33, 31,0.86)',
-                                    borderWidth: 1,
-                                    borderColor: 'rgba(255,255,255,0.12)',
-                                  }}
-                                >
-                                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Move video up"
-                                    style={{
-                                      width: 24,
-                                      height: 24,
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      opacity: canMoveVideoUp ? 1 : 0.35,
-                                    }}
-                                    disabled={!canMoveVideoUp}
-                                    onPress={(e) => {
-                                      e.stopPropagation();
-                                      moveGalleryMedia(video.id, -1);
-                                    }}
-                                  >
-                                    <IconSymbol name="chevron.up" size={15} color="#fff" />
-                                  </TouchableOpacity>
-                                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Move video down"
-                                    style={{
-                                      width: 24,
-                                      height: 24,
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      opacity: canMoveVideoDown ? 1 : 0.35,
-                                    }}
-                                    disabled={!canMoveVideoDown}
-                                    onPress={(e) => {
-                                      e.stopPropagation();
-                                      moveGalleryMedia(video.id, 1);
-                                    }}
-                                  >
-                                    <IconSymbol name="chevron.down" size={15} color="#fff" />
-                                  </TouchableOpacity>
-                                </View>
-                              )}
-                              </>)}
-                              </View>
-                          );
-                          })}
+                                );
+                              })}
+                            </View>
+                          ))}
                         </View>
                       ) : (
                         <View ref={hostGridWindow.ref} onLayout={hostGridWindow.onLayout}>
-                          {!isOrderLocked && <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 8, letterSpacing: 0.4 }}>
-                            ✦ Hold & drag a photo to reorder
-                          </Text>}
+                          {!isOrderLocked && !isSelectingMedia && filteredPhotoItems.length > 1 && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                              <IconSymbol name="line.3.horizontal" size={13} color={MidnightColors.slate400} />
+                              <Text style={{ color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.semiBold }}>
+                                Hold and drag a photo to reorder
+                              </Text>
+                            </View>
+                          )}
                           <Sortable.Grid
                             data={filteredPhotoItems}
                             keyExtractor={(item: any) => item.id}
-                            columns={3}
-                            columnGap={8}
-                            rowGap={8}
+                            columns={HOST_GRID_COLUMNS}
+                            columnGap={HOST_GRID_GAP}
+                            rowGap={HOST_GRID_GAP}
                             sortEnabled={!isOrderLocked && !isSelectingMedia}
                             onDragEnd={({ data: newData }: { data: any[] }) => handleReorderPhotos(newData)}
-	                            renderItem={({ item, index: itemIndex }: { item: any; index: number }) => {
-	                              const shouldBlurPhoto = shouldBlurMediaForPlan(item);
-                              // Square tiles, 3 columns, 8 px gaps; no photo loads until the grid's width is known
-                              const tileSize = (hostGridWindow.width - 16) / 3;
-                              const tileDrawn = hostGridWindow.width > 0 && hostGridWindow.isNear(Math.floor(itemIndex / 3) * (tileSize + 8), tileSize);
+                            renderItem={({ item, index: itemIndex }: { item: any; index: number }) => {
+                              const shouldBlurPhoto = shouldBlurMediaForPlan(item);
+                              // Square tiles, HOST_GRID_COLUMNS per row with HOST_GRID_GAP between them (the grid's columns,
+                              // columnGap and rowGap above); no photo loads until the grid's width is known
+                              const tileSize = (hostGridWindow.width - HOST_GRID_GAP * (HOST_GRID_COLUMNS - 1)) / HOST_GRID_COLUMNS;
+                              const tileDrawn = hostGridWindow.width > 0 && hostGridWindow.isNear(Math.floor(itemIndex / HOST_GRID_COLUMNS) * (tileSize + HOST_GRID_GAP), tileSize);
                               const isFavouritePhoto = eventFavouritePhotoIds.has(item.id);
-                              const canMovePhotoUp = itemIndex > 0;
-                              const canMovePhotoDown = itemIndex >= 0 && itemIndex < filteredPhotoItems.length - 1;
-	                              return (
-	                              <View style={{ position: 'relative', borderRadius: 10, overflow: 'hidden' }}>
-	                                <TouchableOpacity
-                                  activeOpacity={0.9}
-                                  onPress={() => {
-                                    if (isSelectingMedia) {
-                                      toggleMediaSelection(item.id);
-                                      return;
-                                    }
-                                    openViewer(itemIndex);
-                                  }}
-                                  accessibilityRole="button"
-                                  accessibilityLabel={`Photo ${itemIndex + 1} of ${filteredPhotoItems.length}`}
-                                  accessibilityHint="Opens the photo viewer. Hold and drag to reorder."
-                                >
-                                  <GalleryThumbnailImage
-                                    url={item.url}
-                                    thumbnailUrl={item.thumbnailUrl}
-                                    style={{
-                                      width: '100%',
-                                      aspectRatio: 1,
-                                      borderRadius: 10,
+                              return (
+                                <View style={{ position: 'relative', borderRadius: HOST_TILE_RADIUS, overflow: 'hidden', backgroundColor: 'rgba(27, 33, 31,0.9)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+                                  <TouchableOpacity
+                                    activeOpacity={0.9}
+                                    onPress={() => {
+                                      if (isSelectingMedia) {
+                                        toggleMediaSelection(item.id);
+                                        return;
+                                      }
+                                      openViewer(itemIndex);
                                     }}
-                                    blurRadius={shouldBlurPhoto ? 6 : 0}
-                                    offscreen={!tileDrawn}
-                                  />
-                                </TouchableOpacity>
-                                {shouldBlurPhoto && <ExpiredMediaThumbnailNotice />}
-                                {item.isHidden && <HiddenMediaBadge />}
-                                {isMissingUploadedFile(item) && <FailedUploadBadge />}
-                                {isSelectingMedia && (
-                                <TouchableOpacity
-                                  accessibilityRole="checkbox"
-                                  accessibilityState={{ checked: selectedMediaIds.has(item.id) }}
-                                  accessibilityLabel="Select for moving"
-                                  onPress={() => toggleMediaSelection(item.id)}
-                                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 10, borderWidth: selectedMediaIds.has(item.id) ? 3 : 0, borderColor: MidnightColors.gold, backgroundColor: selectedMediaIds.has(item.id) ? 'rgba(202,156,104,0.18)' : 'rgba(0,0,0,0.15)' }}
-                                >
-                                  <View style={{ position: 'absolute', top: 6, left: 6, width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: selectedMediaIds.has(item.id) ? MidnightColors.gold : '#fff', backgroundColor: selectedMediaIds.has(item.id) ? MidnightColors.gold : 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
-                                    {selectedMediaIds.has(item.id) && <IconSymbol name={"checkmark" as any} size={13} color="#13191F" />}
-                                  </View>
-                                </TouchableOpacity>
-                              )}
-                                {!isSelectingMedia && (<>
-                                <TouchableOpacity
-                                  style={{
-                                    position: 'absolute',
-                                    top: 4,
-                                    left: 4,
-                                    width: 22,
-                                    height: 22,
-                                    borderRadius: 11,
-                                    backgroundColor: 'rgba(27, 33, 31,0.85)',
-                                    alignItems: 'center',
-	                                    justifyContent: 'center',
-	                                  }}
-	                                  onPress={(e) => {
-                                      e.stopPropagation();
-                                      openGalleryPhotoActions(item);
-                                    }}
-	                                >
-	                                  <Text style={{ color: '#fff', fontSize: 14, lineHeight: 14, fontWeight: '900' }}>⋯</Text>
-	                                </TouchableOpacity>
-                                <TouchableOpacity accessibilityRole="button" accessibilityLabel={isFavouritePhoto ? "Remove from favourites" : "Add to favourites"}
-                                  style={{
-                                    position: 'absolute',
-                                    top: 4,
-                                    right: 30,
-                                    width: 22,
-                                    height: 22,
-                                    borderRadius: 11,
-                                    backgroundColor: isFavouritePhoto ? MidnightColors.gold : 'rgba(27, 33, 31,0.85)',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    borderWidth: 1,
-                                    borderColor: isFavouritePhoto ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)',
-                                  }}
-                                  onPress={(e) => {
-                                    e.stopPropagation();
-                                    handleToggleEventFavourite(item.id);
-                                  }}
-                                  activeOpacity={0.75}
-                                >
-                                  <IconSymbol
-                                    name={isFavouritePhoto ? 'star.fill' : 'star'}
-                                    size={11}
-                                    color={isFavouritePhoto ? '#13191F' : '#fff'}
-                                  />
-                                </TouchableOpacity>
-                                {deleteJobs.some(job => job.id === item.id && job.status === 'deleting') && (
-                                  <View
-                                    accessibilityRole="progressbar"
-                                    accessibilityLabel={`Deleting ${item.mediaType === 'video' ? 'video' : 'photo'}`}
-                                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20, backgroundColor: 'rgba(19, 25, 31,0.72)', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Photo ${itemIndex + 1} of ${filteredPhotoItems.length}`}
+                                    accessibilityHint="Opens the photo viewer. Hold and drag to reorder."
                                   >
-                                    <ActivityIndicator size="small" color="#fecaca" />
-                                    <Text style={{ color: '#fecaca', fontSize: 9, fontWeight: '800', letterSpacing: 0.6 }}>DELETING...</Text>
-                                  </View>
-                                )}
-	                                <TouchableOpacity accessibilityRole="button" accessibilityLabel={item.mediaType === 'video' ? 'Delete video' : 'Delete photo'}
-	                                  style={{
-	                                    position: 'absolute',
-                                    top: 4,
-                                    right: 4,
-                                    width: 22,
-                                    height: 22,
-                                    borderRadius: 11,
-                                    backgroundColor: 'rgba(239,68,68,0.9)',
-                                    alignItems: 'center',
-	                                    justifyContent: 'center',
-	                                  }}
-	                                  onPress={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteGalleryPhoto(item.id);
-                                    }}
-	                                >
-	                                  <IconSymbol name="trash.fill" size={10} color="#fff" />
-	                                </TouchableOpacity>
-                                {!isOrderLocked && filteredPhotoItems.length > 1 && (
-                                  <View
-                                    style={{
-                                      position: 'absolute',
-                                      left: 4,
-                                      bottom: 4,
-                                      flexDirection: 'row',
-                                      borderRadius: 13,
-                                      overflow: 'hidden',
-                                      backgroundColor: 'rgba(27, 33, 31,0.86)',
-                                      borderWidth: 1,
-                                      borderColor: 'rgba(255,255,255,0.12)',
-                                    }}
-                                  >
-                                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Move photo up"
-                                      style={{
-                                        width: 24,
-                                        height: 24,
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        opacity: canMovePhotoUp ? 1 : 0.35,
-                                      }}
-                                      disabled={!canMovePhotoUp}
-                                      onPress={(e) => {
-                                        e.stopPropagation();
-                                        moveGalleryMedia(item.id, -1);
-                                      }}
-                                    >
-                                      <IconSymbol name="chevron.up" size={15} color="#fff" />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Move photo down"
-                                      style={{
-                                        width: 24,
-                                        height: 24,
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        opacity: canMovePhotoDown ? 1 : 0.35,
-                                      }}
-                                      disabled={!canMovePhotoDown}
-                                      onPress={(e) => {
-                                        e.stopPropagation();
-                                        moveGalleryMedia(item.id, 1);
-                                      }}
-                                    >
-                                      <IconSymbol name="chevron.down" size={15} color="#fff" />
-                                    </TouchableOpacity>
-                                  </View>
-                                )}
-                                </>)}
-	                              </View>
-	                            );
-	                            }}
+                                    <GalleryThumbnailImage
+                                      url={item.url}
+                                      thumbnailUrl={item.thumbnailUrl}
+                                      style={{ width: '100%', aspectRatio: 1 }}
+                                      blurRadius={shouldBlurPhoto ? 6 : 0}
+                                      offscreen={!tileDrawn}
+                                    />
+                                  </TouchableOpacity>
+                                  {/* Darkens the bottom so the move and delete buttons read on light photos */}
+                                  {!isSelectingMedia && (
+                                    <LinearGradient
+                                      pointerEvents="none"
+                                      colors={['rgba(19, 25, 31,0)', 'rgba(19, 25, 31,0.7)']}
+                                      style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 56 }}
+                                    />
+                                  )}
+                                  {shouldBlurPhoto && <ExpiredMediaThumbnailNotice />}
+                                  {item.isHidden && <HiddenMediaBadge />}
+                                  {isMissingUploadedFile(item) && <FailedUploadBadge />}
+                                  {isSelectingMedia ? (
+                                    <HostTileSelectOverlay selected={selectedMediaIds.has(item.id)} onToggle={() => toggleMediaSelection(item.id)} />
+                                  ) : (
+                                    <>
+                                      <View style={{ position: 'absolute', top: 8, right: 8, flexDirection: 'row', gap: 6 }}>
+                                        <HostTileButton
+                                          icon={isFavouritePhoto ? 'star.fill' : 'star'}
+                                          label={isFavouritePhoto ? 'Remove from favourites' : 'Add to favourites'}
+                                          active={isFavouritePhoto}
+                                          onPress={() => handleToggleEventFavourite(item.id)}
+                                        />
+                                        <HostTileButton icon="ellipsis" label="Photo actions" onPress={() => openGalleryPhotoActions(item)} />
+                                      </View>
+                                      {!isOrderLocked && filteredPhotoItems.length > 1 && (
+                                        <View style={{ position: 'absolute', left: 8, bottom: 8 }}>
+                                          <HostTileMoveButtons
+                                            kind="photo"
+                                            canMoveEarlier={itemIndex > 0}
+                                            canMoveLater={itemIndex >= 0 && itemIndex < filteredPhotoItems.length - 1}
+                                            onMove={(direction) => moveGalleryMedia(item.id, direction)}
+                                          />
+                                        </View>
+                                      )}
+                                      <View style={{ position: 'absolute', right: 8, bottom: 8 }}>
+                                        <HostTileButton
+                                          icon="trash.fill"
+                                          label={item.mediaType === 'video' ? 'Delete video' : 'Delete photo'}
+                                          danger
+                                          onPress={() => handleDeleteGalleryPhoto(item.id)}
+                                        />
+                                      </View>
+                                      {deleteJobs.some(job => job.id === item.id && job.status === 'deleting') && (
+                                        <View
+                                          accessibilityRole="progressbar"
+                                          accessibilityLabel={`Deleting ${item.mediaType === 'video' ? 'video' : 'photo'}`}
+                                          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20, backgroundColor: 'rgba(19, 25, 31,0.72)', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                                        >
+                                          <ActivityIndicator size="small" color="#fecaca" />
+                                          <Text style={{ color: '#fecaca', fontSize: 10, fontWeight: '800', letterSpacing: 0.6 }}>DELETING...</Text>
+                                        </View>
+                                      )}
+                                    </>
+                                  )}
+                                </View>
+                              );
+                            }}
                           />
                         </View>
                       )}
