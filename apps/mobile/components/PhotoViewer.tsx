@@ -12,6 +12,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useNavigation } from 'expo-router';
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, canCommentOnPhoto, Event as DatabaseEvent } from '@/lib/database';
 import { formatCommentTime } from '../../../shared/text/commentTime';
+import { useAndroidKeyboardHeight } from '@/hooks/use-android-keyboard-height';
 import { getImageUrl, getOriginalMediaUrl } from '@/lib/imageUrl';
 import { SCREEN_ORIENTATION_LOCK, canLockScreenOrientation, lockScreenOrientation } from '@/lib/screenOrientation';
 import { MidnightColors, Fonts } from '../constants/theme';
@@ -887,6 +888,8 @@ export default function PhotoViewer({
   const [comments, setComments] = useState<any[]>([]);
   const refreshInteractionsRef = useRef<(() => Promise<void>) | null>(null);
   const [showComments, setShowComments] = useState(false);
+  // Android: the comment panel moves up above the keyboard (#242); iOS uses the panel's KeyboardAvoidingView
+  const keyboardHeight = useAndroidKeyboardHeight(visible && showComments);
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
   // Everyone who can see the photo reads its comments; only managers and guests the host allowed can write
@@ -1123,6 +1126,13 @@ export default function PhotoViewer({
     }, 80);
   };
 
+  // Host viewer: the comment panel is the last thing on its page, so scroll it up above the Android keyboard (#242)
+  useEffect(() => {
+    if (keyboardHeight > 0 && showHostTopControls) {
+      requestAnimationFrame(() => hostScrollRef.current?.scrollToEnd({ animated: true }));
+    }
+  }, [keyboardHeight, showHostTopControls]);
+
   const handleViewerTouchStart = (event: GestureResponderEvent) => {
     swipeStartXRef.current = event.nativeEvent.pageX;
   };
@@ -1317,6 +1327,11 @@ export default function PhotoViewer({
 
   const renderGuestbookPanel = (hostFlow = false) => {
     const hostGuestbook = showHostTopControls || hostFlow;
+    // The bottom-pinned panels sit just above the Android keyboard and shrink if the space above it is short
+    const panelBottom = (showHostTopControls ? 12 : 10) + keyboardHeight;
+    const keyboardLift = !hostFlow && keyboardHeight > 0
+      ? { bottom: panelBottom, maxHeight: viewportHeight - panelBottom - viewerInsets.top - 16 }
+      : null;
 
     return (
       <KeyboardAvoidingView
@@ -1324,6 +1339,7 @@ export default function PhotoViewer({
         style={[
           hostFlow ? localStyles.hostGuestbookPanelFlow : styles.guestbookPanel,
           !hostFlow && showHostTopControls && localStyles.hostGuestbookPanel,
+          keyboardLift,
           {
             backgroundColor: viewerTheme.panel,
             borderRadius: viewerTheme.radius + 10,
@@ -1633,7 +1649,10 @@ export default function PhotoViewer({
             // Zoomed photos pan instead of scrolling the page
             scrollEnabled={!hostZoomed}
             style={localStyles.hostViewerScroll}
-            contentContainerStyle={localStyles.hostViewerScrollContent}
+            contentContainerStyle={[
+              localStyles.hostViewerScrollContent,
+              keyboardHeight > 0 && { paddingBottom: HOST_VIEWER_PADDING_BOTTOM + keyboardHeight },
+            ]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -1811,7 +1830,13 @@ export default function PhotoViewer({
                 </View>
               )}
 
-              <View style={localStyles.dashboardImageDetails}>
+              {/* The comment panel covers this row; hide it (keeping its space) so it doesn't show through (#237) */}
+              <View
+                style={[localStyles.dashboardImageDetails, showComments && { opacity: 0 }]}
+                pointerEvents={showComments ? 'none' : 'auto'}
+                accessibilityElementsHidden={showComments}
+                importantForAccessibility={showComments ? 'no-hide-descendants' : 'auto'}
+              >
                 <View style={localStyles.dashboardImageActionsFlow}>
                   {(!readOnly || asksToLogIn) && (<>
                   <TouchableOpacity style={styles.viewerAction} onPress={guarded(handleToggleLike)} disabled={isLiking} accessibilityRole="button" accessibilityLabel={isLiked ? 'Unlike' : 'Like'} accessibilityState={{ selected: isLiked }}>
