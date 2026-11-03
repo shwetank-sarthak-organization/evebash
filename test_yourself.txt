@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 178
+Next test number: 179
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4987,6 +4987,47 @@ How to test:
   5. Open Settings. Expect: "Settings" in gold serif letters, gold section labels, near-black lists, "Delete
      Account" still red. Every row still opens what it did before.
   6. Make the window about 800 px, then phone-narrow (about 375 px). Expect: nothing cut off, no sideways scrolling.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#178 Big galleries: photos load only near the screen (app, issue #185)
+Status:    TODO
+Priority:  High
+Platform:  App (iPhone and Android)
+Brief:     The host photo grid and the guest grid of Midnight Hero, Royal Emerald and most other themes now load only
+           the photos within a few screens of what you see. Photos further away are dropped and load again when you
+           scroll back. This should stop big galleries from running the phone out of memory and closing the app.
+           Nothing should look or work differently: same tiles, frames, buttons and hold-and-drag reordering. While
+           flicking fast, a tile can show its empty frame for a moment, like a photo still loading.
+Detail:    Commit eed090f on staging (app only; needs a new staging app build or update).
+           Files: apps/mobile/app/events/[id].tsx, apps/mobile/components/event/MasonryPhotoColumns.tsx,
+           apps/mobile/hooks/use-scroll-window.ts, apps/mobile/components/classic/ClassicPhotoRows.tsx.
+           2026-11-03 check by Claude (not a tester PASS): iPhone 17 Pro simulator, release build, test account,
+           host grid on rec-8-3d4d and Royal Emerald guest grid on test-face-new-155c. Photos in view always showed,
+           far ones were dropped and came back on scrolling up. The simulator can't show the memory saving, so this
+           needs a real phone.
+How to test:
+  1. As the host of a gallery with lots of photos (300+ is best), open its photo grid and scroll quickly to the
+     bottom, then back to the top. Expect: every photo you stop on shows; while flicking, a few tiles may show an
+     empty frame for a moment before the photo appears. The app doesn't slow down or close.
+  2. In your own test gallery, hold and drag a photo to a new place, leave the gallery and open it again. Expect: the
+     new order is kept. Then try the ⋯, star and up/down buttons on a tile, and tap the trash button but cancel.
+     Expect: all work as before.
+  3. Tap "Uploaded by", pick one person, scroll that list, then switch back to Everyone. Expect: photos show, no
+     slowdown.
+  4. As a guest, open a big gallery in Midnight Hero or Royal Emerald (for example reception-0e42, 790 photos, if
+     you can open it) and scroll to the bottom and back up. Expect: the same look as before (two columns, frames,
+     captions), photos appear where you stop, and the app doesn't close.
+  5. Open a Classic White or Sunlit Portrait gallery as a guest and scroll. Expect: unchanged.
+  6. Optional, iPhone connected to Xcode: watch the memory gauge during step 4. Expect: memory levels off instead of
+     rising all the way down.
 Done by:
 Device / browser:
 Build / version:
