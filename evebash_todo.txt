@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 23
+Next todo number: 24
 
 Last updated: 2026-11-03
 
@@ -560,6 +560,31 @@ Brief:        The homepage "Made for everyone at the event" tabs have a "Book a 
               YouTube, Facebook and LinkedIn icons that aren't links yet (src/components/Footer.tsx, the
               socials list: add each href and it becomes a link that opens in a new tab). Decide the demo
               destination (booking page, form, WhatsApp or calendar link) and send the four account URLs.
+Done in:      -
+
+#23 WhatsApp integration
+Listed:       2026-11-03
+Platform:     Both
+Priority:     Medium
+Phase:        2
+Status:       Idea
+Effort:       L
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Use WhatsApp, which most hosts and guests in India already use, alongside the app's
+              pushes and the website. Today it only appears as "message on WhatsApp" links (wa.me)
+              on the Phase 2 business pages (apps/mobile/app/(tabs)/business/[id].tsx,
+              business-enquiries.tsx). Possible parts: (1) share a gallery or Find You link straight
+              to WhatsApp with a ready message and a link preview; (2) WhatsApp messages to hosts and
+              guests, e.g. "your photos are ready", new access requests, Find You results, plan
+              expiry warnings (todo #3), via the WhatsApp Business Platform (Cloud API); (3) sign-in
+              codes over WhatsApp. To decide: which parts first; (2) and (3) need a verified Meta
+              business account, a WhatsApp number for EveBash, pre-approved message templates, the
+              user's opt-in, and a per-message charge, so pick which messages are worth paying for
+              and whether they replace or back up pushes (issue #104: pushes can reach the wrong phone).
 Done in:      -
 
 =====================================================================
