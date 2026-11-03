@@ -65,42 +65,42 @@ export default function ContactUs() {
                             <h2 className="text-2xl font-serif text-[var(--site-text)] mb-6 border-b border-[var(--site-border)] pb-4">Contact Information</h2>
                             <div className="space-y-8">
                                 <div className="flex items-start group">
-                                    <div className="p-3 bg-[#CA9C68]/10 rounded-lg group-hover:bg-[#CA9C68]/15 transition-colors">
-                                        <MapPin className="w-6 h-6 text-[#CA9C68]" />
+                                    <div className="p-3 bg-[var(--site-gold)]/10 rounded-lg group-hover:bg-[var(--site-gold)]/15 transition-colors">
+                                        <MapPin className="w-6 h-6 text-[var(--site-gold)]" />
                                     </div>
                                     <div className="ml-4">
-                                        <h3 className="font-bold text-[var(--site-text)] text-sm uppercase tracking-wide mb-1">Address</h3>
+                                        <h3 className="font-sans text-xs leading-5 font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-1">Address</h3>
                                         <p className="text-[var(--site-subtle)] leading-relaxed">Dehradun, Uttarakhand, India - 248001</p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-start group">
-                                    <div className="p-3 bg-[#CA9C68]/10 rounded-lg group-hover:bg-[#CA9C68]/15 transition-colors">
-                                        <Phone className="w-6 h-6 text-[#CA9C68]" />
+                                    <div className="p-3 bg-[var(--site-gold)]/10 rounded-lg group-hover:bg-[var(--site-gold)]/15 transition-colors">
+                                        <Phone className="w-6 h-6 text-[var(--site-gold)]" />
                                     </div>
                                     <div className="ml-4">
-                                        <h3 className="font-bold text-[var(--site-text)] text-sm uppercase tracking-wide mb-1">Phone</h3>
-                                        <p><a href="tel:+919871264964" className="text-[var(--site-subtle)] hover:text-[#CA9C68] transition-colors">+91 98712 64964</a></p>
-                                        <p><a href="tel:+918535029872" className="text-[var(--site-subtle)] hover:text-[#CA9C68] transition-colors">+91 85350 29872</a></p>
+                                        <h3 className="font-sans text-xs leading-5 font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-1">Phone</h3>
+                                        <p><a href="tel:+919871264964" className="text-[var(--site-subtle)] hover:text-[var(--site-gold)] transition-colors">+91 98712 64964</a></p>
+                                        <p><a href="tel:+918535029872" className="text-[var(--site-subtle)] hover:text-[var(--site-gold)] transition-colors">+91 85350 29872</a></p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-start group">
-                                    <div className="p-3 bg-[#CA9C68]/10 rounded-lg group-hover:bg-[#CA9C68]/15 transition-colors">
-                                        <Mail className="w-6 h-6 text-[#CA9C68]" />
+                                    <div className="p-3 bg-[var(--site-gold)]/10 rounded-lg group-hover:bg-[var(--site-gold)]/15 transition-colors">
+                                        <Mail className="w-6 h-6 text-[var(--site-gold)]" />
                                     </div>
                                     <div className="ml-4">
-                                        <h3 className="font-bold text-[var(--site-text)] text-sm uppercase tracking-wide mb-1">Email</h3>
-                                        <p><a href="mailto:support@evebash.com" className="text-[var(--site-subtle)] hover:text-[#CA9C68] transition-colors">support@evebash.com</a></p>
+                                        <h3 className="font-sans text-xs leading-5 font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-1">Email</h3>
+                                        <p><a href="mailto:support@evebash.com" className="text-[var(--site-subtle)] hover:text-[var(--site-gold)] transition-colors">support@evebash.com</a></p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-start group">
-                                    <div className="p-3 bg-[#CA9C68]/10 rounded-lg group-hover:bg-[#CA9C68]/15 transition-colors">
-                                        <Clock className="w-6 h-6 text-[#CA9C68]" />
+                                    <div className="p-3 bg-[var(--site-gold)]/10 rounded-lg group-hover:bg-[var(--site-gold)]/15 transition-colors">
+                                        <Clock className="w-6 h-6 text-[var(--site-gold)]" />
                                     </div>
                                     <div className="ml-4">
-                                        <h3 className="font-bold text-[var(--site-text)] text-sm uppercase tracking-wide mb-1">Business Hours</h3>
+                                        <h3 className="font-sans text-xs leading-5 font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-1">Business Hours</h3>
                                         <p className="text-[var(--site-subtle)]">Mon - Fri: 10:00 AM - 6:00 PM</p>
                                     </div>
                                 </div>
@@ -116,53 +116,53 @@ export default function ContactUs() {
                         <form className="space-y-6" onSubmit={handleSubmit}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label htmlFor="firstName" className="block text-xs font-bold text-[var(--site-subtle)] uppercase tracking-wider mb-2">First Name</label>
+                                    <label htmlFor="firstName" className="block font-sans text-xs font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-2">First Name</label>
                                     <input
                                         type="text"
                                         id="firstName"
                                         value={form.firstName}
                                         onChange={event => updateField("firstName", event.target.value)}
                                         required
-                                        className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-[#CA9C68] focus:ring-4 focus:ring-[#CA9C68]/10 transition-all"
+                                        className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-[var(--site-gold)] focus:ring-4 focus:ring-[var(--site-gold)]/10 transition-all"
                                         placeholder="John"
                                     />
                                 </div>
                                 <div>
-                                    <label htmlFor="lastName" className="block text-xs font-bold text-[var(--site-subtle)] uppercase tracking-wider mb-2">Last Name</label>
+                                    <label htmlFor="lastName" className="block font-sans text-xs font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-2">Last Name</label>
                                     <input
                                         type="text"
                                         id="lastName"
                                         value={form.lastName}
                                         onChange={event => updateField("lastName", event.target.value)}
                                         required
-                                        className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-[#CA9C68] focus:ring-4 focus:ring-[#CA9C68]/10 transition-all"
+                                        className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-[var(--site-gold)] focus:ring-4 focus:ring-[var(--site-gold)]/10 transition-all"
                                         placeholder="Doe"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label htmlFor="email" className="block text-xs font-bold text-[var(--site-subtle)] uppercase tracking-wider mb-2">Email Address</label>
+                                <label htmlFor="email" className="block font-sans text-xs font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-2">Email Address</label>
                                 <input
                                     type="email"
                                     id="email"
                                     value={form.email}
                                     onChange={event => updateField("email", event.target.value)}
                                     required
-                                    className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-[#CA9C68] focus:ring-4 focus:ring-[#CA9C68]/10 transition-all"
+                                    className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-[var(--site-gold)] focus:ring-4 focus:ring-[var(--site-gold)]/10 transition-all"
                                     placeholder="john@example.com"
                                 />
                             </div>
 
                             <div>
-                                <label htmlFor="message" className="block text-xs font-bold text-[var(--site-subtle)] uppercase tracking-wider mb-2">Message</label>
+                                <label htmlFor="message" className="block font-sans text-xs font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-2">Message</label>
                                 <textarea
                                     id="message"
                                     rows={5}
                                     value={form.message}
                                     onChange={event => updateField("message", event.target.value)}
                                     required
-                                    className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-[#CA9C68] focus:ring-4 focus:ring-[#CA9C68]/10 transition-all"
+                                    className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-[var(--site-gold)] focus:ring-4 focus:ring-[var(--site-gold)]/10 transition-all"
                                     placeholder="Tell us about your event or question..."
                                 />
                             </div>
@@ -181,7 +181,7 @@ export default function ContactUs() {
                             <button
                                 type="submit"
                                 disabled={submitting}
-                                className="w-full py-4 bg-[#CA9C68] text-[#13191F] font-bold hover:bg-[#D9AE7E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1B211F] disabled:cursor-not-allowed disabled:opacity-60 transition-colors duration-300 rounded-lg shadow-lg"
+                                className="w-full py-4 home-btn-gold font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--site-surface)] disabled:cursor-not-allowed disabled:opacity-60 rounded-full shadow-lg"
                             >
                                 {submitting ? "Sending..." : "Send message"}
                             </button>

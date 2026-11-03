@@ -153,15 +153,15 @@ const planVisuals: Record<string, {
         badgeColor: "",
         description: "Get started and explore the platform at no cost.",
         accentClass: "border border-slate-100",
-        btnClass: "bg-slate-800 text-white hover:bg-slate-700",
-        checkClass: "bg-[#CDB89E]/12 text-[#CDB89E]",
+        btnClass: "home-btn-glass py-[11px]",
+        checkClass: "bg-[var(--site-muted)]/12 text-[var(--site-muted)]",
     },
     starter: {
         badge: null,
         badgeColor: "",
         description: "For small personal galleries.",
         accentClass: "border border-teal-100",
-        btnClass: "bg-slate-800 text-white hover:bg-slate-700",
+        btnClass: "home-btn-glass py-[11px]",
         checkClass: "bg-teal-500/12 text-teal-500",
     },
     basic: {
@@ -169,7 +169,7 @@ const planVisuals: Record<string, {
         badgeColor: "",
         description: "For individuals and small events.",
         accentClass: "border border-teal-100",
-        btnClass: "bg-slate-800 text-white hover:bg-slate-700",
+        btnClass: "home-btn-glass py-[11px]",
         checkClass: "bg-teal-500/12 text-teal-500",
     },
     standard: {
@@ -177,40 +177,40 @@ const planVisuals: Record<string, {
         badgeColor: "",
         description: "Best for frequent users and families.",
         accentClass: "border border-sky-100",
-        btnClass: "bg-slate-800 text-white hover:bg-slate-700",
+        btnClass: "home-btn-glass py-[11px]",
         checkClass: "bg-sky-500/12 text-sky-500",
     },
     premium: {
         badge: "Most Popular",
-        badgeColor: "bg-[#CA9C68] text-[#13191F]",
+        badgeColor: "bg-[var(--site-gold)] text-[var(--site-on-gold)]",
         description: "For professional photographers.",
-        accentClass: "ring-2 ring-[#CA9C68]",
-        btnClass: "bg-[#CA9C68] text-[#13191F] hover:bg-[#D7AE7D] shadow-lg shadow-[#CA9C68]/20",
-        checkClass: "bg-[#CA9C68]/12 text-[#CA9C68]",
+        accentClass: "ring-2 ring-[var(--site-gold)]",
+        btnClass: "home-btn-gold py-3",
+        checkClass: "bg-[var(--site-gold)]/12 text-[var(--site-gold)]",
     },
     pro: {
         badge: null,
         badgeColor: "",
         description: "For growing professional teams.",
         accentClass: "border border-violet-100",
-        btnClass: "bg-slate-800 text-white hover:bg-slate-700",
+        btnClass: "home-btn-glass py-[11px]",
         checkClass: "bg-violet-500/12 text-violet-500",
     },
     elite: {
         badge: null,
-        badgeColor: "bg-pink-600 text-white",
+        badgeColor: "bg-pink-600 text-[var(--site-text)]",
         description: "For studios and heavy users.",
         accentClass: "ring-2 ring-pink-400",
-        btnClass: "bg-slate-800 text-white hover:bg-slate-700",
+        btnClass: "home-btn-glass py-[11px]",
         checkClass: "bg-pink-500/12 text-pink-500",
     },
     ultimate: {
         badge: "Best Value",
-        badgeColor: "bg-orange-600 text-white",
+        badgeColor: "bg-[var(--site-gold)]/15 text-[var(--site-gold)]",
         description: "For large studios and high-volume workflows.",
-        accentClass: "ring-2 ring-orange-400",
-        btnClass: "bg-slate-800 text-white hover:bg-slate-700",
-        checkClass: "bg-orange-500/12 text-orange-500",
+        accentClass: "ring-1 ring-[var(--site-gold)]/50",
+        btnClass: "home-btn-glass py-[11px]",
+        checkClass: "bg-[var(--site-gold)]/12 text-[var(--site-gold)]",
     },
 };
 
@@ -558,7 +558,7 @@ export default function Pricing() {
 
                 {/* Header */}
                 <div className="text-center mb-16 space-y-4">
-                    <h1 className="font-serif text-4xl text-[var(--site-text)] md:text-5xl">Simple, transparent pricing</h1>
+                    <h1 className="home-gold-text mb-2 pb-2 font-serif text-4xl md:text-5xl">Simple, transparent pricing</h1>
                     <p className="mx-auto max-w-2xl text-lg font-light text-[var(--site-subtle)]">
                         Start free with one event. Every plan includes the full guest gallery; paid plans add events and storage.
                     </p>
@@ -575,7 +575,7 @@ export default function Pricing() {
                                     onClick={() => setBillingCycle(cycle.key)}
                                     className={`rounded-xl px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all ${
                                         isActive
-                                            ? "bg-[#CA9C68] text-[#13191F] shadow-lg shadow-[#CA9C68]/20"
+                                            ? "bg-[var(--site-gold)] text-[var(--site-on-gold)] shadow-lg shadow-[var(--site-gold)]/20"
                                             : "text-[var(--site-muted)] hover:bg-[var(--site-card-muted)] hover:text-[var(--site-text)]"
                                     }`}
                                 >
@@ -592,7 +592,7 @@ export default function Pricing() {
                             checkoutMessage.type === "success"
                                 ? "border-emerald-500/30 bg-emerald-900/30 text-emerald-300"
                                 : checkoutMessage.type === "info"
-                                    ? "border-[#CA9C68]/30 bg-[#CA9C68]/10 text-[var(--site-subtle)]"
+                                    ? "border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 text-[var(--site-subtle)]"
                                     : "border-rose-500/30 bg-rose-900/30 text-rose-300"
                         }`}
                     >
@@ -614,7 +614,7 @@ export default function Pricing() {
                         <p className="mt-3 text-sm leading-6 text-[var(--site-subtle)]">
                             We could not load the latest pricing plans right now. Please try again shortly or contact support.
                         </p>
-                        <Link href="/contact-us" className="mt-6 inline-block rounded-xl bg-[#CA9C68] px-5 py-3 text-xs font-bold uppercase tracking-widest text-[#13191F] transition-colors hover:bg-[#D9AE7E]">
+                        <Link href="/contact-us" className="mt-6 inline-block rounded-full home-btn-gold px-5 py-3 text-xs font-bold">
                             Contact Support
                         </Link>
                     </div>
@@ -680,7 +680,7 @@ export default function Pricing() {
 
                                 {plan.id === "free" ? (
                                     <Link href={ctaHref} className="block w-full mt-auto">
-                                        <div className={`w-full py-3 text-center rounded-xl uppercase tracking-widest text-xs font-bold transition-all duration-300 active:scale-95 ${visual.btnClass}`}>
+                                        <div className={`w-full text-center rounded-full text-xs font-bold transition-all duration-300 active:scale-95 ${visual.btnClass}`}>
                                             {cta}
                                         </div>
                                     </Link>
@@ -689,7 +689,7 @@ export default function Pricing() {
                                         type="button"
                                         onClick={() => openCheckoutConfirmation(plan)}
                                         disabled={isCheckingOut}
-                                        className={`w-full py-3 text-center rounded-xl uppercase tracking-widest text-xs font-bold transition-all duration-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70 ${visual.btnClass}`}
+                                        className={`w-full text-center rounded-full text-xs font-bold transition-all duration-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70 ${visual.btnClass}`}
                                     >
                                         {isCheckingOut ? "Starting Checkout..." : cta}
                                     </button>
@@ -704,7 +704,7 @@ export default function Pricing() {
                         <button
                             type="button"
                             onClick={() => setShowAllPlans(true)}
-                            className="rounded-full border border-[var(--site-border)] px-6 py-3 text-sm font-semibold text-[var(--site-text)] transition-colors hover:border-[#CA9C68]/60 hover:bg-[#CA9C68]/10"
+                            className="rounded-full home-btn-glass px-6 py-3 text-sm font-semibold"
                         >
                             See all {plans.length} plans
                         </button>
@@ -716,7 +716,7 @@ export default function Pricing() {
                     <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {includedInEveryPlan.map((feature) => (
                             <li key={feature} className="flex items-start gap-2 text-sm text-[var(--site-subtle)]">
-                                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#CA9C68]" />
+                                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--site-gold)]" />
                                 {feature}
                             </li>
                         ))}
@@ -812,7 +812,7 @@ export default function Pricing() {
                         Running a large studio or enterprise operation? Let&apos;s build a plan tailored to your exact needs.
                     </p>
                     <Link href="/contact-us" className="inline-block">
-                        <span className="text-[#CA9C68] font-semibold border-b-2 border-transparent hover:border-[#CA9C68] transition-all duration-300">
+                        <span className="text-[var(--site-gold)] font-semibold border-b-2 border-transparent hover:border-[var(--site-gold)] transition-all duration-300">
                             Contact Us for Custom Quote &rarr;
                         </span>
                     </Link>
