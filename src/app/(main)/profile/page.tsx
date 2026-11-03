@@ -29,7 +29,6 @@ import {
     XCircle,
     ChevronRight,
 } from "lucide-react";
-import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
 import {
     getApprovedSharedEventsForUser,
@@ -119,15 +118,15 @@ function InfoItem({
     badge?: React.ReactNode;
 }) {
     return (
-        <div className="group rounded-2xl border border-slate-800 bg-slate-950/70 p-4 transition-all duration-200 hover:border-[#CA9C68]/40 hover:bg-slate-900/50">
+        <div className="group rounded-2xl border border-[var(--site-line)] bg-[var(--site-bg)]/70 p-4 transition-all duration-200 hover:border-[var(--site-gold)]/40 hover:bg-[var(--site-surface)]/50">
             <div className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
-                    <Icon className="h-3.5 w-3.5 text-[#CA9C68]" />
+                <span className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]">
+                    <Icon className="h-3.5 w-3.5 text-[var(--site-gold)]" />
                     {label}
                 </span>
                 {badge}
             </div>
-            <div className="mt-2 text-sm font-bold text-slate-100 truncate">{value}</div>
+            <div className="mt-2 text-sm font-bold text-[var(--site-text)] truncate">{value}</div>
         </div>
     );
 }
@@ -464,8 +463,8 @@ export default function ProfilePage() {
 
     if (authLoading || !user) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-300">
-                <Loader2 className="h-8 w-8 animate-spin text-[#E2B77F]" />
+            <div className="flex min-h-screen items-center justify-center bg-[var(--site-bg)] text-[var(--site-subtle)]">
+                <Loader2 className="h-8 w-8 animate-spin text-[var(--site-gold)]" />
             </div>
         );
     }
@@ -473,29 +472,27 @@ export default function ProfilePage() {
     const currentRoleKey = user.role ? user.role.toLowerCase() : "free";
 
     return (
-        <div className="min-h-screen bg-[#13191F] text-slate-100 selection:bg-[#CA9C68]/30 selection:text-[#FFF7EB]">
-            <Navbar />
-
-            <main className="mx-auto max-w-7xl px-4 pb-20 pt-28 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-[var(--site-bg)] text-[var(--site-text)] selection:bg-[var(--site-gold)]/30 selection:text-[var(--site-text)]">
+            <main className="mx-auto max-w-7xl px-4 pb-20 pt-12 sm:px-6 lg:px-8">
                 
                 {/* ========================================================
                     BENTO HEADER: User Identity & Global Sub-Navigation
                     ======================================================== */}
-                <section className="relative overflow-hidden rounded-[2.5rem] border border-slate-800 bg-slate-900/50 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+                <section className="relative overflow-hidden rounded-[2.5rem] border border-[var(--site-line)] bg-[var(--site-surface)]/50 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
                     {/* Background Subtle Gradient Blobs */}
-                    <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-[#CA9C68]/10 blur-3xl" />
-                    <div className="pointer-events-none absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-[#CA9C68]/5 blur-3xl" />
+                    <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-[var(--site-gold)]/10 blur-3xl" />
+                    <div className="pointer-events-none absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-[var(--site-gold)]/5 blur-3xl" />
 
                     <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                         {/* User Identity Info */}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-5">
                             {/* Avatar with gold ring & upload trigger */}
-                            <div className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.75rem] border-2 border-[#CA9C68]/50 bg-slate-950 shadow-xl shadow-black/30 ring-4 ring-[#13191F]">
+                            <div className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.75rem] border-2 border-[var(--site-gold)]/50 bg-[var(--site-bg)] shadow-xl shadow-black/30 ring-4 ring-[var(--site-bg)]">
                                 {profileImage ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img src={profileImage} alt={user.name || "Profile"} className="h-full w-full object-cover" />
                                 ) : (
-                                    <User className="h-10 w-10 text-slate-500" />
+                                    <User className="h-10 w-10 text-[var(--site-muted)]" />
                                 )}
                                 <button
                                     type="button"
@@ -505,9 +502,9 @@ export default function ProfilePage() {
                                     className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 backdrop-blur-xs transition-opacity duration-200 group-hover:opacity-100 disabled:cursor-not-allowed"
                                 >
                                     {uploading ? (
-                                        <Loader2 className="h-6 w-6 animate-spin text-[#E2B77F]" />
+                                        <Loader2 className="h-6 w-6 animate-spin text-[var(--site-gold)]" />
                                     ) : (
-                                        <Camera className="h-6 w-6 text-[#E2B77F]" />
+                                        <Camera className="h-6 w-6 text-[var(--site-gold)]" />
                                     )}
                                 </button>
                             </div>
@@ -521,14 +518,14 @@ export default function ProfilePage() {
 
                             <div>
                                 <div className="flex flex-wrap items-center gap-2.5">
-                                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[var(--site-text)]">
                                         {user.name || "EveBash User"}
                                     </h1>
                                     <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-0.5 text-[11px] font-black uppercase tracking-[0.14em] text-emerald-300">
                                         {activePlan.name}
                                     </span>
                                 </div>
-                                <p className="mt-0.5 text-sm font-bold text-[#CA9C68]">
+                                <p className="mt-0.5 text-sm font-bold text-[var(--site-gold)]">
                                     @{user.username || "set_username"}
                                 </p>
                                 
@@ -536,12 +533,12 @@ export default function ProfilePage() {
                                     {getPersonasArray(user.persona).map((persona) => (
                                         <span
                                             key={persona}
-                                            className="rounded-xl border border-slate-700 bg-slate-800/50 px-2.5 py-1 text-[11px] font-bold text-slate-300"
+                                            className="rounded-xl border border-[var(--site-border)] bg-[var(--site-surface-2)]/50 px-2.5 py-1 text-[11px] font-bold text-[var(--site-subtle)]"
                                         >
                                             {persona}
                                         </span>
                                     ))}
-                                    <span className="rounded-xl border border-slate-800 bg-slate-900/60 px-2.5 py-1 text-[11px] font-semibold text-slate-400">
+                                    <span className="rounded-xl border border-[var(--site-line)] bg-[var(--site-surface)]/60 px-2.5 py-1 text-[11px] font-semibold text-[var(--site-muted)]">
                                         Member since {formatJoinedDate(user.createdAt)}
                                     </span>
                                 </div>
@@ -553,14 +550,14 @@ export default function ProfilePage() {
                             <button
                                 type="button"
                                 onClick={() => setIsEditing(true)}
-                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#CA9C68] px-4 py-2.5 text-xs font-black text-slate-950 transition hover:bg-[#D7AE7D] shadow-lg shadow-[#CA9C68]/20"
+                                className="inline-flex items-center justify-center gap-2 rounded-full home-btn-gold px-4 py-2.5 text-xs font-black"
                             >
                                 <Pencil className="h-3.5 w-3.5" />
                                 Edit Profile
                             </button>
                             <Link
                                 href="/settings"
-                                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-800/80 px-4 py-2.5 text-xs font-black text-slate-200 transition hover:border-[#CA9C68]/60 hover:text-white"
+                                className="inline-flex items-center justify-center gap-2 rounded-full home-btn-glass px-4 py-2.5 text-xs font-black"
                             >
                                 <Settings className="h-3.5 w-3.5" />
                                 Settings
@@ -569,16 +566,16 @@ export default function ProfilePage() {
                     </div>
 
                     {/* Sub-Page Tab Switcher Pills */}
-                    <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-6">
-                        <div className="inline-flex rounded-2xl border border-slate-800 bg-slate-950/80 p-1.5 shadow-inner">
+                    <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--site-line)] pt-6">
+                        <div className="inline-flex rounded-full border border-[var(--site-line)] bg-[var(--site-bg)]/80 p-1.5 shadow-inner">
                             <button
                                 type="button"
                                 onClick={() => setActiveTab("profile")}
                                 className={cn(
-                                    "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition-all duration-200",
+                                    "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black transition-all duration-200",
                                     activeTab === "profile"
-                                        ? "bg-[#CA9C68] text-slate-950 shadow-md shadow-[#CA9C68]/20"
-                                        : "text-slate-400 hover:text-slate-200"
+                                        ? "home-btn-gold"
+                                        : "text-[var(--site-muted)] hover:text-[var(--site-text)]"
                                 )}
                             >
                                 <User className="h-3.5 w-3.5" />
@@ -588,10 +585,10 @@ export default function ProfilePage() {
                                 type="button"
                                 onClick={() => setActiveTab("plan")}
                                 className={cn(
-                                    "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition-all duration-200",
+                                    "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black transition-all duration-200",
                                     activeTab === "plan"
-                                        ? "bg-[#CA9C68] text-slate-950 shadow-md shadow-[#CA9C68]/20"
-                                        : "text-slate-400 hover:text-slate-200"
+                                        ? "home-btn-gold"
+                                        : "text-[var(--site-muted)] hover:text-[var(--site-text)]"
                                 )}
                             >
                                 <Layers className="h-3.5 w-3.5" />
@@ -602,11 +599,11 @@ export default function ProfilePage() {
                         {/* EB Vault shortcut */}
                         <Link
                             href="/vault"
-                            className="group inline-flex items-center gap-2 rounded-2xl border border-[#7FA38C]/30 bg-[#7FA38C]/10 px-4 py-2.5 text-xs font-black text-white transition hover:border-[#7FA38C]/60 hover:bg-[#7FA38C]/15"
+                            className="group inline-flex items-center gap-2 rounded-full border border-[#7FA38C]/30 bg-[#7FA38C]/10 px-4 py-2.5 text-xs font-black text-[var(--site-text)] transition hover:border-[#7FA38C]/60 hover:bg-[#7FA38C]/15"
                         >
                             <HardDrive className="h-3.5 w-3.5 text-[#7FA38C]" />
                             EB Vault
-                            <ChevronRight className="h-3.5 w-3.5 text-slate-500 transition group-hover:translate-x-0.5 group-hover:text-white" />
+                            <ChevronRight className="h-3.5 w-3.5 text-[var(--site-muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--site-text)]" />
                         </Link>
                     </div>
                 </section>
@@ -620,7 +617,7 @@ export default function ProfilePage() {
                         {/* 1. Activity Telemetry Bento Row (3 Cards) */}
                         <section>
                             <div className="mb-3 flex items-center justify-between">
-                                <h2 className="text-xs font-black uppercase tracking-[0.2em] text-[#CA9C68]">
+                                <h2 className="font-sans text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold)]">
                                     Activity & Engagement
                                 </h2>
                             </div>
@@ -648,14 +645,14 @@ export default function ProfilePage() {
                                     <div
                                         key={item.label}
                                         title={item.subtext}
-                                        className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/50 px-4 py-3 transition-colors duration-200 hover:border-[#CA9C68]/40"
+                                        className="flex items-center gap-3 rounded-2xl border border-[var(--site-line)] bg-[var(--site-surface)]/50 px-4 py-3 transition-colors duration-200 hover:border-[var(--site-gold)]/40"
                                     >
-                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#CA9C68]/10 text-[#E2B77F] ring-1 ring-[#CA9C68]/20">
+                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--site-gold)]/10 text-[var(--site-gold)] ring-1 ring-[var(--site-gold)]/20">
                                             <item.icon className="h-4 w-4" />
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="text-xl font-black leading-tight text-white">{item.value}</p>
-                                            <p className="truncate text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                                            <p className="text-xl font-black leading-tight text-[var(--site-text)]">{item.value}</p>
+                                            <p className="truncate text-[11px] font-bold uppercase tracking-wider text-[var(--site-muted)]">
                                                 {item.label}
                                             </p>
                                         </div>
@@ -669,20 +666,20 @@ export default function ProfilePage() {
                             
                             {/* Left Bento Column (8 Cols): Personal Credentials Dossier */}
                             <div className="space-y-6 lg:col-span-8">
-                                <section className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 sm:p-8 shadow-xl">
+                                <section className="rounded-3xl border border-[var(--site-line)] bg-[var(--site-surface)]/50 p-6 sm:p-8 shadow-xl">
                                     <div className="mb-6 flex items-center justify-between">
                                         <div>
-                                            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-[#CA9C68]">
+                                            <h2 className="font-sans text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold)]">
                                                 Personal Dossier
                                             </h2>
-                                            <p className="text-xs text-slate-400 mt-0.5">
+                                            <p className="text-xs text-[var(--site-muted)] mt-0.5">
                                                 Private account specifications and verified credentials.
                                             </p>
                                         </div>
                                         <button
                                             type="button"
                                             onClick={() => setIsEditing(true)}
-                                            className="inline-flex items-center gap-1.5 rounded-full border border-[#CA9C68]/30 bg-[#CA9C68]/10 px-3.5 py-1.5 text-xs font-black text-[#E2B77F] transition hover:bg-[#CA9C68]/20"
+                                            className="inline-flex items-center gap-1.5 rounded-full home-btn-glass px-3.5 py-1.5 text-xs font-black"
                                         >
                                             <Pencil className="h-3 w-3" />
                                             Edit
@@ -752,15 +749,15 @@ export default function ProfilePage() {
                             <div className="space-y-6 lg:col-span-4">
                                 
                                 {/* Live Storage Card with direct tab switch */}
-                                <section className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl">
+                                <section className="rounded-3xl border border-[var(--site-line)] bg-[var(--site-surface)]/50 p-6 shadow-xl">
                                     <div className="mb-4 flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#CA9C68]/10 text-[#E2B77F]">
+                                            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--site-gold)]/10 text-[var(--site-gold)]">
                                                 <HardDrive className="h-4 w-4" />
                                             </div>
-                                            <h3 className="font-black text-white text-sm">Storage Usage</h3>
+                                            <h3 className="font-black text-[var(--site-text)] text-sm">Storage Usage</h3>
                                         </div>
-                                        <span className="text-xs font-bold text-slate-400">
+                                        <span className="text-xs font-bold text-[var(--site-muted)]">
                                             {activePlan.storageLabel} limit
                                         </span>
                                     </div>
@@ -775,7 +772,7 @@ export default function ProfilePage() {
                                     <button
                                         type="button"
                                         onClick={() => setActiveTab("plan")}
-                                        className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-700 bg-slate-800/80 px-4 py-2.5 text-xs font-black text-[#E2B77F] transition hover:border-[#CA9C68]/60 hover:bg-slate-800"
+                                        className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-full home-btn-glass px-4 py-2.5 text-xs font-black"
                                     >
                                         View Plans
                                         <ArrowRight className="h-3.5 w-3.5" />
@@ -787,16 +784,16 @@ export default function ProfilePage() {
                                     <button
                                         type="button"
                                         onClick={() => router.push("/pricing")}
-                                        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-5 py-3.5 text-xs font-black text-[#E2B77F] transition hover:bg-[#CA9C68]/20 shadow-md shadow-black/30"
+                                        className="flex w-full items-center justify-center gap-2 rounded-full border border-[var(--site-gold)]/40 bg-[var(--site-gold)]/10 px-5 py-3.5 text-xs font-black text-[var(--site-gold)] transition hover:bg-[var(--site-gold)]/20 shadow-md shadow-black/30"
                                     >
-                                        <Sparkles className="h-4 w-4 text-[#CA9C68]" />
+                                        <Sparkles className="h-4 w-4 text-[var(--site-gold)]" />
                                         Extend / Upgrade Plan
                                     </button>
 
                                     <button
                                         type="button"
                                         onClick={logout}
-                                        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-5 py-3 text-xs font-black text-rose-300 transition hover:bg-rose-500/20"
+                                        className="flex w-full items-center justify-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-5 py-3 text-xs font-black text-rose-300 transition hover:bg-rose-500/20"
                                     >
                                         <LogOut className="h-4 w-4" />
                                         Sign Out
@@ -815,29 +812,29 @@ export default function ProfilePage() {
                     <div className="mt-8 space-y-8 animate-fade-in-up">
                         
                         {/* 1. Active Plan Hero Banner with EXTEND PLAN button */}
-                        <section className="relative overflow-hidden rounded-[2.5rem] border border-[#CA9C68]/40 bg-gradient-to-r from-[#CA9C68]/15 via-[#1B211F]/90 to-[#13191F] p-6 sm:p-8 shadow-2xl">
+                        <section className="relative overflow-hidden rounded-[2.5rem] border border-[var(--site-gold)]/40 bg-gradient-to-r from-[var(--site-gold)]/15 via-[var(--site-surface)]/90 to-[var(--site-bg)] p-6 sm:p-8 shadow-2xl">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                                 <div>
                                     <div className="flex items-center gap-2">
-                                        <span className="rounded-full bg-[#CA9C68] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-950 shadow-md">
+                                        <span className="rounded-full bg-[var(--site-gold)] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--site-on-gold)] shadow-md">
                                             Active Subscription
                                         </span>
-                                        <span className="text-xs font-bold text-[#E2B77F]">
+                                        <span className="text-xs font-bold text-[var(--site-gold)]">
                                             Tier: {activePlan.name}
                                         </span>
                                     </div>
-                                    <h2 className="mt-3 text-2xl sm:text-3xl font-black text-white">
+                                    <h2 className="mt-3 text-2xl sm:text-3xl font-black text-[var(--site-text)]">
                                         {activePlan.name} · {activePlan.storageLabel} Cloud Allocation
                                     </h2>
-                                    <p className="mt-1.5 text-xs text-slate-300 max-w-2xl leading-relaxed">
+                                    <p className="mt-1.5 text-xs text-[var(--site-subtle)] max-w-2xl leading-relaxed">
                                         Your subscription enables {activePlan.storageLabel} shared storage for hosted event galleries and private EB Vault files with {activePlan.eventLimit === Infinity ? "unlimited" : activePlan.eventLimit} event hosting capacity.
                                     </p>
 
                                     {/* Plan Validity Date Notice */}
                                     <div className="mt-4 flex flex-wrap items-center gap-4 text-xs font-bold">
-                                        <span className="flex items-center gap-1.5 text-slate-300">
-                                            <Clock className="h-4 w-4 text-[#CA9C68]" />
-                                            Valid until: <strong className="text-[#E2B77F]">{formatPlanDate(user?.planEndDate)}</strong>
+                                        <span className="flex items-center gap-1.5 text-[var(--site-subtle)]">
+                                            <Clock className="h-4 w-4 text-[var(--site-gold)]" />
+                                            Valid until: <strong className="text-[var(--site-gold)]">{formatPlanDate(user?.planEndDate)}</strong>
                                         </span>
                                         {subscriptionStatus?.message && (
                                             <span className={cn(
@@ -857,7 +854,7 @@ export default function ProfilePage() {
                                     <button
                                         type="button"
                                         onClick={() => router.push("/pricing")}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#CA9C68] px-6 py-3.5 text-xs font-black text-slate-950 transition hover:bg-[#D7AE7D] shadow-xl shadow-[#CA9C68]/20 whitespace-nowrap"
+                                        className="inline-flex items-center justify-center gap-2 rounded-full home-btn-gold px-6 py-3.5 text-xs font-black"
                                     >
                                         <Sparkles className="h-4 w-4" />
                                         Extend Plan
@@ -865,7 +862,7 @@ export default function ProfilePage() {
                                     <button
                                         type="button"
                                         onClick={() => router.push("/pricing")}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-800/80 px-5 py-3.5 text-xs font-black text-slate-200 transition hover:border-[#CA9C68]/60 hover:text-white whitespace-nowrap"
+                                        className="inline-flex items-center justify-center gap-2 rounded-full home-btn-glass px-5 py-3.5 text-xs font-black"
                                     >
                                         Change Plan
                                     </button>
@@ -874,9 +871,9 @@ export default function ProfilePage() {
 
                             {/* Scheduled Pending Plan Notification */}
                             {hasPendingPlanChange && (
-                                <div className="mt-6 rounded-2xl border border-[#CA9C68]/30 bg-[#CA9C68]/10 p-4 text-[#F5E7D4]">
+                                <div className="mt-6 rounded-2xl border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 p-4 text-[var(--site-text)]">
                                     <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-400">Scheduled Tier Upgrade</p>
-                                    <p className="mt-1 text-sm font-bold text-white">
+                                    <p className="mt-1 text-sm font-bold text-[var(--site-text)]">
                                         {pendingPlan.name} ({pendingPlan.storageLabel}) starts {formatPlanDate(user?.pendingPlanStartDate)}.
                                     </p>
                                 </div>
@@ -884,8 +881,8 @@ export default function ProfilePage() {
                         </section>
 
                         {/* 2. Real-time Storage Breakdown Telemetry */}
-                        <section className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 sm:p-8 shadow-xl">
-                            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#CA9C68] mb-4">
+                        <section className="rounded-3xl border border-[var(--site-line)] bg-[var(--site-surface)]/50 p-6 sm:p-8 shadow-xl">
+                            <h3 className="font-sans text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold)] mb-4">
                                 Live Storage Meter
                             </h3>
                             <StorageBreakdownCard
@@ -897,20 +894,20 @@ export default function ProfilePage() {
                         </section>
 
                         {/* 3. Comprehensive Plan Comparison Matrix (Tabular Form) */}
-                        <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/50 shadow-2xl">
-                            <div className="border-b border-slate-800 bg-slate-950/80 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <section className="overflow-hidden rounded-3xl border border-[var(--site-line)] bg-[var(--site-surface)]/50 shadow-2xl">
+                            <div className="border-b border-[var(--site-line)] bg-[var(--site-bg)]/80 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div>
-                                    <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                                    <h3 className="font-sans text-sm font-black uppercase tracking-wider text-[var(--site-text)]">
                                         Plans and Quotas
                                     </h3>
-                                    <p className="text-xs text-slate-400 mt-1">
+                                    <p className="text-xs text-[var(--site-muted)] mt-1">
                                         Compare storage capacity, event caps, video uploads, and monthly/annual pricing schedules.
                                     </p>
                                 </div>
                                 <button
                                     type="button"
                                     onClick={() => router.push("/pricing")}
-                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#CA9C68] hover:text-[#E2B77F] transition"
+                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--site-gold)] hover:text-[var(--site-gold)] transition"
                                 >
                                     Full Pricing Breakdown
                                     <ArrowRight className="h-3.5 w-3.5" />
@@ -919,7 +916,7 @@ export default function ProfilePage() {
 
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left text-xs">
-                                    <thead className="border-b border-slate-800 bg-slate-950 text-slate-400 uppercase tracking-wider font-extrabold text-[11px]">
+                                    <thead className="border-b border-[var(--site-line)] bg-[var(--site-bg)] text-[var(--site-muted)] uppercase tracking-wider font-extrabold text-[11px]">
                                         <tr>
                                             <th className="py-4 px-5">Plan Tier</th>
                                             <th className="py-4 px-4">Cloud Storage</th>
@@ -930,7 +927,7 @@ export default function ProfilePage() {
                                             <th className="py-4 px-5 text-right">Status / Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-[#CA9C68]/10 font-semibold">
+                                    <tbody className="divide-y divide-[var(--site-gold)]/10 font-semibold">
                                         {defaultPricingPlans.map((plan) => {
                                             const isActive = plan.id.toLowerCase() === currentRoleKey;
                                             return (
@@ -939,18 +936,18 @@ export default function ProfilePage() {
                                                     className={cn(
                                                         "transition-colors",
                                                         isActive
-                                                            ? "bg-[#CA9C68]/15 border-y-2 border-[#CA9C68]/60"
-                                                            : "hover:bg-slate-800/30"
+                                                            ? "bg-[var(--site-gold)]/15 border-y-2 border-[var(--site-gold)]/60"
+                                                            : "hover:bg-[var(--site-surface-2)]/30"
                                                     )}
                                                 >
                                                     {/* Plan Name */}
                                                     <td className="py-4 px-5">
                                                         <div className="flex items-center gap-2">
-                                                            <span className={cn("font-black text-sm", isActive ? "text-[#E2B77F]" : "text-white")}>
+                                                            <span className={cn("font-black text-sm", isActive ? "text-[var(--site-gold)]" : "text-[var(--site-text)]")}>
                                                                 {plan.name}
                                                             </span>
                                                             {isActive && (
-                                                                <span className="rounded-full bg-[#CA9C68] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-950">
+                                                                <span className="rounded-full bg-[var(--site-gold)] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[var(--site-on-gold)]">
                                                                     Active
                                                                 </span>
                                                             )}
@@ -958,12 +955,12 @@ export default function ProfilePage() {
                                                     </td>
 
                                                     {/* Storage */}
-                                                    <td className="py-4 px-4 font-bold text-slate-200">
+                                                    <td className="py-4 px-4 font-bold text-[var(--site-text)]">
                                                         {plan.storageLabel}
                                                     </td>
 
                                                     {/* Events */}
-                                                    <td className="py-4 px-4 text-slate-300">
+                                                    <td className="py-4 px-4 text-[var(--site-subtle)]">
                                                         {plan.events} {plan.events === 1 ? "Event" : "Events"}
                                                     </td>
 
@@ -975,21 +972,21 @@ export default function ProfilePage() {
                                                                 {plan.videoLimitMb ? `Up to ${plan.videoLimitMb} MB` : "Included"}
                                                             </span>
                                                         ) : (
-                                                            <span className="text-slate-500 font-medium">None</span>
+                                                            <span className="text-[var(--site-muted)] font-medium">None</span>
                                                         )}
                                                     </td>
 
                                                     {/* Monthly */}
-                                                    <td className="py-4 px-4 text-slate-200">
+                                                    <td className="py-4 px-4 text-[var(--site-text)]">
                                                         {plan.monthlyPrice === 0 ? "Free" : `₹${plan.monthlyPrice.toLocaleString("en-IN")} / mo`}
                                                     </td>
 
                                                     {/* Yearly */}
                                                     <td className="py-4 px-4">
                                                         {plan.discountedYearlyPrice === 0 ? (
-                                                            <span className="text-slate-500">Free</span>
+                                                            <span className="text-[var(--site-muted)]">Free</span>
                                                         ) : (
-                                                            <span className="font-bold text-[#E2B77F]">
+                                                            <span className="font-bold text-[var(--site-gold)]">
                                                                 ₹{plan.discountedYearlyPrice.toLocaleString("en-IN")} / yr
                                                             </span>
                                                         )}
@@ -1007,10 +1004,10 @@ export default function ProfilePage() {
                                                                 type="button"
                                                                 onClick={() => router.push("/pricing")}
                                                                 className={cn(
-                                                                    "rounded-xl px-3.5 py-1.5 text-[11px] font-black transition",
+                                                                    "rounded-full px-3.5 py-1.5 text-[11px] font-black transition",
                                                                     plan.storageGb > (activePlan.storageBytes / (1024 * 1024 * 1024))
-                                                                        ? "bg-[#CA9C68] text-slate-950 hover:bg-[#D7AE7D] shadow-md shadow-[#CA9C68]/10"
-                                                                        : "border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
+                                                                        ? "home-btn-gold"
+                                                                        : "home-btn-glass"
                                                                 )}
                                                             >
                                                                 {plan.storageGb > (activePlan.storageBytes / (1024 * 1024 * 1024))
@@ -1032,7 +1029,7 @@ export default function ProfilePage() {
 
                 {/* Toast Feedback */}
                 {(saveMessage || saveError) && (
-                    <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-slate-700 bg-slate-900/95 px-5 py-3 text-sm font-bold shadow-2xl backdrop-blur-md">
+                    <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-[var(--site-border)] bg-[var(--site-surface)]/95 px-5 py-3 text-sm font-bold shadow-2xl backdrop-blur-md">
                         <span className={saveError ? "text-rose-300" : "text-emerald-300"}>
                             {saveError || saveMessage}
                         </span>
@@ -1053,8 +1050,8 @@ export default function ProfilePage() {
                         <ModalHeader title="Edit Profile" onClose={() => !saving && !removingImage && setIsEditing(false)} />
 
                         {/* Photo edit header */}
-                        <div className="mb-8 flex flex-col items-center rounded-3xl border border-slate-800 bg-slate-900/50 p-5">
-                            <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-2 border-[#CA9C68]/60 bg-slate-950 text-slate-500 shadow-xl">
+                        <div className="mb-8 flex flex-col items-center rounded-3xl border border-[var(--site-line)] bg-[var(--site-surface)]/50 p-5">
+                            <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-2 border-[var(--site-gold)]/60 bg-[var(--site-bg)] text-[var(--site-muted)] shadow-xl">
                                 {profileImage ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img src={profileImage} alt="" className="h-full w-full object-cover" />
@@ -1067,7 +1064,7 @@ export default function ProfilePage() {
                                     type="button"
                                     onClick={() => !uploading && fileInputRef.current?.click()}
                                     disabled={uploading || removingImage || saving}
-                                    className="inline-flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-xs font-black text-sky-300 transition hover:bg-[#CA9C68]/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="inline-flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-xs font-black text-sky-300 transition hover:bg-[var(--site-gold)]/15 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
                                     Change Profile Photo
@@ -1097,9 +1094,9 @@ export default function ProfilePage() {
                                 { field: "birthday", label: "Birthday", placeholder: "e.g. October 24" },
                             ].map(({ field, label, placeholder, required }) => (
                                 <label key={field} className="block">
-                                    <span className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+                                    <span className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]">
                                         {label}
-                                        {required && <span className="ml-1 text-[#CA9C68]">*</span>}
+                                        {required && <span className="ml-1 text-[var(--site-gold)]">*</span>}
                                     </span>
                                     <input
                                         value={form[field as keyof typeof form] as string}
@@ -1117,12 +1114,12 @@ export default function ProfilePage() {
                                         type={field === "email" ? "email" : "text"}
                                         required={Boolean(required)}
                                         maxLength={field === "username" ? 12 : undefined}
-                                        className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#CA9C68]"
+                                        className="mt-2 w-full rounded-2xl border border-[var(--site-line)] bg-[var(--site-surface)] px-4 py-3 text-sm font-bold text-[var(--site-text)] outline-none transition focus:border-[var(--site-gold)]"
                                     />
                                     {field === "username" && usernameStatus !== "idle" && (
                                         <span className={cn(
                                             "mt-2 flex items-center gap-1 text-xs font-bold",
-                                            usernameStatus === "available" ? "text-emerald-300" : usernameStatus === "checking" ? "text-slate-400" : "text-rose-300"
+                                            usernameStatus === "available" ? "text-emerald-300" : usernameStatus === "checking" ? "text-[var(--site-muted)]" : "text-rose-300"
                                         )}>
                                             {usernameStatus === "checking" && <Loader2 className="h-3 w-3 animate-spin" />}
                                             {usernameStatus === "available" && <CheckCircle2 className="h-3 w-3" />}
@@ -1139,7 +1136,7 @@ export default function ProfilePage() {
 
                         {/* Gender Selector */}
                         <div className="mt-6">
-                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Gender</p>
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]">Gender</p>
                             <div className="mt-2 flex flex-wrap gap-2">
                                 {genderOptions.map((item) => (
                                     <button
@@ -1149,8 +1146,8 @@ export default function ProfilePage() {
                                         className={cn(
                                             "rounded-full border px-3 py-2 text-xs font-black transition",
                                             form.gender === item
-                                                ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950"
-                                                : "border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700"
+                                                ? "border-[var(--site-gold)] bg-[var(--site-gold)] text-[var(--site-on-gold)]"
+                                                : "border-[var(--site-line)] bg-[var(--site-surface)] text-[var(--site-subtle)] hover:border-[var(--site-border)]"
                                         )}
                                     >
                                         {item}
@@ -1161,7 +1158,7 @@ export default function ProfilePage() {
 
                         {/* Persona Selector */}
                         <div className="mt-6">
-                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">I am a...</p>
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]">I am a...</p>
                             <div className="mt-2 flex flex-wrap gap-2">
                                 {personaOptions.map((item) => (
                                     <button
@@ -1171,8 +1168,8 @@ export default function ProfilePage() {
                                         className={cn(
                                             "rounded-full border px-3 py-2 text-xs font-black transition",
                                             form.persona.includes(item)
-                                                ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950"
-                                                : "border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700"
+                                                ? "border-[var(--site-gold)] bg-[var(--site-gold)] text-[var(--site-on-gold)]"
+                                                : "border-[var(--site-line)] bg-[var(--site-surface)] text-[var(--site-subtle)] hover:border-[var(--site-border)]"
                                         )}
                                     >
                                         {item}

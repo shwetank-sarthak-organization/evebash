@@ -33,30 +33,30 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, loading }: S
     ] : [];
 
     return (
-        <div className="rounded-2xl bg-slate-900 p-4">
+        <div className="rounded-2xl bg-[var(--site-surface)] p-4">
             <div className="flex items-center justify-between gap-3">
-                <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+                <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]">
                     <HardDrive className="h-3.5 w-3.5" aria-hidden />
                     Storage
                 </p>
-                <p className="text-[11px] font-bold text-slate-500">{planLabel} plan</p>
+                <p className="text-[11px] font-bold text-[var(--site-muted)]">{planLabel} plan</p>
             </div>
 
-            <p className="mt-2 text-xl font-black text-white">
+            <p className="mt-2 text-xl font-black text-[var(--site-text)]">
                 {loading ? "…" : formatStorageSize(usage.total)}
-                <span className="text-sm font-bold text-slate-400"> of {unlimited ? "Unlimited" : planLabel} used</span>
+                <span className="text-sm font-bold text-[var(--site-muted)]"> of {unlimited ? "Unlimited" : planLabel} used</span>
             </p>
 
             {!unlimited && (
                 <div
-                    className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-slate-800"
+                    className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-[var(--site-surface-2)]"
                     role="progressbar"
                     aria-label="Storage used"
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={Math.round(percent)}
                 >
-                    <div className="h-full bg-[#CA9C68]" style={{ width: `${eventShare}%` }} />
+                    <div className="h-full bg-[var(--site-gold)]" style={{ width: `${eventShare}%` }} />
                     <div className="h-full bg-[#7FA38C]" style={{ width: `${vaultShare}%` }} />
                 </div>
             )}
@@ -71,42 +71,42 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, loading }: S
                             className="flex w-full items-center justify-between gap-3 text-left text-sm"
                         >
                             <EventStorageLabel />
-                            <span className="flex items-center gap-1.5 font-black text-white">
+                            <span className="flex items-center gap-1.5 font-black text-[var(--site-text)]">
                                 {loading ? "…" : formatStorageSize(usage.events)}
-                                <ChevronDown className={cn("h-4 w-4 text-slate-500 transition-transform", eventsOpen && "rotate-180")} aria-hidden />
+                                <ChevronDown className={cn("h-4 w-4 text-[var(--site-muted)] transition-transform", eventsOpen && "rotate-180")} aria-hidden />
                             </span>
                         </button>
                     ) : (
                         <div className="flex items-center justify-between gap-3 text-sm">
                             <EventStorageLabel />
-                            <span className="font-black text-white">{loading ? "…" : formatStorageSize(usage.events)}</span>
+                            <span className="font-black text-[var(--site-text)]">{loading ? "…" : formatStorageSize(usage.events)}</span>
                         </div>
                     )}
                     {eventsOpen && eventParts.length > 0 && (
-                        <ul className="mt-2 space-y-2 border-l border-slate-800 pl-4 ml-1">
+                        <ul className="mt-2 space-y-2 border-l border-[var(--site-line)] pl-4 ml-1">
                             {eventParts.map(({ icon: Icon, label, bytes }) => (
                                 <li key={label} className="flex items-center justify-between gap-3 text-xs">
-                                    <span className="flex items-center gap-2 font-semibold text-slate-400">
-                                        <Icon className="h-3.5 w-3.5 text-slate-500" aria-hidden />
+                                    <span className="flex items-center gap-2 font-semibold text-[var(--site-muted)]">
+                                        <Icon className="h-3.5 w-3.5 text-[var(--site-muted)]" aria-hidden />
                                         {label}
                                     </span>
-                                    <span className="font-bold text-slate-200">{formatStorageSize(bytes)}</span>
+                                    <span className="font-bold text-[var(--site-text)]">{formatStorageSize(bytes)}</span>
                                 </li>
                             ))}
                         </ul>
                     )}
                 </li>
                 <li className="flex items-center justify-between gap-3 text-sm">
-                    <span className="flex items-center gap-2 font-semibold text-slate-300">
+                    <span className="flex items-center gap-2 font-semibold text-[var(--site-subtle)]">
                         <span className="h-2.5 w-2.5 rounded-full bg-[#7FA38C]" aria-hidden />
-                        <Lock className="h-4 w-4 text-slate-500" aria-hidden />
+                        <Lock className="h-4 w-4 text-[var(--site-muted)]" aria-hidden />
                         Vault Storage
                     </span>
-                    <span className="font-black text-white">{loading ? "…" : formatStorageSize(usage.vault)}</span>
+                    <span className="font-black text-[var(--site-text)]">{loading ? "…" : formatStorageSize(usage.vault)}</span>
                 </li>
             </ul>
 
-            <p className={cn("mt-3 text-[11px] font-medium", overLimit ? "text-rose-300" : "text-slate-500")}>
+            <p className={cn("mt-3 text-[11px] font-medium", overLimit ? "text-rose-300" : "text-[var(--site-muted)]")}>
                 {overLimit
                     ? "You're over your plan's storage. Existing files are safe, but new uploads are paused until you free up space or upgrade."
                     : unlimited
@@ -119,9 +119,9 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, loading }: S
 
 function EventStorageLabel() {
     return (
-        <span className="flex items-center gap-2 font-semibold text-slate-300">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#CA9C68]" aria-hidden />
-            <CalendarDays className="h-4 w-4 text-slate-500" aria-hidden />
+        <span className="flex items-center gap-2 font-semibold text-[var(--site-subtle)]">
+            <span className="h-2.5 w-2.5 rounded-full bg-[var(--site-gold)]" aria-hidden />
+            <CalendarDays className="h-4 w-4 text-[var(--site-muted)]" aria-hidden />
             Event Storage
         </span>
     );

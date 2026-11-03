@@ -28,8 +28,8 @@ import { withdrawFindYouConsent } from "@/components/FindYouConsentGate";
 
 const SUPPORT_EMAIL = "support@evebash.com";
 
-const CARD = "overflow-hidden rounded-[2rem] border border-[#273034] bg-[#121820]";
-const SECTION_LABEL = "mb-3 px-1 font-sans text-[11px] font-black uppercase tracking-[0.16em] text-slate-500";
+const CARD = "overflow-hidden rounded-[2rem] border border-[var(--site-line)] bg-[var(--site-surface)]";
+const SECTION_LABEL = "mb-3 px-1 font-sans text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-gold)]";
 const ROW = "flex w-full items-center gap-4 px-5 py-4 text-left transition-colors sm:px-6";
 const ICON_BOX = "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl";
 
@@ -45,14 +45,14 @@ function RowContent({ icon: Icon, title, subtitle, tone = "default", trailing = 
     const danger = tone === "danger";
     return (
         <>
-            <span className={cn(ICON_BOX, danger ? "bg-rose-500/10 text-rose-300" : "bg-[#CA9C68]/10 text-[#CA9C68]")}>
+            <span className={cn(ICON_BOX, danger ? "bg-rose-500/10 text-rose-300" : "bg-[var(--site-gold)]/10 text-[var(--site-gold)]")}>
                 <Icon className="h-5 w-5" />
             </span>
             <span className="min-w-0 flex-1">
-                <span className={cn("block text-sm font-black", danger ? "text-rose-300" : "text-white")}>{title}</span>
-                {subtitle && <span className="mt-0.5 block text-xs font-semibold leading-5 text-slate-400">{subtitle}</span>}
+                <span className={cn("block text-sm font-black", danger ? "text-rose-300" : "text-[var(--site-text)]")}>{title}</span>
+                {subtitle && <span className="mt-0.5 block text-xs font-semibold leading-5 text-[var(--site-muted)]">{subtitle}</span>}
             </span>
-            {trailing && <ChevronRight className={cn("h-4 w-4 shrink-0", danger ? "text-rose-300" : "text-slate-500")} />}
+            {trailing && <ChevronRight className={cn("h-4 w-4 shrink-0", danger ? "text-rose-300" : "text-[var(--site-muted)]")} />}
         </>
     );
 }
@@ -201,31 +201,31 @@ export default function SettingsPage() {
 
     if (authLoading || !user) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-[#0E141A] text-slate-300">
-                <Loader2 className="h-8 w-8 animate-spin text-[#CA9C68]" />
+            <div className="flex min-h-screen items-center justify-center bg-[var(--site-bg)] text-[var(--site-subtle)]">
+                <Loader2 className="h-8 w-8 animate-spin text-[var(--site-gold)]" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#0E141A] font-sans text-white">
+        <div className="min-h-screen bg-[var(--site-bg)] font-sans text-[var(--site-text)]">
             <main className="mx-auto max-w-3xl space-y-8 px-4 pt-12 pb-24 sm:px-6 lg:px-8">
-                <section className="rounded-[2rem] border border-[#273034] bg-[#121820] p-5 shadow-2xl shadow-black/25 sm:p-8">
+                <section className="rounded-[2rem] border border-[var(--site-line)] bg-[var(--site-surface)] p-5 shadow-2xl shadow-black/25 sm:p-8">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#CA9C68]">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[var(--site-gold)]">
                                 <Settings className="h-6 w-6" aria-hidden="true" />
                             </div>
                             <div className="min-w-0">
-                                <h1 className="truncate font-brand font-normal tracking-wide text-[#F5EFE6]" style={{ fontSize: 28, lineHeight: "30px" }}>
+                                <h1 className="home-gold-text truncate font-serif text-[26px] font-semibold tracking-[-0.015em] sm:text-[28px]" style={{ lineHeight: "30px" }}>
                                     Settings
                                 </h1>
-                                <p className="truncate font-sans text-slate-400" style={{ fontSize: 12, lineHeight: "18px" }}>Account, support and legal</p>
+                                <p className="truncate font-sans text-[var(--site-muted)]" style={{ fontSize: 12, lineHeight: "18px" }}>Account, support and legal</p>
                             </div>
                         </div>
                         <Link
                             href="/profile"
-                            className="flex h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-black text-slate-200 transition-colors hover:border-[#CA9C68]/60 hover:text-white sm:px-5"
+                            className="flex h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-full home-btn-glass px-4 text-sm font-black sm:px-5"
                             aria-label="Back to profile"
                         >
                             <ArrowLeft className="h-4 w-4" />
@@ -239,12 +239,12 @@ export default function SettingsPage() {
                     <div className={CARD}>
                         <div className="grid gap-3 px-5 py-4 text-sm sm:px-6">
                             <div className="flex items-center justify-between gap-4">
-                                <span className="font-semibold text-slate-400">Signed in via</span>
-                                <span className="font-black text-white">{signInMethod?.label || "..."}</span>
+                                <span className="font-semibold text-[var(--site-muted)]">Signed in via</span>
+                                <span className="font-black text-[var(--site-text)]">{signInMethod?.label || "..."}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
-                                <span className="shrink-0 font-semibold text-slate-400">Identifier</span>
-                                <span className="min-w-0 truncate font-black text-white">{signInMethod?.identifier || "..."}</span>
+                                <span className="shrink-0 font-semibold text-[var(--site-muted)]">Identifier</span>
+                                <span className="min-w-0 truncate font-black text-[var(--site-text)]">{signInMethod?.identifier || "..."}</span>
                             </div>
                         </div>
                         <div className="border-t border-white/5" />
@@ -294,7 +294,7 @@ export default function SettingsPage() {
             </main>
 
             {toast && (
-                <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-emerald-300 shadow-2xl">
+                <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-[var(--site-border)] bg-[var(--site-surface)] px-5 py-3 text-sm font-bold text-emerald-300 shadow-2xl">
                     {toast}
                 </div>
             )}
@@ -316,8 +316,8 @@ export default function SettingsPage() {
                                 { met: passSpecial, text: "One special character" },
                             ].map((req) => (
                                 <div key={req.text} className="flex items-center gap-2 text-xs">
-                                    {req.met ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : <Circle className="h-4 w-4 text-slate-500" />}
-                                    <span className={req.met ? "font-semibold text-emerald-300" : "text-slate-400"}>{req.text}</span>
+                                    {req.met ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : <Circle className="h-4 w-4 text-[var(--site-muted)]" />}
+                                    <span className={req.met ? "font-semibold text-emerald-300" : "text-[var(--site-muted)]"}>{req.text}</span>
                                 </div>
                             ))}
                         </div>
