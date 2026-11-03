@@ -14,9 +14,12 @@ import Animated, {
 import Svg, {
   Circle, ClipPath, Defs, G, LinearGradient, Path, Pattern, RadialGradient, Rect, Stop,
 } from 'react-native-svg';
+import { LinearGradient as ScreenFade } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MidnightColors } from '../../constants/theme';
 import { haptic } from '../../lib/haptics';
 import { EVEBASH_LOGO_BOUNDS, EVEBASH_LOGO_PATH } from '../EveBashLogo';
+import { TAB_HEADER_GRADIENT, TAB_HEADER_HEIGHT } from '../ui/TabScreenHeader';
 import { EVEBASH_NAME } from './logoPaths';
 
 /**
@@ -25,10 +28,10 @@ import { EVEBASH_NAME } from './logoPaths';
  *
  * Everything is laid out on a 280 x 520 artboard (the preview's phone frame). Sizes are multiplied by
  * `u` to fit the screen instead of scaling the artboard with a transform, which would stretch the
- * drawn shapes and blur them. The timeline is in preview seconds; DURATION_SCALE speeds it up.
+ * drawn shapes and blur them. The timeline is in preview seconds; DURATION_SCALE stretches it.
  */
 
-const DURATION_SCALE = 0.7;
+const DURATION_SCALE = 1; // 1 = the speed of the approved preview; lower is faster
 const END = 4.3;
 const CLICK_AT = 0.85;
 const HOLD_MS = 400; // the finished logo stays this long before the app fades in
@@ -271,6 +274,7 @@ type AppIntroProps = {
 export default function AppIntro({ ready, onFinish, onShown }: AppIntroProps) {
   const { width, height } = useWindowDimensions();
   const u = Math.min(width / ART_W, height / ART_H);
+  const insets = useSafeAreaInsets();
   const s = useMemo(() => makeStyles(u), [u]);
   const reduceMotion = useReducedMotion();
   const t = useSharedValue(0);
@@ -334,6 +338,12 @@ export default function AppIntro({ ready, onFinish, onShown }: AppIntroProps) {
 
   return (
     <Animated.View style={[s.overlay, overlay]} onLayout={onShown}>
+      {/* Same top fade as the dashboard header, so the hand-off to the app doesn't jump */}
+      <ScreenFade
+        colors={TAB_HEADER_GRADIENT}
+        style={[s.topFade, { height: insets.top + TAB_HEADER_HEIGHT }]}
+        pointerEvents="none"
+      />
       <Pressable
         style={s.center}
         onPress={skip}
@@ -389,6 +399,7 @@ export default function AppIntro({ ready, onFinish, onShown }: AppIntroProps) {
 function makeStyles(u: number) {
   return StyleSheet.create({
     overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: BG, zIndex: 1000, elevation: 1000 },
+    topFade: { position: 'absolute', top: 0, left: 0, right: 0 },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     artboard: { width: ART_W * u, height: ART_H * u },
     camera: { position: 'absolute', left: 50 * u, top: 150 * u, width: 180 * u, height: 130 * u },

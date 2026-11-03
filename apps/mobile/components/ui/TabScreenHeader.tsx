@@ -6,6 +6,12 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
 import { MidnightColors } from '@/constants/theme';
 
+/** The header's dark fade; the app-open animation (AppIntro) uses it too so the hand-off lines up */
+export const TAB_HEADER_GRADIENT = ['#151C22', '#22302F', MidnightColors.background] as const;
+
+/** Header height below the status bar: 4 top padding + 38 content + 20 bottom padding + 1 border */
+export const TAB_HEADER_HEIGHT = 63;
+
 interface TabScreenHeaderProps {
   title: string;
   /** Replaces the EB logo on the left, e.g. a back button on pushed screens. */
@@ -22,7 +28,7 @@ export function TabScreenHeader({ title, left, right }: TabScreenHeaderProps) {
 
   return (
     <LinearGradient
-      colors={isDark ? ['#151C22', '#22302F', MidnightColors.background] : [colors.deepSlate, colors.background]}
+      colors={isDark ? TAB_HEADER_GRADIENT : [colors.deepSlate, colors.background]}
       style={[styles.header, { paddingTop: insets.top + 4 }]}
     >
       <View style={[styles.side, { justifyContent: 'flex-start' }]}>
