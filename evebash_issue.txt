@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 235
+Next issue number: 243
 
 =====================================================================
 ACTIVE ISSUES
@@ -1110,6 +1110,7 @@ Blocked by: -
 Found in: Device tests #64, #110, #111, Claude run on staging (2026-10-28)
 Issue: The website's gallery photo viewer (src/components/page-flip/PageFlipSocialBar.tsx, used by MasonryGrid for every guest gallery since the page-flip viewer, 6a7e38ea) is behind the older Lightbox (src/components/ui/Lightbox.tsx, now only used on the host page): (1) no Reply button and no reply threads at all, so test #111 can't be done on the website and the app's replies don't show as threads there; (2) Delete on your own comment removes it at once with no "Delete comment?" confirm (test #64 step 2); (3) right after posting, your new comment has no Delete button until you close and reopen the photo; (4) the header reads "1 shared thoughts". Fix idea: bring reply threads and confirmDialog into PageFlipSocialBar (reuse Lightbox's logic, ideally shared), set the new comment's user id so Delete shows at once, and fix the singular.
 How to reproduce: Signed in, open /events/test-face-new-155c, open a photo, open Comments, post a comment: no Reply button; no Delete until reopening; then Delete removes it without asking.
+Note 2026-11-03: the app now uses shared/text/commentTime.ts (formatCommentTime: the time for today, the date for older comments). The website has two copies that show only the time (formatInteractionTime in src/components/ui/Lightbox.tsx, formatCommentTime in src/components/page-flip/PageFlipSocialBar.tsx); use the shared one when this is fixed.
 
 #179
 Listed: 2026-10-28
@@ -1438,9 +1439,100 @@ Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: The RunPod-first pipeline adds a lot of moving parts for a small saving today: a RunPod account, a worker image built by GitHub Actions and stored on ghcr.io, three RunPod endpoints, a backend route and a check every minute. Only 8 videos over 10 minutes have ever been uploaded, 7 of them our own tests, so the saving is a few rupees per video. The proven Modal path (4-core for short videos, 16-core for long ones, GPU mode off since 2026-11-03) is enough for launch. Decision needed: launch on Modal only and turn RunPod on later (for example when long videos reach a few hundred a month), or turn it on at launch after issues #221, #222 and #227 are done.
 How to reproduce: Not a bug; read todo #18 and reports/Final video pipeline recommendation 2026-10-27.md.
 
+#237
+Listed: 2026-11-03
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App screen review, photo viewer comments (chat 2026-11-03)
+Issue: In the full-screen photo viewer that guest galleries use (the "dashboard" layout in apps/mobile/components/PhotoViewer.tsx, from about line 1736; seen in Royal Emerald), the Guestbook panel is see-through. Its background is the theme's panel colour, which is mostly transparent (the default is rgba(255,255,255,0.08)). The Like / Comment / Share / Download row stays underneath and shows through, right on top of the "No whispers yet..." empty state. The empty state's second line, "Write the first beautiful word.", is hidden behind the comment box. Fix idea that keeps each theme's colours: hide the action row while comments are open (the other layout raises it with viewerActionsRaised) and put a solid backing behind the panel's theme colour; then check every guest theme.
+How to reproduce: Android emulator, test-face-new-155c guest view (Royal Emerald), open any photo, tap the comment icon.
+
+#239
+Listed: 2026-11-03
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App screen review, video viewer (chat 2026-11-03)
+Issue: The gear in the app's video player opens a "Quality: Auto" box with nothing to choose; the box is fixed text (apps/mobile/components/PhotoViewer.tsx, about line 760). A button that offers no choice looks broken, and it takes room in a crowded bar (previous, -10 s, play, +10 s, next, time, volume, gear, full screen). A manual quality choice isn't needed (#135). Fix idea: remove the gear, or show the stream that is playing (e.g. "Auto · 720p"; the size is already read in reportVideoSize).
+How to reproduce: Open any video in a gallery, tap the video to show the controls, tap the gear.
+
+#240
+Listed: 2026-11-03
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App screen review, photo viewer comments (chat 2026-11-03)
+Issue: Smaller problems in the app's comment panel (renderGuestbookPanel in apps/mobile/components/PhotoViewer.tsx, styles in apps/mobile/components/eventStyles/visitorImmersiveStyles.ts): (1) the count will say "1 Shared Thoughts" (no singular; the website has the same, #178); (2) REPLY and DELETE are 10 pt text with no extra touch area, so they are hard to hit, and DELETE is drawn in the theme's text colour instead of red (the inline colour overrides deleteBtnText); (3) when posting or deleting a comment fails, nothing shows (only console.error), so the guest doesn't know to try again; (4) the "Replying to" box is near-white (#fafaf9) inside dark panels. Fix idea: singular and plural, hitSlop on both buttons and keep Delete red, a toast on failure, and draw the reply box with the theme's panel and border colours.
+How to reproduce: From the code; (2) and (4) need a comment to show, and there are none in the database today.
+
+#241
+Listed: 2026-11-03
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: App screen review, EB Vault (chat 2026-11-03)
+Issue: EB Vault (apps/mobile/components/vault/VaultScreen.tsx, VaultPreview.tsx, VaultModals.tsx, VaultUploads.tsx) uses its own colours, not the app palette: a #0E1318 page background (the app uses MidnightColors.background, #13191F), cool blue-grey text and boxes (#E2E8F0, #F1F5F9, #141B22, white see-through borders) and Tailwind amber and red banners. Next to Profile and Plan & Usage it looks darker and colder, the same kind of mismatch as #230. Its header also differs from the sibling Plan & Usage page, which uses TabScreenHeader. Long file names are cut at the end, so the extension is hidden ("SU0710…265404 …") in the list, the actions sheet title and the preview header; cutting in the middle (ellipsizeMode="middle") keeps ".pdf" visible. Smaller: the Profile row says "Usage & Plan" but that page's title says "Plan & Usage". Keep the Vault green (#7FA38C), which the Profile card uses too. Fix idea: swap the hard-coded colours for MidnightColors tokens, cut file names in the middle, and use one name for Usage & Plan. Also check on a phone: a 195 KB PDF took about 15-20 s to show in the preview on the emulator, with only "Loading PDF..." on screen.
+How to reproduce: Android emulator, Profile > EB Vault; compare with Profile > Usage & Plan.
+
+#242
+Listed: 2026-11-03
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Testing the #235 fix on the Android emulator (chat 2026-11-03)
+Issue: On Android, the keyboard covers the comment box in the photo viewer, so you can't see what you are typing or the send button. The Guestbook panel (renderGuestbookPanel in apps/mobile/components/PhotoViewer.tsx) uses KeyboardAvoidingView only on iOS (behavior is undefined on Android), and inside the viewer's Modal the screen doesn't shrink for the keyboard. Fix idea: give Android a behavior too (or move the panel up by the keyboard height from Keyboard events), then check typing a comment and a reply on Android and iPhone.
+How to reproduce: Android emulator, test-face-new-155c guest view, open a photo, tap the comment icon, tap "Share a wish...": the keyboard opens over the whole panel.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#235
+Listed: 2026-11-03
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review, photo viewer (chat 2026-11-03)
+Issue: In the app's photo/video viewer, likes and comments don't show after you add them. Tapping the heart saves the like, but the heart stays empty and the count stays 0 until the viewer is closed and opened again. Tapping again (because nothing seemed to happen) silently removes the like. A new comment doesn't appear either, and a deleted one stays. The viewer only reloads likes and comments when Supabase Realtime reports a change (onPhotoInteractions in apps/mobile/lib/database.ts, used by apps/mobile/components/PhotoViewer.tsx), and Realtime is off (#49). Same cause as the website grid's #177. Fix idea: after toggleLike, addComment and deletePhotoComment succeed, fetch that photo's likes and comments again (or update the lists straight away and undo on error).
+How to reproduce: Signed in on the Android emulator (2026-11-03), test-face-new-155c guest view, photo 8 of the grid: tap the heart. The like was saved (1 row in likes) but the heart stayed empty with "0". Tapping again removed it (0 rows). Comments weren't posted in this check; they use the same code path.
+Fixed in: d100d39 (2026-11-03). The viewer reloads the photo's likes and comments after your own like, comment or delete (onPhotoInteractions in apps/mobile/lib/database.ts now also returns refresh(), and ignores late or stale reads); the heart changes at once. Checked on the Android emulator (Pixel 8, dev build, test-face-new-155c): like and unlike showed at once and matched the database; a test comment appeared at once and Delete removed it at once (both removed afterwards). iPhone not checked. Device test #176.
+
+#236
+Listed: 2026-11-03
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review, photo viewer comments (chat 2026-11-03)
+Issue: Every comment's time in the app's viewer will read "Invalid Date". PhotoViewer.tsx (comment and reply rows, about lines 1383 and 1443) reads comment.createdAt.seconds, an old Firestore shape, but onPhotoInteractions (apps/mobile/lib/database.ts) gives created_at as a text date, so .seconds is undefined and the date is invalid. It also shows only the time of day, so a comment from last week looks like today's. Fix idea: use new Date(comment.createdAt), and show the date for comments older than today (e.g. "3 Nov, 4:05 pm").
+How to reproduce: Not seen on screen yet: the database has no comments today. Post a comment in the app, close and reopen the photo (see #235) and look at the time next to the name. The same expression run in Node prints "Invalid Date".
+Fixed in: d100d39 (2026-11-03). Comment and reply times use shared/text/commentTime.ts: the time for today, the date for older comments ("Oct 27, 04:00 PM", or "Dec 31, 2025" for older years). Checked on the Android emulator: a new comment showed "8:50 PM". Device test #176.
+
+#238
+Listed: 2026-11-03
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App screen review, video viewer (chat 2026-11-03)
+Issue: In the app's video viewer, Play stops working once a video has reached the end. The button switches to Pause, but the time stays at the end (0:30 / 0:30) and nothing plays; the next tap switches it back to Play. After going full screen and back at the end, the picture is black too. handleTogglePlayback in apps/mobile/components/PhotoViewer.tsx calls player.play() without going back to the start, and a finished player on Android doesn't restart by itself. Fix idea: if the time is at (or within half a second of) the end, set player.currentTime = 0 before play(), and show a replay icon at the end. Check on iPhone too.
+How to reproduce: Android emulator (Pixel 8), test-face-new-155c guest view > Videos, open the first video (30 s), let it play to the end, tap Play.
+Fixed in: d100d39 (2026-11-03). Play on a finished video goes back to 0:00 first (handleTogglePlayback in apps/mobile/components/PhotoViewer.tsx). Checked on the Android emulator: a 30 s video ended showing Play and its last frame, and Play started it again from 0:00 with the picture. iPhone not checked. Device test #176.
+
 #230
 Listed: 2026-11-03
 Platform: App

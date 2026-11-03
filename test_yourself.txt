@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 176
+Next test number: 177
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4921,6 +4921,37 @@ How to test:
   5. Click "Explore all" on the Your memories card. Expect: the list page in the same look; the filter tabs, search
      and dropdowns readable; the event cards open the gallery as before.
   6. Open Host. Expect: the event cards there look the same as before this change.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#176 App photo viewer: likes and comments show at once, comment times, replay after a video ends
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone + Android)
+Brief:     In the app's photo viewer a like or comment didn't show until you closed and reopened the photo,
+           comment times read "Invalid Date", and Play did nothing once a video had ended (issues #235, #236,
+           #238). Now the heart and comments change at once, times show properly (the date too for older
+           comments), and Play on a finished video starts it again.
+Detail:    Commit d100d39 on staging (app only: needs the next app build or update to reach phones).
+           2026-11-03 check by Claude (not a tester PASS): Android emulator (Pixel 8, dev build) only, steps 1, 2
+           and 4. iPhone not checked. On Android the keyboard covers the comment box (#242): hide the keyboard
+           to see what you typed and the send button.
+How to test:
+  1. Signed in, open a gallery, open a photo, tap the heart. Expect: it turns red and the count goes up at once,
+     and stays that way after closing and reopening the photo. Tap it again. Expect: back to empty at once.
+  2. Tap the comment icon, write a short comment and send it. Expect: it shows at once, with the time you sent it
+     (e.g. "8:50 PM"), never "Invalid Date". Tap Delete and confirm. Expect: it disappears at once.
+  3. If the gallery has a comment from an earlier day, open that photo's comments. Expect: date and time
+     (e.g. "Oct 27, 04:00 PM").
+  4. Open a short video, play it to the end. Expect: the Play icon and the last frame. Tap Play. Expect: it starts
+     again from 0:00 with the picture. Repeat once after going full screen and back.
 Done by:
 Device / browser:
 Build / version:
