@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 220
+Next issue number: 230
 
 =====================================================================
 ACTIVE ISSUES
@@ -1325,6 +1325,117 @@ Found in: Download route audit (chat 2026-11-02)
 Issue: Find You downloads and shares the preview, not the photo. Face records (faces.image_url) only keep each photo's preview (-preview.webp, about 1600 px, 0.1-0.8 MB), and the backend (apps/backend/src/routes/findYou.ts) sends it as every match's url. So the app's Download and Share (PhotoViewer uses url) and the website's Find You page (src/app/(public)/events/[slug]/find-you/page.tsx, which also put the preview in src) save the preview instead of the original (10-12 MB JPEGs in the 4 matches checked). Fix in 2f6818d, behind FIND_YOU_ORIGINAL_URL (off by default; turn it off to undo): the backend looks up each match's photos.url and sends it as url (the preview fields the apps show are unchanged; playlists and failed lookups keep the preview). MasonryGrid takes an optional downloadUrl and the Find You page passes the match url. Old app builds get the fix too (no new build). Checked: backend Find You tests 5/5, no new backend or website type errors, the real lookup on 4 face records gave the original JPEGs through Cloudflare. Not clicked yet: needs the switch on.
 How to reproduce: Website: open a gallery's Find You page, search with a selfie, open a match and click Download: a small .webp. App: gallery > Find You, open a match, Download: the saved photo is about 1600 px.
 Note 2026-11-02: FIND_YOU_ORIGINAL_URL=true set on the staging backend (Railway, deploy 0c8d6b74 SUCCESS). A real search on staging (signed-in host, test-face-new-155c, POST api-staging.evebash.com/api/find-you) returned 2 matches whose url is the original .JPG (11.35 and 11.05 MB image/jpeg), with imageUrl, previewUrl and thumbnailUrl still the 0.22 MB previews. Download and Share buttons not clicked yet (device test #168).
+
+#220
+Listed: 2026-11-03
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: One-week check of the long-video GPU worker (chat 2026-11-02/03)
+Issue: The L4 worker (transcode_video_long_gpu_all) has not started once since the mode went on for all galleries. Both long videos sent to it waited the full 300 s ("no L4 started within 300s", modal_cost_logs process_video_gpu_fallback) and then ran on the 16-core worker: t159_long_12min on 2026-10-27 (92 s, 2.09 INR) and a 12-minute test on 2026-11-03 in test-face-new-155c (76 s, 1.74 INR, test video deleted afterwards). Each long video therefore takes about 5 minutes longer than it needs to. Before that the L4 started inside the wait on 2026-10-24 and 2026-10-25 (Modal v126 to v131). Modal's status page shows no incident, and 25 minutes after the 11-03 test the function still had backlog 1 and 0 runners (the call watch_gpu_start cancels stays queued; cancel() is unreliable). Not known yet whether this is L4 capacity or a regression since v132/v133 (the last proven L4 start was 2026-10-25 12:57 IST, before v132 at 13:30 IST). Not an outage: every video still finishes on the 16-core worker, and a late L4 start exits on the "cpu" mark (about 38 s of L4, roughly 0.008 USD). Still no real customer long video to measure (all uploads since 2026-10-26 are test galleries).
+How to reproduce: With the mode on, upload a 12-minute video to any gallery and watch modal_cost_logs for its photo_id: process_video_gpu_fallback appears 5 minutes after the upload, then process_video_cpu_long. `modal.Function.from_name("wedding-media-engine", "transcode_video_long_gpu_all").get_current_stats()` shows the leftover backlog.
+Options (nothing changed yet): test again at another time of day; log the L4 wait seconds so shortages show up; lower gpu_wait_s; or switch the mode off (modal_engine/video_gpu_switch.py mode off) until an L4 starts reliably. Only the 16-core path is proven for customers.
+
+#221
+Listed: 2026-11-03
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
+Issue: A RunPod worker that hangs is noticed very late. In apps/backend/src/services/runpodVideo.ts (checkStep) a job that is IN_PROGRESS is only moved to the next worker after its time limit plus 15 minutes. The limit is 1.5 x the video length + 10 minutes, at least 15 minutes. So a stalled 3-minute video waits about 30 minutes, a stalled 10-minute video about 40 minutes, before the next worker or Modal gets it. Modal's workers write a heartbeat (transcode_heartbeat_at, issue #157); the RunPod worker does not. Fix idea: have the RunPod worker report a heartbeat and move on when none arrives for about 3 minutes.
+How to reproduce: With VIDEO_RUNPOD on for a test gallery, make the worker stop without failing (for example block its upload) and time how long until the video moves to the next worker.
+
+#222
+Listed: 2026-11-03
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
+Issue: The guard against two workers converting the same video lives in the backend's memory (claimActive in apps/backend/src/services/runpodVideo.ts, a Map; the code comment says "one backend process; best effort"). A Railway restart, or a second backend instance, forgets it, so two RunPod jobs (or a RunPod job and a Modal copy) can convert one video and upload over each other's segments. Fix idea: keep the claim in the database (a claim on the photos row, like claim_media_job for photos) instead of memory.
+How to reproduce: Send the same video's job twice, or restart the backend while a RunPod job runs and let QStash redeliver; check Railway logs for two "started on" lines for one photo id.
+
+#223
+Listed: 2026-11-03
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
+Issue: With RunPod on, the Railway backend sits in the middle of every video. Before, QStash called Modal directly. Now QStash calls apps/backend/src/routes/videoWorker.ts, which starts the RunPod job and schedules a check every 30 to 60 seconds through QStash. If Railway is down or restarting, new videos and the checks of running jobs wait. Not yet confirmed: whether the backend watchdog (#157) also rescues a video that was handed to RunPod and then lost. Fix idea: read the watchdog code, test a Railway restart during a RunPod job, and make sure a lost job ends on Modal.
+How to reproduce: Redeploy or restart the Railway backend while a RunPod video is converting and watch whether it still reaches "processed".
+
+#224
+Listed: 2026-11-03
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
+Issue: Every step of the RunPod backup chain downloads the original from Backblaze again (dispatchStep in apps/backend/src/services/runpodVideo.ts signs a new source_url per worker). A job that fails or times out has already downloaded the file, and the next worker downloads it again. Downloads count against Backblaze's free allowance, and the October bill already had $15.92 of extra downloads from our own video tests. Backblaze uploads also stalled once for 207 seconds in the 2026-10-27 benchmark, which doubles a video's time. Fix idea: count downloads and attempts per video, read through the Cloudflare route that was tested on 2026-11-01, and avoid fallbacks that re-run the same work.
+How to reproduce: Send a long video through the chain with the first worker forced to fail; the Backblaze download count for that file goes up by one per step.
+
+#225
+Listed: 2026-11-03
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
+Issue: RunPod and Modal cost rows in modal_cost_logs use different exchange rates. apps/backend/src/routes/videoWorker.ts converts RunPod dollars at RUNPOD_INR_PER_USD (default 88), while Modal's rows in modal_engine/main.py use rates that equal 100 rupees per dollar, and the reports use 100. Comparing the two in the cost tables is about 12% off. Fix idea: use one rate for both, or store dollars and convert when showing.
+How to reproduce: Compare estimated_cost_inr for a process_video_runpod_* row with the dollars RunPod billed for the same job.
+
+#226
+Listed: 2026-11-03
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
+Issue: The plan sends short videos to RunPod CPU 32 vCPU, but that has not been shown to be cheaper than what runs today. Measured RunPod CPU 32 costs 0.16 to 0.83 rupees for 1 to 10 minute 1080p clips (more for 4K and 60 fps); Modal's 4-core worker cost 0.18 to 0.62 rupees on the videos it handled. It is faster, not clearly cheaper. Modal 4-core was never run on the same clips (open item in reports/Final video pipeline recommendation 2026-10-27.md). Fix idea: run the same clips on Modal 4-core, compare the real bills, then choose per length (RunPod CPU 8 vCPU was 2 to 6 times cheaper but slower).
+How to reproduce: Run the same 1, 3, 6 and 10 minute clips on Modal 4-core and on RunPod CPU 32, and compare time and billed cost.
+
+#227
+Listed: 2026-11-03
+Platform: Both
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: Device test #163 (RunPod videos play everywhere), which is BLOCKED
+Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
+Issue: The RunPod path has barely been tested, so it should not be turned on for every gallery yet. It has converted a handful of test videos in wedding-2-77d4 since 2026-10-28 (first runs and the Modal fallback worked). Not tested: a chunked stream played on iOS, Android, Safari and hls.js; a burst of uploads against RunPod's limit of 10 workers across all endpoints; the planned one-week review of jobs, fallbacks, failures and the real RunPod bill (due about 2026-11-04). No real customer video has gone through it.
+How to reproduce: Check with VIDEO_RUNPOD on for a test gallery: upload 10 or more videos at once, then play each stream on a phone; read the RunPod billing API for the week.
+
+#228
+Listed: 2026-11-03
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: An answer from RunPod
+Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
+Issue: Customers' wedding videos are processed on RunPod's machines, and it is not confirmed that serverless jobs run only in RunPod's own secure data centres (not community hosts). Each job also gets a signed link to the original that stays valid for the job's time limit plus an hour or more. The GitHub repository and worker image are public (no secrets in them). The privacy policy (issue #25, shared/legal/policies.json) may need to name RunPod as a service that processes videos. Fix idea: ask RunPod in writing, restrict the endpoints to secure cloud if it can be set, shorten the link lifetime, and update the policy.
+How to reproduce: Read the RunPod endpoint settings and the privacy policy's list of services that process uploads.
+
+#229
+Listed: 2026-11-03
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: A decision (Sarthak)
+Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
+Issue: The RunPod-first pipeline adds a lot of moving parts for a small saving today: a RunPod account, a worker image built by GitHub Actions and stored on ghcr.io, three RunPod endpoints, a backend route and a check every minute. Only 8 videos over 10 minutes have ever been uploaded, 7 of them our own tests, so the saving is a few rupees per video. The proven Modal path (4-core for short videos, 16-core for long ones, GPU mode off since 2026-11-03) is enough for launch. Decision needed: launch on Modal only and turn RunPod on later (for example when long videos reach a few hundred a month), or turn it on at launch after issues #221, #222 and #227 are done.
+How to reproduce: Not a bug; read todo #18 and reports/Final video pipeline recommendation 2026-10-27.md.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
