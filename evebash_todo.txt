@@ -32,9 +32,9 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 22
+Next todo number: 23
 
-Last updated: 2026-11-02
+Last updated: 2026-11-03
 
 =====================================================================
 ACTIVE TODOS
@@ -565,6 +565,27 @@ Done in:      -
 =====================================================================
 DONE / DROPPED (delete after 14 days)
 =====================================================================
+
+#22 App-open animation: camera clicks a photo of the EB logo
+Listed:       2026-11-03
+Platform:     App
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       M (1-3 days)
+Suggested by: Sarthak (2026-11-03)
+Discussed:    Yes
+Decision:     2026-11-03 Sarthak approved the final design: an instant camera springs in, focuses, clicks
+              (iris blades, soft gold flash), pauses, pushes out a photo that develops to show EB, the frame
+              melts away, EB grows to 65 px and "EveBash" (42 px) fades in 10 px below with a gold shine.
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        Today the app opens on a still EB logo (expo-splash-screen) and, on slow loads, the rings
+              LoadingScreen. Build the animation with Reanimated + react-native-svg + expo-haptics (no new
+              package) in apps/mobile/components/intro/AppIntro.tsx, play it on a cold start while the account
+              loads, and change the native splash to a plain #13191F background so EB doesn't show first.
+              Spec and a playable preview: reports/app-open-animation/ (spec.md, preview.html, untracked).
+Done in:      4910294 (2026-11-03). Checked on the iPhone 16e simulator (dev build); device test #172.
 
 #20 Homepage motion pass (website)
 Listed:       2026-11-02

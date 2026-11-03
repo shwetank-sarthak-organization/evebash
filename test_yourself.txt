@@ -4779,6 +4779,42 @@ Screenshot / recording:
 Fix ref:
 Feedback:
 
+#172 App opens with the camera-click animation
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone and Android)
+Brief:     The app used to open on a still gold EB logo. Now, on a fresh start, an instant camera appears, focuses,
+           clicks with a soft gold flash, pauses, and pushes out a photo that develops to show EB. The photo frame
+           melts away, EB grows, "EveBash" fades in below it with a gold shine, and then the app appears (todo #22).
+Detail:    Needs a NEW app build: the phone's own splash (the first frame, before the app's code runs) changed from
+           the EB logo to a plain dark background. On an older build you'll still see the still EB logo for a moment
+           before the animation. Design and preview: reports/app-open-animation/ (on Sarthak's Mac).
+           Commit 4910294 on staging. 2026-11-03 simulator run by Claude (not a tester PASS) on the iPhone 16e dev
+           build: steps 1 (animation part), 3 and 4 looked right; not checked: the new splash, Android, steps 5-9.
+How to test:
+  1. Close the app completely (swipe it away), then open it. Expect: a plain dark screen, then the camera animation
+     (about 3 seconds), then the app. No still EB logo before the camera.
+  2. Watch the click. Expect: the phone gives one light tap (vibration) at the moment of the click.
+  3. Watch the photo come out. Expect: it is hidden until after the click and slides out of the slot at the bottom
+     of the camera, never showing behind the camera.
+  4. At the end, look at the logo. Expect: EB and "EveBash" are centred on the screen, sharp (not blurry or pixelated),
+     with a small gap between them.
+  5. Open the app again and tap the screen during the animation. Expect: it jumps to the final logo, then the app.
+  6. Switch to another app and back (don't close it). Expect: no animation; the app is where you left it.
+  7. Turn on Reduce Motion (iPhone: Settings > Accessibility > Motion; Android: Settings > Accessibility > Remove
+     animations) and open the app fresh. Expect: no camera; the final logo shows, then the app.
+  8. Open the app fresh on a slow connection. Expect: the animation plays and the final logo stays until the app is
+     ready. It should never freeze halfway.
+  9. Open the app fresh while signed out. Expect: the animation, then the login screen.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
 #173 Host screens use the app's colours; clearer request and guest rows; sign-up shows Google and Apple first
 Status:    TODO
 Priority:  Medium
