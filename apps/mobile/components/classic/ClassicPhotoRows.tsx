@@ -1,17 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, type LayoutChangeEvent } from 'react-native';
+import React from 'react';
+import { View } from 'react-native';
+import { useScrollWindow } from '@/hooks/use-scroll-window';
 
 // Classic White photo grid, as on the website (.gallery-justified in src/app/gallery-refinements.css): rows that fill
 // the width, each photo keeping its own shape, 4px gaps, no card edge. On a phone that is usually two portrait
 // photos side by side or one landscape photo across the whole width. The last row is not stretched.
-// Given the screen's scroll position, only rows within a few screens of it draw their photos; the rest keep their
-// size as plain tinted blocks, so big galleries don't hold hundreds of images in memory.
+// Given the screen's scroll position, only rows within a few screens of it draw their photos (hooks/use-scroll-window);
+// the rest keep their size as plain tinted blocks, so big galleries don't hold hundreds of images in memory.
 
 // Space between photos (Sunlit Portrait passes 8, as on its website)
 const GAP = 4;
-// Rows this many screens above / below the visible area still draw their photos
-const KEEP_ABOVE = 1.5;
-const KEEP_BELOW = 2.5;
 
 type Item = { id: string; width?: number; height?: number };
 
@@ -75,33 +73,9 @@ export function ClassicPhotoRows<T extends Item>({
   /** Tint of rows far off screen, drawn without their photos */
   placeholderColor?: string;
 }) {
-  const [width, setWidth] = useState(0);
-  // Where the grid starts in the scrolled content: its position on screen plus the scroll position, measured again
-  // at every scroll step, so it stays right after an album switch or a jump (a value from first layout goes stale)
-  const [contentTop, setContentTop] = useState<number | null>(null);
-  const gridRef = useRef<View>(null);
-  const scrollYRef = useRef(scrollY ?? 0);
-  scrollYRef.current = scrollY ?? 0;
-  const measure = () => {
-    gridRef.current?.measureInWindow((_x, y) => {
-      const next = Math.round(y + scrollYRef.current);
-      setContentTop((prev) => (prev === next ? prev : next));
-    });
-  };
-  useEffect(measure, [scrollY, items.length]);
-  const onLayout = (e: LayoutChangeEvent) => {
-    const next = Math.floor(e.nativeEvent.layout.width);
-    if (next !== width) setWidth(next);
-    measure();
-  };
+  const { ref: gridRef, onLayout, width, isNear } = useScrollWindow(scrollY, viewportHeight, items.length);
   // Rows a little taller than half the width: two portrait photos, or one landscape, per row
   const rows = width ? buildRows(items, width, Math.round(width * 0.62), gap) : [];
-
-  const windowing = scrollY !== undefined && !!viewportHeight;
-  const screen = viewportHeight || 0;
-  // Until the grid has been placed, only the first few screens of it draw photos
-  const keepFrom = contentTop === null ? 0 : (scrollY ?? 0) - contentTop - screen * KEEP_ABOVE;
-  const keepTo = contentTop === null ? screen * (KEEP_ABOVE + KEEP_BELOW) : (scrollY ?? 0) - contentTop + screen * (1 + KEEP_BELOW);
   let rowTop = 0;
 
   return (
@@ -109,7 +83,7 @@ export function ClassicPhotoRows<T extends Item>({
       {rows.map((row) => {
         const top = rowTop;
         rowTop += row.height + gap;
-        const drawn = !windowing || (top + row.height >= keepFrom && top <= keepTo);
+        const drawn = isNear(top, row.height);
         return (
           <View key={row.items[0].item.id} style={{ flexDirection: 'row', gap, height: row.height }}>
             {row.items.map(({ item, idx, ratio }) => (

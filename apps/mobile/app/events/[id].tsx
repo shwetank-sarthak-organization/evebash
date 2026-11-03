@@ -4,7 +4,7 @@ import { galleryActionText } from '../../constants/galleryContrast';
 import React, { useCallback, useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import LoadingScreen from '@/components/LoadingScreen';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler, PanResponder, Animated as RNAnimated, type ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler, PanResponder, Animated as RNAnimated, type ViewStyle, type LayoutChangeEvent } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,6 +38,8 @@ import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 
 // ── Extracted modular components ──
 import { PORTRAIT_TABS_HEIGHT, SHOW_EVENT_PARTNERS, ThemeHeader } from '../../components/event/ThemeHeader';
+import { MasonryPhotoColumns } from '@/components/event/MasonryPhotoColumns';
+import { useScrollWindow } from '@/hooks/use-scroll-window';
 import { ThemeDivider } from '../../components/event/ThemeDivider';
 import { GalleryAccessGate, GalleryGateState } from '../../components/event/GalleryAccessGate';
 import { RenameEventModal } from '../../components/event/modals/RenameEventModal';
@@ -397,11 +399,14 @@ function GalleryThumbnailImage({
   thumbnailUrl,
   style,
   blurRadius = 0,
+  offscreen = false,
 }: {
   url?: string;
   thumbnailUrl?: string | null;
   style: any;
   blurRadius?: number;
+  /** Far from the screen: keep the box but leave the photo out (issue #185) */
+  offscreen?: boolean;
 }) {
   const resolvedThumbnailUrl = React.useMemo(() => getGridThumbnail(url, thumbnailUrl), [url, thumbnailUrl]);
   const [sourceUri, setSourceUri] = useState(resolvedThumbnailUrl || url || '');
@@ -409,6 +414,11 @@ function GalleryThumbnailImage({
   useEffect(() => {
     setSourceUri(resolvedThumbnailUrl || url || '');
   }, [resolvedThumbnailUrl, url]);
+
+  // The same box with nothing in it, like a photo still loading, so far tiles don't hold images in memory
+  if (offscreen) {
+    return <View style={style} />;
+  }
 
   if (!sourceUri) {
     return <View style={[style, { backgroundColor: 'rgba(27, 33, 31,0.9)' }]} />;
@@ -1284,6 +1294,8 @@ export default function EventDetailScreen() {
     () => isUploaderFilterActive ? favouriteFilteredPhotoItems.filter(item => uploaderOf(item) === effectiveUploaderFilter) : favouriteFilteredPhotoItems,
     [effectiveUploaderFilter, favouriteFilteredPhotoItems, isUploaderFilterActive],
   );
+  // The host grid draws photos only near the screen, like the guest grids (issue #185)
+  const hostGridWindow = useScrollWindow(coarseScrollY, windowHeight, filteredPhotoItems.length);
   const filteredVideoItems = React.useMemo(
     () => isUploaderFilterActive ? favouriteFilteredVideoItems.filter(item => uploaderOf(item) === effectiveUploaderFilter) : favouriteFilteredVideoItems,
     [effectiveUploaderFilter, favouriteFilteredVideoItems, isUploaderFilterActive],
@@ -5820,7 +5832,7 @@ export default function EventDetailScreen() {
                           })}
                         </View>
                       ) : (
-                        <View>
+                        <View ref={hostGridWindow.ref} onLayout={hostGridWindow.onLayout}>
                           {!isOrderLocked && <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 8, letterSpacing: 0.4 }}>
                             ✦ Hold & drag a photo to reorder
                           </Text>}
@@ -5832,9 +5844,11 @@ export default function EventDetailScreen() {
                             rowGap={8}
                             sortEnabled={!isOrderLocked && !isSelectingMedia}
                             onDragEnd={({ data: newData }: { data: any[] }) => handleReorderPhotos(newData)}
-	                            renderItem={({ item }: { item: any }) => {
+	                            renderItem={({ item, index: itemIndex }: { item: any; index: number }) => {
 	                              const shouldBlurPhoto = shouldBlurMediaForPlan(item);
-                              const itemIndex = filteredPhotoItems.findIndex(photo => photo.id === item.id);
+                              // Square tiles, 3 columns, 8 px gaps; no photo loads until the grid's width is known
+                              const tileSize = (hostGridWindow.width - 16) / 3;
+                              const tileDrawn = hostGridWindow.width > 0 && hostGridWindow.isNear(Math.floor(itemIndex / 3) * (tileSize + 8), tileSize);
                               const isFavouritePhoto = eventFavouritePhotoIds.has(item.id);
                               const canMovePhotoUp = itemIndex > 0;
                               const canMovePhotoDown = itemIndex >= 0 && itemIndex < filteredPhotoItems.length - 1;
@@ -5847,8 +5861,7 @@ export default function EventDetailScreen() {
                                       toggleMediaSelection(item.id);
                                       return;
                                     }
-                                    const photoIndex = filteredPhotoItems.findIndex(photo => photo.id === item.id);
-                                    openViewer(photoIndex >= 0 ? photoIndex : 0);
+                                    openViewer(itemIndex);
                                   }}
                                   accessibilityRole="button"
                                   accessibilityLabel={`Photo ${itemIndex + 1} of ${filteredPhotoItems.length}`}
@@ -5863,6 +5876,7 @@ export default function EventDetailScreen() {
                                       borderRadius: 10,
                                     }}
                                     blurRadius={shouldBlurPhoto ? 6 : 0}
+                                    offscreen={!tileDrawn}
                                   />
                                 </TouchableOpacity>
                                 {shouldBlurPhoto && <ExpiredMediaThumbnailNotice />}
@@ -7503,7 +7517,7 @@ export default function EventDetailScreen() {
                           }
                         });
 
-                        const renderPhotoItem = ({ photo, idx }: { photo: any; idx: number }) => {
+                        const renderPhotoItem = ({ photo, idx }: { photo: any; idx: number }, { drawn, onLayout }: { drawn: boolean; onLayout: (e: LayoutChangeEvent) => void }) => {
                           const ratio = photo.width && photo.height
                             ? photo.height / photo.width
                             : (idx % 3 === 0 ? 1.25 : (idx % 3 === 1 ? 0.95 : 1.45));
@@ -7512,6 +7526,7 @@ export default function EventDetailScreen() {
                           return (
                             <Animated.View
                               key={photo.id}
+                              onLayout={onLayout}
                               // Stagger only within a page and cap it, so tiles loaded later don't wait seconds to appear
                               entering={FadeInUp.delay(Math.min(idx % PHOTO_PAGE_SIZE, 6) * 80).duration(600).springify().damping(14)}
                               style={[
@@ -7757,6 +7772,7 @@ export default function EventDetailScreen() {
                                   <GalleryThumbnailImage
                                     url={photo.url}
                                     thumbnailUrl={photo.thumbnailUrl}
+                                    offscreen={!drawn}
                                     style={[
                                       styles.galleryImg,
                                       isScrapbookTemplate && styles.scrapbookGalleryImg,
@@ -7845,14 +7861,14 @@ export default function EventDetailScreen() {
                         };
 
                         return (
-                          <View style={styles.masonryContainer}>
-                            <View style={styles.masonryColumn}>
-                              {leftCol.map(renderPhotoItem)}
-                            </View>
-                            <View style={styles.masonryColumn}>
-                              {rightCol.map(renderPhotoItem)}
-                            </View>
-                          </View>
+                          <MasonryPhotoColumns
+                            columns={[leftCol, rightCol]}
+                            renderTile={renderPhotoItem}
+                            scrollY={coarseScrollY}
+                            viewportHeight={windowHeight}
+                            style={styles.masonryContainer}
+                            columnStyle={styles.masonryColumn}
+                          />
                         );
                       })()
                     )}
