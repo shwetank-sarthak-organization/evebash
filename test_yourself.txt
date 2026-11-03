@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 177
+Next test number: 178
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4952,6 +4952,41 @@ How to test:
      (e.g. "Oct 27, 04:00 PM").
   4. Open a short video, play it to the end. Expect: the Play icon and the last frame. Tap Play. Expect: it starts
      again from 0:00 with the picture. Repeat once after going full screen and back.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#177 Profile and Settings in the Noir homepage look (website)
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     Profile and Settings now match the Noir homepage, Host and Dashboard: near-black cards instead of
+           blue-grey, one gold, gold-foil main buttons and frosted second buttons, all with pill corners, and
+           "Settings" in the gold heading font. Profile's first card now starts at the same height as Host and
+           Dashboard (it used to sit about 64 px lower). Sizes, spacing and what buttons do are otherwise unchanged.
+Detail:    Commit 16a3a4c on staging (website only, live after the Vercel staging build).
+           Files: src/app/(main)/profile/page.tsx, src/app/(main)/profile/[id]/page.tsx,
+           src/app/(main)/settings/page.tsx, src/components/StorageBreakdownCard.tsx.
+           2026-11-03 check by Claude (not a tester PASS): built-in browser on a local server at 1280, 800 and 375 px
+           (phone size emulated, not a real phone): Profile overview, Plans tab, Edit Profile pop-up (opened, not
+           saved), Settings. Layout measured the same as staging at 1280 px apart from Profile's 64 px move up.
+How to test:
+  1. Open Profile on a computer. Expect: near-black cards, "Edit Profile" gold-foil pill, "Settings" frosted pill,
+     the green STANDARD PLAN badge still green, name in off-white, section labels ("ACTIVITY & ENGAGEMENT",
+     "PERSONAL DOSSIER") in small gold capitals. The first card starts at the same height as on Host.
+  2. Check "VERIFIED" (green) and "NEEDS ENTRY" (amber) badges, and "Sign Out" (red). Expect: colours unchanged.
+  3. Click Plans. Expect: "Extend Plan" gold foil, "Change Plan" frosted; in the table "Upgrade" is gold foil and
+     "Select Tier" frosted; your current plan row is highlighted.
+  4. Click Edit Profile. Expect: dark pop-up, readable fields. Close it without saving.
+  5. Open Settings. Expect: "Settings" in gold serif letters, gold section labels, near-black lists, "Delete
+     Account" still red. Every row still opens what it did before.
+  6. Make the window about 800 px, then phone-narrow (about 375 px). Expect: nothing cut off, no sideways scrolling.
 Done by:
 Device / browser:
 Build / version:
