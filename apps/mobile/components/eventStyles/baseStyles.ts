@@ -1785,7 +1785,7 @@ headerGreeting: {
   subArrowCircle: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(255, 255, 255, 0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 0.5, borderColor: 'rgba(255, 255, 255, 0.3)' },
   badgeContainer: { position: 'absolute', top: 10, left: 10, zIndex: 10 },
   badgeGradient: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  badgeTextLabel: { color: '#000000', fontSize: 10, fontFamily: Fonts.inter.bold, letterSpacing: 0.5 },
+  badgeTextLabel: { color: MidnightColors.onAccent, fontSize: 10, fontFamily: Fonts.inter.bold, letterSpacing: 0.5 },
   subBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0, 0, 0, 0.65)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 0.5, borderColor: 'rgba(255, 255, 255, 0.2)' },
   subBadgeTextLabel: { color: 'rgba(255, 255, 255, 0.95)', fontSize: 10, fontFamily: Fonts.inter.bold, letterSpacing: 0.5 },
 
@@ -1817,14 +1817,7 @@ headerGreeting: {
   },
   memberAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(202, 156, 104, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(202, 156, 104, 0.2)' },
   avatarText: { color: MidnightColors.gold, fontSize: 20, fontFamily: Fonts.outfit.bold },
-  memberMain: { flex: 1, height: '100%', justifyContent: 'center', paddingBottom: 12 },
   memberName: { color: '#fff', fontSize: 17, fontFamily: Fonts.outfit.bold, lineHeight: 22 },
-  memberSecondary: { position: 'absolute', bottom: 4, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  memberPhone: { color: MidnightColors.slate700, fontSize: 10, fontFamily: Fonts.inter.medium },
-  grantedRowSmall: { flexDirection: 'row', gap: 6, height: 28, alignItems: 'center' },
-  miniIcon: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(202, 156, 104, 0.12)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(202, 156, 104, 0.18)' },
-  memberActions: { alignItems: 'flex-end', justifyContent: 'center', height: '100%', gap: 4 },
-  memberNumber: { color: MidnightColors.gold, fontSize: 10, fontFamily: Fonts.inter.bold, opacity: 0.5 },
   memberDelete: { padding: 8 },
 
   grantedRow: { flexDirection: 'row', gap: 6, marginTop: 12 },
@@ -1909,9 +1902,6 @@ headerGreeting: {
   avatarTextSmall: { color: MidnightColors.gold, fontSize: 18, fontFamily: Fonts.outfit.bold },
   requestName: { color: '#fff', fontSize: 16, fontFamily: Fonts.outfit.bold },
   requestPhone: { color: MidnightColors.slate700, fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 1 },
-  requestActionsMini: { flexDirection: 'row', gap: 8, paddingRight: 4 },
-  miniActionBtnGreen: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#10b981', alignItems: 'center', justifyContent: 'center' },
-  miniActionBtnRed: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center' },
 
   // Request Modal Specific
   ironCladWrapper: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
@@ -1939,7 +1929,7 @@ headerGreeting: {
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'space-between', 
-    backgroundColor: 'rgba(30, 41, 59, 0.45)', 
+    backgroundColor: 'rgba(43, 47, 46, 0.45)', 
     paddingVertical: 12, 
     paddingHorizontal: 16, 
     borderRadius: 14, 

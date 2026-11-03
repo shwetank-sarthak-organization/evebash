@@ -178,6 +178,42 @@ export default function LoginScreen() {
 
   const insets = useSafeAreaInsets();
 
+  const socialButtons = (
+    <>
+      <GoogleSignInButton
+        onPress={handleGoogleLogin}
+        loading={socialLoading === 'google'}
+        disabled={anyLoading}
+      />
+
+      {Platform.OS === 'ios' && (
+        // Apple requires its own native button (App Store guideline 4.8 / HIG)
+        <View pointerEvents={anyLoading ? 'none' : 'auto'} style={[styles.appleBtnWrap, anyLoading && { opacity: 0.5 }]}>
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+            cornerRadius={14}
+            style={styles.appleBtn}
+            onPress={handleAppleLogin}
+          />
+          {socialLoading === 'apple' && (
+            <View style={[StyleSheet.absoluteFill, styles.appleBtnLoading]}>
+              <ActivityIndicator color="#ffffff" />
+            </View>
+          )}
+        </View>
+      )}
+    </>
+  );
+
+  const orDivider = (
+    <View style={[styles.socialDivider, isSignUp && styles.socialDividerAfterSocial]}>
+      <View style={styles.dividerLine} />
+      <Text style={styles.dividerText}>OR</Text>
+      <View style={styles.dividerLine} />
+    </View>
+  );
+
   return (
     <LinearGradient colors={['#1B211F', '#2B2F2E', '#594C3D']} style={styles.gradient}>
       {/* Bottom inset is applied inside the scroll so the card isn't clipped above the nav bar */}
@@ -231,6 +267,9 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </View>
               */}
+
+              {/* Signing up: Google and Apple first, so they show without scrolling past the form */}
+              {isSignUp && <>{socialButtons}{orDivider}</>}
 
               {/* Fields */}
               {isSignUp && (
@@ -399,36 +438,8 @@ export default function LoginScreen() {
                 )}
               </TouchableOpacity>
 
-              {/* Social Login Options */}
-              <View style={styles.socialDivider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <GoogleSignInButton
-                onPress={handleGoogleLogin}
-                loading={socialLoading === 'google'}
-                disabled={anyLoading}
-              />
-
-              {Platform.OS === 'ios' && (
-                // Apple requires its own native button (App Store guideline 4.8 / HIG)
-                <View pointerEvents={anyLoading ? 'none' : 'auto'} style={[styles.appleBtnWrap, anyLoading && { opacity: 0.5 }]}>
-                  <AppleAuthentication.AppleAuthenticationButton
-                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-                    buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                    cornerRadius={14}
-                    style={styles.appleBtn}
-                    onPress={handleAppleLogin}
-                  />
-                  {socialLoading === 'apple' && (
-                    <View style={[StyleSheet.absoluteFill, styles.appleBtnLoading]}>
-                      <ActivityIndicator color="#ffffff" />
-                    </View>
-                  )}
-                </View>
-              )}
+              {/* Signing in: Google and Apple come after the form */}
+              {!isSignUp && <>{orDivider}{socialButtons}</>}
 
               {/* Toggle */}
               <View style={styles.toggleRow}>
@@ -443,13 +454,13 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            {/* Footer */}
-            <Text style={styles.footer}>
+            {/* Footer (sign-up shows these links next to its checkbox) */}
+            {!isSignUp && <Text style={styles.footer}>
               Review our{' '}
               <Text style={styles.footerLink} onPress={() => router.push('/terms-and-conditions')}>Terms</Text>
               {' '}and{' '}
               <Text style={styles.footerLink} onPress={() => router.push('/privacy-policy')}>Privacy Policy</Text>.
-            </Text>
+            </Text>}
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -685,6 +696,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 28,
     marginBottom: 20,
+  },
+  // Google and Apple above it already leave 12pt below them
+  socialDividerAfterSocial: {
+    marginTop: 8,
   },
   dividerLine: {
     flex: 1,

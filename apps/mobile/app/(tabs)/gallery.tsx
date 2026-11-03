@@ -694,34 +694,37 @@ export default function PortfolioTabScreen() {
                           style={styles.requestCard}
                           onPress={() => setSelectedRequest(log)}
                         >
-                          <View style={styles.requestAvatar}>
-                            <Text style={styles.avatarTextSmall}>{(log.name || 'G').charAt(0)}</Text>
+                          <View style={styles.requestPerson}>
+                            <View style={styles.requestAvatar}>
+                              <Text style={styles.avatarTextSmall}>{(log.name || 'G').charAt(0)}</Text>
+                            </View>
+
+                            <View style={styles.requestInfo}>
+                              <Text style={styles.requestName} numberOfLines={1}>{log.name || 'Anonymous Guest'}</Text>
+                              <Text style={styles.requestContact} numberOfLines={1}>{log.email || log.phone || 'No contact provided'}</Text>
+                            </View>
                           </View>
 
-                          <View style={styles.requestInfo}>
-                            <Text style={styles.requestName} numberOfLines={1}>{log.name || 'Anonymous Guest'}</Text>
-                            <Text style={styles.requestContact} numberOfLines={1}>{log.email || log.phone || 'No contact provided'}</Text>
-                          </View>
-
-                          <View style={styles.requestActionsMini}>
-                            <TouchableOpacity
-                              style={styles.miniActionBtnRed}
-                              onPress={() => confirmDenyRequest(log, fetchData)}
-                              accessibilityRole="button"
+                          {/* Labelled buttons under the name, so a long name isn't cut short */}
+                          <View style={styles.requestActions}>
+                            <Button
+                              title="Deny"
+                              variant="ghost"
+                              size="md"
+                              fullWidth={false}
                               accessibilityLabel={`Deny ${log.name || 'guest'}`}
-                              hitSlop={6}
-                            >
-                              <IconSymbol name="xmark" size={12} color="#fff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.miniActionBtnGreen}
-                              onPress={() => updateGuestStatusWithFeedback(log.id, 'approved').then(fetchData)}
-                              accessibilityRole="button"
+                              onPress={() => confirmDenyRequest(log, fetchData)}
+                              style={styles.requestDenyBtn}
+                            />
+                            <Button
+                              title="Approve"
+                              size="md"
+                              fullWidth={false}
+                              haptic={false}
                               accessibilityLabel={`Approve ${log.name || 'guest'}`}
-                              hitSlop={6}
-                            >
-                              <IconSymbol name="checkmark" size={12} color="#fff" />
-                            </TouchableOpacity>
+                              onPress={() => updateGuestStatusWithFeedback(log.id, 'approved').then(fetchData)}
+                              style={styles.requestActionBtn}
+                            />
                           </View>
                         </TouchableOpacity>
                       ))}
@@ -809,10 +812,10 @@ export default function PortfolioTabScreen() {
                       }}
                     >
                       <LinearGradient
-                        colors={['#10b981', '#059669']}
+                        colors={[colors.gold, colors.gold]}
                         style={styles.approveGradient}
                       >
-                        <Text style={styles.modalActionTextWhite}>Approve Access</Text>
+                        <Text style={[styles.modalActionTextWhite, { color: MidnightColors.onAccent }]}>Approve Access</Text>
                       </LinearGradient>
                     </TouchableOpacity>
                   </View>
@@ -1583,16 +1586,15 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     fontFamily: Fonts.outfit.bold,
   },
   requestCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: isDark ? '#000000' : '#ffffff',
+    backgroundColor: isDark ? colors.surface : '#ffffff',
     borderRadius: 20,
     padding: 12,
     width: '100%',
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    gap: 16,
+    gap: 12,
   },
+  requestPerson: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   requestAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(202, 156, 104, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(202, 156, 104, 0.2)' },
   avatarTextSmall: { color: colors.gold, fontSize: 20, fontFamily: Fonts.outfit.bold },
   requestInfo: { flex: 1, gap: 2 },
@@ -1601,9 +1603,9 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   requestEventRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   requestEventLabel: { color: colors.slate400, fontSize: 10, fontFamily: Fonts.inter.medium },
   requestEventTitle: { color: colors.gold, fontSize: 10, fontFamily: Fonts.inter.bold, flex: 1 },
-  requestActionsMini: { flexDirection: 'row', gap: 10, paddingRight: 4 },
-  miniActionBtnGreen: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center' },
-  miniActionBtnRed: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center' },
+  requestActions: { flexDirection: 'row', gap: 10 },
+  requestActionBtn: { flex: 1 },
+  requestDenyBtn: { flex: 1, borderWidth: 1, borderColor: colors.border },
 
   // Request Modal Styles
   ironCladWrapper: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },

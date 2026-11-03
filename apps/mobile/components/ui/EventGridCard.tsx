@@ -113,13 +113,14 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   imageWrapTall: {
     height: TALL_IMAGE_HEIGHT,
   },
+  // Nearly solid, so the tag stays readable over busy cover photos
   categoryBadge: {
     position: 'absolute',
     top: 10,
     left: 10,
-    backgroundColor: 'rgba(19, 25, 31,0.65)',
+    backgroundColor: 'rgba(19, 25, 31,0.88)',
     borderWidth: 1,
-    borderColor: 'rgba(202, 156, 104,0.3)',
+    borderColor: 'rgba(202, 156, 104,0.45)',
     borderRadius: 8,
     paddingHorizontal: 7,
     paddingVertical: 2,
