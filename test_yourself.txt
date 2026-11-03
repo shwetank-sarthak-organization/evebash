@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 174
+Next test number: 175
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-02
+Last updated: 2026-11-03
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -4809,6 +4809,46 @@ How to test:
      Privacy links appear once, next to the checkbox, and not again at the bottom. Sign In looks as before.
   6. Dashboard and Host. Expect: the SPORTS / WEDDING tags on cards are easy to read over busy photos.
   7. Open a gallery as a guest, including one on Midnight Hero. Expect: exactly as before (themes unchanged).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#174 Host page in the Noir homepage look (website)
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     The Host page now uses the homepage's "Noir" look: near-black background, one gold (#DCB579),
+           gold-foil and frosted pill buttons like the homepage, and "Host Console" in the homepage heading font
+           and gold. The page background, navbar, footer and pop-ups on every website page are now Noir too.
+           Only colours, fonts and button looks changed: sizes, spacing and what every button does are the same.
+           Guest gallery pages must look exactly as before.
+Detail:    Commit 8808479 on staging (website only, live after the Vercel staging build).
+           Shared colours in src/app/globals.css (.site-palette); host page src/app/(main)/host/page.tsx.
+           2026-11-03 check by Claude (not a tester PASS): built-in browser on a local server, 1280 px and 375 px
+           phone size emulated (not a real phone): Host / Shared / Requests tabs, empty states, an event's
+           Galleries / Permissions / Design / Album sections, a gallery with photos (Filter, Select), Share and
+           Create Event pop-ups. Layout measured the same as staging at 1280 px. Dashboard, Profile and other
+           pages still have some old slate-blue panels inside; that is expected until those pages are done.
+How to test:
+  1. On a computer, open the homepage, then click Host. Expect: the same near-black background and gold as the
+     homepage, "Host Console" in gold serif letters, a gold-foil "Create Event" pill. No blue-grey areas.
+  2. Click Shared, then Requests, then Host. Expect: the selected tab is gold, counts readable, the request card
+     and empty boxes look right, nothing moved compared with before.
+  3. Open an event. Check Galleries, Permissions, Design and Album. Expect: dark cards with gold accents, gold-foil
+     main buttons ("Add Sub-Gallery", "Open", "Create the first album"), switches clearly on (gold) or off (grey).
+     The Design preview still shows the event's own theme colours.
+  4. Open a gallery with photos. Open Filter, then Select. Expect: readable text, "Select all" / "Hide from guests"
+     as frosted pills, "Move to" in gold, Delete still red, "Save to EB Vault" still green.
+  5. Open Share and Create Event. Expect: near-black pop-up, white QR card, gold-foil pill button.
+  6. Make the browser window phone-narrow (about 375 px). Expect: "Host Console" fits on one line, no sideways
+     scrolling.
+  7. Open a guest gallery (for example /events/wedding-2-77d4). Expect: exactly as before this change.
 Done by:
 Device / browser:
 Build / version:
