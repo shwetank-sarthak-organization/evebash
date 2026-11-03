@@ -820,7 +820,11 @@ export type EventStorageParts = { photos: number; videos: number; albumDesigns: 
 export type StorageBreakdown = { events: number; vault: number; total: number; eventParts?: EventStorageParts | null };
 
 /** Bytes used by event media. */
-export async function getUserEventStorage(identifiers: string[]): Promise<number> {
+export async function getUserEventStorage(
+    identifiers: string[],
+    // Opt-in: rethrow instead of returning 0, so screens can tell "nothing used" from "couldn't load"
+    options?: { throwOnError?: boolean }
+): Promise<number> {
     try {
         const { data, error } = await supabase
             .from('photos')
@@ -831,6 +835,7 @@ export async function getUserEventStorage(identifiers: string[]): Promise<number
         return (data || []).reduce((acc, p) => acc + (p.size || 0), 0);
     } catch (error) {
         console.error("Error fetching storage stats:", error);
+        if (options?.throwOnError) throw error;
         return 0;
     }
 }
@@ -890,16 +895,16 @@ async function getOwnStorageFromServer(identifiers: string[]): Promise<StorageBr
     }
 }
 /** Event and Vault usage share one plan-wide storage limit. */
-export async function getUserStorageBreakdown(identifiers: string[]): Promise<StorageBreakdown> {
+export async function getUserStorageBreakdown(identifiers: string[], options?: { throwOnError?: boolean }): Promise<StorageBreakdown> {
     const fromServer = await getOwnStorageFromServer(identifiers);
     if (fromServer) return fromServer;
-    const [events, vault] = await Promise.all([getUserEventStorage(identifiers), getUserVaultStorage(identifiers)]);
+    const [events, vault] = await Promise.all([getUserEventStorage(identifiers, options), getUserVaultStorage(identifiers)]);
     return { events, vault, total: events + vault };
 }
 
 /** Total plan storage used, events plus Vault; upload limit checks use this. */
-export async function getUserTotalStorage(identifiers: string[]): Promise<number> {
-    return (await getUserStorageBreakdown(identifiers)).total;
+export async function getUserTotalStorage(identifiers: string[], options?: { throwOnError?: boolean }): Promise<number> {
+    return (await getUserStorageBreakdown(identifiers, options)).total;
 }
 
 export async function getUserEventCount(uid: string): Promise<number> {
@@ -1400,7 +1405,9 @@ export async function getEventPhotosPaginated(
     legacyId?: string,
     page: number = 0,
     limit: number = 20,
-    options: MediaQueryOptions = {}
+    // throwOnError (opt-in): rethrow instead of returning an empty page, so screens can tell "no photos" from
+    // "couldn't load"
+    options: MediaQueryOptions & { throwOnError?: boolean } = {}
 ): Promise<{ photos: Photo[], hasMore: boolean, totalPhotos: number, totalVideos: number }> {
     if (!eventId) return { photos: [], hasMore: false, totalPhotos: 0, totalVideos: 0 };
     // Hidden media is filtered here rather than in the query, so this also works before the is_hidden column exists
@@ -1444,6 +1451,7 @@ export async function getEventPhotosPaginated(
         };
     } catch (error) {
         console.error("Error fetching paginated photos:", error);
+        if (options.throwOnError) throw error;
         return { photos: [], hasMore: false, totalPhotos: 0, totalVideos: 0 };
     }
 }

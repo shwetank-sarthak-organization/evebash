@@ -59,6 +59,7 @@ const MAPPING = {
   'square.and.arrow.up': 'share',
   'chart.bar.fill': 'assessment',
   'cloud.fill': 'cloud',
+  'wifi.slash': 'wifi-off',
   'calendar.fill': 'event',
   'sparkles.fill': 'auto-awesome',
   'creditcard.fill': 'credit-card',

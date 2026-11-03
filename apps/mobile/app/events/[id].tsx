@@ -671,12 +671,14 @@ export default function EventDetailScreen() {
   }, []);
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastIcon, setToastIcon] = useState('checkmark.circle.fill');
   const toastTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
-  const showToast = useCallback((msg: string) => {
+  const showToast = useCallback((msg: string, icon = 'checkmark.circle.fill') => {
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current);
     }
+    setToastIcon(icon);
     setToastMessage(msg);
     toastTimeoutRef.current = setTimeout(() => {
       setToastMessage(null);
@@ -1163,7 +1165,8 @@ export default function EventDetailScreen() {
       const identifiers = [user.uid];
       if (user.email) identifiers.push(user.email);
       if (user.phone) identifiers.push(user.phone);
-      const usage = await getUserTotalStorage(identifiers);
+      // Throws when it can't be read (offline), so the card keeps its last number instead of 0
+      const usage = await getUserTotalStorage(identifiers, { throwOnError: true });
       const plan = getPlanDetails(user.role);
       const percent = getUsagePercent(usage, plan.storageBytes);
       setStorageStats({
@@ -1186,6 +1189,9 @@ export default function EventDetailScreen() {
   photoPageRef.current = photoPage;
   const [hasMorePhotos, setHasMorePhotos] = useState(false);
   const [loadingMorePhotos, setLoadingMorePhotos] = useState(false);
+  // The gallery whose media `photos` holds, and whether a gallery couldn't load (offline) so it doesn't look empty
+  const loadedGalleryIdRef = React.useRef<string | null>(null);
+  const [photosLoadFailed, setPhotosLoadFailed] = useState(false);
   // undefined = gallery list, null = Primary Gallery, event = sub-gallery
   const [selectedAdminGallery, setSelectedAdminGallery] = useState<DatabaseEvent | null | undefined>(undefined);
   const [galleryMediaTab, setGalleryMediaTab] = useState<'photos' | 'videos'>('photos');
@@ -1377,6 +1383,21 @@ export default function EventDetailScreen() {
     );
   }, [normalizeEmailValue, normalizePhoneValue, user]);
 
+  // A failed reload (no connection) keeps the gallery already on screen; a gallery that hasn't loaded yet says it
+  // couldn't load instead of showing "No photos yet"
+  const handlePhotosLoadFailed = (galleryId: string) => {
+    if (loadedGalleryIdRef.current === galleryId) {
+      if (showAdminViewRef.current) showToast("Couldn't refresh. Check your connection.", 'wifi.slash');
+      return;
+    }
+    loadedGalleryIdRef.current = null;
+    setPhotos([]);
+    setMediaTotals({ photos: 0, videos: 0 });
+    setHasMorePhotos(false);
+    setEventFavouritePhotoIds(new Set());
+    setPhotosLoadFailed(true);
+  };
+
   // Logged out, public gallery: read-only previews and video streams (never originals), nothing read from the tables
   const loadPublicPhotos = async (eventId: string, page = 0) => {
     const media = await getPublicGalleryMedia(eventId, PUBLIC_PAGE_SIZE, page * PUBLIC_PAGE_SIZE);
@@ -1479,7 +1500,12 @@ export default function EventDetailScreen() {
           user
             ? getEventLogs(id)
             : Promise.resolve([]),
-          getEventPhotosPaginated(eventData.id, eventData.legacyId, 0, PHOTO_PAGE_SIZE, { includeHidden: isAdminViewActive }),
+          // null when it couldn't load, so the rest of the gallery still opens
+          getEventPhotosPaginated(eventData.id, eventData.legacyId, 0, PHOTO_PAGE_SIZE, { includeHidden: isAdminViewActive, throwOnError: true })
+            .catch((err) => {
+              console.error('[EventDetail] Photos load error:', err);
+              return null;
+            }),
           getRetainedMediaIdsForEventGrace(eventData.id, eventData.legacyId),
           // An album opened by its own link also reads the main event's stars
           getEventFavouritePhotos([eventData.id, eventData.parentId || '']),
@@ -1515,13 +1541,19 @@ export default function EventDetailScreen() {
         // are also favourites are counted once)
         const homeIds = new Set([eventData.id, eventData.legacyId].filter(Boolean));
         const extraFavourites = primaryFavouritePhotos.filter((photo: any) => !homeIds.has(photo.eventId));
-        setPhotos(mergeHomeMedia(primaryFavouritePhotos, photoDataResult.photos));
-        setMediaTotals({
-          photos: photoDataResult.totalPhotos + extraFavourites.filter(isPhotoMedia).length,
-          videos: photoDataResult.totalVideos + extraFavourites.filter(isVideoMedia).length,
-        });
-        setPhotoPage(0);
-        setHasMorePhotos(photoDataResult.hasMore);
+        if (photoDataResult) {
+          setPhotos(mergeHomeMedia(primaryFavouritePhotos, photoDataResult.photos));
+          setMediaTotals({
+            photos: photoDataResult.totalPhotos + extraFavourites.filter(isPhotoMedia).length,
+            videos: photoDataResult.totalVideos + extraFavourites.filter(isVideoMedia).length,
+          });
+          setPhotoPage(0);
+          setHasMorePhotos(photoDataResult.hasMore);
+          loadedGalleryIdRef.current = eventData.id;
+          setPhotosLoadFailed(false);
+        } else {
+          handlePhotosLoadFailed(eventData.id);
+        }
         setRetainedMediaIds(new Set([...primaryFavouriteIds, ...retainedIds]));
         setEventFavouritePhotoIds(new Set(hasPrimaryFavourites ? primaryFavouriteIds : favouriteRows.map((row: any) => row.photoId)));
 
@@ -1561,12 +1593,15 @@ export default function EventDetailScreen() {
       }
       return;
     }
-    if (!silent) setLoadingPhotos(true);
+    if (!silent) {
+      setLoadingPhotos(true);
+      setPhotosLoadFailed(false);
+    }
     const pageCount = silent ? photoPageRef.current + 1 : 1;
     const perfPhotosStart = Date.now();
     try {
       const [photoDataResult, retainedIds, favouriteRows] = await Promise.all([
-        getEventPhotosPaginated(eventId, legacyId, 0, PHOTO_PAGE_SIZE * pageCount, { includeHidden: isAdminViewActive }),
+        getEventPhotosPaginated(eventId, legacyId, 0, PHOTO_PAGE_SIZE * pageCount, { includeHidden: isAdminViewActive, throwOnError: true }),
         getRetainedMediaIdsForEventGrace(eventId, legacyId),
         // Stars are saved under the main event (older app versions saved them under the album)
         getEventFavouritePhotos([eventId, event?.parentId || '', event?.id || '']),
@@ -1577,14 +1612,13 @@ export default function EventDetailScreen() {
       setHasMorePhotos(photoDataResult.hasMore);
       setRetainedMediaIds(new Set(retainedIds));
       setEventFavouritePhotoIds(new Set(favouriteRows.map((row: any) => row.photoId)));
+      loadedGalleryIdRef.current = eventId;
+      setPhotosLoadFailed(false);
       console.log(`[PERF] loadPhotos completed in ${Date.now() - perfPhotosStart}ms`);
     } catch (err) {
       console.error('[EventDetail] Photos load error:', err);
       if (silent) return;
-      setPhotos([]);
-      setMediaTotals({ photos: 0, videos: 0 });
-      setHasMorePhotos(false);
-      setEventFavouritePhotoIds(new Set());
+      handlePhotosLoadFailed(eventId);
     } finally {
       if (!silent) setLoadingPhotos(false);
     }
@@ -1597,13 +1631,16 @@ export default function EventDetailScreen() {
       await loadPhotos(event.id);
       return;
     }
-    if (!silent) setLoadingPhotos(true);
+    if (!silent) {
+      setLoadingPhotos(true);
+      setPhotosLoadFailed(false);
+    }
     try {
       // Home (Primary Gallery): the favourites first, then what was uploaded to Home itself
       const pageCount = silent ? photoPageRef.current + 1 : 1;
       const [favouritePhotos, photoDataResult, retainedIds, favouriteRows] = await Promise.all([
         getFavouritePhotosForEvents(getPrimaryFavouriteEventIds(), { includeHidden: isAdminViewActive }),
-        getEventPhotosPaginated(event.id, event.legacyId, 0, PHOTO_PAGE_SIZE * pageCount, { includeHidden: isAdminViewActive }),
+        getEventPhotosPaginated(event.id, event.legacyId, 0, PHOTO_PAGE_SIZE * pageCount, { includeHidden: isAdminViewActive, throwOnError: true }),
         getRetainedMediaIdsForEventGrace(event.id, event.legacyId),
         getEventFavouritePhotos(event.id),
       ]);
@@ -1621,13 +1658,12 @@ export default function EventDetailScreen() {
       setHasMorePhotos(photoDataResult.hasMore);
       setRetainedMediaIds(new Set([...favouriteIds, ...retainedIds]));
       setEventFavouritePhotoIds(new Set(favouriteIds.length > 0 ? favouriteIds : favouriteRows.map((row: any) => row.photoId)));
+      loadedGalleryIdRef.current = event.id;
+      setPhotosLoadFailed(false);
     } catch (err) {
       console.error('[EventDetail] Primary gallery photos load error:', err);
       if (silent) return;
-      setPhotos([]);
-      setMediaTotals({ photos: 0, videos: 0 });
-      setHasMorePhotos(false);
-      setEventFavouritePhotoIds(new Set());
+      handlePhotosLoadFailed(event.id);
     } finally {
       if (!silent) setLoadingPhotos(false);
     }
@@ -1651,7 +1687,7 @@ export default function EventDetailScreen() {
         await loadPublicPhotos(activeId, nextPage);
         return;
       }
-      const { photos: nextPhotos, hasMore, totalPhotos, totalVideos } = await getEventPhotosPaginated(activeId, legacyId, nextPage, PHOTO_PAGE_SIZE, { includeHidden: isAdminViewActive });
+      const { photos: nextPhotos, hasMore, totalPhotos, totalVideos } = await getEventPhotosPaginated(activeId, legacyId, nextPage, PHOTO_PAGE_SIZE, { includeHidden: isAdminViewActive, throwOnError: true });
       // Each item once (Home lists its favourites first, and pages can share an item at their edges)
       setPhotos(prev => mergeHomeMedia(prev, nextPhotos));
       setMediaTotals({ photos: totalPhotos, videos: totalVideos });
@@ -1677,7 +1713,7 @@ export default function EventDetailScreen() {
     try {
       const all: any[] = [];
       for (let page = 0, more = true; more; page += 1) {
-        const result = await getEventPhotosPaginated(galleryId, legacyId, page, 200, { includeHidden: true });
+        const result = await getEventPhotosPaginated(galleryId, legacyId, page, 200, { includeHidden: true, throwOnError: true });
         all.push(...result.photos);
         more = result.hasMore;
       }
@@ -5612,6 +5648,22 @@ export default function EventDetailScreen() {
                       {/* Media Grid */}
                       {loadingPhotos ? (
                         <ActivityIndicator color={MidnightColors.gold} style={{ marginTop: 24 }} />
+                      ) : photosLoadFailed ? (
+                        <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                          <IconSymbol name="wifi.slash" size={36} color={MidnightColors.slate700} />
+                          <Text style={{ color: MidnightColors.slate400, marginTop: 10, fontSize: 14, textAlign: 'center' }}>
+                            Couldn't load this gallery. Check your connection.
+                          </Text>
+                          <TouchableOpacity
+                            accessibilityRole="button"
+                            onPress={() => selectedAdminGallery
+                              ? loadPhotos(selectedAdminGallery.id, selectedAdminGallery.legacyId)
+                              : loadPrimaryGalleryPhotos()}
+                            style={{ marginTop: 14, borderRadius: 16, borderWidth: 1, borderColor: MidnightColors.gold, backgroundColor: 'rgba(204,164,59,0.12)', paddingHorizontal: 16, paddingVertical: 8 }}
+                          >
+                            <Text style={{ color: MidnightColors.gold, fontSize: 13, fontWeight: '600' }}>Retry</Text>
+                          </TouchableOpacity>
+                        </View>
                       ) : activeGalleryItems.length === 0 ? (
                         <View style={{ alignItems: 'center', paddingVertical: 32 }}>
                           <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={36} color={MidnightColors.slate700} />
@@ -8679,7 +8731,7 @@ export default function EventDetailScreen() {
       {toastMessage && (
         <View style={styles.toastContainer}>
           <View style={styles.toastContent}>
-            <IconSymbol name={"checkmark.circle.fill" as any} size={16} color={MidnightColors.gold} />
+            <IconSymbol name={toastIcon as any} size={16} color={MidnightColors.gold} />
             <Text style={styles.toastText}>{toastMessage}</Text>
           </View>
         </View>
