@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 171
+Next test number: 172
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -4736,6 +4736,40 @@ How to test:
   5. If a file fails (for example a gallery that was deleted), expect the card to stay with Retry and Dismiss, and
      "Tap to see why" to give a plain reason (no "B2", "server" or code words).
   6. Open a guest gallery and upload as a guest. Expect: the same as before this change.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#171 Offline, a host's gallery keeps its photos (or says it couldn't load)
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone and Android)
+Brief:     With no connection, the host's gallery screen used to show "Photos (0)", "0 GB" and "No photos yet" for a
+           gallery full of photos (issue #219). Now a gallery already on screen keeps its photos, counts and storage
+           with a short "Couldn't refresh" message, and a gallery that hasn't loaded yet says "Couldn't load this
+           gallery. Check your connection." with a Retry button.
+Detail:    App code only, no new native build needed. Commit 6ee885b on staging.
+           2026-11-03 emulator run by Claude (not a tester PASS) on the Pixel 8 emulator, test-face-new: steps 1, 3 and
+           4 looked right (Photos (46) and 46.38 GB stayed offline; new_check showed the Retry message, then loaded 15
+           photos on Retry). Not seen on screen: the "Couldn't refresh" message in step 2 (offline loads sometimes
+           waited minutes before failing). After airplane mode was turned off, the app's requests kept timing out
+           for about 2 minutes on the emulator; note how long Retry takes on a real phone.
+How to test:
+  1. Open an event you host > Galleries > Home (the primary gallery). Note the Photos and Videos counts and the
+     Storage Usage number.
+  2. Turn on airplane mode. Tap Back to Galleries, then open Home again and wait up to a minute. Expect: the same
+     photos, counts and storage number as in step 1, and a short "Couldn't refresh. Check your connection." message
+     near the bottom with a no-wifi icon. Never "No photos yet" or "0 GB".
+  3. Still offline, open a sub-gallery you haven't opened since the app started. Expect: a no-wifi icon, "Couldn't
+     load this gallery. Check your connection." and a Retry button (not "No photos yet").
+  4. Turn airplane mode off and tap Retry. Expect: the sub-gallery's photos load. Write down roughly how long it took.
+  5. With the connection on the whole time, open galleries, add a photo and delete it. Expect: everything works as
+     before this change.
 Done by:
 Device / browser:
 Build / version:

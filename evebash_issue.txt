@@ -857,7 +857,6 @@ Issue: In the app's video viewer you can't seek: the progress bar (dashboardVide
 How to reproduce: In the app, open any video in a gallery, play it, tap or drag the progress bar: playback position doesn't change.
 Fix (app, not in a build yet): apps/mobile/components/PhotoViewer.tsx: the progress bar is now a seek bar (tap or drag; a 20 px tall touch area around the 3 px bar, a thumb shows while dragging and the time follows the finger), plus -10 s / +10 s buttons beside play (icons gobackward.10 / goforward.10 added to icon-symbol.tsx), and the bar is adjustable for VoiceOver (swipe up/down = +/-10 s). On iOS a sideways drag anywhere is the "go back" gesture, so the gallery screen's swipe-back is switched off while a video viewer with these controls is open and back on when it closes. Checked in the iOS simulator (dev build from this branch, test_5 in test-face-new-155c): tap mid-bar 0:00 -> 24:20, +10 s 24:20 -> 24:30, drag to the right 46:06 and played from there; the screen no longer slides away while dragging. Android not checked. Device test #138.
 
-
 #137
 Listed: 2026-10-25
 Platform: Both
@@ -924,7 +923,6 @@ How to reproduce: Upload an iPhone HDR video (evebash-test/iphone13pro_hdr_4K60p
 Fix (code, switch off, not deployed): with the video switch's "poster_sdr" key on (video_gpu_switch.py poster-sdr on), the poster step in _transcode_video_core (all workers) probes the original and runs the poster through _poster_filter: HDR (HLG/PQ) gets the streams' CPU tone map (_sdr_8bit_filter: shrink to 1080p, mobius), an SDR source bigger than 1080p is only shrunk, anything else gets the old plain frame. If the filtered poster fails (e.g. HDR without colour tags, which zscale can't convert), the old command runs. Off = the old command for every video. Tested 2026-10-25 in both production images (jrottenberg 7.0 for the 4/16-core and old GPU workers, Jellyfin 7.1.4-3 for the all-formats GPU worker): iPhone HDR portrait 2160x3840 2.6 MB pale -> 608x1080 265 KB normal colours; SDR 4K 3840x2160 2.5 MB -> 1920x1080 0.8 MB; SDR 1080p unchanged (same bytes); HLG without primaries tags -> fallback to the old poster. Needs a Modal deploy, then the switch on and device test #141. Existing posters are not redone.
 Update (2026-10-25): deployed as Modal v132 (c2a7826, rollback v131), poster-sdr switched ON (Sarthak's OK). Live check: the 22 s iPhone HDR sample uploaded to test-face-new-155c (t145_iphone_hdr_poster.mov, 4-core worker) got a 1920x1080, 824 KB poster in normal colours (the #139 upload's old poster: 2160x3840, 2.6 MB, pale). Left: device test #141; both test videos stay in test-face-new-155c for the phone checks (#139, #141), then delete them.
 
-
 #147
 Listed: 2026-10-26
 Platform: App
@@ -946,7 +944,6 @@ Blocked by: -
 Found in: App vs website dark-gold colour check (2026-10-26)
 Issue: Tailwind gold-* classes (and primary-* other than primary-500) produce no CSS. The website uses Tailwind v4, which only reads tailwind.config.ts when a CSS file points to it with @config, and none does, so the gold and primary scales defined there don't exist. Visible effect: the gold divider lines of the shared gallery heading (src/components/ui/SectionHeader.tsx: "Home Gallery · N Photos" on every gallery page, and Find You) are invisible and its diamond takes the text colour. The orphan /find-me page (src/app/(main)/find-me with ui/Navigation and ui/UploadCard) has no gold either. Don't fix it with @config: the config's fontFamily would turn font-serif (Playfair) into Inter across the site. Fix: give SectionHeader the gallery theme's colours (as gallery-refinements.css already does for its text), or add only the gold scale to @theme in src/app/globals.css and check every gallery theme, since each would then get gold lines.
 How to reproduce: Open any gallery on the website and look under the "Home Gallery" heading: no lines either side of the small diamond.
-
 
 #149
 Listed: 2026-10-26
@@ -1329,20 +1326,21 @@ Issue: Find You downloads and shares the preview, not the photo. Face records (f
 How to reproduce: Website: open a gallery's Find You page, search with a selfie, open a match and click Download: a small .webp. App: gallery > Find You, open a match, Download: the saved photo is about 1600 px.
 Note 2026-11-02: FIND_YOU_ORIGINAL_URL=true set on the staging backend (Railway, deploy 0c8d6b74 SUCCESS). A real search on staging (signed-in host, test-face-new-155c, POST api-staging.evebash.com/api/find-you) returned 2 matches whose url is the original .JPG (11.35 and 11.05 MB image/jpeg), with imageUrl, previewUrl and thumbnailUrl still the 0.22 MB previews. Download and Share buttons not clicked yet (device test #168).
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
 #219
 Listed: 2026-11-02
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: Fixed
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Upload feedback fix (chat 2026-11-02)
 Issue: Offline, the host gallery looks empty. With airplane mode on, an event's gallery manager showed "Photos (0)", "Videos (0)", "All galleries · 0", Storage Usage "0 GB / 50 GB" and "No photos yet. Tap Add Photos." for a gallery of 44 photos (apps/mobile/app/events/[id].tsx). A host at a venue with bad signal would think their photos are gone. It should keep what was already loaded, or say it couldn't load.
 How to reproduce: Open an event you host > Galleries > a gallery with photos, turn on airplane mode, start an upload or pull to refresh.
+Fixed in: 6ee885b (2026-11-03). getEventPhotosPaginated and getUserEventStorage (apps/mobile/lib/database.ts) returned an empty page and 0 bytes on any error; both now take an opt-in throwOnError (other callers unchanged). Host view: a gallery already on screen keeps its photos, counts and storage when a reload fails, with a "Couldn't refresh" toast; a gallery that hasn't loaded shows "Couldn't load this gallery. Check your connection." with Retry instead of "No photos yet". Load more and the "Uploaded by" full load no longer end the list or zero the counts offline. Checked on the Pixel 8 emulator (test-face-new: Photos (46) and 46.38 GB stayed offline; new_check showed Retry, then loaded its 15 photos online). The toast was not seen on screen. Guest theme pages are unchanged. Device test #171.
 
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
 #208
 Listed: 2026-11-02
 Platform: App
@@ -1794,132 +1792,4 @@ Found in: Chat (Sarthak saw a popup with Sign out flash when switching pages, 20
 Issue: Signed-in users saw the "Before you continue" terms/privacy popup (src/components/PolicyAcceptanceGate.tsx) flash for a moment on every full page load, with "Checking policy acceptance…" and Sign out / Accept and continue buttons. The gate counted "not checked yet" as "not accepted", so it opened the popup while the get_policy_acceptance call was still running and closed it when the answer came back. Switching between page groups (e.g. /host to /vault or an event page) is a full page load because (main), (public) and (vault) each have their own root layout and AuthProvider, so it showed there too.
 How to reproduce: On staging, signed in with an account that has accepted the policies, open /host, then go to /vault or reload. The popup flashed before the page showed.
 Fixed in: edb0f47 (2026-10-27). The popup now opens only once the check says "not accepted" or fails; users who never accepted are still blocked (the page shows for the second or so while the check runs). Screenshot of the old popup taken on staging in the built-in browser by holding back the check; website type check clean for the file; not yet checked in a browser after the fix. Device test #154.
-
-#151
-Listed: 2026-10-26
-Platform: Website
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: #150 fix (2026-10-26)
-Issue: An old mock "Find Your Photos" page is still live at /find-me (src/app/(main)/find-me/page.tsx). Its upload card (src/components/ui/UploadCard.tsx) only shows the picked selfie; its "Search Photos" button has no click handler, so nothing is ever searched. Nothing on the site links to it: the only links are in src/components/ui/Hero.tsx (unused, listed in #99) and src/components/ui/Navigation.tsx (used only by /find-me itself), so it can only be reached by typing the address. It is noindex. Find You works only inside an event (/events/<event>/find-you and the app's Find You tab), which searches that event and all its visible galleries. Fix: delete src/app/(main)/find-me with ui/UploadCard.tsx and ui/Navigation.tsx (nothing else imports them), and ui/Hero.tsx if #99 hasn't already.
-How to reproduce: Open /find-me, pick a selfie, tap "Search Photos": nothing happens.
-Fixed in: 22c0ec8 (2026-10-26). Deleted the /find-me page with src/components/ui/UploadCard.tsx and ui/Navigation.tsx (only /find-me used them) and the unused ui/Hero.tsx (from #99, whose only link went to /find-me). Checked: clean npm ci, tsc and next build pass (no /find-me route left). No device test: nothing linked to the page.
-
-#150
-Listed: 2026-10-26
-Platform: Website
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: #98 fix (2026-10-26)
-Issue: The site-wide Find You page (/find-you, src/app/(main)/find-you/page.tsx) can never find anything. It sends eventIds: [] ("search all indexed events"), but the backend (apps/backend/src/routes/findYou.ts) refuses an empty list with 400 "Missing selfie source ... or eventIds", so every selfie ends in "Something went wrong during matching." The 404 page's "Find your photos" button (src/components/NotFoundContent.tsx) links there. Its upload and result code is also a near copy of the gallery Find You page (src/app/(public)/events/[slug]/find-you/page.tsx), with `any` types. Fix idea: point the 404 button at a page that lists the user's galleries (or the dashboard) and delete /find-you, or have it ask which gallery to search; if both pages stay, move the shared upload code into one place.
-How to reproduce: Log in, open /find-you, accept the consent, upload a selfie: "Something went wrong during matching." The browser network tab shows POST /api/find-you answered 400.
-Fixed in: ad77d6f (2026-10-26). Deleted the /find-you page. The 404 page's second button is now "Go to my events" (/dashboard); signed-out visitors are sent to log in and come back to their events. Find You stays inside each event (website /events/<event>/find-you, app Find You tab), which searches that event and all its visible galleries. Checked: clean npm ci, tsc and next build pass (no /find-you route left); on the built site in the built-in browser (no real data), /find-you answers 404 with the new button, and the button opens Log in when signed out. No device test: nothing phone-specific changed. The old mock /find-me page is #151.
-
-#98
-Listed: 2026-10-22
-Platform: Website
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Unused code and assets scan (2026-10-22)
-Issue: The guest Find You page (src/app/(public)/events/[slug]/find-you/page.tsx) downloads about 12 MB of face-api.js models from public/models (ssdMobilenetv1, faceLandmark68Net, faceRecognitionNet) on every visit, but never uses them: the selfie is sent to the backend (/api/find-you), which does the matching. The models only decide when the Upload/Camera buttons turn on, so phone guests wait for 12 MB before they can search (measured 12.5 MB of models plus about 160 KB gzipped of face-api.js code: about 10 s on 10 Mbps 4G, about 35 s on 3 Mbps, about 2 s on fast Wi-Fi, and 12.5 MB of mobile data per guest). src/app/(main)/find-you/page.tsx also imports face-api.js without using it, which puts the library in that page's bundle. public/models/tiny_face_detector_* is not loaded by anything. Fix: drop the model loading and the face-api.js imports (buttons enabled straight away), then delete public/models and the face-api.js dependency.
-How to reproduce: Open /events/<id>/find-you with the browser network tab open: the *_model-shard* files load (about 12 MB); grep the page for faceapi. - only loadFromUri calls.
-Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
-Fixed in: 6662abf (2026-10-26). The Upload and Take Selfie buttons now work straight away (they also no longer stay disabled for good when the model download failed). public/models and the face-api.js dependency are deleted. Checked: clean npm ci, tsc and next build pass, and no built page holds face-api.js code. On the built site in the built-in browser (login, consent and search answers stubbed, no real data), the buttons work at once, a match and a "no face" answer both show, and no model files load. Device test #147: steps 1-3 passed on staging 2026-10-26 (built-in browser, real search); the phone step waits for production.
-
-#70
-Listed: 2026-10-13
-Platform: Website
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Navbar font comparison (2026-10-13)
-Issue: On phones, the signed-in navbar menu cuts off its bottom part, so Logout can't be seen or tapped. src/components/Navbar.tsx caps the open menu at max-h-96 (384px) with overflow-hidden, but the signed-in menu (4 links, profile card, Profile, Logout) is 487px tall (measured at 375x812). Profile is half cut off and Logout is fully hidden. The signed-out menu is shorter and fits. Fix idea: raise the cap (for example max-h-[calc(100vh-5rem)]) and let the menu scroll (overflow-y-auto), keeping the open/close animation.
-How to reproduce: Sign in on the website on a phone (or a 375px-wide window), tap the menu button at the top right: the menu ends at "Profile" and there is no Logout.
-Note 2026-10-23: still matters after the phone/tablet download screen goes live (#109): Profile, Pricing and Contact us stay open on phones and show this navbar. The download screen has its own Log out, but anyone on Profile still hits this.
-Fixed in: fb130e5 (2026-10-26). The open menu is now capped at the screen height below the nav (max-h-[calc(100dvh-5rem)]) and scrolls. Checked in the built-in browser with a signed-in menu: at 375x812 all items show (Logout 489-543px, menu ends at 568px); at 375x540 the menu stops at the screen bottom and scrolls to a fully visible Logout. Real-phone check: device test #146.
-
-#60
-Listed: 2026-10-12
-Platform: Website
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Event Design tab redesign (2026-10-12)
-Issue: The Midnight Hero guest page (the default template, used by every gallery without a template) ends with the footer "Delivered by Wed Album — Cinematic Editions", the old brand name (src/components/TemplateHero.tsx, footer near the end). No other template or website page has "Wed Album". Fix: change the footer text to EveBash.
-How to reproduce: Open a gallery that uses Midnight Hero (or has no template) on the website and scroll to the bottom.
-Fixed in: f319ce4 (2026-10-26). Checked on staging.evebash.com in the built-in browser (wedding-2-77d4, Vercel build of b773b9b): the footer reads "Delivered by EveBash — Cinematic Editions".
-
-#59
-Listed: 2026-10-12
-Platform: Website
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Modal theme fix for #38 (2026-10-12)
-Issue: Some page content (not modals) is still off the dark-gold theme. The profile page uses bright yellow (yellow-300/400) for icons, the @username, the Edit and Upgrade buttons instead of #CA9C68 (the privacy switch was removed 2026-10-13) (src/app/(main)/profile/page.tsx). On the host page the "Your Events"/"Galleries" subtitle, the "Managing memories for" line and the action-card descriptions use text-slate-700, which is almost invisible on the dark background (src/app/(main)/host/page.tsx).
-How to reproduce: Open /profile and /host while logged in and look at the yellow accents and the dark-grey subtitle text.
-Update 2026-10-12: the host gallery page redesign (top bar with "< Galleries" and the gallery name) removed the "Managing memories for" line. The other items are still open.
-Update 2026-10-13: the profile page part is fixed (yellow/amber accents and the navy page background replaced with the site gold #CA9C68 and #13191F). Only the host page text-slate-700 subtitles are still open.
-Update 2026-10-26: the host page "Your Events"/"Galleries" subtitle and action-card descriptions are now text-slate-400 and the photo table values text-slate-200, with the site pages' warm grey palette (#CDB89E / #F3E8D7), as part of matching the website's colours to the app.
-Fixed in: 60118a5 (2026-10-26). Device test #144 passed 2026-10-26 (built-in browser, computer size; no real phone).
-
-#106
-Listed: 2026-10-22
-Platform: App
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Unused code and assets scan (2026-10-22)
-Issue: The app has a Shipping & Delivery Policy screen (apps/mobile/app/shipping-delivery-policy.tsx), but nothing links to it. The Home footer (apps/mobile/app/(tabs)/index.tsx) links only Privacy, Terms, Cancellation & Refund, and Digital Service Delivery; the website links all five. Fix: add it to the footer, or delete the screen if the Digital Service Delivery policy replaces it in the app.
-How to reproduce: In the app, look for a way to open the Shipping & Delivery Policy: there is none (only the deep link /shipping-delivery-policy).
-Update 2026-10-26: the screen was only a one-line alias that rendered the Digital Service Delivery policy (it replaced Shipping & Delivery in 963f7dae, 2026-08-14), and the footer already links that. The website footer also links four policies, not five; its /shipping-delivery-policy just redirects. Deleted the screen instead of adding a duplicate footer link. Nothing in the app linked to it and the app has no universal links, so only a hand-typed evebash://shipping-delivery-policy reached it. No device test needed.
-Fixed in: 014dee4 (2026-10-26)
-
-#144
-Listed: 2026-10-25
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Device test #140 step 3 (airplane mode during an app upload), 2026-10-25
-Issue: Two problems in the app's upload path. (1) The upload queue gives up on a photo if the network is down for more than a few seconds: it has 3 attempts (MAX_UPLOAD_RETRIES in apps/mobile/lib/uploadQueue.ts) with a 2 s then 4 s wait, so all of them are used up while the phone is still offline, and the photo is marked failed instead of being uploaded when the network returns (31.jpg in check-fail-test-d8be). The host has to notice the failed popup and tap retry. Fix: don't count attempts while the phone is offline (wait for the network, e.g. @react-native-community/netinfo or expo-network if already installed), and/or retry failed items automatically when the network comes back. (2) When the API can't be reached, lib/storage.ts tries a fixed list of fallbacks that includes the production backend (https://evebash-production-0ae3.up.railway.app) even in a staging build, plus local dev addresses. A staging build should never send requests to production, and production shouldn't fall back to staging. Fix: use only EXPO_PUBLIC_API_BASE_URL (and the local dev hosts in __DEV__).
-How to reproduce: App, upload ~10 photos, turn on airplane mode for 10 seconds mid-upload, then off: the photo that was uploading ends as failed ("Permanent upload failure ... after 3 attempts" in the log), and the log shows requests to evebash-production-0ae3.up.railway.app.
-Fix: a network error while uploading puts the photo back to pending without using an attempt, and the queue waits (checking the backend's /health every 4 s) until the network is back, then resumes. The save step waits the same way if the event check or save call fails offline (before, an offline event check was read as "event does not exist" and marked already-uploaded photos failed). getEndpointsForPath no longer adds the production backend or staging after the configured EXPO_PUBLIC_API_BASE_URL. No new dependency. Checked 2026-10-26 on the Android emulator (staging build, check-fail-test-d8be): airplane mode on for ~35 s during two 10-photo uploads; the log shows "No connection while uploading 37.jpg ... Waiting for the network" then "Connection back; resuming 37.jpg", every photo saved and processed, 0 failed, and no requests to evebash-production-0ae3. The save step going offline was not caught on the emulator (timing); device test #143 left.
-Fixed in: 6d5f088 (2026-10-26)
-
-#146
-Listed: 2026-10-25
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Device test #139 (portrait video in the app's viewer), 2026-10-25
-Issue: The app's photo viewer shows every video in a landscape-shaped frame, so a portrait phone video plays small with wide black bars on both sides. In apps/mobile/components/PhotoViewer.tsx, only photos may get a portrait frame (isPortraitMedia = !isVideoMedia && ...), and the frame's shape comes from the photos row's width/height, which videos don't have, so it falls back to 16:9. The website's player fills the screen height for the same video (608x1080 stream in a 718x771 box).
-How to reproduce: App, test-face-new-155c, Videos tab, open test139_iphone_hdr_portrait_10min.mov (or any portrait phone video): the picture is a narrow strip in a wide frame.
-Fix: ViewerVideo reports the stream's size (expo-video sourceLoad / videoTrackChange), and the host viewer gives a portrait video a frame in its own shape that fills the screen below the top buttons (HOST_VIEWER_PADDING_TOP/BOTTOM); landscape videos and photos keep the old layout. Checked 2026-10-26 in the iPhone 17 Pro simulator as the test-face-new host: the 10.5-min portrait video fills the height with the controls on screen and plays; the 48-min landscape video and a landscape photo look as before. The guest viewer already used a full-height frame. Device test #142 left.
-Fixed in: 93a940a (2026-10-26)
-
-#142
-Listed: 2026-10-25
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: App Classic White check in the simulator (2026-10-25)
-Issue: In the app's photo viewer on Classic White, the video controls bar (play, previous/next, time, volume, settings, full screen) draws dark green icons on its dark gradient, so the controls are almost invisible. The viewer itself follows the Classic colours (white background, light action panel). apps/mobile/components/PhotoViewer.tsx; it had uncommitted work from another session at the time, so it wasn't changed here.
-How to reproduce: App, Classic White gallery, Videos tab, open a video: the bar at the bottom of the video is dark with near-invisible dark icons.
-Fixed in: 844ba19 (2026-10-26). The bar's icons and time are white in every theme (it always has a dark gradient); this affected all light themes (Classic White, Ethereal, Pastel, Pop, Academic, Garden, Museum), not only Classic. Checked on Classic White in the iOS simulator, with the +/-10 s seek buttons from #135.
 
