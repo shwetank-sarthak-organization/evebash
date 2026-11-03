@@ -163,7 +163,7 @@ export default function DashboardHub() {
                             </div>
                             <div className="min-w-0">
                                 <h1 className="home-gold-text truncate font-serif text-[26px] font-semibold tracking-[-0.015em] sm:text-[28px]" style={{ lineHeight: "30px" }}>
-                                    Collections <span className="text-[var(--site-gold)]">|</span> {user.name || user.email || "My Dashboard"}
+                                    Event Gallery
                                 </h1>
                                 <p className="truncate font-sans text-[var(--site-muted)]" style={{ fontSize: 12, lineHeight: "18px" }}>Memories curated for you</p>
                             </div>
