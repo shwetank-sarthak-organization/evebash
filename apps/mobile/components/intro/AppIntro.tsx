@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
@@ -31,10 +31,13 @@ import { EVEBASH_NAME } from './logoPaths';
  * drawn shapes and blur them. The timeline is in preview seconds; DURATION_SCALE stretches it.
  */
 
-const DURATION_SCALE = 1; // 1 = the speed of the approved preview; lower is faster
+const DURATION_SCALE = 1.3; // 1 = the speed of the approved preview; lower is faster
+const START_DELAY_MS = 150; // let the first, heaviest frames draw before anything moves
 const END = 4.3;
 const CLICK_AT = 0.85;
 const HOLD_MS = 400; // the finished logo stays this long before the app fades in
+const SETTLE_MS = 600;
+const WARM_OPACITY = 0.01; // too faint to see on the dark background, but the phone still draws it
 const FADE_OUT_MS = 280;
 
 const BG = MidnightColors.background;
@@ -174,7 +177,8 @@ function PhotoCard({ t, u, s }: T) {
   const eb = useAnimatedStyle(() => {
     const grow = track(t.value, EB_SMALL, K.ebGrow);
     const sharpen = 0.94 + 0.06 * track(t.value, 0, K.ebSharpen);
-    return { opacity: track(t.value, 0, K.ebOpacity), transform: [{ scale: grow * sharpen }] };
+    const opacity = t.value === 0 ? WARM_OPACITY : track(t.value, 0, K.ebOpacity);
+    return { opacity, transform: [{ scale: grow * sharpen }] };
   });
   return (
     <Animated.View style={[s.photo, frame]}>
@@ -269,9 +273,15 @@ type AppIntroProps = {
   onFinish: () => void;
   /** Called on the first frame, when the native splash can hide */
   onShown?: () => void;
+  /** Called when the animation reaches the still logo (or is skipped): a good moment for heavy work */
+  onPlayed?: () => void;
 };
 
-export default function AppIntro({ ready, onFinish, onShown }: AppIntroProps) {
+// Memoised: the root layout re-renders mid-animation (fonts finishing loading), and re-rendering every
+// SVG here at that moment made the animation stall for a few frames
+export default React.memo(AppIntro);
+
+function AppIntro({ ready, onFinish, onShown, onPlayed }: AppIntroProps) {
   const { width, height } = useWindowDimensions();
   const u = Math.min(width / ART_W, height / ART_H);
   const insets = useSafeAreaInsets();
@@ -280,6 +290,7 @@ export default function AppIntro({ ready, onFinish, onShown }: AppIntroProps) {
   const t = useSharedValue(0);
   const fade = useSharedValue(1);
   const [played, setPlayed] = useState(false);
+  const playedAt = useRef(0);
 
   useEffect(() => {
     if (reduceMotion) {
@@ -287,8 +298,8 @@ export default function AppIntro({ ready, onFinish, onShown }: AppIntroProps) {
       setPlayed(true);
       return;
     }
-    const ms = (sec: number) => sec * 1000 * DURATION_SCALE;
-    t.value = withTiming(END, { duration: ms(END), easing: Easing.linear });
+    const ms = (sec: number) => START_DELAY_MS + sec * 1000 * DURATION_SCALE;
+    t.value = withDelay(START_DELAY_MS, withTiming(END, { duration: ms(END) - START_DELAY_MS, easing: Easing.linear }));
     const click = setTimeout(() => haptic('tap'), ms(CLICK_AT));
     const done = setTimeout(() => setPlayed(true), ms(END));
     return () => {
@@ -298,9 +309,18 @@ export default function AppIntro({ ready, onFinish, onShown }: AppIntroProps) {
   }, [reduceMotion, t]);
 
   useEffect(() => {
+    if (!played) return;
+    playedAt.current = Date.now();
+    onPlayed?.();
+  }, [played, onPlayed]);
+
+  useEffect(() => {
     if (!played || !ready) return;
-    fade.value = withDelay(HOLD_MS, withTiming(0, { duration: FADE_OUT_MS, easing: Easing.out(Easing.quad) }));
-    const timer = setTimeout(onFinish, HOLD_MS + FADE_OUT_MS);
+    // The logo holds HOLD_MS in all, counting time already spent waiting for the app, and always
+    // SETTLE_MS after the app is ready so its first screen finishes drawing before the fade
+    const hold = Math.max(SETTLE_MS, HOLD_MS - (Date.now() - playedAt.current));
+    fade.value = withDelay(hold, withTiming(0, { duration: FADE_OUT_MS, easing: Easing.out(Easing.quad) }));
+    const timer = setTimeout(onFinish, hold + FADE_OUT_MS);
     return () => clearTimeout(timer);
   }, [played, ready, fade, onFinish]);
 
@@ -311,12 +331,14 @@ export default function AppIntro({ ready, onFinish, onShown }: AppIntroProps) {
   };
 
   const overlay = useAnimatedStyle(() => ({ opacity: fade.value }));
+  // Before anything moves (t = 0) both photo copies are drawn at WARM_OPACITY, fully out, so the phone
+  // has drawn them once; drawing the photo the first time it slid out of the slot made the animation stall
   const clipped = useAnimatedStyle(() => ({
-    opacity: t.value < SWAP_AT ? 1 : 0,
-    transform: [{ translateY: track(t.value, 0, K.photoY) * u }],
+    opacity: t.value === 0 ? WARM_OPACITY : t.value < SWAP_AT ? 1 : 0,
+    transform: [{ translateY: (t.value === 0 ? PHOTO.height : track(t.value, 0, K.photoY)) * u }],
   }));
   const free = useAnimatedStyle(() => ({
-    opacity: t.value < SWAP_AT ? 0 : 1,
+    opacity: t.value === 0 ? WARM_OPACITY : t.value < SWAP_AT ? 0 : 1,
     transform: [
       { translateY: track(t.value, 0, K.photoY) * u },
       { rotate: `${track(t.value, 0, K.photoTilt)}deg` },

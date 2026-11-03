@@ -5,7 +5,8 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import * as React from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { LogBox, Platform } from 'react-native';
+import { LogBox, Platform, View } from 'react-native';
+import { MidnightColors } from '@/constants/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import LoadingScreen from '@/components/LoadingScreen';
 import AppIntro from '@/components/intro/AppIntro';
@@ -284,8 +285,11 @@ export default function RootLayout() {
     return () => clearTimeout(timer);
   }, []);
 
-  // The app-open animation plays once per cold start, over the app while the account loads
+  // The app-open animation plays once per cold start. The account check starts right away, but the
+  // screens are only built once the animation reaches the still logo: building them while it moves
+  // makes it stutter.
   const [appReady, setAppReady] = useState(false);
+  const [introPlayed, setIntroPlayed] = useState(Platform.OS === 'web');
   const [introDone, setIntroDone] = useState(Platform.OS === 'web');
   const markAppReady = useCallback(() => setAppReady(true), []);
   const finishIntro = useCallback(() => {
@@ -293,16 +297,24 @@ export default function RootLayout() {
     setIntroDone(true);
   }, []);
   const introShown = useCallback(() => hideSplash('intro'), []);
+  const introPlayedOut = useCallback(() => {
+    markStartup('intro played');
+    setIntroPlayed(true);
+  }, []);
 
   // AuthProvider mounts before fonts finish loading so the session check starts right away
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppThemeProvider>
         <AuthProvider>
-          {fontsReady ? <RootLayoutContent onReady={markAppReady} /> : <LoadingScreen message="Starting up" />}
+          {!introPlayed
+            ? <View style={{ flex: 1, backgroundColor: MidnightColors.background }} />
+            : fontsReady ? <RootLayoutContent onReady={markAppReady} /> : <LoadingScreen message="Starting up" />}
         </AuthProvider>
       </AppThemeProvider>
-      {!introDone && <AppIntro ready={appReady} onFinish={finishIntro} onShown={introShown} />}
+      {!introDone && (
+        <AppIntro ready={appReady} onFinish={finishIntro} onShown={introShown} onPlayed={introPlayedOut} />
+      )}
     </GestureHandlerRootView>
   );
 }
