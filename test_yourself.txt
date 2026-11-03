@@ -4789,11 +4789,12 @@ Brief:     The app used to open on a still gold EB logo. Now, on a fresh start, 
 Detail:    Needs a NEW app build: the phone's own splash (the first frame, before the app's code runs) changed from
            the EB logo to a plain dark background. On an older build you'll still see the still EB logo for a moment
            before the animation. Design and preview: reports/app-open-animation/ (on Sarthak's Mac).
-           Commits abc6379 and 387afb7 on staging. 2026-11-03 simulator run by Claude (not a tester PASS) on the iPhone 16e dev
+           Commits abc6379, 387afb7 and 88dc37c (smoothness, slower) on staging. 2026-11-03 simulator run by Claude (not a tester PASS) on the iPhone 16e dev
            build: steps 1 (animation part), 3 and 4 looked right; not checked: the new splash, Android, steps 5-9.
 How to test:
   1. Close the app completely (swipe it away), then open it. Expect: a plain dark screen, then the camera animation
-     (about 5 seconds), then the app. No still EB logo before the camera.
+     (about 6.5 seconds), then the app. No still EB logo before the camera. It should look smooth, with no
+     stutter or jump (especially when the photo comes out and when the app fades in).
   2. Watch the click. Expect: the phone gives one light tap (vibration) at the moment of the click.
   3. Watch the photo come out. Expect: it is hidden until after the click and slides out of the slot at the bottom
      of the camera, never showing behind the camera.
