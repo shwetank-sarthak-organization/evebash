@@ -5036,6 +5036,47 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback:
+
+--------------------------------------------------------------------------------
+#179 App host Gallery Media: 2 tiles per row, bigger tile buttons
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone + Android)
+Brief:     On the host's Gallery Media (open your event, Galleries tab, open a gallery), photos and videos now
+           show 2 per row instead of 3, as bigger square tiles. The buttons on each tile are bigger and moved:
+           favourite (star) and actions (...) top-right, move earlier / later (< >) bottom-left, delete (photos
+           only) bottom-right. In Select mode the tick circle is top-right. Hidden items show HIDDEN top-left.
+Detail:    Commit 1b4b6ce on staging (app only: needs the next app build or update to reach phones). Guest views
+           and event themes are not changed. 2026-11-03 check by Claude (not a tester PASS): iPhone 17 Pro
+           simulator with a release JS bundle, gallery test-face-new: photo grid, Select mode and the Videos tab
+           looked right. Not checked: HIDDEN and Processing labels, drag to reorder, Android.
+How to test:
+  1. Open Host, open one of your events, open a gallery with photos. Expect: Gallery Media shows 2 square photos
+     per row with even gaps. Each has a star and ... top-right, < > bottom-left and a red bin bottom-right.
+  2. Tap a star. Expect: it turns gold at once. Tap it again. Expect: back to empty.
+  3. Tap > on the first photo. Expect: it moves one place later. The < on the first photo and the > on the last
+     photo are greyed out.
+  4. Hold a photo and drag it to a new place. Expect: it moves there and stays after leaving and reopening the
+     gallery.
+  5. Tap the bin on a photo, then Cancel. Expect: a "Delete Photo" question comes first, and Cancel keeps the
+     photo.
+  6. Tap Select, then tap two photos. Expect: a gold border and a gold tick top-right on each, "2 selected", and
+     the star, ..., arrows and bin are hidden. Tap Cancel.
+  7. Hide a photo from guests (... > Hide from guests). Expect: the tile darkens with HIDDEN top-left. Show it
+     again the same way.
+  8. Open the Videos tab. Expect: 2 videos per row with the same buttons, except the bin (delete is under ...).
+     A video still processing shows its Processing label top-left; if it is also hidden, HIDDEN sits just below.
+  9. Scroll a big gallery (200+ photos) to the end and back. Expect: smooth, photos fill in as you scroll, no
+     crash.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
 --------------------------------------------------------------------------------
 #180 Android: does the keyboard hide any text box? (pop-ups and forms, issue #243)
 Status:    TODO
