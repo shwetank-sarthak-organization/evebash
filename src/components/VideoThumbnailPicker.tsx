@@ -100,7 +100,7 @@ export function VideoThumbnailPicker({ video, onClose, onSaved }: Props) {
       setDuration(length);
     }} onLoadedData={capture} onSeeking={() => setFrame('')} onSeeked={capture} />
     <label className={cn(modalStyles.label, 'mt-4')} htmlFor="thumbnail-timeline">Frame position: {timeLabel(time)} / {timeLabel(duration)}</label>
-    <input id="thumbnail-timeline" type="range" min={0} max={Math.max(0, duration - 0.05)} step={0.01} value={time} disabled={!duration || saving} onChange={e => seek(Number(e.target.value))} className="my-3 w-full accent-[#CA9C68]" />
+    <input id="thumbnail-timeline" type="range" min={0} max={Math.max(0, duration - 0.05)} step={0.01} value={time} disabled={!duration || saving} onChange={e => seek(Number(e.target.value))} className="my-3 w-full accent-[var(--site-gold)]" />
     <div className="flex gap-3"><button type="button" disabled={!duration || saving} onClick={() => seek(time - 0.1)} className="rounded-xl border border-[var(--site-border)] px-3 py-2 text-[var(--site-subtle)] hover:bg-white/5 disabled:opacity-40">−0.1s</button><button type="button" disabled={!duration || saving} onClick={() => seek(time + 0.1)} className="rounded-xl border border-[var(--site-border)] px-3 py-2 text-[var(--site-subtle)] hover:bg-white/5 disabled:opacity-40">+0.1s</button></div>
     {frame ? <img src={frame} alt="Selected thumbnail preview" className="mx-auto mt-4 max-h-40 object-contain" /> : <p role="status" className={cn(modalStyles.body, 'mt-4')}>Loading frame…</p>}
     {error && <p role="alert" className={cn(modalStyles.error, 'mt-4')}>{error}</p>}
@@ -119,7 +119,7 @@ export function VideoThumbnailActions({ ready, galleryVideo, onClose, onChoose, 
     {!ready && <p className={cn(modalStyles.body, 'mt-2')}>Available after video processing finishes.</p>}
     {galleryVideo && <>
       {/* The cinematic highlight video: plays at the top of its gallery's guest page, in every theme */}
-      <button type="button" disabled={!ready && !galleryVideo.isCurrent} onClick={galleryVideo.onToggle} className={cn(modalStyles.secondary, 'mt-3 w-full border-[#CA9C68]/50 text-[#F5E7D4]')}>
+      <button type="button" disabled={!ready && !galleryVideo.isCurrent} onClick={galleryVideo.onToggle} className={cn(modalStyles.secondary, 'mt-3 w-full border-[var(--site-gold)]/50 text-[var(--site-text)]')}>
         {galleryVideo.isCurrent ? 'Remove as cinematic highlight video' : 'Use as cinematic highlight video'}
       </button>
       <p className={cn(modalStyles.body, 'mt-2')}>

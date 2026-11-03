@@ -38,12 +38,12 @@ export function FavouritePicker({ albumId, selectedId, onPick, onClose }: {
                 {error ? (
                     <p className={modalStyles.error}>{error}</p>
                 ) : !photos ? (
-                    <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[#CA9C68]" /></div>
+                    <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[var(--site-gold)]" /></div>
                 ) : photos.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 py-10 text-center">
-                        <Heart className="h-8 w-8 text-[#CA9C68]" />
-                        <p className="text-sm font-bold text-slate-300">No favourites yet.</p>
-                        <p className="max-w-sm text-xs font-semibold text-slate-500">Mark photos as favourites in the galleries, then pick one here. You can also describe the photo you want in the comment.</p>
+                        <Heart className="h-8 w-8 text-[var(--site-gold)]" />
+                        <p className="text-sm font-bold text-[var(--site-subtle)]">No favourites yet.</p>
+                        <p className="max-w-sm text-xs font-semibold text-[var(--site-muted)]">Mark photos as favourites in the galleries, then pick one here. You can also describe the photo you want in the comment.</p>
                     </div>
                 ) : (
                     <div className="grid max-h-[60vh] grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-5">
@@ -54,7 +54,7 @@ export function FavouritePicker({ albumId, selectedId, onPick, onClose }: {
                                 onClick={() => onPick(photo)}
                                 className={cn(
                                     "relative aspect-square overflow-hidden rounded-xl border-2 bg-black/40 transition-colors",
-                                    photo.id === selectedId ? "border-[#CA9C68]" : "border-transparent hover:border-white/30"
+                                    photo.id === selectedId ? "border-[var(--site-gold)]" : "border-transparent hover:border-white/30"
                                 )}
                                 aria-pressed={photo.id === selectedId}
                             >

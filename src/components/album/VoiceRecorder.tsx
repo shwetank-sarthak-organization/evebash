@@ -131,7 +131,7 @@ export function VoiceRecorder({ value, onChange, disabled }: {
                 </button>
             ) : (
                 <button type="button" onClick={start} disabled={disabled} className={`${albumButton.secondary} w-full normal-case tracking-normal`}>
-                    <Mic className="h-4 w-4 text-[#CA9C68]" aria-hidden />
+                    <Mic className="h-4 w-4 text-[var(--site-gold)]" aria-hidden />
                     Record a voice note
                 </button>
             )}

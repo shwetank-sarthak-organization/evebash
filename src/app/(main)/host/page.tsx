@@ -160,7 +160,7 @@ const GridMediaCell = ({
 
     if (isVideo) {
         return (
-            <div className="relative h-full w-full bg-slate-950">
+            <div className="relative h-full w-full bg-[var(--site-bg)]">
                 {photo.thumbnailUrl ? <img src={photo.thumbnailUrl} alt="Video thumbnail" className={cn("h-full w-full object-cover", shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]")} /> : (
                 <video
                     src={photo.url}
@@ -173,13 +173,13 @@ const GridMediaCell = ({
                     preload="metadata"
                 />
                 )}
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#D4A770] text-slate-950 shadow-xl shadow-black/40 sm:h-12 sm:w-12">
+                <div className="absolute inset-0 flex items-center justify-center bg-[var(--site-bg)]/20">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--site-gold)] text-[var(--site-on-gold)] shadow-xl shadow-black/40 sm:h-12 sm:w-12">
                         <Play className="ml-0.5 h-5 w-5 fill-current" />
                     </div>
                 </div>
                 {photo.status === 'processing' && (
-                    <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/90 text-slate-950 text-[10px] font-bold shadow-lg backdrop-blur-md">
+                    <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/90 text-[var(--site-on-gold)] text-[10px] font-bold shadow-lg backdrop-blur-md">
                         <Loader2 className="w-3 h-3 animate-spin" />
                         <span>Processing HLS...</span>
                     </div>
@@ -199,9 +199,9 @@ const GridMediaCell = ({
     return (
         <div className="h-full w-full relative">
             {!loaded && (
-                <div className="absolute inset-0 z-10 h-full w-full animate-pulse bg-slate-800/80 flex flex-col items-center justify-center space-y-1">
-                    <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
-                    <span className="text-[8px] uppercase font-bold tracking-widest text-slate-500">Processing</span>
+                <div className="absolute inset-0 z-10 h-full w-full animate-pulse bg-[var(--site-surface-2)]/80 flex flex-col items-center justify-center space-y-1">
+                    <Loader2 className="h-4 w-4 animate-spin text-[var(--site-muted)]" />
+                    <span className="text-[8px] uppercase font-bold tracking-widest text-[var(--site-muted)]">Processing</span>
                 </div>
             )}
             <img
@@ -723,13 +723,13 @@ function FilterDropdown({ value, options, onChange, onOpen, ariaLabel }: {
                 aria-haspopup="listbox"
                 aria-expanded={open}
                 onClick={() => { if (!open) onOpen?.(); setOpen(current => !current); }}
-                className="flex h-8 min-w-0 max-w-[11rem] items-center gap-1 rounded-lg border border-slate-600 bg-slate-950 pl-2 pr-1 text-sm font-semibold text-white outline-none focus:border-[#CA9C68] sm:max-w-[14rem]"
+                className="flex h-8 min-w-0 max-w-[11rem] items-center gap-1 rounded-lg border border-[var(--site-border)] bg-[var(--site-bg)] pl-2 pr-1 text-sm font-semibold text-[var(--site-text)] outline-none focus:border-[var(--site-gold)] sm:max-w-[14rem]"
             >
                 <span className="truncate">{selected?.label}</span>
-                <ChevronDown className={cn("h-4 w-4 shrink-0 text-slate-400 transition-transform", open && "rotate-180")} />
+                <ChevronDown className={cn("h-4 w-4 shrink-0 text-[var(--site-muted)] transition-transform", open && "rotate-180")} />
             </button>
             {open && (
-                <div role="listbox" aria-label={ariaLabel} className="absolute right-0 top-full z-40 mt-1 max-h-72 min-w-full w-max max-w-[16rem] overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 p-1 shadow-2xl shadow-black/60">
+                <div role="listbox" aria-label={ariaLabel} className="absolute right-0 top-full z-40 mt-1 max-h-72 min-w-full w-max max-w-[16rem] overflow-y-auto rounded-xl border border-[var(--site-border)] bg-[var(--site-bg)] p-1 shadow-2xl shadow-black/60">
                     {options.map(option => {
                         const isSelected = option.value === value;
                         return (
@@ -741,11 +741,11 @@ function FilterDropdown({ value, options, onChange, onOpen, ariaLabel }: {
                                 onClick={() => { onChange(option.value); setOpen(false); }}
                                 className={cn(
                                     "flex w-full items-center justify-end gap-2 rounded-lg px-3 py-2 text-right text-sm font-semibold transition-colors",
-                                    isSelected ? "bg-[#CA9C68]/15 text-[#E2B77F]" : "text-slate-200 hover:bg-slate-800"
+                                    isSelected ? "bg-[var(--site-gold)]/15 text-[var(--site-gold)]" : "text-[var(--site-text)] hover:bg-[var(--site-surface-2)]"
                                 )}
                             >
                                 <span className="truncate">{option.label}</span>
-                                <Check className={cn("h-4 w-4 shrink-0", isSelected ? "text-[#CA9C68]" : "invisible")} />
+                                <Check className={cn("h-4 w-4 shrink-0", isSelected ? "text-[var(--site-gold)]" : "invisible")} />
                             </button>
                         );
                     })}
@@ -807,7 +807,7 @@ function DatePickerColumn({
 
     return (
         <div className="relative min-w-0 flex-1">
-            <div className="pointer-events-none absolute left-0 right-0 top-1/2 z-10 h-14 -translate-y-1/2 border-y border-[#CA9C68]/50" />
+            <div className="pointer-events-none absolute left-0 right-0 top-1/2 z-10 h-14 -translate-y-1/2 border-y border-[var(--site-gold)]/50" />
             <div
                 ref={scrollRef}
                 className="max-h-56 touch-pan-y snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth px-1 py-20 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -840,7 +840,7 @@ function DatePickerColumn({
                             className={cn(
                                 "flex h-14 w-full snap-center items-center justify-center rounded-xl text-center text-xl font-medium transition-colors",
                                 isSelected
-                                    ? "font-black text-[#CA9C68]"
+                                    ? "font-black text-[var(--site-gold)]"
                                     : "text-[var(--site-muted)] hover:bg-white/5 hover:text-[var(--site-text)]"
                             )}
                         >
@@ -3723,12 +3723,12 @@ function DashboardContent() {
 
     // Guest list on the Permissions tab: one row per guest with a switch per permission. From xl up it's a
     // table (Member / Role / Permissions / Actions); below that each row stacks into a card.
-    // Borders use plain border-slate-800 (globals.css re-themes it); divide-slate-800, xl:border-slate-800 and bg-slate-800/60 fall through to cream.
+    // Borders use the shared --site-line / --site-border colours (globals.css).
     const renderEventDetailPermissionTable = (logs: EventDetailLog[], isPending: boolean) => {
         const columns = isPending
             ? "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(4,5.5rem)_16rem]"
             : "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(4,5.5rem)_6.5rem]";
-        const headerLabel = "text-[11px] font-black uppercase tracking-[0.16em] text-slate-500";
+        const headerLabel = "text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]";
         const permissionColumns = [
             { key: "view", label: "View" },
             { key: "canAdmin", label: "Admin" },
@@ -3737,14 +3737,14 @@ function DashboardContent() {
         ] as const;
 
         return (
-            <div className="overflow-hidden rounded-[1.5rem] border border-slate-700 bg-slate-900/50">
-                <div className={cn("hidden border-b border-slate-700 bg-slate-900 xl:grid", columns)}>
+            <div className="overflow-hidden rounded-[1.5rem] border border-[var(--site-border)] bg-[var(--site-surface)]/50">
+                <div className={cn("hidden border-b border-[var(--site-border)] bg-[var(--site-surface)] xl:grid", columns)}>
                     <div className={cn("row-span-2 self-center px-5 py-3", headerLabel)}>Member</div>
-                    <div className={cn("row-span-2 flex items-center border-l border-slate-800 px-4", headerLabel)}>Role</div>
-                    <div className="col-span-4 border-b border-l border-slate-800 py-2.5 text-center text-[11px] font-black uppercase tracking-[0.18em] text-[#CA9C68]">Permissions</div>
-                    <div className={cn("row-span-2 flex items-center justify-end border-l border-slate-800 px-5", headerLabel)}>Actions</div>
+                    <div className={cn("row-span-2 flex items-center border-l border-[var(--site-line)] px-4", headerLabel)}>Role</div>
+                    <div className="col-span-4 border-b border-l border-[var(--site-line)] py-2.5 text-center text-[11px] font-black uppercase tracking-[0.18em] text-[var(--site-gold)]">Permissions</div>
+                    <div className={cn("row-span-2 flex items-center justify-end border-l border-[var(--site-line)] px-5", headerLabel)}>Actions</div>
                     {permissionColumns.map(({ key, label }) => (
-                        <div key={key} className={cn("border-l border-slate-800 px-2 py-2.5 text-center", headerLabel)}>{label}</div>
+                        <div key={key} className={cn("border-l border-[var(--site-line)] px-2 py-2.5 text-center", headerLabel)}>{label}</div>
                     ))}
                 </div>
 
@@ -3759,8 +3759,8 @@ function DashboardContent() {
                         const role = isPending
                             ? { label: "Pending", icon: RefreshCw, className: "border-amber-400/30 bg-amber-400/10 text-amber-300" }
                             : hasAdminAccess
-                                ? { label: "Admin", icon: ShieldCheck, className: "border-[#CA9C68]/30 bg-[#CA9C68]/10 text-[#CA9C68]" }
-                                : { label: "Member", icon: Users, className: "border-slate-700 bg-slate-800 text-slate-300" };
+                                ? { label: "Admin", icon: ShieldCheck, className: "border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 text-[var(--site-gold)]" }
+                                : { label: "Member", icon: Users, className: "border-[var(--site-border)] bg-[var(--site-surface-2)] text-[var(--site-subtle)]" };
                         const RoleIcon = role.icon;
                         const roleBadge = (
                             <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-widest", role.className)}>
@@ -3780,7 +3780,7 @@ function DashboardContent() {
                             <div
                                 key={log.id}
                                 className={cn(
-                                    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-4 border-t border-slate-800 p-4 transition-colors first:border-t-0 hover:bg-slate-900 xl:items-stretch xl:gap-0 xl:p-0",
+                                    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-4 border-t border-[var(--site-line)] p-4 transition-colors first:border-t-0 hover:bg-[var(--site-surface)] xl:items-stretch xl:gap-0 xl:p-0",
                                     columns
                                 )}
                             >
@@ -3790,27 +3790,27 @@ function DashboardContent() {
                                     title="View guest details"
                                     className="group/member col-start-1 row-start-1 flex min-w-0 items-center gap-3 text-left xl:px-5 xl:py-3.5"
                                 >
-                                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#CA9C68]/10 text-sm font-black text-[#CA9C68]">
+                                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--site-gold)]/10 text-sm font-black text-[var(--site-gold)]">
                                         {guestName.charAt(0)}
                                     </span>
                                     <span className="min-w-0">
-                                        <span className="block truncate text-base font-black text-white transition-colors group-hover/member:text-[#CA9C68]">{guestName}</span>
-                                        <span className="block truncate text-xs font-bold text-slate-400">{contact} • {loginDate}</span>
+                                        <span className="block truncate text-base font-black text-[var(--site-text)] transition-colors group-hover/member:text-[var(--site-gold)]">{guestName}</span>
+                                        <span className="block truncate text-xs font-bold text-[var(--site-muted)]">{contact} • {loginDate}</span>
                                         <span className="mt-2 flex xl:hidden">{roleBadge}</span>
                                     </span>
                                 </button>
 
-                                <div className="hidden items-center border-l border-slate-800 px-4 xl:flex">{roleBadge}</div>
+                                <div className="hidden items-center border-l border-[var(--site-line)] px-4 xl:flex">{roleBadge}</div>
 
-                                <div className="col-span-2 row-start-2 grid grid-cols-4 gap-2 rounded-2xl border border-slate-800 bg-slate-950/40 p-3 xl:contents">
+                                <div className="col-span-2 row-start-2 grid grid-cols-4 gap-2 rounded-2xl border border-[var(--site-line)] bg-[var(--site-bg)]/40 p-3 xl:contents">
                                     {permissionColumns.map(({ key, label }) => {
                                         let control: React.ReactNode;
                                         if (key === "view") {
                                             // Not a switch: approved guests can always view; removing a guest is the trash button
                                             control = isPending ? (
-                                                <span className="flex h-7 items-center text-sm font-black text-slate-600" aria-label="Can't view until approved">—</span>
+                                                <span className="flex h-7 items-center text-sm font-black text-[var(--site-muted)]" aria-label="Can't view until approved">—</span>
                                             ) : (
-                                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#CA9C68]/10 text-[#CA9C68]" aria-label="Can view" title="Approved guests can view this event">
+                                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--site-gold)]/10 text-[var(--site-gold)]" aria-label="Can view" title="Approved guests can view this event">
                                                     <Check className="h-4 w-4" />
                                                 </span>
                                             );
@@ -3828,8 +3828,8 @@ function DashboardContent() {
                                                     disabled={impliedByAdmin}
                                                     onClick={() => void handleGuestPermissionToggle(log, key)}
                                                     className={cn(
-                                                        "relative h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60 disabled:cursor-not-allowed disabled:opacity-50",
-                                                        isOn ? "bg-[#CA9C68]" : "bg-slate-700"
+                                                        "relative h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)]/60 disabled:cursor-not-allowed disabled:opacity-50",
+                                                        isOn ? "bg-[var(--site-gold)]" : "bg-[var(--site-surface-3)]"
                                                     )}
                                                 >
                                                     <span className={cn(
@@ -3841,8 +3841,8 @@ function DashboardContent() {
                                         }
 
                                         return (
-                                            <div key={key} className="flex flex-col items-center gap-2 border-slate-800 xl:justify-center xl:border-l xl:px-2 xl:py-3.5">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 xl:hidden">{label}</span>
+                                            <div key={key} className="flex flex-col items-center gap-2 border-[var(--site-line)] xl:justify-center xl:border-l xl:px-2 xl:py-3.5">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--site-muted)] xl:hidden">{label}</span>
                                                 {control}
                                             </div>
                                         );
@@ -3850,7 +3850,7 @@ function DashboardContent() {
                                 </div>
 
                                 <div className={cn(
-                                    "flex items-center justify-end gap-2 border-slate-800 xl:col-span-1 xl:col-start-auto xl:row-start-auto xl:border-l xl:px-5 xl:py-3.5",
+                                    "flex items-center justify-end gap-2 border-[var(--site-line)] xl:col-span-1 xl:col-start-auto xl:row-start-auto xl:border-l xl:px-5 xl:py-3.5",
                                     isPending ? "col-span-2 row-start-3" : "col-start-2 row-start-1"
                                 )}>
                                     {isPending && (
@@ -3879,7 +3879,7 @@ function DashboardContent() {
                                             onClick={() => void removeGuest()}
                                             aria-label={`Remove ${guestName}`}
                                             title="Remove guest"
-                                            className="rounded-xl border border-slate-700 bg-slate-800 p-2.5 text-slate-400 transition-colors hover:border-rose-400/30 hover:bg-rose-500/10 hover:text-rose-400"
+                                            className="rounded-xl border border-[var(--site-border)] bg-[var(--site-surface-2)] p-2.5 text-[var(--site-muted)] transition-colors hover:border-rose-400/30 hover:bg-rose-500/10 hover:text-rose-400"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>
@@ -3907,10 +3907,10 @@ function DashboardContent() {
                     navigateWithModifierClick(e, `/host?view=manage&level=photos&mode=add-image&eventId=${evt.id}`, router.push);
                 }
             }}
-            className="group relative flex cursor-pointer flex-col rounded-2xl border border-[#273034] bg-[#0E141A] p-3 text-left transition-colors hover:border-[#CA9C68]/40"
+            className="group relative flex cursor-pointer flex-col rounded-2xl border border-[var(--site-line)] bg-[var(--site-bg)] p-3 text-left transition-colors hover:border-[var(--site-gold)]/40"
         >
             {/* Same card as the dashboard (src/components/dashboard/DashboardEvents.tsx) */}
-            <div className="relative w-full overflow-hidden rounded-xl bg-[#0E141A]" style={{ aspectRatio: "16 / 10" }}>
+            <div className="relative w-full overflow-hidden rounded-xl bg-[var(--site-bg)]" style={{ aspectRatio: "16 / 10" }}>
                 <img
                     src={resolveEventCoverImage(evt.coverImage, 'thumbnail', evt.category)}
                     alt=""
@@ -3923,7 +3923,7 @@ function DashboardContent() {
                     style={getCoverImageStyle(evt)}
                 />
                 {evt.category && (
-                    <div className="absolute left-3 top-3 z-10 rounded-full border border-[#CA9C68]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#CA9C68] backdrop-blur-sm">
+                    <div className="absolute left-3 top-3 z-10 rounded-full border border-[var(--site-gold)]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--site-gold)] backdrop-blur-sm">
                         {evt.category}
                     </div>
                 )}
@@ -3948,11 +3948,11 @@ function DashboardContent() {
                             initial={{ opacity: 0, scale: 0.9, y: -10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                            className="absolute right-0 mt-3 w-44 bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 py-2 z-30 overflow-hidden"
+                            className="absolute right-0 mt-3 w-44 bg-[var(--site-surface-2)] rounded-2xl shadow-2xl border border-[var(--site-border)] py-2 z-30 overflow-hidden"
                         >
                             <button
                                 onClick={(e) => handleRenameClick(e, evt)}
-                                className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-slate-900/50 transition-colors"
+                                className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-[var(--site-surface)]/50 transition-colors"
                                 title="Rename this event"
                             >
                                 <Pencil className="w-4 h-4 text-blue-500" />
@@ -3964,7 +3964,7 @@ function DashboardContent() {
                                     openUploadForEvent(evt.id, evt.title);
                                     setActiveMenu(null);
                                 }}
-                                className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-slate-900/50 transition-colors border-t border-slate-700"
+                                className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-[var(--site-surface)]/50 transition-colors border-t border-[var(--site-border)]"
                                 title="Manage photos for this event"
                             >
                                 <Camera className="w-4 h-4 text-purple-500" />
@@ -3977,7 +3977,7 @@ function DashboardContent() {
                                     setShowTemplateModal(true);
                                     setActiveMenu(null);
                                 }}
-                                className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-slate-900/50 transition-colors border-t border-slate-700 text-sky-400"
+                                className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-[var(--site-surface)]/50 transition-colors border-t border-[var(--site-border)] text-sky-400"
                                 title="Change design template"
                             >
                                 <LayoutDashboard className="w-4 h-4" />
@@ -3992,7 +3992,7 @@ function DashboardContent() {
                                         e.stopPropagation();
                                         setActiveMenu(null);
                                     }}
-                                    className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-slate-900/50 transition-colors border-t border-slate-700 text-blue-600"
+                                    className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-[var(--site-surface)]/50 transition-colors border-t border-[var(--site-border)] text-blue-600"
                                     title="Visit public website"
                                 >
                                     <Globe className="w-4 h-4" />
@@ -4005,7 +4005,7 @@ function DashboardContent() {
                                     handleShareEventLink(evt);
                                     setActiveMenu(null);
                                 }}
-                                className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-slate-900/50 transition-colors border-t border-slate-700"
+                                className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-[var(--site-surface)]/50 transition-colors border-t border-[var(--site-border)]"
                                 title="Share event invitation"
                             >
                                 <Share2 className="w-4 h-4 text-emerald-500" />
@@ -4017,7 +4017,7 @@ function DashboardContent() {
                                     setShowDeleteConfirm(evt.id);
                                     setActiveMenu(null);
                                 }}
-                                className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-red-50 text-red-600 transition-colors border-t border-slate-700"
+                                className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-red-50 text-red-600 transition-colors border-t border-[var(--site-border)]"
                                 title="Permanently delete this event"
                             >
                                 <Trash2 className="w-4 h-4" />
@@ -4028,24 +4028,24 @@ function DashboardContent() {
                 </AnimatePresence>
             </div>
 
-            <div className="px-1 pb-1 pt-4 text-left text-white">
-                <h3 className="truncate text-xl leading-tight text-white" style={SERIF}>{evt.title}</h3>
-                <div className="mt-2 flex items-center gap-1.5 text-sm text-slate-400">
-                    <Calendar className="h-4 w-4 shrink-0 text-[#CA9C68]" aria-hidden="true" />
+            <div className="px-1 pb-1 pt-4 text-left text-[var(--site-text)]">
+                <h3 className="truncate text-xl leading-tight text-[var(--site-text)]" style={SERIF}>{evt.title}</h3>
+                <div className="mt-2 flex items-center gap-1.5 text-sm text-[var(--site-muted)]">
+                    <Calendar className="h-4 w-4 shrink-0 text-[var(--site-gold)]" aria-hidden="true" />
                     <span className="truncate">{formatShortEventDate(formatEventDate(evt.date))}</span>
                 </div>
                 {isSharedEvent && (
                     <div className="mt-3 flex flex-wrap gap-1.5">
-                        <div className="inline-flex max-w-full items-center rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-slate-300">
+                        <div className="inline-flex max-w-full items-center rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--site-subtle)]">
                             <span className="truncate">Owner: {getEventOwnerName(evt)}</span>
                         </div>
-                        <div className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-slate-300">
+                        <div className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--site-subtle)]">
                             {getSharedAccessLabel(evt)}
                         </div>
                     </div>
                 )}
                 {user?.delegatedBy && workspaceOwner && (
-                    <div className="mt-3 inline-flex max-w-full items-center rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-slate-300">
+                    <div className="mt-3 inline-flex max-w-full items-center rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--site-subtle)]">
                         <span className="truncate">Managed for: {workspaceOwner.email}</span>
                     </div>
                 )}
@@ -4058,20 +4058,20 @@ function DashboardContent() {
         if (!user?.delegatedBy || !workspaceOwner) return null;
 
         return (
-            <div className="bg-[#CA9C68]/30 rounded-3xl p-6 border border-[#CA9C68]/30 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="bg-[var(--site-gold)]/30 rounded-3xl p-6 border border-[var(--site-gold)]/30 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
                 <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-[#CA9C68]/50 rounded-2xl flex items-center justify-center text-[#CA9C68]">
+                    <div className="w-12 h-12 bg-[var(--site-gold)]/50 rounded-2xl flex items-center justify-center text-[var(--site-gold)]">
                         <Users size={24} />
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-slate-200 font-serif">Managed Workspace</h3>
-                        <p className="text-sm text-stone-700 font-sans">
-                            You are managing the account for <span className="text-[#CA9C68] font-bold">{workspaceOwner.email}</span>
+                        <h3 className="text-lg font-bold text-[var(--site-text)] font-serif">Managed Workspace</h3>
+                        <p className="text-sm text-[var(--site-muted)] font-sans">
+                            You are managing the account for <span className="text-[var(--site-gold)] font-bold">{workspaceOwner.email}</span>
                         </p>
                     </div>
                 </div>
                 <div className="hidden sm:block">
-                    <span className="px-4 py-1.5 bg-slate-800 text-[#CA9C68] rounded-full text-[10px] font-black uppercase tracking-widest border border-[#CA9C68]/50 shadow-sm">
+                    <span className="px-4 py-1.5 bg-[var(--site-surface-2)] text-[var(--site-gold)] rounded-full text-[10px] font-black uppercase tracking-widest border border-[var(--site-gold)]/50 shadow-sm">
                         {user.roleType === 'primary' ? 'Full Manager' : 'Event Admin'}
                     </span>
                 </div>
@@ -4085,8 +4085,8 @@ function DashboardContent() {
         return (
             <section className="space-y-5">
                 <div>
-                    <h3 className="text-xl font-bold text-slate-200 font-serif">{title}</h3>
-                    <p className="text-sm text-slate-400 font-sans">{items.length} {items.length === 1 ? "item" : "items"}</p>
+                    <h3 className="text-xl font-bold text-[var(--site-text)] font-serif">{title}</h3>
+                    <p className="text-sm text-[var(--site-muted)] font-sans">{items.length} {items.length === 1 ? "item" : "items"}</p>
                 </div>
                 {showWorkspaceBanner && renderManagedWorkspaceBanner()}
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -4103,7 +4103,7 @@ function DashboardContent() {
 
     return (
         <div className={cn(
-            "min-h-screen font-serif text-slate-200 transition-colors duration-300",
+            "min-h-screen font-serif text-[var(--site-text)] transition-colors duration-300",
             isImmersiveHostEventView ? "bg-black" : "bg-[#050505]"
         )}>
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -4117,7 +4117,7 @@ function DashboardContent() {
                             className="space-y-8"
                         >
                             <div className="relative">
-                                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-[#0B0F13] p-3 shadow-2xl shadow-black/30 sm:p-4 xl:flex xl:gap-x-6">
+                                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-[var(--site-bg)] p-3 shadow-2xl shadow-black/30 sm:p-4 xl:flex xl:gap-x-6">
                                     <div className="order-1 flex min-w-0 items-center gap-3 sm:gap-4">
                                         <Tooltip text="Plan Details">
                                             <button
@@ -4125,15 +4125,15 @@ function DashboardContent() {
                                                     fetchStorageStats();
                                                     setShowPlanDetailsModal(true);
                                                 }}
-                                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#CA9C68] transition-colors hover:bg-white/10"
+                                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[var(--site-gold)] transition-colors hover:bg-white/10"
                                                 aria-label="Plan Details"
                                             >
                                                 <HostConsoleIcon className="h-6 w-6" aria-hidden="true" />
                                             </button>
                                         </Tooltip>
                                         <div className="min-w-0">
-                                            <h2 className="truncate font-brand font-normal tracking-wide text-[#F5EFE6]" style={{ fontSize: 28, lineHeight: "30px" }}>Host Console</h2>
-                                            <p className="truncate font-sans text-slate-400" style={{ fontSize: 12, lineHeight: "18px" }}>Event operations</p>
+                                            <h2 className="home-gold-text truncate font-serif text-[26px] font-semibold tracking-[-0.015em] sm:text-[28px]" style={{ lineHeight: "30px" }}>Host Console</h2>
+                                            <p className="truncate font-sans text-[var(--site-muted)]" style={{ fontSize: 12, lineHeight: "18px" }}>Event operations</p>
                                         </div>
                                     </div>
 
@@ -4151,15 +4151,15 @@ function DashboardContent() {
                                                     className={cn(
                                                         "flex h-12 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-2 font-sans text-[11px] font-semibold uppercase tracking-[0.04em] max-[360px]:gap-1 max-[360px]:px-1.5 max-[360px]:tracking-normal transition-colors sm:h-[3.25rem] sm:gap-2.5 sm:px-4 sm:text-[13px] sm:tracking-[0.14em]",
                                                         isActive
-                                                            ? "border-[#CA9C68]/50 bg-gradient-to-b from-[#CA9C68]/20 to-[#CA9C68]/[0.06] text-[#E2BC8C] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-                                                            : "border-transparent text-slate-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
+                                                            ? "border-[var(--site-gold)]/50 bg-gradient-to-b from-[var(--site-gold)]/20 to-[var(--site-gold)]/[0.06] text-[var(--site-gold)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                                                            : "border-transparent text-[var(--site-muted)] hover:border-white/10 hover:bg-white/[0.04] hover:text-[var(--site-text)]"
                                                     )}
                                                 >
                                                     <Icon className="hidden h-[18px] w-[18px] shrink-0 sm:block" />
                                                     {label}
                                                     <span className={cn(
                                                         "min-w-6 rounded-md px-1.5 py-0.5 text-center text-[11px] font-bold tracking-normal sm:min-w-7 sm:text-xs",
-                                                        highlightCount ? "bg-[#CA9C68] text-slate-950" : "bg-white/10 text-slate-300"
+                                                        highlightCount ? "bg-[var(--site-gold)] text-[var(--site-on-gold)]" : "bg-white/10 text-[var(--site-subtle)]"
                                                     )}>
                                                         {count}
                                                     </span>
@@ -4171,7 +4171,7 @@ function DashboardContent() {
                                     <div className="order-2 xl:order-4 xl:ml-auto">
                                         <button
                                             onClick={() => setIsCreateModalOpen(true)}
-                                            className="flex h-12 items-center gap-2 whitespace-nowrap rounded-xl bg-[#CA9C68] px-4 font-sans text-sm font-black text-slate-950 transition-colors hover:bg-[#D7AE7D] sm:px-5"
+                                            className="flex h-12 items-center gap-2 whitespace-nowrap rounded-full home-btn-gold px-4 font-sans text-sm font-black sm:px-5"
                                             aria-label="Create Event"
                                         >
                                             <Plus className="w-4 h-4" />
@@ -4183,38 +4183,38 @@ function DashboardContent() {
 
                                 {loadingEvents ? (
                                     <div className="flex justify-center py-12">
-                                        <div className="w-8 h-8 border-4 border-slate-600 border-t-[#CA9C68] rounded-full animate-spin" />
+                                        <div className="w-8 h-8 border-4 border-[var(--site-border)] border-t-[var(--site-gold)] rounded-full animate-spin" />
                                     </div>
                                 ) : activeTab === "request" ? (
                                     <div className="mt-6">
                                         {pendingGuestRequests.length === 0 ? (
-                                            <div className="flex min-h-64 flex-col items-center justify-center rounded-[1.5rem] border-2 border-dashed border-slate-700 text-center text-slate-400">
+                                            <div className="flex min-h-64 flex-col items-center justify-center rounded-[1.5rem] border-2 border-dashed border-[var(--site-border)] text-center text-[var(--site-muted)]">
                                                 <Check className="mb-4 h-10 w-10 text-emerald-400/40" />
-                                                <p className="mb-2 text-lg font-bold text-slate-200">All caught up!</p>
+                                                <p className="mb-2 text-lg font-bold text-[var(--site-text)]">All caught up!</p>
                                                 <p className="text-sm">New access requests will appear here.</p>
                                             </div>
                                         ) : (
                                             <div className="space-y-5">
                                                 {pendingRequestsByEvent.map(([eventTitle, logs]) => (
-                                                    <section key={eventTitle} className="rounded-[1.5rem] border border-slate-700 bg-slate-900/60 p-4 sm:p-5">
+                                                    <section key={eventTitle} className="rounded-[1.5rem] border border-[var(--site-border)] bg-[var(--site-surface)]/60 p-4 sm:p-5">
                                                         <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/10 pb-3">
                                                             <div className="min-w-0">
-                                                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Event</p>
-                                                                <h3 className="truncate text-lg font-black text-white">{eventTitle}</h3>
+                                                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--site-muted)]">Event</p>
+                                                                <h3 className="truncate text-lg font-black text-[var(--site-text)]">{eventTitle}</h3>
                                                             </div>
-                                                            <span className="shrink-0 rounded-full bg-[#CA9C68] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-950">
+                                                            <span className="shrink-0 rounded-full bg-[var(--site-gold)] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--site-on-gold)]">
                                                                 {logs.length} {logs.length === 1 ? "Request" : "Requests"}
                                                             </span>
                                                         </div>
                                                         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                                                             {logs.map((log) => (
                                                                 <div key={log.id} className="flex flex-col gap-4 rounded-[1.2rem] border border-white/10 bg-black p-4 sm:flex-row sm:items-center">
-                                                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#CA9C68] text-lg font-black text-slate-950">
+                                                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--site-gold)] text-lg font-black text-[var(--site-on-gold)]">
                                                                         {(log.name || "G").charAt(0).toUpperCase()}
                                                                     </div>
                                                                     <div className="min-w-0 flex-1">
-                                                                        <p className="truncate text-base font-bold text-white">{log.name || "Anonymous Guest"}</p>
-                                                                        <p className="mt-1 truncate text-sm text-slate-400">{log.email || log.phone || "No contact provided"}</p>
+                                                                        <p className="truncate text-base font-bold text-[var(--site-text)]">{log.name || "Anonymous Guest"}</p>
+                                                                        <p className="mt-1 truncate text-sm text-[var(--site-muted)]">{log.email || log.phone || "No contact provided"}</p>
                                                                     </div>
                                                                     <div className="flex gap-2 sm:ml-auto">
                                                                         <button
@@ -4249,21 +4249,21 @@ function DashboardContent() {
                                                 guests={consoleEventStats[event.id]?.guests}
                                                 onOpen={() => router.push(`/host?view=manage&level=event-details&eventId=${event.id}`)}
                                                 footer={activeTab === "shared" && (
-                                                    <p className="mt-2 truncate text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                                                        Owner: <span className="normal-case text-white">{getEventOwnerName(event)}</span>
+                                                    <p className="mt-2 truncate text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--site-muted)]">
+                                                        Owner: <span className="normal-case text-[var(--site-text)]">{getEventOwnerName(event)}</span>
                                                     </p>
                                                 )}
                                             />
                                         ))}
 
                                         {(activeTab === 'hosted' ? userEvents : sharedEvents).length === 0 && (
-                                            <div className="col-span-full h-64 rounded-[1.5rem] border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-400">
+                                            <div className="col-span-full h-64 rounded-[1.5rem] border-2 border-dashed border-[var(--site-border)] flex flex-col items-center justify-center text-[var(--site-muted)]">
                                                 <p className="font-medium text-lg mb-2">{activeTab === 'hosted' ? 'No events yet' : 'Nothing shared'}</p>
                                                 <p className="text-sm text-center">{activeTab === 'hosted' ? 'Create your first album to see it here.' : 'Events shared with you will appear here.'}</p>
                                                 {activeTab === 'hosted' && (
                                                     <button
                                                         onClick={() => setIsCreateModalOpen(true)}
-                                                        className="mt-4 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-full text-sm font-bold transition-colors"
+                                                        className="mt-4 home-btn-glass px-4 py-2 rounded-full text-sm font-bold"
                                                     >
                                                         Create one now
                                                     </button>
@@ -4275,54 +4275,54 @@ function DashboardContent() {
                             </div>
 
 {/* HOST GUIDE SECTION */}
-                            <div className="mt-16 rounded-3xl border border-[#2B2F2E] bg-[#10171C]/90 p-6 shadow-xl shadow-black/25 backdrop-blur-sm sm:p-8">
+                            <div className="mt-16 rounded-3xl border border-[var(--site-line)] bg-[var(--site-surface)]/90 p-6 shadow-xl shadow-black/25 backdrop-blur-sm sm:p-8">
                                 <div className="mb-8">
-                                    <h2 className="text-3xl font-bold text-white">Host Your Perfect Event</h2>
-                                    <p className="text-slate-400 mt-2">Everything you need to capture memories flawlessly.</p>
+                                    <h2 className="text-3xl font-bold text-[var(--site-text)]">Host Your Perfect Event</h2>
+                                    <p className="text-[var(--site-muted)] mt-2">Everything you need to capture memories flawlessly.</p>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                                     {/* Benefit 1 */}
-                                    <div className="rounded-xl border border-[#2B2F2E] bg-[#0D1318] p-6">
-                                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-[#CA9C68]/20 bg-[#CA9C68]/10">
-                                            <ImageIcon className="h-6 w-6 text-[#CA9C68]" />
+                                    <div className="rounded-xl border border-[var(--site-line)] bg-[var(--site-bg)] p-6">
+                                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--site-gold)]/20 bg-[var(--site-gold)]/10">
+                                            <ImageIcon className="h-6 w-6 text-[var(--site-gold)]" />
                                         </div>
-                                        <h3 className="text-xl font-bold text-white mb-2">Stunning Galleries</h3>
-                                        <p className="text-slate-400 text-sm">Create unlimited, high-resolution albums to preserve every beautiful memory.</p>
+                                        <h3 className="text-xl font-bold text-[var(--site-text)] mb-2">Stunning Galleries</h3>
+                                        <p className="text-[var(--site-muted)] text-sm">Create unlimited, high-resolution albums to preserve every beautiful memory.</p>
                                     </div>
 
                                     {/* Benefit 2 */}
-                                    <div className="rounded-xl border border-[#2B2F2E] bg-[#0D1318] p-6">
-                                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-[#CA9C68]/20 bg-[#CA9C68]/10">
-                                            <Users className="h-6 w-6 text-[#CA9C68]" />
+                                    <div className="rounded-xl border border-[var(--site-line)] bg-[var(--site-bg)] p-6">
+                                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--site-gold)]/20 bg-[var(--site-gold)]/10">
+                                            <Users className="h-6 w-6 text-[var(--site-gold)]" />
                                         </div>
-                                        <h3 className="text-xl font-bold text-white mb-2">Guest Sharing</h3>
-                                        <p className="text-slate-400 text-sm">Easily invite guests via QR codes and securely share photos directly with them.</p>
+                                        <h3 className="text-xl font-bold text-[var(--site-text)] mb-2">Guest Sharing</h3>
+                                        <p className="text-[var(--site-muted)] text-sm">Easily invite guests via QR codes and securely share photos directly with them.</p>
                                     </div>
 
                                     {/* Benefit 3 */}
-                                    <div className="rounded-xl border border-[#2B2F2E] bg-[#0D1318] p-6">
-                                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-[#CA9C68]/20 bg-[#CA9C68]/10">
-                                            <Video className="h-6 w-6 text-[#CA9C68]" />
+                                    <div className="rounded-xl border border-[var(--site-line)] bg-[var(--site-bg)] p-6">
+                                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--site-gold)]/20 bg-[var(--site-gold)]/10">
+                                            <Video className="h-6 w-6 text-[var(--site-gold)]" />
                                         </div>
-                                        <h3 className="text-xl font-bold text-white mb-2">Live Streaming</h3>
-                                        <p className="text-slate-400 text-sm">Broadcast your special moments live to loved ones who could not attend in person.</p>
+                                        <h3 className="text-xl font-bold text-[var(--site-text)] mb-2">Live Streaming</h3>
+                                        <p className="text-[var(--site-muted)] text-sm">Broadcast your special moments live to loved ones who could not attend in person.</p>
                                     </div>
                                 </div>
 
                                 {/* SECTION 4: HOW TO HOST (YouTube Card) */}
                                 <div
                                     onClick={() => window.open('https://www.youtube.com/@EveBashApp', '_blank')}
-                                    className="relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-[#1E1B17] to-[#12171C] p-6 cursor-pointer shadow-lg shadow-black/30 group border border-[#CA9C68]/15"
+                                    className="relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-[var(--site-surface-2)] to-[var(--site-surface)] p-6 cursor-pointer shadow-lg shadow-black/30 group border border-[var(--site-gold)]/15"
                                 >
-                                    <div className="absolute right-0 top-0 w-64 h-64 bg-[#CA9C68]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
+                                    <div className="absolute right-0 top-0 w-64 h-64 bg-[var(--site-gold)]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
                                     <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between">
                                         <div className="mb-6 md:mb-0 max-w-md">
-                                            <div className="inline-block px-3 py-1 bg-[#CA9C68]/10 border border-[#CA9C68]/20 rounded-lg text-[#CA9C68] text-[10px] font-bold tracking-widest mb-3">
+                                            <div className="inline-block px-3 py-1 bg-[var(--site-gold)]/10 border border-[var(--site-gold)]/20 rounded-lg text-[var(--site-gold)] text-[10px] font-bold tracking-widest mb-3">
                                                 HOW TO HOST
                                             </div>
-                                            <h3 className="text-2xl font-bold text-white mb-1">Watch & Learn</h3>
-                                            <p className="text-white/80 text-sm font-medium">Watch our step-by-step tutorials and host your event like a pro.</p>
+                                            <h3 className="text-2xl font-bold text-[var(--site-text)] mb-1">Watch & Learn</h3>
+                                            <p className="text-[var(--site-text)]/80 text-sm font-medium">Watch our step-by-step tutorials and host your event like a pro.</p>
                                         </div>
                                         <div className="flex items-center bg-[#FF0000] px-5 py-3 rounded-xl text-white font-bold w-fit group-hover:bg-[#CC0000] transition-colors">
                                             <Play className="w-4 h-4 mr-2" fill="currentColor" /> Watch on YouTube
@@ -4344,7 +4344,7 @@ function DashboardContent() {
                                     <h2 className="text-3xl font-bold mb-2 uppercase tracking-wide">
                                         {manageLevel === "events" ? "Your Events" : "Galleries"}
                                     </h2>
-                                    <p className="text-slate-400 font-sans">
+                                    <p className="text-[var(--site-muted)] font-sans">
                                         {manageLevel === "events"
                                             ? "Organize your wedding into high-level events."
                                             : `Galleries within ${selectedMainEvent?.title}`
@@ -4366,7 +4366,7 @@ function DashboardContent() {
                                                 setMessage("");
                                                 setSelectedTemplate("hero");
                                             }}
-                                            className="flex items-center space-x-2 px-6 py-3 bg-slate-900 text-white rounded-full text-sm font-bold hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl active:scale-95"
+                                            className="flex items-center space-x-2 px-6 py-3 bg-[var(--site-surface)] text-[var(--site-text)] rounded-full text-sm font-bold hover:bg-[var(--site-surface-2)] transition-all shadow-lg hover:shadow-xl active:scale-95"
                                         >
                                             <Plus className="w-4 h-4" />
                                             <span>Create {manageLevel === "events" ? "Event" : "Gallery"}</span>
@@ -4377,12 +4377,12 @@ function DashboardContent() {
                             )}
 
                             {manageLevel === "event-details" && !selectedMainEvent && (
-                                <div className="flex min-h-80 items-center justify-center rounded-[2rem] border border-slate-700 bg-slate-900/60 p-8 text-center">
+                                <div className="flex min-h-80 items-center justify-center rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)]/60 p-8 text-center">
                                     <div className="space-y-4">
                                         <Loader2 className="mx-auto h-8 w-8 animate-spin text-sky-300" />
                                         <div>
-                                            <h3 className="text-xl font-bold text-white">Loading Event Details</h3>
-                                            <p className="mt-2 text-sm font-semibold text-slate-400">Restoring this event after refresh.</p>
+                                            <h3 className="text-xl font-bold text-[var(--site-text)]">Loading Event Details</h3>
+                                            <p className="mt-2 text-sm font-semibold text-[var(--site-muted)]">Restoring this event after refresh.</p>
                                         </div>
                                     </div>
                                 </div>
@@ -4390,7 +4390,7 @@ function DashboardContent() {
 
                             {manageLevel === "event-details" && selectedMainEvent && (
                                 <div className="space-y-8">
-                                    <div className="relative overflow-hidden rounded-[2rem] border border-[#CA9C68]/25 bg-neutral-950 shadow-2xl shadow-black/50">
+                                    <div className="relative overflow-hidden rounded-[2rem] border border-[var(--site-gold)]/25 bg-[var(--site-bg)] shadow-2xl shadow-black/50">
                                         <div
                                             ref={(node) => {
                                                 if (activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id) {
@@ -4414,7 +4414,7 @@ function DashboardContent() {
                                                 className="h-full w-full select-none"
                                                 style={getCoverImageStyle(activeEventDetailEvent)}
                                             />
-                                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#080a14] via-[#080a14]/55 to-black/10" />
+                                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[var(--site-bg)] via-[var(--site-bg)]/55 to-black/10" />
                                             <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/45 to-transparent" />
                                             {activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id && (
                                                 <div className="pointer-events-none absolute inset-x-6 top-6 z-20 rounded-full border border-white/15 bg-black/60 px-4 py-2 text-center text-xs font-black uppercase tracking-[0.2em] text-white/90 backdrop-blur-md">
@@ -4422,8 +4422,8 @@ function DashboardContent() {
                                                 </div>
                                             )}
                                             {isCoverUpdating && (
-                                                <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-slate-950/45 backdrop-blur-sm">
-                                                    <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-slate-950/80 px-5 py-4 text-sm font-bold text-white shadow-2xl">
+                                                <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-[var(--site-bg)]/45 backdrop-blur-sm">
+                                                    <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-[var(--site-bg)]/80 px-5 py-4 text-sm font-bold text-[var(--site-text)] shadow-2xl">
                                                         <Loader2 className="h-5 w-5 animate-spin text-royal-gold" />
                                                         <span>{message || "Updating your cover image..."}</span>
                                                     </div>
@@ -4436,7 +4436,7 @@ function DashboardContent() {
                                                         <button
                                                             onClick={() => handleToggleCoverMode(activeEventDetailEvent)}
                                                             disabled={status === "uploading"}
-                                                            className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                            className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
                                                         >
                                                             {(activeEventDetailEvent.coverMode || "fill") === "fill"
                                                                 ? <Maximize2 className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
@@ -4447,7 +4447,7 @@ function DashboardContent() {
                                                             <button
                                                                 onClick={() => openCoverPosition(activeEventDetailEvent)}
                                                                 disabled={status === "uploading"}
-                                                                className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                                className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
                                                             >
                                                                 <Settings className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
                                                                 <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs">Position</span>
@@ -4455,7 +4455,7 @@ function DashboardContent() {
                                                         )}
                                                     </>
                                                 )}
-                                                <label className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 cursor-pointer">
+                                                <label className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 cursor-pointer">
                                                     <ImageIcon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
                                                     <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs">Change Cover</span>
                                                     <input
@@ -4469,7 +4469,7 @@ function DashboardContent() {
                                                 <button
                                                     onClick={() => activeEventDetailEvent && handleRemoveCoverForEvent(activeEventDetailEvent)}
                                                     disabled={status === "uploading"}
-                                                    className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 hover:text-rose-200"
+                                                    className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 hover:text-rose-200"
                                                 >
                                                     <Trash2 className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
                                                     <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs">Remove Cover</span>
@@ -4478,27 +4478,27 @@ function DashboardContent() {
                                             )}
                                             <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-4 p-6 sm:flex-row sm:items-end sm:justify-between sm:p-8">
                                                 <div className="min-w-0">
-                                                    <h3 className="line-clamp-2 break-words font-serif text-5xl font-semibold leading-[1.15] text-[#F5EFE6] sm:text-7xl">{activeEventDetailEvent?.title || selectedMainEvent.title}</h3>
-                                                    <p className="mt-3 font-sans text-base text-white/85 sm:text-xl">{formatEventDate(activeEventDetailEvent?.date || selectedMainEvent.date)}</p>
+                                                    <h3 className="line-clamp-2 break-words font-serif text-5xl font-semibold leading-[1.15] text-[var(--site-text)] sm:text-7xl">{activeEventDetailEvent?.title || selectedMainEvent.title}</h3>
+                                                    <p className="mt-3 font-sans text-base text-[var(--site-text)]/85 sm:text-xl">{formatEventDate(activeEventDetailEvent?.date || selectedMainEvent.date)}</p>
                                                 </div>
                                                 <div className="flex shrink-0 items-end gap-1 sm:gap-3">
                                                     <button
                                                         onClick={(e) => activeEventDetailEvent && handleRenameClick(e, activeEventDetailEvent, "title")}
-                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
                                                     >
                                                         <Pencil className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />
                                                         <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs sm:text-sm">Edit Title</span>
                                                     </button>
                                                     <button
                                                         onClick={(e) => activeEventDetailEvent && handleRenameClick(e, activeEventDetailEvent, "date")}
-                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
                                                     >
                                                         <Calendar className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />
                                                         <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs sm:text-sm">Edit Date</span>
                                                     </button>
                                                     <button
                                                         onClick={() => activeEventDetailEvent && handleShareEventLink(activeEventDetailEvent)}
-                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
                                                     >
                                                         <Share2 className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />
                                                         <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs sm:text-sm">Share</span>
@@ -4533,21 +4533,21 @@ function DashboardContent() {
                                                     className={cn(
                                                         "group relative flex min-h-[5.5rem] items-center overflow-hidden rounded-2xl border px-3 py-4 text-left transition-colors sm:px-5 sm:py-5",
                                                         isActive
-                                                            ? "border-[#CA9C68]/70 bg-gradient-to-br from-[#CA9C68]/[0.09] via-neutral-950 to-neutral-950"
-                                                            : "border-white/10 bg-gradient-to-br from-white/[0.04] to-neutral-950 hover:border-white/20 hover:from-white/[0.07]"
+                                                            ? "border-[var(--site-gold)]/70 bg-gradient-to-br from-[var(--site-gold)]/[0.09] via-[var(--site-bg)] to-[var(--site-bg)]"
+                                                            : "border-white/10 bg-gradient-to-br from-white/[0.04] to-[var(--site-bg)] hover:border-white/20 hover:from-white/[0.07]"
                                                     )}
                                                 >
                                                     {isActive && (
-                                                        <span className="absolute inset-x-0 top-0 h-[3px] bg-[#CA9C68]" />
+                                                        <span className="absolute inset-x-0 top-0 h-[3px] bg-[var(--site-gold)]" />
                                                     )}
-                                                    <Icon className="h-6 w-6 shrink-0 text-[#CA9C68] sm:h-8 sm:w-8" />
+                                                    <Icon className="h-6 w-6 shrink-0 text-[var(--site-gold)] sm:h-8 sm:w-8" />
                                                     <span className="mx-2.5 h-10 w-px shrink-0 bg-white/10 sm:mx-5 sm:h-12" />
                                                     <span className="min-w-0">
-                                                        <span className="block truncate text-sm font-semibold text-white sm:text-lg">{label}</span>
-                                                        <span className="mt-0.5 block text-[11px] leading-snug text-neutral-400 sm:mt-1 sm:text-sm">{subtitle}</span>
+                                                        <span className="block truncate text-sm font-semibold text-[var(--site-text)] sm:text-lg">{label}</span>
+                                                        <span className="mt-0.5 block text-[11px] leading-snug text-[var(--site-muted)] sm:mt-1 sm:text-sm">{subtitle}</span>
                                                     </span>
                                                     {pendingCount > 0 && (
-                                                        <span className="absolute right-2 top-2 rounded-full bg-[#CA9C68] px-1.5 py-0.5 text-[10px] leading-none sm:right-3 sm:top-3 sm:px-2 font-black text-slate-950">
+                                                        <span className="absolute right-2 top-2 rounded-full bg-[var(--site-gold)] px-1.5 py-0.5 text-[10px] leading-none sm:right-3 sm:top-3 sm:px-2 font-black text-[var(--site-on-gold)]">
                                                             {pendingCount}
                                                         </span>
                                                     )}
@@ -4557,27 +4557,27 @@ function DashboardContent() {
                                     </div>
 
                                     <div className={cn(
-                                        "rounded-[2rem] border border-white/10 bg-neutral-950 p-5 sm:p-6",
+                                        "rounded-[2rem] border border-white/10 bg-[var(--site-bg)] p-5 sm:p-6",
                                         isInlineEventDetailGalleryEditor && "hidden"
                                     )}>
                                         {activeEventDetailTab === "galleries" && (
                                             <div className="space-y-6">
                                                 <div className="flex flex-wrap items-center justify-between gap-4">
                                                     <div className="flex min-w-0 items-center gap-3">
-                                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#CA9C68]/30 bg-[#CA9C68]/10">
-                                                            <GalleryChaptersIcon className="h-6 w-6 text-[#CA9C68]" aria-hidden="true" />
+                                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10">
+                                                            <GalleryChaptersIcon className="h-6 w-6 text-[var(--site-gold)]" aria-hidden="true" />
                                                         </div>
                                                         <div className="min-w-0">
                                                             <div className="flex items-center gap-2">
-                                                                <h4 className="font-serif text-3xl font-semibold leading-tight text-[#F5EFE6]">Galleries</h4>
+                                                                <h4 className="font-serif text-3xl font-semibold leading-tight text-[var(--site-text)]">Galleries</h4>
                                                                 <GalleryTypesInfo />
                                                             </div>
-                                                            <p className="text-sm text-slate-400">Your celebration in chapters</p>
+                                                            <p className="text-sm text-[var(--site-muted)]">Your celebration in chapters</p>
                                                         </div>
                                                     </div>
                                                     <button
                                                         onClick={() => setIsCreateSubGalleryModalOpen(true)}
-                                                        className="flex items-center gap-2 rounded-xl bg-[#CA9C68] px-4 py-2.5 text-sm font-bold text-slate-950 transition-transform hover:-translate-y-0.5"
+                                                        className="flex items-center gap-2 rounded-full home-btn-gold px-4 py-2.5 text-sm font-bold"
                                                     >
                                                         <Plus className="h-4 w-4" />
                                                         <span>Add Sub-Gallery</span>
@@ -4587,10 +4587,10 @@ function DashboardContent() {
                                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                                     <div
                                                         className={cn(
-                                                            "group relative min-h-[220px] cursor-pointer overflow-hidden rounded-2xl border bg-neutral-900 shadow-lg transition-all hover:border-[#CA9C68]/70 sm:col-span-2",
+                                                            "group relative min-h-[220px] cursor-pointer overflow-hidden rounded-2xl border bg-[var(--site-surface)] shadow-lg transition-all hover:border-[var(--site-gold)]/70 sm:col-span-2",
                                                             selectedEventId === selectedMainEvent.id && manageMode === "add-image"
-                                                                ? "border-[#CA9C68]/70"
-                                                                : "border-[#CA9C68]/35"
+                                                                ? "border-[var(--site-gold)]/70"
+                                                                : "border-[var(--site-gold)]/35"
                                                         )}
                                                         onClick={() => openUploadForEvent(selectedMainEvent.id, selectedMainEvent.title)}
                                                     >
@@ -4603,11 +4603,11 @@ function DashboardContent() {
 
                                                         <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-5">
                                                             <div className="flex justify-end">
-                                                                <span className="rounded-full border border-[#CA9C68]/60 bg-black/55 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#E8C9A0] shadow-[0_0_14px_rgba(202,156,104,0.35)] backdrop-blur-sm">Primary Collection</span>
+                                                                <span className="rounded-full border border-[var(--site-gold)]/60 bg-black/55 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--site-gold-light)] shadow-[0_0_14px_rgba(202,156,104,0.35)] backdrop-blur-sm">Primary Collection</span>
                                                             </div>
                                                             <div className="flex items-end justify-between gap-3">
-                                                                <h5 className="min-w-0 flex-1 line-clamp-2 font-serif text-2xl font-semibold leading-tight text-white drop-shadow-md sm:text-3xl">Home (Primary Gallery)</h5>
-                                                                <span className="flex shrink-0 items-center gap-1 rounded-lg bg-[#CA9C68] px-3 py-2 text-xs font-bold text-slate-950 transition-colors group-hover:bg-[#d8ad7c]">
+                                                                <h5 className="min-w-0 flex-1 line-clamp-2 font-serif text-2xl font-semibold leading-tight text-[var(--site-text)] drop-shadow-md sm:text-3xl">Home (Primary Gallery)</h5>
+                                                                <span className="flex shrink-0 items-center gap-1 rounded-full home-btn-gold px-3 py-2 text-xs font-bold group-hover:brightness-[1.06]">
                                                                     <span>Open</span>
                                                                     <ChevronRight className="h-3.5 w-3.5" />
                                                                 </span>
@@ -4616,7 +4616,7 @@ function DashboardContent() {
                                                     </div>
 
                                                     {loadingEventDetail ? (
-                                                        <div className="flex min-h-[220px] items-center justify-center rounded-2xl border border-slate-700 p-8 text-slate-400">
+                                                        <div className="flex min-h-[220px] items-center justify-center rounded-2xl border border-[var(--site-border)] p-8 text-[var(--site-muted)]">
                                                             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                                             <span className="text-sm font-bold">Loading sub-galleries...</span>
                                                         </div>
@@ -4624,14 +4624,14 @@ function DashboardContent() {
                                                         <div
                                                             key={gallery.id}
                                                             className={cn(
-                                                                "group flex min-h-[220px] cursor-pointer flex-col overflow-hidden rounded-2xl border bg-neutral-900 p-2.5 shadow-lg transition-all hover:border-[#CA9C68]/70",
+                                                                "group flex min-h-[220px] cursor-pointer flex-col overflow-hidden rounded-2xl border bg-[var(--site-surface)] p-2.5 shadow-lg transition-all hover:border-[var(--site-gold)]/70",
                                                                 selectedEventId === gallery.id && manageMode === "add-image"
-                                                                    ? "border-[#CA9C68]/70"
-                                                                    : "border-[#CA9C68]/35"
+                                                                    ? "border-[var(--site-gold)]/70"
+                                                                    : "border-[var(--site-gold)]/35"
                                                             )}
                                                             onClick={() => openUploadForEvent(gallery.id, gallery.title)}
                                                         >
-                                                            <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-neutral-800">
+                                                            <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-[var(--site-surface-2)]">
                                                                 <img
                                                                     src={resolveEventCoverImage(gallery.coverImage || selectedMainEvent.coverImage, 'thumbnail', gallery.category || selectedMainEvent.category)}
                                                                     alt={gallery.title}
@@ -4648,7 +4648,7 @@ function DashboardContent() {
                                                                 )}
                                                             </div>
                                                             <div className="flex flex-1 items-center justify-between gap-2 px-1.5 pt-3 pb-1">
-                                                                <h5 className="min-w-0 flex-1 truncate font-serif text-xl font-semibold text-white" title={gallery.title}>{gallery.title}</h5>
+                                                                <h5 className="min-w-0 flex-1 truncate font-serif text-xl font-semibold text-[var(--site-text)]" title={gallery.title}>{gallery.title}</h5>
                                                                 <button
                                                                     type="button"
                                                                     onClick={(e) => { e.stopPropagation(); void toggleGalleryHidden(gallery); }}
@@ -4658,8 +4658,8 @@ function DashboardContent() {
                                                                     className={cn(
                                                                         "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors",
                                                                         gallery.isHidden
-                                                                            ? "border-[#CA9C68]/60 bg-[#CA9C68]/15 text-[#E2B77F] hover:bg-[#CA9C68]/25"
-                                                                            : "border-white/15 bg-white/5 text-slate-300 hover:border-[#CA9C68]/50 hover:text-[#E2B77F]"
+                                                                            ? "border-[var(--site-gold)]/60 bg-[var(--site-gold)]/15 text-[var(--site-gold)] hover:bg-[var(--site-gold)]/25"
+                                                                            : "border-white/15 bg-white/5 text-[var(--site-subtle)] hover:border-[var(--site-gold)]/50 hover:text-[var(--site-gold)]"
                                                                     )}
                                                                 >
                                                                     {gallery.isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -4679,7 +4679,7 @@ function DashboardContent() {
                                                     <button
                                                         type="button"
                                                         onClick={() => setIsCreateSubGalleryModalOpen(true)}
-                                                        className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[#CA9C68]/50 bg-transparent text-[#CA9C68] transition-colors hover:border-[#CA9C68] hover:bg-[#CA9C68]/5"
+                                                        className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--site-gold)]/50 bg-transparent text-[var(--site-gold)] transition-colors hover:border-[var(--site-gold)] hover:bg-[var(--site-gold)]/5"
                                                     >
                                                         <Plus className="h-8 w-8" strokeWidth={1.5} />
                                                         <span className="text-base">Create Sub-Gallery</span>
@@ -4701,8 +4701,8 @@ function DashboardContent() {
                                             <div className="space-y-5">
                                                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                                     <div>
-                                                        <h4 className="text-xl font-black text-white">Permissions</h4>
-                                                        <p className="text-sm font-bold text-slate-400">Approve, deny, or remove guest access requests for this event.</p>
+                                                        <h4 className="text-xl font-black text-[var(--site-text)]">Permissions</h4>
+                                                        <p className="text-sm font-bold text-[var(--site-muted)]">Approve, deny, or remove guest access requests for this event.</p>
                                                     </div>
                                                     {canChangeSelectedEventVisibility && selectedMainEvent && (
                                                         <div className="w-full shrink-0 sm:w-[22rem]">
@@ -4715,21 +4715,21 @@ function DashboardContent() {
                                                                 disabled={savingVisibility}
                                                                 onClick={() => void changeEventVisibility(!selectedMainEvent.isPublic)}
                                                                 className={cn(
-                                                                    "flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60 disabled:cursor-wait",
+                                                                    "flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)]/60 disabled:cursor-wait",
                                                                     selectedMainEvent.isPublic
-                                                                        ? "border-[#CA9C68]/70 bg-[#CA9C68]/10"
-                                                                        : "border-slate-700 bg-slate-900/45 hover:border-slate-500 hover:bg-slate-900/70"
+                                                                        ? "border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10"
+                                                                        : "border-[var(--site-border)] bg-[var(--site-surface)]/45 hover:border-[var(--site-gold)]/45 hover:bg-[var(--site-surface)]/70"
                                                                 )}
                                                             >
-                                                                <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-colors", selectedMainEvent.isPublic ? "bg-[#CA9C68] text-slate-950" : "bg-slate-800 text-slate-300")}>
+                                                                <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-colors", selectedMainEvent.isPublic ? "bg-[var(--site-gold)] text-[var(--site-on-gold)]" : "bg-[var(--site-surface-2)] text-[var(--site-subtle)]")}>
                                                                     {savingVisibility ? <Loader2 className="h-4 w-4 animate-spin" /> : selectedMainEvent.isPublic ? <PublicIcon className="h-5 w-5" /> : <PrivateIcon className="h-5 w-5" />}
                                                                 </span>
                                                                 <span className="min-w-0 flex-1">
-                                                                    <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Event visibility</span>
-                                                                    <span className={cn("block text-sm font-bold", selectedMainEvent.isPublic ? "text-[#E2B77F]" : "text-slate-200")}>{selectedMainEvent.isPublic ? "Public" : "Private"}</span>
-                                                                    <span id="event-visibility-description" className="mt-0.5 block text-xs text-slate-400">{selectedMainEvent.isPublic ? "Anyone with the link can view this event and its sub-galleries." : "Guests need your approval to view this event."}</span>
+                                                                    <span className="block text-[10px] font-black uppercase tracking-widest text-[var(--site-muted)]">Event visibility</span>
+                                                                    <span className={cn("block text-sm font-bold", selectedMainEvent.isPublic ? "text-[var(--site-gold)]" : "text-[var(--site-text)]")}>{selectedMainEvent.isPublic ? "Public" : "Private"}</span>
+                                                                    <span id="event-visibility-description" className="mt-0.5 block text-xs text-[var(--site-muted)]">{selectedMainEvent.isPublic ? "Anyone with the link can view this event and its sub-galleries." : "Guests need your approval to view this event."}</span>
                                                                 </span>
-                                                                <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", selectedMainEvent.isPublic ? "bg-[#CA9C68]" : "bg-slate-700", savingVisibility && "opacity-60")}>
+                                                                <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", selectedMainEvent.isPublic ? "bg-[var(--site-gold)]" : "bg-[var(--site-surface-3)]", savingVisibility && "opacity-60")}>
                                                                     <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", selectedMainEvent.isPublic ? "translate-x-5" : "translate-x-0.5")} />
                                                                 </span>
                                                             </button>
@@ -4740,7 +4740,7 @@ function DashboardContent() {
                                                 </div>
 
                                                 {loadingEventDetail ? (
-                                                    <div className="flex items-center justify-center rounded-[1.5rem] border border-slate-700 p-8 text-slate-400">
+                                                    <div className="flex items-center justify-center rounded-[1.5rem] border border-[var(--site-border)] p-8 text-[var(--site-muted)]">
                                                         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                                         <span className="text-sm font-bold">Loading permissions...</span>
                                                     </div>
@@ -4748,7 +4748,7 @@ function DashboardContent() {
                                                     <div className="space-y-6">
                                                         {eventDetailPendingLogs.length > 0 && (
                                                             <section className="space-y-3">
-                                                                <h5 className="text-sm font-black uppercase tracking-[0.18em] text-slate-400">
+                                                                <h5 className="text-sm font-black uppercase tracking-[0.18em] text-[var(--site-muted)]">
                                                                     Pending Requests ({eventDetailPendingLogs.length})
                                                                 </h5>
                                                                 {renderEventDetailPermissionTable(eventDetailPendingLogs, true)}
@@ -4757,10 +4757,10 @@ function DashboardContent() {
 
                                                         {eventDetailApprovedLogs.length > 0 && (
                                                             <section className="space-y-3">
-                                                                <h5 className="text-sm font-black uppercase tracking-[0.18em] text-slate-400">
+                                                                <h5 className="text-sm font-black uppercase tracking-[0.18em] text-[var(--site-muted)]">
                                                                     Members ({eventDetailApprovedLogs.length})
                                                                     {eventDetailAdminCount > 0 && (
-                                                                        <span className="text-[#CA9C68]"> · {eventDetailAdminCount} {eventDetailAdminCount === 1 ? "Admin" : "Admins"}</span>
+                                                                        <span className="text-[var(--site-gold)]"> · {eventDetailAdminCount} {eventDetailAdminCount === 1 ? "Admin" : "Admins"}</span>
                                                                     )}
                                                                 </h5>
                                                                 {renderEventDetailPermissionTable(eventDetailApprovedLogs, false)}
@@ -4768,8 +4768,8 @@ function DashboardContent() {
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <div className="rounded-[1.5rem] border border-dashed border-slate-700 p-8 text-center">
-                                                        <p className="text-sm font-bold text-slate-400">No guest requests for this event yet.</p>
+                                                    <div className="rounded-[1.5rem] border border-dashed border-[var(--site-border)] p-8 text-center">
+                                                        <p className="text-sm font-bold text-[var(--site-muted)]">No guest requests for this event yet.</p>
                                                     </div>
                                                 )}
                                             </div>
@@ -4778,8 +4778,8 @@ function DashboardContent() {
                                         {activeEventDetailTab === "design" && (
                                             <div className="space-y-5">
                                                 <div>
-                                                    <h4 className="text-xl font-black text-white">Event Design</h4>
-                                                    <p className="text-sm font-bold text-slate-400">Event type and the template guests see on the app and website.</p>
+                                                    <h4 className="text-xl font-black text-[var(--site-text)]">Event Design</h4>
+                                                    <p className="text-sm font-bold text-[var(--site-muted)]">Event type and the template guests see on the app and website.</p>
                                                 </div>
 
                                                 <div className="grid gap-4 lg:grid-cols-12">
@@ -4787,13 +4787,13 @@ function DashboardContent() {
                                                         <button
                                                             type="button"
                                                             onClick={() => setShowCategoryModal(true)}
-                                                            className="flex flex-1 items-center justify-between gap-3 rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-5 text-left transition-colors hover:border-[#CA9C68]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60"
+                                                            className="flex flex-1 items-center justify-between gap-3 rounded-[1.2rem] border border-[var(--site-border)] bg-[var(--site-surface)]/50 p-5 text-left transition-colors hover:border-[var(--site-gold)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)]/60"
                                                         >
                                                             <span className="min-w-0">
-                                                                <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Event Type</span>
-                                                                <span className="mt-1 block truncate font-serif text-2xl font-bold text-[#FFF7EB]">{selectedMainEvent.category || 'Select Type'}</span>
+                                                                <span className="block text-[10px] font-black uppercase tracking-widest text-[var(--site-muted)]">Event Type</span>
+                                                                <span className="mt-1 block truncate font-serif text-2xl font-bold text-[var(--site-text)]">{selectedMainEvent.category || 'Select Type'}</span>
                                                             </span>
-                                                            <ChevronRight className="h-5 w-5 shrink-0 text-[#CA9C68]" />
+                                                            <ChevronRight className="h-5 w-5 shrink-0 text-[var(--site-gold)]" />
                                                         </button>
 
                                                         <button
@@ -4802,17 +4802,17 @@ function DashboardContent() {
                                                                 setTemplateTargetEvent(selectedMainEvent);
                                                                 setShowTemplateModal(true);
                                                             }}
-                                                            className="flex flex-1 items-center justify-between gap-3 rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-5 text-left transition-colors hover:border-[#CA9C68]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60"
+                                                            className="flex flex-1 items-center justify-between gap-3 rounded-[1.2rem] border border-[var(--site-border)] bg-[var(--site-surface)]/50 p-5 text-left transition-colors hover:border-[var(--site-gold)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)]/60"
                                                         >
                                                             <span className="min-w-0">
-                                                                <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Template</span>
-                                                                <span className="mt-1 block truncate font-serif text-2xl font-bold text-[#CA9C68]">{designTemplateLabel}</span>
+                                                                <span className="block text-[10px] font-black uppercase tracking-widest text-[var(--site-muted)]">Template</span>
+                                                                <span className="mt-1 block truncate font-serif text-2xl font-bold text-[var(--site-gold)]">{designTemplateLabel}</span>
                                                             </span>
-                                                            <ChevronRight className="h-5 w-5 shrink-0 text-[#CA9C68]" />
+                                                            <ChevronRight className="h-5 w-5 shrink-0 text-[var(--site-gold)]" />
                                                         </button>
                                                     </div>
 
-                                                    <div className="flex flex-col justify-between gap-5 rounded-[1.2rem] border border-[#CA9C68]/25 bg-[linear-gradient(135deg,rgba(202,156,104,0.12),rgba(27,33,31,0.5)_60%)] p-5 sm:p-6 lg:col-span-7">
+                                                    <div className="flex flex-col justify-between gap-5 rounded-[1.2rem] border border-[var(--site-gold)]/25 bg-[linear-gradient(135deg,rgba(202,156,104,0.12),rgba(27,33,31,0.5)_60%)] p-5 sm:p-6 lg:col-span-7">
                                                         <div className="min-w-0">
                                                             <div className="flex items-center gap-3">
                                                                 {designTemplate && (
@@ -4823,22 +4823,22 @@ function DashboardContent() {
                                                                         <span className="h-3 w-3 rounded-full" style={{ backgroundColor: designTemplate.accent }} />
                                                                     </span>
                                                                 )}
-                                                                <p className="min-w-0 truncate font-serif text-2xl font-bold text-[#CA9C68] sm:text-3xl">{designTemplateLabel}</p>
+                                                                <p className="min-w-0 truncate font-serif text-2xl font-bold text-[var(--site-gold)] sm:text-3xl">{designTemplateLabel}</p>
                                                             </div>
                                                             {designTemplate?.desc && (
-                                                                <p className="mt-2 text-base text-slate-300">{designTemplate.desc}</p>
+                                                                <p className="mt-2 text-base text-[var(--site-subtle)]">{designTemplate.desc}</p>
                                                             )}
                                                         </div>
 
                                                         <button
                                                             type="button"
                                                             onClick={() => window.open(`/events/${encodeURIComponent(selectedMainEvent.id)}`, '_blank', 'noopener,noreferrer')}
-                                                            className="flex w-full items-center gap-4 rounded-2xl border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-5 py-4 text-left transition-colors hover:bg-[#CA9C68]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60"
+                                                            className="flex w-full items-center gap-4 rounded-2xl border border-[var(--site-gold)]/40 bg-[var(--site-gold)]/10 px-5 py-4 text-left transition-colors hover:bg-[var(--site-gold)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)]/60"
                                                         >
-                                                            <Eye className="h-6 w-6 shrink-0 text-[#CA9C68]" />
+                                                            <Eye className="h-6 w-6 shrink-0 text-[var(--site-gold)]" />
                                                             <span className="min-w-0">
-                                                                <span className="block font-serif text-base font-bold leading-tight text-[#FFF7EB] sm:text-lg">Preview Guest Theme</span>
-                                                                <span className="mt-1 block text-[11px] font-bold uppercase leading-snug tracking-widest text-slate-400">
+                                                                <span className="block font-serif text-base font-bold leading-tight text-[var(--site-text)] sm:text-lg">Preview Guest Theme</span>
+                                                                <span className="mt-1 block text-[11px] font-bold uppercase leading-snug tracking-widest text-[var(--site-muted)]">
                                                                     See how guests view your {designTemplateLabel} theme
                                                                 </span>
                                                             </span>
@@ -4846,10 +4846,10 @@ function DashboardContent() {
                                                     </div>
                                                 </div>
 
-                                                <div className="rounded-[1.5rem] border border-slate-700 bg-slate-950/80 p-5 sm:p-6">
+                                                <div className="rounded-[1.5rem] border border-[var(--site-border)] bg-[var(--site-bg)]/80 p-5 sm:p-6">
                                                     <div className="mb-5">
-                                                        <h5 className="text-lg font-black text-white">Guest Home Preview</h5>
-                                                        <p className="text-xs font-bold text-slate-400">A quick sketch of the app and website in your template&apos;s colours. Use Preview Guest Theme for the real page.</p>
+                                                        <h5 className="text-lg font-black text-[var(--site-text)]">Guest Home Preview</h5>
+                                                        <p className="text-xs font-bold text-[var(--site-muted)]">A quick sketch of the app and website in your template&apos;s colours. Use Preview Guest Theme for the real page.</p>
                                                     </div>
                                                     <EventDesignPreview
                                                         eventId={selectedMainEvent.id}
@@ -4870,15 +4870,15 @@ function DashboardContent() {
 
                                         {activeEventDetailTab === "partners" && (
                                             <div className="space-y-6">
-                                                <div className="rounded-[1.8rem] border border-[#CA9C68]/20 bg-slate-900/60 p-6 text-left shadow-xl backdrop-blur-md sm:p-8">
-                                                    <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#CA9C68]/30 bg-[#CA9C68]/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#CA9C68]">
-                                                        <PartnersIcon className="h-4 w-4 text-[#CA9C68]" />
+                                                <div className="rounded-[1.8rem] border border-[var(--site-gold)]/20 bg-[var(--site-surface)]/60 p-6 text-left shadow-xl backdrop-blur-md sm:p-8">
+                                                    <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold)]">
+                                                        <PartnersIcon className="h-4 w-4 text-[var(--site-gold)]" />
                                                         <span>Event Partners · Phase 2</span>
                                                     </div>
-                                                    <h4 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                                                    <h4 className="text-2xl font-black tracking-tight text-[var(--site-text)] sm:text-3xl">
                                                         Coming Soon
                                                     </h4>
-                                                    <p className="mt-3 text-sm font-medium leading-relaxed text-slate-300 sm:text-base">
+                                                    <p className="mt-3 text-sm font-medium leading-relaxed text-[var(--site-subtle)] sm:text-base">
                                                         The Event Partners feature is linked with EB Business & EB Network. In Phase 2, hosts will be able to link verified photographers, caterers, planners, and venues directly to their event.
                                                     </p>
                                                     <div className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -4887,12 +4887,12 @@ function DashboardContent() {
                                                             { title: "EB Business Integration", desc: "Directly showcase service providers registered on EB Business.", icon: Store },
                                                             { title: "Partner Showcase", desc: "Highlight credited partners to your guests on the event page.", icon: Star },
                                                         ].map(({ title, desc, icon: Icon }) => (
-                                                            <div key={title} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-                                                                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-[#CA9C68]/10 text-[#CA9C68]">
+                                                            <div key={title} className="rounded-2xl border border-[var(--site-line)] bg-[var(--site-bg)]/70 p-4">
+                                                                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--site-gold)]/10 text-[var(--site-gold)]">
                                                                     <Icon className="h-4 w-4" />
                                                                 </div>
-                                                                <h5 className="text-xs font-black uppercase tracking-wider text-white">{title}</h5>
-                                                                <p className="mt-1.5 text-xs font-medium text-slate-400 leading-normal">{desc}</p>
+                                                                <h5 className="text-xs font-black uppercase tracking-wider text-[var(--site-text)]">{title}</h5>
+                                                                <p className="mt-1.5 text-xs font-medium text-[var(--site-muted)] leading-normal">{desc}</p>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -4921,16 +4921,16 @@ function DashboardContent() {
                                     {loadingEvents ? (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                                             {Array.from({ length: 3 }).map((_, i) => (
-                                                <div key={i} className="animate-pulse bg-slate-800 aspect-[4/5] rounded-3xl" />
+                                                <div key={i} className="animate-pulse bg-[var(--site-surface-2)] aspect-[4/5] rounded-3xl" />
                                             ))}
                                         </div>
                                     ) : userEvents.length === 0 ? (
-                                        <div className="py-20 bg-slate-800 rounded-3xl border border-dashed border-slate-600 flex flex-col items-center justify-center text-center">
-                                            <div className="w-20 h-20 bg-slate-900/50 rounded-full flex items-center justify-center mb-6">
-                                                <Camera className="w-10 h-10 text-slate-400" />
+                                        <div className="py-20 bg-[var(--site-surface-2)] rounded-3xl border border-dashed border-[var(--site-border)] flex flex-col items-center justify-center text-center">
+                                            <div className="w-20 h-20 bg-[var(--site-surface)]/50 rounded-full flex items-center justify-center mb-6">
+                                                <Camera className="w-10 h-10 text-[var(--site-muted)]" />
                                             </div>
                                             <h3 className="text-xl font-bold mb-2">No galleries found</h3>
-                                            <p className="text-stone-700 max-w-xs mx-auto mb-8 font-sans">Create your first event by clicking the button above.</p>
+                                            <p className="text-[var(--site-muted)] max-w-xs mx-auto mb-8 font-sans">Create your first event by clicking the button above.</p>
                                         </div>
                                     ) : (
                                         <div className="space-y-12">
@@ -4945,7 +4945,7 @@ function DashboardContent() {
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.95 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    className="max-w-lg mx-auto bg-slate-800 p-8 md:p-12 rounded-[2.5rem] shadow-xl border border-slate-700"
+                                    className="max-w-lg mx-auto bg-[var(--site-surface-2)] p-8 md:p-12 rounded-[2.5rem] shadow-xl border border-[var(--site-border)]"
                                 >
                                     <div className="flex items-center justify-between mb-8">
                                         <h3 className="text-2xl font-bold italic tracking-tight">New Event</h3>
@@ -4957,7 +4957,7 @@ function DashboardContent() {
                                                     params.delete("galleryId");
                                                     goBackOr(`/host?${params.toString()}`);
                                                 }}
-                                                className="text-slate-400 hover:text-slate-400 transition-colors"
+                                                className="text-[var(--site-muted)] hover:text-[var(--site-muted)] transition-colors"
                                             >
                                                 <ChevronLeft className="w-6 h-6" />
                                             </button>
@@ -4966,7 +4966,7 @@ function DashboardContent() {
 
                                     <form onSubmit={handleCreateEventOnly} className="space-y-8">
                                         <div>
-                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">
+                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-[var(--site-muted)] mb-4 ml-1">
                                                 What is the occasion?
                                             </label>
                                             <input
@@ -4974,30 +4974,30 @@ function DashboardContent() {
                                                 value={eventName}
                                                 onChange={(e) => setEventName(e.target.value)}
                                                 placeholder="e.g. Dream Wedding 2024"
-                                                className="w-full px-6 py-5 bg-slate-900/50 border border-slate-700 rounded-3xl focus:ring-2 focus:ring-[#CA9C68] focus:border-transparent transition-all outline-none text-xl font-medium"
+                                                className="w-full px-6 py-5 bg-[var(--site-surface)]/50 border border-[var(--site-border)] rounded-3xl focus:ring-2 focus:ring-[var(--site-gold)] focus:border-transparent transition-all outline-none text-xl font-medium"
                                                 required
                                                 autoFocus
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">
+                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-[var(--site-muted)] mb-4 ml-1">
                                                 Date
                                             </label>
                                             <button
                                                 type="button"
                                                 onClick={() => openDatePicker("create")}
-                                                className="flex w-full items-center justify-between px-6 py-5 bg-slate-900/50 border border-slate-700 rounded-3xl focus:ring-2 focus:ring-[#CA9C68] focus:border-transparent transition-all outline-none text-xl font-medium text-left"
+                                                className="flex w-full items-center justify-between px-6 py-5 bg-[var(--site-surface)]/50 border border-[var(--site-border)] rounded-3xl focus:ring-2 focus:ring-[var(--site-gold)] focus:border-transparent transition-all outline-none text-xl font-medium text-left"
                                             >
-                                                <span className={eventDate ? "text-white" : "text-slate-500"}>
+                                                <span className={eventDate ? "text-[var(--site-text)]" : "text-[var(--site-muted)]"}>
                                                     {eventDate || "Select event date"}
                                                 </span>
-                                                <ChevronDown className="h-5 w-5 text-slate-400" />
+                                                <ChevronDown className="h-5 w-5 text-[var(--site-muted)]" />
                                             </button>
                                         </div>
 
                                         <div>
-                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">Event Type</label>
+                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-[var(--site-muted)] mb-4 ml-1">Event Type</label>
                                             <div className="grid grid-cols-2 gap-3">
                                                 {EVENT_TYPE_OPTIONS.map(({ name, icon: Icon }) => {
                                                     const isSelected = eventType === name;
@@ -5013,8 +5013,8 @@ function DashboardContent() {
                                                             className={cn(
                                                                 "flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-black transition-colors",
                                                                 isSelected
-                                                                    ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950"
-                                                                    : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-[#CA9C68]/60"
+                                                                    ? "border-[var(--site-gold)] bg-[var(--site-gold)] text-[var(--site-on-gold)]"
+                                                                    : "border-[var(--site-border)] bg-[var(--site-surface)]/50 text-[var(--site-subtle)] hover:border-[var(--site-gold)]/60"
                                                             )}
                                                         >
                                                             <Icon className="h-4 w-4" />
@@ -5026,7 +5026,7 @@ function DashboardContent() {
                                         </div>
 
                                         <div>
-                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">Choose Style</label>
+                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-[var(--site-muted)] mb-4 ml-1">Choose Style</label>
                                             <div className="flex flex-col gap-3 max-h-[40vh] overflow-y-auto pr-2">
                                                 {getTemplatesForEventCategory(eventType).map((template) => {
                                                     const isActive = selectedTemplate === template.id;
@@ -5036,13 +5036,13 @@ function DashboardContent() {
                                                             onClick={() => setSelectedTemplate(template.id)}
                                                             className={cn(
                                                                 "flex items-center justify-between p-3 rounded-2xl border-2 transition-colors cursor-pointer",
-                                                                isActive ? "bg-slate-900 border-[#CA9C68] shadow-md" : "bg-slate-900/50 border-slate-700 hover:border-slate-500"
+                                                                isActive ? "bg-[var(--site-surface)] border-[var(--site-gold)] shadow-md" : "bg-[var(--site-surface)]/50 border-[var(--site-border)] hover:border-[var(--site-gold)]/45"
                                                             )}
                                                             style={{ borderColor: isActive ? template.accent : undefined }}
                                                         >
                                                             <div className="flex items-center gap-3 flex-1">
                                                                 <div
-                                                                    className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-700 shadow-sm"
+                                                                    className="w-10 h-10 rounded-full flex items-center justify-center border border-[var(--site-border)] shadow-sm"
                                                                     style={{ backgroundColor: template.background?.light || '#fff' }}
                                                                 >
                                                                     <div
@@ -5054,11 +5054,11 @@ function DashboardContent() {
                                                                 <div className="flex-1 mr-2">
                                                                     <div
                                                                         className="text-sm font-bold font-outfit"
-                                                                        style={{ color: isActive ? template.accent : '#334155' }}
+                                                                        style={{ color: isActive ? template.accent : 'var(--site-subtle)' }}
                                                                     >
                                                                         {template.label}
                                                                     </div>
-                                                                    <div className="text-[11px] text-slate-500 font-inter mt-0.5 truncate">
+                                                                    <div className="text-[11px] text-[var(--site-muted)] font-inter mt-0.5 truncate">
                                                                         {template.desc}
                                                                     </div>
                                                                 </div>
@@ -5069,7 +5069,7 @@ function DashboardContent() {
                                                                     className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 shadow-sm"
                                                                     style={{ backgroundColor: template.accent }}
                                                                 >
-                                                                    <Check className="w-3 h-3 text-white" />
+                                                                    <Check className="w-3 h-3 text-[var(--site-text)]" />
                                                                 </div>
                                                             )}
                                                         </div>
@@ -5083,7 +5083,7 @@ function DashboardContent() {
                                             disabled={status === "uploading"}
                                             className={cn(
                                                 "w-full py-5 rounded-[1.5rem] font-bold text-lg shadow-lg transition-all flex items-center justify-center space-x-3 active:scale-95",
-                                                status === "uploading" ? "bg-stone-300 text-stone-700 cursor-not-allowed" : "bg-slate-900 text-white hover:bg-slate-800"
+                                                status === "uploading" ? "bg-[var(--site-surface-3)] text-[var(--site-muted)] cursor-not-allowed" : "bg-[var(--site-surface)] text-[var(--site-text)] hover:bg-[var(--site-surface-2)]"
                                             )}
                                         >
                                             {status === "uploading" ? (
@@ -5158,12 +5158,12 @@ function DashboardContent() {
                                                         className={cn(modalStyles.input, "flex items-center justify-between text-left")}
                                                     >
                                                         <div className="flex items-center">
-                                                            <Calendar className="w-5 h-5 text-[#CA9C68] mr-3" />
-                                                            <span className={eventDate ? "text-white" : "text-slate-400"}>
+                                                            <Calendar className="w-5 h-5 text-[var(--site-gold)] mr-3" />
+                                                            <span className={eventDate ? "text-[var(--site-text)]" : "text-[var(--site-muted)]"}>
                                                                 {eventDate || "Select event date"}
                                                             </span>
                                                         </div>
-                                                        <ChevronDown className="h-4 w-4 text-slate-400" />
+                                                        <ChevronDown className="h-4 w-4 text-[var(--site-muted)]" />
                                                     </button>
                                                 </div>
 
@@ -5206,21 +5206,21 @@ function DashboardContent() {
                                     onDragLeave={handleGalleryDrag}
                                     onDrop={handleGalleryDrop}
                                     className={cn(
-                                        "relative max-w-7xl mx-auto bg-slate-800 p-4 sm:p-8 lg:p-10 rounded-[2rem] shadow-xl border border-slate-700 font-serif transition-colors",
-                                        isDraggingPhotos && "border-[#CA9C68] bg-slate-800/95",
+                                        "relative max-w-7xl mx-auto bg-[var(--site-surface-2)] p-4 sm:p-8 lg:p-10 rounded-[2rem] shadow-xl border border-[var(--site-border)] font-serif transition-colors",
+                                        isDraggingPhotos && "border-[var(--site-gold)] bg-[var(--site-surface-2)]/95",
                                         isInlineEventDetailGalleryEditor && "mt-8"
                                     )}
                                 >
                                     {isDraggingPhotos && (
-                                        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-[2rem] border-2 border-dashed border-[#CA9C68] bg-slate-950/70 backdrop-blur-sm">
+                                        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-[2rem] border-2 border-dashed border-[var(--site-gold)] bg-[var(--site-bg)]/70 backdrop-blur-sm">
                                             <div className="flex flex-col items-center text-center">
-                                                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#CA9C68] text-slate-950 shadow-lg">
+                                                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--site-gold)] text-[var(--site-on-gold)] shadow-lg">
                                                     <Upload className="h-8 w-8" />
                                                 </div>
-                                                <p className="text-lg font-black text-white">
+                                                <p className="text-lg font-black text-[var(--site-text)]">
                                                     {galleryMediaTab === "videos" ? "Drop videos to upload" : "Drop images to upload"}
                                                 </p>
-                                                <p className="mt-1 text-sm font-bold text-slate-300">They will be added to {selectedEventName}</p>
+                                                <p className="mt-1 text-sm font-bold text-[var(--site-subtle)]">They will be added to {selectedEventName}</p>
                                             </div>
                                         </div>
                                     )}
@@ -5234,7 +5234,7 @@ function DashboardContent() {
                                             }
                                         }}
                                         className={cn(
-                                            "relative w-full h-64 md:h-80 rounded-[2rem] overflow-hidden mb-8 group/cover shadow-md border border-slate-700",
+                                            "relative w-full h-64 md:h-80 rounded-[2rem] overflow-hidden mb-8 group/cover shadow-md border border-[var(--site-border)]",
                                             activeSubEvent && coverPositionEvent?.id === activeSubEvent.id && "cursor-grab active:cursor-grabbing"
                                         )}
                                         onPointerDown={activeSubEvent && coverPositionEvent?.id === activeSubEvent.id ? handleCoverPointerDown : undefined}
@@ -5258,8 +5258,8 @@ function DashboardContent() {
                                             </div>
                                         )}
                                         {isCoverUpdating && (
-                                            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-slate-950/45 backdrop-blur-sm">
-                                                <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-slate-950/80 px-5 py-4 text-sm font-bold text-white shadow-2xl">
+                                            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-[var(--site-bg)]/45 backdrop-blur-sm">
+                                                <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-[var(--site-bg)]/80 px-5 py-4 text-sm font-bold text-[var(--site-text)] shadow-2xl">
                                                     <Loader2 className="h-5 w-5 animate-spin text-sky-300" />
                                                     <span>{message || "Updating your cover image..."}</span>
                                                 </div>
@@ -5269,7 +5269,7 @@ function DashboardContent() {
                                         {/* Floating Glassmorphic "Change Cover" Button */}
                                         {!coverPositionEvent && (
                                         <div className="absolute top-6 right-6 z-10">
-                                            <label className="flex items-center space-x-2 px-5 py-3 bg-slate-800/20 hover:bg-slate-800/30 active:bg-slate-800/40 backdrop-blur-md text-white rounded-full text-sm font-bold cursor-pointer transition-all border border-white/30 shadow-lg active:scale-95">
+                                            <label className="flex items-center space-x-2 px-5 py-3 bg-[var(--site-surface-2)]/20 hover:bg-[var(--site-surface-2)]/30 active:bg-[var(--site-surface-2)]/40 backdrop-blur-md text-[var(--site-text)] rounded-full text-sm font-bold cursor-pointer transition-all border border-white/30 shadow-lg active:scale-95">
                                                 <Camera className="w-4 h-4" />
                                                 <span>Change Cover</span>
                                                 <input
@@ -5285,7 +5285,7 @@ function DashboardContent() {
 
                                         {/* Information overlay */}
                                         <div className="absolute bottom-6 left-8 right-8 flex items-end justify-between">
-                                            <div className="text-white">
+                                            <div className="text-[var(--site-text)]">
                                                 <span className="text-[10px] font-sans font-bold uppercase tracking-[0.2em] text-sky-400">Sub-Event Cover</span>
                                                 <div className="flex items-center space-x-3 mt-1">
                                                     <h4 className="text-2xl md:text-3xl font-bold font-serif tracking-tight">{selectedEventName}</h4>
@@ -5295,14 +5295,14 @@ function DashboardContent() {
                                                                 handleRenameClick(e, activeSubEvent);
                                                             }
                                                         }}
-                                                        className="p-1.5 bg-slate-800/20 hover:bg-slate-800/30 backdrop-blur-md rounded-lg text-white transition-all active:scale-95 border border-white/20"
+                                                        className="p-1.5 bg-[var(--site-surface-2)]/20 hover:bg-[var(--site-surface-2)]/30 backdrop-blur-md rounded-lg text-[var(--site-text)] transition-all active:scale-95 border border-white/20"
                                                         title="Rename sub-event"
                                                     >
                                                         <Pencil className="w-3.5 h-3.5" />
                                                     </button>
                                                 </div>
                                                 {activeSubEvent?.date && (
-                                                    <p className="text-xs text-stone-200 mt-1.5 font-sans flex items-center gap-1.5">
+                                                    <p className="text-xs text-[var(--site-subtle)] mt-1.5 font-sans flex items-center gap-1.5">
                                                         <span className="inline-block w-1.5 h-1.5 rounded-full bg-royal-gold" />
                                                         {activeSubEvent.date}
                                                      </p>
@@ -5314,8 +5314,8 @@ function DashboardContent() {
 
                                     {/* Header bar: back, gallery title, gallery actions */}
                                     <div className={cn(
-                                        "mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-4 border-b border-slate-700 pb-5 sm:mb-8 md:grid-cols-[minmax(max-content,1fr)_minmax(0,auto)_minmax(max-content,1fr)] md:gap-x-6",
-                                        isInlineEventDetailGalleryEditor && "-mx-4 -mt-4 rounded-t-[2rem] bg-slate-950 px-4 pt-4 sm:-mx-8 sm:-mt-8 sm:px-8 sm:pt-6 lg:-mx-10 lg:-mt-10 lg:px-10"
+                                        "mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-4 border-b border-[var(--site-border)] pb-5 sm:mb-8 md:grid-cols-[minmax(max-content,1fr)_minmax(0,auto)_minmax(max-content,1fr)] md:gap-x-6",
+                                        isInlineEventDetailGalleryEditor && "-mx-4 -mt-4 rounded-t-[2rem] bg-[var(--site-bg)] px-4 pt-4 sm:-mx-8 sm:-mt-8 sm:px-8 sm:pt-6 lg:-mx-10 lg:-mt-10 lg:px-10"
                                     )}>
                                         <button
                                             type="button"
@@ -5333,14 +5333,14 @@ function DashboardContent() {
 
                                                 goBackOr(`/host?${fallbackParams.toString()}`);
                                             }}
-                                            className="col-start-1 row-start-1 inline-flex items-center gap-1.5 justify-self-start rounded-full py-2 pr-3 text-base font-semibold text-slate-300 transition-colors hover:text-white active:scale-95"
+                                            className="col-start-1 row-start-1 inline-flex items-center gap-1.5 justify-self-start rounded-full py-2 pr-3 text-base font-semibold text-[var(--site-subtle)] transition-colors hover:text-[var(--site-text)] active:scale-95"
                                         >
                                             <ChevronLeft className="h-5 w-5" />
                                             <span>Galleries</span>
                                         </button>
 
                                         <h3
-                                            className="col-span-2 row-start-2 min-w-0 truncate text-center font-serif text-2xl font-semibold tracking-tight text-[#F5EFE6] md:col-span-1 md:col-start-2 md:row-start-1 lg:text-[1.75rem]"
+                                            className="col-span-2 row-start-2 min-w-0 truncate text-center font-serif text-2xl font-semibold tracking-tight text-[var(--site-text)] md:col-span-1 md:col-start-2 md:row-start-1 lg:text-[1.75rem]"
                                             title={selectedEventName}
                                         >
                                             {selectedEventName}
@@ -5356,7 +5356,7 @@ function DashboardContent() {
                                                 disabled={isHostZipping || currentEventPhotos.length === 0}
                                                 aria-label={`Download ${galleryMediaTab === "videos" ? "videos" : "photos"} shown (.ZIP)`}
                                                 title={`Download ${isAnyGalleryFilterActive ? "the filtered " : "all "}${galleryMediaTab === "videos" ? "videos" : "photos"} in this gallery (.ZIP)`}
-                                                className="flex h-10 min-w-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-[#CA9C68]/60 bg-[#CA9C68]/10 px-2.5 font-sans text-sm font-black text-[#E2B77F] transition-colors hover:bg-[#CA9C68]/20 disabled:opacity-40 sm:h-12 sm:px-3.5"
+                                                className="flex h-10 min-w-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-[var(--site-gold)]/60 bg-[var(--site-gold)]/10 px-2.5 font-sans text-sm font-black text-[var(--site-gold)] transition-colors hover:bg-[var(--site-gold)]/20 disabled:opacity-40 sm:h-12 sm:px-3.5"
                                             >
                                                 {isHostZipping ? (
                                                     <>
@@ -5402,12 +5402,12 @@ function DashboardContent() {
                                     )}
 
                                     {isInlineEventDetailGalleryEditor && activeEventDetailEvent && (
-                                        <div className="mb-6 rounded-2xl border border-[#CA9C68]/55 bg-slate-950/40 p-4 sm:p-5">
+                                        <div className="mb-6 rounded-2xl border border-[var(--site-gold)]/55 bg-[var(--site-bg)]/40 p-4 sm:p-5">
                                             <div className="mb-3 flex items-center justify-between gap-4">
-                                                <p className="text-base font-semibold text-white">Welcome Message</p>
+                                                <p className="text-base font-semibold text-[var(--site-text)]">Welcome Message</p>
                                                 <span className={cn(
                                                     "text-sm",
-                                                    galleryMessageText.length >= 200 ? "text-rose-300" : "text-slate-400"
+                                                    galleryMessageText.length >= 200 ? "text-rose-300" : "text-[var(--site-muted)]"
                                                 )}>
                                                     {galleryMessageText.length}/200
                                                 </span>
@@ -5417,17 +5417,17 @@ function DashboardContent() {
                                                 onChange={(event) => setGalleryMessageText(event.target.value.slice(0, 200))}
                                                 placeholder="Write a brief, elegant welcome note..."
                                                 maxLength={200}
-                                                className="min-h-[7.5rem] w-full resize-none rounded-xl sm:min-h-[5.5rem] border border-[#CA9C68]/50 bg-slate-950/50 px-4 py-3 text-base leading-7 text-slate-100 outline-none transition-colors placeholder:text-slate-500 focus:border-[#CA9C68]"
+                                                className="min-h-[7.5rem] w-full resize-none rounded-xl sm:min-h-[5.5rem] border border-[var(--site-gold)]/50 bg-[var(--site-bg)]/50 px-4 py-3 text-base leading-7 text-[var(--site-text)] outline-none transition-colors placeholder:text-[var(--site-muted)] focus:border-[var(--site-gold)]"
                                             />
                                             <div className="mt-3 flex justify-end">
                                                 <button
                                                     onClick={handleSaveGalleryMessage}
                                                     disabled={!hasGalleryMessageChanges || status === "uploading"}
                                                     className={cn(
-                                                        "flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold transition-all active:scale-95",
+                                                        "flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-all active:scale-95",
                                                         hasGalleryMessageChanges && status !== "uploading"
-                                                            ? "bg-[#CA9C68] text-slate-950 hover:bg-[#D7AE7D]"
-                                                            : "border border-[#CA9C68]/25 bg-[#CA9C68]/10 text-[#CA9C68]/70"
+                                                            ? "home-btn-gold"
+                                                            : "border border-[var(--site-gold)]/25 bg-[var(--site-gold)]/10 text-[var(--site-gold)]/70"
                                                     )}
                                                 >
                                                     {status === "uploading" && message.toLowerCase().includes("gallery message") ? (
@@ -5465,7 +5465,7 @@ function DashboardContent() {
                                         />
                                     )}
 
-                                    <div className="mb-4 flex rounded-2xl border border-slate-700 bg-slate-900/60 p-1.5">
+                                    <div className="mb-4 flex rounded-2xl border border-[var(--site-border)] bg-[var(--site-surface)]/60 p-1.5">
                                         {mediaTabs.map(({ id, label, icon: Icon }) => {
                                             const active = galleryMediaTab === id;
                                             return (
@@ -5476,7 +5476,7 @@ function DashboardContent() {
                                                     aria-pressed={active}
                                                     className={cn(
                                                         "inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-semibold transition-colors",
-                                                        active ? "bg-[#CA9C68] text-slate-950 shadow-sm" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                                                        active ? "bg-[var(--site-gold)] text-[var(--site-on-gold)] shadow-sm" : "text-[var(--site-subtle)] hover:bg-[var(--site-surface-2)] hover:text-[var(--site-text)]"
                                                     )}
                                                 >
                                                     <Icon className="h-4 w-4" />
@@ -5496,24 +5496,24 @@ function DashboardContent() {
                                             className={cn(
                                                 "flex h-11 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors",
                                                 isGalleryFilterOpen || activeGalleryFilterCount > 0
-                                                    ? "border-[#CA9C68]/70 bg-[#CA9C68]/10 text-[#E2B77F]"
-                                                    : "border-slate-700 bg-slate-900/45 text-slate-100 hover:border-slate-500 hover:bg-slate-900/70"
+                                                    ? "border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10 text-[var(--site-gold)]"
+                                                    : "border-[var(--site-border)] bg-[var(--site-surface)]/45 text-[var(--site-text)] hover:border-[var(--site-gold)]/45 hover:bg-[var(--site-surface)]/70"
                                             )}
                                         >
-                                            <SlidersHorizontal className="h-4 w-4 shrink-0 text-[#CA9C68]" />
+                                            <SlidersHorizontal className="h-4 w-4 shrink-0 text-[var(--site-gold)]" />
                                             <span>Filter</span>
                                             {activeGalleryFilterCount > 0 && (
-                                                <span className="min-w-5 rounded-md bg-[#CA9C68] px-1.5 py-0.5 text-center font-sans text-xs font-bold text-slate-950">{activeGalleryFilterCount}</span>
+                                                <span className="min-w-5 rounded-md bg-[var(--site-gold)] px-1.5 py-0.5 text-center font-sans text-xs font-bold text-[var(--site-on-gold)]">{activeGalleryFilterCount}</span>
                                             )}
                                             <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", isGalleryFilterOpen && "rotate-180")} />
                                         </button>
                                         {/* Source gallery (or Favourites only), Uploaded by and Select */}
                                         {isGalleryFilterOpen && (
-                                        <div role="dialog" aria-label="Gallery filters" className="absolute left-0 top-full z-30 mt-2 flex w-[min(21rem,calc(100vw-2rem))] flex-col gap-3 rounded-2xl border border-slate-700 bg-slate-950 p-3 shadow-2xl shadow-black/50">
+                                        <div role="dialog" aria-label="Gallery filters" className="absolute left-0 top-full z-30 mt-2 flex w-[min(21rem,calc(100vw-2rem))] flex-col gap-3 rounded-2xl border border-[var(--site-border)] bg-[var(--site-bg)] p-3 shadow-2xl shadow-black/50">
                                         {isPrimaryGalleryView ? (
-                                        <div className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Filter Primary Gallery media by origin">
-                                            <Layers3 className="h-4 w-4 shrink-0 text-[#CA9C68]" />
-                                            <span className="flex-1 whitespace-nowrap text-sm font-semibold text-slate-100">Source gallery</span>
+                                        <div className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-[var(--site-border)] bg-[var(--site-surface)]/45 pl-3 pr-1.5" title="Filter Primary Gallery media by origin">
+                                            <Layers3 className="h-4 w-4 shrink-0 text-[var(--site-gold)]" />
+                                            <span className="flex-1 whitespace-nowrap text-sm font-semibold text-[var(--site-text)]">Source gallery</span>
                                             <FilterDropdown
                                                 value={effectiveSourceGalleryFilter}
                                                 onChange={setSourceGalleryFilter}
@@ -5534,21 +5534,21 @@ function DashboardContent() {
                                             className={cn(
                                                 "flex h-11 w-full items-center gap-2 rounded-xl border pl-3 pr-2 text-left transition-colors",
                                                 showOnlyFavourites
-                                                    ? "border-[#CA9C68]/70 bg-[#CA9C68]/10"
-                                                    : "border-slate-700 bg-slate-900/45 hover:border-slate-500 hover:bg-slate-900/70"
+                                                    ? "border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10"
+                                                    : "border-[var(--site-border)] bg-[var(--site-surface)]/45 hover:border-[var(--site-gold)]/45 hover:bg-[var(--site-surface)]/70"
                                             )}
                                         >
-                                            <Star className={cn("h-4 w-4 shrink-0", showOnlyFavourites ? "fill-current text-[#E2B77F]" : "text-slate-200")} />
-                                            <span className={cn("whitespace-nowrap text-sm font-semibold", showOnlyFavourites ? "text-[#E2B77F]" : "text-slate-100")}>
+                                            <Star className={cn("h-4 w-4 shrink-0", showOnlyFavourites ? "fill-current text-[var(--site-gold)]" : "text-[var(--site-text)]")} />
+                                            <span className={cn("whitespace-nowrap text-sm font-semibold", showOnlyFavourites ? "text-[var(--site-gold)]" : "text-[var(--site-text)]")}>
                                                 Favourites only
                                             </span>
                                             <span className={cn(
                                                 "min-w-6 rounded-md px-1.5 py-0.5 text-center font-sans text-xs font-bold",
-                                                showOnlyFavourites ? "bg-[#CA9C68] text-slate-950" : "bg-white/10 text-slate-300"
+                                                showOnlyFavourites ? "bg-[var(--site-gold)] text-[var(--site-on-gold)]" : "bg-white/10 text-[var(--site-subtle)]"
                                             )}>
                                                 {activeFavouriteCount}
                                             </span>
-                                            <span className={cn("relative ml-0.5 h-5 w-9 shrink-0 rounded-full transition-colors", showOnlyFavourites ? "bg-[#CA9C68]" : "bg-slate-700")}>
+                                            <span className={cn("relative ml-0.5 h-5 w-9 shrink-0 rounded-full transition-colors", showOnlyFavourites ? "bg-[var(--site-gold)]" : "bg-[var(--site-surface-3)]")}>
                                                 <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform", showOnlyFavourites ? "translate-x-[18px]" : "translate-x-0.5")} />
                                             </span>
                                         </button>
@@ -5556,11 +5556,11 @@ function DashboardContent() {
 
                                         {/* Uploaded by: owner, admins and guests who uploaded here. Picking someone loads the whole gallery first. */}
                                         {showUploaderFilter && (
-                                        <div className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Show only what one person uploaded">
+                                        <div className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-[var(--site-border)] bg-[var(--site-surface)]/45 pl-3 pr-1.5" title="Show only what one person uploaded">
                                             {loadingAllMedia
-                                                ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#CA9C68]" />
-                                                : <Users className="h-4 w-4 shrink-0 text-[#CA9C68]" />}
-                                            <span className="flex-1 whitespace-nowrap text-sm font-semibold text-slate-100">Uploaded by</span>
+                                                ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--site-gold)]" />
+                                                : <Users className="h-4 w-4 shrink-0 text-[var(--site-gold)]" />}
+                                            <span className="flex-1 whitespace-nowrap text-sm font-semibold text-[var(--site-text)]">Uploaded by</span>
                                             <FilterDropdown
                                                 value={effectiveUploaderFilter}
                                                 onOpen={() => void loadAllEventPhotos()}
@@ -5574,16 +5574,16 @@ function DashboardContent() {
                                         </div>
                                         )}
                                         {galleryViewMode === "grid" && activeGalleryItems.length > 0 && !isSelectingMedia && (
-                                        <div className="border-t border-slate-800 pt-3">
+                                        <div className="border-t border-[var(--site-line)] pt-3">
                                             <button
                                                 type="button"
                                                 onClick={() => { setIsSelectingMedia(true); setIsGalleryFilterOpen(false); }}
-                                                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-4 text-sm font-semibold text-[#CA9C68] hover:bg-[#CA9C68]/20"
+                                                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--site-gold)]/40 bg-[var(--site-gold)]/10 px-4 text-sm font-semibold text-[var(--site-gold)] hover:bg-[var(--site-gold)]/20"
                                             >
                                                 <CheckSquare className="h-4 w-4" />
                                                 <span>Select</span>
                                             </button>
-                                            <p className="mt-2 text-xs text-slate-400">
+                                            <p className="mt-2 text-xs text-[var(--site-muted)]">
                                                 {canMoveMedia ? "Select items to move them to another gallery or save copies to EB Vault." : "Select items to save copies to your EB Vault."}
                                             </p>
                                         </div>
@@ -5593,7 +5593,7 @@ function DashboardContent() {
                                         </div>
 
                                         {/* View Toggle */}
-                                        <div className="flex h-11 items-center rounded-xl border border-slate-700 bg-slate-900/60 p-1">
+                                        <div className="flex h-11 items-center rounded-xl border border-[var(--site-border)] bg-[var(--site-surface)]/60 p-1">
                                             <button
                                                 type="button"
                                                 onClick={() => setGalleryViewMode("grid")}
@@ -5602,7 +5602,7 @@ function DashboardContent() {
                                                 aria-pressed={galleryViewMode === "grid"}
                                                 className={cn(
                                                     "grid h-9 w-9 place-items-center rounded-lg transition-colors",
-                                                    galleryViewMode === "grid" ? "bg-[#CA9C68]/20 text-[#E2B77F]" : "text-slate-400 hover:text-white"
+                                                    galleryViewMode === "grid" ? "bg-[var(--site-gold)]/20 text-[var(--site-gold)]" : "text-[var(--site-muted)] hover:text-[var(--site-text)]"
                                                 )}
                                             >
                                                 <LayoutGrid className="h-4 w-4" />
@@ -5615,7 +5615,7 @@ function DashboardContent() {
                                                 aria-pressed={galleryViewMode === "list"}
                                                 className={cn(
                                                     "grid h-9 w-9 place-items-center rounded-lg transition-colors",
-                                                    galleryViewMode === "list" ? "bg-[#CA9C68]/20 text-[#E2B77F]" : "text-slate-400 hover:text-white"
+                                                    galleryViewMode === "list" ? "bg-[var(--site-gold)]/20 text-[var(--site-gold)]" : "text-[var(--site-muted)] hover:text-[var(--site-text)]"
                                                 )}
                                             >
                                                 <List className="h-4 w-4" />
@@ -5624,8 +5624,8 @@ function DashboardContent() {
                                     </div>
 
                                     {galleryViewMode === "grid" && activeGalleryItems.length > 0 && isSelectingMedia && (
-                                        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900/45 px-4 py-3 sm:px-5">
-                                            <span className="text-sm font-bold text-slate-200" aria-live="polite">
+                                        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--site-border)] bg-[var(--site-surface)]/45 px-4 py-3 sm:px-5">
+                                            <span className="text-sm font-bold text-[var(--site-text)]" aria-live="polite">
                                                 {selectedMediaIds.size} selected
                                             </span>
                                             <div className="flex flex-wrap items-center gap-2">
@@ -5636,7 +5636,7 @@ function DashboardContent() {
                                                             ? new Set()
                                                             : new Set(activeGalleryItems.map(item => item.id))
                                                     )}
-                                                    className="rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400"
+                                                    className="rounded-full home-btn-glass px-4 py-2 text-sm font-semibold"
                                                 >
                                                     {selectedMediaIds.size === activeGalleryItems.length ? "Clear" : "Select all"}
                                                 </button>
@@ -5645,7 +5645,7 @@ function DashboardContent() {
                                                         type="button"
                                                         disabled={selectedMediaIds.size === 0}
                                                         onClick={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
-                                                        className="flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-40"
+                                                        className="flex items-center gap-2 rounded-full home-btn-gold px-4 py-2 text-sm font-semibold disabled:opacity-40"
                                                     >
                                                         <FolderInput className="h-4 w-4" />
                                                         <span>Move to…</span>
@@ -5664,7 +5664,7 @@ function DashboardContent() {
                                                     type="button"
                                                     disabled={selectedMediaIds.size === 0}
                                                     onClick={() => void handleSetMediaHidden(Array.from(selectedMediaIds), true)}
-                                                    className="flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400 disabled:opacity-40"
+                                                    className="flex items-center gap-2 rounded-full home-btn-glass px-4 py-2 text-sm font-semibold disabled:opacity-40"
                                                 >
                                                     <EyeOff className="h-4 w-4" />
                                                     <span>Hide from guests</span>
@@ -5673,7 +5673,7 @@ function DashboardContent() {
                                                     type="button"
                                                     disabled={selectedMediaIds.size === 0}
                                                     onClick={() => void handleSetMediaHidden(Array.from(selectedMediaIds), false)}
-                                                    className="flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400 disabled:opacity-40"
+                                                    className="flex items-center gap-2 rounded-full home-btn-glass px-4 py-2 text-sm font-semibold disabled:opacity-40"
                                                 >
                                                     <Eye className="h-4 w-4" />
                                                     <span>Show to guests</span>
@@ -5690,7 +5690,7 @@ function DashboardContent() {
                                                 <button
                                                     type="button"
                                                     onClick={exitMediaSelection}
-                                                    className="rounded-full px-3 py-2 text-sm font-semibold text-slate-400 hover:text-white"
+                                                    className="rounded-full px-3 py-2 text-sm font-semibold text-[var(--site-muted)] hover:text-[var(--site-text)]"
                                                 >
                                                     Cancel
                                                 </button>
@@ -5705,7 +5705,7 @@ function DashboardContent() {
                                                 layout
                                                 className={cn(
                                                     "group relative flex aspect-square cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-3 text-center transition-colors",
-                                                    status === "uploading" ? "border-[#CA9C68] bg-[#CA9C68]/5" : "border-[#CA9C68]/55 bg-slate-900/50 hover:border-[#CA9C68] hover:bg-slate-900/70"
+                                                    status === "uploading" ? "border-[var(--site-gold)] bg-[var(--site-gold)]/5" : "border-[var(--site-gold)]/55 bg-[var(--site-surface)]/50 hover:border-[var(--site-gold)] hover:bg-[var(--site-surface)]/70"
                                                 )}
                                                 title="Click to select photos to upload"
                                             >
@@ -5723,8 +5723,8 @@ function DashboardContent() {
                                                         <span className="text-sm font-semibold">Adding...</span>
                                                     </div>
                                                 ) : (
-                                                    <div className="flex flex-col items-center gap-4 text-slate-200 transition-colors group-hover:text-white">
-                                                        <span className="grid h-14 w-14 place-items-center rounded-2xl border border-[#CA9C68]/70 bg-[#CA9C68]/10 text-[#F1D3A8] shadow-[0_0_28px_rgba(202,156,104,0.35)] transition-all group-hover:bg-[#CA9C68]/20 group-hover:shadow-[0_0_36px_rgba(202,156,104,0.5)] sm:h-16 sm:w-16">
+                                                    <div className="flex flex-col items-center gap-4 text-[var(--site-text)] transition-colors group-hover:text-[var(--site-text)]">
+                                                        <span className="grid h-14 w-14 place-items-center rounded-2xl border border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10 text-[var(--site-gold-light)] shadow-[0_0_28px_rgba(202,156,104,0.35)] transition-all group-hover:bg-[var(--site-gold)]/20 group-hover:shadow-[0_0_36px_rgba(202,156,104,0.5)] sm:h-16 sm:w-16">
                                                             <Plus className="h-7 w-7 sm:h-8 sm:w-8" />
                                                         </span>
                                                         <span className="text-sm font-medium sm:text-base">
@@ -5746,9 +5746,9 @@ function DashboardContent() {
                                                         key={photo.id}
                                                         layout
                                                         className={cn(
-                                                            "group relative aspect-square rounded-2xl bg-slate-900 shadow-md shadow-black/20 border border-slate-700",
+                                                            "group relative aspect-square rounded-2xl bg-[var(--site-surface)] shadow-md shadow-black/20 border border-[var(--site-border)]",
                                                             isSelectingMedia ? "cursor-pointer" : "cursor-zoom-in",
-                                                            isSelectingMedia && selectedMediaIds.has(photo.id) && "ring-2 ring-[#CA9C68] ring-offset-2 ring-offset-[#2B2F2E]"
+                                                            isSelectingMedia && selectedMediaIds.has(photo.id) && "ring-2 ring-[var(--site-gold)] ring-offset-2 ring-offset-[var(--site-surface-2)]"
                                                         )}
                                                         role={isSelectingMedia ? "checkbox" : undefined}
                                                         aria-checked={isSelectingMedia ? selectedMediaIds.has(photo.id) : undefined}
@@ -5785,14 +5785,14 @@ function DashboardContent() {
                                                             />
                                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                             {isVideo && galleryOfMedia(photo)?.galleryVideoId === photo.id && (
-                                                                <span className="pointer-events-none absolute left-2.5 top-2.5 z-[1] flex items-center gap-1 rounded-full border border-[#CA9C68]/60 bg-slate-950/80 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#F5E7D4] backdrop-blur-sm">
-                                                                    <Clapperboard className="h-3 w-3 text-[#CA9C68]" aria-hidden="true" />
+                                                                <span className="pointer-events-none absolute left-2.5 top-2.5 z-[1] flex items-center gap-1 rounded-full border border-[var(--site-gold)]/60 bg-[var(--site-bg)]/80 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--site-text)] backdrop-blur-sm">
+                                                                    <Clapperboard className="h-3 w-3 text-[var(--site-gold)]" aria-hidden="true" />
                                                                     Cinematic highlight
                                                                 </span>
                                                             )}
                                                             {photo.isHidden && (
                                                                 <>
-                                                                    <div className="pointer-events-none absolute inset-0 bg-slate-950/55" />
+                                                                    <div className="pointer-events-none absolute inset-0 bg-[var(--site-bg)]/55" />
                                                                     <span className="pointer-events-none absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-full border border-white/20 bg-black/70 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white backdrop-blur-sm">
                                                                         <EyeOff className="h-3 w-3" aria-hidden="true" />
                                                                         Hidden
@@ -5800,9 +5800,9 @@ function DashboardContent() {
                                                                 </>
                                                             )}
                                                             {shouldBlurMediaForPlan && (
-                                                                <div className="pointer-events-none absolute left-1/2 top-14 z-20 w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-2xl border border-[#CA9C68]/50 bg-slate-950/95 px-3 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.08em] text-[#F5E7D4] shadow-2xl shadow-black/50 backdrop-blur-md">
+                                                                <div className="pointer-events-none absolute left-1/2 top-14 z-20 w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-2xl border border-[var(--site-gold)]/50 bg-[var(--site-bg)]/95 px-3 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.08em] text-[var(--site-text)] shadow-2xl shadow-black/50 backdrop-blur-md">
                                                                     Plan expired<br />
-                                                                    <span className="text-[9px] text-[#D7AE7D]/90">May be deleted after grace period</span>
+                                                                    <span className="text-[9px] text-[var(--site-gold-light)]/90">May be deleted after grace period</span>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -5812,15 +5812,15 @@ function DashboardContent() {
                                                             <div
                                                                 role="status"
                                                                 onClick={(e) => e.stopPropagation()}
-                                                                className="absolute inset-0 z-30 flex cursor-wait flex-col items-center justify-center gap-2 rounded-2xl bg-slate-950/75 text-rose-200 backdrop-blur-[2px]"
+                                                                className="absolute inset-0 z-30 flex cursor-wait flex-col items-center justify-center gap-2 rounded-2xl bg-[var(--site-bg)]/75 text-rose-200 backdrop-blur-[2px]"
                                                             >
                                                                 <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
                                                                 <span className="text-[11px] font-bold uppercase tracking-[0.12em]">Deleting {isVideo ? "video" : "photo"}...</span>
                                                             </div>
                                                         )}
                                                         {isSelectingMedia ? (
-                                                            <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-lg bg-slate-950/80 p-1.5 text-[#CA9C68] shadow-lg">
-                                                                {selectedMediaIds.has(photo.id) ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5 text-white" />}
+                                                            <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-lg bg-[var(--site-bg)]/80 p-1.5 text-[var(--site-gold)] shadow-lg">
+                                                                {selectedMediaIds.has(photo.id) ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5 text-[var(--site-text)]" />}
                                                             </div>
                                                         ) : (<>
                                                         <div className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1.5">
@@ -5832,7 +5832,7 @@ function DashboardContent() {
                                                                         e.stopPropagation();
                                                                         handleDeletePhoto(photo.id);
                                                                     }}
-                                                                    className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950/70 text-rose-300 shadow-lg backdrop-blur-md opacity-0 transition-all active:scale-95 group-hover:opacity-100 hover:bg-rose-500 hover:text-white"
+                                                                    className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--site-bg)]/70 text-rose-300 shadow-lg backdrop-blur-md opacity-0 transition-all active:scale-95 group-hover:opacity-100 hover:bg-rose-500 hover:text-white"
                                                                 >
                                                                     <Trash2 className="h-4 w-4" />
                                                                 </button>
@@ -5849,8 +5849,8 @@ function DashboardContent() {
                                                                 className={cn(
                                                                     "grid h-9 w-9 place-items-center rounded-lg shadow-lg backdrop-blur-md transition-all active:scale-95",
                                                                     photo.isHidden
-                                                                        ? "bg-[#CA9C68] text-slate-950"
-                                                                        : "bg-slate-950/70 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[#CA9C68] hover:text-slate-950"
+                                                                        ? "bg-[var(--site-gold)] text-[var(--site-on-gold)]"
+                                                                        : "bg-[var(--site-bg)]/70 text-[var(--site-text)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[var(--site-gold)] hover:text-[var(--site-on-gold)]"
                                                                 )}
                                                             >
                                                                 {photo.isHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -5866,8 +5866,8 @@ function DashboardContent() {
                                                                 className={cn(
                                                                     "grid h-9 w-9 place-items-center rounded-lg shadow-lg backdrop-blur-md transition-all active:scale-95",
                                                                     isFavourite
-                                                                        ? "bg-[#CA9C68] text-slate-950"
-                                                                        : "bg-slate-950/70 text-white hover:bg-[#CA9C68] hover:text-slate-950"
+                                                                        ? "bg-[var(--site-gold)] text-[var(--site-on-gold)]"
+                                                                        : "bg-[var(--site-bg)]/70 text-[var(--site-text)] hover:bg-[var(--site-gold)] hover:text-[var(--site-on-gold)]"
                                                                 )}
                                                             >
                                                                 <Star className={cn("h-4 w-4", isFavourite && "fill-current")} />
@@ -5879,13 +5879,13 @@ function DashboardContent() {
                                                                     e.stopPropagation();
                                                                     isVideo ? setVideoActionItem(photo) : setPhotoActionItem(photo);
                                                                 }}
-                                                                className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950/70 text-white shadow-lg backdrop-blur-md transition-all active:scale-90 hover:bg-slate-950/90"
+                                                                className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--site-bg)]/70 text-[var(--site-text)] shadow-lg backdrop-blur-md transition-all active:scale-90 hover:bg-[var(--site-bg)]/90"
                                                             >
                                                                 <MoreHorizontal className="h-4 w-4" />
                                                             </button>
                                                         </div>
                                                         {!isFavouriteFilterActive && !isUploaderFilterActive && activeGalleryItems.length > 1 && (
-                                                            <div className="absolute bottom-2.5 left-2.5 z-10 flex overflow-hidden rounded-lg border border-white/10 bg-slate-950/70 font-sans text-white shadow-lg backdrop-blur-md">
+                                                            <div className="absolute bottom-2.5 left-2.5 z-10 flex overflow-hidden rounded-lg border border-white/10 bg-[var(--site-bg)]/70 font-sans text-[var(--site-text)] shadow-lg backdrop-blur-md">
                                                                 <button
                                                                     type="button"
                                                                     onClick={(e) => {
@@ -5905,7 +5905,7 @@ function DashboardContent() {
                                                                         moveGalleryMedia(photo.id, 1);
                                                                     }}
                                                                     disabled={index === activeGalleryItems.length - 1}
-                                                                    className="border-l border-slate-700 px-3 py-2 text-xs font-black disabled:opacity-30"
+                                                                    className="border-l border-[var(--site-border)] px-3 py-2 text-xs font-black disabled:opacity-30"
                                                                     aria-label="Move media forward"
                                                                 >
                                                                     ↓
@@ -5921,7 +5921,7 @@ function DashboardContent() {
                                             {/* Loading Skeletons for current fetching */}
                                             {loadingPhotos && activeGalleryItems.length === 0 && (
                                                 Array.from({ length: 4 }).map((_, i) => (
-                                                    <div key={i} className="aspect-square bg-slate-900/50 rounded-2xl animate-pulse border border-slate-700" />
+                                                    <div key={i} className="aspect-square bg-[var(--site-surface)]/50 rounded-2xl animate-pulse border border-[var(--site-border)]" />
                                                 ))
                                             )}
                                         </div>
@@ -5931,7 +5931,7 @@ function DashboardContent() {
                                             {!isFavouriteFilterActive && (galleryMediaTab !== "videos" || canPostVideos) && <motion.label
                                                 className={cn(
                                                     "flex items-center p-5 sm:p-6 border-2 border-dashed rounded-2xl cursor-pointer transition-colors group",
-                                                    status === "uploading" ? "border-[#CA9C68] bg-[#CA9C68]/5" : "border-[#CA9C68]/55 bg-slate-900/50 hover:border-[#CA9C68] hover:bg-slate-900/70"
+                                                    status === "uploading" ? "border-[var(--site-gold)] bg-[var(--site-gold)]/5" : "border-[var(--site-gold)]/55 bg-[var(--site-surface)]/50 hover:border-[var(--site-gold)] hover:bg-[var(--site-surface)]/70"
                                                 )}
                                             >
                                                 <input
@@ -5942,7 +5942,7 @@ function DashboardContent() {
                                                     className="hidden"
                                                     disabled={status === "uploading"}
                                                 />
-                                                <div className="mr-5 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#CA9C68]/70 bg-[#CA9C68]/10 text-[#F1D3A8] shadow-[0_0_24px_rgba(202,156,104,0.3)] transition-all group-hover:bg-[#CA9C68]/20 sm:mr-6">
+                                                <div className="mr-5 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10 text-[var(--site-gold-light)] shadow-[0_0_24px_rgba(202,156,104,0.3)] transition-all group-hover:bg-[var(--site-gold)]/20 sm:mr-6">
                                                     {status === "uploading" ? (
                                                         <Loader2 className="w-6 h-6 text-sky-400 animate-spin" />
                                                     ) : (
@@ -5950,27 +5950,27 @@ function DashboardContent() {
                                                     )}
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold text-slate-200">
+                                                    <p className="font-bold text-[var(--site-text)]">
                                                         {galleryMediaTab === "videos" ? "Add New Videos" : "Add New Photos"}
                                                     </p>
-                                                    <p className="text-sm text-slate-400">
+                                                    <p className="text-sm text-[var(--site-muted)]">
                                                         {galleryMediaTab === "videos" ? "Click to upload videos, or drag them here" : "Click to upload memories, or drag images here"}
                                                     </p>
                                                 </div>
                                             </motion.label>}
 
-                                            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-sm">
+                                            <div className="bg-[var(--site-surface-2)] rounded-2xl border border-[var(--site-border)] overflow-hidden shadow-sm">
                                                 <div className="overflow-x-auto">
                                                     <table className="w-full text-left border-collapse">
                                                         <thead>
-                                                            <tr className="bg-slate-900/50/50 border-b border-slate-700">
-                                                                <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">Preview</th>
-                                                                <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">Technical Details</th>
-                                                                <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">Metadata</th>
-                                                                <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                                                            <tr className="bg-[var(--site-surface)]/50/50 border-b border-[var(--site-border)]">
+                                                                <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-[var(--site-muted)]">Preview</th>
+                                                                <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-[var(--site-muted)]">Technical Details</th>
+                                                                <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-[var(--site-muted)]">Metadata</th>
+                                                                <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-[var(--site-muted)] text-right">Actions</th>
                                                             </tr>
                                                         </thead>
-                                                        <tbody className="divide-y divide-stone-50">
+                                                        <tbody className="divide-y divide-[var(--site-line)]">
                                                             {activeGalleryItems.map((photo, index) => {
                                                                 const isVideo = photo.mediaType === "video" || photo.resourceType === "video";
                                                                 const isCover = stripUrlQuery(userEvents.find(ev => ev.id === selectedEventId)?.coverImage) === stripUrlQuery(photo.url);
@@ -6005,10 +6005,10 @@ function DashboardContent() {
                                                                 };
 
                                                                 return (
-                                                                    <tr key={photo.id} aria-busy={deletingIds.has(photo.id) || undefined} className={cn("hover:bg-slate-900/50/50 transition-colors group", deletingIds.has(photo.id) && "pointer-events-none animate-pulse opacity-40")}>
+                                                                    <tr key={photo.id} aria-busy={deletingIds.has(photo.id) || undefined} className={cn("hover:bg-[var(--site-surface)]/50/50 transition-colors group", deletingIds.has(photo.id) && "pointer-events-none animate-pulse opacity-40")}>
                                                                         <td className="px-8 py-6">
                                                                             <div
-                                                                                className="w-32 h-32 rounded-[1.5rem] overflow-hidden cursor-zoom-in shadow-md border border-slate-700 group-hover:scale-105 transition-transform"
+                                                                                className="w-32 h-32 rounded-[1.5rem] overflow-hidden cursor-zoom-in shadow-md border border-[var(--site-border)] group-hover:scale-105 transition-transform"
                                                                                 onClick={() => {
                                                                                     setViewingPhoto({
                                                                                         id: photo.id,
@@ -6031,9 +6031,9 @@ function DashboardContent() {
                                                                                     onThumbnailLoaded={handleThumbnailLoaded}
                                                                                 />
                                                                                 {shouldBlurMediaForPlan && (
-                                                                                    <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[calc(100%-1rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-[#CA9C68]/50 bg-slate-950/95 px-2 py-2 text-center text-[9px] font-black uppercase leading-4 tracking-[0.08em] text-[#F5E7D4] shadow-2xl shadow-black/50 backdrop-blur-md">
+                                                                                    <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[calc(100%-1rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-[var(--site-gold)]/50 bg-[var(--site-bg)]/95 px-2 py-2 text-center text-[9px] font-black uppercase leading-4 tracking-[0.08em] text-[var(--site-text)] shadow-2xl shadow-black/50 backdrop-blur-md">
                                                                                         Plan expired<br />
-                                                                                        <span className="text-[8px] text-[#D7AE7D]/90">May be deleted after grace period</span>
+                                                                                        <span className="text-[8px] text-[var(--site-gold-light)]/90">May be deleted after grace period</span>
                                                                                     </div>
                                                                                 )}
                                                                             </div>
@@ -6041,26 +6041,26 @@ function DashboardContent() {
                                                                         <td className="px-8 py-6">
                                                                             <div className="space-y-1.5">
                                                                                 <div className="flex items-center text-xs">
-                                                                                    <span className="text-slate-400 w-20">Resolution:</span>
-                                                                                    <span className="font-bold text-slate-200">{photo.width && photo.height ? `${photo.width} × ${photo.height}` : 'N/A'}</span>
+                                                                                    <span className="text-[var(--site-muted)] w-20">Resolution:</span>
+                                                                                    <span className="font-bold text-[var(--site-text)]">{photo.width && photo.height ? `${photo.width} × ${photo.height}` : 'N/A'}</span>
                                                                                 </div>
                                                                                 <div className="flex items-center text-xs">
-                                                                                    <span className="text-slate-400 w-20">File Size:</span>
-                                                                                    <span className={cn("font-bold text-slate-200", !photo.size && "text-slate-400 font-normal italic")}>
+                                                                                    <span className="text-[var(--site-muted)] w-20">File Size:</span>
+                                                                                    <span className={cn("font-bold text-[var(--site-text)]", !photo.size && "text-[var(--site-muted)] font-normal italic")}>
                                                                                         {formatSize(photo.size)}
                                                                                     </span>
                                                                                 </div>
                                                                                 <div className="flex items-center text-xs">
-                                                                                    <span className="text-slate-400 w-20">Format:</span>
-                                                                                    <span className="font-bold text-slate-200 uppercase">{displayFormat || 'N/A'}</span>
+                                                                                    <span className="text-[var(--site-muted)] w-20">Format:</span>
+                                                                                    <span className="font-bold text-[var(--site-text)] uppercase">{displayFormat || 'N/A'}</span>
                                                                                 </div>
                                                                             </div>
                                                                         </td>
                                                                         <td className="px-8 py-6">
                                                                             <div className="space-y-1.5">
                                                                                 <div className="flex items-center text-xs">
-                                                                                    <span className="text-slate-400 w-20">Added On:</span>
-                                                                                    <span className="font-bold text-slate-200">{dateAdded}</span>
+                                                                                    <span className="text-[var(--site-muted)] w-20">Added On:</span>
+                                                                                    <span className="font-bold text-[var(--site-text)]">{dateAdded}</span>
                                                                                 </div>
                                                                                 <div className="flex items-center space-x-2 pt-1">
                                                                                     {!isVideo && isCover && (
@@ -6069,7 +6069,7 @@ function DashboardContent() {
                                                                                         </span>
                                                                                     )}
                                                                                     {!isVideo && stripUrlQuery(selectedMainEvent?.coverImage) === stripUrlQuery(photo.url) && (
-                                                                                        <span className="px-2 py-0.5 bg-slate-900/10 text-white text-[9px] font-bold uppercase rounded-md border border-slate-900/20">
+                                                                                        <span className="px-2 py-0.5 bg-[var(--site-surface)]/10 text-[var(--site-text)] text-[9px] font-bold uppercase rounded-md border border-[var(--site-line)]/20">
                                                                                             Event Thumb
                                                                                         </span>
                                                                                     )}
@@ -6079,12 +6079,12 @@ function DashboardContent() {
                                                                         <td className="px-8 py-6 text-right">
                                                                             <div className="flex items-center justify-end space-x-2">
                                                                                 {!isFavouriteFilterActive && !isUploaderFilterActive && activeGalleryItems.length > 1 && (
-                                                                                    <div className="flex overflow-hidden rounded-xl border border-slate-700 bg-slate-800">
+                                                                                    <div className="flex overflow-hidden rounded-xl border border-[var(--site-border)] bg-[var(--site-surface-2)]">
                                                                                         <button
                                                                                             type="button"
                                                                                             onClick={() => moveGalleryMedia(photo.id, -1)}
                                                                                             disabled={index === 0}
-                                                                                            className="px-3 py-2 text-xs font-black text-slate-300 disabled:opacity-30"
+                                                                                            className="px-3 py-2 text-xs font-black text-[var(--site-subtle)] disabled:opacity-30"
                                                                                             aria-label="Move media backward"
                                                                                         >
                                                                                             ↑
@@ -6093,7 +6093,7 @@ function DashboardContent() {
                                                                                             type="button"
                                                                                             onClick={() => moveGalleryMedia(photo.id, 1)}
                                                                                             disabled={index === activeGalleryItems.length - 1}
-                                                                                            className="border-l border-slate-700 px-3 py-2 text-xs font-black text-slate-300 disabled:opacity-30"
+                                                                                            className="border-l border-[var(--site-border)] px-3 py-2 text-xs font-black text-[var(--site-subtle)] disabled:opacity-30"
                                                                                             aria-label="Move media forward"
                                                                                         >
                                                                                             ↓
@@ -6104,7 +6104,7 @@ function DashboardContent() {
                                                                                     <button
                                                                                         aria-label={isVideo ? "Video actions" : "Photo actions"}
                                                                                         onClick={() => isVideo ? setVideoActionItem(photo) : setPhotoActionItem(photo)}
-                                                                                        className="p-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 transition-all active:scale-95 hover:bg-slate-700 hover:text-white"
+                                                                                        className="p-2.5 rounded-xl border border-[var(--site-border)] bg-[var(--site-surface-2)] text-[var(--site-subtle)] transition-all active:scale-95 hover:bg-[var(--site-surface-3)] hover:text-[var(--site-text)]"
                                                                                     >
                                                                                         <MoreHorizontal className="w-4 h-4" />
                                                                                     </button>
@@ -6115,8 +6115,8 @@ function DashboardContent() {
                                                                                             className={cn(
                                                                                                 "p-2.5 rounded-xl border transition-all active:scale-95",
                                                                                                 isFavourite
-                                                                                                    ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950"
-                                                                                                    : "border-slate-700 bg-slate-800 text-slate-300 hover:bg-[#CA9C68] hover:text-slate-950"
+                                                                                                    ? "border-[var(--site-gold)] bg-[var(--site-gold)] text-[var(--site-on-gold)]"
+                                                                                                    : "border-[var(--site-border)] bg-[var(--site-surface-2)] text-[var(--site-subtle)] hover:bg-[var(--site-gold)] hover:text-[var(--site-on-gold)]"
                                                                                             )}
                                                                                         >
                                                                                             <Star className={cn("w-4 h-4", isFavourite && "fill-current")} />
@@ -6125,7 +6125,7 @@ function DashboardContent() {
                                                                                 <Tooltip text={isVideo ? "Delete Video" : "Delete Image"}>
                                                                                     <button
                                                                                         onClick={() => handleDeletePhoto(photo.id)}
-                                                                                        className="p-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-400 transition-all active:scale-95 hover:bg-red-50 hover:text-red-500"
+                                                                                        className="p-2.5 rounded-xl border border-[var(--site-border)] bg-[var(--site-surface-2)] text-[var(--site-muted)] transition-all active:scale-95 hover:bg-red-50 hover:text-red-500"
                                                                                     >
                                                                                         <Trash2 className="w-4 h-4" />
                                                                                     </button>
@@ -6140,7 +6140,7 @@ function DashboardContent() {
                                                 </div>
                                                 {activeGalleryItems.length === 0 && !loadingPhotos && (
                                                     <div className="p-12 text-center">
-                                                        <p className="text-slate-400 italic">
+                                                        <p className="text-[var(--site-muted)] italic">
                                                             {isFavouriteFilterActive
                                                                 ? `No favourite ${galleryMediaTab === "videos" ? "videos" : "photos"} in this gallery yet.`
                                                                 : galleryMediaTab === "videos" ? "No videos in this gallery yet." : "No photos in this gallery yet."}
@@ -6156,7 +6156,7 @@ function DashboardContent() {
                                             <button
                                                 onClick={loadMorePhotos}
                                                 disabled={loadingPhotos}
-                                                className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-full font-bold shadow-lg flex items-center space-x-2 transition-all border border-slate-700"
+                                                className="px-8 py-3 bg-[var(--site-surface-2)] hover:bg-[var(--site-surface-3)] text-[var(--site-text)] rounded-full font-bold shadow-lg flex items-center space-x-2 transition-all border border-[var(--site-border)]"
                                             >
                                                 {loadingPhotos ? <Loader2 className="w-5 h-5 animate-spin text-sky-400" /> : <ChevronDown className="w-5 h-5 text-sky-400" />}
                                                 <span>{loadingPhotos ? "Loading..." : "Load More Photos"}</span>
@@ -6228,8 +6228,8 @@ function DashboardContent() {
                                                 className={cn(
                                                     "w-full flex items-center justify-between p-4 rounded-2xl border transition-all",
                                                     isActive
-                                                        ? "border-[#CA9C68] bg-[#CA9C68]/10"
-                                                        : "border-[var(--site-border)] bg-[#13191F]/50 hover:border-[#CA9C68]/40"
+                                                        ? "border-[var(--site-gold)] bg-[var(--site-gold)]/10"
+                                                        : "border-[var(--site-border)] bg-[var(--site-bg)]/50 hover:border-[var(--site-gold)]/40"
                                                 )}
                                             >
                                                 <div className="flex items-center gap-4">
@@ -6241,13 +6241,13 @@ function DashboardContent() {
                                                     </div>
                                                     <span className={cn(
                                                         "text-base font-bold",
-                                                        isActive ? "text-[#CA9C68]" : "text-slate-200"
+                                                        isActive ? "text-[var(--site-gold)]" : "text-[var(--site-text)]"
                                                     )}>
                                                         {name}
                                                     </span>
                                                 </div>
                                                 {isActive && (
-                                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#CA9C68] text-slate-950">
+                                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--site-gold)] text-[var(--site-on-gold)]">
                                                         <Check className="h-4 w-4" />
                                                     </div>
                                                 )}
@@ -6295,7 +6295,7 @@ function DashboardContent() {
                                                 onClick={() => handleUpdateTemplate(template.id)}
                                                 className={cn(
                                                     "flex items-center justify-between p-3 rounded-2xl border-2 transition-colors cursor-pointer",
-                                                    isActive ? "bg-[#13191F]/50" : "border-[var(--site-border)] bg-[#13191F]/50 hover:border-[#CA9C68]/40"
+                                                    isActive ? "bg-[var(--site-bg)]/50" : "border-[var(--site-border)] bg-[var(--site-bg)]/50 hover:border-[var(--site-gold)]/40"
                                                 )}
                                                 style={{ borderColor: isActive ? template.accent : undefined }}
                                             >
@@ -6317,7 +6317,7 @@ function DashboardContent() {
                                                         >
                                                             {template.label}
                                                         </div>
-                                                        <div className="text-[11px] text-slate-400 font-inter mt-0.5 truncate">
+                                                        <div className="text-[11px] text-[var(--site-muted)] font-inter mt-0.5 truncate">
                                                             {template.desc}
                                                         </div>
                                                     </div>
@@ -6376,20 +6376,20 @@ function DashboardContent() {
                                             <button
                                                 type="button"
                                                 onClick={() => openDatePicker("rename")}
-                                                className={cn(modalStyles.input, "flex items-center justify-between text-left hover:border-[#CA9C68]/60")}
+                                                className={cn(modalStyles.input, "flex items-center justify-between text-left hover:border-[var(--site-gold)]/60")}
                                             >
                                                 <span className="flex min-w-0 items-center gap-4">
                                                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
                                                         <Calendar className="h-5 w-5" />
                                                     </span>
                                                     <span className="min-w-0">
-                                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Selected Date</span>
-                                                        <span className="block truncate text-lg font-bold text-white">
+                                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-[var(--site-muted)]">Selected Date</span>
+                                                        <span className="block truncate text-lg font-bold text-[var(--site-text)]">
                                                             {newDate ? formatEventDate(newDate) : "Tap to choose date"}
                                                         </span>
                                                     </span>
                                                 </span>
-                                                <span className="rounded-full bg-[#CA9C68]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#CA9C68]">
+                                                <span className="rounded-full bg-[var(--site-gold)]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--site-gold)]">
                                                     Change
                                                 </span>
                                             </button>
@@ -6464,13 +6464,13 @@ function DashboardContent() {
                                             </svg>
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <h3 className="text-2xl font-black text-white">Storage & Quota</h3>
-                                            <p className="text-sm font-semibold text-slate-400">Your current plan usage</p>
+                                            <h3 className="text-2xl font-black text-[var(--site-text)]">Storage & Quota</h3>
+                                            <p className="text-sm font-semibold text-[var(--site-muted)]">Your current plan usage</p>
                                         </div>
                                         <ModalCloseButton onClick={() => setShowPlanDetailsModal(false)} label="Close plan details" className="self-start" />
                                     </div>
 
-                                    <p className="mt-6 text-sm font-semibold text-slate-300">
+                                    <p className="mt-6 text-sm font-semibold text-[var(--site-subtle)]">
                                         Active plan: <span className="font-black" style={{ color: planDetails.accent }}>{planDetails.name}</span>
                                     </p>
                                     {subscriptionStatus.message && (
@@ -6479,7 +6479,7 @@ function DashboardContent() {
                                                 "mt-5 rounded-2xl border p-4 text-sm font-semibold leading-6",
                                                 subscriptionStatus.tone === "danger"
                                                     ? "border-rose-400/25 bg-rose-400/10 text-rose-100"
-                                                    : "border-[#CA9C68]/25 bg-[#CA9C68]/10 text-[#F5E7D4]"
+                                                    : "border-[var(--site-gold)]/25 bg-[var(--site-gold)]/10 text-[var(--site-text)]"
                                             )}
                                         >
                                             <div className="mb-1 text-[10px] font-black uppercase tracking-[0.16em]">
@@ -6494,48 +6494,48 @@ function DashboardContent() {
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between gap-3">
                                             <div className="flex items-center gap-2">
-                                                <span className="h-2 w-2 rounded-full bg-[#D7AE7D]" />
-                                                <span className="text-sm font-black text-slate-100">Storage</span>
+                                                <span className="h-2 w-2 rounded-full bg-[var(--site-gold-light)]" />
+                                                <span className="text-sm font-black text-[var(--site-text)]">Storage</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-sm">
-                                                <span className="font-black text-white">{formatStorageSize(totalStorage)}</span>
-                                                <span className="font-semibold text-slate-500">
+                                                <span className="font-black text-[var(--site-text)]">{formatStorageSize(totalStorage)}</span>
+                                                <span className="font-semibold text-[var(--site-muted)]">
                                                     / {planDetails.storageLabel}
                                                 </span>
-                                                <span className="rounded-full bg-[#CA9C68]/10 px-2 py-1 text-[10px] font-black text-[#CA9C68]">
+                                                <span className="rounded-full bg-[var(--site-gold)]/10 px-2 py-1 text-[10px] font-black text-[var(--site-gold)]">
                                                     {planDetails.storageBytes === Infinity ? "∞" : `${Math.round(storagePercent)}%`}
                                                 </span>
                                             </div>
                                         </div>
-                                        <div className="h-2 overflow-hidden rounded-full bg-slate-950">
+                                        <div className="h-2 overflow-hidden rounded-full bg-[var(--site-bg)]">
                                             <div
-                                                className="h-full rounded-full bg-gradient-to-r from-[#CA9C68] to-[#D7AE7D]"
+                                                className="h-full rounded-full bg-gradient-to-r from-[var(--site-gold)] to-[var(--site-gold-light)]"
                                                 style={{ width: `${planDetails.storageBytes === Infinity ? 5 : storagePercent}%` }}
                                             />
                                         </div>
                                     </div>
 
-                                    <div className="h-px bg-slate-700/70" />
+                                    <div className="h-px bg-[var(--site-surface-3)]/70" />
 
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between gap-3">
                                             <div className="flex items-center gap-2">
-                                                <span className="h-2 w-2 rounded-full bg-[#D7AE7D]" />
-                                                <span className="text-sm font-black text-slate-100">Events</span>
+                                                <span className="h-2 w-2 rounded-full bg-[var(--site-gold-light)]" />
+                                                <span className="text-sm font-black text-[var(--site-text)]">Events</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-sm">
-                                                <span className="font-black text-white">{totalMainEvents}</span>
-                                                <span className="font-semibold text-slate-500">
+                                                <span className="font-black text-[var(--site-text)]">{totalMainEvents}</span>
+                                                <span className="font-semibold text-[var(--site-muted)]">
                                                     / {planDetails.eventLabel}
                                                 </span>
-                                                <span className="rounded-full bg-[#CA9C68]/10 px-2 py-1 text-[10px] font-black text-[#CA9C68]">
+                                                <span className="rounded-full bg-[var(--site-gold)]/10 px-2 py-1 text-[10px] font-black text-[var(--site-gold)]">
                                                     {planDetails.eventLimit === Infinity ? "∞" : `${Math.round(eventPercent)}%`}
                                                 </span>
                                             </div>
                                         </div>
-                                        <div className="h-2 overflow-hidden rounded-full bg-slate-950">
+                                        <div className="h-2 overflow-hidden rounded-full bg-[var(--site-bg)]">
                                             <div
-                                                className="h-full rounded-full bg-gradient-to-r from-[#CA9C68] to-[#D7AE7D]"
+                                                className="h-full rounded-full bg-gradient-to-r from-[var(--site-gold)] to-[var(--site-gold-light)]"
                                                 style={{ width: `${planDetails.eventLimit === Infinity ? 5 : eventPercent}%` }}
                                             />
                                         </div>
@@ -6547,7 +6547,7 @@ function DashboardContent() {
                                             setShowPlanDetailsModal(false);
                                             router.push("/pricing");
                                         }}
-                                        className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#CA9C68] px-5 py-4 text-sm font-black uppercase tracking-wide text-slate-950 transition-colors hover:bg-[#D7AE7D]"
+                                        className="mt-2 flex w-full items-center justify-center gap-2 rounded-full home-btn-gold px-5 py-4 text-sm font-black uppercase tracking-wide"
                                     >
                                         Manage Plan
                                         <ArrowRight className="h-4 w-4" />
@@ -6584,20 +6584,20 @@ function DashboardContent() {
                                         alt={`QR code for ${shareModalEvent.title}`}
                                         className="mx-auto h-52 w-52 object-contain"
                                     />
-                                    <p className="mt-3 text-xs font-black uppercase tracking-widest text-slate-950">Scan to Join</p>
+                                    <p className="mt-3 text-xs font-black uppercase tracking-widest text-[var(--site-on-gold)]">Scan to Join</p>
                                 </div>
 
                                 <div className="mt-8">
-                                    <p className="text-sm font-black uppercase tracking-widest text-slate-400">Unique Join ID</p>
-                                    <div className="mx-auto mt-4 inline-flex min-w-56 items-center justify-center rounded-2xl border border-[#CA9C68]/40 px-8 py-4">
-                                        <span className="text-3xl font-black uppercase tracking-[0.25em] text-[#CA9C68]">{shareModalJoinId}</span>
+                                    <p className="text-sm font-black uppercase tracking-widest text-[var(--site-muted)]">Unique Join ID</p>
+                                    <div className="mx-auto mt-4 inline-flex min-w-56 items-center justify-center rounded-2xl border border-[var(--site-gold)]/40 px-8 py-4">
+                                        <span className="text-3xl font-black uppercase tracking-[0.25em] text-[var(--site-gold)]">{shareModalJoinId}</span>
                                     </div>
                                 </div>
 
                                 <button
                                     type="button"
                                     onClick={handleShareInvitation}
-                                    className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-[#CA9C68] px-6 py-5 text-sm font-black uppercase tracking-wide text-slate-950 shadow-lg transition-all hover:bg-[#D7AE7D] active:scale-[0.98]"
+                                    className="mt-8 flex w-full items-center justify-center gap-3 rounded-full home-btn-gold px-6 py-5 text-sm font-black uppercase tracking-wide shadow-lg active:scale-[0.98]"
                                 >
                                     <Share2 className="h-5 w-5" />
                                     <span>Share Invitation</span>
@@ -6614,11 +6614,11 @@ function DashboardContent() {
                             initial={{ opacity: 0, y: -16 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -16 }}
-                            className="fixed left-1/2 top-24 z-[80] flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 flex-col gap-3 rounded-[1.5rem] border border-white/15 bg-slate-950/90 p-3 text-white shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
+                            className="fixed left-1/2 top-24 z-[80] flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 flex-col gap-3 rounded-[1.5rem] border border-white/15 bg-[var(--site-bg)]/90 p-3 text-[var(--site-text)] shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
                         >
                             <div className="flex flex-col gap-1 px-2">
-                                <span className="text-xs font-black uppercase tracking-[0.2em] text-[#CA9C68]">Drag image</span>
-                                <span className="truncate text-sm font-bold text-slate-300">{coverPositionEvent.title}</span>
+                                <span className="text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold)]">Drag image</span>
+                                <span className="truncate text-sm font-bold text-[var(--site-subtle)]">{coverPositionEvent.title}</span>
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
@@ -6626,16 +6626,16 @@ function DashboardContent() {
                                     <button
                                         type="button"
                                         onClick={() => adjustCoverZoom(-0.1)}
-                                        className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-white transition hover:bg-slate-700"
+                                        className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--site-surface-2)] text-[var(--site-text)] transition hover:bg-[var(--site-surface-3)]"
                                         aria-label="Zoom out"
                                     >
                                         -
                                     </button>
-                                    <span className="min-w-14 text-center text-xs font-black text-white">{Math.round(coverDraft.coverScale * 100)}%</span>
+                                    <span className="min-w-14 text-center text-xs font-black text-[var(--site-text)]">{Math.round(coverDraft.coverScale * 100)}%</span>
                                     <button
                                         type="button"
                                         onClick={() => adjustCoverZoom(0.1)}
-                                        className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-white transition hover:bg-slate-700"
+                                        className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--site-surface-2)] text-[var(--site-text)] transition hover:bg-[var(--site-surface-3)]"
                                         aria-label="Zoom in"
                                     >
                                         +
@@ -6647,14 +6647,14 @@ function DashboardContent() {
                                         coverDragStartRef.current = null;
                                         setCoverPositionEvent(null);
                                     }}
-                                    className="rounded-full border border-white/15 px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-200 transition hover:bg-white/10"
+                                    className="rounded-full home-btn-glass px-5 py-3 text-xs font-black uppercase tracking-widest"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="button"
                                     onClick={handleSaveCoverPosition}
-                                    className="rounded-full bg-[#CA9C68] px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-950 transition hover:bg-[#D7AE7D]"
+                                    className="rounded-full home-btn-gold px-5 py-3 text-xs font-black uppercase tracking-widest"
                                 >
                                     Save
                                 </button>
@@ -6915,7 +6915,7 @@ function DashboardContent() {
                                             await handleSetAsCover(photoActionItem.url);
                                             setPhotoActionItem(null);
                                         }}
-                                        className="flex min-h-14 w-full items-center gap-3 rounded-2xl bg-[#CA9C68] px-5 py-4 text-left font-black text-slate-950 transition-transform active:scale-[0.98]"
+                                        className="flex min-h-14 w-full items-center gap-3 rounded-2xl home-btn-gold px-5 py-4 text-left font-black transition-transform active:scale-[0.98]"
                                     >
                                         <ImageIcon className="h-5 w-5 shrink-0" />
                                         <span>Make Gallery Thumbnail</span>
@@ -6926,7 +6926,7 @@ function DashboardContent() {
                                                 await handleSetAsCover(photoActionItem.url, selectedMainEvent.id, true);
                                                 setPhotoActionItem(null);
                                             }}
-                                            className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-[#CA9C68]/30 bg-[#CA9C68]/10 px-5 py-4 text-left font-black text-[#CA9C68] transition-transform active:scale-[0.98]"
+                                            className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 px-5 py-4 text-left font-black text-[var(--site-gold)] transition-transform active:scale-[0.98]"
                                         >
                                             <Star className="h-5 w-5 shrink-0" />
                                             <span>Make Event Thumbnail</span>
@@ -6938,7 +6938,7 @@ function DashboardContent() {
                                                 setMediaToMove([photoActionItem]);
                                                 setPhotoActionItem(null);
                                             }}
-                                            className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-slate-600 px-5 py-4 text-left font-black text-slate-200 transition-transform active:scale-[0.98] hover:border-slate-400"
+                                            className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-[var(--site-border)] px-5 py-4 text-left font-black text-[var(--site-text)] transition-transform active:scale-[0.98] hover:border-[var(--site-gold)]/60"
                                         >
                                             <FolderInput className="h-5 w-5 shrink-0" />
                                             <span>Move to Another Gallery</span>
@@ -6972,7 +6972,7 @@ function DashboardContent() {
                             >
                                 <div className="border-b border-[var(--site-border)] px-6 py-6">
                                     <div className="flex items-start gap-4">
-                                        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-[#CA9C68] text-xl font-black text-slate-950">
+                                        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-[var(--site-gold)] text-xl font-black text-[var(--site-on-gold)]">
                                             {selectedGuestProfile?.profileImage ? (
                                                 // eslint-disable-next-line @next/next/no-img-element
                                                 <img src={selectedGuestProfile.profileImage} alt="" className="h-full w-full object-cover" />
@@ -6981,8 +6981,8 @@ function DashboardContent() {
                                             )}
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <h3 className="truncate text-2xl font-black text-white">{selectedGuestProfile?.name || selectedGuestLog.name || "Guest"}</h3>
-                                            <p className="mt-1 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                                            <h3 className="truncate text-2xl font-black text-[var(--site-text)]">{selectedGuestProfile?.name || selectedGuestLog.name || "Guest"}</h3>
+                                            <p className="mt-1 text-xs font-black uppercase tracking-[0.18em] text-[var(--site-muted)]">
                                                 Member #{String(eventDetailLogs.findIndex(log => log.id === selectedGuestLog.id) + 1).padStart(2, "0")}
                                             </p>
                                         </div>
@@ -6991,9 +6991,9 @@ function DashboardContent() {
                                 </div>
 
                                 <div className="space-y-5 p-6">
-                                    <div className="rounded-[1.5rem] border border-slate-800 bg-slate-900/70 p-4">
+                                    <div className="rounded-[1.5rem] border border-[var(--site-line)] bg-[var(--site-surface)]/70 p-4">
                                         {loadingGuestProfile ? (
-                                            <div className="flex items-center justify-center py-6 text-slate-400">
+                                            <div className="flex items-center justify-center py-6 text-[var(--site-muted)]">
                                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                                 <span className="text-sm font-bold">Loading profile...</span>
                                             </div>
@@ -7005,9 +7005,9 @@ function DashboardContent() {
                                                     ["Email ID", selectedGuestProfile?.email || selectedGuestLog.email || (selectedGuestLog.phone?.includes("@") ? selectedGuestLog.phone : "") || "Not set"],
                                                     ["Phone Number", selectedGuestProfile?.phone || (!selectedGuestLog.phone?.includes("@") ? selectedGuestLog.phone : "") || "Not set"],
                                                 ].map(([label, value]) => (
-                                                    <div key={label} className="flex items-center justify-between gap-4 border-b border-slate-800 pb-3 last:border-b-0 last:pb-0">
-                                                        <span className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">{label}</span>
-                                                        <span className="min-w-0 truncate text-right text-sm font-bold text-slate-100">{value}</span>
+                                                    <div key={label} className="flex items-center justify-between gap-4 border-b border-[var(--site-line)] pb-3 last:border-b-0 last:pb-0">
+                                                        <span className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]">{label}</span>
+                                                        <span className="min-w-0 truncate text-right text-sm font-bold text-[var(--site-text)]">{value}</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -7015,7 +7015,7 @@ function DashboardContent() {
                                     </div>
 
                                     <div>
-                                        <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#CA9C68]">Member Privileges</p>
+                                        <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--site-gold)]">Member Privileges</p>
                                         <div className="space-y-3">
                                             {[
                                                 { key: "canAdmin", label: "Admin Access", desc: "Manage event, sub-galleries, and other guests", icon: ShieldCheck },
@@ -7032,22 +7032,22 @@ function DashboardContent() {
                                                         onClick={() => handleGuestPermissionToggle(selectedGuestLog, permKey)}
                                                         className={cn(
                                                             "flex w-full items-center gap-4 rounded-[1.25rem] border p-4 text-left transition-colors",
-                                                            isActive ? "border-[#CA9C68]/45 bg-[#CA9C68]/10" : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
+                                                            isActive ? "border-[var(--site-gold)]/45 bg-[var(--site-gold)]/10" : "border-[var(--site-line)] bg-[var(--site-surface)]/70 hover:border-[var(--site-border)]"
                                                         )}
                                                     >
                                                         <span className={cn(
                                                             "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
-                                                            isActive ? "bg-[#CA9C68]/15 text-[#CA9C68]" : "bg-slate-800 text-slate-400"
+                                                            isActive ? "bg-[var(--site-gold)]/15 text-[var(--site-gold)]" : "bg-[var(--site-surface-2)] text-[var(--site-muted)]"
                                                         )}>
                                                             <Icon className="h-5 w-5" />
                                                         </span>
                                                         <span className="min-w-0 flex-1">
-                                                            <span className="block text-sm font-black text-white">{label}</span>
-                                                            <span className="mt-1 block text-xs font-bold text-slate-500">{desc}</span>
+                                                            <span className="block text-sm font-black text-[var(--site-text)]">{label}</span>
+                                                            <span className="mt-1 block text-xs font-bold text-[var(--site-muted)]">{desc}</span>
                                                         </span>
                                                         <span className={cn(
                                                             "relative h-7 w-12 rounded-full transition-colors",
-                                                            isActive ? "bg-[#CA9C68]" : "bg-slate-700"
+                                                            isActive ? "bg-[var(--site-gold)]" : "bg-[var(--site-surface-3)]"
                                                         )}>
                                                             <span className={cn(
                                                                 "absolute top-1 h-5 w-5 rounded-full bg-white transition-transform",
@@ -7063,7 +7063,7 @@ function DashboardContent() {
                                     <button
                                         type="button"
                                         onClick={() => setSelectedGuestLog(null)}
-                                        className="w-full rounded-2xl bg-[#CA9C68] px-5 py-4 text-sm font-black uppercase tracking-widest text-slate-950"
+                                        className="w-full rounded-full home-btn-gold px-5 py-4 text-sm font-black uppercase tracking-widest"
                                     >
                                         Save Permissions
                                     </button>
@@ -7083,7 +7083,7 @@ function DashboardContent() {
                                 className={cn(modalStyles.panel, "max-w-sm text-center")}
                             >
                                 <ModalCloseButton onClick={closeCreateSuccessModal} className="absolute right-5 top-5" />
-                                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#CA9C68]/10 text-[#CA9C68]">
+                                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--site-gold)]/10 text-[var(--site-gold)]">
                                     <Check className="h-7 w-7" />
                                 </div>
                                 <h2 className={modalStyles.title}>Success</h2>
@@ -7155,8 +7155,8 @@ function DashboardContent() {
                                                         className={cn(
                                                             "flex min-h-12 items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-black transition-colors",
                                                             isSelected
-                                                                ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950"
-                                                                : "border-[var(--site-border)] bg-[#13191F] text-[var(--site-subtle)] hover:border-[#CA9C68]/50 hover:text-white"
+                                                                ? "border-[var(--site-gold)] bg-[var(--site-gold)] text-[var(--site-on-gold)]"
+                                                                : "border-[var(--site-border)] bg-[var(--site-bg)] text-[var(--site-subtle)] hover:border-[var(--site-gold)]/50 hover:text-[var(--site-text)]"
                                                         )}
                                                     >
                                                         <Icon className="h-4 w-4 shrink-0" />
@@ -7172,12 +7172,12 @@ function DashboardContent() {
                                         <button
                                             type="button"
                                             onClick={() => openDatePicker("create")}
-                                            className={cn(modalStyles.input, "flex items-center justify-between text-left text-lg font-medium hover:border-[#CA9C68]/50")}
+                                            className={cn(modalStyles.input, "flex items-center justify-between text-left text-lg font-medium hover:border-[var(--site-gold)]/50")}
                                         >
-                                            <span className={eventDate ? "text-white" : "text-slate-500"}>
+                                            <span className={eventDate ? "text-[var(--site-text)]" : "text-[var(--site-muted)]"}>
                                                 {eventDate || "Select event date"}
                                             </span>
-                                            <Calendar className="h-5 w-5 text-[#CA9C68]" />
+                                            <Calendar className="h-5 w-5 text-[var(--site-gold)]" />
                                         </button>
                                     </div>
 
@@ -7218,7 +7218,7 @@ function DashboardContent() {
                                     ? "bg-emerald-500/20 text-emerald-100 border-emerald-500/30"
                                     : status === "error"
                                         ? "bg-rose-500/20 text-rose-100 border-rose-500/30"
-                                        : "bg-[#CA9C68]/15 text-[#F5E7D4] border-[#CA9C68]/30"
+                                        : "bg-[var(--site-gold)]/15 text-[var(--site-text)] border-[var(--site-gold)]/30"
                             )}>
                                 {message}
                             </div>
@@ -7234,7 +7234,7 @@ function DashboardContent() {
 export default function UserDashboard() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-slate-900/50">
+            <div className="min-h-screen flex items-center justify-center bg-[var(--site-surface)]/50">
                 <Loader2 className="w-10 h-10 animate-spin text-sky-400" />
             </div>
         }>
@@ -7260,25 +7260,25 @@ function OptionCard({ title, description, icon: Icon, onClick, href, color, hove
                     onClick?.(event);
                 }}
                 className={cn(
-                    "group cursor-pointer bg-slate-800 p-10 rounded-[3rem] border border-slate-700 shadow-sm transition-all duration-500 hover:shadow-2xl hover:-translate-y-1 relative overflow-hidden h-full flex flex-col",
+                    "group cursor-pointer bg-[var(--site-surface-2)] p-10 rounded-[3rem] border border-[var(--site-border)] shadow-sm transition-all duration-500 hover:shadow-2xl hover:-translate-y-1 relative overflow-hidden h-full flex flex-col",
                     hoverBorder
                 )}
             >
                 {badge && (
-                    <div className="absolute top-8 right-8 px-3 py-1 bg-stone-100 text-[10px] font-bold uppercase tracking-widest text-stone-700 rounded-full">
+                    <div className="absolute top-8 right-8 px-3 py-1 bg-[var(--site-card-muted)] text-[10px] font-bold uppercase tracking-widest text-[var(--site-muted)] rounded-full">
                         {badge}
                     </div>
                 )}
                 <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-8 transition-transform group-hover:scale-110", color)}>
                     <Icon className="w-7 h-7" />
                 </div>
-                <h3 className="text-2xl font-bold mb-4 group-hover:text-white transition-colors">
+                <h3 className="text-2xl font-bold mb-4 group-hover:text-[var(--site-text)] transition-colors">
                     {title}
                 </h3>
-                <p className="text-slate-400 font-sans leading-relaxed mb-6 text-sm">
+                <p className="text-[var(--site-muted)] font-sans leading-relaxed mb-6 text-sm">
                     {description}
                 </p>
-                <div className="flex items-center text-xs font-bold uppercase tracking-widest text-white mt-auto">
+                <div className="flex items-center text-xs font-bold uppercase tracking-widest text-[var(--site-text)] mt-auto">
                     Explore
                     <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
                 </div>

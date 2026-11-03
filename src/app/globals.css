@@ -39,6 +39,13 @@ video::-webkit-media-controls-picture-in-picture-button {
   --site-muted: #CDB89E;
   --site-subtle: #E6D8C3;
   --site-input: rgba(202, 156, 104, 0.1);
+  /* Older look's values for the shared colours added with Noir (see .site-palette below), so shared
+     components that use them look as before on guest galleries */
+  --site-surface-3: #3A3F3D;
+  --site-line: rgba(255, 255, 255, 0.1);
+  --site-gold: #CA9C68;
+  --site-gold-light: #D7AE7D;
+  --site-on-gold: #13191F;
 }
 
 .theme-dark {
@@ -61,6 +68,34 @@ video::-webkit-media-controls-picture-in-picture-button {
   --color-slate-700: #594C3D;
   --color-slate-900: #1B211F;
   --color-slate-950: #13191F;
+}
+
+/* Site look "Noir" (first made for the homepage, src/components/home): true black with one gold,
+   #DCB579. Set on the site pages' <body> (same layouts as above), so navbar, footer and modals match.
+   Guest galleries ((public) layout) keep the :root values. Use these instead of hex codes. */
+.site-palette {
+  --site-bg: #09090B;
+  --site-surface: #141417;
+  --site-surface-2: #1F1F24;
+  /* Raised controls on a surface-2 card, and their hover */
+  --site-surface-3: #2A2A31;
+  --site-card: #141417;
+  --site-text: #F7F2E8;
+  --site-subtle: #D2CEC6;
+  --site-muted: #A19C93;
+  --site-border: rgba(220, 181, 121, 0.26);
+  /* Quiet neutral lines (dividers, input edges) where a gold border would be too loud */
+  --site-line: rgba(247, 242, 232, 0.1);
+  --site-card-muted: rgba(220, 181, 121, 0.12);
+  --site-input: rgba(220, 181, 121, 0.1);
+  --site-gold: #DCB579;
+  --site-gold-light: #F3DDAA;
+  /* Text on a gold fill */
+  --site-on-gold: #1A1205;
+  --home-glow: rgba(220, 181, 121, 0.2);
+  --home-accent: #DCB579;
+  /* The gold gradient Midnight Hero uses (src/app/midnight-hero.css) */
+  --home-gold: linear-gradient(135deg, #F6E4AD 0%, #DCB579 42%, #CA9C68 62%, #A87B45 100%);
 }
 
 @theme {
@@ -501,23 +536,7 @@ html[data-app-gate] body {
   overflow: hidden;
 }
 
-/* Homepage look "Noir" (src/app/(main)/page.tsx, src/components/home): true black with gold. Set on
-   <html> with :has() so the navbar and footer match while the homepage is open; every other page keeps
-   its colours. */
-html:has(.home-palette) {
-  --site-bg: #09090B;
-  --site-surface: #141417;
-  --site-surface-2: #1F1F24;
-  --site-text: #F7F2E8;
-  --site-subtle: #D2CEC6;
-  --site-muted: #A19C93;
-  --site-border: rgba(220, 181, 121, 0.26);
-  --site-card-muted: rgba(220, 181, 121, 0.12);
-  --home-glow: rgba(220, 181, 121, 0.2);
-  --home-accent: #DCB579;
-  /* The gold gradient Midnight Hero uses (src/app/midnight-hero.css) */
-  --home-gold: linear-gradient(135deg, #F6E4AD 0%, #DCB579 42%, #CA9C68 62%, #A87B45 100%);
-}
+/* The Noir colours now live on .site-palette (top of this file), so every site page matches the homepage. */
 
 /* Luminous ivory-to-gold lettering for the hero and closing headlines */
 .home-gold-text {
@@ -545,24 +564,31 @@ html:has(.home-palette) {
 }
 
 /* Homepage buttons, style A: gold foil (main action) and frosted with a gold edge (second action) */
-.home-btn-gold {
+.home-btn-gold,
+.site-palette .modal-btn-primary {
   background: linear-gradient(135deg, #F6E4AD 0%, #DCB579 45%, #B98A50 100%);
   color: #1A1205;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
   transition: filter 150ms ease-out;
 }
-.home-btn-gold:hover { filter: brightness(1.06); }
-.home-btn-glass {
+.home-btn-gold:hover:not(:disabled),
+.site-palette .modal-btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
+.home-btn-glass,
+.site-palette .modal-btn-secondary {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(220, 181, 121, 0.45);
   color: var(--site-text);
   transition: background-color 150ms ease-out, border-color 150ms ease-out;
 }
-.home-btn-glass:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(220, 181, 121, 0.75); }
-/* The navbar's sign-up button (data-nav-cta in src/components/Navbar.tsx) matches, on the homepage only */
-html:has(.home-palette) [data-nav-cta] {
+.home-btn-glass:hover:not(:disabled),
+.site-palette .modal-btn-secondary:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); border-color: rgba(220, 181, 121, 0.75); }
+/* Shared modal buttons (modalStyles in src/components/ui/Modal.tsx) use the homepage pill on site pages;
+   guest galleries keep their own look */
+.site-palette :is(.modal-btn-primary, .modal-btn-secondary) { border-radius: 9999px; }
+/* The navbar's sign-up button (data-nav-cta in src/components/Navbar.tsx) matches, on every site page */
+.site-palette [data-nav-cta] {
   background-image: linear-gradient(135deg, #F6E4AD 0%, #DCB579 45%, #B98A50 100%);
   color: #1A1205;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
 }
-html:has(.home-palette) [data-nav-cta]:hover { filter: brightness(1.06); }
+.site-palette [data-nav-cta]:hover { filter: brightness(1.06); }

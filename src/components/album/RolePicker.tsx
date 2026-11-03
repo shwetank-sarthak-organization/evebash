@@ -27,24 +27,24 @@ function Person({ person, selected, disabled, multi, onClick }: {
             aria-pressed={selected}
             className={cn(
                 "flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-colors",
-                selected ? "border-[#CA9C68] bg-[#CA9C68]/10" : "border-white/10 hover:border-white/25",
+                selected ? "border-[var(--site-gold)] bg-[var(--site-gold)]/10" : "border-white/10 hover:border-white/25",
                 disabled && "cursor-not-allowed opacity-40 hover:border-white/10"
             )}
         >
             <span className={cn(
                 "flex h-5 w-5 shrink-0 items-center justify-center border-2",
                 multi ? "rounded-md" : "rounded-full",
-                selected ? "border-[#CA9C68] bg-[#CA9C68] text-[#13191F]" : "border-slate-600"
+                selected ? "border-[var(--site-gold)] bg-[var(--site-gold)] text-[var(--site-on-gold)]" : "border-[var(--site-border)]"
             )}>
                 {selected && <Check className="h-3 w-3" strokeWidth={4} />}
             </span>
             <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold text-white">{person.name}</span>
-                {person.email && <span className="block truncate text-[11px] font-semibold text-slate-500">{person.email}</span>}
+                <span className="block truncate text-sm font-bold text-[var(--site-text)]">{person.name}</span>
+                {person.email && <span className="block truncate text-[11px] font-semibold text-[var(--site-muted)]">{person.email}</span>}
             </span>
             <span className={cn(
                 "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider",
-                person.isHost ? "bg-[#CA9C68]/15 text-[#E8C9A0]" : "bg-white/10 text-slate-300"
+                person.isHost ? "bg-[var(--site-gold)]/15 text-[var(--site-gold-light)]" : "bg-white/10 text-[var(--site-subtle)]"
             )}>{person.isHost ? "Host" : "Admin"}</span>
         </button>
     );
@@ -70,7 +70,7 @@ export function RolePicker({ eventId, value, onChange }: {
     }, [eventId]);
 
     if (error) return <p className={modalStyles.error}>{error}</p>;
-    if (!candidates) return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-[#CA9C68]" /></div>;
+    if (!candidates) return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-[var(--site-gold)]" /></div>;
 
     const clients = value.clientIds ?? [];
     // Picking someone for one role takes them out of the other, so roles can be swapped in one go
@@ -83,9 +83,9 @@ export function RolePicker({ eventId, value, onChange }: {
     return (
         <div className="space-y-5">
             <div>
-                <p className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-                    <Camera className="h-3.5 w-3.5 text-[#CA9C68]" /> Photographer
-                    <span className="normal-case tracking-normal text-slate-500">· uploads pages and sends them for review</span>
+                <p className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]">
+                    <Camera className="h-3.5 w-3.5 text-[var(--site-gold)]" /> Photographer
+                    <span className="normal-case tracking-normal text-[var(--site-muted)]">· uploads pages and sends them for review</span>
                 </p>
                 <div className="space-y-2">
                     {candidates.map((person) => (
@@ -99,9 +99,9 @@ export function RolePicker({ eventId, value, onChange }: {
                 </div>
             </div>
             <div>
-                <p className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-                    <Heart className="h-3.5 w-3.5 text-[#CA9C68]" /> Client
-                    <span className="normal-case tracking-normal text-slate-500">· comment, approve and send feedback (one or more)</span>
+                <p className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]">
+                    <Heart className="h-3.5 w-3.5 text-[var(--site-gold)]" /> Client
+                    <span className="normal-case tracking-normal text-[var(--site-muted)]">· comment, approve and send feedback (one or more)</span>
                 </p>
                 <div className="space-y-2">
                     {candidates.map((person) => (
@@ -116,10 +116,10 @@ export function RolePicker({ eventId, value, onChange }: {
                 </div>
             </div>
             {(!value.photographerId || !clients.length) && (
-                <p className="text-xs font-bold text-[#E8C9A0]">{!value.photographerId ? "Choose the photographer." : "Choose at least one client."}</p>
+                <p className="text-xs font-bold text-[var(--site-gold-light)]">{!value.photographerId ? "Choose the photographer." : "Choose at least one client."}</p>
             )}
             {candidates.length < 2 && (
-                <p className="rounded-2xl border border-[#CA9C68]/25 bg-[#CA9C68]/[0.06] p-3 text-xs font-semibold leading-5 text-[#E8C9A0]">
+                <p className="rounded-2xl border border-[var(--site-gold)]/25 bg-[var(--site-gold)]/[0.06] p-3 text-xs font-semibold leading-5 text-[var(--site-gold-light)]">
                     Only the host can be picked right now. Add the photographer or the client as guests and turn on
                     <span className="font-black"> Admin Access</span> in Permissions, then come back.
                 </p>

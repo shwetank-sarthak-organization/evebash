@@ -162,7 +162,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                         <p className="text-sm font-bold text-rose-300">{error}</p>
                         <button type="button" className={albumButton.secondary} onClick={onBack}>Back to albums</button>
                     </>
-                ) : <Loader2 className="h-6 w-6 animate-spin text-[#CA9C68]" />}
+                ) : <Loader2 className="h-6 w-6 animate-spin text-[var(--site-gold)]" />}
             </div>
         );
     }
@@ -220,7 +220,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
             {/* Header */}
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                    <button type="button" onClick={onBack} className="mb-2 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white">
+                    <button type="button" onClick={onBack} className="mb-2 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[var(--site-muted)] hover:text-[var(--site-text)]">
                         <ArrowLeft className="h-4 w-4" /> All albums
                     </button>
                     {editingTitle !== null ? (
@@ -231,24 +231,24 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                 void run("rename", async () => { setAlbum((await albumApi.rename(album.id, editingTitle)).album); setEditingTitle(null); });
                             }}
                         >
-                            <input value={editingTitle} onChange={(e) => setEditingTitle(e.target.value)} maxLength={80} autoFocus className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black/40 px-3 py-2 font-serif text-xl font-bold text-white outline-none focus:border-[#CA9C68]" />
+                            <input value={editingTitle} onChange={(e) => setEditingTitle(e.target.value)} maxLength={80} autoFocus className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black/40 px-3 py-2 font-serif text-xl font-bold text-[var(--site-text)] outline-none focus:border-[var(--site-gold)]" />
                             <button type="submit" className={albumButton.ghost} aria-label="Save name" disabled={busy === "rename"}><Check className="h-5 w-5" /></button>
                             <button type="button" className={albumButton.ghost} aria-label="Cancel" onClick={() => setEditingTitle(null)}><X className="h-5 w-5" /></button>
                         </form>
                     ) : (
-                        <h4 className="truncate font-serif text-2xl font-bold text-[#FFF7EB] sm:text-3xl">{album.title}</h4>
+                        <h4 className="truncate font-serif text-2xl font-bold text-[var(--site-text)] sm:text-3xl">{album.title}</h4>
                     )}
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-400">
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold text-[var(--site-muted)]">
                         <AlbumStatusChip status={album.status} />
                         <span>{album.pageCount} {album.pageCount === 1 ? "page" : "pages"}</span>
                         {album.currentRound > 0 && <span>· Round {album.currentRound}</span>}
                         {locked && album.approvedAt && <span>· Approved by {album.approvedByName} on {new Date(album.approvedAt).toLocaleDateString()}</span>}
                     </div>
                     {album.rolesAssigned && (
-                        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-slate-400">
-                            <span><Camera className="mr-1 inline h-3.5 w-3.5 text-[#CA9C68]" />Photographer: <span className="font-bold text-slate-200">{album.roles.photographer?.name}</span></span>
-                            <span><Heart className="mr-1 inline h-3.5 w-3.5 text-[#CA9C68]" />Client: <span className="font-bold text-slate-200">{album.roles.clients.map((p) => p.name).join(", ")}</span></span>
-                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-300">
+                        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[var(--site-muted)]">
+                            <span><Camera className="mr-1 inline h-3.5 w-3.5 text-[var(--site-gold)]" />Photographer: <span className="font-bold text-[var(--site-text)]">{album.roles.photographer?.name}</span></span>
+                            <span><Heart className="mr-1 inline h-3.5 w-3.5 text-[var(--site-gold)]" />Client: <span className="font-bold text-[var(--site-text)]">{album.roles.clients.map((p) => p.name).join(", ")}</span></span>
+                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--site-subtle)]">
                                 {mode === "photographer" ? "You: Photographer" : mode === "client" ? "You: Client" : "View only"}
                             </span>
                         </p>
@@ -260,15 +260,15 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                             <MoreHorizontal className="h-5 w-5" />
                         </button>
                         {menuOpen && (
-                            <div className="absolute right-0 top-full z-30 mt-1 w-48 overflow-hidden rounded-2xl border border-white/10 bg-[#13191F] py-1 shadow-2xl" onMouseLeave={() => setMenuOpen(false)}>
-                                <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-slate-200 hover:bg-white/5" onClick={() => { setMenuOpen(false); setEditingTitle(album.title); }}>
+                            <div className="absolute right-0 top-full z-30 mt-1 w-48 overflow-hidden rounded-2xl border border-white/10 bg-[var(--site-bg)] py-1 shadow-2xl" onMouseLeave={() => setMenuOpen(false)}>
+                                <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-[var(--site-text)] hover:bg-white/5" onClick={() => { setMenuOpen(false); setEditingTitle(album.title); }}>
                                     <Pencil className="h-4 w-4" /> Rename
                                 </button>
-                                <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-slate-200 hover:bg-white/5" onClick={() => { setMenuOpen(false); setRolesOpen(true); }}>
+                                <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-[var(--site-text)] hover:bg-white/5" onClick={() => { setMenuOpen(false); setRolesOpen(true); }}>
                                     <Users className="h-4 w-4" /> {album.rolesAssigned ? "Change roles" : "Assign roles"}
                                 </button>
                                 {locked && (
-                                    <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-slate-200 hover:bg-white/5" onClick={() => { setMenuOpen(false); void run("reopen", async () => setAlbum((await albumApi.reopen(album.id)).album)); }}>
+                                    <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-[var(--site-text)] hover:bg-white/5" onClick={() => { setMenuOpen(false); void run("reopen", async () => setAlbum((await albumApi.reopen(album.id)).album)); }}>
                                         <RotateCcw className="h-4 w-4" /> Reopen album
                                     </button>
                                 )}
@@ -290,25 +290,25 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
             </div>
 
             {!album.rolesAssigned && (
-                <div className="flex flex-col gap-3 rounded-[1.2rem] border border-[#CA9C68]/50 bg-[#CA9C68]/[0.08] p-4 sm:flex-row sm:items-center sm:p-5">
-                    <Users className="h-6 w-6 shrink-0 text-[#CA9C68]" />
+                <div className="flex flex-col gap-3 rounded-[1.2rem] border border-[var(--site-gold)]/50 bg-[var(--site-gold)]/[0.08] p-4 sm:flex-row sm:items-center sm:p-5">
+                    <Users className="h-6 w-6 shrink-0 text-[var(--site-gold)]" />
                     <div className="min-w-0 flex-1">
-                        <p className="text-sm font-black text-white">Assign the photographer and the client</p>
-                        <p className="mt-1 text-xs font-semibold text-slate-400">Pick them from the event host and guests with Admin Access. Nothing can be uploaded or reviewed until then.</p>
+                        <p className="text-sm font-black text-[var(--site-text)]">Assign the photographer and the client</p>
+                        <p className="mt-1 text-xs font-semibold text-[var(--site-muted)]">Pick them from the event host and guests with Admin Access. Nothing can be uploaded or reviewed until then.</p>
                     </div>
                     <button type="button" className={albumButton.primary} onClick={() => setRolesOpen(true)}>Assign roles</button>
                 </div>
             )}
 
             {/* Progress and the main action for this side */}
-            <div className="flex flex-col gap-4 rounded-[1.2rem] border border-[#CA9C68]/25 bg-[linear-gradient(135deg,rgba(202,156,104,0.10),rgba(27,33,31,0.5)_60%)] p-4 sm:flex-row sm:items-center sm:p-5">
+            <div className="flex flex-col gap-4 rounded-[1.2rem] border border-[var(--site-gold)]/25 bg-[linear-gradient(135deg,rgba(202,156,104,0.10),rgba(27,33,31,0.5)_60%)] p-4 sm:flex-row sm:items-center sm:p-5">
                 <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black text-white">
+                    <p className="text-sm font-black text-[var(--site-text)]">
                         {album.approvedCount} of {album.pageCount} pages approved
                         {album.changesCount > 0 && <span className="text-rose-300"> · {album.changesCount} need changes</span>}
                     </p>
                     <ProgressBar value={album.approvedCount} total={album.pageCount} className="mt-2" />
-                    <p className="mt-2 text-xs font-semibold text-slate-400">
+                    <p className="mt-2 text-xs font-semibold text-[var(--site-muted)]">
                         {mode === "photographer"
                             ? album.unsentCount
                                 ? `${album.unsentCount} ${album.unsentCount === 1 ? "page isn't" : "pages aren't"} sent yet.`
@@ -360,7 +360,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
             {uploads.length > 0 && (
                 <div className="space-y-2 rounded-[1.2rem] border border-white/10 bg-black/30 p-4">
                     <div className="flex items-center justify-between">
-                        <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--site-muted)]">
                             Uploads · {uploads.filter((u) => u.state === "done").length} of {uploads.length} done
                         </p>
                         {!uploading && <button type="button" className={albumButton.ghost} onClick={() => setUploads([])}>Clear</button>}
@@ -368,15 +368,15 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                     <div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
                         {uploads.map((u) => (
                             <div key={u.key} className="flex items-center gap-3 text-xs">
-                                <span className="min-w-0 flex-1 truncate font-bold text-slate-200">{u.name}</span>
+                                <span className="min-w-0 flex-1 truncate font-bold text-[var(--site-text)]">{u.name}</span>
                                 {u.state === "failed" ? (
                                     <span className="max-w-[60%] truncate font-bold text-rose-300" title={u.error}>{u.error}</span>
                                 ) : u.state === "done" ? (
                                     <Check className="h-4 w-4 text-emerald-300" />
                                 ) : (
                                     <span className="flex w-32 items-center gap-2">
-                                        <span className="h-1 flex-1 overflow-hidden rounded-full bg-white/10"><span className="block h-full bg-[#CA9C68]" style={{ width: `${Math.round(u.progress * 100)}%` }} /></span>
-                                        <span className="w-16 text-right font-bold text-slate-400">{u.state === "processing" ? "Processing" : u.state === "waiting" ? "Waiting" : `${Math.round(u.progress * 100)}%`}</span>
+                                        <span className="h-1 flex-1 overflow-hidden rounded-full bg-white/10"><span className="block h-full bg-[var(--site-gold)]" style={{ width: `${Math.round(u.progress * 100)}%` }} /></span>
+                                        <span className="w-16 text-right font-bold text-[var(--site-muted)]">{u.state === "processing" ? "Processing" : u.state === "waiting" ? "Waiting" : `${Math.round(u.progress * 100)}%`}</span>
                                     </span>
                                 )}
                             </div>
@@ -397,14 +397,14 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                     <img src={page.versions.find((v) => v.version === comment.version)?.thumbnailUrl ?? page.versions.at(-1)?.thumbnailUrl} alt="" className="h-14 w-24 rounded-lg bg-black object-contain" />
                                 </button>
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-xs font-bold text-slate-400">
+                                    <p className="text-xs font-bold text-[var(--site-muted)]">
                                         {labels.get(page.id)} · {comment.pinX !== null ? `pin ${number}` : "whole page"} · {comment.authorName}
                                     </p>
-                                    <p className="text-sm font-black text-[#E8C9A0]">{albumCommentKindLabel(comment.kind)}</p>
-                                    {comment.body && <p className="mt-0.5 line-clamp-2 text-sm text-slate-200">{comment.body}</p>}
+                                    <p className="text-sm font-black text-[var(--site-gold-light)]">{albumCommentKindLabel(comment.kind)}</p>
+                                    {comment.body && <p className="mt-0.5 line-clamp-2 text-sm text-[var(--site-text)]">{comment.body}</p>}
                                     {comment.voiceUrl && <audio src={comment.voiceUrl} controls preload="none" className="mt-1.5 h-8 w-full max-w-xs" />}
                                     {comment.replacementPhoto?.thumbnailUrl && (
-                                        <a href={comment.replacementPhoto.previewUrl ?? undefined} target="_blank" rel="noreferrer" className="mt-1.5 inline-flex items-center gap-2 text-xs font-bold text-slate-300 hover:text-white">
+                                        <a href={comment.replacementPhoto.previewUrl ?? undefined} target="_blank" rel="noreferrer" className="mt-1.5 inline-flex items-center gap-2 text-xs font-bold text-[var(--site-subtle)] hover:text-[var(--site-text)]">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img src={comment.replacementPhoto.thumbnailUrl} alt="" className="h-8 w-8 rounded object-cover" /> Replacement photo
                                         </a>
@@ -426,24 +426,24 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
 
             {/* Pages */}
             {visiblePages.length === 0 ? (
-                <div className={cn("flex flex-col items-center gap-3 rounded-[1.2rem] border-2 border-dashed p-10 text-center", dropActive ? "border-[#CA9C68] bg-[#CA9C68]/5" : "border-white/10")}>
-                    <Upload className="h-8 w-8 text-[#CA9C68]" />
+                <div className={cn("flex flex-col items-center gap-3 rounded-[1.2rem] border-2 border-dashed p-10 text-center", dropActive ? "border-[var(--site-gold)] bg-[var(--site-gold)]/5" : "border-white/10")}>
+                    <Upload className="h-8 w-8 text-[var(--site-gold)]" />
                     {mode === "photographer" ? (
                         <>
-                            <p className="font-serif text-xl font-bold text-[#FFF7EB]">Add the album pages</p>
-                            <p className="max-w-md text-sm font-semibold text-slate-400">
+                            <p className="font-serif text-xl font-bold text-[var(--site-text)]">Add the album pages</p>
+                            <p className="max-w-md text-sm font-semibold text-[var(--site-muted)]">
                                 Drop the page designs here, one image per page or per spread. They&apos;re numbered by file name (01.jpg, 02.jpg…). We keep a sharp preview only; your original files aren&apos;t stored.
                             </p>
                             <button type="button" className={albumButton.primary} onClick={() => fileRef.current?.click()} disabled={locked}><Upload className="h-4 w-4" /> Choose files</button>
                         </>
                     ) : (
-                        <p className="max-w-md text-sm font-semibold text-slate-400">
+                        <p className="max-w-md text-sm font-semibold text-[var(--site-muted)]">
                             {mode === "client" ? "No pages to review yet. You'll get a notification when the photographer sends them." : "No pages have been sent for review yet."}
                         </p>
                     )}
                 </div>
             ) : (
-                <div className={cn("grid grid-cols-1 gap-4 rounded-[1.2rem] sm:grid-cols-2 xl:grid-cols-3", dropActive && "outline-dashed outline-2 outline-offset-4 outline-[#CA9C68]")}>
+                <div className={cn("grid grid-cols-1 gap-4 rounded-[1.2rem] sm:grid-cols-2 xl:grid-cols-3", dropActive && "outline-dashed outline-2 outline-offset-4 outline-[var(--site-gold)]")}>
                     {visiblePages.map((page, index) => {
                         const shown = mode !== "photographer" ? page.versions.find((v) => v.version === page.sentVersion) : page.versions.at(-1);
                         const requests = page.comments.filter((c) => !c.parentId && c.status === "open" && (!c.isDraft || c.authorId === album.viewer.id)).length;
@@ -457,8 +457,8 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                 onDrop={(e) => { if (dragId) { e.preventDefault(); e.stopPropagation(); void movePage(dragId, page.id); setDragId(null); } }}
                                 onDragEnd={() => setDragId(null)}
                                 className={cn(
-                                    "group overflow-hidden rounded-[1.2rem] border bg-neutral-950 transition-colors",
-                                    dragId === page.id ? "border-[#CA9C68] opacity-50" : "border-white/10 hover:border-white/25"
+                                    "group overflow-hidden rounded-[1.2rem] border bg-[var(--site-bg)] transition-colors",
+                                    dragId === page.id ? "border-[var(--site-gold)] opacity-50" : "border-white/10 hover:border-white/25"
                                 )}
                             >
                                 <button type="button" onClick={() => setViewing(index)} className="relative block aspect-[2/1] w-full bg-black/60" aria-label={`Open ${labels.get(page.id)}`}>
@@ -466,7 +466,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img src={shown.thumbnailUrl} alt="" loading="lazy" className="h-full w-full object-contain" />
                                     )}
-                                    {updated && <span className="absolute left-2 top-2 rounded-full bg-[#CA9C68] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#13191F]">Updated</span>}
+                                    {updated && <span className="absolute left-2 top-2 rounded-full bg-[var(--site-gold)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--site-on-gold)]">Updated</span>}
                                     {requests > 0 && (
                                         <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/75 px-2 py-0.5 text-[11px] font-black text-white">
                                             <MessageSquare className="h-3 w-3" /> {requests}
@@ -474,10 +474,10 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                     )}
                                 </button>
                                 <div className="flex items-center gap-2 p-3">
-                                    {mode === "photographer" && !locked && <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-slate-600" aria-hidden />}
+                                    {mode === "photographer" && !locked && <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-[var(--site-muted)]" aria-hidden />}
                                     <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm font-black text-white">{labels.get(page.id)}</p>
-                                        <p className="truncate text-[11px] font-semibold text-slate-500">
+                                        <p className="truncate text-sm font-black text-[var(--site-text)]">{labels.get(page.id)}</p>
+                                        <p className="truncate text-[11px] font-semibold text-[var(--site-muted)]">
                                             {page.latestVersion > 1 ? `v${mode !== "photographer" ? page.sentVersion : page.latestVersion}` : "v1"}
                                             {mode === "photographer" && page.latestVersion > (page.sentVersion ?? 0) ? " · not sent" : ""}
                                             {page.versions.at(-1)?.fileName ? ` · ${page.versions.at(-1)!.fileName}` : ""}
@@ -494,7 +494,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                                     type="button"
                                                     aria-pressed={page.layout === layout}
                                                     onClick={() => page.layout !== layout && run(`layout-${page.id}`, async () => setAlbum((await albumApi.setLayout(album.id, page.id, layout)).album))}
-                                                    className={cn("rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wider", page.layout === layout ? "bg-white/15 text-white" : "text-slate-500 hover:text-slate-300")}
+                                                    className={cn("rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wider", page.layout === layout ? "bg-white/15 text-[var(--site-text)]" : "text-[var(--site-muted)] hover:text-[var(--site-subtle)]")}
                                                 >{layout === "spread" ? "Spread" : "Single"}</button>
                                             ))}
                                         </div>
@@ -520,8 +520,8 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
 
             {album.rounds.length > 0 && (
                 <details className="rounded-[1.2rem] border border-white/10 p-4">
-                    <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.14em] text-slate-400">Review history</summary>
-                    <ul className="mt-3 space-y-1.5 text-xs font-semibold text-slate-400">
+                    <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.14em] text-[var(--site-muted)]">Review history</summary>
+                    <ul className="mt-3 space-y-1.5 text-xs font-semibold text-[var(--site-muted)]">
                         {[...album.rounds].reverse().map((r) => (
                             <li key={r.number}>
                                 Round {r.number}: {r.sentByName ?? "Someone"} sent {r.pageCount} {r.pageCount === 1 ? "page" : "pages"}

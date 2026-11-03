@@ -6,8 +6,8 @@ import type { AlbumComment, AlbumPageStatus, AlbumStatus } from "@/lib/albumApi"
 export const ALBUM_GOLD = "#CA9C68";
 
 const PAGE_STATUS: Record<AlbumPageStatus, { label: string; className: string }> = {
-    draft: { label: "Not sent", className: "border-slate-600 bg-slate-800/80 text-slate-300" },
-    pending: { label: "Waiting for review", className: "border-[#CA9C68]/40 bg-[#CA9C68]/10 text-[#E8C9A0]" },
+    draft: { label: "Not sent", className: "border-[var(--site-border)] bg-[var(--site-surface-2)]/80 text-[var(--site-subtle)]" },
+    pending: { label: "Waiting for review", className: "border-[var(--site-gold)]/40 bg-[var(--site-gold)]/10 text-[var(--site-gold-light)]" },
     approved: { label: "Approved", className: "border-emerald-400/40 bg-emerald-400/10 text-emerald-200" },
     changes_requested: { label: "Changes requested", className: "border-rose-400/40 bg-rose-400/10 text-rose-200" },
 };
@@ -54,7 +54,7 @@ export function formatSeconds(seconds: number) {
 }
 
 export const albumButton = {
-    primary: "inline-flex items-center justify-center gap-2 rounded-2xl bg-[#CA9C68] px-4 py-3 text-xs font-black uppercase tracking-widest text-[#13191F] transition-colors hover:bg-[#D7AE7D] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
-    secondary: "inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-200 transition-colors hover:border-[#CA9C68]/50 hover:bg-white/5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
-    ghost: "inline-flex items-center justify-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50",
+    primary: "home-btn-gold inline-flex items-center justify-center gap-2 rounded-full px-4 py-3 text-xs font-black uppercase tracking-widest active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
+    secondary: "home-btn-glass inline-flex items-center justify-center gap-2 rounded-full px-4 py-3 text-xs font-black uppercase tracking-widest active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
+    ghost: "inline-flex items-center justify-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-bold text-[var(--site-subtle)] transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50",
 };

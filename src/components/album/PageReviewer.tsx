@@ -36,8 +36,8 @@ function Pin({ number, state, x, y, onClick, active }: {
             className={cn(
                 "absolute z-10 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-xs font-black shadow-lg shadow-black/60 transition-transform",
                 state === "done" && "border-emerald-200 bg-emerald-500 text-white",
-                state === "open" && "border-white bg-[#CA9C68] text-[#13191F]",
-                state === "draft" && "border-dashed border-[#CA9C68] bg-[#13191F]/90 text-[#CA9C68]",
+                state === "open" && "border-white bg-[var(--site-gold)] text-[var(--site-on-gold)]",
+                state === "draft" && "border-dashed border-[var(--site-gold)] bg-[var(--site-bg)]/90 text-[var(--site-gold)]",
                 state === "new" && "animate-pulse border-white bg-rose-500 text-white",
                 active && "scale-125 ring-4 ring-white/40"
             )}
@@ -84,7 +84,7 @@ function CommentCard({ comment, number, replies, album, mode, active, onFocus, o
         <div
             className={cn(
                 "rounded-2xl border p-3.5 transition-colors",
-                active ? "border-[#CA9C68]/70 bg-[#CA9C68]/[0.07]" : "border-white/10 bg-white/[0.03]",
+                active ? "border-[var(--site-gold)]/70 bg-[var(--site-gold)]/[0.07]" : "border-white/10 bg-white/[0.03]",
                 comment.status === "done" && !active && "opacity-70"
             )}
             onClick={onFocus}
@@ -93,23 +93,23 @@ function CommentCard({ comment, number, replies, album, mode, active, onFocus, o
                 {number !== undefined && (
                     <span className={cn(
                         "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-black",
-                        comment.status === "done" ? "bg-emerald-500 text-white" : comment.isDraft ? "border border-dashed border-[#CA9C68] text-[#CA9C68]" : "bg-[#CA9C68] text-[#13191F]"
+                        comment.status === "done" ? "bg-emerald-500 text-white" : comment.isDraft ? "border border-dashed border-[var(--site-gold)] text-[var(--site-gold)]" : "bg-[var(--site-gold)] text-[var(--site-on-gold)]"
                     )}>{comment.pinX !== null ? number : "•"}</span>
                 )}
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="text-xs font-black uppercase tracking-wider text-[#E8C9A0]">{albumCommentKindLabel(comment.kind)}</span>
-                        {comment.isDraft && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-300">Draft</span>}
+                        <span className="text-xs font-black uppercase tracking-wider text-[var(--site-gold-light)]">{albumCommentKindLabel(comment.kind)}</span>
+                        {comment.isDraft && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--site-subtle)]">Draft</span>}
                         {comment.status === "done" && <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-300"><Check className="h-3 w-3" /> Done</span>}
                     </div>
-                    <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                    <p className="mt-0.5 text-[11px] font-semibold text-[var(--site-muted)]">
                         {comment.authorName}{comment.version ? ` · on v${comment.version}` : ""}
                     </p>
-                    {comment.body && <p className="mt-2 whitespace-pre-wrap break-words text-sm font-medium leading-6 text-slate-100">{comment.body}</p>}
+                    {comment.body && <p className="mt-2 whitespace-pre-wrap break-words text-sm font-medium leading-6 text-[var(--site-text)]">{comment.body}</p>}
                     {comment.voiceUrl && (
                         <div className="mt-2">
                             <audio src={comment.voiceUrl} controls preload="none" className="h-9 w-full" />
-                            {comment.voiceSeconds ? <p className="mt-1 text-[10px] font-bold text-slate-500">Voice note · {formatSeconds(comment.voiceSeconds)}</p> : null}
+                            {comment.voiceSeconds ? <p className="mt-1 text-[10px] font-bold text-[var(--site-muted)]">Voice note · {formatSeconds(comment.voiceSeconds)}</p> : null}
                         </div>
                     )}
                     {comment.replacementPhoto && (
@@ -118,14 +118,14 @@ function CommentCard({ comment, number, replies, album, mode, active, onFocus, o
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="mt-2 flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 p-2 hover:border-[#CA9C68]/50"
+                            className="mt-2 flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 p-2 hover:border-[var(--site-gold)]/50"
                         >
                             {comment.replacementPhoto.thumbnailUrl && (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={comment.replacementPhoto.thumbnailUrl} alt="" className="h-12 w-12 rounded-lg object-cover" />
                             )}
-                            <span className="text-xs font-bold text-slate-300">
-                                <Heart className="mr-1 inline h-3 w-3 fill-[#CA9C68] text-[#CA9C68]" />Use this favourite instead
+                            <span className="text-xs font-bold text-[var(--site-subtle)]">
+                                <Heart className="mr-1 inline h-3 w-3 fill-[var(--site-gold)] text-[var(--site-gold)]" />Use this favourite instead
                             </span>
                         </a>
                     )}
@@ -137,8 +137,8 @@ function CommentCard({ comment, number, replies, album, mode, active, onFocus, o
                         <div className="mt-3 space-y-2 border-l-2 border-white/10 pl-3">
                             {replies.map((r) => (
                                 <div key={r.id}>
-                                    <p className="text-[11px] font-black text-slate-400">{r.authorName}</p>
-                                    {r.body && <p className="whitespace-pre-wrap break-words text-sm text-slate-200">{r.body}</p>}
+                                    <p className="text-[11px] font-black text-[var(--site-muted)]">{r.authorName}</p>
+                                    {r.body && <p className="whitespace-pre-wrap break-words text-sm text-[var(--site-text)]">{r.body}</p>}
                                     {r.voiceUrl && <audio src={r.voiceUrl} controls preload="none" className="mt-1 h-9 w-full" />}
                                 </div>
                             ))}
@@ -154,7 +154,7 @@ function CommentCard({ comment, number, replies, album, mode, active, onFocus, o
                                 maxLength={2000}
                                 autoFocus
                                 placeholder="Write a reply"
-                                className="w-full resize-none rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-[#CA9C68]"
+                                className="w-full resize-none rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-[var(--site-text)] outline-none focus:border-[var(--site-gold)]"
                             />
                             <div className="flex justify-end gap-2">
                                 <button type="button" className={albumButton.ghost} onClick={() => { setReplying(false); setReply(""); }}>Cancel</button>
@@ -205,7 +205,7 @@ function CommentCard({ comment, number, replies, album, mode, active, onFocus, o
                                 <Trash2 className="h-3.5 w-3.5" /> Delete
                             </button>
                         )}
-                        {busy && <Loader2 className="h-4 w-4 animate-spin text-[#CA9C68]" />}
+                        {busy && <Loader2 className="h-4 w-4 animate-spin text-[var(--site-gold)]" />}
                     </div>
                 </div>
             </div>
@@ -259,9 +259,9 @@ function Composer({ album, page, version, draft, onCancel, onSaved }: {
     };
 
     return (
-        <div className="space-y-3 rounded-2xl border border-[#CA9C68]/50 bg-[#CA9C68]/[0.06] p-4">
+        <div className="space-y-3 rounded-2xl border border-[var(--site-gold)]/50 bg-[var(--site-gold)]/[0.06] p-4">
             <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-black text-white">{draft.pinX !== null ? "Comment on this spot" : "Comment on the whole page"}</p>
+                <p className="text-sm font-black text-[var(--site-text)]">{draft.pinX !== null ? "Comment on this spot" : "Comment on the whole page"}</p>
                 <button type="button" onClick={onCancel} className={albumButton.ghost} aria-label="Cancel comment"><X className="h-4 w-4" /></button>
             </div>
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="What should change">
@@ -273,20 +273,20 @@ function Composer({ album, page, version, draft, onCancel, onSaved }: {
                         aria-pressed={kind === id}
                         className={cn(
                             "rounded-full border px-3 py-1.5 text-xs font-bold transition-colors",
-                            kind === id ? "border-[#CA9C68] bg-[#CA9C68] text-[#13191F]" : "border-white/15 text-slate-300 hover:border-white/30"
+                            kind === id ? "border-[var(--site-gold)] bg-[var(--site-gold)] text-[var(--site-on-gold)]" : "border-white/15 text-[var(--site-subtle)] hover:border-white/30"
                         )}
                     >{label}</button>
                 ))}
             </div>
             {kind === "replace" && (
-                <button type="button" onClick={() => setPicking(true)} className="flex w-full items-center gap-3 rounded-xl border border-white/15 bg-black/30 p-2 text-left hover:border-[#CA9C68]/50">
+                <button type="button" onClick={() => setPicking(true)} className="flex w-full items-center gap-3 rounded-xl border border-white/15 bg-black/30 p-2 text-left hover:border-[var(--site-gold)]/50">
                     {photo?.thumbnailUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={photo.thumbnailUrl} alt="" className="h-12 w-12 rounded-lg object-cover" />
                     ) : (
-                        <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/5"><Heart className="h-5 w-5 text-[#CA9C68]" /></span>
+                        <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/5"><Heart className="h-5 w-5 text-[var(--site-gold)]" /></span>
                     )}
-                    <span className="text-xs font-bold text-slate-200">{photo ? "Change the replacement photo" : "Pick the new photo from favourites (optional)"}</span>
+                    <span className="text-xs font-bold text-[var(--site-text)]">{photo ? "Change the replacement photo" : "Pick the new photo from favourites (optional)"}</span>
                 </button>
             )}
             <textarea
@@ -296,7 +296,7 @@ function Composer({ album, page, version, draft, onCancel, onSaved }: {
                 maxLength={2000}
                 autoFocus
                 placeholder="Describe the change (optional)"
-                className="w-full resize-none rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500 focus:border-[#CA9C68]"
+                className="w-full resize-none rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-[var(--site-text)] outline-none placeholder:text-[var(--site-muted)] focus:border-[var(--site-gold)]"
             />
             <VoiceRecorder value={voice} onChange={setVoice} disabled={saving} />
             {error && <p className="text-xs font-bold text-rose-300">{error}</p>}
@@ -440,14 +440,14 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
     );
 
     return (
-        <div className="fixed inset-0 z-[95] flex flex-col bg-[#0B0F12] text-white" role="dialog" aria-modal="true" aria-label={`${label} review`}>
+        <div className="fixed inset-0 z-[95] flex flex-col bg-[var(--site-bg)] text-[var(--site-text)]" role="dialog" aria-modal="true" aria-label={`${label} review`}>
             {/* Top bar */}
             <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2.5 sm:px-5">
                 <button type="button" onClick={onClose} className={albumButton.ghost} aria-label="Close"><X className="h-5 w-5" /></button>
                 {/* On phones the title gets its own row and the controls wrap below it */}
                 <div className="min-w-0 flex-1 basis-[70%] sm:basis-auto">
-                    <p className="truncate font-serif text-lg font-bold text-[#FFF7EB]">{label}</p>
-                    <p className="text-[11px] font-bold text-slate-500">{index + 1} of {pages.length} · {page.layout === "spread" ? "Spread" : "Single page"}</p>
+                    <p className="truncate font-serif text-lg font-bold text-[var(--site-text)]">{label}</p>
+                    <p className="text-[11px] font-bold text-[var(--site-muted)]">{index + 1} of {pages.length} · {page.layout === "spread" ? "Spread" : "Single page"}</p>
                 </div>
                 <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                     <PageStatusChip status={page.status} className="hidden sm:inline-flex" />
@@ -459,14 +459,14 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
                                     type="button"
                                     onClick={() => setShownVersion(v.version)}
                                     aria-pressed={v.version === version?.version}
-                                    className={cn("rounded-lg px-2.5 py-1 text-xs font-black", v.version === version?.version ? "bg-[#CA9C68] text-[#13191F]" : "text-slate-300 hover:bg-white/10")}
+                                    className={cn("rounded-lg px-2.5 py-1 text-xs font-black", v.version === version?.version ? "bg-[var(--site-gold)] text-[var(--site-on-gold)]" : "text-[var(--site-subtle)] hover:bg-white/10")}
                                     title={v.round === 0 ? "Not sent yet" : `Sent in round ${v.round}`}
                                 >v{v.version}{v.round === 0 ? "*" : ""}</button>
                             ))}
                         </div>
                     )}
                     {previousVersion && (
-                        <button type="button" onClick={() => setCompare(!compare)} aria-pressed={compare} className={cn(albumButton.ghost, compare && "bg-white/10 text-white")} title="Compare with the previous version">
+                        <button type="button" onClick={() => setCompare(!compare)} aria-pressed={compare} className={cn(albumButton.ghost, compare && "bg-white/10 text-[var(--site-text)]")} title="Compare with the previous version">
                             <Columns2 className="h-4 w-4" /> <span className="hidden sm:inline">Compare</span>
                         </button>
                     )}
@@ -486,16 +486,16 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
                     <div className={cn("flex gap-4", compare ? "flex-col sm:flex-row" : "", zoom ? "items-start" : "max-h-full max-w-full items-center justify-center")}>
                         {compare && previousVersion && (
                             <div className="relative opacity-80">
-                                <span className="absolute left-2 top-2 z-10 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-200">v{previousVersion.version} (before)</span>
+                                <span className="absolute left-2 top-2 z-10 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--site-text)]">v{previousVersion.version} (before)</span>
                                 {image(previousVersion, false)}
                             </div>
                         )}
                         <div className="relative">
-                            {compare && <span className="absolute left-2 top-2 z-20 rounded-full bg-[#CA9C68] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#13191F]">v{version?.version} (now)</span>}
+                            {compare && <span className="absolute left-2 top-2 z-20 rounded-full bg-[var(--site-gold)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--site-on-gold)]">v{version?.version} (now)</span>}
                             {image(version, true)}
                         </div>
                     </div>
-                    {!version && <p className="m-auto text-sm font-bold text-slate-400">This page hasn&apos;t been sent for review yet.</p>}
+                    {!version && <p className="m-auto text-sm font-bold text-[var(--site-muted)]">This page hasn&apos;t been sent for review yet.</p>}
                 </div>
 
                 {/* Comments */}
@@ -547,7 +547,7 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
                             </div>
                         )}
                         {mode === "photographer" && page.latestVersion > (page.sentVersion ?? 0) && (
-                            <p className="rounded-xl bg-white/5 px-3 py-2 text-xs font-bold text-slate-300">v{page.latestVersion} isn&apos;t sent yet. Use “Send for review” on the album to share it.</p>
+                            <p className="rounded-xl bg-white/5 px-3 py-2 text-xs font-bold text-[var(--site-subtle)]">v{page.latestVersion} isn&apos;t sent yet. Use “Send for review” on the album to share it.</p>
                         )}
 
                         {error && <p className="rounded-xl border border-rose-400/30 bg-rose-400/10 p-3 text-xs font-bold text-rose-200">{error}</p>}
@@ -564,15 +564,15 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
                             />
                         ) : canComment && (
                             <div className="rounded-2xl border border-dashed border-white/15 p-3 text-center">
-                                <p className="text-xs font-bold text-slate-400">Tap a spot on the page to pin a comment to a photo.</p>
-                                <button type="button" className={cn(albumButton.ghost, "mt-1 text-[#E8C9A0]")} onClick={() => setDraft({ pinX: null, pinY: null })}>
+                                <p className="text-xs font-bold text-[var(--site-muted)]">Tap a spot on the page to pin a comment to a photo.</p>
+                                <button type="button" className={cn(albumButton.ghost, "mt-1 text-[var(--site-gold-light)]")} onClick={() => setDraft({ pinX: null, pinY: null })}>
                                     <MessageSquarePlus className="h-4 w-4" /> Comment on the whole page
                                 </button>
                             </div>
                         )}
 
                         {onThisVersion.length === 0 && earlier.length === 0 && !draft && (
-                            <p className="py-4 text-center text-xs font-semibold text-slate-500">No comments on this page yet.</p>
+                            <p className="py-4 text-center text-xs font-semibold text-[var(--site-muted)]">No comments on this page yet.</p>
                         )}
                         {onThisVersion.map((c) => (
                             <div key={c.id} ref={(el) => { if (el) commentRefs.current.set(c.id, el); else commentRefs.current.delete(c.id); }}>
@@ -581,7 +581,7 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
                         ))}
                         {earlier.length > 0 && (
                             <details className="group" open={onThisVersion.length === 0}>
-                                <summary className="cursor-pointer list-none py-2 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 hover:text-slate-300">
+                                <summary className="cursor-pointer list-none py-2 text-[11px] font-black uppercase tracking-[0.14em] text-[var(--site-muted)] hover:text-[var(--site-subtle)]">
                                     Other versions ({earlier.length})
                                 </summary>
                                 <div className="space-y-3">
@@ -596,7 +596,7 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
                     </div>
 
                     {mode === "client" && myDrafts > 0 && (
-                        <div className="border-t border-white/10 bg-[#CA9C68]/[0.06] p-3 text-center text-xs font-bold text-[#E8C9A0]">
+                        <div className="border-t border-white/10 bg-[var(--site-gold)]/[0.06] p-3 text-center text-xs font-bold text-[var(--site-gold-light)]">
                             {myDrafts === 1 ? "1 comment is" : `${myDrafts} comments are`} waiting. Close this view and tap <span className="font-black">Send feedback</span> when you&apos;ve been through the pages.
                         </div>
                     )}

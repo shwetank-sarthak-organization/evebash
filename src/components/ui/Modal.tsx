@@ -13,16 +13,16 @@ export const modalStyles = {
     dialog: "m-auto w-[calc(100%-2rem)] max-w-md rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)] p-6 text-[var(--site-text)] shadow-2xl shadow-black/50 backdrop:bg-black/70 backdrop:backdrop-blur-sm sm:p-7",
     title: "text-2xl font-black tracking-tight text-[var(--site-text)]",
     subtitle: "mt-1 text-sm font-semibold leading-6 text-[var(--site-muted)]",
-    eyebrow: "mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#CA9C68]",
+    eyebrow: "mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-gold)]",
     body: "text-sm font-semibold leading-6 text-[var(--site-subtle)]",
     label: "mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]",
-    input: "w-full rounded-2xl border border-[var(--site-border)] bg-[#13191F] px-5 py-4 text-base text-[var(--site-text)] outline-none transition-colors placeholder:text-[var(--site-muted)]/60 focus:border-[#CA9C68] focus:ring-1 focus:ring-[#CA9C68]",
+    input: "w-full rounded-2xl border border-[var(--site-border)] bg-[var(--site-bg)] px-5 py-4 text-base text-[var(--site-text)] outline-none transition-colors placeholder:text-[var(--site-muted)]/60 focus:border-[var(--site-gold)] focus:ring-1 focus:ring-[var(--site-gold)]",
     actions: "mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end",
-    primary: "inline-flex items-center justify-center gap-2 rounded-2xl bg-[#CA9C68] px-5 py-3.5 text-sm font-black uppercase tracking-widest text-[#13191F] transition-colors hover:bg-[#D7AE7D] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
-    secondary: "inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--site-border)] px-5 py-3.5 text-sm font-black uppercase tracking-widest text-[var(--site-subtle)] transition-colors hover:bg-white/5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
+    primary: "modal-btn-primary inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--site-gold)] px-5 py-3.5 text-sm font-black uppercase tracking-widest text-[var(--site-on-gold)] transition-colors hover:bg-[var(--site-gold-light)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
+    secondary: "modal-btn-secondary inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--site-border)] px-5 py-3.5 text-sm font-black uppercase tracking-widest text-[var(--site-subtle)] transition-colors hover:bg-white/5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
     danger: "inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-500 px-5 py-3.5 text-sm font-black uppercase tracking-widest text-white transition-colors hover:bg-rose-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
     error: "rounded-2xl border border-rose-400/25 bg-rose-400/10 p-4 text-center text-sm font-bold text-rose-200",
-    success: "rounded-2xl border border-[#CA9C68]/30 bg-[#CA9C68]/10 p-4 text-center text-sm font-bold text-[#F5E7D4]",
+    success: "rounded-2xl border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 p-4 text-center text-sm font-bold text-[#F5E7D4]",
 };
 
 export function ModalCloseButton({ onClick, disabled, label = "Close", className }: {
@@ -39,7 +39,7 @@ export function ModalCloseButton({ onClick, disabled, label = "Close", className
             aria-label={label}
             title={label}
             className={cn(
-                "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--site-border)] bg-[#13191F]/70 text-[var(--site-muted)] transition-colors hover:border-[#CA9C68]/60 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-40",
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--site-border)] bg-[var(--site-bg)]/70 text-[var(--site-muted)] transition-colors hover:border-[var(--site-gold)]/60 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-40",
                 className
             )}
         >
@@ -155,7 +155,7 @@ function ChoiceDialog<T extends string>({ title, message, choices, onDone }: {
                             ref={index === 0 ? firstRef : undefined}
                             type="button"
                             onClick={() => onDone(choice.id)}
-                            className="w-full rounded-2xl border border-[var(--site-border)] bg-[#13191F]/60 px-5 py-4 text-left transition-colors hover:border-[#CA9C68] hover:bg-[#CA9C68]/10 focus-visible:border-[#CA9C68] focus-visible:outline-none"
+                            className="w-full rounded-2xl border border-[var(--site-border)] bg-[var(--site-bg)]/60 px-5 py-4 text-left transition-colors hover:border-[var(--site-gold)] hover:bg-[var(--site-gold)]/10 focus-visible:border-[var(--site-gold)] focus-visible:outline-none"
                         >
                             <span className="block text-sm font-black text-[var(--site-text)]">{choice.label}</span>
                             {choice.description && <span className="mt-1 block text-xs font-semibold leading-5 text-[var(--site-muted)]">{choice.description}</span>}
