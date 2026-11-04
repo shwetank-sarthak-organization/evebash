@@ -588,6 +588,12 @@ function ViewerVideo({
     if (time !== null) seekToTime(time);
   };
 
+  // The viewer's swipe to the next or previous item listens to raw touches on the media frame,
+  // so a drag on the seek bar or volume slider must not reach it (#180)
+  const keepTouchFromViewerSwipe = (event: GestureResponderEvent) => {
+    event.stopPropagation();
+  };
+
   const renderCustomControls = (fullscreen = false) => (
     <>
     <LinearGradient
@@ -601,6 +607,8 @@ function ViewerVideo({
       <View
         style={localStyles.dashboardVideoProgressTouch}
         onLayout={event => { progressTrackWidthRef.current = event.nativeEvent.layout.width; }}
+        onTouchStart={keepTouchFromViewerSwipe}
+        onTouchEnd={keepTouchFromViewerSwipe}
         onStartShouldSetResponder={() => duration > 0}
         onMoveShouldSetResponder={() => duration > 0}
         onResponderTerminationRequest={() => false}
@@ -708,6 +716,8 @@ function ViewerVideo({
               <View style={localStyles.dashboardVideoVolumeInline}>
                 <View
                   style={localStyles.dashboardVideoVolumeTouch}
+                  onTouchStart={keepTouchFromViewerSwipe}
+                  onTouchEnd={keepTouchFromViewerSwipe}
                   onStartShouldSetResponder={() => true}
                   onMoveShouldSetResponder={() => true}
                   onResponderGrant={handleVolumeGesture}
