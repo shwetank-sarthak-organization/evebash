@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 245
+Next issue number: 246
 
 =====================================================================
 ACTIVE ISSUES
@@ -1209,17 +1209,6 @@ Note 2026-11-03: SENTRY_AUTH_TOKEN saved as a secret EAS variable (preview and p
 Note 2026-11-04: fixed the project mix-up in 82784bd. The DSN in eas.json pointed at an older Sentry project (id 4512321949466624) and the plugin named a slug, "react-native", that doesn't exist. Both EAS profiles now use the evebash-app project's DSN (project id 4512321956020224, from Sentry > evebash-app > Client Keys) and the @sentry/react-native/expo plugin in apps/mobile/app.json names project evebash-app, so errors and source maps go to the same project. Checked: expo config reads org evebash / project evebash-app; EAS preview and production have no DSN variable that would override eas.json (only SENTRY_AUTH_TOKEN, Supabase and the Google iOS ID). Builds made before this commit (e.g. 6736de50) still report to the older project. Next: one EAS staging build; its log should show the source map upload succeed, then device test #145 step 8.
 Note 2026-11-04: EAS Android staging build 58b1804b (versionCode 25, staging 29e92eb) finished, and its log shows the source map upload succeeding: organization evebash, project evebash-app, release com.evebash.app@1.2.4+25, dist 25, artifact bundle with the Hermes source map (debug id f5e95ae2-cf12-42f5-b8b8-f7165ea580e7). The build uses the evebash-app DSN with environment staging. Left: an app error from this build should show readable file and function names in Sentry (device test #145 step 8). Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/58b1804b-a070-4280-99f8-6f9adfa7c4c1
 
-#190
-Listed: 2026-11-01
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: App crash audit (chat 2026-11-01)
-Issue: A very large upload queue can disappear after a restart. apps/mobile/lib/uploadQueue.ts saves the whole queue as one AsyncStorage value and rewrites it on every change. One item is about 570 bytes, so about 3,500 files reach Android's 2 MB limit for reading one row, and about 10,500 reach AsyncStorage's default 6 MB database limit. Past that the read or save fails. The error is caught, so the app doesn't crash, but pending uploads silently vanish after a restart and their copies stay in the app's documents folder. Sizes are calculated, not reproduced. Fix: store one row per item or per batch, and clean up orphaned copies at startup.
-How to reproduce: Not run. On Android, queue 4,000 photos, close the app before they finish, and reopen it: expect the queue to be empty.
-
 #205
 Listed: 2026-11-02
 Platform: App
@@ -1488,9 +1477,33 @@ Found in: Applying the 10/15/30 discount prices (chat 2026-11-04)
 Issue: The app's Upgrade Plan page (apps/mobile/app/(tabs)/pricing.tsx) has its prices written into the code, while the website reads them from pricing_plans. A price change in the database or the admin dashboard doesn't reach the app, so it shows old prices until someone edits the file and ships an app update. The 3/6/12-month numbers were edited by hand for the 2026-11-04 prices. Fix idea: read them from /api/v1/pricing-plans, as the website does, with these as the fallback.
 How to reproduce: Change a price in pricing_plans; the website shows it and the app doesn't.
 
+#245
+Listed: 2026-11-04
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: #190 fix (chat 2026-11-04)
+Issue: Queued uploads point at their copy by its full file path (fileUri in apps/mobile/lib/uploadQueue.ts, e.g. .../Documents/evebash_uploads/<name>). On iPhone the app's folder path can change after an app update, so photos still waiting to upload across an update would fail as if the file were missing, although the copy is still there. From how iOS stores app data; not reproduced. Fix: at startup, rebuild the path of copies in evebash_uploads from the current documents folder (the copy's name is already unique).
+How to reproduce: Not run. On an iPhone, queue photos with airplane mode on, install a newer build of the app, open it and turn airplane mode off: expect those uploads to fail.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#190
+Listed: 2026-11-01
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: A very large upload queue can disappear after a restart. apps/mobile/lib/uploadQueue.ts saves the whole queue as one AsyncStorage value and rewrites it on every change. One item is about 570 bytes, so about 3,500 files reach Android's 2 MB limit for reading one row, and about 10,500 reach AsyncStorage's default 6 MB database limit. Past that the read or save fails. The error is caught, so the app doesn't crash, but pending uploads silently vanish after a restart and their copies stay in the app's documents folder. Sizes are calculated, not reproduced. Fix: store one row per item or per batch, and clean up orphaned copies at startup.
+How to reproduce: Not run. On Android, queue 4,000 photos, close the app before they finish, and reopen it: expect the queue to be empty.
+Fixed in: 11a60c8 (2026-11-04). apps/mobile/lib/uploadQueue.ts saves the queue as a JSON file (Documents/evebash_upload_queue.json, written to a temporary file and then moved into place) instead of one AsyncStorage value, so neither AsyncStorage limit applies. A queue saved by an older version is moved to the file at startup, and the old value is removed only after the file exists. At startup, copies in Documents/evebash_uploads that no queue item points at are deleted (matched by file name; copies still being added are kept). Saves still happen once per status change, as before. Checked on the iPhone 17 Pro simulator with a release build: a seeded 4,000-item queue in the old format (2.65 MB, past Android's 2 MB read limit) moved to the file, the old value was removed, leftover copies were deleted and referenced ones kept; after a restart all 4,000 items loaded again. Not run on Android. Device test #184. Found while fixing: #245.
+
+
 #189
 Listed: 2026-11-01
 Platform: App

@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 184
+Next test number: 185
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5209,6 +5209,36 @@ How to test:
      still open it; other guests still have access; uploads work again.
   8. Repeat with "Keep the current owner on as an admin" off. Expect: A loses access unless a guest.
   9. Send one more, and Decline as B. Expect: it stays with A, uploads work, and A gets a push.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#184 Uploads still survive closing the app (app, issue #190)
+Status:    TODO
+Priority:  High
+Platform:  App (iPhone and Android)
+Brief:     The app now saves its list of waiting uploads in a file instead of one big setting, so very large batches
+           (thousands of photos) are no longer lost after a restart. At start-up it also deletes old upload copies
+           that nothing is waiting for. Uploading should look and work exactly as before; this checks nothing broke.
+Detail:    Commit 11a60c8 on staging (app code only; needs a staging build or update made after it).
+           2026-11-04 check by Claude (not a tester PASS): iPhone 17 Pro simulator, release build, with 4,000 test
+           items. Not run on Android or a real phone.
+How to test:
+  1. As a host, pick about 30 photos and upload them to your own test gallery. While they upload, close the app
+     completely (swipe it away), then open it again. Expect: the upload card shows the rest and carries on; every
+     photo arrives once (no missing ones, no duplicates).
+  2. Start uploading about 10 photos, turn on airplane mode part-way, close the app, open it again, then turn
+     airplane mode off. Expect: it waits for the connection, then finishes, as before.
+  3. Optional, if you have the previous staging build: queue a few photos on it with airplane mode on, install the
+     new build over it, open it and turn airplane mode off. Expect: the waiting photos are still listed and finish.
+  4. Optional, Android: after all uploads finish, check Settings > Apps > EveBash > Storage. Expect: app storage
+     doesn't stay high after the photos have uploaded.
 Done by:
 Device / browser:
 Build / version:
