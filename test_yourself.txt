@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 186
+Next test number: 187
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5280,6 +5280,38 @@ How to test:
   8. As a guest the host has NOT allowed to comment: comments and replies show, but there are no Reply buttons
      and no comment box.
   9. On a phone browser, repeat steps 1 to 5.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#186 Video player: dragging the seek bar moves through the video, not to the next item (app, issue #180)
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone and Android)
+Brief:     Dragging the video seek bar sideways used to jump to the next or previous photo or video instead of
+           moving through the video. Now the seek bar and the volume slider only move the video; swiping on the
+           picture still changes item.
+Detail:    Commit ccf4612 on staging (app code only; needs a staging build or update made after it). Use a gallery
+           with at least 2 videos (test-face-new has 4 under Videos).
+           2026-11-04 check by Claude (not a tester PASS): Pixel 8 Android emulator (steps 1 to 5) and iPhone 17 Pro
+           simulator (steps 1, 3 and 5). Not a real phone; step 6 not run.
+How to test:
+  1. Open a gallery, tap Videos, and open a video. Tap the video if the controls are hidden. Drag along the thin bar
+     above the buttons from left to right. Expect: the time moves forward (for example 0:22 / 0:30) and the counter
+     at the top stays the same (for example 1 / 4).
+  2. Drag the bar from right to left. Expect: the time goes back; still the same video.
+  3. Tap once in the middle of the bar. Expect: the video jumps to about halfway; still the same video.
+  4. Tap the speaker button, then drag its small slider left and right. Expect: the volume changes; still the same
+     video.
+  5. Swipe left on the picture itself (not on the controls). Expect: the next video opens (2 / 4). Swipe right:
+     back to the first one.
+  6. Host side: from Host, open the same event, open a video and repeat steps 1 and 5. Expect: the same results.
 Done by:
 Device / browser:
 Build / version:
