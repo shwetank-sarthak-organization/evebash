@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 185
+Next test number: 186
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-03
+Last updated: 2026-11-04
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -1285,7 +1285,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #58 Website gallery: like, comment and download sit on the photo
-Status:    FAIL
+Status:    RETEST
 Priority:  Medium
 Platform:  Website (staging.evebash.com), computer and phone
 Brief:     The white strip under each photo is gone. The icons sit on the bottom of the photo over a soft fade:
@@ -1306,7 +1306,7 @@ Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
 Date tested: 2026-10-28
 Account used: host newone@email.com
 Screenshot / recording:
-Fix ref:
+Fix ref: 35e8f8f (2026-11-04), issue #177: the tile heart and count now change at once
 Feedback: Tile icons: Like photo / Comments / Download original on each tile. Step 4 FAILS: tapping the heart saves the like (server 201) but the heart and the count pill don't change until a reload; a second tap removes the like without showing anything. Cause: the tile waits for Realtime, which is off. Issue #177. Like was removed again afterwards. Hover look not judged (the pane freezes this theme's animations).
 
 --------------------------------------------------------------------------------
@@ -2732,12 +2732,12 @@ Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
 Date tested: 2026-10-28
 Account used: host newone@email.com
 Screenshot / recording:
-Fix ref:
+Fix ref: 35e8f8f (2026-11-04), issue #178: Delete now shows at once, asks first, and the header says "1 shared thought"
 Feedback: Host part (step 6) partly: as host, posted a comment from the photo viewer; it showed at once with the name New and a time ("01:40", not "just now"). Problems (issue #178): no Delete on the new comment until the photo is reopened; Delete then removes it with no confirm; header says "1 shared thoughts". Test comment deleted. Guest A / B steps and the app need other accounts.
 
 --------------------------------------------------------------------------------
 #111 Comment threads (replies) on photos (website and app)
-Status:    FAIL
+Status:    RETEST
 Priority:  Medium
 Platform:  Website + App (Android and iOS)
 Brief:     Replies sit under the comment they answer, on both the website and the app, and show the same on both.
@@ -2765,7 +2765,7 @@ Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
 Date tested: 2026-10-28
 Account used: host newone@email.com
 Screenshot / recording:
-Fix ref:
+Fix ref: 35e8f8f (2026-11-04), issue #178: the gallery photo viewer now has Reply and reply threads (see device test #185)
 Feedback: The website gallery photo viewer has no Reply button at all (src/components/page-flip/PageFlipSocialBar.tsx has no reply threads); replies only exist in the old Lightbox, which is now used only on the host page. Issue #178.
 
 #113 Website: Royal Emerald gallery controls and phone hero (issues #86-#90, #94, #96)
@@ -5239,6 +5239,45 @@ How to test:
      new build over it, open it and turn airplane mode off. Expect: the waiting photos are still listed and finish.
   4. Optional, Android: after all uploads finish, check Settings > Apps > EveBash > Storage. Expect: app storage
      doesn't stay high after the photos have uploaded.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#185 Website gallery: likes and comments show at once; replies and a Delete confirm in the photo viewer (issues #177, #178)
+Status:    TODO
+Priority:  High (launch blocker, test first)
+Platform:  Website (staging.evebash.com), computer and phone browser
+Brief:     Likes and comments now show the moment you make them, without reloading. The gallery photo viewer now has
+           replies under comments, asks before deleting a comment, and shows comment times the same way as the app.
+Detail:    Commit 35e8f8f on staging (website only). Use a test gallery and a host account that can comment.
+           2026-11-04 check by Claude (not a tester PASS): local website in the built-in browser, 720 px wide, signed in
+           as the host of test-face-new; steps 1 to 6 worked. Not a real phone; steps 7 and 8 not run. Test likes
+           and comments were deleted.
+How to test:
+  1. Signed in, open a gallery and tap the heart on a photo in the grid. Expect: it turns red and shows 1 at once.
+     Tap again. Expect: back to white with no number, at once. Reload: it stays as you left it.
+  2. Open a photo and tap Comments. Post "test 1". Expect: it shows at once with today's time (no date), the header
+     says "1 shared thought", and it has Reply and Delete without reopening the photo.
+  3. Tap Reply. Expect: a "Replying to <your name>" bar with an X, and the box says "Write a reply...". Tap the X:
+     the bar goes. Tap Reply again and send "reply 1". Expect: it shows indented under "test 1", with Delete but
+     no Reply button.
+  4. Tap Delete on "test 1". Expect: a "Delete comment?" card that says its replies will be deleted too. Press Esc
+     (computer) or tap Cancel. Expect: only the card closes; the viewer and comments stay open; nothing is deleted.
+  5. Delete "reply 1", then "test 1", confirming each. Expect: each disappears at once and stays gone after
+     reopening the photo.
+  6. Post a comment, then close the viewer. Expect: the photo's tile in the grid shows the comment count without
+     a reload. Delete the comment afterwards.
+  7. Host page: from Host, open the same event's gallery and a photo. Like it, comment, then delete the comment.
+     Expect: each change shows at once; on the Delete card, Esc or Cancel leaves the viewer open.
+  8. As a guest the host has NOT allowed to comment: comments and replies show, but there are no Reply buttons
+     and no comment box.
+  9. On a phone browser, repeat steps 1 to 5.
 Done by:
 Device / browser:
 Build / version:

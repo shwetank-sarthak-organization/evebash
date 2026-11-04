@@ -1090,29 +1090,6 @@ Found in: Device test #95, Claude run on staging (2026-10-28)
 Issue: In Host -> event -> Home (Primary Gallery) -> Filter, the Source gallery list counts only the photos already loaded on the page, not the whole gallery. test-face-new shows "Photos (42)" but the list offers only "All galleries (17)" and "Home (Primary Gallery) (17)"; sub-galleries whose favourites aren't loaded yet (check-fail-test, new_check, newcheck) are missing, so the host can't filter by them. In src/app/(main)/host/page.tsx, sourceGalleryOptions and the "All galleries (N)" label are built from selectedMediaItems (currentEventPhotos, which loads in pages); Uploaded by already loads everyone when opened ("Loading everyone..."), Source gallery doesn't. Fix idea: load all media (or ask the server for per-gallery counts) when the Filter panel opens, like Uploaded by does, and show "N+" while more pages are left.
 How to reproduce: Host -> test-face-new -> Galleries -> Home (Primary Gallery). Don't scroll. Filter -> Source gallery: compare the numbers with the Photos (42) tab, and look for the sub-gallery names.
 
-#177
-Listed: 2026-10-28
-Platform: Website
-Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Device test #58, Claude run on staging (2026-10-28)
-Issue: Tapping the heart on a photo in the website gallery grid saves the like (POST /likes 201) but the heart and the like count don't change until the page is reloaded. Tapping again (because nothing seemed to happen) silently removes the like. Unlike has the same problem. src/components/ui/MasonryGrid.tsx handleToggleLike calls toggleLike and then waits for onPhotoInteractions (src/lib/database.ts) to refresh the likes, but that only refreshes on Supabase Realtime postgres_changes, and Realtime is off (issue #49). Comments in the grid count pill have the same dependency. Fix idea: update the likes list in the tile straight after toggleLike succeeds (optimistic, roll back on error), or re-fetch the photo's likes after the call.
-How to reproduce: Signed in, open a gallery (e.g. /events/test-face-new-155c), tap the heart on a photo that has no likes. The heart stays white and no "1" pill appears. Reload: the photo shows as liked with "1".
-
-#178
-Listed: 2026-10-28
-Platform: Website
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Device tests #64, #110, #111, Claude run on staging (2026-10-28)
-Issue: The website's gallery photo viewer (src/components/page-flip/PageFlipSocialBar.tsx, used by MasonryGrid for every guest gallery since the page-flip viewer, 6a7e38ea) is behind the older Lightbox (src/components/ui/Lightbox.tsx, now only used on the host page): (1) no Reply button and no reply threads at all, so test #111 can't be done on the website and the app's replies don't show as threads there; (2) Delete on your own comment removes it at once with no "Delete comment?" confirm (test #64 step 2); (3) right after posting, your new comment has no Delete button until you close and reopen the photo; (4) the header reads "1 shared thoughts". Fix idea: bring reply threads and confirmDialog into PageFlipSocialBar (reuse Lightbox's logic, ideally shared), set the new comment's user id so Delete shows at once, and fix the singular.
-How to reproduce: Signed in, open /events/test-face-new-155c, open a photo, open Comments, post a comment: no Reply button; no Delete until reopening; then Delete removes it without asking.
-Note 2026-11-03: the app now uses shared/text/commentTime.ts (formatCommentTime: the time for today, the date for older comments). The website has two copies that show only the time (formatInteractionTime in src/components/ui/Lightbox.tsx, formatCommentTime in src/components/page-flip/PageFlipSocialBar.tsx); use the shared one when this is fixed.
-
 #179
 Listed: 2026-10-28
 Platform: Backend only
@@ -1491,6 +1468,31 @@ How to reproduce: Not run. On an iPhone, queue photos with airplane mode on, ins
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#177
+Listed: 2026-10-28
+Platform: Website
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test #58, Claude run on staging (2026-10-28)
+Issue: Tapping the heart on a photo in the website gallery grid saves the like (POST /likes 201) but the heart and the like count don't change until the page is reloaded. Tapping again (because nothing seemed to happen) silently removes the like. Unlike has the same problem. src/components/ui/MasonryGrid.tsx handleToggleLike calls toggleLike and then waits for onPhotoInteractions (src/lib/database.ts) to refresh the likes, but that only refreshes on Supabase Realtime postgres_changes, and Realtime is off (issue #49). Comments in the grid count pill have the same dependency. Fix idea: update the likes list in the tile straight after toggleLike succeeds (optimistic, roll back on error), or re-fetch the photo's likes after the call.
+How to reproduce: Signed in, open a gallery (e.g. /events/test-face-new-155c), tap the heart on a photo that has no likes. The heart stays white and no "1" pill appears. Reload: the photo shows as liked with "1".
+Fixed in: 35e8f8f (2026-11-04). src/lib/database.ts: after toggleLike, addComment or deletePhotoComment succeeds, every open view of that photo (grid tile and viewer) reads its likes and comments again, so nothing waits for Realtime; only the newest read counts. The grid heart and count (src/components/ui/MasonryGrid.tsx) change at once and go back if saving fails. The host page viewer (src/components/ui/Lightbox.tsx) waited the same way and is fixed by the same change. Checked on the local website signed in (built-in browser, 720 px wide): like and unlike showed at once and matched the database; after a comment in the viewer the grid tile showed 1 comment without a reload. Test likes and comments deleted. The host page viewer was not clicked through. Device test #185; device test #58 set to RETEST.
+
+#178
+Listed: 2026-10-28
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device tests #64, #110, #111, Claude run on staging (2026-10-28)
+Issue: The website's gallery photo viewer (src/components/page-flip/PageFlipSocialBar.tsx, used by MasonryGrid for every guest gallery since the page-flip viewer, 6a7e38ea) is behind the older Lightbox (src/components/ui/Lightbox.tsx, now only used on the host page): (1) no Reply button and no reply threads at all, so test #111 can't be done on the website and the app's replies don't show as threads there; (2) Delete on your own comment removes it at once with no "Delete comment?" confirm (test #64 step 2); (3) right after posting, your new comment has no Delete button until you close and reopen the photo; (4) the header reads "1 shared thoughts". Fix idea: bring reply threads and confirmDialog into PageFlipSocialBar (reuse Lightbox's logic, ideally shared), set the new comment's user id so Delete shows at once, and fix the singular.
+How to reproduce: Signed in, open /events/test-face-new-155c, open a photo, open Comments, post a comment: no Reply button; no Delete until reopening; then Delete removes it without asking.
+Note 2026-11-03: the app now uses shared/text/commentTime.ts (formatCommentTime: the time for today, the date for older comments). The website has two copies that show only the time (formatInteractionTime in src/components/ui/Lightbox.tsx, formatCommentTime in src/components/page-flip/PageFlipSocialBar.tsx); use the shared one when this is fixed.
+Fixed in: 35e8f8f (2026-11-04). src/components/page-flip/PageFlipSocialBar.tsx: (1) Reply on top comments; replies sit indented under the comment they answer (one level deep, same order as the app), with a "Replying to <name>" bar and an X, cleared when moving to another photo; (2) Delete asks "Delete comment?" first (and says its replies go too; the database deletes them with it), and Esc on that confirm closes only the confirm, not the viewer behind it (isDialogOpen in src/components/ui/Modal.tsx, also used by the host page Lightbox); (3) a new comment gets its Delete button as soon as it is saved; (4) "1 shared thought". Both website viewers now use shared/text/commentTime.ts. Checked on the local website signed in as a host: comment, Reply, cancel reply, reply, Esc on the confirm, delete reply and comment all worked, and the database was back to 0 comments. Not checked: the order against the app with replies from both, or a guest without comment rights. Device test #185; device test #111 set to RETEST, #110 Fix ref filled.
+
 #190
 Listed: 2026-11-01
 Platform: App
