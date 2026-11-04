@@ -54,7 +54,7 @@ import { CoverFlowMediaViewer } from "@/components/page-flip/CoverFlowMediaViewe
 
 ## Likes And Comments
 
-Cover Flow reuses the existing EveBash `likes` and `comments` tables through `toggleLike`, `addComment`, `deletePhotoComment`, and `onPhotoInteractions`. Likes and new comments update optimistically and roll back if Supabase rejects the request. Because existing tables are reused, no extra migration is required for this viewer.
+Cover Flow reuses the existing EveBash `likes` and `comments` tables through `toggleLike`, `addComment`, `deletePhotoComment`, and `onPhotoInteractions`. Likes and new comments update optimistically and roll back if Supabase rejects the request. Realtime is off, so after each like, comment or delete every open view of that photo (grid tile and viewer) reads it again. Replies sit under the comment they answer (one level deep, like the app), and deleting a comment asks first. Because existing tables are reused, no extra migration is required for this viewer.
 
 Comments open inside the viewer: desktop uses a right-side drawer and mobile uses a bottom sheet. Escape closes the comment drawer before the main viewer.
 

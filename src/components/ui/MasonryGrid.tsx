@@ -135,11 +135,15 @@ function PhotoCard({
         e.stopPropagation();
         if (isLiking) return;
         setIsLiking(true);
+        // Shown at once; toggleLike then re-reads the photo's likes (#177)
+        const previousLikes = likes;
+        setLikes(current => isLiked ? current.filter(l => l.userId !== identity.id) : [{ userId: identity.id }, ...current]);
         try {
             await toggleLike(photo.id, identity.id, identity.name);
             onLikeChange?.();
         } catch (err) {
             console.error("Like failed", err);
+            setLikes(previousLikes);
         } finally {
             setIsLiking(false);
         }
@@ -290,7 +294,7 @@ function PhotoCard({
                         {/* Comment Option (opens the viewer, where comments are) */}
                         <button type="button"
                             className="flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full px-2 transition-colors hover:bg-white/15 group/comment"
-                            aria-label={commentsCount > 0 ? `${commentsCount} comments` : "Comments"}
+                            aria-label={commentsCount > 0 ? `${commentsCount} ${commentsCount === 1 ? "comment" : "comments"}` : "Comments"}
                         >
                             <MessageCircle
                                 size={20}

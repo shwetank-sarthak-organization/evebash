@@ -2,10 +2,12 @@
 
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Download, Heart, Info, Loader2, Maximize2, MessageCircle, Pause, Play, Search, Send, Share2, Trash2, UserSearch, X } from "lucide-react";
+import { Check, Download, Heart, Info, Loader2, Maximize2, MessageCircle, Pause, Play, Reply, Search, Send, Share2, Trash2, UserSearch, X } from "lucide-react";
 import { addComment, canCommentOnPhoto, deletePhotoComment, onPhotoInteractions, toggleLike } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
+import { confirmDialog, isDialogOpen } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
+import { formatCommentTime } from "../../../shared/text/commentTime";
 import type { GalleryMediaItem, PageFlipThemeConfig } from "./types";
 
 interface PhotoInteraction {
@@ -14,6 +16,7 @@ interface PhotoInteraction {
   userName: string;
   profileImage?: string | null;
   text?: string;
+  parentId?: string | null;
   createdAt?: string;
 }
 
@@ -61,13 +64,6 @@ function getGuestIdentity() {
   }
 }
 
-function formatCommentTime(value?: string) {
-  if (!value) return "Now";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Now";
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
 export function PageFlipSocialBar({
   item,
   config,
@@ -106,6 +102,8 @@ export function PageFlipSocialBar({
     window.matchMedia("(min-width: 768px)").matches
   ));
   const [commentText, setCommentText] = useState("");
+  // Threads are one level deep: only top comments can be replied to
+  const [replyingTo, setReplyingTo] = useState<PhotoInteraction | null>(null);
   const [likePending, setLikePending] = useState(false);
   const [commentPending, setCommentPending] = useState(false);
   // Everyone who can see the photo reads its comments; only managers and guests the host allowed can write
@@ -147,6 +145,11 @@ export function PageFlipSocialBar({
     return () => unsubscribe();
   }, [item.id, showLikes, showComments]);
 
+  // A reply never carries over to another photo
+  useEffect(() => {
+    setReplyingTo(null);
+  }, [item.id]);
+
   useEffect(() => {
     setCanPostComment(false);
     if (!commentDrawerVisible || !user) return;
@@ -164,7 +167,8 @@ export function PageFlipSocialBar({
   useEffect(() => {
     if (!commentDrawerVisible) return;
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      // Esc on the Delete confirm closes only the confirm
+      if (event.key !== "Escape" || isDialogOpen()) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       handleCloseComments();
@@ -199,20 +203,25 @@ export function PageFlipSocialBar({
     const text = commentText.trim();
     if (!text || commentPending || text.length > 1000 || !canPostComment) return;
 
+    const parentId = replyingTo?.id;
     const optimisticComment: PhotoInteraction = {
       id: `optimistic-${Date.now()}`,
       userId: identity.id,
       userName: identity.name,
       profileImage: identity.profileImage || null,
       text,
+      parentId: parentId ?? null,
       createdAt: new Date().toISOString(),
     };
     setCommentPending(true);
     setCommentText("");
     setComments((current) => [optimisticComment, ...current]);
 
-    const saved = await addComment(item.id, identity.id, identity.name, text);
-    if (!saved) {
+    // Once saved, addComment re-reads the photo's comments, so the new one gets its real id (and its Delete button)
+    const saved = await addComment(item.id, identity.id, identity.name, text, parentId);
+    if (saved) {
+      setReplyingTo((current) => current?.id === parentId ? null : current);
+    } else {
       setComments((current) => current.filter((comment) => comment.id !== optimisticComment.id));
       setCommentText(text);
     }
@@ -220,9 +229,21 @@ export function PageFlipSocialBar({
   };
 
   const handleDeleteComment = async (commentId: string) => {
+    const hasReplies = comments.some((comment) => comment.parentId === commentId);
+    const confirmed = await confirmDialog({
+      title: "Delete comment?",
+      message: hasReplies
+        ? "Are you sure you want to delete this comment? Its replies will be deleted too."
+        : "Are you sure you want to delete this comment?",
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
+    if (!confirmed) return;
     const previousComments = comments;
-    setComments((current) => current.filter((comment) => comment.id !== commentId));
-    const deleted = await deletePhotoComment(commentId);
+    // The database deletes a comment's replies with it
+    setComments((current) => current.filter((comment) => comment.id !== commentId && comment.parentId !== commentId));
+    setReplyingTo((current) => current?.id === commentId ? null : current);
+    const deleted = await deletePhotoComment(commentId, item.id);
     if (!deleted) setComments(previousComments);
   };
 
@@ -239,6 +260,68 @@ export function PageFlipSocialBar({
     } catch (error) {
       console.error("Cover flow share failed", error);
     }
+  };
+
+  // One comment or reply: avatar, name, time, text, and Reply (top comments only) / Delete (your own) once it is saved
+  const renderComment = (comment: PhotoInteraction, isReply: boolean) => {
+    const profileImage = comment.profileImage || null;
+    const commentName = comment.userName || "Guest";
+    const saved = !comment.id.startsWith("optimistic-");
+    const canReply = saved && !isReply && canPostComment;
+    const canDelete = saved && comment.userId === identity.id;
+    return (
+      <div className="flex gap-3">
+        <button
+          type="button"
+          disabled={!profileImage}
+          onClick={() => profileImage && setExpandedProfileImage({ src: profileImage, name: commentName })}
+          className={cn(
+            "flex shrink-0 items-center justify-center overflow-hidden border border-current/10 bg-current/10 font-black uppercase transition",
+            isReply ? "h-8 w-8 rounded-xl text-xs" : "h-11 w-11 rounded-2xl text-sm",
+            profileImage ? "cursor-zoom-in hover:scale-105" : "cursor-default"
+          )}
+          aria-label={profileImage ? `Enlarge ${commentName}'s profile picture` : `${commentName} has no profile picture`}
+        >
+          {profileImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={profileImage} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <span>{commentName.charAt(0)}</span>
+          )}
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="truncate text-sm font-black">{commentName}</p>
+            <span className="shrink-0 text-xs opacity-55">{formatCommentTime(comment.createdAt)}</span>
+          </div>
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed opacity-80">{comment.text}</p>
+          {(canReply || canDelete) && (
+            <div className="mt-3 flex items-center gap-5">
+              {canReply && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReplyingTo(comment);
+                    commentInputRef.current?.focus();
+                  }}
+                  className="flex items-center gap-1 text-xs font-black uppercase tracking-widest opacity-75 transition hover:opacity-100"
+                  aria-label={`Reply to ${commentName}`}
+                >
+                  <Reply className="h-3.5 w-3.5" />
+                  Reply
+                </button>
+              )}
+              {canDelete && (
+                <button type="button" onClick={() => handleDeleteComment(comment.id)} className="flex items-center gap-1 text-xs font-black uppercase tracking-widest text-rose-300">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   const actionClass = cn("flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-45", config.controlClass);
@@ -323,7 +406,7 @@ export function PageFlipSocialBar({
             <div className="flex items-center justify-between border-b border-current/10 px-5 py-4">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Comments</p>
-                <p className="text-sm opacity-70">{comments.length} shared thoughts</p>
+                <p className="text-sm opacity-70">{comments.length} {comments.length === 1 ? "shared thought" : "shared thoughts"}</p>
               </div>
               <button type="button" onClick={handleCloseComments} className={cn("flex h-11 w-11 items-center justify-center rounded-full border", config.controlClass)} aria-label={useSidePanelComments ? "Close viewer" : "Close comments"} title={useSidePanelComments ? "Close viewer" : "Close comments"}>
                 <X className="h-4 w-4" />
@@ -378,43 +461,19 @@ export function PageFlipSocialBar({
                   <p className="text-sm font-bold">No comments yet</p>
                 </div>
               ) : (
-                comments.map((comment) => {
-                  const profileImage = comment.profileImage || null;
-                  const commentName = comment.userName || "Guest";
+                // Replies sit under the comment they answer, in the same order as the app
+                comments.filter((comment) => !comment.parentId).map((comment) => {
+                  const replies = comments.filter((reply) => reply.parentId === comment.id);
                   return (
                     <div key={comment.id} className="rounded-2xl border border-current/10 p-4">
-                      <div className="flex gap-3">
-                        <button
-                          type="button"
-                          disabled={!profileImage}
-                          onClick={() => profileImage && setExpandedProfileImage({ src: profileImage, name: commentName })}
-                          className={cn(
-                            "flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-current/10 bg-current/10 text-sm font-black uppercase transition",
-                            profileImage ? "cursor-zoom-in hover:scale-105" : "cursor-default"
-                          )}
-                          aria-label={profileImage ? `Enlarge ${commentName}'s profile picture` : `${commentName} has no profile picture`}
-                        >
-                          {profileImage ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={profileImage} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <span>{commentName.charAt(0)}</span>
-                          )}
-                        </button>
-                        <div className="min-w-0 flex-1">
-                          <div className="mb-2 flex items-center justify-between gap-3">
-                            <p className="truncate text-sm font-black">{commentName}</p>
-                            <span className="shrink-0 text-xs opacity-55">{formatCommentTime(comment.createdAt)}</span>
-                          </div>
-                          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed opacity-80">{comment.text}</p>
-                          {comment.userId === identity.id && !comment.id.startsWith("optimistic-") && (
-                            <button type="button" onClick={() => handleDeleteComment(comment.id)} className="mt-3 flex items-center gap-1 text-xs font-black uppercase tracking-widest text-rose-300">
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Delete
-                            </button>
-                          )}
+                      {renderComment(comment, false)}
+                      {replies.length > 0 && (
+                        <div className="mt-4 space-y-4 border-l border-current/10 pl-4">
+                          {replies.map((reply) => (
+                            <div key={reply.id}>{renderComment(reply, true)}</div>
+                          ))}
                         </div>
-                      </div>
+                      )}
                     </div>
                   );
                 })
@@ -423,12 +482,22 @@ export function PageFlipSocialBar({
 
             {canPostComment ? (
               <form onSubmit={handleAddComment} className="border-t border-current/10 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                {replyingTo && (
+                  <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-current/10 py-1 pl-4 pr-1">
+                    <p className="min-w-0 truncate text-xs font-bold opacity-70">
+                      Replying to <span className="font-black">{replyingTo.userName || "Guest"}</span>
+                    </p>
+                    <button type="button" onClick={() => setReplyingTo(null)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full opacity-70 transition hover:opacity-100" aria-label="Cancel reply" title="Cancel reply">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <textarea
                     ref={commentInputRef}
                     value={commentText}
                     onChange={(event) => setCommentText(event.target.value.slice(0, 1000))}
-                    placeholder="Write a comment..."
+                    placeholder={replyingTo ? "Write a reply..." : "Write a comment..."}
                     className="min-h-11 flex-1 resize-none rounded-2xl border border-current/10 bg-black/20 px-4 py-3 text-sm outline-none focus-visible:ring-2"
                     maxLength={1000}
                   />

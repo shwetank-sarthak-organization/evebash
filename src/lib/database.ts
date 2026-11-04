@@ -2719,6 +2719,7 @@ export async function toggleLike(photoId: string, userId: string, userName: stri
                 .delete()
                 .eq('id', existing.id);
             if (deleteError) throw deleteError;
+            refreshPhotoInteractions(photoId);
             return { liked: false };
         } else {
             const { error: insertError } = await supabase.from('likes').insert({
@@ -2726,6 +2727,7 @@ export async function toggleLike(photoId: string, userId: string, userName: stri
                 user_id: userId
             });
             if (insertError) throw insertError;
+            refreshPhotoInteractions(photoId);
             return { liked: true };
         }
     } catch (error) {
@@ -2746,11 +2748,20 @@ export async function addComment(photoId: string, userId: string, userName: stri
             parent_id: parentId || null
         });
         if (error) throw error;
+        refreshPhotoInteractions(photoId);
         return true;
     } catch (error) {
         console.error("Error adding comment:", error);
         return false;
     }
+}
+
+// Realtime is off (#49), so after this browser's own like or comment change every open listener for that photo
+// (grid tile and viewer) reads it again (#177)
+const photoInteractionListeners = new Map<string, Set<() => Promise<void>>>();
+
+function refreshPhotoInteractions(photoId: string) {
+    photoInteractionListeners.get(photoId)?.forEach((refresh) => { void refresh(); });
 }
 
 /**
@@ -2759,8 +2770,11 @@ export async function addComment(photoId: string, userId: string, userName: stri
 export function onPhotoInteractions(photoId: string, callback: (data: { likes: any[], comments: any[] }) => void) {
     let currentLikes: any[] = [];
     let currentComments: any[] = [];
+    let closed = false;
+    let latestFetch = 0;
 
     const fetchAndTrigger = async () => {
+        const fetchId = ++latestFetch;
         // Fetch profiles alongside likes/comments using Postgres joins
         // Signed in: names come from profile_cards (name and photo only), since other people's profiles aren't
         // readable once RLS is on. Signed out keeps the old embed; likes and comments are members-only after the lockdown.
@@ -2770,6 +2784,9 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
             supabase.from('likes').select(`id, created_at, user_id, ${people}`).eq('photo_id', photoId),
             supabase.from('comments').select(`id, text, created_at, user_id, parent_id, ${people}`).eq('photo_id', photoId)
         ]);
+
+        // Only the newest read counts, and none after the caller has stopped listening
+        if (closed || fetchId !== latestFetch) return;
 
         if (!likesRes.error && likesRes.data) {
             currentLikes = likesRes.data.map((l: any) => ({
@@ -2821,18 +2838,26 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
         )
         .subscribe();
 
+    const listeners = photoInteractionListeners.get(photoId) ?? new Set();
+    listeners.add(fetchAndTrigger);
+    photoInteractionListeners.set(photoId, listeners);
+
     return () => {
+        closed = true;
+        listeners.delete(fetchAndTrigger);
+        if (listeners.size === 0 && photoInteractionListeners.get(photoId) === listeners) photoInteractionListeners.delete(photoId);
         supabase.removeChannel(interactionsChannel);
     };
 }
 
 /**
- * Deletes a comment.
+ * Deletes a comment (its replies go with it). Pass the photo id so open views of the photo update.
  */
-export async function deletePhotoComment(commentId: string) {
+export async function deletePhotoComment(commentId: string, photoId?: string) {
     try {
         const { error } = await supabase.from('comments').delete().eq('id', commentId);
         if (error) throw error;
+        if (photoId) refreshPhotoInteractions(photoId);
         return true;
     } catch (error) {
         console.error("Error deleting comment:", error);

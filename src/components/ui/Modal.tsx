@@ -100,6 +100,13 @@ function MessageDialog({ title, message, confirmLabel = "OK", cancelLabel, tone 
     );
 }
 
+let openDialogs = 0;
+
+/** True while a confirmDialog, alertDialog or choiceDialog is open, so a viewer's own key handling can leave its keys (Esc) to it. */
+export function isDialogOpen() {
+    return openDialogs > 0;
+}
+
 function openMessageDialog(options: MessageDialogOptions): Promise<boolean> {
     if (typeof document === "undefined") return Promise.resolve(false);
     return new Promise((resolve) => {
@@ -107,9 +114,11 @@ function openMessageDialog(options: MessageDialogOptions): Promise<boolean> {
         document.body.appendChild(host);
         const root = createRoot(host);
         let settled = false;
+        openDialogs++;
         const onDone = (confirmed: boolean) => {
             if (settled) return;
             settled = true;
+            openDialogs--;
             resolve(confirmed);
             // Unmount after the click finishes so React isn't torn down mid-event.
             setTimeout(() => { root.unmount(); host.remove(); }, 0);
@@ -175,9 +184,11 @@ export function choiceDialog<T extends string>(options: { title: string; message
         document.body.appendChild(host);
         const root = createRoot(host);
         let settled = false;
+        openDialogs++;
         const onDone = (choice: T | null) => {
             if (settled) return;
             settled = true;
+            openDialogs--;
             resolve(choice);
             setTimeout(() => { root.unmount(); host.remove(); }, 0);
         };
