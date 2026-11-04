@@ -1207,17 +1207,6 @@ How to reproduce: Read apps/mobile/eas.json (build.production has no env block) 
 Note 2026-11-02: Fix on staging in dee60da. apps/mobile/eas.json: the production profile now sets EXPO_PUBLIC_SENTRY_DSN (same Sentry project as staging) and EXPO_PUBLIC_SENTRY_ENVIRONMENT=production. apps/mobile/app.json: @sentry/react-native/expo plugin (org evebash, project react-native; those names come from the 2026-10-26 setup and weren't checked against Sentry). apps/mobile/metro.config.js: getSentryExpoConfig, which adds the debug ids that match errors to source maps. SENTRY_ALLOW_FAILURE=true in both profiles, because a missing token otherwise fails the build: tested, sentry-cli exits 1 without it and 0 with it, and the step that bundles the app still runs. A clean prebuild wires Sentry into both platforms, iOS and Android bundles built with debug ids, and the iOS bundle started on the simulator. Still needed: SENTRY_AUTH_TOKEN as an EAS secret; until then builds pass but upload nothing, so stack traces stay minified. No native build was run, so the upload itself is unproven until the next EAS build (device test #145). Over-the-air updates need their own upload: npx sentry-expo-upload-sourcemaps dist.
 Note 2026-11-03: SENTRY_AUTH_TOKEN saved as a secret EAS variable (preview and production). EAS staging build 6736de50 (Android, versionCode 25, staging 6111451) finished and installs from its expo.dev page. Its source map upload reached Sentry but was refused: "One or more projects are invalid (http status: 400)". So "react-native", the project name in the @sentry/react-native/expo plugin in apps/mobile/app.json, isn't the app project's real slug. SENTRY_ALLOW_FAILURE kept the build going, as planned. Next: put the real slug in app.json; the next build then uploads. Errors from this build should still reach Sentry (the DSN is right) but show minified code.
 
-#189
-Listed: 2026-11-01
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: App crash audit (chat 2026-11-01)
-Issue: Google sign-in on iPhone would crash the app if the iOS client ID is ever missing or wrong. apps/mobile/context/AuthContext.tsx falls back to 'YOUR_IOS_CLIENT_ID_HERE'. Google's SDK then raises a native exception ("Your app is missing support for the following URL schemes"), and react-native-google-signin only catches it in DEBUG builds (ios/RNGoogleSignin.mm), so a release build closes when the user taps Continue with Google. Not happening today: the value in EAS production, EAS preview and the local .env all match iosUrlScheme in app.json. Fix: remove the placeholder, and when the value is missing hide the Google button on iPhone or show a normal error.
-How to reproduce: Not run. Make an iOS release build with EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID unset and tap Continue with Google: expect the app to close.
-
 #190
 Listed: 2026-11-01
 Platform: App
@@ -1228,17 +1217,6 @@ Blocked by: -
 Found in: App crash audit (chat 2026-11-01)
 Issue: A very large upload queue can disappear after a restart. apps/mobile/lib/uploadQueue.ts saves the whole queue as one AsyncStorage value and rewrites it on every change. One item is about 570 bytes, so about 3,500 files reach Android's 2 MB limit for reading one row, and about 10,500 reach AsyncStorage's default 6 MB database limit. Past that the read or save fails. The error is caught, so the app doesn't crash, but pending uploads silently vanish after a restart and their copies stay in the app's documents folder. Sizes are calculated, not reproduced. Fix: store one row per item or per batch, and clean up orphaned copies at startup.
 How to reproduce: Not run. On Android, queue 4,000 photos, close the app before they finish, and reopen it: expect the queue to be empty.
-
-#191
-Listed: 2026-11-01
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: App crash audit (chat 2026-11-01)
-Issue: Two kinds of push open pages that don't exist. apps/mobile/app/_layout.tsx sends chat pushes to /chat/<id> and enquiry pushes to /enquiries, but the routes are app/chat.tsx (no id route) and app/business-enquiries.tsx, and there is no +not-found screen, so the user lands on expo-router's default "Unmatched Route" page. Not a crash; both are Phase 2 features. Fix: point them at the real routes and add a branded app/+not-found.tsx.
-How to reproduce: Not run. Tap a chat or enquiry push: expect the Unmatched Route page.
 
 #205
 Listed: 2026-11-02
@@ -1500,6 +1478,30 @@ How to reproduce: Device test #180 on an Android phone with its normal on-screen
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#189
+Listed: 2026-11-01
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: Google sign-in on iPhone would crash the app if the iOS client ID is ever missing or wrong. apps/mobile/context/AuthContext.tsx falls back to 'YOUR_IOS_CLIENT_ID_HERE'. Google's SDK then raises a native exception ("Your app is missing support for the following URL schemes"), and react-native-google-signin only catches it in DEBUG builds (ios/RNGoogleSignin.mm), so a release build closes when the user taps Continue with Google. Not happening today: the value in EAS production, EAS preview and the local .env all match iosUrlScheme in app.json. Fix: remove the placeholder, and when the value is missing hide the Google button on iPhone or show a normal error.
+How to reproduce: Not run. Make an iOS release build with EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID unset and tap Continue with Google: expect the app to close.
+Fixed in: 7c165dc (2026-11-04). apps/mobile/context/AuthContext.tsx no longer uses the placeholder ID. On iPhone, if EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID is missing or doesn't match the iosUrlScheme of the google-signin plugin in app.json (read from the built app's config), Google sign-in is left unconfigured and Continue with Google shows the existing "not available in this app build" message instead of the app closing. Checked: type check; the built app's embedded config carries the plugin's iosUrlScheme and the local .env ID matches it, so current builds behave as before. Not run: a build with a wrong ID.
+
+#191
+Listed: 2026-11-01
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: Two kinds of push open pages that don't exist. apps/mobile/app/_layout.tsx sends chat pushes to /chat/<id> and enquiry pushes to /enquiries, but the routes are app/chat.tsx (no id route) and app/business-enquiries.tsx, and there is no +not-found screen, so the user lands on expo-router's default "Unmatched Route" page. Not a crash; both are Phase 2 features. Fix: point them at the real routes and add a branded app/+not-found.tsx.
+How to reproduce: Not run. Tap a chat or enquiry push: expect the Unmatched Route page.
+Fixed in: 7c165dc (2026-11-04). Chat pushes open /chat with the room, and the sender's name (now in the push data) as the header. Enquiry pushes now carry businessId (addEnquiry in apps/mobile/lib/database.ts) and open /business-enquiries for it; older enquiry pushes without it do nothing. New apps/mobile/app/+not-found.tsx is a branded page with Go to Home / Go back. Checked on the iPhone 17 Pro simulator with a release build: simulated chat and enquiry pushes (xcrun simctl push) opened the chat screen with the sender's name and the enquiries page; a test-only link to a missing page showed the new page, and Go to Home opened the Dashboard. These two pushes still aren't sent at all until #58 (missing profiles.notification_preferences column) is fixed.
+
 #237
 Listed: 2026-11-03
 Platform: App
@@ -1667,7 +1669,6 @@ Found in: Upload flow review (chat 2026-11-02)
 Issue: Failed uploads show raw technical errors. The "Upload Details" dialog lists item.error from apps/mobile/lib/uploadQueue.ts, for example "Server did not find B2 file, retrying", "Rejected by server", "File failed to verify on server" or "Network request failed", including our storage provider's name. These need plain wording.
 How to reproduce: Not run on a device (needs a failed upload); read in the code.
 Fixed in: 3236073 (2026-11-02). uploadErrorMessage (apps/mobile/lib/uploadQueue.ts) turns item.error into plain words for the card's "Tap to see why"; item.error itself is unchanged. Not seen on a device (needs a failed upload). Device test #170.
-
 
 #28
 Listed: 2026-10-11
@@ -1913,8 +1914,6 @@ Built 2026-10-27, code on staging in cb8cda4, Modal v133 deployed 2026-10-27 (mi
 Turn on in this order: 1) apply the migration; 2) deploy Modal, then video_gpu_switch.py queue-aware on; 3) deploy the backend, then VIDEO_WATCHDOG_QUEUE_AWARE=true on Railway. Check: upload 20+ videos to a test gallery within 10 min; transcode_attempts should stay 0, no video should turn failed, and modal_cost_logs should have one process_video_* row per video. Rollback: VIDEO_WATCHDOG_QUEUE_AWARE=false and queue-aware off (no deploy).
 Fixed in: cb8cda4 (code), migration applied 2026-10-28, switches on 2026-10-28 (Modal queue_aware on, Railway VIDEO_WATCHDOG_QUEUE_AWARE=true). Checked: a test video on test-face-new-155c got transcode_queued_at and transcode_heartbeat_at from Modal and was processed with 0 re-sends. RunPod jobs (todo #18) don't write these notes; their duplicates are stopped by the worker's /start check. Rollback: either switch off.
 
-
-
 #163
 Listed: 2026-10-27
 Platform: Both
@@ -1974,102 +1973,3 @@ Found in: Sunlit Portrait review (2026-10-27)
 Issue: App builds made before e4091d4 (2026-10-27) don't know the "portrait" theme id. A gallery set to Sunlit Portrait opens in those builds in the generic layout with the first theme's colours (Royal Emerald), since MOBILE_TEMPLATE_THEMES has no entry for it. Only testers on older staging builds see this (nothing has launched), but any theme added later will do the same on older app versions. Fix: fall back to a neutral theme (e.g. Classic White) for unknown ids instead of the first in the list, and ship that before the first store release.
 How to reproduce: Install a staging build from before 2026-10-27 and open a Sunlit Portrait gallery: it shows Royal Emerald colours.
 Fixed in: c1373c6 (2026-10-28). Closed as not needed before launch (Sarthak, 2026-10-28: the app isn't live, the new build knows the theme). Kept for after launch: the event screen falls back to Midnight Hero, the default, for a theme id it doesn't know (apps/mobile/app/events/[id].tsx), and the host's design section says "A newer theme (update the app)" instead of a blank. Type-checked only.
-
-#159
-Listed: 2026-10-27
-Platform: Both
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Fixing #155 (chat 2026-10-27)
-Issue: Same problem as #155 in more places: updateEvent returns false when a save fails, and these callers never check it, so the screen keeps the new value (and some show a success message) when nothing was saved. Website, src/app/(main)/host/page.tsx: changing the theme (handleUpdateTemplate, about :3343 and the sub-gallery cascade just below), saving a new join code when sharing (about :3079), and setting the first uploaded photo as cover (about :2687). App, apps/mobile/app/events/[id].tsx: cover upload and cover remove (about :2536 and :2604; they then update storage usage as if the cover changed), theme (about :2694), event type (about :2714), cover Fit/Fill (about :4075, toast shown before saving), cover position (about :8583, "Cover position saved" shown before saving) and linking a vendor (about :8411, Phase 2 business feature). Fix: same as #155, check the returned value, show the existing error and put the old value back. Lower priority than #155 because these are less often edited and most show the change straight away rather than a message about text.
-How to reproduce: Load the host page (website) or the event screen (app), turn the internet off, then change the theme or the cover position: the change appears to stick; reload and the old theme or position is back.
-Fixed in: 4fce1b3 (2026-10-27). Every listed save except the vendor link (Phase 2) now checks what updateEvent returns. Website: a failed theme change (or sub-gallery cascade) shows "Failed to save changes." and reloads the old theme; a failed join-code save shows "Unable to prepare share invitation." instead of opening the share box; a failed first-upload cover save keeps the placeholder. App: cover upload, cover remove, Fit/Fill and cover position now save first and only change the screen, storage usage and toast when the save worked, otherwise an error alert; theme and event type put the old value back and show the existing error. Checked with tsc (website clean; app shows only its existing errors in other files); the failed-save path was not run, so device test #160 covers it (app part needs a new build).
-
-#55
-Listed: 2026-10-12
-Platform: Website
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: #52 scan for whole-table loads (2026-10-12)
-Issue: Unused website functions in src/lib/database.ts still load whole tables and filter on the device: getEvents() (every gallery), and getUserPendingVisits / getPendingSharedEventsForUser (every pending guests row, matched on the device like getUserVisits before #52). Nothing calls them, so nothing is affected now, but reusing them would bring the problem back. Fix: delete them (or, if a "pending requests I sent" list is wanted, filter on the server the way getUserVisits does now).
-How to reproduce: grep src for getEvents( / getUserPendingVisits( / getPendingSharedEventsForUser(: only the definitions.
-Fixed in: b0bd3db (2026-10-27). Deleted getEvents, getUserPendingVisits and getPendingSharedEventsForUser from src/lib/database.ts. Nothing called them (searched src, apps and shared); guestLogMatchesIdentifier and mapSqlToGuestLog stay because other functions use them. Checked: tsc has no errors. No device test: no screen used these functions.
-
-#56
-Listed: 2026-10-12
-Platform: Website
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: #52 browser check (2026-10-12)
-Issue: The website sets user.phone to the text "No Phone" when the profile has no phone (src/context/AuthContext.tsx), and Dashboard, Profile, the host page and others pass user.phone as one of the user's identifiers. So "no phone" is matched against guests rows (phone, old id prefix, user_id) by getApprovedSharedEventsForUser, and against events.created_by / photos.user_id by getUserEvents and the storage totals. No row holds "No Phone" today (checked 2026-10-12: 0 guests, 0 events, 0 photos), but if one ever did, every website user without a phone would see that gallery or have its storage counted. The app leaves user.phone empty instead. Fix: keep user.phone empty (show "Not provided" in the UI only), or drop the placeholder from identifier lists.
-How to reproduce: Website, log in with an account without a phone, open the Dashboard: the guests request's or= filter contains "no phone".
-Fixed in: b36d6f0 (2026-10-27). src/context/AuthContext.tsx now leaves user.phone empty ("") instead of "No Phone" when the profile has no phone, so it is no longer sent as an identifier. Screens that show the phone already say "Not provided" when it is empty. Checked: tsc has no source errors. No device test: the only visible change is that the business page's owner phone box starts empty instead of "No Phone".
-
-#43
-Listed: 2026-10-11
-Platform: App
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: #17 bundle ID work (2026-10-11)
-Issue: The repo root still has an old tracked Android project (android/, 37 files) and a stub app.json, both using the package com.anonymous.weddingapp. The real app is apps/mobile, and EAS builds from there. The leftovers are confusing and show up in ID searches. Confirm nothing uses them, then delete them.
-How to reproduce: git ls-files android app.json
-Fixed in: 487ea68 (2026-10-27). Deleted android/ (37 files) and the root app.json. Checked first: no script, config, CI workflow or code refers to them; EAS builds and the app config use apps/mobile. No device test: the app build does not use these files.
-
-#162
-Listed: 2026-10-27
-Platform: App
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Sunlit Portrait app theme work (todo #9, 2026-10-27)
-Issue: The app's Gallery screen has its own copy of the event-date reader: eventDateValue and MONTH_NAMES in apps/mobile/app/(tabs)/your-events.tsx. The website's copy moved to shared/text/eventDate.ts (used by src/lib/eventSort.ts and Sunlit Portrait's date line on both website and app), so the two can now drift apart and sort events differently. Fix: delete the copy in your-events.tsx and import eventDateValue from shared/text/eventDate.ts; check the Gallery screen's "Event date" sort still orders the same.
-How to reproduce: Compare eventDateValue in apps/mobile/app/(tabs)/your-events.tsx with shared/text/eventDate.ts: same logic in two places.
-Fixed in: bdd15d2 (2026-10-27). your-events.tsx now imports eventDateValue from shared/text/eventDate.ts; its own copy and MONTH_NAMES are deleted. The two copies were identical line for line, and a sort of sample dates (both directions, unreadable dates last) gave the same order with the old and shared function. App tsc shows no errors in the changed file (only its existing errors in other files). No device test: the sort logic did not change.
-
-#29
-Listed: 2026-10-11
-Platform: Website
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Website UI re-check (2026-10-11)
-Issue: On phones the homepage headline (the LCP element) appears at 4.3 s; Lighthouse puts 81% of it in render delay. Likely cause: three self-hosted font families with italic styles (Inter, Playfair Display, Akaya Kanadaka in src/app/fonts.ts), with the headline waiting on Playfair. Lighthouse phone performance is 80.
-How to reproduce: npx -y lighthouse@12 https://staging.evebash.com/ --only-categories=performance and check largest-contentful-paint-element.
-Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor. Google still crawls the phone version after that too, so the search-ranking part stays.
-Note 2026-10-27: re-measured. The repro command above measures the wrong page on staging: Lighthouse 12's phone browser name has no "lighthouse" in it, so the download screen (#109) is shown and Lighthouse reports a paragraph on it as the LCP (see #160). On www.evebash.com the headline was still the LCP at 3.9 s and 4.6 s (scores 78 and 58). Real cause: the homepage sat under src/app/(main)/loading.tsx, and React 19.2 sends any ready Suspense content after a ~12.8 KB page shell behind its fallback. So every first load painted the full-screen "Loading your gallery" screen first, and the headline only after a delayed swap script, waiting on the JavaScript. The fonts were a smaller part: display was already swap, but 5 font files (~195 KB, including two italics the homepage doesn't use) were preloaded.
-Fixed in: ae9f66e (2026-10-27). (1) (main)/loading.tsx is gone; each (main) section has its own loading.tsx re-exporting src/components/RouteLoading.tsx, so the other pages keep their loading screen and the homepage has none (its HTML now has the headline directly, no hidden part). (2) src/app/fonts.ts: Inter and Playfair italics are separate calls with the same family names and preload off, so 3 fonts are preloaded instead of 5; italic text still uses the real italic faces (checked in the browser). (3) src/app/globals.css: Tailwind only scans src/ (CSS 378 KB -> 311 KB; no class used in src was dropped). Checked on a local production build, Lighthouse 12 phone, median of 5 runs: score 67 -> 88, LCP 5.4 s -> 3.7 s, TBT 499 -> 106 ms; unthrottled, the headline now paints with the first paint (234 ms) instead of ~1.4 s. The 3.7 s left is Lighthouse's estimate counting ~260 KB of JavaScript that starts early. Re-run on www after production deploys (with the gate on, add --emulated-user-agent with "Chrome-Lighthouse" in it, or use www). Device test #157. Other main pages still paint the loading screen first: #161.
-
-#155
-Listed: 2026-10-27
-Platform: Both
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Planning todo #11 (edit from Preview Guest Theme), 2026-10-27
-Issue: Some saves tell the host "updated" even when nothing was saved. updateEvent (src/lib/database.ts and apps/mobile/lib/database.ts) returns false when the save fails instead of throwing, but these callers only catch errors and never check the result: website host page, renaming a gallery's title and date (handleRenameSubmit, src/app/(main)/host/page.tsx:3252, shows "Event updated!" / "Gallery updated!") and the gallery message (handleSaveGalleryMessage, :3280, "Gallery message updated."); app, the gallery message (handleSaveGalleryDesc, apps/mobile/app/events/[id].tsx:1749 and :1754, "Gallery message updated successfully!") and the welcome message save button (:5267, "Welcome message updated."). The screen also shows the new text, so the host only finds out when they reload or a guest sees the old one. Fix: check the returned value, show the existing error message and put the old value back when it is false.
-How to reproduce: Make updateEvent fail (e.g. go offline after the host page has loaded, or block the request to the events table in the browser's dev tools), then rename a gallery or change its message: the success message appears; reload and the old title or message is still there.
-Fixed in: 7203a2f (2026-10-27). All four callers now check what updateEvent returns: the website rename shows "Failed to save changes." and puts the old name back; the website gallery message shows "Failed to update gallery message." and keeps the typed text for a retry; the app Welcome Message box shows "Failed to update welcome message." and keeps the text; the app gallery-message popup (handleSaveGalleryDesc) checks it too, though nothing in the current app opens that popup. Successful saves behave as before. Checked with tsc (website clean; app shows only its existing errors in other files); the failed-save path was not run, so device test #156 covers it (app part needs a new build). The same problem in other save buttons is #159.
-
-#156
-Listed: 2026-10-27
-Platform: Website
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Chat (Sarthak saw a popup with Sign out flash when switching pages, 2026-10-27)
-Issue: Signed-in users saw the "Before you continue" terms/privacy popup (src/components/PolicyAcceptanceGate.tsx) flash for a moment on every full page load, with "Checking policy acceptance…" and Sign out / Accept and continue buttons. The gate counted "not checked yet" as "not accepted", so it opened the popup while the get_policy_acceptance call was still running and closed it when the answer came back. Switching between page groups (e.g. /host to /vault or an event page) is a full page load because (main), (public) and (vault) each have their own root layout and AuthProvider, so it showed there too.
-How to reproduce: On staging, signed in with an account that has accepted the policies, open /host, then go to /vault or reload. The popup flashed before the page showed.
-Fixed in: edb0f47 (2026-10-27). The popup now opens only once the check says "not accepted" or fails; users who never accepted are still blocked (the page shows for the second or so while the check runs). Screenshot of the old popup taken on staging in the built-in browser by holding back the check; website type check clean for the file; not yet checked in a browser after the fix. Device test #154.
-
