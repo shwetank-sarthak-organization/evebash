@@ -3777,6 +3777,8 @@ Detail:    Branch feat/sentry-crash-reporting. Env vars: NEXT_PUBLIC_SENTRY_DSN 
            errors, and app builds upload source maps once SENTRY_AUTH_TOKEN is an EAS secret. Website production is unchanged.
            2026-11-04 (issue #186, 82784bd): app errors and source maps now go to the Sentry project "evebash-app".
            Look there for app errors from builds made after that commit (older builds report to a different project).
+           2026-11-04: EAS Android staging build 58b1804b (staging 29e92eb) uploaded its source maps to Sentry project
+           evebash-app (release com.evebash.app@1.2.4+25, dist 25). Use it for steps 4, 5 and 8. Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/58b1804b-a070-4280-99f8-6f9adfa7c4c1
 How to test:
   1. Website: open staging.evebash.com, use it normally for a minute (log in, open a gallery). Expect: works
      exactly as before. In Sentry (project evebash-web / Next.js) nothing new unless something broke.
@@ -4577,6 +4579,8 @@ Detail:    App code only, no new native build needed. On staging in 6653ed4.
            adb shell am start -a android.intent.action.VIEW -d evebash://events/crash-test
            2026-11-01 simulator run by Claude (not a tester PASS): steps 1 to 4 passed on the iPhone 17 Pro simulator
            with a release bundle. Not run on Android or a real phone. Step 5 not run: that bundle has no Sentry DSN.
+           2026-11-04: the normal staging build 58b1804b (staging 29e92eb) contains this fix, but it has no crash-test page,
+           so steps that force the error screen still need the special test build described above.
 How to test:
   1. Open evebash://events/crash-test. Expect: "Something went wrong" with Try again and Go back, the app stays
      open, and no page name such as events/crash-test shows at the top.
@@ -5015,6 +5019,7 @@ Detail:    Commit eed090f on staging (app only; needs a new staging app build or
            host grid on rec-8-3d4d and Royal Emerald guest grid on test-face-new-155c. Photos in view always showed,
            far ones were dropped and came back on scrolling up. The simulator can't show the memory saving, so this
            needs a real phone.
+           2026-11-04: in the EAS Android staging build 58b1804b (staging 29e92eb). Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/58b1804b-a070-4280-99f8-6f9adfa7c4c1
 How to test:
   1. As the host of a gallery with lots of photos (300+ is best), open its photo grid and scroll quickly to the
      bottom, then back to the top. Expect: every photo you stop on shows; while flicking, a few tiles may show an
