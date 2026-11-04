@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 244
+Next issue number: 245
 
 =====================================================================
 ACTIVE ISSUES
@@ -1476,6 +1476,17 @@ Blocked by: Device test #180 (which places really break on a phone)
 Found in: Searching the app for the #242 pattern (chat 2026-11-03)
 Issue: Other places where the Android keyboard may cover a text box or its button, like #242. Not checked on a phone yet: the emulator here only shows Gboard's floating keyboard. Same pattern as #242 (keyboard handling only on iOS, inside a pop-up): (1) album page review, "Write a reply" and "Describe the change (optional)" (apps/mobile/components/album/PageReviewer.tsx, about line 416); (2) host page > Add Sub-Gallery (apps/mobile/components/event/modals/SubEventModal.tsx); (3) EB Vault > New folder and Rename (NamePrompt in apps/mobile/components/vault/VaultModals.tsx). No keyboard handling at all, in a pop-up in the middle of the screen, so the keyboard may hide its lower half and the Save button: (4) Host tab > an event's options > Rename Event (apps/mobile/app/(tabs)/gallery.tsx, about line 1186); (5) host event page > pencil next to the title, "Edit Event Title" (apps/mobile/components/event/modals/RenameEventModal.tsx). Full screens with no keyboard handling, fine if Android shrinks the screen for the keyboard: (6) Profile > Edit (the lowest boxes, location and birthday); (7) Contact us (the message box, apps/mobile/app/contact.tsx); (8) the host page's welcome message editor (apps/mobile/app/events/[id].tsx, about line 5413). Not listed: the business screens (Phase 2: chat, vendors, manage business) use the same iOS-only pattern. Fix idea: for each place that fails device test #180, lift the pop-up by the keyboard height with apps/mobile/hooks/use-android-keyboard-height.ts (added for #242; the bottom sheets use it too).
 How to reproduce: Device test #180 on an Android phone with its normal on-screen keyboard.
+
+#244
+Listed: 2026-11-04
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Applying the 10/15/30 discount prices (chat 2026-11-04)
+Issue: The app's Upgrade Plan page (apps/mobile/app/(tabs)/pricing.tsx) has its prices written into the code, while the website reads them from pricing_plans. A price change in the database or the admin dashboard doesn't reach the app, so it shows old prices until someone edits the file and ships an app update. The 3/6/12-month numbers were edited by hand for the 2026-11-04 prices. Fix idea: read them from /api/v1/pricing-plans, as the website does, with these as the fallback.
+How to reproduce: Change a price in pricing_plans; the website shows it and the app doesn't.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

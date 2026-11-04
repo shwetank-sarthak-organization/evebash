@@ -41,9 +41,9 @@ const packages = [
     photos: "~2,000 photos",
     prices: {
       monthly: { price: "₹150", period: "/ month", save: null },
-      quarterly: { price: "₹400", period: "/ 3 mo", save: null },
-      semiannual: { price: "₹700", period: "/ 6 mo", save: null },
-      yearly: { price: "₹1,000", period: "/ yr", save: null },
+      quarterly: { price: "₹399", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹749", period: "/ 6 mo", save: null },
+      yearly: { price: "₹1,249", period: "/ yr", save: null },
     },
     features: [
       "10 Active Events",
@@ -65,9 +65,9 @@ const packages = [
     photos: "~5,000 photos",
     prices: {
       monthly: { price: "₹300", period: "/ month", save: null },
-      quarterly: { price: "₹800", period: "/ 3 mo", save: null },
-      semiannual: { price: "₹1,400", period: "/ 6 mo", save: null },
-      yearly: { price: "₹2,000", period: "/ yr", save: null },
+      quarterly: { price: "₹799", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹1,499", period: "/ 6 mo", save: null },
+      yearly: { price: "₹2,499", period: "/ yr", save: null },
     },
     features: [
       "25 Active Events",
@@ -92,9 +92,9 @@ const packages = [
     photos: "~10,000 photos",
     prices: {
       monthly: { price: "₹450", period: "/ month", save: null },
-      quarterly: { price: "₹1,200", period: "/ 3 mo", save: null },
-      semiannual: { price: "₹2,100", period: "/ 6 mo", save: null },
-      yearly: { price: "₹3,000", period: "/ yr", save: null },
+      quarterly: { price: "₹1,199", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹2,249", period: "/ 6 mo", save: null },
+      yearly: { price: "₹3,749", period: "/ yr", save: null },
     },
     features: [
       "50 Active Events",
@@ -119,9 +119,9 @@ const packages = [
     photos: "~20,000 photos",
     prices: {
       monthly: { price: "₹750", period: "/ month", save: null },
-      quarterly: { price: "₹2,000", period: "/ 3 mo", save: null },
-      semiannual: { price: "₹3,500", period: "/ 6 mo", save: null },
-      yearly: { price: "₹5,000", period: "/ yr", save: null },
+      quarterly: { price: "₹1,999", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹3,799", period: "/ 6 mo", save: null },
+      yearly: { price: "₹6,299", period: "/ yr", save: null },
     },
     isPopular: true,
     features: [
@@ -147,9 +147,9 @@ const packages = [
     photos: "~40,000 photos",
     prices: {
       monthly: { price: "₹1,200", period: "/ month", save: null },
-      quarterly: { price: "₹3,200", period: "/ 3 mo", save: null },
-      semiannual: { price: "₹5,600", period: "/ 6 mo", save: null },
-      yearly: { price: "₹8,000", period: "/ yr", save: null },
+      quarterly: { price: "₹3,199", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹6,099", period: "/ 6 mo", save: null },
+      yearly: { price: "₹10,049", period: "/ yr", save: null },
     },
     features: [
       "200 Active Events",
@@ -175,9 +175,9 @@ const packages = [
     photos: "~100,000 photos",
     prices: {
       monthly: { price: "₹2,200", period: "/ month", save: null },
-      quarterly: { price: "₹6,000", period: "/ 3 mo", save: null },
-      semiannual: { price: "₹10,500", period: "/ 6 mo", save: null },
-      yearly: { price: "₹15,000", period: "/ yr", save: null },
+      quarterly: { price: "₹5,899", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹11,199", period: "/ 6 mo", save: null },
+      yearly: { price: "₹18,449", period: "/ yr", save: null },
     },
     features: [
       "500 Active Events",
@@ -204,9 +204,9 @@ const packages = [
     photos: "~200,000 photos",
     prices: {
       monthly: { price: "₹3,750", period: "/ month", save: null },
-      quarterly: { price: "₹10,000", period: "/ 3 mo", save: null },
-      semiannual: { price: "₹17,500", period: "/ 6 mo", save: null },
-      yearly: { price: "₹25,000", period: "/ yr", save: null },
+      quarterly: { price: "₹10,099", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹19,099", period: "/ 6 mo", save: null },
+      yearly: { price: "₹31,499", period: "/ yr", save: null },
     },
     features: [
       "1000 Active Events",
