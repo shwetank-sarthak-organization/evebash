@@ -121,34 +121,26 @@ function AuthGate({ children, onReady }: { children: React.ReactNode; onReady: (
 
   // Handle notification taps — route user to the right screen
   useEffect(() => {
-    // Handle tap when app is already open
-    const tapSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-      const data = response.notification.request.content.data as Record<string, string>;
-      if (data?.roomId) {
-        router.push(`/chat/${data.roomId}` as any);
-      } else if (data?.type === 'album_proof' && data.eventId) {
-        router.push(`/events/${data.eventId}?tab=album${data.albumId ? `&album=${data.albumId}` : ''}` as any);
-      } else if (data?.eventId) {
-        router.push(`/events/${data.eventId}` as any);
-      } else if (data?.enquiryId) {
-        router.push(`/enquiries` as any);
-      }
-    });
-
-    // Handle tap when app was closed / in background
-    Notifications.getLastNotificationResponseAsync().then(response => {
+    const openFromNotification = (response: Notifications.NotificationResponse | null) => {
       if (!response) return;
       const data = response.notification.request.content.data as Record<string, string>;
       if (data?.roomId) {
-        router.push(`/chat/${data.roomId}` as any);
+        router.push({ pathname: '/chat', params: { roomId: data.roomId, ...(data.senderName ? { otherUserName: data.senderName } : {}) } });
       } else if (data?.type === 'album_proof' && data.eventId) {
         router.push(`/events/${data.eventId}?tab=album${data.albumId ? `&album=${data.albumId}` : ''}` as any);
       } else if (data?.eventId) {
         router.push(`/events/${data.eventId}` as any);
-      } else if (data?.enquiryId) {
-        router.push(`/enquiries` as any);
+      } else if (data?.enquiryId && data.businessId) {
+        // Enquiry pushes sent before businessId was added can't open the page, which needs the business
+        router.push({ pathname: '/business-enquiries', params: { id: data.businessId } });
       }
-    });
+    };
+
+    // Handle tap when app is already open
+    const tapSubscription = Notifications.addNotificationResponseReceivedListener(openFromNotification);
+
+    // Handle tap when app was closed / in background
+    Notifications.getLastNotificationResponseAsync().then(openFromNotification);
 
     return () => tapSubscription.remove();
   }, [router]);

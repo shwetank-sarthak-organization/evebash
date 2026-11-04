@@ -2920,7 +2920,7 @@ export async function addEnquiry(enquiry: Omit<Enquiry, 'id' | 'createdAt' | 'st
                 enquiry.vendorOwnerId,
                 '📩 New enquiry received',
                 `You have a new enquiry${enquiry.category ? ` about ${enquiry.category}` : ''}`,
-                { enquiryId }
+                { enquiryId, businessId: enquiry.businessId }
             ).catch(() => {});
         }
 
@@ -3015,7 +3015,7 @@ export async function sendMessage(
                 recipientUid,
                 `New message from ${senderName}`,
                 text.length > 60 ? `${text.substring(0, 60)}...` : text,
-                { roomId, senderId },
+                { roomId, senderId, senderName },
                 'likesAndComments'
               )
             );

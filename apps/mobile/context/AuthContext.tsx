@@ -3,10 +3,11 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { NativeModules } from 'react-native';
+import Constants from 'expo-constants';
+import { NativeModules, Platform } from 'react-native';
 
 type GoogleSigninModule = {
-  configure: (options: { webClientId: string; iosClientId: string }) => void;
+  configure: (options: { webClientId: string; iosClientId?: string }) => void;
   hasPlayServices: () => Promise<boolean> | boolean;
   signIn: () => Promise<any>;
   signOut: () => Promise<null>;
@@ -34,16 +35,38 @@ const getGoogleSignin = async (): Promise<GoogleSigninModule | null> => {
   return googleSigninModule;
 };
 
+// On iPhone, Google's SDK closes the app (in release builds) when the iOS client ID is missing or doesn't match the
+// URL scheme app.json registers for it, so Google sign-in stays off then and the button shows a normal error (#189)
+const GOOGLE_IOS_CLIENT_ID_SUFFIX = '.apps.googleusercontent.com';
+const getGoogleIosClientId = (): string | null => {
+  const clientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
+  if (!clientId?.endsWith(GOOGLE_IOS_CLIENT_ID_SUFFIX)) return null;
+  const plugin = Constants.expoConfig?.plugins?.find(
+    (entry): entry is [string, { iosUrlScheme?: string }] =>
+      Array.isArray(entry) && entry[0] === '@react-native-google-signin/google-signin',
+  );
+  const registeredScheme = plugin?.[1]?.iosUrlScheme;
+  const expectedScheme = `com.googleusercontent.apps.${clientId.slice(0, -GOOGLE_IOS_CLIENT_ID_SUFFIX.length)}`;
+  // A build whose config doesn't list the plugin can't be checked, so the ID is trusted then
+  return !registeredScheme || registeredScheme === expectedScheme ? clientId : null;
+};
+
 const configureGoogleSignin = async () => {
   const GoogleSignin = await getGoogleSignin();
   if (!GoogleSignin || googleSigninConfigured) return GoogleSignin;
+
+  const iosClientId = getGoogleIosClientId();
+  if (Platform.OS === 'ios' && !iosClientId) {
+    console.warn('[Auth] Google sign-in is off on iPhone: EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID is missing or does not match the iosUrlScheme in app.json');
+    return null;
+  }
 
   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '71982315150-f5rfe8cr2sido3l06v6sprlkju4siis2.apps.googleusercontent.com';
   console.log('[Auth] Configuring GoogleSignin with webClientId:', webClientId);
 
   GoogleSignin.configure({
     webClientId,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'YOUR_IOS_CLIENT_ID_HERE',
+    ...(iosClientId ? { iosClientId } : {}),
   });
   googleSigninConfigured = true;
 

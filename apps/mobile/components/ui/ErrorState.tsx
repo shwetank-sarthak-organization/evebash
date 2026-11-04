@@ -10,6 +10,9 @@ type ErrorStateProps = {
   message?: string;
   onRetry: () => void;
   retrying?: boolean;
+  /** Main button text and icon, for screens where "Try again" doesn't fit */
+  retryLabel?: string;
+  retryIcon?: IconSymbolName;
   icon?: IconSymbolName;
   /** Optional second button under Try again */
   secondaryLabel?: string;
@@ -23,6 +26,8 @@ export function ErrorState({
   message = 'Check your internet connection and try again.',
   onRetry,
   retrying = false,
+  retryLabel = 'Try again',
+  retryIcon = 'arrow.clockwise',
   icon = 'cloud.fill',
   secondaryLabel,
   onSecondary,
@@ -36,10 +41,10 @@ export function ErrorState({
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
       <Button
-        title="Try again"
+        title={retryLabel}
         variant="secondary"
         size="md"
-        icon="arrow.clockwise"
+        icon={retryIcon}
         fullWidth={false}
         loading={retrying}
         onPress={onRetry}
