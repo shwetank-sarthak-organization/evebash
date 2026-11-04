@@ -211,6 +211,13 @@ function uploadCopyName(fileUri: string): string | null {
   return at === -1 ? null : fileUri.slice(at + UPLOAD_DIR_NAME.length);
 }
 
+/** The item with its copy's path in this app's current documents folder, which on iPhone can move after an app update (issue #245) */
+function withCurrentCopyPath(item: UploadQueueItem): UploadQueueItem {
+  const name = uploadCopyName(item.fileUri);
+  const currentUri = name ? `${FileSystem.documentDirectory}${UPLOAD_DIR_NAME}${name}` : item.fileUri;
+  return currentUri === item.fileUri ? item : { ...item, fileUri: currentUri };
+}
+
 /** Deletes copies in the uploads folder that no queue item points at: left behind by a queue that was lost, they only use space */
 function deleteLeftoverCopies(): Promise<void> {
   // Runs in turn with queue changes, so a copy is either still being added or already in the queue
@@ -307,6 +314,11 @@ export async function initUploadQueue() {
       }
     }
 
+    // Saved paths of copies may point at the documents folder from before an app update
+    const repointed = initialQueue.map(withCurrentCopyPath);
+    const copyPathsMoved = repointed.some((item, idx) => item !== initialQueue[idx]);
+    initialQueue = repointed;
+
     // 2. Filter out stale failed items hitting foreign key or invalid event constraints
     const validInitial = initialQueue.filter(item => {
       if (item.status === 'failed' && (item.error?.includes('foreign key constraint') || item.error?.includes('does not exist'))) {
@@ -324,8 +336,8 @@ export async function initUploadQueue() {
       return item;
     });
 
-    if (storedRaw || legacyRaw) {
-      // Saves the moved queue to the file; the old value goes only once the file is there
+    if (storedRaw || legacyRaw || copyPathsMoved) {
+      // Saves the moved or repointed queue to the file; an old AsyncStorage value goes only once the file is there
       await mutateQueue(() => {});
       if ((await FileSystem.getInfoAsync(QUEUE_FILE)).exists) await AsyncStorage.removeItem(STORAGE_KEY);
     }
