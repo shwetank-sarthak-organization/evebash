@@ -592,7 +592,7 @@ Listed:       2026-11-04
 Platform:     Both
 Priority:     Medium
 Phase:        1
-Status:       In progress
+Status:       Done
 Effort:       L
 Suggested by: Shwetank
 Discussed:    Yes
@@ -601,7 +601,7 @@ Decision:     2026-11-04 Shwetank: the receiver must accept, requests expire aft
               owner stays on as an admin unless they untick it, the receiver must already have an
               account, no fee. Space is checked when the request is made and again on accepting.
 Owner:        Shwetank (with Claude)
-Depends on:   Migration 20261104000000_event_ownership_transfer.sql
+Depends on:   Migration 20261104000000_event_ownership_transfer.sql (applied 2026-11-04)
 Brief:        Hand a whole event (all sub-galleries, previews, streams, album data) to another user.
               The receiver sees how much space it needs and has an Upgrade button; they can only accept
               once they have the space, an active plan and a free event slot. On accepting, the space
@@ -609,7 +609,7 @@ Brief:        Hand a whole event (all sub-galleries, previews, streams, album da
               Transfer ownership (website and app); requests show on the Dashboard, with a push in the app.
               Not in this version: emails; the "plan moves with the event" rule for one-time plans
               (added with those plans).
-Done in:      -
+Done in:      b6631ea (2026-11-04), on staging. Device test #183.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
