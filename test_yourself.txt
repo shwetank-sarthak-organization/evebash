@@ -3775,6 +3775,8 @@ Detail:    Branch feat/sentry-crash-reporting. Env vars: NEXT_PUBLIC_SENTRY_DSN 
            The app part has native code: it needs a NEW staging build (an OTA update to an old build does nothing).
            2026-11-02 (issue #186): the EAS production profile now sets the DSN too, so production app builds report
            errors, and app builds upload source maps once SENTRY_AUTH_TOKEN is an EAS secret. Website production is unchanged.
+           2026-11-04 (issue #186, 82784bd): app errors and source maps now go to the Sentry project "evebash-app".
+           Look there for app errors from builds made after that commit (older builds report to a different project).
 How to test:
   1. Website: open staging.evebash.com, use it normally for a minute (log in, open a gallery). Expect: works
      exactly as before. In Sentry (project evebash-web / Next.js) nothing new unless something broke.
