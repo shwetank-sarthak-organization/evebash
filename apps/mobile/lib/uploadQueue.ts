@@ -93,6 +93,10 @@ try {
   console.warn('[UploadQueue] expo-notifications is not supported in this environment. System notifications will be disabled.');
 }
 
+// The queue is saved as a JSON file. It used to be one AsyncStorage value, which a big queue (about 3,500 photos on
+// Android) outgrew, so it was lost after a restart (issue #190); those keys are only read once to move the queue over
+const QUEUE_FILE = `${FileSystem.documentDirectory}evebash_upload_queue.json`;
+const QUEUE_FILE_TMP = `${QUEUE_FILE}.tmp`;
 const STORAGE_KEY = '@evebash_upload_queue_v2';
 const LEGACY_STORAGE_KEY = '@evebash_upload_queue';
 const PROGRESS_NOTIFICATION_ID = 'media-upload-progress';
@@ -140,21 +144,27 @@ type QueueListener = (items: UploadQueueItem[]) => void;
 let queue: UploadQueueItem[] = [];
 let activeSlots = 0;
 const listeners = new Set<QueueListener>();
+// Names of copies in the uploads folder whose queue items haven't been added yet, so the startup clean-up keeps them
+const copiesBeingAdded = new Set<string>();
 
 // ── 1. Non-Poisoning Queue Mutation Mutex ────────────────────────────────────
 let queueWriteChain: Promise<void> = Promise.resolve();
 
-export function mutateQueue(mutator: (currentQueue: UploadQueueItem[]) => void): Promise<void> {
+function runExclusive(task: () => Promise<void>): Promise<void> {
   const operation = queueWriteChain
     .catch(() => undefined)
-    .then(async () => {
-      mutator(queue);
-      await saveQueueToStorage();
-      notifyListeners();
-    });
+    .then(task);
 
   queueWriteChain = operation.catch(() => undefined);
   return operation;
+}
+
+export function mutateQueue(mutator: (currentQueue: UploadQueueItem[]) => void): Promise<void> {
+  return runExclusive(async () => {
+    mutator(queue);
+    await saveQueueToStorage();
+    notifyListeners();
+  });
 }
 
 function notifyListeners() {
@@ -172,10 +182,52 @@ async function saveQueueToStorage() {
   try {
     // Progress % is ephemeral — strip or keep state for persistence
     const serialized = JSON.stringify(queue);
-    await AsyncStorage.setItem(STORAGE_KEY, serialized);
+    // Written to a temporary file first and then moved into place, so stopping mid-write never leaves half a queue
+    await FileSystem.writeAsStringAsync(QUEUE_FILE_TMP, serialized);
+    await FileSystem.deleteAsync(QUEUE_FILE, { idempotent: true });
+    await FileSystem.moveAsync({ from: QUEUE_FILE_TMP, to: QUEUE_FILE });
   } catch (err) {
     console.error('[UploadQueue] Failed to save queue to storage:', err);
   }
+}
+
+/** The saved queue, or null when there is none. The temporary file is only used when the app stopped just before moving it into place */
+async function readQueueFile(): Promise<UploadQueueItem[] | null> {
+  for (const uri of [QUEUE_FILE, QUEUE_FILE_TMP]) {
+    try {
+      if (!(await FileSystem.getInfoAsync(uri)).exists) continue;
+      const parsed = JSON.parse(await FileSystem.readAsStringAsync(uri));
+      if (Array.isArray(parsed)) return parsed;
+    } catch (err) {
+      console.warn('[UploadQueue] Could not read the saved queue:', err);
+    }
+  }
+  return null;
+}
+
+/** File name of a copy in the uploads folder, or null for anything else (matched by name: the app's folder path can change after an iOS update) */
+function uploadCopyName(fileUri: string): string | null {
+  const at = fileUri ? fileUri.lastIndexOf(UPLOAD_DIR_NAME) : -1;
+  return at === -1 ? null : fileUri.slice(at + UPLOAD_DIR_NAME.length);
+}
+
+/** Deletes copies in the uploads folder that no queue item points at: left behind by a queue that was lost, they only use space */
+function deleteLeftoverCopies(): Promise<void> {
+  // Runs in turn with queue changes, so a copy is either still being added or already in the queue
+  return runExclusive(async () => {
+    try {
+      const uploadDir = `${FileSystem.documentDirectory}${UPLOAD_DIR_NAME}`;
+      if (!(await FileSystem.getInfoAsync(uploadDir)).exists) return;
+      const inUse = new Set(queue.map(item => uploadCopyName(item.fileUri)).filter((name): name is string => !!name));
+      const leftovers = (await FileSystem.readDirectoryAsync(uploadDir)).filter(name => !inUse.has(name) && !copiesBeingAdded.has(name));
+      for (const name of leftovers) {
+        await FileSystem.deleteAsync(`${uploadDir}${name}`, { idempotent: true }).catch(() => {});
+      }
+      if (leftovers.length > 0) console.log(`[UploadQueue] Deleted ${leftovers.length} leftover upload copies`);
+    } catch (err) {
+      console.warn('[UploadQueue] Could not clean up leftover upload copies:', err);
+    }
+  });
 }
 
 // ── 2. Notification Channels & Permissions ──────────────────────────────────
@@ -220,11 +272,12 @@ export async function initUploadQueue() {
   await ensureNotificationChannels();
 
   try {
-    // 1. Check for legacy migration
-    const legacyRaw = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
-    let initialQueue: UploadQueueItem[] = [];
+    // 1. Load the saved queue; a queue saved in AsyncStorage by an older version is moved to the file
+    const savedQueue = await readQueueFile();
+    let initialQueue: UploadQueueItem[] = savedQueue ?? [];
+    const legacyRaw = savedQueue ? null : await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
+    const storedRaw = savedQueue ? null : await AsyncStorage.getItem(STORAGE_KEY);
 
-    const storedRaw = await AsyncStorage.getItem(STORAGE_KEY);
     if (storedRaw) {
       initialQueue = JSON.parse(storedRaw);
     } else if (legacyRaw) {
@@ -271,7 +324,14 @@ export async function initUploadQueue() {
       return item;
     });
 
+    if (storedRaw || legacyRaw) {
+      // Saves the moved queue to the file; the old value goes only once the file is there
+      await mutateQueue(() => {});
+      if ((await FileSystem.getInfoAsync(QUEUE_FILE)).exists) await AsyncStorage.removeItem(STORAGE_KEY);
+    }
+
     notifyListeners();
+    void deleteLeftoverCopies();
 
     // 3. Reconcile interrupted uploads with remote server
     const needsReconciliation = queue.filter(i => i.status === 'upload_needs_reconciliation');
@@ -455,11 +515,14 @@ export async function addToUploadQueue(
   const batchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const batchTotal = fileDetails.length;
 
+  const addingNames: string[] = [];
   for (let idx = 0; idx < fileDetails.length; idx++) {
     const detail = fileDetails[idx];
     const clientUploadId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const sanitizedFileName = detail.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const durableUri = `${uploadDir}${clientUploadId}_${sanitizedFileName}`;
+    addingNames.push(`${clientUploadId}_${sanitizedFileName}`);
+    copiesBeingAdded.add(`${clientUploadId}_${sanitizedFileName}`);
 
     try {
       await FileSystem.copyAsync({ from: detail.originalUri, to: durableUri });
@@ -502,6 +565,7 @@ export async function addToUploadQueue(
     q.length = 0;
     q.push(...activeRemaining, ...newItems);
   });
+  addingNames.forEach(name => copiesBeingAdded.delete(name));
 
   void updateProgressNotification(true);
   processQueue();
