@@ -214,9 +214,6 @@ const planVisuals: Record<string, {
     },
 };
 
-// Shown first so visitors compare a few clear options; the rest sit behind "See all plans".
-const featuredPlanIds = ["free", "starter", "premium", "ultimate"];
-
 const includedInEveryPlan = [
     "Find You: guests find their photos with a selfie",
     "Download All for guests",
@@ -271,15 +268,11 @@ function loadRazorpayScript() {
 export default function Pricing() {
     const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
     const [plans, setPlans] = useState<PricingPlan[]>([]);
-    const [showAllPlans, setShowAllPlans] = useState(false);
     const [pricingStatus, setPricingStatus] = useState<"loading" | "ready" | "unavailable">("loading");
     const [checkoutPlanId, setCheckoutPlanId] = useState<string | null>(null);
     const [checkoutMessage, setCheckoutMessage] = useState<CheckoutMessage | null>(null);
     const [currentSubscription, setCurrentSubscription] = useState<CurrentSubscription | null>(null);
     const [confirmPlan, setConfirmPlan] = useState<PricingPlan | null>(null);
-    const featuredPlans = plans.filter((plan) => featuredPlanIds.includes(plan.id));
-    const visiblePlans = showAllPlans || featuredPlans.length < 2 ? plans : featuredPlans;
-    const hiddenPlanCount = plans.length - visiblePlans.length;
     const selectedCycle = billingCycles.find((cycle) => cycle.key === billingCycle) || billingCycles[0];
     const newPlanStartDate = new Date();
     const newPlanEndDate = addMonths(newPlanStartDate, cycleDurationsInMonths[billingCycle]);
@@ -624,7 +617,7 @@ export default function Pricing() {
                 {pricingStatus === "ready" && (
                 <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
-                    {visiblePlans.map((plan) => {
+                    {plans.map((plan) => {
                         const visual = planVisuals[plan.id] || planVisuals.starter;
                         const price = getPlanPrice(plan, billingCycle);
                         const actualPrice = getPlanActualPrice(plan, billingCycle);
@@ -699,17 +692,6 @@ export default function Pricing() {
                         );
                     })}
                 </div>
-                {hiddenPlanCount > 0 && (
-                    <div className="mt-8 flex justify-center">
-                        <button
-                            type="button"
-                            onClick={() => setShowAllPlans(true)}
-                            className="rounded-full home-btn-glass px-6 py-3 text-sm font-semibold"
-                        >
-                            See all {plans.length} plans
-                        </button>
-                    </div>
-                )}
 
                 <div className="mx-auto mt-12 max-w-4xl rounded-2xl border border-[var(--site-border)] bg-[var(--site-card)] p-6 md:p-8">
                     <h2 className="text-center font-serif text-xl text-[var(--site-text)]">Included in every plan</h2>
