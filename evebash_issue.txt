@@ -1456,20 +1456,22 @@ Found in: Applying the 10/15/30 discount prices (chat 2026-11-04)
 Issue: The app's Upgrade Plan page (apps/mobile/app/(tabs)/pricing.tsx) has its prices written into the code, while the website reads them from pricing_plans. A price change in the database or the admin dashboard doesn't reach the app, so it shows old prices until someone edits the file and ships an app update. The 3/6/12-month numbers were edited by hand for the 2026-11-04 prices. Fix idea: read them from /api/v1/pricing-plans, as the website does, with these as the fallback.
 How to reproduce: Change a price in pricing_plans; the website shows it and the app doesn't.
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
 #245
 Listed: 2026-11-04
 Platform: App
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: Fixed
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: #190 fix (chat 2026-11-04)
 Issue: Queued uploads point at their copy by its full file path (fileUri in apps/mobile/lib/uploadQueue.ts, e.g. .../Documents/evebash_uploads/<name>). On iPhone the app's folder path can change after an app update, so photos still waiting to upload across an update would fail as if the file were missing, although the copy is still there. From how iOS stores app data; not reproduced. Fix: at startup, rebuild the path of copies in evebash_uploads from the current documents folder (the copy's name is already unique).
 How to reproduce: Not run. On an iPhone, queue photos with airplane mode on, install a newer build of the app, open it and turn airplane mode off: expect those uploads to fail.
+Fixed in: 894b9af (2026-11-04). At startup apps/mobile/lib/uploadQueue.ts rebuilds the path of each copy in evebash_uploads from the current documents folder (withCurrentCopyPath; the copy's name is unique) and saves the queue again if any path changed; nothing changes when the folder hasn't moved. The chunked-upload resume state also records the path but never reads it. Checked on the iPhone 17 Pro simulator with a release build: a saved queue whose items pointed at a made-up old app folder was rewritten to the current folder, every path led to its copy, and a leftover copy was deleted. Device test #184 step 3 covers it on a phone.
 
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+
 #177
 Listed: 2026-10-28
 Platform: Website
