@@ -21,6 +21,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { ModalHeader, modalStyles } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
+import { IncomingTransfers } from "@/components/transfer/IncomingTransfers";
 import { CollectionsIcon } from "@/components/CollectionsIcon";
 import { EventsJoinedStatIcon, PhotosStatIcon, VideosStatIcon } from "@/components/dashboard/StatIcons";
 import {
@@ -155,6 +156,7 @@ export default function DashboardHub() {
     return (
         <div className="min-h-screen bg-[var(--site-bg)] font-sans text-[var(--site-text)]">
             <main className="relative z-20 mx-auto max-w-7xl space-y-8 px-4 pt-12 pb-24 sm:px-6 lg:px-8">
+                <IncomingTransfers onAccepted={fetchData} />
                 <section className="rounded-[2rem] border border-[var(--site-line)] bg-[var(--site-surface)] p-5 shadow-2xl shadow-black/25 sm:p-8 lg:p-10">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex min-w-0 items-center gap-3 sm:gap-4">

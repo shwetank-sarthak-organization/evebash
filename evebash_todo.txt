@@ -32,9 +32,9 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 24
+Next todo number: 25
 
-Last updated: 2026-11-03
+Last updated: 2026-11-04
 
 =====================================================================
 ACTIVE TODOS
@@ -585,6 +585,30 @@ Brief:        Use WhatsApp, which most hosts and guests in India already use, al
               business account, a WhatsApp number for EveBash, pre-approved message templates, the
               user's opt-in, and a per-message charge, so pick which messages are worth paying for
               and whether they replace or back up pushes (issue #104: pushes can reach the wrong phone).
+Done in:      -
+
+#24 Event ownership transfer
+Listed:       2026-11-04
+Platform:     Both
+Priority:     Medium
+Phase:        1
+Status:       In progress
+Effort:       L
+Suggested by: Shwetank
+Discussed:    Yes
+Decision:     2026-11-04 Shwetank: the receiver must accept, requests expire after 7 days, uploads pause
+              while one is waiting, only the owner (or a platform admin helping) can start one, the old
+              owner stays on as an admin unless they untick it, the receiver must already have an
+              account, no fee. Space is checked when the request is made and again on accepting.
+Owner:        Shwetank (with Claude)
+Depends on:   Migration 20261104000000_event_ownership_transfer.sql
+Brief:        Hand a whole event (all sub-galleries, previews, streams, album data) to another user.
+              The receiver sees how much space it needs and has an Upgrade button; they can only accept
+              once they have the space, an active plan and a free event slot. On accepting, the space
+              leaves the old owner's plan and counts on the new owner's. Host > event > Permissions >
+              Transfer ownership (website and app); requests show on the Dashboard, with a push in the app.
+              Not in this version: emails; the "plan moves with the event" rule for one-time plans
+              (added with those plans).
 Done in:      -
 
 =====================================================================

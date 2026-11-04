@@ -66,6 +66,7 @@ import { appTabBarMetrics } from '../../components/navigation/appTabs';
 import { useRoyalFonts } from '../../components/royal/royalFonts';
 import GalleriesIcon from '../../components/icons/GalleriesIcon';
 import PermissionsIcon from '../../components/icons/PermissionsIcon';
+import TransferOwnershipCard from '../../components/event/TransferOwnershipCard';
 import DesignIcon from '../../components/icons/DesignIcon';
 import PartnersIcon from '../../components/icons/PartnersIcon';
 import { haptic } from '@/lib/haptics';
@@ -5992,6 +5993,7 @@ export default function EventDetailScreen() {
                       onChanged={isPublic => setEvent(previous => previous ? { ...previous, isPublic } : previous)}
                     />
                   )}
+                  {!event.parentId && <TransferOwnershipCard key={event.id} eventId={event.id} />}
                   <View style={[styles.sectionHeader, { marginTop: 12 }]}>
                     <Text style={styles.sectionTitle}>Guest List</Text>
                   </View>

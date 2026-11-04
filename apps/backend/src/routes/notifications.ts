@@ -51,7 +51,7 @@ export async function openGalleryAccessAsCaller(request: Request, eventId: strin
 export const GALLERY_REQUEST_PUSH_WINDOW_MS = 10 * 60 * 1000;
 
 /** Owners turn these off with the "Event invites" notification setting (or all pushes with `push: false`). */
-function wantsEventInvites(preferences: unknown) {
+export function wantsEventInvites(preferences: unknown) {
   let prefs = preferences;
   if (typeof prefs === "string") {
     try {
@@ -69,7 +69,7 @@ function wantsEventInvites(preferences: unknown) {
  * column yet (the apps can't save the setting), and naming a missing column fails the whole lookup, which silently
  * dropped every push. With "*" the settings count when the column exists, and as on (the apps' default) when not.
  */
-async function findPushProfile(supabaseAdmin: AdminClient, column: "id" | "email" | "phone", value: string) {
+export async function findPushProfile(supabaseAdmin: AdminClient, column: "id" | "email" | "phone", value: string) {
   const { data, error } = await supabaseAdmin.from("profiles").select("*").eq(column, value).maybeSingle();
   if (error) console.warn(`[notifications] profile lookup by ${column} failed:`, error.message);
   return data as { push_token?: string | null; notification_preferences?: unknown } | null;

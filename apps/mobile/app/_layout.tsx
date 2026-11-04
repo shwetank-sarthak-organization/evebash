@@ -128,6 +128,9 @@ function AuthGate({ children, onReady }: { children: React.ReactNode; onReady: (
         router.push({ pathname: '/chat', params: { roomId: data.roomId, ...(data.senderName ? { otherUserName: data.senderName } : {}) } });
       } else if (data?.type === 'album_proof' && data.eventId) {
         router.push(`/events/${data.eventId}?tab=album${data.albumId ? `&album=${data.albumId}` : ''}` as any);
+      } else if (data?.type === 'event_transfer') {
+        // Transfer requests show on the Dashboard; the receiver can't open the event itself until they accept
+        router.push('/(tabs)/dashboard');
       } else if (data?.eventId) {
         router.push(`/events/${data.eventId}` as any);
       } else if (data?.enquiryId && data.businessId) {

@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 183
+Next test number: 184
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5173,6 +5173,37 @@ How to test:
   5. Open EB Network. Expect: "List your business" gold-foil pill; it scrolls to the form; "Register interest" is
      a gold-foil pill.
   6. Check all three at about 800 px and phone width. Expect: nothing cut off, no sideways scrolling.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#183 Event ownership transfer
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Detail:    Todo #24. Needs migration 20261104000000_event_ownership_transfer.sql. Use two accounts: A owns an
+           event with some photos, B is on a plan. Backend rules and the database step have automated tests;
+           the website screens were only looked at with made-up data, and the app screens have not been run.
+How to test:
+  1. As A: Host > the event > Permissions > Transfer ownership. Expect: the event's size. As an event
+     admin who isn't the owner: expect no Transfer ownership card.
+  2. Enter an email with no account. Expect: "No EveBash account uses this email". Enter your own: refused.
+  3. Enter B's email and send. Expect: "Transfer waiting for B", and uploads to the event and its
+     sub-galleries are refused with "Uploads are paused..." (website and app).
+  4. Cancel, and check that uploads work again. Send it again.
+  5. As B with too little space: Dashboard shows the request, what it needs and your free space, with Upgrade
+     plan and Decline but no Accept. The app also gets a push, and tapping it opens the Dashboard.
+  6. Upgrade B (or free up space), and come back. Expect: Accept appears.
+  7. Accept. Expect: the event and all sub-galleries are in B's Host page, B's storage rises by its size, A's
+     storage falls by it, and A gets a push. A is still an admin (if the option was left on) and can
+     still open it; other guests still have access; uploads work again.
+  8. Repeat with "Keep the current owner on as an admin" off. Expect: A loses access unless a guest.
+  9. Send one more, and Decline as B. Expect: it stays with A, uploads work, and A gets a push.
 Done by:
 Device / browser:
 Build / version:

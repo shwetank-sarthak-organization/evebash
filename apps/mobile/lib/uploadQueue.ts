@@ -57,9 +57,9 @@ export function uploadErrorMessage(error?: string): string {
   return "This file didn't upload. Tap Retry to try again.";
 }
 
-// The server refused an upload because of the gallery owner's plan (storage full or plan expired).
+// The server refused an upload because of the gallery owner's plan (storage full or plan expired), or the event is being transferred.
 // Retrying can't help, so the item fails at once; the reason is shown once per minute, not once per file.
-const PLAN_LIMIT_CODES = new Set(['storage_full', 'plan_expired']);
+const PLAN_LIMIT_CODES = new Set(['storage_full', 'plan_expired', 'transfer_pending']);
 let lastPlanLimitAlertAt = 0;
 
 function planLimitError(result: any): (Error & { nonRetryable: true; code: string }) | null {

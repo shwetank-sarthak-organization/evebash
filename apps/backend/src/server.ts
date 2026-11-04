@@ -15,6 +15,7 @@ import { pricingPlansRouter } from "./routes/pricingPlans.js";
 import { applyDuePlanChanges, subscriptionRouter } from "./routes/subscription.js";
 import { paymentsRouter } from "./routes/payments.js";
 import { permissionsRouter } from "./routes/permissions.js";
+import { eventTransfersRouter } from "./routes/eventTransfers.js";
 import { runMediaWatchdog } from "./services/watchdog.js";
 import { startWatchdogScheduler } from "./services/watchdogScheduler.js";
 import { createSignupRouter } from "./routes/signup.js";
@@ -79,6 +80,17 @@ app.use(
 );
 app.use(express.json({ limit: "10mb" }));
 
+// Starting a transfer says whether an email has an account, so it can't be used to test long lists of emails.
+// Reads aren't counted: the Dashboard and Permissions tab load them often, and a venue may share one IP address.
+const eventTransfersLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  skip: (request) => request.method !== "POST",
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: "Too many requests. Please try again later." },
+});
+
 const contactMessagesLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
@@ -124,6 +136,7 @@ app.use("/api/payments", paymentsRouter);
 app.use("/api/create-order", paymentsRouter);
 app.use("/api/verify-payment", paymentsRouter);
 app.use("/api/v1/permissions", permissionsRouter);
+app.use("/api/v1/event-transfers", eventTransfersLimiter, eventTransfersRouter);
 app.use("/api/v1/signup", createSignupRouter());
 app.use("/api/v1/account", accountRouter);
 app.use("/api/v1/notifications", notificationsRouter);

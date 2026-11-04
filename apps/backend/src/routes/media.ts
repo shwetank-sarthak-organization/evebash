@@ -39,6 +39,7 @@ import {
 import { runMediaWatchdog } from "../services/watchdog.js";
 import { notifyVideoProcessed } from "../services/videoProcessedNotify.js";
 import { checkEventUpload, isEventUploadLimitEnabled } from "../services/eventUploadLimits.js";
+import { isEventTransferPending } from "../services/eventTransfers.js";
 import { buildRotatedLinks, isRotateVersionedLinksEnabled, previousOriginalLinks } from "../services/rotateLinks.js";
 import { isRotateUprightFirstEnabled, rotateImage } from "../services/rotateImage.js";
 import { GRID_LONG_SIDE, GRID_QUALITY, gridKey, isGridVariantEnabled } from "../services/gridVariant.js";
@@ -244,6 +245,11 @@ async function refuseOverLimitUpload(
   response: Response,
   params: { eventId: string; uploaderId: string; bytes: number; isVideo: boolean },
 ) {
+  // While an event waits to change hands it can't grow past the space that was checked (always on, not a plan limit)
+  if (await isEventTransferPending(params.eventId)) {
+    response.status(403).json({ success: false, code: "transfer_pending", error: "Uploads are paused while this event is being transferred to a new owner." });
+    return true;
+  }
   if (!isEventUploadLimitEnabled()) return false;
   try {
     const decision = await checkEventUpload(params);

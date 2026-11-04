@@ -13,6 +13,7 @@ import { albumApi } from "@/lib/albumApi";
 import { EventDesignPreview } from "@/components/EventDesignPreview";
 import { PartnersIcon } from "@/components/PartnersIcon";
 import { GalleryTypesInfo } from "@/components/GalleryTypesInfo";
+import { TransferOwnershipCard } from "@/components/transfer/TransferOwnershipCard";
 import { HostIcon } from "@/components/HostIcon";
 import { HostConsoleIcon } from "@/components/HostConsoleIcon";
 import { DashboardEventCard, SERIF, formatShortEventDate } from "@/components/dashboard/DashboardEvents";
@@ -2643,7 +2644,7 @@ function DashboardContent() {
                         console.error(`[Dashboard] File upload error for ${file.name}:`, fileErr);
                     }
                     setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: fileErr.name === "AbortError" ? "cancelled" : "error", progress: 0, error: fileErr.name === "AbortError" ? undefined : fileErr.message || "Failed" } : item));
-                    if (fileErr.code === "storage_full" || fileErr.code === "plan_expired") {
+                    if (fileErr.code === "storage_full" || fileErr.code === "plan_expired" || fileErr.code === "transfer_pending") {
                         // The plan is the reason: say so at the top, not only on each file
                         setMessage(fileErr.message);
                         setStatus("error");
@@ -4738,6 +4739,8 @@ function DashboardContent() {
                                                         </div>
                                                     )}
                                                 </div>
+
+                                                {selectedMainEvent && !selectedMainEvent.parentId && <TransferOwnershipCard key={selectedMainEvent.id} eventId={selectedMainEvent.id} />}
 
                                                 {loadingEventDetail ? (
                                                     <div className="flex items-center justify-center rounded-[1.5rem] border border-[var(--site-border)] p-8 text-[var(--site-muted)]">

@@ -39,6 +39,7 @@ import { EventGridCard, EVENT_PLACEHOLDER_ASSET } from '@/components/ui/EventGri
 import { HostEventBanner } from '@/components/ui/HostEventBanner';
 import type { IconSymbolName } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
+import IncomingTransfers from '@/components/event/IncomingTransfers';
 import { Image as ExpoImage } from 'expo-image';
 import CakeIcon from '@/components/icons/CakeIcon';
 import HandshakeIcon from '@/components/icons/HandshakeIcon';
@@ -521,6 +522,7 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MidnightColors.gold} />}
       >
+        <IncomingTransfers onAccepted={fetchData} />
         {loading && !refreshing && events.length === 0
           ? (
             <View style={styles.collectionSection} accessible accessibilityLabel="Loading your events">
