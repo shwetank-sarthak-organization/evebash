@@ -14,7 +14,7 @@
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://api-staging.evebash.com",
         "EXPO_PUBLIC_MEDIA_DOMAIN": "media.evebash.com",
-        "EXPO_PUBLIC_SENTRY_DSN": "https://707488a2172c045a2a3bae11f2f537e7@o4512321942716416.ingest.us.sentry.io/4512321949466624",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://b8434d37be7c48ca2017c5ed117e37e9@o4512321942716416.ingest.us.sentry.io/4512321956020224",
         "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "staging",
         "SENTRY_ALLOW_FAILURE": "true"
       }
@@ -23,7 +23,7 @@
       "channel": "production",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_SENTRY_DSN": "https://707488a2172c045a2a3bae11f2f537e7@o4512321942716416.ingest.us.sentry.io/4512321949466624",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://b8434d37be7c48ca2017c5ed117e37e9@o4512321942716416.ingest.us.sentry.io/4512321956020224",
         "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "production",
         "SENTRY_ALLOW_FAILURE": "true"
       }
