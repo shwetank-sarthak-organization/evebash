@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 190
+Next test number: 191
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5378,6 +5378,29 @@ How to test:
   4. As an event admin (not the owner): expect the same list.
   5. Approve a new request, and check the new member shows their @username too.
   6. Website: the date after the username is when they joined (for example "05 Nov, 02:30 pm"), not "Unknown".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#190 Expired plan notice on Profile
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Detail:    Issue #248. Needs a paid account whose plan end date has passed (shwetank.chauhan3@gmail.com was one on
+           2026-11-05), and one still in its 7-day grace period if you can set that up.
+How to test:
+  1. Website: Profile > Profile Overview. Expect: a red notice with the expiry date, "Uploads are paused." and Renew plan.
+  2. Renew plan opens Pricing.
+  3. Storage card, Overview and Plans tabs: expect "10 GB plan · expired", "2.8 GB used", no meter and no "free" figure,
+     and "Your plan has expired. Uploads are paused until you renew."
+  4. App: Profile. Expect: the same notice and Storage card. Renew plan opens Upgrade Plan.
+  5. An active paid account and a free account: expect no notice, and the card as before with its meter.
+  6. Renew or extend the expired account, and refresh. Expect: the notice is gone and the free space is back.
 Done by:
 Device / browser:
 Build / version:

@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 248
+Next issue number: 249
 
 =====================================================================
 ACTIVE ISSUES
@@ -1443,6 +1443,17 @@ Blocked by: -
 Found in: Applying the 10/15/30 discount prices (chat 2026-11-04)
 Issue: The app's Upgrade Plan page (apps/mobile/app/(tabs)/pricing.tsx) has its prices written into the code, while the website reads them from pricing_plans. A price change in the database or the admin dashboard doesn't reach the app, so it shows old prices until someone edits the file and ships an app update. The 3/6/12-month numbers were edited by hand for the 2026-11-04 prices. Fix idea: read them from /api/v1/pricing-plans, as the website does, with these as the fallback.
 How to reproduce: Change a price in pricing_plans; the website shows it and the app doesn't.
+
+#248
+Listed: 2026-11-05
+Platform: Both
+Priority: Medium
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Testing a transfer to shwetank.chauhan3@gmail.com (chat 2026-11-05)
+Issue: With an expired plan, Profile gives no sign of it where the user lands: the website's Overview tab and the app's Profile show the Storage card with the plan's full size and "7.2 GB free", while the backend allows only the 1 GB free allowance and refuses uploads. The notice is only on the website's Plans tab and the app's Plan & Usage page. Fix: a notice with Renew plan on Profile, and no meter or free space in the Storage card while expired.
+How to reproduce: Log in to an account with a past plan_end_date and open Profile.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

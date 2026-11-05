@@ -197,6 +197,7 @@ export default function ProfilePage() {
             planEndDate: user.planEndDate,
         })
         : null;
+    const planExpired = subscriptionStatus?.status === "grace" || subscriptionStatus?.status === "expired";
     const activePlan = getPlanDetails(user?.role);
     const pendingPlan = getPlanDetails(user?.pendingPlanRole);
     const hasPendingPlanChange = Boolean(user?.pendingPlanRole && user?.pendingPlanStartDate);
@@ -613,7 +614,18 @@ export default function ProfilePage() {
                     ======================================================== */}
                 {activeTab === "profile" && (
                     <div className="mt-8 space-y-8 animate-fade-in-up">
-                        
+                        {planExpired && (
+                            <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-rose-400/30 bg-rose-400/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="flex items-start gap-2 text-sm font-bold text-rose-200">
+                                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                                    {subscriptionStatus?.message} Uploads are paused.
+                                </p>
+                                <Link href="/pricing" className="shrink-0 self-start rounded-full home-btn-gold px-4 py-2 text-xs font-black sm:self-auto">
+                                    Renew plan
+                                </Link>
+                            </div>
+                        )}
+
                         {/* 1. Activity Telemetry Bento Row (3 Cards) */}
                         <section>
                             <div className="mb-3 flex items-center justify-between">
@@ -767,6 +779,7 @@ export default function ProfilePage() {
                                         planBytes={activePlan.storageBytes}
                                         planLabel={activePlan.storageLabel}
                                         loading={loadingStorage}
+                                        planExpired={planExpired}
                                     />
 
                                     <button
@@ -890,6 +903,7 @@ export default function ProfilePage() {
                                 planBytes={activePlan.storageBytes}
                                 planLabel={activePlan.storageLabel}
                                 loading={loadingStorage}
+                                planExpired={planExpired}
                             />
                         </section>
 

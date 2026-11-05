@@ -34,6 +34,7 @@ import { StorageBreakdownCard } from '@/components/StorageBreakdownCard';
 import { removeProfileImage, uploadProfileImage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { getPlanDetails } from '@/lib/planLimits';
+import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
 import { APP_VERSION } from '@/lib/appVersion';
 import { Button } from '@/components/ui/Button';
@@ -426,6 +427,8 @@ export default function ProfileScreen() {
   if (!user) return null;
 
   const planDetails = getPlanDetails(user.role);
+  const subscriptionStatus = getSubscriptionStatus({ role: user.role, planStartDate: user.planStartDate, planEndDate: user.planEndDate });
+  const planExpired = subscriptionStatus.status === 'grace' || subscriptionStatus.status === 'expired';
   const savedPersonas = getPersonasArray(user.persona);
   // Someone who hosts events shows as a host, whatever was saved (display only: the edit form still shows the saved value)
   const personas = activityStats.eventsOrganized > 0 && !savedPersonas.includes('Host / Organizer')
@@ -495,6 +498,15 @@ export default function ProfileScreen() {
 
         <View style={styles.content}>
           
+          {planExpired && (
+            <View accessibilityRole="alert" style={{ gap: 10, padding: 14, marginBottom: 12, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(248, 113, 113, 0.35)', backgroundColor: 'rgba(248, 113, 113, 0.1)' }}>
+              <Text style={{ color: '#fca5a5', fontSize: 13, lineHeight: 19, fontWeight: '600' }}>{subscriptionStatus.message} Uploads are paused.</Text>
+              <TouchableOpacity accessibilityRole="button" onPress={() => router.push('/(tabs)/pricing')} style={{ alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 22, backgroundColor: MidnightColors.gold }}>
+                <Text style={{ color: MidnightColors.onAccent, fontSize: 14, fontWeight: '700' }}>Renew plan</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Gamified Activity Stats Section */}
           <View style={styles.sectionHead}>
             <Text style={styles.sectionLabel}>Your Activity</Text>
@@ -662,6 +674,7 @@ export default function ProfileScreen() {
               usage={storageUsage}
               planBytes={planDetails.storageBytes}
               planLabel={planDetails.storageLabel}
+              planExpired={planExpired}
             />
 
             <View style={{ height: 12 }} />

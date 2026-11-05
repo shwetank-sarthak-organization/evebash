@@ -12,10 +12,12 @@ interface StorageBreakdownCardProps {
     planBytes: number;
     planLabel: string;
     loading?: boolean;
+    /** The plan's end date has passed: its storage no longer applies, so no meter or free space is shown. */
+    planExpired?: boolean;
 }
 
 // Events and EB Vault draw from the same plan storage, so both are shown against one limit.
-export function StorageBreakdownCard({ usage, planBytes, planLabel, loading }: StorageBreakdownCardProps) {
+export function StorageBreakdownCard({ usage, planBytes, planLabel, loading, planExpired }: StorageBreakdownCardProps) {
     const unlimited = planBytes === Infinity;
     const percent = getUsagePercent(usage.total, planBytes);
     const overLimit = !unlimited && usage.total > planBytes;
@@ -43,15 +45,15 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, loading }: S
                     <HardDrive className="h-3.5 w-3.5" aria-hidden />
                     Storage
                 </p>
-                <p className="text-[11px] font-bold text-[var(--site-muted)]">{planLabel} plan</p>
+                <p className={cn("text-[11px] font-bold", planExpired ? "text-rose-300" : "text-[var(--site-muted)]")}>{planLabel} plan{planExpired && " · expired"}</p>
             </div>
 
             <p className="mt-2 text-xl font-black text-[var(--site-text)]">
                 {loading ? "…" : formatStorageSize(usage.total)}
-                <span className="text-sm font-bold text-[var(--site-muted)]"> of {unlimited ? "Unlimited" : planLabel} used</span>
+                <span className="text-sm font-bold text-[var(--site-muted)]">{planExpired ? " used" : ` of ${unlimited ? "Unlimited" : planLabel} used`}</span>
             </p>
 
-            {!unlimited && (
+            {!unlimited && !planExpired && (
                 <div
                     className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-[var(--site-surface-2)]"
                     role="progressbar"
@@ -133,8 +135,10 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, loading }: S
                 </li>
             </ul>
 
-            <p className={cn("mt-3 text-[11px] font-medium", overLimit ? "text-rose-300" : "text-[var(--site-muted)]")}>
-                {overLimit
+            <p className={cn("mt-3 text-[11px] font-medium", overLimit || planExpired ? "text-rose-300" : "text-[var(--site-muted)]")}>
+                {planExpired
+                    ? "Your plan has expired. Uploads are paused until you renew."
+                    : overLimit
                     ? "You're over your plan's storage. Existing files are safe, but new uploads are paused until you free up space or upgrade."
                     : unlimited
                         ? "Events and EB Vault share your plan storage."

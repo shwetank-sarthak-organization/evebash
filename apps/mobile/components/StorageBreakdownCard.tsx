@@ -13,10 +13,12 @@ interface StorageBreakdownCardProps {
   usage: StorageBreakdown | null;
   planBytes: number;
   planLabel: string;
+  /** The plan's end date has passed: its storage no longer applies, so no meter or free space is shown. */
+  planExpired?: boolean;
 }
 
 // Events and EB Vault draw from the same plan storage, so both are shown against one limit.
-export function StorageBreakdownCard({ usage, planBytes, planLabel }: StorageBreakdownCardProps) {
+export function StorageBreakdownCard({ usage, planBytes, planLabel, planExpired }: StorageBreakdownCardProps) {
   const { colors } = useAppTheme();
   const loading = usage === null;
   const totals = usage ?? { events: 0, vault: 0, total: 0 };
@@ -44,15 +46,15 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel }: StorageBre
     <View style={[styles.card, { borderColor: colors.border }]}>
       <View style={styles.headerRow}>
         <Text style={[styles.eyebrow, { color: colors.slate400 }]}>STORAGE</Text>
-        <Text style={[styles.planText, { color: colors.slate400 }]}>{planLabel} plan</Text>
+        <Text style={[styles.planText, { color: planExpired ? '#fca5a5' : colors.slate400 }]}>{planLabel} plan{planExpired ? ' · expired' : ''}</Text>
       </View>
 
       <Text style={[styles.total, { color: colors.text }]}>
         {loading ? '…' : formatStorageSize(totals.total)}
-        <Text style={[styles.totalSuffix, { color: colors.slate400 }]}> of {unlimited ? 'Unlimited' : planLabel} used</Text>
+        <Text style={[styles.totalSuffix, { color: colors.slate400 }]}>{planExpired ? ' used' : ` of ${unlimited ? 'Unlimited' : planLabel} used`}</Text>
       </Text>
 
-      {!unlimited && (
+      {!unlimited && !planExpired && (
         <View
           style={[styles.track, { backgroundColor: colors.slate800 }]}
           accessibilityRole="progressbar"
@@ -126,8 +128,10 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel }: StorageBre
         <Text style={[styles.rowValue, { color: colors.text }]}>{loading ? '…' : formatStorageSize(totals.vault)}</Text>
       </View>
 
-      <Text style={[styles.note, { color: overLimit ? '#fca5a5' : colors.slate400 }]}>
-        {overLimit
+      <Text style={[styles.note, { color: overLimit || planExpired ? '#fca5a5' : colors.slate400 }]}>
+        {planExpired
+          ? 'Your plan has expired. Uploads are paused until you renew.'
+          : overLimit
           ? "You're over your plan's storage. Existing files are safe, but new uploads are paused until you free up space or upgrade."
           : unlimited
             ? 'Events and EB Vault share your plan storage.'
