@@ -1,5 +1,5 @@
 import { readEventSizes, type EventStorageSize } from '../../../shared/storage/eventSizes';
-import { fetchMemberDetails } from '../../../shared/permissions/memberDetails';
+import { fetchMemberDetails, fetchMemberDirectory } from '../../../shared/permissions/memberDetails';
 import { supabase } from "./supabase";
 import { sendPushNotificationDirectly } from "./notifications";
 import { DEFAULT_EVENT_COVER_IMAGE } from "./eventCovers";
@@ -766,6 +766,14 @@ export interface GuestProfile {
     email?: string;
     phone?: string;
     profileImage?: string;
+}
+
+/** Username and email of everyone on an event's Permissions list, by guest row id. */
+export async function getMemberDirectory(eventId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, '');
+    if (!session?.access_token || !apiBaseUrl) return {};
+    return fetchMemberDirectory(`${apiBaseUrl}/api/v1/permissions/member-directory`, session.access_token, eventId);
 }
 
 /** Username and email for people who manage this guest row's event; the backend decides who that is. */

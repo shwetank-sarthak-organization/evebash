@@ -11,7 +11,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Button } from '@/components/ui/Button';
-import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, GuestProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery, getGalleryVideo, setGalleryVideo, type GalleryVideo } from '@/lib/database';
+import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, getMemberDirectory, GuestProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery, getGalleryVideo, setGalleryVideo, type GalleryVideo } from '@/lib/database';
 import { confirmDenyRequest } from '@/lib/denyRequest';
 import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDetails } from '@/lib/uploaders';
 import { useAuth } from '@/context/AuthContext';
@@ -67,6 +67,7 @@ import { useRoyalFonts } from '../../components/royal/royalFonts';
 import GalleriesIcon from '../../components/icons/GalleriesIcon';
 import PermissionsIcon from '../../components/icons/PermissionsIcon';
 import TransferOwnershipCard from '../../components/event/TransferOwnershipCard';
+import { memberLabel, type MemberDetails } from '../../../../shared/permissions/memberDetails';
 import DesignIcon from '../../components/icons/DesignIcon';
 import PartnersIcon from '../../components/icons/PartnersIcon';
 import { haptic } from '@/lib/haptics';
@@ -949,6 +950,7 @@ export default function EventDetailScreen() {
   const [vendorCode, setVendorCode] = useState('');
   const [linkedVendors, setLinkedVendors] = useState<Business[]>([]);
   const [guestLogs, setGuestLogs] = useState<any[]>([]);
+  const [memberDirectory, setMemberDirectory] = useState<Record<string, MemberDetails>>({});
   const [updating, setUpdating] = useState(false);
   const [coverUploadMessage, setCoverUploadMessage] = useState<string | null>(null);
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
@@ -2630,6 +2632,15 @@ export default function EventDetailScreen() {
       .catch((err) => console.error('[EventDetail] Guest list reload failed:', err));
   }, !!event);
 
+  // Usernames for the Permissions list, loaded again when someone joins or leaves it
+  const guestLogIds = guestLogs.map((log) => log.id).join(',');
+  useEffect(() => {
+    if (!id || !guestLogIds || !(isOwner || canManageEvent)) return;
+    let active = true;
+    void getMemberDirectory(id).then((directory) => { if (active) setMemberDirectory(directory); });
+    return () => { active = false; };
+  }, [id, guestLogIds, isOwner, canManageEvent]);
+
   // Poll face indexing status when upload completes in mobile app
   useEffect(() => {
     if (!showUploadCompleteModal || !id) {
@@ -3125,6 +3136,8 @@ export default function EventDetailScreen() {
     return abilities.length === 1 ? 'Can view' : `Can ${abilities.slice(0, -1).join(', ')} and ${abilities[abilities.length - 1]}`;
   };
 
+  const memberContact = (log: any) => memberLabel(memberDirectory[log.id], log.phone || log.email || '');
+
   const renderApprovedGuestCard = (log: any) => (
     <TouchableOpacity
       key={log.id}
@@ -3139,9 +3152,9 @@ export default function EventDetailScreen() {
 
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={styles.memberName} numberOfLines={1}>{log.name}</Text>
-        {!!(log.phone || log.email) && (
+        {!!memberContact(log) && (
           <Text style={{ color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.medium }} numberOfLines={1}>
-            {log.phone || log.email}
+            {memberContact(log)}
           </Text>
         )}
         <Text style={{ color: MidnightColors.gold, fontSize: 12, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>
@@ -6017,7 +6030,7 @@ export default function EventDetailScreen() {
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={styles.requestName} numberOfLines={1}>{log.name}</Text>
-                            <Text style={styles.requestPhone} numberOfLines={1}>{log.phone}</Text>
+                            <Text style={styles.requestPhone} numberOfLines={1}>{memberContact(log)}</Text>
                           </View>
                         </View>
 

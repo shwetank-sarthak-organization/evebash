@@ -93,3 +93,68 @@ test('member details stay behind a real login when the old body-based check is s
     server.close();
   }
 });
+
+test('member directory: managers get usernames for the event and its sub-galleries, never phones', async () => {
+  const directoryTables: Record<string, Row[]> = {
+    guests: [
+      { id: 'main', event_id: 'wedding', parent_event_id: null, user_id: 'u1', status: 'approved' },
+      { id: 'sub', event_id: 'haldi', parent_event_id: 'wedding', user_id: 'u2', status: 'pending' },
+      { id: 'turned-down', event_id: 'wedding', parent_event_id: null, user_id: 'u1', status: 'rejected' },
+      { id: 'no-account', event_id: 'wedding', parent_event_id: null, user_id: null, status: 'approved' },
+      { id: 'other', event_id: 'other-event', parent_event_id: null, user_id: 'u1', status: 'approved' },
+    ],
+    profiles: [
+      { id: 'u1', username: 'asha', email: 'asha@example.com', phone: '+911' },
+      { id: 'u2', username: null, email: 'rahul@example.com', phone: '+912' },
+    ],
+  };
+  const admin = {
+    from(table: string) {
+      const filters: ((row: Row) => boolean)[] = [];
+      const builder: any = {
+        select: () => builder,
+        eq: (column: string, value: unknown) => { filters.push((row) => row[column] === value); return builder; },
+        in: (column: string, values: unknown[]) => { filters.push((row) => values.includes(row[column])); return builder; },
+        then: (resolve: (value: unknown) => unknown) => resolve({ data: (directoryTables[table] || []).filter((row) => filters.every((keep) => keep(row))), error: null }),
+      };
+      return builder;
+    },
+  };
+  let access: 'allowed' | 'login' | 'forbidden' = 'login';
+  const app = express();
+  app.use(express.json());
+  app.use('/permissions', createPermissionsRouter(
+    async () => 'forbidden',
+    () => admin as never,
+    async () => false,
+    async () => access,
+  ));
+  const server = app.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const post = async (body: object) => {
+    const response = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/permissions/member-directory`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    return { status: response.status, body: await response.json() };
+  };
+
+  try {
+    assert.equal((await post({})).status, 400);
+    assert.equal((await post({ eventId: 'wedding' })).status, 401);
+    access = 'forbidden';
+    const refused = await post({ eventId: 'wedding' });
+    assert.equal(refused.status, 403);
+    assert.equal(refused.body.members, undefined);
+
+    access = 'allowed';
+    assert.deepEqual((await post({ eventId: 'wedding' })).body, {
+      success: true,
+      members: {
+        main: { username: 'asha', email: 'asha@example.com' },
+        sub: { username: null, email: 'rahul@example.com' },
+      },
+    });
+  } finally {
+    server.close();
+  }
+});

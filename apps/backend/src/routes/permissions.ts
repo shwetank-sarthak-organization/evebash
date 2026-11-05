@@ -299,6 +299,49 @@ export function createPermissionsRouter(
     }
   });
 
+  /**
+   * Username and email of everyone on an event's Permissions list (its sub-galleries' guests too), by guest row id, so
+   * members with the same name can be told apart. The same rules as /member-details, for the people who manage the event.
+   */
+  permissionsRouter.post("/member-directory", async (request, response) => {
+    try {
+      const { eventId } = request.body || {};
+      if (typeof eventId !== "string" || !eventId) {
+        return response.status(400).json({ success: false, error: "Missing eventId" });
+      }
+
+      const access = await checkGalleryAccess(request, eventId);
+      if (access !== "allowed") {
+        const { status: code, body } = denied(access);
+        return response.status(code).json(body);
+      }
+
+      const supabaseAdmin = getAdmin();
+      const rows = await Promise.all(["event_id", "parent_event_id"].map((column) => supabaseAdmin
+        .from("guests").select("id, user_id").eq(column, eventId).in("status", ["approved", "pending"])));
+      const failed = rows.find((result) => result.error);
+      if (failed) throw failed.error;
+      const guests = rows.flatMap((result) => result.data || []).filter((guest) => guest.user_id);
+
+      const accountIds = Array.from(new Set(guests.map((guest) => guest.user_id as string)));
+      const { data: profiles, error } = accountIds.length > 0
+        ? await supabaseAdmin.from("profiles").select("id, username, email").in("id", accountIds)
+        : { data: [], error: null };
+      if (error) throw error;
+
+      const profileById = new Map((profiles || []).map((profile) => [profile.id, profile]));
+      const members: Record<string, { username: string | null; email: string | null }> = {};
+      for (const guest of guests) {
+        const profile = profileById.get(guest.user_id as string);
+        if (profile) members[guest.id] = { username: profile.username ?? null, email: profile.email ?? null };
+      }
+      return response.json({ success: true, members });
+    } catch (error: any) {
+      console.error("[BackendPermissions] Error in member-directory:", error);
+      return response.status(500).json({ success: false, error: "Could not load this event's members." });
+    }
+  });
+
   permissionsRouter.post("/update-guest-permissions", async (request, response) => {
     try {
       const { logId, permissions, requester } = request.body || {};

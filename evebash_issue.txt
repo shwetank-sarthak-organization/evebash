@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 247
+Next issue number: 248
 
 =====================================================================
 ACTIVE ISSUES
@@ -1443,6 +1443,17 @@ Blocked by: -
 Found in: Applying the 10/15/30 discount prices (chat 2026-11-04)
 Issue: The app's Upgrade Plan page (apps/mobile/app/(tabs)/pricing.tsx) has its prices written into the code, while the website reads them from pricing_plans. A price change in the database or the admin dashboard doesn't reach the app, so it shows old prices until someone edits the file and ships an app update. The 3/6/12-month numbers were edited by hand for the 2026-11-04 prices. Fix idea: read them from /api/v1/pricing-plans, as the website does, with these as the fallback.
 How to reproduce: Change a price in pricing_plans; the website shows it and the app doesn't.
+
+#247
+Listed: 2026-11-05
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Shwetank's screenshot of the Permissions list (chat 2026-11-05)
+Issue: The website's Permissions list shows "Unknown" as every member's date. src/app/(main)/host/page.tsx reads log.loginAt?.seconds, but login_at comes from the database as a date string, so seconds is always missing. All 15 guest rows checked have a login_at. Fix idea: read the string, and keep "Unknown" only when it's empty.
+How to reproduce: Host > any event with a member > Permissions. The line under the name ends in "Unknown".
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

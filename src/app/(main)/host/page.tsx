@@ -14,6 +14,7 @@ import { EventDesignPreview } from "@/components/EventDesignPreview";
 import { PartnersIcon } from "@/components/PartnersIcon";
 import { GalleryTypesInfo } from "@/components/GalleryTypesInfo";
 import { TransferOwnershipCard } from "@/components/transfer/TransferOwnershipCard";
+import { memberLabel, type MemberDetails } from "../../../../shared/permissions/memberDetails";
 import { HostIcon } from "@/components/HostIcon";
 import { HostConsoleIcon } from "@/components/HostConsoleIcon";
 import { DashboardEventCard, SERIF, formatShortEventDate } from "@/components/dashboard/DashboardEvents";
@@ -85,6 +86,7 @@ import {
     createEvent,
     createUserProfile,
     getGuestProfile,
+    getMemberDirectory,
     getUserEvents,
     Event,
     Photo,
@@ -680,7 +682,7 @@ type EventDetailLog = {
     phone?: string;
     email?: string;
     status?: string;
-    loginAt?: { seconds?: number };
+    loginAt?: string;
     canAdmin?: boolean;
     canUpload?: boolean;
     canComment?: boolean;
@@ -1046,6 +1048,7 @@ function DashboardContent() {
     const [loadingEventDetail, setLoadingEventDetail] = useState(false);
     const [selectedGuestLog, setSelectedGuestLog] = useState<EventDetailLog | null>(null);
     const [selectedGuestProfile, setSelectedGuestProfile] = useState<any | null>(null);
+    const [memberDirectory, setMemberDirectory] = useState<Record<string, MemberDetails>>({});
     const [loadingGuestProfile, setLoadingGuestProfile] = useState(false);
 
     // Guest requests (Requests tab)
@@ -1854,6 +1857,19 @@ function DashboardContent() {
             supabase.removeChannel(channel);
         };
     }, [selectedEventId]);
+
+    // Loaded again when someone joins or leaves the list
+    const eventDetailLogIds = eventDetailLogs.map((log) => log.id).join(",");
+    useEffect(() => {
+        if (!selectedMainEventId || !eventDetailLogIds) return;
+        let isMounted = true;
+        void getMemberDirectory(selectedMainEventId).then((directory) => {
+            if (isMounted) setMemberDirectory(directory);
+        });
+        return () => {
+            isMounted = false;
+        };
+    }, [selectedMainEventId, eventDetailLogIds]);
 
     useEffect(() => {
         if (!selectedGuestLog) {
@@ -3752,10 +3768,12 @@ function DashboardContent() {
                 <div>
                     {logs.map((log) => {
                         const guestName = log.name || "Guest";
-                        const loginDate = log.loginAt?.seconds
-                            ? new Date(log.loginAt.seconds * 1000).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+                        // login_at comes from the database as a date string
+                        const loginTime = log.loginAt ? new Date(log.loginAt) : null;
+                        const loginDate = loginTime && !Number.isNaN(loginTime.getTime())
+                            ? loginTime.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
                             : "Unknown";
-                        const contact = log.email || log.phone || "No contact";
+                        const contact = memberLabel(memberDirectory[log.id], log.email || log.phone || "No contact");
                         const hasAdminAccess = Boolean(log.canAdmin);
                         const role = isPending
                             ? { label: "Pending", icon: RefreshCw, className: "border-amber-400/30 bg-amber-400/10 text-amber-300" }

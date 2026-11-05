@@ -4,7 +4,7 @@ import { sendPushNotification } from "./pushNotifications";
 import { getApiUrl } from "./apiBase";
 import { isMissingUploadedFile } from "../../shared/media/missingUpload";
 import { readEventSizes, type EventStorageSize } from "../../shared/storage/eventSizes";
-import { fetchMemberDetails } from "../../shared/permissions/memberDetails";
+import { fetchMemberDetails, fetchMemberDirectory } from "../../shared/permissions/memberDetails";
 
 // Memory caches to optimize lookups
 const eventCache: Record<string, Event> = {};
@@ -1743,6 +1743,13 @@ async function getMemberDetails(logId?: string) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!logId || !session?.access_token) return {};
     return fetchMemberDetails(getApiUrl("/api/v1/permissions/member-details"), session.access_token, logId);
+}
+
+/** Username and email of everyone on an event's Permissions list, by guest row id. */
+export async function getMemberDirectory(eventId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return {};
+    return fetchMemberDirectory(getApiUrl("/api/v1/permissions/member-directory"), session.access_token, eventId);
 }
 
 export interface GuestProfile {

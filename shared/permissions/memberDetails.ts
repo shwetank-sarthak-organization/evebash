@@ -18,3 +18,24 @@ export async function fetchMemberDetails(url: string, accessToken: string, logId
         return {};
     }
 }
+
+/** Every member and request of an event, by guest row id, for its Permissions list. Empty when it can't be read. */
+export async function fetchMemberDirectory(url: string, accessToken: string, eventId: string): Promise<Record<string, MemberDetails>> {
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+            body: JSON.stringify({ eventId }),
+        });
+        const result = await response.json().catch(() => ({}));
+        return response.ok && result.success ? result.members : {};
+    } catch {
+        return {};
+    }
+}
+
+/** What tells two members with the same name apart: the username (unique), else the email, else what the row has. */
+export function memberLabel(details: MemberDetails | undefined, fallback: string) {
+    if (details?.username) return `@${details.username}`;
+    return details?.email || fallback;
+}

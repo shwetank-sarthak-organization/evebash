@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 189
+Next test number: 190
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5357,6 +5357,27 @@ How to test:
   3. As an event admin (not the owner): open the same popup. Expect: the same details.
   4. App: Event > Permissions > tap the member, and a pending request. Expect: the same as the website.
   5. An older guest row with no account, if you have one: expect the popup still opens, with no error.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#189 Username in the event's Permissions list
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Detail:    Use an event with members who have an account, ideally two with the same name.
+How to test:
+  1. As the owner, website: Host > event > Permissions. Expect: under each member's name, their @username.
+  2. A member or request with no username: expect their email in its place. No phone shown for accounts.
+  3. App: Event > Permissions. Expect: the same, for Admins, Members and Pending Requests.
+  4. As an event admin (not the owner): expect the same list.
+  5. Approve a new request, and check the new member shows their @username too.
+  6. Website: the date after the username is when they joined (for example "05 Nov, 02:30 pm"), not "Unknown".
 Done by:
 Device / browser:
 Build / version:
