@@ -616,17 +616,17 @@ Listed:       2026-11-05
 Platform:     Both
 Priority:     Medium
 Phase:        1
-Status:       In progress
+Status:       Done
 Effort:       S
 Suggested by: Shwetank
 Discussed:    Yes
 Decision:     2026-11-05 Shwetank: list each event's size inside the Storage card on Profile.
 Owner:        Shwetank (with Claude)
-Depends on:   Migration 20261105000000_event_storage_by_event.sql
+Depends on:   Migration 20261105000000_event_storage_by_event.sql (applied 2026-11-05)
 Brief:        Profile > Storage > Event Storage opens a list of the user's events, largest first, each
               with its size (sub-galleries, previews, streams, album designs and voice notes included).
               The rows add up to the Event Storage total. First 5, then Show all.
-Done in:      -
+Done in:      993a25b (2026-11-05), on staging. Device test #187.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
