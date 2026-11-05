@@ -4,6 +4,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppTheme } from '@/context/ThemeContext';
 import { formatStorageSize, getUsagePercent } from '@/lib/planLimits';
 import type { StorageBreakdown } from '@/lib/database';
+import { EVENT_SIZES_SHOWN } from '../../../shared/storage/eventSizes';
 
 const EVENT_COLOR = '#CA9C68';
 const VAULT_COLOR = '#7FA38C';
@@ -35,7 +36,9 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel }: StorageBre
     { label: 'Voice notes', bytes: parts.voiceNotes, icon: 'mic.fill' },
     ...(parts.albumDesigns > 0 ? [{ label: 'Album designs', bytes: parts.albumDesigns, icon: 'book.fill' }] : []),
   ] : [];
-  const canExpand = eventParts.length > 0;
+  const [allEventsShown, setAllEventsShown] = useState(false);
+  const eventSizes = usage?.eventSizes ?? [];
+  const canExpand = eventParts.length > 0 || eventSizes.length > 0;
 
   return (
     <View style={[styles.card, { borderColor: colors.border }]}>
@@ -80,7 +83,27 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel }: StorageBre
         </View>
       </Pressable>
 
-      {eventsOpen && canExpand && (
+      {eventsOpen && eventSizes.length > 0 && (
+        <View style={[styles.parts, { borderColor: colors.border }]}>
+          <Text style={[styles.partsHeading, { color: colors.slate400 }]}>BY EVENT</Text>
+          {(allEventsShown ? eventSizes : eventSizes.slice(0, EVENT_SIZES_SHOWN)).map((event) => (
+            <View key={event.eventId} style={styles.row}>
+              <Text style={[styles.partText, styles.eventName, { color: colors.slate400 }]} numberOfLines={1}>{event.title}</Text>
+              <Text style={[styles.partValue, { color: colors.text }]}>{formatStorageSize(event.bytes)}</Text>
+            </View>
+          ))}
+          {eventSizes.length > EVENT_SIZES_SHOWN && (
+            <Pressable accessibilityRole="button" onPress={() => setAllEventsShown((shown) => !shown)} hitSlop={8}>
+              <Text style={[styles.partText, { color: EVENT_COLOR, fontWeight: '700' }]}>
+                {allEventsShown ? 'Show fewer' : `Show all ${eventSizes.length} events`}
+              </Text>
+            </Pressable>
+          )}
+          {eventParts.length > 0 && <Text style={[styles.partsHeading, { color: colors.slate400, marginTop: 6 }]}>BY TYPE</Text>}
+        </View>
+      )}
+
+      {eventsOpen && eventParts.length > 0 && (
         <View style={[styles.parts, { borderColor: colors.border }]}>
           {eventParts.map((part) => (
             <View key={part.label} style={styles.row}>
@@ -128,6 +151,8 @@ const styles = StyleSheet.create({
   rowText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   rowValue: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   parts: { borderLeftWidth: 1, marginLeft: 4, paddingLeft: 14, gap: 8 },
+  partsHeading: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
+  eventName: { flex: 1 },
   partText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   partValue: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   note: { fontSize: 11, fontFamily: 'Inter_400Regular', lineHeight: 16 },

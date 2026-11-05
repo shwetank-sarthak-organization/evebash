@@ -3,6 +3,7 @@ import { formatEventDate } from "./utils";
 import { sendPushNotification } from "./pushNotifications";
 import { getApiUrl } from "./apiBase";
 import { isMissingUploadedFile } from "../../shared/media/missingUpload";
+import { readEventSizes, type EventStorageSize } from "../../shared/storage/eventSizes";
 
 // Memory caches to optimize lookups
 const eventCache: Record<string, Event> = {};
@@ -2520,7 +2521,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 /** Event storage by kind; the four parts add up to `events`. */
 export type EventStorageParts = { photos: number; videos: number; albumDesigns: number; voiceNotes: number };
 
-export type StorageBreakdown = { events: number; vault: number; total: number; eventParts?: EventStorageParts | null };
+export type StorageBreakdown = { events: number; vault: number; total: number; eventParts?: EventStorageParts | null; eventSizes?: EventStorageSize[] };
 
 /** Bytes used by event media (originals plus streaming/preview assets). */
 export async function getUserEventStorage(identifiers: string | string[]): Promise<number> {
@@ -2587,7 +2588,7 @@ async function getOwnStorageFromServer(identifiers: string | string[]): Promise<
         if (!response.ok) return null;
         const data = await response.json();
         if (typeof data?.total !== "number") return null;
-        return { events: Number(data.events) || 0, vault: Number(data.vault) || 0, total: data.total, eventParts: readEventParts(data.eventParts) };
+        return { events: Number(data.events) || 0, vault: Number(data.vault) || 0, total: data.total, eventParts: readEventParts(data.eventParts), eventSizes: readEventSizes(data.eventSizes) };
     } catch {
         return null;
     }

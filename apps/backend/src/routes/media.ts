@@ -640,9 +640,10 @@ mediaRouter.get("/storage-usage", asyncRoute(async (request, response) => {
   const verified = await verifyRequestUser(request);
   if (!verified) return jsonError(response, 401, "Authorization required");
   const { id, email, phone } = verified.user;
-  const [context, eventParts] = await Promise.all([
+  const [context, eventParts, eventSizes] = await Promise.all([
     getStorageContext(createSupabaseVaultRepository(), { id, email, phone }),
     getEventStorageParts(ownerIdentifiers({ id, email, phone })),
+    getEventStorageSizes(ownerIdentifiers({ id, email, phone })),
   ]);
   response.json({
     success: true,
@@ -653,6 +654,7 @@ mediaRouter.get("/storage-usage", asyncRoute(async (request, response) => {
     uploadsBlocked: context.uploadsBlocked,
     planState: context.lifecycle.state,
     eventParts,
+    eventSizes,
   });
 }));
 
@@ -669,6 +671,22 @@ async function getEventStorageParts(identifiers: string[]) {
       albumDesigns: Number(row.album_designs) || 0,
       voiceNotes: Number(row.voice_notes) || 0,
     };
+  } catch {
+    return null;
+  }
+}
+
+// Each event's size, largest first, for the same card. Null (no list) if it can't be read, e.g. before the
+// 20261105000000 migration is applied, so it never breaks the totals above.
+async function getEventStorageSizes(identifiers: string[]) {
+  try {
+    const { data, error } = await getSupabaseAdminClient().rpc("vault_event_storage_by_event", { p_identifiers: identifiers });
+    if (error || !Array.isArray(data)) return null;
+    return data.map((row: { event_id: string; title: string | null; bytes: number | string }) => ({
+      eventId: row.event_id,
+      title: row.title,
+      bytes: Number(row.bytes) || 0,
+    }));
   } catch {
     return null;
   }

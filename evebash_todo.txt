@@ -32,9 +32,9 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 25
+Next todo number: 26
 
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
 =====================================================================
 ACTIVE TODOS
@@ -610,6 +610,23 @@ Brief:        Hand a whole event (all sub-galleries, previews, streams, album da
               Not in this version: emails; the "plan moves with the event" rule for one-time plans
               (added with those plans).
 Done in:      b6631ea (2026-11-04), on staging. Device test #183.
+
+#25 Storage by event
+Listed:       2026-11-05
+Platform:     Both
+Priority:     Medium
+Phase:        1
+Status:       In progress
+Effort:       S
+Suggested by: Shwetank
+Discussed:    Yes
+Decision:     2026-11-05 Shwetank: list each event's size inside the Storage card on Profile.
+Owner:        Shwetank (with Claude)
+Depends on:   Migration 20261105000000_event_storage_by_event.sql
+Brief:        Profile > Storage > Event Storage opens a list of the user's events, largest first, each
+              with its size (sub-galleries, previews, streams, album designs and voice notes included).
+              The rows add up to the Event Storage total. First 5, then Show all.
+Done in:      -
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)

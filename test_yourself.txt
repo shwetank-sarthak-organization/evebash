@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 187
+Next test number: 188
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5312,6 +5312,30 @@ How to test:
   5. Swipe left on the picture itself (not on the controls). Expect: the next video opens (2 / 4). Swipe right:
      back to the first one.
   6. Host side: from Host, open the same event, open a video and repeat steps 1 and 5. Expect: the same results.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#187 Storage by event on Profile
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Detail:    Todo #25. Needs migration 20261105000000_event_storage_by_event.sql. Use an account that owns a few
+           events, at least one with a sub-gallery.
+How to test:
+  1. Profile > Storage card > tap Event Storage. Expect: "By event" lists your events, largest first, then
+     "By type" with Photos, Videos and so on.
+  2. Add up the event sizes. Expect: about the same as Event Storage (small differences from rounding).
+  3. Check a sub-gallery isn't listed by itself: its size is part of its main event.
+  4. Upload a photo to a sub-gallery and reload. Expect: the main event's size goes up.
+  5. An account with more than 5 events: expect 5 rows and "Show all N events", which shows the rest.
+  6. An event with no photos: expect it listed at 0 MB. A very long event name: cut off, size still visible.
+  7. Guest-only account (owns nothing): expect no list and no error.
 Done by:
 Device / browser:
 Build / version:

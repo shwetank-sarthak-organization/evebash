@@ -1,3 +1,4 @@
+import { readEventSizes, type EventStorageSize } from '../../../shared/storage/eventSizes';
 import { supabase } from "./supabase";
 import { sendPushNotificationDirectly } from "./notifications";
 import { DEFAULT_EVENT_COVER_IMAGE } from "./eventCovers";
@@ -817,7 +818,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 /** Event storage by kind; the four parts add up to `events`. */
 export type EventStorageParts = { photos: number; videos: number; albumDesigns: number; voiceNotes: number };
 
-export type StorageBreakdown = { events: number; vault: number; total: number; eventParts?: EventStorageParts | null };
+export type StorageBreakdown = { events: number; vault: number; total: number; eventParts?: EventStorageParts | null; eventSizes?: EventStorageSize[] };
 
 /** Bytes used by event media. */
 export async function getUserEventStorage(
@@ -889,7 +890,7 @@ async function getOwnStorageFromServer(identifiers: string[]): Promise<StorageBr
         if (!response.ok) return null;
         const data = await response.json();
         if (typeof data?.total !== 'number') return null;
-        return { events: Number(data.events) || 0, vault: Number(data.vault) || 0, total: data.total, eventParts: readEventParts(data.eventParts) };
+        return { events: Number(data.events) || 0, vault: Number(data.vault) || 0, total: data.total, eventParts: readEventParts(data.eventParts), eventSizes: readEventSizes(data.eventSizes) };
     } catch {
         return null;
     }

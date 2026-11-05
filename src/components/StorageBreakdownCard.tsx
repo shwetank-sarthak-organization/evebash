@@ -5,6 +5,7 @@ import { BookOpen, CalendarDays, ChevronDown, HardDrive, Image as ImageIcon, Loc
 import { formatStorageSize, getUsagePercent } from "@/lib/planLimits";
 import type { StorageBreakdown } from "@/lib/database";
 import { cn } from "@/lib/utils";
+import { EVENT_SIZES_SHOWN } from "../../shared/storage/eventSizes";
 
 interface StorageBreakdownCardProps {
     usage: StorageBreakdown;
@@ -23,6 +24,8 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, loading }: S
     const vaultShare = usage.total > 0 ? (usage.vault / usage.total) * percent : 0;
 
     const [eventsOpen, setEventsOpen] = useState(false);
+    const [allEventsShown, setAllEventsShown] = useState(false);
+    const eventSizes = usage.eventSizes ?? [];
     const parts = usage.eventParts;
     // Album designs only exist with album proofing, so that line shows up only once there are some.
     const eventParts = parts ? [
@@ -31,6 +34,7 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, loading }: S
         { icon: Mic, label: "Voice notes", bytes: parts.voiceNotes },
         ...(parts.albumDesigns > 0 ? [{ icon: BookOpen, label: "Album designs", bytes: parts.albumDesigns }] : []),
     ] : [];
+    const canExpand = eventParts.length > 0 || eventSizes.length > 0;
 
     return (
         <div className="rounded-2xl bg-[var(--site-surface)] p-4">
@@ -63,7 +67,7 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, loading }: S
 
             <ul className="mt-4 space-y-2.5">
                 <li>
-                    {eventParts.length > 0 ? (
+                    {canExpand ? (
                         <button
                             type="button"
                             onClick={() => setEventsOpen((open) => !open)}
@@ -80,6 +84,29 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, loading }: S
                         <div className="flex items-center justify-between gap-3 text-sm">
                             <EventStorageLabel />
                             <span className="font-black text-[var(--site-text)]">{loading ? "…" : formatStorageSize(usage.events)}</span>
+                        </div>
+                    )}
+                    {eventsOpen && eventSizes.length > 0 && (
+                        <div className="mt-2 ml-1 border-l border-[var(--site-line)] pl-4">
+                            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[var(--site-muted)]">By event</p>
+                            <ul className="mt-2 space-y-2">
+                                {(allEventsShown ? eventSizes : eventSizes.slice(0, EVENT_SIZES_SHOWN)).map((event) => (
+                                    <li key={event.eventId} className="flex items-center justify-between gap-3 text-xs">
+                                        <span className="min-w-0 truncate font-semibold text-[var(--site-muted)]" title={event.title}>{event.title}</span>
+                                        <span className="shrink-0 font-bold text-[var(--site-text)]">{formatStorageSize(event.bytes)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                            {eventSizes.length > EVENT_SIZES_SHOWN && (
+                                <button
+                                    type="button"
+                                    onClick={() => setAllEventsShown((shown) => !shown)}
+                                    className="mt-2 text-xs font-bold text-[var(--site-gold)]"
+                                >
+                                    {allEventsShown ? "Show fewer" : `Show all ${eventSizes.length} events`}
+                                </button>
+                            )}
+                            {eventParts.length > 0 && <p className="mt-3 text-[11px] font-black uppercase tracking-[0.12em] text-[var(--site-muted)]">By type</p>}
                         </div>
                     )}
                     {eventsOpen && eventParts.length > 0 && (
