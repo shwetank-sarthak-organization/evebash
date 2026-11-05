@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 188
+Next test number: 189
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5336,6 +5336,27 @@ How to test:
   5. An account with more than 5 events: expect 5 rows and "Show all N events", which shows the rest.
   6. An event with no photos: expect it listed at 0 MB. A very long event name: cut off, size still visible.
   7. Guest-only account (owns nothing): expect no list and no error.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#188 Member details in the Permissions popup
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Detail:    Issue #246. Use an event with a member who has an account, plus one account that isn't an admin.
+How to test:
+  1. As the owner: Host > event > Permissions > tap the member. Expect: their Username and Email ID, the same
+     as on their own profile. Phone Number stays "Not set", even if their profile has a phone.
+  2. Do the same for a pending request. Expect: the same details.
+  3. As an event admin (not the owner): open the same popup. Expect: the same details.
+  4. App: Event > Permissions > tap the member, and a pending request. Expect: the same as the website.
+  5. An older guest row with no account, if you have one: expect the popup still opens, with no error.
 Done by:
 Device / browser:
 Build / version:

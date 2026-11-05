@@ -1,4 +1,5 @@
 import { readEventSizes, type EventStorageSize } from '../../../shared/storage/eventSizes';
+import { fetchMemberDetails } from '../../../shared/permissions/memberDetails';
 import { supabase } from "./supabase";
 import { sendPushNotificationDirectly } from "./notifications";
 import { DEFAULT_EVENT_COVER_IMAGE } from "./eventCovers";
@@ -767,17 +768,28 @@ export interface GuestProfile {
     profileImage?: string;
 }
 
+/** Username and email for people who manage this guest row's event; the backend decides who that is. */
+async function getMemberDetails(logId?: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, '');
+    if (!logId || !session?.access_token || !apiBaseUrl) return {};
+    return fetchMemberDetails(`${apiBaseUrl}/api/v1/permissions/member-details`, session.access_token, logId);
+}
+
 /**
  * Profile details of a guest row, for the gallery host's guest panel. Rows made by request_gallery_access carry the
- * account (user_id): name and photo come from profile_cards, which hosts can still read once RLS is on (username and
- * email are private then). Older phone/email rows keep the direct profile lookup, which works until the lockdown;
- * after it the panel shows the guest row's own name and phone.
+ * account (user_id): name and photo come from profile_cards, which hosts can still read once RLS is on, and username
+ * and email from the backend, for people who manage the event. Older phone/email rows keep the direct profile lookup,
+ * which works until the lockdown; after it the panel shows the guest row's own name and phone.
  */
-export async function getGuestProfile(log: { userId?: string; email?: string; phone?: string }): Promise<GuestProfile | null> {
+export async function getGuestProfile(log: { id?: string; userId?: string; email?: string; phone?: string }): Promise<GuestProfile | null> {
     if (log.userId) {
-        const { data, error } = await supabase.from('profile_cards').select('id, name, profile_image').eq('id', log.userId).maybeSingle();
+        const [{ data, error }, details] = await Promise.all([
+            supabase.from('profile_cards').select('id, name, profile_image').eq('id', log.userId).maybeSingle(),
+            getMemberDetails(log.id),
+        ]);
         if (error) throw error;
-        return data ? { id: data.id, name: data.name, profileImage: data.profile_image } : null;
+        return data ? { id: data.id, name: data.name, profileImage: data.profile_image, ...details } : null;
     }
 
     // Older rows: the newest profile with the row's email (its phone when it has no email), ignoring case and

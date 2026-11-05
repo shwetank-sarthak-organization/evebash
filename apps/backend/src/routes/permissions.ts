@@ -268,6 +268,37 @@ export function createPermissionsRouter(
     }
   });
 
+  /**
+   * A member's username and email, for the Permissions popup: for the people who manage that member's event, and only
+   * while the member is on its guest list or asking to join. Never their phone. Always needs a real login: the old
+   * body-based check isn't enough for this.
+   */
+  permissionsRouter.post("/member-details", async (request, response) => {
+    try {
+      const { logId } = request.body || {};
+      if (typeof logId !== "string" || !logId) {
+        return response.status(400).json({ success: false, error: "Missing logId" });
+      }
+
+      const access = await checkAccess(request, logId);
+      if (access !== "allowed") {
+        const { status: code, body } = denied(access);
+        return response.status(code).json(body);
+      }
+
+      const supabaseAdmin = getAdmin();
+      const { data: guest } = await supabaseAdmin.from("guests").select("user_id, status").eq("id", logId).maybeSingle();
+      const onTheList = !!guest?.user_id && (guest.status === "approved" || guest.status === "pending");
+      const { data: profile } = onTheList
+        ? await supabaseAdmin.from("profiles").select("username, email").eq("id", guest.user_id).maybeSingle()
+        : { data: null };
+      return response.json({ success: true, username: profile?.username ?? null, email: profile?.email ?? null });
+    } catch (error: any) {
+      console.error("[BackendPermissions] Error in member-details:", error);
+      return response.status(500).json({ success: false, error: "Could not load this member's details." });
+    }
+  });
+
   permissionsRouter.post("/update-guest-permissions", async (request, response) => {
     try {
       const { logId, permissions, requester } = request.body || {};

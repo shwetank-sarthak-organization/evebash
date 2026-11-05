@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 246
+Next issue number: 247
 
 =====================================================================
 ACTIVE ISSUES
@@ -1443,6 +1443,18 @@ Blocked by: -
 Found in: Applying the 10/15/30 discount prices (chat 2026-11-04)
 Issue: The app's Upgrade Plan page (apps/mobile/app/(tabs)/pricing.tsx) has its prices written into the code, while the website reads them from pricing_plans. A price change in the database or the admin dashboard doesn't reach the app, so it shows old prices until someone edits the file and ships an app update. The 3/6/12-month numbers were edited by hand for the 2026-11-04 prices. Fix idea: read them from /api/v1/pricing-plans, as the website does, with these as the fallback.
 How to reproduce: Change a price in pricing_plans; the website shows it and the app doesn't.
+
+#246
+Listed: 2026-11-05
+Platform: Both
+Priority: Medium
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Shwetank's check of the member popup on staging (chat 2026-11-05)
+Issue: The Permissions member popup shows Username, Email ID and Phone Number as "Not set" for members with an account, even when their profile has them. getGuestProfile (src/lib/database.ts, apps/mobile/lib/database.ts) reads only name and photo from profile_cards when the guest row has a user_id, because other people's profiles won't be readable once RLS part 2 (#21) is on. Older guest rows without a user_id take the other path and still show the email. Fix idea: a backend route that returns the agreed details to the event's owner and admins only, for people on that event's guest list.
+How to reproduce: As newone@email.com open Host > wedding-fdd8 > Permissions > Shwetank Chauhan. Username and Email ID say "Not set", though the profile has both.
+Decision 2026-11-05 Shwetank: owners and admins see username and email only, never the phone.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
