@@ -3779,6 +3779,8 @@ Detail:    Branch feat/sentry-crash-reporting. Env vars: NEXT_PUBLIC_SENTRY_DSN 
            Look there for app errors from builds made after that commit (older builds report to a different project).
            2026-11-04: EAS Android staging build 58b1804b (staging 29e92eb) uploaded its source maps to Sentry project
            evebash-app (release com.evebash.app@1.2.4+25, dist 25). Use it for steps 4, 5 and 8. Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/58b1804b-a070-4280-99f8-6f9adfa7c4c1
+           2026-11-06: newer EAS Android staging build 663facd1 (staging b4118bd) also uploaded its source maps to
+           evebash-app (release com.evebash.app@1.2.4+25). Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/663facd1-8ffb-4b78-a6f3-8e8a51cef101
 How to test:
   1. Website: open staging.evebash.com, use it normally for a minute (log in, open a gallery). Expect: works
      exactly as before. In Sentry (project evebash-web / Next.js) nothing new unless something broke.
@@ -5020,6 +5022,7 @@ Detail:    Commit eed090f on staging (app only; needs a new staging app build or
            far ones were dropped and came back on scrolling up. The simulator can't show the memory saving, so this
            needs a real phone.
            2026-11-04: in the EAS Android staging build 58b1804b (staging 29e92eb). Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/58b1804b-a070-4280-99f8-6f9adfa7c4c1
+           2026-11-06: newer EAS Android staging build 663facd1 (staging b4118bd) also has this. Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/663facd1-8ffb-4b78-a6f3-8e8a51cef101
 How to test:
   1. As the host of a gallery with lots of photos (300+ is best), open its photo grid and scroll quickly to the
      bottom, then back to the top. Expect: every photo you stop on shows; while flicking, a few tiles may show an
@@ -5231,6 +5234,8 @@ Detail:    Commit 11a60c8 on staging (app code only; needs a staging build or up
            items. Not run on Android or a real phone.
            2026-11-04: also covers issue #245 (894b9af): on an iPhone, step 3 checks that waiting uploads still find their
            copies after the app is updated.
+           2026-11-06: test on EAS Android staging build 663facd1 (staging b4118bd), which has this fix and #245.
+           Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/663facd1-8ffb-4b78-a6f3-8e8a51cef101
 How to test:
   1. As a host, pick about 30 photos and upload them to your own test gallery. While they upload, close the app
      completely (swipe it away), then open it again. Expect: the upload card shows the rest and carries on; every
