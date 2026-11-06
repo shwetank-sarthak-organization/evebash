@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 253
+Next issue number: 254
 
 =====================================================================
 ACTIVE ISSUES
@@ -1487,6 +1487,17 @@ Blocked by: -
 Found in: light theme check of the host page (chat 2026-11-04)
 Issue: On a phone-width screen, the host event page (Host -> an event) scrolls sideways by about 180 px. The "Home (Primary Gallery) and sub-galleries" info popover (src/components/GalleryTypesInfo.tsx) is only hidden (invisible + opacity 0), so its 22rem-wide box still sticks out past the right edge (page 554 px wide at 375 px). Same in the dark and light look. Fix idea: keep the popover inside the screen (right-0 on small screens, or max-w from the button's position), or take it out of the layout while closed (display none).
 How to reproduce: Open Host -> any event on a 375 px wide screen (or a phone) and swipe sideways: the page moves right; empty space appears on the right.
+
+#253
+Listed: 2026-11-06
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: Sarthak's OK to change a guest theme (themes keep their own designs)
+Found in: app light theme check (todo #1, chat 2026-11-06)
+Issue: On a Classic White guest gallery in the app, the clock and Wi-Fi icon at the top are white on the white page, so they can hardly be seen. The app's status bar has always been white on event pages (apps/mobile/app/_layout.tsx keeps them on the "light" status bar), which suits the dark themes but not Classic White. Not caused by the light theme: the old app looks the same. Sunlit Portrait already sets its own status bar (isPortraitGuest in apps/mobile/app/events/[id].tsx); fix idea: do the same for Classic White guests, a dark status bar on its white page.
+How to reproduce: In the app, open a Classic White gallery as a guest (e.g. 10-oct-reject-73a7) and look at the top of the screen.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

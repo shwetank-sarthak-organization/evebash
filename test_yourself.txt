@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 195
+Next test number: 196
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5548,6 +5548,46 @@ How to test:
      ("Ask for a change" on wide pages). Approve one from its tile: it turns green and the counts change.
   9. The Activity line at the bottom shows the latest event; See all lists rounds sent and pages approved.
  10. Try a small phone (iPhone SE or a small Android). Expect: no text cut off or overlapping.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#195 App light theme: Settings > Appearance, the phone's setting and every host screen
+Status:    TODO
+Priority:  Medium
+Platform:  App
+Brief:     The app now has a light look (ivory paper, dark text, bronze gold), with the same colours as the website's
+           (test #192). It starts on the phone's light/dark setting; Settings > Appearance (Light / Dark / Match device)
+           changes it, and the phone remembers the choice. The dark look must be exactly as before. Log in, Sign up,
+           Forgot password, the terms screen, guest galleries, the photo viewer and Vault keep their own look.
+Detail:    Commit 94def90. Needs a new EAS staging build. Checked on the iPhone 17 Pro simulator only: dark compared pixel by
+           pixel with the old app (no difference), light checked by eye. Not tried on Android or a real phone.
+           Known limits: iOS pop-up alerts and the keyboard follow the phone's setting, not the app's choice; so do
+           Android's 3-button navigation icons.
+How to test:
+  1. Set the phone to light mode and open the app. Expect: Dashboard, Host, EB Network and Profile in the light look,
+     with a light tab bar and a dark clock.
+  2. Set the phone to dark mode. Expect: the app turns dark at once and looks exactly as before this change.
+  3. Open Profile > Settings > Appearance. Pick Light, then Dark, then Match device. Expect: the app follows each one at
+     once. Close the app fully and open it again: the choice is kept.
+  4. In light, open Plan & Usage, Upgrade, Your Events, Sample galleries, Contact us, the Terms and Privacy pages, and
+     the Join event and Create event sheets. Expect: all text easy to read; no white text on a light background.
+  5. In light, open Host > an event. Expect: the cover photo, its title and its buttons stay dark (a "Fit" cover gets
+     dark bars around it); below the cover the page is light. Scroll down: the clock turns dark once the cover has
+     gone. Check Galleries, Permissions, Design and Album, and open Share Event, Add Sub-Gallery, Event Type, Choose
+     Style and a photo's ⋯ menu.
+  6. In light, open a gallery's photos and an album (Album > an album). Expect: light and readable; badges and buttons
+     on photos stay dark.
+  7. In light, log out. Expect: Log in, Sign up and Forgot password look exactly as before (dark).
+  8. In light, open guest galleries in Royal Emerald, Midnight Hero, Classic White and Sunlit Portrait. Expect: each
+     looks exactly as before, in its own design.
+  9. Repeat steps 1-3 on Android.
 Done by:
 Device / browser:
 Build / version:
