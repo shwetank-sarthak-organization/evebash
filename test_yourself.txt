@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 192
+Next test number: 193
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5436,6 +5436,43 @@ How to test:
   7. Sign in as the client of an album in review. Expect: "Review N pages" in gold.
   8. Tap a card. Expect: the album opens as before.
   9. App: Event > Album. Expect: the same cards and wording as steps 1-8.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#192 Website light theme: the switch, the remembered choice and every page
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     The website now has a light look (ivory paper, dark text, bronze gold) next to the dark one. It starts
+           on the phone's or computer's light/dark setting; the sun/moon button in the navbar and Settings >
+           Appearance (Light / Dark / Match device) change it, and the browser remembers the choice. The dark look
+           must be exactly as before. Log in, Forgot password, Reset password, guest galleries and Vault stay as
+           they are.
+Detail:    Commit 69c388f. Checked in a browser on a computer (desktop and phone width), not yet on a real phone.
+           Album proofing and the upload panel could not be seen there, so look at them closely (steps 5-6).
+How to test:
+  1. On a phone set to light mode, open staging.evebash.com in Safari, logged out. Expect: the light look from the
+     first moment (no dark flash), and the browser's top bar ivory.
+  2. Set the phone to dark mode and reload. Expect: the dark look, the same as before this change.
+  3. Tap the sun/moon button in the navbar. Expect: the site switches at once. Reload, open another page: the
+     choice is kept.
+  4. Sign in and open Settings > Appearance. Pick Light, then Dark, then Match device. Expect: the site follows each
+     one; on Match device it changes when you change the phone's setting.
+  5. In light, open Home, Pricing, Contact us, Sample galleries, Profile (both tabs), Settings, Dashboard, Host >
+     an event (Galleries, Permissions, Design, Album), a gallery's photos, EB Business and EB Network. Expect: all
+     text easy to read, no white text on a light background, no dark boxes left over. Badges on photos and the
+     buttons on the event's cover photo stay dark on purpose.
+  6. In light, upload a few photos from the Host page. Expect: the upload panel (bottom right) is light and readable.
+  7. In light, open Log in, Forgot password and a guest gallery. Expect: they look exactly as before (the login
+     screens dark, the gallery in its own design).
+  8. Repeat steps 1-3 in Chrome on Android.
 Done by:
 Device / browser:
 Build / version:

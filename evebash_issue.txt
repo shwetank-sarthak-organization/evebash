@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 252
+Next issue number: 253
 
 =====================================================================
 ACTIVE ISSUES
@@ -1476,6 +1476,17 @@ Blocked by: Sarthak's OK to change a guest theme's design (themes keep their own
 Found in: App screen review, item 20 (chat 2026-11-01); left out of that batch because guest themes weren't to be touched; logged 2026-11-06
 Issue: In the Sunlit Portrait photo viewer, the area under the photo (Like / Comment / Share / Download, apps/mobile/components/PhotoViewer.tsx viewerActions with viewerActionsDocked in apps/mobile/components/eventStyles/visitorImmersiveStyles.ts) was about 185 pt tall and half empty on the iPhone 17 Pro, so the photo gets less room than it could. Seen before 40a55ee (#237) changed how that row hides behind the comment panel, so check it again first. Fix idea: size that area to the buttons, or let the photo use the space.
 How to reproduce: Open a Sunlit Portrait gallery as a guest on an iPhone and open a photo. Look at the empty space around the Like / Comment / Share / Download row.
+
+#252
+Listed: 2026-11-04
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: light theme check of the host page (chat 2026-11-04)
+Issue: On a phone-width screen, the host event page (Host -> an event) scrolls sideways by about 180 px. The "Home (Primary Gallery) and sub-galleries" info popover (src/components/GalleryTypesInfo.tsx) is only hidden (invisible + opacity 0), so its 22rem-wide box still sticks out past the right edge (page 554 px wide at 375 px). Same in the dark and light look. Fix idea: keep the popover inside the screen (right-0 on small screens, or max-w from the button's position), or take it out of the layout while closed (display none).
+How to reproduce: Open Host -> any event on a 375 px wide screen (or a phone) and swipe sideways: the page moves right; empty space appears on the right.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

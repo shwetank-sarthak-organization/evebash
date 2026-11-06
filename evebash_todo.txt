@@ -34,7 +34,7 @@ Field values:
 
 Next todo number: 26
 
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 =====================================================================
 ACTIVE TODOS
@@ -45,16 +45,21 @@ Listed:       2026-10-26
 Platform:     Both
 Priority:     Medium
 Phase:        2
-Status:       Idea
+Status:       In progress
 Effort:       L
 Suggested by: Sarthak
-Discussed:    No
-Decision:     -
-Owner:        Unassigned
+Discussed:    Yes
+Decision:     Website: device setting + switch (2026-11-04, Sarthak)
+Owner:        Sarthak (with Claude)
 Depends on:   -
 Brief:        Add a light theme to the app and the website, alongside the current look.
               To decide: follow the phone/browser setting, a switch in settings, or both;
               and whether gallery themes (e.g. Classic White) stay separate from it.
+              2026-11-04 decided (Sarthak): website follows the device setting, with a navbar sun/moon button
+              and Settings > Appearance to override; login, forgot and reset password stay as they are.
+              Website: on staging in 69c388f (2026-11-06), device test #192. Every site page, EB Business,
+              EB Network, the upload panel, loading and app-download screens; only the login screens stay
+              as they are (Sarthak 2026-11-06). The app's light theme is not started.
 Done in:      -
 
 #2  One-time event payment plan
