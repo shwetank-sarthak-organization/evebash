@@ -5460,8 +5460,10 @@ Brief:     The website now has a light look (ivory paper, dark text, bronze gold
            Appearance (Light / Dark / Match device) change it, and the browser remembers the choice. The dark look
            must be exactly as before. Log in, Forgot password, Reset password, guest galleries and Vault stay as
            they are.
-Detail:    Commit 69c388f. Checked in a browser on a computer (desktop and phone width), not yet on a real phone.
-           Album proofing and the upload panel could not be seen there, so look at them closely (steps 5-6).
+Detail:    Commit 69c388f, plus de10377 (album list, page reviewer and Design tab fixes, 2026-11-06). Checked in a
+           browser on a computer (desktop and phone width), not yet on a real phone. Album proofing was checked on
+           staging in light and dark on 2026-11-06. The upload panel has not been seen yet, so look at it closely
+           (step 6).
 How to test:
   1. On a phone set to light mode, open staging.evebash.com in Safari, logged out. Expect: the light look from the
      first moment (no dark flash), and the browser's top bar ivory.
