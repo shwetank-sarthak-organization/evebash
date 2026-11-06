@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -9,10 +9,14 @@ import {
   type AlbumDetail, type AlbumPage, type LocalFile,
 } from '../../lib/albumApi';
 import { Fonts, MidnightColors } from '../../constants/theme';
-import { AlbumButton, albumStyles, AlbumStatusChip, PageStatusChip, ProgressBar } from './albumUi';
+import { AlbumButton, albumStyles, ProgressBar } from './albumUi';
 import { PageReviewer, type AlbumMode } from './PageReviewer';
 import { RolesModal } from './RolePicker';
 import { VoicePlayer } from './VoiceNote';
+import type { AlbumNextStepTone } from '../../../../shared/text/albumNextStep';
+import {
+  ALBUM_PAGE_FILTERS, ALBUM_PAGE_STATE, ALBUM_STEPS, albumPageRatio, albumPageState, albumStep, albumWorkspaceStatus, formatAlbumDay, type AlbumPageState,
+} from '../../../../shared/text/albumWorkspace';
 
 type UploadItem = { key: string; name: string; progress: number; state: 'waiting' | 'uploading' | 'processing' | 'done' | 'failed'; error?: string };
 
@@ -20,6 +24,62 @@ const PAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/tiff'];
 const PAGE_EXTENSIONS = /\.(jpe?g|png|webp|tiff?)$/i;
 const REFRESH_MS = 30_000;
 const UPLOAD_CONCURRENCY = 2;
+
+/** Rows of page tiles aim for this height; each row is scaled to fill the width exactly. */
+const TILE_HEIGHT = 180;
+const TILE_GAP = 8;
+
+const TONE_COLOR: Record<AlbumNextStepTone, string> = { action: '#E8C9A0', urgent: '#FDA4AF', waiting: MidnightColors.slate400, done: '#6EE7B7' };
+const TONE_DOT: Record<AlbumNextStepTone, string> = { action: MidnightColors.gold, urgent: '#FB7185', waiting: 'rgba(255,255,255,0.3)', done: '#34D399' };
+const TONE_ICON: Record<AlbumNextStepTone, keyof typeof MaterialIcons.glyphMap> = { action: 'arrow-forward', urgent: 'chat-bubble-outline', waiting: 'schedule', done: 'check-circle' };
+
+/**
+ * Packs items into rows that fill `width`: a row closes once its height (from the items' width/height ratios)
+ * drops to `target` or below. The last row keeps `target` height and is left short rather than stretched.
+ */
+function packRows<T extends { ratio: number }>(items: T[], width: number, target: number, gap: number) {
+  const rows: { height: number; items: (T & { width: number })[] }[] = [];
+  let row: T[] = [];
+  let sum = 0;
+  const close = (height: number) => {
+    rows.push({ height, items: row.map((item) => ({ ...item, width: Math.floor(item.ratio * height) })) });
+    row = [];
+    sum = 0;
+  };
+  for (const item of items) {
+    row.push(item);
+    sum += item.ratio;
+    const height = (width - gap * (row.length - 1)) / sum;
+    if (height <= target) close(height);
+  }
+  if (row.length) close(Math.min(target, (width - gap * (row.length - 1)) / sum));
+  return rows;
+}
+
+function StepTracker({ step, round }: { step: number; round: number }) {
+  const currentLabel = ALBUM_STEPS[step];
+  return (
+    <View style={{ gap: 8 }} accessibilityLabel="Album progress">
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        {ALBUM_STEPS.map((label, i) => {
+          const done = i < step;
+          const current = i === step;
+          return (
+            <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: i < ALBUM_STEPS.length - 1 ? 1 : 0 }}>
+              <View style={[styles.stepDot, done && styles.stepDone, current && styles.stepCurrent]} accessibilityLabel={`${label}${done ? ', done' : current ? ', now' : ''}`}>
+                {done ? <MaterialIcons name="check" size={14} color={MidnightColors.onAccent} /> : <Text style={[styles.stepNumber, current && { color: '#E8C9A0' }]}>{i + 1}</Text>}
+              </View>
+              {i < ALBUM_STEPS.length - 1 && <View style={styles.stepLine} />}
+            </View>
+          );
+        })}
+      </View>
+      <Text style={styles.stepCaption}>
+        {currentLabel ? `Step ${step + 1} of ${ALBUM_STEPS.length}: ${currentLabel}${step === 2 && round > 0 ? ` · Round ${round}` : ''}` : 'All steps done'}
+      </Text>
+    </View>
+  );
+}
 
 const errorText = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
 
@@ -65,6 +125,10 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
   const [viewing, setViewing] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | AlbumPageState>('all');
+  const [reorder, setReorder] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [rowWidth, setRowWidth] = useState(0);
   const uploading = uploads.some((u) => u.state === 'waiting' || u.state === 'uploading' || u.state === 'processing');
   const uploadingRef = useRef(false);
   uploadingRef.current = uploading;
@@ -158,7 +222,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
           setAlbum((await albumApi.reorder(album.id, [...ids.filter((id) => !added.includes(id)), ...added])).album);
           return;
         }
-      } catch { /* the order can still be fixed with the arrows */ }
+      } catch { /* the order can still be fixed in Reorder */ }
     }
     await refresh();
   };
@@ -227,6 +291,69 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
     { text: 'Cancel', style: 'cancel' as const },
   ]);
 
+  const pageState = (page: AlbumPage) => albumPageState(page, mode, album.viewer.id);
+  const stateCounts: Partial<Record<AlbumPageState, number>> = {};
+  for (const page of visiblePages) stateCounts[pageState(page)] = (stateCounts[pageState(page)] ?? 0) + 1;
+  const filters = ALBUM_PAGE_FILTERS[mode];
+  // A tab that empties (its last page was approved or sent) falls back to All
+  const activeFilter = filter !== 'all' && !stateCounts[filter] ? 'all' : filter;
+  const shownPages = activeFilter === 'all' ? visiblePages : visiblePages.filter((p) => pageState(p) === activeFilter);
+  const toCheck = stateCounts.check ?? 0;
+  const status = albumWorkspaceStatus(album, mode, toCheck);
+  const canEdit = mode === 'photographer' && !locked;
+  const showAddTile = canEdit && !reorder && activeFilter === 'all' && album.rolesAssigned;
+  const rows = rowWidth
+    ? packRows([
+      ...shownPages.map((page) => {
+        const shown = mode !== 'photographer' ? page.versions.find((v) => v.version === page.sentVersion) : page.versions.at(-1);
+        return { page, shown, ratio: albumPageRatio(shown, page.layout) };
+      }),
+      ...(showAddTile ? [{ page: null, shown: undefined, ratio: 0.75 }] : []),
+    ], rowWidth, TILE_HEIGHT, TILE_GAP)
+    : [];
+  const activity = [
+    ...album.rounds.map((r) => ({
+      at: r.sentAt,
+      text: `Round ${r.number}: ${r.sentByName ?? 'the photographer'} sent ${r.pageCount === 1 ? '1 page' : `${r.pageCount} pages`}${r.updatedPageCount ? ` (${r.updatedPageCount} updated)` : ''}`,
+      done: false,
+    })),
+    ...album.pages.filter((p) => p.approvedAt).map((p) => ({ at: p.approvedAt!, text: `${p.approvedByName ?? 'The client'} approved ${labels.get(p.id)}`, done: false })),
+    ...(album.approvedAt ? [{ at: album.approvedAt, text: `${album.approvedByName ?? 'The client'} approved the album for print`, done: true }] : []),
+  ].sort((a, b) => b.at.localeCompare(a.at));
+
+  const sendPages = () => confirm(
+    `Send ${album.unsentCount === 1 ? '1 page' : `${album.unsentCount} pages`} for review?`,
+    'The event owner and admins get a notification and can comment on each page.',
+    'Send',
+    () => void run('send', async () => setAlbum((await albumApi.send(album.id)).album)),
+  );
+  const sendFeedback = () => confirm(
+    album.myDraftCount ? `Send ${album.myDraftCount === 1 ? '1 note' : `${album.myDraftCount} notes`} to the photographer?` : "Tell the photographer you're done?",
+    `${album.approvedCount} of ${visiblePages.length} pages approved. The photographer gets a notification.`,
+    'Send',
+    () => void run('feedback', async () => setAlbum((await albumApi.sendFeedback(album.id)).album)),
+  );
+  const quickApprove = (page: AlbumPage) => {
+    const approve = () => void run(`approve-${page.id}`, async () => setAlbum((await albumApi.approvePage(album.id, page.id, true)).album));
+    const open = page.comments.filter((c) => !c.parentId && !c.isDraft && c.status === 'open').length;
+    if (!open) return approve();
+    confirm(`Approve ${labels.get(page.id)}?`, `This also marks ${open === 1 ? 'the open request' : `the ${open} open requests`} on it as done.`, 'Approve', approve);
+  };
+  const pageOptions = (page: AlbumPage) => Alert.alert(labels.get(page.id) ?? 'Page', undefined, [
+    {
+      text: page.layout === 'spread' ? 'Make it a single page' : 'Make it a spread',
+      onPress: () => void run(`layout-${page.id}`, async () => setAlbum((await albumApi.setLayout(album.id, page.id, page.layout === 'spread' ? 'single' : 'spread')).album)),
+    },
+    { text: 'Upload a new version', onPress: () => void uploadVersion(page) },
+    {
+      text: 'Delete page',
+      style: 'destructive',
+      onPress: () => confirm(`Delete ${labels.get(page.id)}?`, 'All its versions and comments are deleted too.', 'Delete',
+        () => void run(`delete-${page.id}`, async () => setAlbum((await albumApi.removePage(album.id, page.id)).album)), true),
+    },
+    { text: 'Cancel', style: 'cancel' },
+  ]);
+
   return (
     <View style={{ gap: 14 }}>
       {/* Header */}
@@ -253,18 +380,14 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
           ) : (
             <Text style={albumStyles.serifTitle} numberOfLines={2}>{album.title}</Text>
           )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-            <AlbumStatusChip status={album.status} />
-            <Text style={albumStyles.small}>{album.pageCount} {album.pageCount === 1 ? 'page' : 'pages'}{album.currentRound ? ` · Round ${album.currentRound}` : ''}</Text>
-          </View>
-          {locked && album.approvedAt && (
-            <Text style={[albumStyles.small, { color: '#6EE7B7' }]}>Approved by {album.approvedByName} on {new Date(album.approvedAt).toLocaleDateString()}</Text>
-          )}
           {album.rolesAssigned && (
-            <View style={{ gap: 3 }}>
-              <Text style={albumStyles.small}>Photographer: <Text style={{ color: MidnightColors.slate300 }}>{album.roles.photographer?.name}</Text></Text>
-              <Text style={albumStyles.small}>Client: <Text style={{ color: MidnightColors.slate300 }}>{album.roles.clients.map((p) => p.name).join(', ')}</Text></Text>
-              <Text style={styles.youBadge}>{mode === 'photographer' ? 'YOU: PHOTOGRAPHER' : mode === 'client' ? 'YOU: COUPLE' : 'VIEW ONLY'}</Text>
+            <View style={styles.people}>
+              <MaterialIcons name="photo-camera" size={15} color={MidnightColors.gold} accessibilityLabel="Photographer" />
+              <Text style={styles.person}>{album.roles.photographer?.name}{mode === 'photographer' ? <Text style={styles.you}> (you)</Text> : null}</Text>
+              <MaterialIcons name="arrow-forward" size={13} color={MidnightColors.slate600} />
+              <MaterialIcons name="favorite-border" size={15} color={MidnightColors.gold} accessibilityLabel="Client" />
+              <Text style={styles.person}>{album.roles.clients.map((p) => p.name).join(', ')}{mode === 'client' ? <Text style={styles.you}> (you)</Text> : null}</Text>
+              {mode === 'viewer' ? <Text style={styles.viewOnly}>View only</Text> : null}
             </View>
           )}
         </View>
@@ -272,6 +395,8 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
           <MaterialIcons name="more-horiz" size={24} color={MidnightColors.slate400} />
         </TouchableOpacity>
       </View>
+
+      <StepTracker step={albumStep(album)} round={album.currentRound} />
 
       {!album.rolesAssigned && (
         <View style={styles.assignCard}>
@@ -281,46 +406,35 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
         </View>
       )}
 
-      {/* Progress and the main action for this side */}
+      {/* What now: where the album stands for this side, and at most one main action */}
       <View style={styles.progressCard}>
-        <Text style={styles.progressTitle}>
-          {album.approvedCount} of {album.pageCount} pages approved
-          {album.changesCount > 0 ? <Text style={{ color: '#FDA4AF' }}> · {album.changesCount} need changes</Text> : null}
-        </Text>
-        <ProgressBar value={album.approvedCount} total={album.pageCount} />
-        <Text style={albumStyles.small}>
-          {mode === 'photographer'
-            ? album.unsentCount
-              ? `${album.unsentCount} ${album.unsentCount === 1 ? "page isn't" : "pages aren't"} sent yet.`
-              : album.openRequestCount ? `${album.openRequestCount} ${album.openRequestCount === 1 ? 'change' : 'changes'} to do.` : album.currentRound ? 'Waiting for the client.' : 'Upload the album pages to start.'
-            : mode === 'viewer'
-              ? "View only: you're not the photographer or the client in this album."
-              : album.myDraftCount
-              ? `${album.myDraftCount} ${album.myDraftCount === 1 ? 'comment' : 'comments'} not sent yet.`
-              : album.currentRound ? 'Open a page to comment on it, or approve it.' : "The photographer hasn't sent any pages yet."}
-        </Text>
-        {locked ? (
-          <Text style={[styles.progressTitle, { color: '#A7F3D0' }]}>✓ Approved for print</Text>
-        ) : mode === 'photographer' ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <MaterialIcons name={TONE_ICON[status.tone]} size={20} color={TONE_COLOR[status.tone]} />
+          <Text style={[styles.statusTitle, { flex: 1 }]}>{status.title}</Text>
+        </View>
+        <Text style={albumStyles.body}>{status.detail}</Text>
+        {visiblePages.length > 0 && (
+          <View style={{ gap: 6 }}>
+            <ProgressBar value={album.approvedCount} total={visiblePages.length} />
+            <Text style={albumStyles.small}>
+              <Text style={{ color: MidnightColors.text }}>{album.approvedCount}</Text> of {visiblePages.length} pages approved
+              {filters.flatMap((f) => (f.id !== 'all' && f.id !== 'approved' && stateCounts[f.id] ? [` · ${stateCounts[f.id]} ${ALBUM_PAGE_STATE[f.id].counted}`] : [])).join('')}
+            </Text>
+          </View>
+        )}
+        {!locked && album.rolesAssigned && (mode === 'photographer' ? (
           <View style={{ gap: 8 }}>
-            <AlbumButton icon="upload" label="Upload pages" onPress={() => void uploadPages()} disabled={uploading} />
-            <AlbumButton
-              kind="primary"
-              icon="send"
-              label={`Send for review${album.unsentCount ? ` (${album.unsentCount})` : ''}`}
-              disabled={!album.unsentCount || uploading}
-              busy={busy === 'send'}
-              onPress={() => confirm(
-                `Send ${album.unsentCount === 1 ? '1 page' : `${album.unsentCount} pages`} for review?`,
-                'The event owner and admins get a notification and can comment on each page.',
-                'Send',
-                () => void run('send', async () => setAlbum((await albumApi.send(album.id)).album)),
-              )}
-            />
+            {album.unsentCount > 0 && (
+              <AlbumButton kind="primary" icon="send" label={`Send ${album.unsentCount === 1 ? '1 page' : `${album.unsentCount} pages`}`} disabled={uploading} busy={busy === 'send'} onPress={sendPages} />
+            )}
+            {album.openRequestCount > 0 && activeFilter !== 'fix' && (
+              <AlbumButton icon="chat-bubble-outline" label="See changes" onPress={() => { setReorder(false); setFilter('fix'); }} />
+            )}
+            <AlbumButton icon="add" label="Add pages" onPress={() => void uploadPages()} disabled={uploading} />
           </View>
         ) : mode === 'client' && album.currentRound > 0 ? (
           <View style={{ gap: 8 }}>
-            {allApproved && (
+            {allApproved ? (
               <AlbumButton
                 kind="success"
                 icon="verified"
@@ -329,21 +443,25 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                 onPress={() => confirm('Approve the album for print?', "Every page is approved. The album is locked with today's date; it can be reopened if something needs to change.", 'Approve',
                   () => void run('approve', async () => setAlbum((await albumApi.approve(album.id)).album)))}
               />
+            ) : toCheck > 0 ? (
+              <AlbumButton
+                kind={album.myDraftCount ? 'secondary' : 'primary'}
+                icon="play-arrow"
+                label={album.approvedCount || album.changesCount ? 'Continue review' : 'Start review'}
+                onPress={() => setViewing(visiblePages.findIndex((p) => pageState(p) === 'check'))}
+              />
+            ) : null}
+            {!allApproved && (
+              <AlbumButton
+                kind={album.myDraftCount ? 'primary' : 'secondary'}
+                icon="send"
+                label={album.myDraftCount ? `Send ${album.myDraftCount === 1 ? '1 note' : `${album.myDraftCount} notes`}` : 'Send feedback'}
+                busy={busy === 'feedback'}
+                onPress={sendFeedback}
+              />
             )}
-            <AlbumButton
-              kind="primary"
-              icon="send"
-              label={`Send feedback${album.myDraftCount ? ` (${album.myDraftCount})` : ''}`}
-              busy={busy === 'feedback'}
-              onPress={() => confirm(
-                album.myDraftCount ? `Send ${album.myDraftCount === 1 ? '1 comment' : `${album.myDraftCount} comments`} to the photographer?` : "Tell the photographer you're done?",
-                `${album.approvedCount} of ${album.pageCount} pages approved. The photographer gets a notification.`,
-                'Send',
-                () => void run('feedback', async () => setAlbum((await albumApi.sendFeedback(album.id)).album)),
-              )}
-            />
           </View>
-        ) : null}
+        ) : null)}
       </View>
 
       {/* Uploads */}
@@ -368,10 +486,46 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
         </View>
       )}
 
-      {/* Photographer: what the client asked for */}
-      {mode === 'photographer' && openRequests.length > 0 && (
+      {/* Tabs */}
+      {visiblePages.length > 0 && (
+        <View style={{ gap: 8 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+            {filters.filter((f) => f.id === 'all' || stateCounts[f.id]).map((f) => {
+              const selected = activeFilter === f.id;
+              return (
+                <TouchableOpacity
+                  key={f.id}
+                  onPress={() => { setReorder(false); setFilter(f.id); }}
+                  style={[styles.tab, selected && styles.tabSelected]}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected }}
+                >
+                  <Text style={[styles.tabText, selected && { color: MidnightColors.background }]}>
+                    {f.label} <Text style={{ opacity: 0.7 }}>{f.id === 'all' ? visiblePages.length : stateCounts[f.id]}</Text>
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          {canEdit && visiblePages.length > 1 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {reorder && <Text style={[albumStyles.small, { flex: 1 }]}>Move the pages into the order they appear in the album.</Text>}
+              <AlbumButton
+                kind="ghost"
+                icon={reorder ? 'check' : 'swap-vert'}
+                label={reorder ? 'Done' : 'Reorder'}
+                onPress={() => { setFilter('all'); setReorder(!reorder); }}
+                style={{ marginLeft: 'auto' }}
+              />
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Photographer, To fix tab: what the client asked for */}
+      {mode === 'photographer' && activeFilter === 'fix' && openRequests.length > 0 && (
         <View style={styles.todo}>
-          <Text style={[albumStyles.eyebrow, { color: '#FECDD3' }]}>Changes to do · {openRequests.length}</Text>
+          <Text style={[albumStyles.eyebrow, { color: '#FECDD3' }]}>Changes to make · {openRequests.length}</Text>
           {openRequests.map(({ page, comment, number }) => (
             <View key={comment.id} style={styles.todoItem}>
               <TouchableOpacity onPress={() => openPage(page.id)}>
@@ -398,7 +552,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
         </View>
       )}
 
-      {/* Pages */}
+      {/* Pages, laid out like the album: rows that fill the width, each page keeping its own shape */}
       {visiblePages.length === 0 ? (
         <View style={styles.empty}>
           <MaterialIcons name="photo-album" size={32} color={MidnightColors.gold} />
@@ -408,6 +562,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
               <Text style={[albumStyles.body, { textAlign: 'center' }]}>
                 One image per page or per spread, numbered by file name (01.jpg, 02.jpg…). We keep a sharp preview only; your original files aren&apos;t stored.
               </Text>
+              {album.rolesAssigned && !locked && <AlbumButton kind="primary" icon="add" label="Add pages" onPress={() => void uploadPages()} disabled={uploading} />}
             </>
           ) : (
             <Text style={[albumStyles.body, { textAlign: 'center' }]}>
@@ -416,80 +571,107 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
           )}
         </View>
       ) : (
-        visiblePages.map((page, index) => {
-          const shown = mode !== 'photographer' ? page.versions.find((v) => v.version === page.sentVersion) : page.versions.at(-1);
-          const requests = page.comments.filter((c) => !c.parentId && c.status === 'open' && (!c.isDraft || c.authorId === album.viewer.id)).length;
-          const updated = mode !== 'photographer' && (page.sentVersion ?? 0) > 1 && page.versions.find((v) => v.version === page.sentVersion)?.round === album.currentRound;
-          const pageIndex = album.pages.findIndex((p) => p.id === page.id);
-          return (
-            <View key={page.id} style={albumStyles.card}>
-              <Pressable onPress={() => setViewing(index)} style={styles.thumbBox} accessibilityRole="button" accessibilityLabel={`Open ${labels.get(page.id)}`}>
-                {shown && <Image source={{ uri: shown.thumbnailUrl }} style={StyleSheet.absoluteFill} contentFit="contain" transition={150} />}
-                {updated && <Text style={styles.updated}>UPDATED</Text>}
-                {requests > 0 && (
-                  <View style={styles.requestCount}>
-                    <MaterialIcons name="chat-bubble-outline" size={12} color="#FFFFFF" />
-                    <Text style={styles.requestCountText}>{requests}</Text>
-                  </View>
-                )}
-              </Pressable>
-              <View style={styles.pageInfo}>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.pageLabel}>{labels.get(page.id)}</Text>
-                  <Text style={albumStyles.small} numberOfLines={1}>
-                    v{mode !== 'photographer' ? page.sentVersion : page.latestVersion}
-                    {mode === 'photographer' && page.latestVersion > (page.sentVersion ?? 0) ? ' · not sent' : ''}
-                    {page.versions.at(-1)?.fileName ? ` · ${page.versions.at(-1)!.fileName}` : ''}
-                  </Text>
-                </View>
-                <PageStatusChip status={page.status} />
-              </View>
-              {mode === 'photographer' && !locked && (
-                <View style={styles.pageTools}>
-                  <View style={styles.layoutToggle}>
-                    {(['spread', 'single'] as const).map((layout) => (
-                      <TouchableOpacity
-                        key={layout}
-                        onPress={() => page.layout !== layout && void run(`layout-${page.id}`, async () => setAlbum((await albumApi.setLayout(album.id, page.id, layout)).album))}
-                        style={[styles.layoutItem, page.layout === layout && styles.layoutActive]}
-                        accessibilityState={{ selected: page.layout === layout }}
-                      >
-                        <Text style={[styles.layoutText, page.layout === layout && { color: MidnightColors.text }]}>{layout === 'spread' ? 'Spread' : 'Single'}</Text>
+        <View style={{ gap: TILE_GAP }} onLayout={(e) => setRowWidth(Math.floor(e.nativeEvent.layout.width))}>
+          {rows.map((row, r) => (
+            <View key={r} style={{ flexDirection: 'row', gap: TILE_GAP, alignItems: 'flex-start' }}>
+              {row.items.map(({ page, shown, width }) => {
+                if (!page) {
+                  return (
+                    <TouchableOpacity key="add" onPress={() => void uploadPages()} disabled={uploading} style={[styles.addTile, { width, height: row.height }]} accessibilityRole="button">
+                      <MaterialIcons name="add" size={22} color={MidnightColors.gold} />
+                      <Text style={styles.addTileText}>Add pages</Text>
+                    </TouchableOpacity>
+                  );
+                }
+                const index = visiblePages.indexOf(page);
+                const label = labels.get(page.id);
+                const state = ALBUM_PAGE_STATE[pageState(page)];
+                const requests = page.comments.filter((c) => !c.parentId && c.status === 'open' && (!c.isDraft || c.authorId === album.viewer.id)).length;
+                const updated = mode !== 'photographer' && (page.sentVersion ?? 0) > 1 && page.versions.find((v) => v.version === page.sentVersion)?.round === album.currentRound;
+                const pageIndex = album.pages.findIndex((p) => p.id === page.id);
+                // Two buttons side by side need room; narrower tiles stack them, and only wide ones spell out "Ask for a change"
+                const narrow = width < 150;
+                const roomy = width >= 280;
+                return (
+                  <View key={page.id} style={[styles.tile, { width }, reorder && styles.tileReorder]}>
+                    <Pressable onPress={() => !reorder && setViewing(index)} style={{ width, height: row.height, backgroundColor: 'rgba(0,0,0,0.6)' }} accessibilityRole="button" accessibilityLabel={`Open ${label}`}>
+                      {shown && <Image source={{ uri: shown.thumbnailUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />}
+                      {page.layout === 'spread' && <View style={styles.fold} />}
+                      <View style={styles.badges}>
+                        {updated && <Text style={styles.updated}>UPDATED</Text>}
+                        {requests > 0 && (
+                          <View style={styles.requestCount}>
+                            <MaterialIcons name="chat-bubble-outline" size={12} color="#FFFFFF" />
+                            <Text style={styles.requestCountText}>{requests}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </Pressable>
+                    {canEdit && !reorder && (
+                      <TouchableOpacity onPress={() => pageOptions(page)} style={styles.tileMenu} accessibilityLabel={`Options for ${label}`}>
+                        {busy?.endsWith(page.id) ? <ActivityIndicator size="small" color="#FFFFFF" /> : <MaterialIcons name="more-horiz" size={18} color="#FFFFFF" />}
                       </TouchableOpacity>
-                    ))}
+                    )}
+                    <View style={styles.tileInfo}>
+                      <Text style={styles.pageLabel} numberOfLines={1}>{label}{page.layout === 'spread' ? <Text style={styles.spreadWord}> · spread</Text> : null}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <View style={[styles.dot, { backgroundColor: TONE_DOT[state.tone] }]} />
+                        <Text style={[styles.stateText, { color: TONE_COLOR[state.tone] }]} numberOfLines={1}>{state.label}</Text>
+                      </View>
+                    </View>
+                    {reorder && (
+                      <View style={styles.reorderRow}>
+                        <TouchableOpacity onPress={() => movePage(page.id, -1)} disabled={pageIndex === 0} style={[styles.toolIcon, pageIndex === 0 && { opacity: 0.3 }]} accessibilityLabel={`Move ${label} earlier`}>
+                          <MaterialIcons name="arrow-back" size={18} color={MidnightColors.text} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => movePage(page.id, 1)} disabled={pageIndex === album.pages.length - 1} style={[styles.toolIcon, pageIndex === album.pages.length - 1 && { opacity: 0.3 }]} accessibilityLabel={`Move ${label} later`}>
+                          <MaterialIcons name="arrow-forward" size={18} color={MidnightColors.text} />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    {mode === 'client' && !locked && pageState(page) !== 'approved' && (
+                      <View style={[styles.quickRow, narrow && { flexDirection: 'column' }]}>
+                        <TouchableOpacity onPress={() => quickApprove(page)} disabled={busy === `approve-${page.id}`} style={[styles.quick, styles.quickApprove]} accessibilityRole="button" accessibilityLabel={`Approve ${label}`}>
+                          {busy === `approve-${page.id}` ? <ActivityIndicator size="small" color="#A7F3D0" /> : <MaterialIcons name="check" size={15} color="#A7F3D0" />}
+                          <Text style={[styles.quickText, { color: '#A7F3D0' }]}>Approve</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setViewing(index)} style={[styles.quick, styles.quickChange]} accessibilityRole="button" accessibilityLabel={`Ask for a change on ${label}`}>
+                          <MaterialIcons name="edit" size={14} color={MidnightColors.slate300} />
+                          <Text style={[styles.quickText, { color: MidnightColors.slate300 }]} numberOfLines={1}>{roomy ? 'Ask for a change' : 'Change'}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </View>
-                  <View style={{ flexDirection: 'row' }}>
-                    <TouchableOpacity onPress={() => movePage(page.id, -1)} disabled={pageIndex === 0} style={[styles.toolIcon, pageIndex === 0 && { opacity: 0.3 }]} accessibilityLabel="Move up">
-                      <MaterialIcons name="arrow-upward" size={18} color={MidnightColors.slate400} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => movePage(page.id, 1)} disabled={pageIndex === album.pages.length - 1} style={[styles.toolIcon, pageIndex === album.pages.length - 1 && { opacity: 0.3 }]} accessibilityLabel="Move down">
-                      <MaterialIcons name="arrow-downward" size={18} color={MidnightColors.slate400} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => confirm(`Delete ${labels.get(page.id)}?`, 'All its versions and comments are deleted too.', 'Delete',
-                        () => void run(`delete-${page.id}`, async () => setAlbum((await albumApi.removePage(album.id, page.id)).album)), true)}
-                      style={styles.toolIcon}
-                      accessibilityLabel={`Delete ${labels.get(page.id)}`}
-                    >
-                      <MaterialIcons name="delete-outline" size={18} color={MidnightColors.slate400} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
+                );
+              })}
             </View>
-          );
-        })
+          ))}
+        </View>
       )}
 
-      {album.rounds.length > 0 && (
-        <View style={[albumStyles.card, { padding: 14, gap: 6 }]}>
-          <Text style={albumStyles.eyebrow}>Review history</Text>
-          {[...album.rounds].reverse().map((r) => (
-            <Text key={r.number} style={albumStyles.small}>
-              Round {r.number}: {r.sentByName ?? 'Someone'} sent {r.pageCount} {r.pageCount === 1 ? 'page' : 'pages'}
-              {r.updatedPageCount ? ` (${r.updatedPageCount} updated)` : ''} on {new Date(r.sentAt).toLocaleDateString()}
+      {activity.length > 0 && (
+        <View style={[albumStyles.card, { paddingHorizontal: 14, paddingVertical: 12, gap: 10 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <MaterialIcons name="history" size={16} color={MidnightColors.slate400} />
+            <Text style={[albumStyles.small, { flex: 1 }]} numberOfLines={historyOpen ? 1 : 2}>
+              <Text style={{ color: MidnightColors.text }}>Activity</Text>
+              {!historyOpen ? ` · ${activity[0].text} · ${formatAlbumDay(activity[0].at)}` : ''}
             </Text>
-          ))}
+            {activity.length > 1 && (
+              <TouchableOpacity onPress={() => setHistoryOpen(!historyOpen)} accessibilityRole="button" accessibilityState={{ expanded: historyOpen }}>
+                <Text style={styles.seeAll}>{historyOpen ? 'Hide' : `See all ${activity.length}`}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {historyOpen && (
+            <View style={styles.activityList}>
+              {activity.map((item, i) => (
+                <Text key={i} style={albumStyles.small}>
+                  <Text style={{ color: item.done ? '#A7F3D0' : MidnightColors.text }}>{item.text}</Text> · {formatAlbumDay(item.at)}
+                </Text>
+              ))}
+            </View>
+          )}
         </View>
       )}
 
@@ -526,26 +708,51 @@ const styles = StyleSheet.create({
   loading: { minHeight: 200, alignItems: 'center', justifyContent: 'center', gap: 12 },
   back: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
   backText: { color: MidnightColors.slate400, fontSize: 11, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1.4, textTransform: 'uppercase' },
-  youBadge: { alignSelf: 'flex-start', marginTop: 2, color: MidnightColors.slate300, backgroundColor: 'rgba(255,255,255,0.1)', fontSize: 9, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
+  people: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 6, rowGap: 4 },
+  person: { color: MidnightColors.text, fontSize: 13, fontFamily: Fonts.outfit.semiBold },
+  you: { color: MidnightColors.slate400 },
+  viewOnly: { color: MidnightColors.slate300, backgroundColor: 'rgba(255,255,255,0.1)', fontSize: 11, fontFamily: Fonts.outfit.bold, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
+  stepDot: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  stepDone: { backgroundColor: MidnightColors.gold, borderColor: MidnightColors.gold },
+  stepCurrent: { borderColor: MidnightColors.gold },
+  stepNumber: { color: MidnightColors.slate400, fontSize: 11, fontFamily: Fonts.outfit.extraBold },
+  stepLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.15)' },
+  stepCaption: { color: '#E8C9A0', fontSize: 12, fontFamily: Fonts.outfit.bold },
   assignCard: { borderWidth: 1, borderColor: 'rgba(202,156,104,0.5)', backgroundColor: 'rgba(202,156,104,0.08)', borderRadius: 20, padding: 14, gap: 8 },
-  progressCard: { borderWidth: 1, borderColor: 'rgba(202,156,104,0.25)', backgroundColor: 'rgba(202,156,104,0.08)', borderRadius: 20, padding: 14, gap: 10 },
+  progressCard: { borderWidth: 1, borderColor: 'rgba(220,181,121,0.26)', backgroundColor: MidnightColors.surface, borderRadius: 20, padding: 14, gap: 10 },
   progressTitle: { color: MidnightColors.text, fontSize: 14, fontFamily: Fonts.outfit.extraBold },
+  statusTitle: { color: MidnightColors.text, fontSize: 16, fontFamily: Fonts.outfit.extraBold },
+  tab: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  tabSelected: { backgroundColor: MidnightColors.text, borderColor: MidnightColors.text },
+  tabText: { color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.outfit.bold },
   todo: { borderWidth: 1, borderColor: 'rgba(251,113,133,0.25)', backgroundColor: 'rgba(244,63,94,0.04)', borderRadius: 20, padding: 12, gap: 10 },
   todoItem: { flexDirection: 'row', gap: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 16, padding: 10 },
   todoThumb: { width: 84, height: 48, borderRadius: 8, backgroundColor: '#000' },
   todoKind: { color: '#E8C9A0', fontSize: 13, fontFamily: Fonts.outfit.extraBold },
   empty: { alignItems: 'center', gap: 10, borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.1)', borderRadius: 20, padding: 24 },
   emptyTitle: { color: MidnightColors.text, fontSize: 18, fontFamily: Fonts.playfair.bold },
-  thumbBox: { aspectRatio: 2, backgroundColor: 'rgba(0,0,0,0.6)' },
-  updated: { position: 'absolute', left: 8, top: 8, backgroundColor: MidnightColors.gold, color: MidnightColors.onAccent, fontSize: 9, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
-  requestCount: { position: 'absolute', right: 8, top: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.75)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  tile: { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: MidnightColors.surface, overflow: 'hidden' },
+  tileReorder: { borderStyle: 'dashed', borderColor: 'rgba(202,156,104,0.5)' },
+  fold: { position: 'absolute', top: 0, bottom: 0, left: '50%', width: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  badges: { position: 'absolute', left: 8, top: 8, flexDirection: 'row', gap: 6 },
+  updated: { backgroundColor: MidnightColors.gold, color: MidnightColors.onAccent, fontSize: 9, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
+  requestCount: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.75)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   requestCountText: { color: '#FFFFFF', fontSize: 11, fontFamily: Fonts.outfit.extraBold },
-  pageInfo: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12 },
-  pageLabel: { color: MidnightColors.text, fontSize: 15, fontFamily: Fonts.outfit.extraBold },
-  pageTools: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 8, paddingVertical: 6 },
-  layoutToggle: { flexDirection: 'row', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: 2 },
-  layoutItem: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  layoutActive: { backgroundColor: 'rgba(255,255,255,0.15)' },
-  layoutText: { color: MidnightColors.slate600, fontSize: 10, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1, textTransform: 'uppercase' },
+  tileMenu: { position: 'absolute', right: 6, top: 6, width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center' },
+  tileInfo: { paddingHorizontal: 10, paddingVertical: 8, gap: 3 },
+  pageLabel: { color: MidnightColors.text, fontSize: 15, fontFamily: Fonts.playfair.bold },
+  spreadWord: { color: MidnightColors.slate400, fontSize: 11, fontFamily: Fonts.outfit.semiBold },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  stateText: { fontSize: 12, fontFamily: Fonts.outfit.bold },
+  reorderRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 4 },
+  quickRow: { flexDirection: 'row', gap: 6, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', padding: 6 },
+  quick: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 6 },
+  quickApprove: { backgroundColor: 'rgba(52,211,153,0.12)' },
+  quickChange: { backgroundColor: 'rgba(255,255,255,0.06)' },
+  quickText: { fontSize: 12, fontFamily: Fonts.outfit.bold },
+  addTile: { borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(202,156,104,0.4)', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  addTileText: { color: '#E8C9A0', fontSize: 13, fontFamily: Fonts.outfit.bold },
+  seeAll: { color: '#E8C9A0', fontSize: 12, fontFamily: Fonts.outfit.bold },
+  activityList: { gap: 6, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.1)', paddingLeft: 12 },
   toolIcon: { padding: 8 },
 });

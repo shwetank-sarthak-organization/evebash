@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import {
     ALBUM_MAX_PAGE_BYTES, ALBUM_PAGE_TYPES, albumApi, albumCommentKindLabel, albumPageLabels, sortByFileName,
-    type AlbumDetail, type AlbumPage, type AlbumPageLayout, type AlbumPageVersion,
+    type AlbumDetail, type AlbumPage,
 } from "@/lib/albumApi";
 import { alertDialog, confirmDialog } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ import { albumButton, pinNumbers, ProgressBar } from "./albumUi";
 import { RolesDialog } from "./RolePicker";
 import type { AlbumNextStepTone } from "../../../shared/text/albumNextStep";
 import {
-    ALBUM_PAGE_FILTERS, ALBUM_PAGE_STATE, ALBUM_STEPS, albumPageState, albumStep, albumWorkspaceStatus, formatAlbumDay, type AlbumPageState,
+    ALBUM_PAGE_FILTERS, ALBUM_PAGE_STATE, ALBUM_STEPS, albumPageRatio, albumPageState, albumStep, albumWorkspaceStatus, formatAlbumDay, type AlbumPageState,
 } from "../../../shared/text/albumWorkspace";
 
 type UploadItem = { key: string; name: string; progress: number; state: "waiting" | "uploading" | "processing" | "done" | "failed"; error?: string };
@@ -43,12 +43,6 @@ const TONE_DOT: Record<AlbumNextStepTone, string> = {
 const TONE_ICON: Record<AlbumNextStepTone, typeof Clock> = { action: ArrowRight, urgent: MessageSquare, waiting: Clock, done: CheckCircle2 };
 
 const menuItem = "flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-[var(--site-text)] hover:bg-[var(--site-tint)]/5";
-
-/** Width over height of the page as uploaded; a guess from its layout when the size is unknown. */
-function pageRatio(version: AlbumPageVersion | undefined, layout: AlbumPageLayout) {
-    const ratio = version?.width && version.height ? version.width / version.height : layout === "spread" ? 2 : 0.75;
-    return Math.min(Math.max(ratio, 0.5), 3);
-}
 
 function StepTracker({ step, round }: { step: number; round: number }) {
     const currentLabel = ALBUM_STEPS[step];
@@ -605,7 +599,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                         const label = labels.get(page.id);
                         const state = pageState(page);
                         const shown = mode !== "photographer" ? page.versions.find((v) => v.version === page.sentVersion) : page.versions.at(-1);
-                        const ratio = pageRatio(shown, page.layout);
+                        const ratio = albumPageRatio(shown, page.layout);
                         const requests = page.comments.filter((c) => !c.parentId && c.status === "open" && (!c.isDraft || c.authorId === album.viewer.id)).length;
                         const updated = mode !== "photographer" && (page.sentVersion ?? 0) > 1 && page.versions.find((v) => v.version === page.sentVersion)?.round === album.currentRound;
                         const canEdit = mode === "photographer" && !locked;

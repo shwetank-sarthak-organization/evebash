@@ -61,6 +61,12 @@ export const ALBUM_PAGE_FILTERS: Record<Mode, { id: 'all' | AlbumPageState; labe
   viewer: [{ id: 'all', label: 'All' }, { id: 'waiting', label: 'With client' }, { id: 'commented', label: 'Changes asked' }, { id: 'approved', label: 'Approved' }],
 };
 
+/** Width over height of a page as uploaded; a guess from its layout when the size is unknown. Kept between 0.5 and 3. */
+export function albumPageRatio(version: { width: number | null; height: number | null } | undefined, layout: 'spread' | 'single'): number {
+  const ratio = version?.width && version.height ? version.width / version.height : layout === 'spread' ? 2 : 0.75;
+  return Math.min(Math.max(ratio, 0.5), 3);
+}
+
 export const ALBUM_STEPS = ['Upload pages', 'Send to client', 'Client reviews', 'Approved for print'] as const;
 
 /** Index into ALBUM_STEPS of the step the album is on; ALBUM_STEPS.length when it is approved. */
