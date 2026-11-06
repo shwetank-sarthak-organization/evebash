@@ -4583,6 +4583,11 @@ Detail:    App code only, no new native build needed. On staging in 6653ed4.
            with a release bundle. Not run on Android or a real phone. Step 5 not run: that bundle has no Sentry DSN.
            2026-11-04: the normal staging build 58b1804b (staging 29e92eb) contains this fix, but it has no crash-test page,
            so steps that force the error screen still need the special test build described above.
+           2026-11-06: ready-made Android crash-test build a7927990 (staging c36845f plus the test page, built from a local
+           commit that is never pushed). Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/a7927990-bef7-4da8-b08b-d35f806ccf9e
+           It replaces the normal staging app, so install build 663facd1 again after this test. Open the test page with:
+           adb shell am start -a android.intent.action.VIEW -d evebash://events/crash-test
+           Its source maps are in Sentry (evebash-app), so the step 5 error should show readable file and function names.
 How to test:
   1. Open evebash://events/crash-test. Expect: "Something went wrong" with Try again and Go back, the app stays
      open, and no page name such as events/crash-test shows at the top.
