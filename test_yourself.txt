@@ -5492,7 +5492,7 @@ Brief:     The screen inside an album (Host > event > Album > an album) was rede
 Detail:    Commit 56508e8. Album proofing must be on (staging). You need two accounts: the album's photographer and its
            client. The app is not changed yet (the app's album screen still looks as before).
 How to test:
-  1. As the photographer, open an album that was sent to the client. Expect: "You (you) → Client name" under the title,
+  1. As the photographer, open an album that was sent to the client. Expect: "<photographer name> (you) → <client name>" under the title,
      then 4 steps with "Client reviews · Round 1" highlighted. On a phone: dots only, and "Step 3 of 4: ..." under them.
   2. The box under the steps says what to do, e.g. "Waiting for <client> to review" with no Send button, or
      "Ready to send 2 pages" with a "Send 2 pages" button.
