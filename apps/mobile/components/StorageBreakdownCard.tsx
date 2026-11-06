@@ -19,7 +19,9 @@ interface StorageBreakdownCardProps {
 
 // Events and EB Vault draw from the same plan storage, so both are shown against one limit.
 export function StorageBreakdownCard({ usage, planBytes, planLabel, planExpired }: StorageBreakdownCardProps) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  // Expired or over-limit text: the dark look's soft red, a deeper red on the light look
+  const alertText = isDark ? '#fca5a5' : colors.danger;
   const loading = usage === null;
   const totals = usage ?? { events: 0, vault: 0, total: 0 };
   const unlimited = planBytes === Infinity;
@@ -46,7 +48,7 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, planExpired 
     <View style={[styles.card, { borderColor: colors.border }]}>
       <View style={styles.headerRow}>
         <Text style={[styles.eyebrow, { color: colors.slate400 }]}>STORAGE</Text>
-        <Text style={[styles.planText, { color: planExpired ? '#fca5a5' : colors.slate400 }]}>{planLabel} plan{planExpired ? ' · expired' : ''}</Text>
+        <Text style={[styles.planText, { color: planExpired ? alertText : colors.slate400 }]}>{planLabel} plan{planExpired ? ' · expired' : ''}</Text>
       </View>
 
       <Text style={[styles.total, { color: colors.text }]}>
@@ -128,7 +130,7 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, planExpired 
         <Text style={[styles.rowValue, { color: colors.text }]}>{loading ? '…' : formatStorageSize(totals.vault)}</Text>
       </View>
 
-      <Text style={[styles.note, { color: overLimit || planExpired ? '#fca5a5' : colors.slate400 }]}>
+      <Text style={[styles.note, { color: overLimit || planExpired ? alertText : colors.slate400 }]}>
         {planExpired
           ? 'Your plan has expired. Uploads are paused until you renew.'
           : overLimit

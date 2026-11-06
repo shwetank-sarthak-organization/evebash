@@ -111,6 +111,7 @@ const MAPPING = {
   'qrcode.viewfinder': 'qr-code-scanner',
   'moon.fill': 'nights-stay',
   'sun.max.fill': 'wb-sunny',
+  'iphone': 'smartphone',
   'play.fill': 'play-arrow',
   'play.rectangle.fill': 'smart-display',
   'video.fill': 'videocam',

@@ -16,7 +16,7 @@ import { confirmDenyRequest } from '@/lib/denyRequest';
 import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDetails } from '@/lib/uploaders';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
-import { styles, FunkyFonts } from '../../components/eventStyles';
+import { styles as eventStyles, hostLightStyles, FunkyFonts } from '../../components/eventStyles';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AlbumProofsPanel } from '../../components/album/AlbumProofsPanel';
 import { albumApi } from '../../lib/albumApi';
@@ -75,6 +75,11 @@ import { appAlert, showToast } from '@/lib/feedback';
 import { FolderPicker } from '@/components/vault/VaultModals';
 import { getGalleryWebUrl } from '@/lib/webLinks';
 import { useReloadOnReturn } from '@/hooks/use-reload-on-return';
+import { DarkThemeScope, useAppTheme, useStatusBarOverride } from '@/context/ThemeContext';
+import { useIsFocused } from '@react-navigation/native';
+
+// The tiles, badges and video cards below draw on photos, so they keep the dark look's styles
+const styles = eventStyles;
 
 // Approve / reject a guest with a confirming haptic
 function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'approved' | 'rejected') {
@@ -723,7 +728,7 @@ function GalleryVideoCard({
   );
 }
 
-export default function EventDetailScreen() {
+function EventDetailScreen() {
   const insets = useSafeAreaInsets();
   const [isRepositioning, setIsRepositioning] = useState(false);
   const [tempCoverOffset, setTempCoverOffset] = useState(0);
@@ -763,6 +768,11 @@ export default function EventDetailScreen() {
   const tabsPinThresholdRef = React.useRef(Number.POSITIVE_INFINITY);
   const tabsPinnedRef = React.useRef(false);
   const [tabsPinned, setTabsPinned] = useState(false);
+  // Light host view: whether the cover has scrolled up under the clock (null threshold = not the light host view).
+  // Read here rather than with a scrollYAnim listener: React Native drops a value's listeners whenever nothing drawn uses it
+  const hostPastCoverThresholdRef = React.useRef<number | null>(null);
+  const hostPastCoverRef = React.useRef(false);
+  const [hostPastCover, setHostPastCover] = useState(false);
   const handleScrollNearEnd = useCallback((e: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
     const distanceFromEnd = contentSize.height - (contentOffset.y + layoutMeasurement.height);
@@ -775,6 +785,12 @@ export default function EventDetailScreen() {
     if (pinned !== tabsPinnedRef.current) {
       tabsPinnedRef.current = pinned;
       setTabsPinned(pinned);
+    }
+    const coverThreshold = hostPastCoverThresholdRef.current;
+    const pastCover = coverThreshold !== null && contentOffset.y > coverThreshold;
+    if (pastCover !== hostPastCoverRef.current) {
+      hostPastCoverRef.current = pastCover;
+      setHostPastCover(pastCover);
     }
   }, []);
   // Bottom edge (window coords) of the floating back/share header buttons, measured on layout
@@ -969,14 +985,28 @@ export default function EventDetailScreen() {
   // Otherwise, we default to the premium Visitor view.
   const [isAdminViewActive, setIsAdminViewActive] = useState(mode === 'admin');
   const showAdminView = isAdminViewActive && canManageEvent;
+  // The host view follows the Appearance choice (todo #1); guests keep their theme's own look (see the route below)
+  const { colors: appColors, isDark: appIsDark } = useAppTheme();
+  const hostLight = showAdminView && !appIsDark;
+  // Colours for the host's own controls: the chosen look in the host view, the dark look's for guests
+  const hp = showAdminView ? appColors : MidnightColors;
+  // The light host view swaps in its own copy of the styles; guests and the dark look keep the file-level `styles`
+  const styles = hostLight ? hostLightStyles : eventStyles;
+  // The upload and delete progress cards (localStyles) in the light host view
+  const progressLight = hostLight ? {
+    card: { backgroundColor: appColors.deepSlate, borderColor: appColors.border, shadowColor: appColors.shadow, shadowOpacity: 0.15 },
+    title: { color: appColors.white },
+    subtitle: { color: appColors.slate400 },
+    track: { backgroundColor: appColors.tint(0.08) },
+  } : null;
   // Read by the upload-queue listener, which is set up once per gallery
   const showAdminViewRef = React.useRef(showAdminView);
   showAdminViewRef.current = showAdminView;
 
   // Theme colors are intentionally FIXED to the light palette for the visitor event view —
   // the selected template must look the same regardless of the device OS dark/light setting.
-  // Only the admin back-office (which locks to the 'hero'/Midnight theme) follows the OS scheme.
-  const isThemeDark = showAdminView && isDark;
+  // Only the admin back-office (which locks to the 'hero'/Midnight theme) follows the app's Appearance choice.
+  const isThemeDark = showAdminView && appIsDark;
 
   const selectedTemplate = React.useMemo(() => {
     // If we are in Admin/Management View, we ALWAYS lock the palette to the default 'hero' (Midnight theme)
@@ -998,11 +1028,14 @@ export default function EventDetailScreen() {
     // The host view uses the app's own colours (charcoal, warm text) instead of Midnight Hero's black, which guests
     // still see on that theme
     const hostColors = showAdminView ? {
-      background: MidnightColors.background,
-      text: MidnightColors.text,
-      muted: MidnightColors.slate400,
-      tileBg: MidnightColors.surface,
+      background: appColors.background,
+      text: appColors.text,
+      muted: appColors.slate400,
+      tileBg: appColors.surface,
+      // The cover photo's fade stays dark in both looks
       overlay: ['rgba(19,25,31,0.1)', 'rgba(19,25,31,0.95)'],
+      // Midnight Hero's panels and gold are made for black; the light host view uses the light look's instead
+      ...(hostLight ? { panel: appColors.tint(0.03), accentBg: 'rgba(165, 118, 54, 0.08)', accent: appColors.gold } : {}),
     } : null;
     return {
       ...base,
@@ -1021,7 +1054,11 @@ export default function EventDetailScreen() {
       bodyBold: (isMuseum || isBrutalist || isTechSleek) ? Fonts.spaceGrotesk.bold : (isExecutive ? Fonts.inter.semiBold : (isBohemian ? Fonts.cinzel.bold : (isGarden ? Fonts.lora.bold : (base.useSerif ? Fonts.serif : Fonts.sans)))),
       ...hostColors,
     };
-  }, [event?.templateId, isThemeDark, showAdminView]);
+  }, [event?.templateId, isThemeDark, showAdminView, appColors, hostLight]);
+  // The host's cover is a photo in both looks, so its title, date, back and share buttons keep the dark colours
+  const coverTemplate = React.useMemo(() => hostLight
+    ? { ...selectedTemplate, text: MidnightColors.text, accent: MOBILE_TEMPLATE_THEMES.find((theme) => theme.id === 'hero')?.accent ?? MidnightColors.gold }
+    : selectedTemplate, [hostLight, selectedTemplate]);
 
   const isSportsTemplate = !showAdminView && event?.category === 'Sports' && SPORTS_TEMPLATE_IDS.includes(event?.templateId || '');
   const sportsTheme = React.useMemo(() => getSportsTemplateTheme(event?.templateId), [event?.templateId]);
@@ -1072,6 +1109,16 @@ export default function EventDetailScreen() {
                         : event?.templateId === 'pop' || event?.templateId === 'neon_carnival'
                           ? 465 + insets.top
                           : 400;
+
+  // Light host view: the status bar is light over the cover photo and dark once the page strip covers the top
+  const setStatusBarOverride = useStatusBarOverride();
+  const isFocused = useIsFocused();
+  hostPastCoverThresholdRef.current = hostLight ? heroHeight - 90 - insets.top : null;
+  useEffect(() => {
+    if (!hostLight || !isFocused) return;
+    setStatusBarOverride(hostPastCover ? 'dark' : 'light');
+    return () => setStatusBarOverride(null);
+  }, [hostLight, isFocused, hostPastCover, setStatusBarOverride]);
   // Where the pinned gallery tabs reach the top (their spacer overlaps the cover unless the themed bottom bar shows)
   tabsPinThresholdRef.current = showsThemedAppBar ? heroHeight : heroHeight - stickyTabsTopInset;
   const isScrapbookTemplate = !showAdminView && event?.templateId === 'scrapbook';
@@ -2300,25 +2347,25 @@ export default function EventDetailScreen() {
     return (
       <View
         accessibilityLiveRegion="polite"
-        style={[localStyles.progressCard, { bottom: bottomPosition, backgroundColor: selectedTemplate.panel, borderColor: selectedTemplate.accentBg }]}
+        style={[localStyles.progressCard, { bottom: bottomPosition, backgroundColor: selectedTemplate.panel, borderColor: selectedTemplate.accentBg }, progressLight?.card]}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           {deleting.length > 0 ? <ActivityIndicator size="small" color="#fca5a5" /> : <IconSymbol name={failed ? 'xmark.circle.fill' : 'checkmark.circle.fill'} size={18} color={failed ? '#f87171' : '#34d399'} />}
           <View style={{ flex: 1 }}>
-            <Text style={localStyles.progressCardTitle}>
+            <Text style={[localStyles.progressCardTitle, progressLight?.title]}>
               {deleting.length > 0
                 ? `Deleting ${kind(deleting)}...`
                 : failed
                   ? `${done - failed} deleted · ${failed} couldn't be deleted`
                   : `${kind(deleteJobs)} deleted`}
             </Text>
-            <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
+            <Text style={[localStyles.progressCardSubtitle, progressLight?.subtitle]} numberOfLines={1}>
               {deleting.length > 0 ? `${deleting[0].name} · ${done} of ${deleteJobs.length} done` : 'Removed from the gallery for everyone'}
             </Text>
           </View>
         </View>
-        <View style={localStyles.progressBarBg}>
-          <View style={[localStyles.progressBarFill, { width: `${(done / deleteJobs.length) * 100}%`, backgroundColor: failed && deleting.length === 0 ? '#f87171' : deleting.length ? '#fca5a5' : '#34d399' }]} />
+        <View style={[localStyles.progressBarBg, progressLight?.track]}>
+          <View style={[localStyles.progressBarFill, { width: `${(done / deleteJobs.length) * 100}%`, backgroundColor: failed && deleting.length === 0 ? '#f87171' : deleting.length ? (hostLight ? hp.danger : '#fca5a5') : '#34d399' }]} />
         </View>
       </View>
     );
@@ -3202,10 +3249,10 @@ export default function EventDetailScreen() {
 
   if (loading) {
     return (
-      <>
+      <DarkThemeScope>
         <Stack.Screen options={{ headerShown: false }} />
         <LoadingScreen message="Loading event" />
-      </>
+      </DarkThemeScope>
     );
   }
 
@@ -3216,7 +3263,7 @@ export default function EventDetailScreen() {
       : null;
   if (galleryGate) {
     return (
-      <>
+      <DarkThemeScope>
         <Stack.Screen options={{ headerShown: false }} />
         <GalleryAccessGate
           state={galleryGate}
@@ -3227,7 +3274,7 @@ export default function EventDetailScreen() {
           onRetry={loadEvent}
           onBack={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
         />
-      </>
+      </DarkThemeScope>
     );
   }
 
@@ -3282,10 +3329,10 @@ export default function EventDetailScreen() {
     const bottomPosition = showAdminView ? 70 + insets.bottom : 20 + insets.bottom;
 
     return (
-      <View style={[localStyles.progressCard, { bottom: bottomPosition, backgroundColor: MidnightColors.deepSlate, borderColor: MidnightColors.border }]}>
+      <View style={[localStyles.progressCard, { bottom: bottomPosition, backgroundColor: hp.deepSlate, borderColor: hp.border }, progressLight?.card]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={localStyles.progressCardTitle}>
+            <Text style={[localStyles.progressCardTitle, progressLight?.title]}>
               {isProcessingOnly
                 ? `Getting your ${noun} ready`
                 : active.length > 0
@@ -3293,17 +3340,17 @@ export default function EventDetailScreen() {
                   : `${failed.length} ${failed.length === 1 ? noun.replace(/s$/, '') : noun} didn't upload`}
             </Text>
             {isProcessingOnly ? (
-              <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
+              <Text style={[localStyles.progressCardSubtitle, progressLight?.subtitle]} numberOfLines={1}>
                 {active.every(i => i.mediaType === 'video')
                   ? `Preparing ${active.length > 1 ? 'videos' : 'video'} for playback...`
                   : `You can leave this screen · ${Math.round(overallPercent)}%`}
               </Text>
             ) : waitingForConnection && !currentUploading ? (
-              <Text style={localStyles.progressCardSubtitle} numberOfLines={2}>
+              <Text style={[localStyles.progressCardSubtitle, progressLight?.subtitle]} numberOfLines={2}>
                 Waiting for connection. Uploads carry on when you're back online.
               </Text>
             ) : currentUploading ? (
-              <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
+              <Text style={[localStyles.progressCardSubtitle, progressLight?.subtitle]} numberOfLines={1}>
                 {currentUploading.status === 'uploaded_pending_metadata'
                   ? `Finalizing ${currentUploading.fileName}...`
                   : currentUploading.status === 'upload_needs_reconciliation'
@@ -3322,7 +3369,7 @@ export default function EventDetailScreen() {
                   appAlert("Why it didn't upload", errors);
                 }}
               >
-                <Text style={[localStyles.progressCardSubtitle, { color: MidnightColors.dangerSoft, textDecorationLine: 'underline' }]}>
+                <Text style={[localStyles.progressCardSubtitle, { color: hp.dangerSoft, textDecorationLine: 'underline' }]}>
                   {active.length > 0 ? `${failed.length} didn't upload. ` : ''}Tap to see why
                 </Text>
               </TouchableOpacity>
@@ -3342,7 +3389,7 @@ export default function EventDetailScreen() {
               </TouchableOpacity>
             )}
             <TouchableOpacity
-              style={[localStyles.progressCardBtn, { backgroundColor: 'rgba(255,255,255,0.08)' }]}
+              style={[localStyles.progressCardBtn, { backgroundColor: hp.tint(0.08) }]}
               onPress={async () => {
                 if (active.length > 0) {
                   appAlert(
@@ -3364,7 +3411,7 @@ export default function EventDetailScreen() {
                 }
               }}
             >
-              <Text style={{ color: MidnightColors.slate300, fontSize: 11, fontWeight: 'bold' }}>
+              <Text style={{ color: hp.slate300, fontSize: 11, fontWeight: 'bold' }}>
                 {active.length > 0 ? 'Cancel' : 'Dismiss'}
               </Text>
             </TouchableOpacity>
@@ -3372,8 +3419,8 @@ export default function EventDetailScreen() {
         </View>
 
         {/* Progress Bar */}
-        <View style={localStyles.progressBarBg}>
-          <View style={[localStyles.progressBarFill, { width: `${overallPercent}%`, backgroundColor: MidnightColors.gold }]} />
+        <View style={[localStyles.progressBarBg, progressLight?.track]}>
+          <View style={[localStyles.progressBarFill, { width: `${overallPercent}%`, backgroundColor: hp.goldFill }]} />
         </View>
       </View>
     );
@@ -3382,6 +3429,7 @@ export default function EventDetailScreen() {
   const photoActionItemIsFavourite = photoActionItem ? eventFavouritePhotoIds.has(photoActionItem.id) : false;
 
   return (
+    <DarkThemeScope enabled={!showAdminView}>
     <View style={[styles.safeArea, { backgroundColor: pageBackground }]}>
       <Stack.Screen
         options={{
@@ -3480,7 +3528,8 @@ export default function EventDetailScreen() {
       >
         {/* ── HERO ── */}
         <View
-          style={[styles.hero, { height: heroHeight, backgroundColor: pageBackground, overflow: 'hidden' }]}
+          // A "Fit" cover leaves bars around the photo: keep them dark in the light host view, like the cover's own fade
+          style={[styles.hero, { height: heroHeight, backgroundColor: hostLight ? MidnightColors.background : pageBackground, overflow: 'hidden' }]}
           {...(isRepositioning ? panResponder.panHandlers : {})}
         >
           {isSportsTemplate ? (
@@ -4309,7 +4358,7 @@ export default function EventDetailScreen() {
               ]}
               hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
             >
-              <IconSymbol name="chevron.left" size={24} color={selectedTemplate.accent} />
+              <IconSymbol name="chevron.left" size={24} color={coverTemplate.accent} />
             </TouchableOpacity>
           )}
 
@@ -5113,7 +5162,7 @@ export default function EventDetailScreen() {
               <View style={styles.titleRowMain}>
                 <Text style={[
                   styles.heroTitle,
-                  { color: selectedTemplate.text, flex: 1 },
+                  { color: coverTemplate.text, flex: 1 },
                   isScrapbookTemplate && styles.scrapbookHeroTitle,
                   isNeonTemplate && styles.neonHeroTitle,
                   isPastelTemplate && styles.pastelHeroTitle,
@@ -5152,10 +5201,10 @@ export default function EventDetailScreen() {
                   isRoseTemplate && styles.roseHeroMeta,
                   isMinimalLoveTemplate && styles.minimalHeroMeta,
                 ]}>
-                  <IconSymbol name="calendar" size={12} color={selectedTemplate.accent} />
+                  <IconSymbol name="calendar" size={12} color={coverTemplate.accent} />
                   <Text style={[
                     styles.heroDate,
-                    { color: selectedTemplate.accent },
+                    { color: coverTemplate.accent },
                     isNeonTemplate && styles.neonHeroDate,
                     isPastelTemplate && styles.pastelHeroDate,
                     isPopTemplate && styles.popHeroDate,
@@ -5167,7 +5216,7 @@ export default function EventDetailScreen() {
                       style={styles.editDateBtn}
                       onPress={() => setShowDatePicker(true)}
                     >
-                      <IconSymbol name="pencil" size={12} color={selectedTemplate.accent} />
+                      <IconSymbol name="pencil" size={12} color={coverTemplate.accent} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -5183,10 +5232,10 @@ export default function EventDetailScreen() {
                   ]}
                   onPress={() => setShowShareModal(true)}
                 >
-                  <IconSymbol name="square.and.arrow.up" size={12} color={selectedTemplate.accent} />
+                  <IconSymbol name="square.and.arrow.up" size={12} color={coverTemplate.accent} />
                   <Text style={[
                     styles.heroDate,
-                    { color: selectedTemplate.accent },
+                    { color: coverTemplate.accent },
                     isNeonTemplate && styles.neonHeroDate,
                     isPastelTemplate && styles.pastelHeroDate,
                     isPopTemplate && styles.popHeroDate,
@@ -5250,14 +5299,14 @@ export default function EventDetailScreen() {
                   style={[styles.tab, activeTab === 'galleries' && styles.activeTab]}
                   onPress={() => { setActiveTab('galleries'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
-                  <GalleriesIcon size={18} color={activeTab === 'galleries' ? MidnightColors.gold : MidnightColors.slate400} />
+                  <GalleriesIcon size={18} color={activeTab === 'galleries' ? hp.gold : hp.slate400} />
                   <Text style={[styles.tabText, activeTab === 'galleries' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Galleries</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.tab, activeTab === 'permissions' && styles.activeTab]}
                   onPress={() => setActiveTab('permissions')}
                 >
-                  <PermissionsIcon size={18} color={activeTab === 'permissions' ? MidnightColors.gold : MidnightColors.slate400} />
+                  <PermissionsIcon size={18} color={activeTab === 'permissions' ? hp.gold : hp.slate400} />
                   <Text style={[styles.tabText, activeTab === 'permissions' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Permissions</Text>
                   {guestLogs.filter(l => l.status === 'pending').length > 0 && (
                     <View style={styles.badge}>
@@ -5269,7 +5318,7 @@ export default function EventDetailScreen() {
                   style={[styles.tab, activeTab === 'design' && styles.activeTab]}
                   onPress={() => { setActiveTab('design'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
-                  <DesignIcon size={18} color={activeTab === 'design' ? MidnightColors.gold : MidnightColors.slate400} />
+                  <DesignIcon size={18} color={activeTab === 'design' ? hp.gold : hp.slate400} />
                   <Text style={[styles.tabText, activeTab === 'design' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Design</Text>
                 </TouchableOpacity>
                 {albumProofingEnabled && (
@@ -5277,7 +5326,7 @@ export default function EventDetailScreen() {
                   style={[styles.tab, activeTab === 'album' && styles.activeTab]}
                   onPress={() => { setActiveTab('album'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
-                  <MaterialIcons name="photo-album" size={18} color={activeTab === 'album' ? MidnightColors.gold : MidnightColors.slate400} />
+                  <MaterialIcons name="photo-album" size={18} color={activeTab === 'album' ? hp.gold : hp.slate400} />
                   <Text style={[styles.tabText, activeTab === 'album' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Album</Text>
                 </TouchableOpacity>
                 )}
@@ -5287,7 +5336,7 @@ export default function EventDetailScreen() {
                   style={[styles.tab, activeTab === 'partners' && styles.activeTab]}
                   onPress={() => { setActiveTab('partners'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
-                  <PartnersIcon size={18} color={activeTab === 'partners' ? MidnightColors.gold : MidnightColors.slate400} />
+                  <PartnersIcon size={18} color={activeTab === 'partners' ? hp.gold : hp.slate400} />
                   <Text style={[styles.tabText, activeTab === 'partners' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Partners</Text>
                 </TouchableOpacity>
                 )}
@@ -5301,7 +5350,7 @@ export default function EventDetailScreen() {
                       <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Galleries</Text>
                         <TouchableOpacity style={styles.addBtn} onPress={openSubEventModal}>
-                          <IconSymbol name="plus" size={12} color={MidnightColors.gold} />
+                          <IconSymbol name="plus" size={12} color={hp.gold} />
                           <Text style={styles.addBtnText}>Add Sub-Gallery</Text>
                         </TouchableOpacity>
                       </View>
@@ -5310,7 +5359,7 @@ export default function EventDetailScreen() {
                       <View style={{ width: '100%', marginBottom: 20 }}>
                         <Text style={{
                           fontSize: 12,
-                          color: MidnightColors.gold,
+                          color: hp.gold,
                           fontFamily: Fonts.outfit.bold,
                           textTransform: 'uppercase',
                           letterSpacing: 1,
@@ -5369,7 +5418,7 @@ export default function EventDetailScreen() {
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                           <Text style={{
                             fontSize: 12,
-                            color: MidnightColors.gold,
+                            color: hp.gold,
                             fontFamily: Fonts.outfit.bold,
                             textTransform: 'uppercase',
                             letterSpacing: 1,
@@ -5381,17 +5430,17 @@ export default function EventDetailScreen() {
 
                         {subEvents.length === 0 ? (
                           <View style={{
-                            backgroundColor: 'rgba(255,255,255,0.03)',
+                            backgroundColor: hp.tint(0.03),
                             borderRadius: 16,
                             padding: 24,
                             alignItems: 'center',
                             justifyContent: 'center',
                             borderWidth: 1,
-                            borderColor: 'rgba(255,255,255,0.05)',
+                            borderColor: hp.tint(0.05),
                             borderStyle: 'dashed'
                           }}>
-                            <IconSymbol name="photo.on.rectangle" size={24} color={MidnightColors.slate400} />
-                            <Text style={{ color: MidnightColors.slate400, marginTop: 8, fontSize: 13, fontFamily: Fonts.inter.regular }}>
+                            <IconSymbol name="photo.on.rectangle" size={24} color={hp.slate400} />
+                            <Text style={{ color: hp.slate400, marginTop: 8, fontSize: 13, fontFamily: Fonts.inter.regular }}>
                               No sub-galleries created yet.
                             </Text>
                           </View>
@@ -5494,7 +5543,7 @@ export default function EventDetailScreen() {
 
                       {/* Delete Event */}
                       <TouchableOpacity style={styles.deleteMainBtn} onPress={handleDeleteMainEvent}>
-                        <IconSymbol name="trash.fill" size={16} color="#ef4444" />
+                        <IconSymbol name="trash.fill" size={16} color={hostLight ? hp.danger : '#ef4444'} />
                         <Text style={styles.deleteMainText}>Delete Event</Text>
                       </TouchableOpacity>
                     </>
@@ -5507,10 +5556,10 @@ export default function EventDetailScreen() {
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 }}
                           onPress={() => setSelectedAdminGallery(undefined)}
                         >
-                          <IconSymbol name="chevron.left" size={18} color={MidnightColors.gold} />
-                          <Text style={{ color: MidnightColors.gold, fontSize: 14, fontWeight: '600', fontFamily: Fonts.outfit.semiBold }}>Back to Galleries</Text>
+                          <IconSymbol name="chevron.left" size={18} color={hp.gold} />
+                          <Text style={{ color: hp.gold, fontSize: 14, fontWeight: '600', fontFamily: Fonts.outfit.semiBold }}>Back to Galleries</Text>
                         </TouchableOpacity>
-                        <Text style={{ color: '#fff', fontSize: 12, fontFamily: Fonts.inter.bold, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        <Text style={{ color: hostLight ? hp.white : '#fff', fontSize: 12, fontFamily: Fonts.inter.bold, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                           {selectedAdminGallery === null ? 'PRIMARY' : 'SUB-GALLERY'}
                         </Text>
                       </View>
@@ -5518,18 +5567,18 @@ export default function EventDetailScreen() {
                       {/* Welcome Message Editor */}
                       <View style={{ marginBottom: 24 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
-                          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600', letterSpacing: 0.5 }}>Welcome Message</Text>
-                          <Text style={{ color: (galleryDescText?.length || 0) >= 200 ? '#ef4444' : 'rgba(255,255,255,0.6)', fontSize: 11 }}>
+                          <Text style={{ color: hostLight ? hp.white : '#fff', fontSize: 13, fontWeight: '600', letterSpacing: 0.5 }}>Welcome Message</Text>
+                          <Text style={{ color: (galleryDescText?.length || 0) >= 200 ? (hostLight ? hp.danger : '#ef4444') : (hostLight ? hp.slate600 : 'rgba(255,255,255,0.6)'), fontSize: 11 }}>
                             {galleryDescText?.length || 0}/200
                           </Text>
                         </View>
-                        <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(202, 156, 104,0.25)', overflow: 'hidden' }}>
+                        <View style={{ backgroundColor: hp.tint(0.05), borderRadius: 12, borderWidth: 1, borderColor: 'rgba(202, 156, 104,0.25)', overflow: 'hidden' }}>
                           <TextInput
-                            style={{ color: '#ffffff', fontSize: 14, lineHeight: 22, minHeight: 60, maxHeight: 100, padding: 12, textAlignVertical: 'top' }}
+                            style={{ color: hostLight ? hp.white : '#ffffff', fontSize: 14, lineHeight: 22, minHeight: 60, maxHeight: 100, padding: 12, textAlignVertical: 'top' }}
                             value={galleryDescText}
                             onChangeText={setGalleryDescText}
                             placeholder="Write a brief, elegant welcome note..."
-                            placeholderTextColor={MidnightColors.slate600}
+                            placeholderTextColor={hp.slate600}
                             multiline
                             maxLength={200}
                           />
@@ -5559,15 +5608,15 @@ export default function EventDetailScreen() {
                                       showToast('Welcome message updated.');
                                     }}
                                   >
-                                    <IconSymbol name="checkmark" size={12} color={MidnightColors.gold} />
-                                    <Text style={{ color: MidnightColors.gold, fontWeight: '600', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Save</Text>
+                                    <IconSymbol name="checkmark" size={12} color={hp.gold} />
+                                    <Text style={{ color: hp.gold, fontWeight: '600', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Save</Text>
                                   </TouchableOpacity>
                                 );
                               } else {
                                 return (
                                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, opacity: 0.5 }} pointerEvents="none">
-                                    <IconSymbol name="pencil" size={12} color={MidnightColors.slate300} />
-                                    <Text style={{ color: MidnightColors.slate300, fontWeight: '600', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Edit</Text>
+                                    <IconSymbol name="pencil" size={12} color={hp.slate300} />
+                                    <Text style={{ color: hp.slate300, fontWeight: '600', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Edit</Text>
                                   </View>
                                 );
                               }
@@ -5593,20 +5642,20 @@ export default function EventDetailScreen() {
                       {/* Storage Quota Card (Admin View Only) */}
                       {showAdminView && storageStats && (
                         <View style={{
-                          backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                          backgroundColor: hp.tint(0.03),
                           borderRadius: 16,
                           padding: 16,
                           marginBottom: 16,
                           borderWidth: 1,
-                          borderColor: 'rgba(255, 255, 255, 0.06)',
+                          borderColor: hp.tint(0.06),
                           gap: 8
                         }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <IconSymbol name="cloud.fill" size={14} color="#CDB89E" />
-                              <Text style={{ color: '#CDB89E', fontSize: 13, fontFamily: Fonts.inter.bold }}>Storage Usage</Text>
+                              <IconSymbol name="cloud.fill" size={14} color={hp.slate400} />
+                              <Text style={{ color: hp.slate400, fontSize: 13, fontFamily: Fonts.inter.bold }}>Storage Usage</Text>
                             </View>
-                            <Text style={{ color: '#f1f5f9', fontSize: 13, fontFamily: Fonts.inter.bold }}>
+                            <Text style={{ color: hostLight ? hp.white : '#f1f5f9', fontSize: 13, fontFamily: Fonts.inter.bold }}>
                               {(() => {
                                 const bytes = storageStats.used;
                                 if (bytes === 0) return '0 GB';
@@ -5614,12 +5663,12 @@ export default function EventDetailScreen() {
                                 if (gb < 0.1) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
                                 return `${gb.toFixed(2)} GB`;
                               })()}
-                              <Text style={{ color: MidnightColors.slate600, fontSize: 11 }}> / {storageStats.label}</Text>
+                              <Text style={{ color: hp.slate600, fontSize: 11 }}> / {storageStats.label}</Text>
                             </Text>
                           </View>
-                          <View style={{ height: 6, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 3, overflow: 'hidden' }}>
+                          <View style={{ height: 6, backgroundColor: hp.tint(0.05), borderRadius: 3, overflow: 'hidden' }}>
                             <LinearGradient
-                              colors={storageStats.percent >= 1 ? ['#ef4444', '#b91c1c'] : ['#CA9C68', '#A77B52']}
+                              colors={storageStats.percent >= 1 ? [(hostLight ? hp.danger : '#ef4444'), '#b91c1c'] : ['#CA9C68', '#A77B52']}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 0 }}
                               style={{ height: '100%', borderRadius: 3, width: `${Math.min(100, storageStats.percent * 100)}%` }}
@@ -5635,27 +5684,27 @@ export default function EventDetailScreen() {
                             Gallery Media
                           </Text>
                           {!isFavouriteFilterActive && <TouchableOpacity
-                            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(202, 156, 104,0.12)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: MidnightColors.gold }}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(202, 156, 104,0.12)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: hp.gold }}
                             onPress={galleryMediaTab === 'videos' ? handleUploadGalleryVideo : handleUploadGalleryPhoto}
                           >
-                            <IconSymbol name="plus" size={13} color={MidnightColors.gold} />
-                            <Text style={{ color: MidnightColors.gold, fontSize: 12, fontWeight: '600' }}>
+                            <IconSymbol name="plus" size={13} color={hp.gold} />
+                            <Text style={{ color: hp.gold, fontSize: 12, fontWeight: '600' }}>
                               {galleryMediaTab === 'videos' ? 'Add Videos' : 'Add Photos'}
                             </Text>
                           </TouchableOpacity>}
                         </View>
-                        <View style={{ flexDirection: 'row', backgroundColor: 'rgba(27, 33, 31,0.9)', borderRadius: 16, padding: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+                        <View style={{ flexDirection: 'row', backgroundColor: (hostLight ? hp.card : 'rgba(27, 33, 31,0.9)'), borderRadius: 16, padding: 4, borderWidth: 1, borderColor: hp.tint(0.08) }}>
                           {mediaTabs.map((item) => {
                             const active = galleryMediaTab === item.id;
                             return (
                               <TouchableOpacity
                                 key={item.id}
-                                style={{ flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 12, backgroundColor: active ? MidnightColors.gold : 'transparent' }}
+                                style={{ flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 12, backgroundColor: active ? hp.goldFill : 'transparent' }}
                                 accessibilityRole="tab"
                         accessibilityState={{ selected: active }}
                         onPress={() => setGalleryMediaTab(item.id)}
                               >
-                                <Text style={{ color: active ? '#13191F' : MidnightColors.slate300, fontSize: 12, fontFamily: Fonts.inter.bold }}>
+                                <Text style={{ color: active ? hp.onAccent : hp.slate300, fontSize: 12, fontFamily: Fonts.inter.bold }}>
                                   {item.label}
                                 </Text>
                               </TouchableOpacity>
@@ -5666,36 +5715,36 @@ export default function EventDetailScreen() {
                         <TouchableOpacity
                           accessibilityRole="button"
                           onPress={() => setSourceGalleryMenuVisible(true)}
-                          style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(27,33,31,0.72)', paddingHorizontal: 12, paddingVertical: 10 }}
+                          style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: hp.tint(0.12), backgroundColor: (hostLight ? hp.card : 'rgba(27,33,31,0.72)'), paddingHorizontal: 12, paddingVertical: 10 }}
                         >
                           <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(202, 156, 104,0.14)' }}>
-                            <IconSymbol name="square.grid.2x2.fill" size={16} color={MidnightColors.gold} />
+                            <IconSymbol name="square.grid.2x2.fill" size={16} color={hp.gold} />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={{ color: MidnightColors.white, fontSize: 13, fontFamily: Fonts.inter.bold }}>Source gallery</Text>
-                            <Text style={{ color: MidnightColors.slate400, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
+                            <Text style={{ color: hp.white, fontSize: 13, fontFamily: Fonts.inter.bold }}>Source gallery</Text>
+                            <Text style={{ color: hp.slate400, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
                               {effectiveSourceGalleryFilter === 'all'
                                 ? `All galleries · ${selectedMediaItems.length}`
                                 : `${sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter)?.label || 'All galleries'} · ${activeGalleryItems.length}`}
                             </Text>
                           </View>
-                          <IconSymbol name="chevron.down" size={16} color={MidnightColors.slate400} />
+                          <IconSymbol name="chevron.down" size={16} color={hp.slate400} />
                         </TouchableOpacity>
                         ) : (
                         <TouchableOpacity
                           accessibilityRole="switch"
                           accessibilityState={{ checked: showOnlyFavourites }}
                           onPress={() => setShowOnlyFavourites(current => !current)}
-                          style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: showOnlyFavourites ? MidnightColors.gold : 'rgba(255,255,255,0.12)', backgroundColor: showOnlyFavourites ? 'rgba(202, 156, 104,0.12)' : 'rgba(27,33,31,0.72)', paddingHorizontal: 12, paddingVertical: 10 }}
+                          style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: showOnlyFavourites ? hp.gold : hp.tint(0.12), backgroundColor: showOnlyFavourites ? 'rgba(202, 156, 104,0.12)' : (hostLight ? hp.card : 'rgba(27,33,31,0.72)'), paddingHorizontal: 12, paddingVertical: 10 }}
                         >
-                          <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: showOnlyFavourites ? MidnightColors.gold : 'rgba(255,255,255,0.08)' }}>
-                            <IconSymbol name={showOnlyFavourites ? 'star.fill' : 'star'} size={16} color={showOnlyFavourites ? '#13191F' : MidnightColors.slate300} />
+                          <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: showOnlyFavourites ? hp.goldFill : hp.tint(0.08) }}>
+                            <IconSymbol name={showOnlyFavourites ? 'star.fill' : 'star'} size={16} color={showOnlyFavourites ? hp.onAccent : hp.slate300} />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={{ color: showOnlyFavourites ? MidnightColors.gold : MidnightColors.white, fontSize: 13, fontFamily: Fonts.inter.bold }}>Favourites only</Text>
-                            <Text style={{ color: MidnightColors.slate400, fontSize: 11, marginTop: 2 }}>{activeFavouriteCount} in {galleryMediaTab === 'videos' ? 'Videos' : 'Photos'}</Text>
+                            <Text style={{ color: showOnlyFavourites ? hp.gold : hp.white, fontSize: 13, fontFamily: Fonts.inter.bold }}>Favourites only</Text>
+                            <Text style={{ color: hp.slate400, fontSize: 11, marginTop: 2 }}>{activeFavouriteCount} in {galleryMediaTab === 'videos' ? 'Videos' : 'Photos'}</Text>
                           </View>
-                          <View style={{ width: 44, height: 24, borderRadius: 12, padding: 2, backgroundColor: showOnlyFavourites ? MidnightColors.gold : MidnightColors.slate600 }}>
+                          <View style={{ width: 44, height: 24, borderRadius: 12, padding: 2, backgroundColor: showOnlyFavourites ? hp.goldFill : hp.slate600 }}>
                             <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignSelf: showOnlyFavourites ? 'flex-end' : 'flex-start' }} />
                           </View>
                         </TouchableOpacity>
@@ -5708,29 +5757,29 @@ export default function EventDetailScreen() {
                             setUploaderMenuVisible(true);
                             void loadAllAdminMedia();
                           }}
-                          style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: isUploaderFilterActive ? MidnightColors.gold : 'rgba(255,255,255,0.12)', backgroundColor: isUploaderFilterActive ? 'rgba(202, 156, 104,0.12)' : 'rgba(27,33,31,0.72)', paddingHorizontal: 12, paddingVertical: 10 }}
+                          style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: isUploaderFilterActive ? hp.gold : hp.tint(0.12), backgroundColor: isUploaderFilterActive ? 'rgba(202, 156, 104,0.12)' : (hostLight ? hp.card : 'rgba(27,33,31,0.72)'), paddingHorizontal: 12, paddingVertical: 10 }}
                         >
                           <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(202, 156, 104,0.14)' }}>
-                            <IconSymbol name="person.2.fill" size={16} color={MidnightColors.gold} />
+                            <IconSymbol name="person.2.fill" size={16} color={hp.gold} />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={{ color: MidnightColors.white, fontSize: 13, fontFamily: Fonts.inter.bold }}>Uploaded by</Text>
-                            <Text style={{ color: MidnightColors.slate400, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
+                            <Text style={{ color: hp.white, fontSize: 13, fontFamily: Fonts.inter.bold }}>Uploaded by</Text>
+                            <Text style={{ color: hp.slate400, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
                               {isUploaderFilterActive
                                 ? `${uploaderOptions.find(option => option.userId === effectiveUploaderFilter)?.label || 'Someone'} · ${activeGalleryItems.length}`
                                 : 'Everyone'}
                             </Text>
                           </View>
-                          <IconSymbol name="chevron.down" size={16} color={MidnightColors.slate400} />
+                          <IconSymbol name="chevron.down" size={16} color={hp.slate400} />
                         </TouchableOpacity>
                         )}
                       </View>
 
                       {!loadingPhotos && activeGalleryItems.length > 0 && (
-                        <View style={{ marginBottom: 12, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(27,33,31,0.72)', paddingHorizontal: 12, paddingVertical: 10 }}>
+                        <View style={{ marginBottom: 12, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderRadius: 12, borderWidth: 1, borderColor: hp.tint(0.12), backgroundColor: (hostLight ? hp.card : 'rgba(27,33,31,0.72)'), paddingHorizontal: 12, paddingVertical: 10 }}>
                           {isSelectingMedia ? (
                             <>
-                              <Text accessibilityLiveRegion="polite" style={{ color: MidnightColors.white, fontSize: 13, fontFamily: Fonts.inter.bold }}>
+                              <Text accessibilityLiveRegion="polite" style={{ color: hp.white, fontSize: 13, fontFamily: Fonts.inter.bold }}>
                                 {selectedMediaIds.size} selected
                               </Text>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -5743,7 +5792,7 @@ export default function EventDetailScreen() {
                                   )}
                                   style={{ paddingHorizontal: 10, paddingVertical: 8 }}
                                 >
-                                  <Text style={{ color: MidnightColors.slate300, fontSize: 12, fontFamily: Fonts.inter.bold }}>
+                                  <Text style={{ color: hp.slate300, fontSize: 12, fontFamily: Fonts.inter.bold }}>
                                     {selectedMediaIds.size === activeGalleryItems.length ? 'Clear' : 'All'}
                                   </Text>
                                 </TouchableOpacity>
@@ -5753,10 +5802,10 @@ export default function EventDetailScreen() {
                                     accessibilityState={{ disabled: selectedMediaIds.size === 0 }}
                                     disabled={selectedMediaIds.size === 0}
                                     onPress={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
-                                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 16, backgroundColor: MidnightColors.gold, paddingHorizontal: 12, paddingVertical: 8, opacity: selectedMediaIds.size === 0 ? 0.4 : 1 }}
+                                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 16, backgroundColor: hp.goldFill, paddingHorizontal: 12, paddingVertical: 8, opacity: selectedMediaIds.size === 0 ? 0.4 : 1 }}
                                   >
                                     <IconSymbol name={"folder" as any} size={13} color="#13191F" />
-                                    <Text style={{ color: '#13191F', fontSize: 12, fontFamily: Fonts.inter.bold }}>Move to…</Text>
+                                    <Text style={{ color: hp.onAccent, fontSize: 12, fontFamily: Fonts.inter.bold }}>Move to…</Text>
                                   </TouchableOpacity>
                                 )}
                                 <TouchableOpacity
@@ -5767,25 +5816,25 @@ export default function EventDetailScreen() {
                                   onPress={() => setMediaToSave(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
                                   style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 16, borderWidth: 1, borderColor: '#7FA38C', backgroundColor: 'rgba(127,163,140,0.15)', paddingHorizontal: 12, paddingVertical: 8, opacity: selectedMediaIds.size === 0 ? 0.4 : 1 }}
                                 >
-                                  <IconSymbol name={"externaldrive.fill" as any} size={13} color="#A9C9B4" />
-                                  <Text style={{ color: '#A9C9B4', fontSize: 12, fontFamily: Fonts.inter.bold }}>To Vault</Text>
+                                  <IconSymbol name={"externaldrive.fill" as any} size={13} color={hostLight ? '#3F6B4F' : '#A9C9B4'} />
+                                  <Text style={{ color: (hostLight ? '#3F6B4F' : '#A9C9B4'), fontSize: 12, fontFamily: Fonts.inter.bold }}>To Vault</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity accessibilityRole="button" onPress={exitMediaSelection} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
-                                  <Text style={{ color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.bold }}>Cancel</Text>
+                                  <Text style={{ color: hp.slate400, fontSize: 12, fontFamily: Fonts.inter.bold }}>Cancel</Text>
                                 </TouchableOpacity>
                               </View>
                             </>
                           ) : (
                             <>
-                              <Text style={{ flex: 1, color: MidnightColors.slate400, fontSize: 12 }}>
+                              <Text style={{ flex: 1, color: hp.slate400, fontSize: 12 }}>
                                 {subEvents.length > 0 ? 'Select items to move them or save copies to EB Vault.' : 'Select items to save copies to your EB Vault.'}
                               </Text>
                               <TouchableOpacity
                                 accessibilityRole="button"
                                 onPress={() => setIsSelectingMedia(true)}
-                                style={{ borderRadius: 16, borderWidth: 1, borderColor: MidnightColors.gold, backgroundColor: 'rgba(202, 156, 104,0.12)', paddingHorizontal: 12, paddingVertical: 6 }}
+                                style={{ borderRadius: 16, borderWidth: 1, borderColor: hp.gold, backgroundColor: 'rgba(202, 156, 104,0.12)', paddingHorizontal: 12, paddingVertical: 6 }}
                               >
-                                <Text style={{ color: MidnightColors.gold, fontSize: 12, fontWeight: '600' }}>Select</Text>
+                                <Text style={{ color: hp.gold, fontSize: 12, fontWeight: '600' }}>Select</Text>
                               </TouchableOpacity>
                             </>
                           )}
@@ -5794,11 +5843,11 @@ export default function EventDetailScreen() {
 
                       {/* Media Grid */}
                       {loadingPhotos ? (
-                        <ActivityIndicator color={MidnightColors.gold} style={{ marginTop: 24 }} />
+                        <ActivityIndicator color={hp.gold} style={{ marginTop: 24 }} />
                       ) : photosLoadFailed ? (
                         <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                          <IconSymbol name="wifi.slash" size={36} color={MidnightColors.slate700} />
-                          <Text style={{ color: MidnightColors.slate400, marginTop: 10, fontSize: 14, textAlign: 'center' }}>
+                          <IconSymbol name="wifi.slash" size={36} color={hp.slate700} />
+                          <Text style={{ color: hp.slate400, marginTop: 10, fontSize: 14, textAlign: 'center' }}>
                             Couldn't load this gallery. Check your connection.
                           </Text>
                           <TouchableOpacity
@@ -5806,15 +5855,15 @@ export default function EventDetailScreen() {
                             onPress={() => selectedAdminGallery
                               ? loadPhotos(selectedAdminGallery.id, selectedAdminGallery.legacyId)
                               : loadPrimaryGalleryPhotos()}
-                            style={{ marginTop: 14, borderRadius: 16, borderWidth: 1, borderColor: MidnightColors.gold, backgroundColor: 'rgba(202, 156, 104,0.12)', paddingHorizontal: 16, paddingVertical: 8 }}
+                            style={{ marginTop: 14, borderRadius: 16, borderWidth: 1, borderColor: hp.gold, backgroundColor: 'rgba(202, 156, 104,0.12)', paddingHorizontal: 16, paddingVertical: 8 }}
                           >
-                            <Text style={{ color: MidnightColors.gold, fontSize: 13, fontWeight: '600' }}>Retry</Text>
+                            <Text style={{ color: hp.gold, fontSize: 13, fontWeight: '600' }}>Retry</Text>
                           </TouchableOpacity>
                         </View>
                       ) : activeGalleryItems.length === 0 ? (
                         <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                          <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={36} color={MidnightColors.slate700} />
-                          <Text style={{ color: MidnightColors.slate400, marginTop: 10, fontSize: 14 }}>
+                          <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={36} color={hp.slate700} />
+                          <Text style={{ color: hp.slate400, marginTop: 10, fontSize: 14 }}>
                             {isFavouriteFilterActive
                               ? `No favourite ${galleryMediaTab === 'videos' ? 'videos' : 'photos'} in this gallery yet.`
                               : galleryMediaTab === 'videos' ? 'No videos yet. Tap Add Videos.' : 'No photos yet. Tap Add Photos.'}
@@ -5878,8 +5927,8 @@ export default function EventDetailScreen() {
                         <View ref={hostGridWindow.ref} onLayout={hostGridWindow.onLayout}>
                           {!isOrderLocked && !isSelectingMedia && filteredPhotoItems.length > 1 && (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                              <IconSymbol name="line.3.horizontal" size={13} color={MidnightColors.slate400} />
-                              <Text style={{ color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.semiBold }}>
+                              <IconSymbol name="line.3.horizontal" size={13} color={hp.slate400} />
+                              <Text style={{ color: hp.slate400, fontSize: 12, fontFamily: Fonts.inter.semiBold }}>
                                 Hold and drag a photo to reorder
                               </Text>
                             </View>
@@ -5986,7 +6035,7 @@ export default function EventDetailScreen() {
                       {/* Delete Sub-Gallery Option */}
                       {selectedAdminGallery !== null && (
                         <TouchableOpacity style={[styles.deleteMainBtn, { marginTop: 24, marginBottom: 10 }]} onPress={() => handleDeleteSubGallery()}>
-                          <IconSymbol name="trash.fill" size={16} color="#ef4444" />
+                          <IconSymbol name="trash.fill" size={16} color={hostLight ? hp.danger : '#ef4444'} />
                           <Text style={styles.deleteMainText}>Delete Gallery</Text>
                         </TouchableOpacity>
                       )}
@@ -6042,7 +6091,7 @@ export default function EventDetailScreen() {
                             fullWidth={false}
                             accessibilityLabel={`Deny ${log.name || 'guest'}`}
                             onPress={() => confirmDenyRequest(log, loadEvent)}
-                            style={{ flex: 1, borderWidth: 1, borderColor: MidnightColors.border }}
+                            style={{ flex: 1, borderWidth: 1, borderColor: hp.border }}
                           />
                           <Button
                             title="Approve"
@@ -6083,7 +6132,7 @@ export default function EventDetailScreen() {
 
                   {guestLogs.length === 0 && (
                     <View style={styles.emptyContainer}>
-                      <IconSymbol name="person.2.fill" size={48} color="rgba(255, 255, 255, 0.05)" />
+                      <IconSymbol name="person.2.fill" size={48} color={hp.tint(0.05)} />
                       <Text style={styles.emptyText}>No guests yet.</Text>
                     </View>
                   )}
@@ -6093,21 +6142,21 @@ export default function EventDetailScreen() {
               {/* Video actions and frame picker share one native modal. */}
               <Modal visible={Boolean(videoActionItem || thumbnailVideo)} transparent animationType="slide" onRequestClose={() => { if (!thumbnailSaving) { setVideoActionItem(null); setThumbnailVideo(null); } }}>
                 {thumbnailVideo ? (
-                  <View style={{ flex: 1, backgroundColor: MidnightColors.slate900, paddingTop: insets.top, paddingBottom: insets.bottom }}>
+                  <View style={{ flex: 1, backgroundColor: hp.slate900, paddingTop: insets.top, paddingBottom: insets.bottom }}>
                     <VideoThumbnailPicker video={thumbnailVideo} onBusyChange={setThumbnailSaving} onClose={() => { setThumbnailVideo(null); setThumbnailSaving(false); }} onSaved={(id, thumbnailUrl) => setPhotos(previous => previous.map(photo => photo.id === id ? { ...photo, thumbnailUrl } : photo))} />
                   </View>
                 ) : (
-                  <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+                  <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: (hostLight ? hp.modalBackdrop : 'rgba(0,0,0,0.6)') }}>
                     <TouchableOpacity accessibilityLabel="Close video actions" style={{ flex: 1 }} onPress={() => setVideoActionItem(null)} />
-                    <View style={{ padding: 24, paddingBottom: 24 + insets.bottom, gap: 16, backgroundColor: MidnightColors.slate900, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
-                      <Text accessibilityRole="header" style={{ color: '#fff', fontSize: 22, fontWeight: '700' }}>Video actions</Text>
-                      <TouchableOpacity accessibilityRole="button" disabled={videoActionItem?.status !== 'processed'} onPress={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, backgroundColor: '#CA9C68', opacity: videoActionItem?.status === 'processed' ? 1 : 0.4 }}><Text style={{ color: MidnightColors.slate900, fontWeight: '700' }}>Change thumbnail</Text></TouchableOpacity>
-                      {videoActionItem?.status !== 'processed' && <Text style={{ color: MidnightColors.slate300 }}>Available after video processing finishes.</Text>}
-                      {subEvents.length > 0 && <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) setMediaToMove([videoActionItem]); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(205, 184, 158,0.35)' }}><Text style={{ color: MidnightColors.slate300, fontWeight: '700' }}>Move to another gallery</Text></TouchableOpacity>}
-                      <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) setMediaToSave([videoActionItem]); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(127,163,140,0.45)' }}><Text style={{ color: '#A9C9B4', fontWeight: '700' }}>Save to EB Vault</Text></TouchableOpacity>
-                      <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) void handleToggleMediaHidden(videoActionItem); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(205, 184, 158,0.35)' }}><Text style={{ color: MidnightColors.slate300, fontWeight: '700' }}>{videoActionItem?.isHidden ? 'Hidden from guests: show it' : 'Hide from guests'}</Text></TouchableOpacity>
-                      <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) handleDeleteGalleryPhoto(videoActionItem.id); setVideoActionItem(null); }} style={{ padding: 16 }}><Text style={{ color: '#fca5a5' }}>Delete video</Text></TouchableOpacity>
-                      <TouchableOpacity accessibilityRole="button" onPress={() => setVideoActionItem(null)} style={{ padding: 16 }}><Text style={{ color: '#fff' }}>Cancel</Text></TouchableOpacity>
+                    <View style={{ padding: 24, paddingBottom: 24 + insets.bottom, gap: 16, backgroundColor: hp.slate900, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+                      <Text accessibilityRole="header" style={{ color: hostLight ? hp.white : '#fff', fontSize: 22, fontWeight: '700' }}>Video actions</Text>
+                      <TouchableOpacity accessibilityRole="button" disabled={videoActionItem?.status !== 'processed'} onPress={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, backgroundColor: hp.goldFill, opacity: videoActionItem?.status === 'processed' ? 1 : 0.4 }}><Text style={{ color: hostLight ? hp.onAccent : hp.slate900, fontWeight: '700' }}>Change thumbnail</Text></TouchableOpacity>
+                      {videoActionItem?.status !== 'processed' && <Text style={{ color: hp.slate300 }}>Available after video processing finishes.</Text>}
+                      {subEvents.length > 0 && <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) setMediaToMove([videoActionItem]); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(205, 184, 158,0.35)' }}><Text style={{ color: hp.slate300, fontWeight: '700' }}>Move to another gallery</Text></TouchableOpacity>}
+                      <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) setMediaToSave([videoActionItem]); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(127,163,140,0.45)' }}><Text style={{ color: (hostLight ? '#3F6B4F' : '#A9C9B4'), fontWeight: '700' }}>Save to EB Vault</Text></TouchableOpacity>
+                      <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) void handleToggleMediaHidden(videoActionItem); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(205, 184, 158,0.35)' }}><Text style={{ color: hp.slate300, fontWeight: '700' }}>{videoActionItem?.isHidden ? 'Hidden from guests: show it' : 'Hide from guests'}</Text></TouchableOpacity>
+                      <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) handleDeleteGalleryPhoto(videoActionItem.id); setVideoActionItem(null); }} style={{ padding: 16 }}><Text style={{ color: (hostLight ? hp.danger : '#fca5a5') }}>Delete video</Text></TouchableOpacity>
+                      <TouchableOpacity accessibilityRole="button" onPress={() => setVideoActionItem(null)} style={{ padding: 16 }}><Text style={{ color: hostLight ? hp.white : '#fff' }}>Cancel</Text></TouchableOpacity>
                     </View>
                   </View>
                 )}
@@ -6118,7 +6167,7 @@ export default function EventDetailScreen() {
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
-                      colors={['#1B211F', '#13191F']}
+                      colors={['#1B211F', hp.onAccent]}
                       style={styles.premiumModalContent}
                     >
                       {/* Header: Member Identity */}
@@ -6137,7 +6186,7 @@ export default function EventDetailScreen() {
                           <Text style={styles.premiumModalSub}>Member #0{guestLogs.filter(l => l.status === 'approved').findIndex(l => l.id === selectedGuest?.id) + 1}</Text>
                         </View>
                         <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setSelectedGuest(null)} style={styles.closeModalCircle}>
-                          <IconSymbol name="xmark" size={16} color={MidnightColors.slate400} />
+                          <IconSymbol name="xmark" size={16} color={hp.slate400} />
                         </TouchableOpacity>
                       </View>
 
@@ -6213,15 +6262,15 @@ export default function EventDetailScreen() {
                               }}
                             >
                               <View style={[styles.richPermIconBox, isActive && { backgroundColor: 'rgba(202, 156, 104, 0.15)' }]}>
-                                <IconSymbol name={perm.icon as any} size={26} color={isActive ? MidnightColors.gold : MidnightColors.slate400} />
+                                <IconSymbol name={perm.icon as any} size={26} color={isActive ? hp.gold : hp.slate400} />
                               </View>
 
                               <View style={{ flex: 1, paddingRight: 10 }}>
-                                <Text style={[styles.richPermLabel, isActive && { color: '#fff' }]}>{perm.label}</Text>
+                                <Text style={[styles.richPermLabel, isActive && { color: hostLight ? hp.white : '#fff' }]}>{perm.label}</Text>
                                 <Text
                                   style={[
                                     styles.richPermDesc,
-                                    isSelfAdminCheck && { color: MidnightColors.gold, fontWeight: '600' }
+                                    isSelfAdminCheck && { color: hp.gold, fontWeight: '600' }
                                   ]}
                                   numberOfLines={2}
                                 >
@@ -6260,7 +6309,7 @@ export default function EventDetailScreen() {
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
-                      colors={['#1B211F', '#13191F']}
+                      colors={['#1B211F', hp.onAccent]}
                       style={styles.premiumModalContent}
                     >
                       {/* Header: Member Identity */}
@@ -6279,7 +6328,7 @@ export default function EventDetailScreen() {
                           <Text style={styles.premiumModalSub}>Requesting Access</Text>
                         </View>
                         <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setSelectedRequest(null)} style={styles.closeModalCircle}>
-                          <IconSymbol name="xmark" size={16} color={MidnightColors.slate400} />
+                          <IconSymbol name="xmark" size={16} color={hp.slate400} />
                         </TouchableOpacity>
                       </View>
 
@@ -6318,7 +6367,7 @@ export default function EventDetailScreen() {
                             }
                           }}
                         >
-                          <Text style={[styles.modalActionText, { color: '#ef4444' }]}>Deny</Text>
+                          <Text style={[styles.modalActionText, { color: (hostLight ? hp.danger : '#ef4444') }]}>Deny</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -6333,10 +6382,10 @@ export default function EventDetailScreen() {
                           }}
                         >
                           <LinearGradient
-                            colors={[MidnightColors.gold, MidnightColors.gold]}
+                            colors={[hp.goldFill, hp.goldFill]}
                             style={styles.approveGradient}
                           >
-                            <Text style={[styles.modalActionTextWhite, { color: MidnightColors.onAccent }]}>Approve Access</Text>
+                            <Text style={[styles.modalActionTextWhite, { color: hp.onAccent }]}>Approve Access</Text>
                           </LinearGradient>
                         </TouchableOpacity>
                       </View>
@@ -6361,7 +6410,7 @@ export default function EventDetailScreen() {
                       <Text style={styles.designLabel}>Event Type</Text>
                       <Text style={styles.designValue}>{event.category || 'Select Type'}</Text>
                     </View>
-                    <IconSymbol name="chevron.right" size={16} color={MidnightColors.gold} />
+                    <IconSymbol name="chevron.right" size={16} color={hp.gold} />
                   </TouchableOpacity>
 
                     <TouchableOpacity
@@ -6372,7 +6421,7 @@ export default function EventDetailScreen() {
                         <Text style={styles.designLabel}>Change Template</Text>
                         <Text style={styles.designValue}>{event.templateId ? MOBILE_TEMPLATE_THEMES.find(t => t.id === event.templateId)?.label ?? 'A newer theme (update the app)' : 'Hero (Default)'}</Text>
                       </View>
-                      <IconSymbol name="chevron.right" size={16} color={MidnightColors.gold} />
+                      <IconSymbol name="chevron.right" size={16} color={hp.gold} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -6385,12 +6434,12 @@ export default function EventDetailScreen() {
                       }}
                     >
                       <View style={styles.designInfo}>
-                        <Text style={[styles.designLabel, { color: MidnightColors.gold }]}>Preview Guest Theme</Text>
-                        <Text style={[styles.designValue, { color: MidnightColors.slate300, fontSize: 12, fontFamily: Fonts.inter.regular, marginTop: 2 }]}>
+                        <Text style={[styles.designLabel, { color: hp.gold }]}>Preview Guest Theme</Text>
+                        <Text style={[styles.designValue, { color: hp.slate300, fontSize: 12, fontFamily: Fonts.inter.regular, marginTop: 2 }]}>
                           See how guests view your {event.templateId ? MOBILE_TEMPLATE_THEMES.find(t => t.id === event.templateId)?.label ?? 'new' : 'Hero'} theme
                         </Text>
                       </View>
-                      <IconSymbol name="eye.fill" size={16} color={MidnightColors.gold} />
+                      <IconSymbol name="eye.fill" size={16} color={hp.gold} />
                     </TouchableOpacity>
                 </View>
               )}
@@ -6398,7 +6447,7 @@ export default function EventDetailScreen() {
               {activeTab === 'partners' && (
                 <View style={styles.section}>
                   <View style={{
-                    backgroundColor: 'rgba(43, 47, 46, 0.4)',
+                    backgroundColor: (hostLight ? hp.card : 'rgba(43, 47, 46, 0.4)'),
                     borderRadius: 24,
                     padding: 20,
                     borderWidth: 1,
@@ -6417,17 +6466,17 @@ export default function EventDetailScreen() {
                       alignItems: 'center',
                       gap: 6
                     }}>
-                      <PartnersIcon size={12} color={MidnightColors.gold} />
-                      <Text style={{ color: MidnightColors.gold, fontSize: 10, fontFamily: Fonts.outfit.bold, textTransform: 'uppercase', letterSpacing: 1.5 }}>
+                      <PartnersIcon size={12} color={hp.gold} />
+                      <Text style={{ color: hp.gold, fontSize: 10, fontFamily: Fonts.outfit.bold, textTransform: 'uppercase', letterSpacing: 1.5 }}>
                         Event Partners · Phase 2
                       </Text>
                     </View>
 
-                    <Text style={{ color: '#fff', fontSize: 22, fontFamily: Fonts.outfit.bold }}>
+                    <Text style={{ color: hostLight ? hp.white : '#fff', fontSize: 22, fontFamily: Fonts.outfit.bold }}>
                       Coming Soon
                     </Text>
 
-                    <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, lineHeight: 20 }}>
+                    <Text style={{ color: hp.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, lineHeight: 20 }}>
                       Event Partners is linked with EB Business & EB Network. In Phase 2, hosts will be able to link verified photographers, caterers, planners, and venues directly to their event.
                     </Text>
 
@@ -6438,14 +6487,14 @@ export default function EventDetailScreen() {
                         { title: "Partner Showcase", desc: "Highlight credited partners to your guests." }
                       ].map((item) => (
                         <View key={item.title} style={{
-                          backgroundColor: 'rgba(27, 33, 31, 0.6)',
+                          backgroundColor: (hostLight ? hp.card : 'rgba(27, 33, 31, 0.6)'),
                           borderRadius: 14,
                           padding: 12,
                           borderWidth: 1,
-                          borderColor: 'rgba(255, 255, 255, 0.06)'
+                          borderColor: hp.tint(0.06)
                         }}>
-                          <Text style={{ color: '#fff', fontSize: 12, fontFamily: Fonts.outfit.bold, textTransform: 'uppercase', letterSpacing: 0.5 }}>{item.title}</Text>
-                          <Text style={{ color: MidnightColors.slate400, fontSize: 11, fontFamily: Fonts.inter.regular, marginTop: 2 }}>{item.desc}</Text>
+                          <Text style={{ color: hostLight ? hp.white : '#fff', fontSize: 12, fontFamily: Fonts.outfit.bold, textTransform: 'uppercase', letterSpacing: 0.5 }}>{item.title}</Text>
+                          <Text style={{ color: hp.slate400, fontSize: 11, fontFamily: Fonts.inter.regular, marginTop: 2 }}>{item.desc}</Text>
                         </View>
                       ))}
                     </View>
@@ -7925,8 +7974,8 @@ export default function EventDetailScreen() {
           <View style={[styles.modalContent, { maxHeight: '80%' }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, width: '100%' }}>
               <View style={{ flex: 1, marginRight: 16 }}>
-                <Text style={{ fontSize: 22, color: '#fff', fontFamily: Fonts.outfit.bold }}>Event Type</Text>
-                <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
+                <Text style={{ fontSize: 22, color: hostLight ? hp.white : '#fff', fontFamily: Fonts.outfit.bold }}>Event Type</Text>
+                <Text style={{ color: hp.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
                   Choose a category for your gallery
                 </Text>
               </View>
@@ -7934,7 +7983,7 @@ export default function EventDetailScreen() {
                 onPress={() => setShowCategoryModal(false)}
                 style={{ marginTop: 2 }}
               >
-                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={hp.slate400} />
               </TouchableOpacity>
             </View>
 
@@ -7971,7 +8020,7 @@ export default function EventDetailScreen() {
                     </View>
                     {isActive && (
                       <View style={styles.categoryCheckBadge}>
-                        <IconSymbol name="checkmark" size={10} color={MidnightColors.background} />
+                        <IconSymbol name="checkmark" size={10} color={hp.onAccent} />
                       </View>
                     )}
                   </TouchableOpacity>
@@ -7994,10 +8043,10 @@ export default function EventDetailScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <View>
                 <Text style={styles.modalTitle}>Source gallery</Text>
-                <Text style={{ color: MidnightColors.slate400, fontSize: 12, marginTop: 4 }}>Show media selected from</Text>
+                <Text style={{ color: hp.slate400, fontSize: 12, marginTop: 4 }}>Show media selected from</Text>
               </View>
-              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setSourceGalleryMenuVisible(false)} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' }}>
-                <IconSymbol name="xmark" size={17} color="#fff" />
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setSourceGalleryMenuVisible(false)} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: hp.tint(0.06) }}>
+                <IconSymbol name="xmark" size={17} color={hostLight ? hp.white : '#fff'} />
               </TouchableOpacity>
             </View>
             {[{ id: 'all', label: 'All galleries', count: selectedMediaItems.length }, ...sourceGalleryOptions].map(option => {
@@ -8009,12 +8058,12 @@ export default function EventDetailScreen() {
                     setSourceGalleryFilter(option.id);
                     setSourceGalleryMenuVisible(false);
                   }}
-                  style={{ minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, borderWidth: 1, borderColor: selected ? MidnightColors.gold : 'rgba(255,255,255,0.08)', backgroundColor: selected ? 'rgba(204,164,59,0.12)' : 'rgba(255,255,255,0.035)', paddingHorizontal: 14, paddingVertical: 10 }}
+                  style={{ minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, borderWidth: 1, borderColor: selected ? hp.gold : hp.tint(0.08), backgroundColor: selected ? 'rgba(204,164,59,0.12)' : hp.tint(0.035), paddingHorizontal: 14, paddingVertical: 10 }}
                 >
-                  <IconSymbol name={option.id === 'all' ? 'square.grid.2x2.fill' : 'folder'} size={17} color={selected ? MidnightColors.gold : MidnightColors.slate400} />
-                  <Text style={{ flex: 1, color: selected ? MidnightColors.gold : '#f8fafc', fontSize: 14, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>{option.label}</Text>
-                  <Text style={{ color: selected ? MidnightColors.gold : MidnightColors.slate400, fontSize: 12 }}>{option.count}</Text>
-                  {selected && <IconSymbol name="checkmark" size={15} color={MidnightColors.gold} />}
+                  <IconSymbol name={option.id === 'all' ? 'square.grid.2x2.fill' : 'folder'} size={17} color={selected ? hp.gold : hp.slate400} />
+                  <Text style={{ flex: 1, color: selected ? hp.gold : hostLight ? hp.white : '#f8fafc', fontSize: 14, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>{option.label}</Text>
+                  <Text style={{ color: selected ? hp.gold : hp.slate400, fontSize: 12 }}>{option.count}</Text>
+                  {selected && <IconSymbol name="checkmark" size={15} color={hp.gold} />}
                 </TouchableOpacity>
               );
             })}
@@ -8034,16 +8083,16 @@ export default function EventDetailScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <View>
                 <Text style={styles.modalTitle}>Uploaded by</Text>
-                <Text style={{ color: MidnightColors.slate400, fontSize: 12, marginTop: 4 }}>
+                <Text style={{ color: hp.slate400, fontSize: 12, marginTop: 4 }}>
                   {loadingAllMedia ? 'Loading the whole gallery…' : 'Show media uploaded by'}
                 </Text>
               </View>
-              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setUploaderMenuVisible(false)} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' }}>
-                <IconSymbol name="xmark" size={17} color="#fff" />
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setUploaderMenuVisible(false)} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: hp.tint(0.06) }}>
+                <IconSymbol name="xmark" size={17} color={hostLight ? hp.white : '#fff'} />
               </TouchableOpacity>
             </View>
             {loadingAllMedia ? (
-              <ActivityIndicator color={MidnightColors.gold} style={{ paddingVertical: 24 }} />
+              <ActivityIndicator color={hp.gold} style={{ paddingVertical: 24 }} />
             ) : (
               <ScrollView contentContainerStyle={{ gap: 8 }}>
                 {[{ userId: 'all', label: 'Everyone', count: favouriteFilteredActiveItems.length }, ...uploaderOptions].map(option => {
@@ -8057,12 +8106,12 @@ export default function EventDetailScreen() {
                         setUploaderFilter(option.userId);
                         setUploaderMenuVisible(false);
                       }}
-                      style={{ minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, borderWidth: 1, borderColor: selected ? MidnightColors.gold : 'rgba(255,255,255,0.08)', backgroundColor: selected ? 'rgba(204,164,59,0.12)' : 'rgba(255,255,255,0.035)', paddingHorizontal: 14, paddingVertical: 10 }}
+                      style={{ minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, borderWidth: 1, borderColor: selected ? hp.gold : hp.tint(0.08), backgroundColor: selected ? 'rgba(204,164,59,0.12)' : hp.tint(0.035), paddingHorizontal: 14, paddingVertical: 10 }}
                     >
-                      <IconSymbol name={option.userId === 'all' ? 'person.2.fill' : 'person.fill'} size={17} color={selected ? MidnightColors.gold : MidnightColors.slate400} />
-                      <Text style={{ flex: 1, color: selected ? MidnightColors.gold : '#f8fafc', fontSize: 14, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>{option.label}</Text>
-                      <Text style={{ color: selected ? MidnightColors.gold : MidnightColors.slate400, fontSize: 12 }}>{option.count}</Text>
-                      {selected && <IconSymbol name="checkmark" size={15} color={MidnightColors.gold} />}
+                      <IconSymbol name={option.userId === 'all' ? 'person.2.fill' : 'person.fill'} size={17} color={selected ? hp.gold : hp.slate400} />
+                      <Text style={{ flex: 1, color: selected ? hp.gold : hostLight ? hp.white : '#f8fafc', fontSize: 14, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>{option.label}</Text>
+                      <Text style={{ color: selected ? hp.gold : hp.slate400, fontSize: 12 }}>{option.count}</Text>
+                      {selected && <IconSymbol name="checkmark" size={15} color={hp.gold} />}
                     </TouchableOpacity>
                   );
                 })}
@@ -8115,13 +8164,13 @@ export default function EventDetailScreen() {
           <View style={[styles.modalContent, { gap: 14 }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
               <View style={{ flex: 1, marginRight: 16 }}>
-                <Text style={{ fontSize: 22, color: '#fff', fontFamily: Fonts.outfit.bold }}>Photo Actions</Text>
-                <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
+                <Text style={{ fontSize: 22, color: hostLight ? hp.white : '#fff', fontFamily: Fonts.outfit.bold }}>Photo Actions</Text>
+                <Text style={{ color: hp.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
                   Manage how this photo appears in the gallery.
                 </Text>
               </View>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setPhotoActionItem(null)} style={{ marginTop: 2 }}>
-                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={hp.slate400} />
               </TouchableOpacity>
             </View>
 
@@ -8130,7 +8179,7 @@ export default function EventDetailScreen() {
                 width: '100%',
                 minHeight: 56,
                 borderRadius: 18,
-                backgroundColor: photoActionItemIsFavourite ? MidnightColors.gold : 'rgba(202, 156, 104, 0.12)',
+                backgroundColor: photoActionItemIsFavourite ? hp.goldFill : 'rgba(202, 156, 104, 0.12)',
                 borderWidth: photoActionItemIsFavourite ? 0 : 1,
                 borderColor: 'rgba(202, 156, 104, 0.28)',
                 flexDirection: 'row',
@@ -8149,12 +8198,12 @@ export default function EventDetailScreen() {
               <IconSymbol
                 name={photoActionItemIsFavourite ? 'star.fill' : 'star'}
                 size={16}
-                color={photoActionItemIsFavourite ? '#13191F' : MidnightColors.gold}
+                color={photoActionItemIsFavourite ? hp.onAccent : hp.gold}
               />
               <Text
                 style={{
                   flex: 1,
-                  color: photoActionItemIsFavourite ? '#13191F' : MidnightColors.gold,
+                  color: photoActionItemIsFavourite ? hp.onAccent : hp.gold,
                   fontFamily: Fonts.outfit.bold,
                   fontSize: 15,
                 }}
@@ -8171,7 +8220,7 @@ export default function EventDetailScreen() {
                 width: '100%',
                 minHeight: 56,
                 borderRadius: 18,
-                backgroundColor: photoActionItem?.isHidden ? MidnightColors.gold : 'rgba(255, 255, 255, 0.04)',
+                backgroundColor: photoActionItem?.isHidden ? hp.goldFill : hp.tint(0.04),
                 borderWidth: photoActionItem?.isHidden ? 0 : 1,
                 borderColor: 'rgba(148, 163, 184, 0.35)',
                 flexDirection: 'row',
@@ -8189,10 +8238,10 @@ export default function EventDetailScreen() {
               <IconSymbol
                 name={photoActionItem?.isHidden ? 'eye.slash.fill' : 'eye.fill'}
                 size={16}
-                color={photoActionItem?.isHidden ? '#13191F' : '#E2E8F0'}
+                color={photoActionItem?.isHidden ? hp.onAccent : hostLight ? hp.white : '#E2E8F0'}
               />
               <Text
-                style={{ flex: 1, color: photoActionItem?.isHidden ? '#13191F' : '#E2E8F0', fontFamily: Fonts.outfit.bold, fontSize: 15 }}
+                style={{ flex: 1, color: photoActionItem?.isHidden ? hp.onAccent : hostLight ? hp.white : '#E2E8F0', fontFamily: Fonts.outfit.bold, fontSize: 15 }}
                 numberOfLines={2}
               >
                 {photoActionItem?.isHidden ? 'Hidden from guests: show it' : 'Hide from guests'}
@@ -8204,7 +8253,7 @@ export default function EventDetailScreen() {
                 width: '100%',
                 minHeight: 56,
                 borderRadius: 18,
-                backgroundColor: MidnightColors.gold,
+                backgroundColor: hp.goldFill,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'flex-start',
@@ -8223,7 +8272,7 @@ export default function EventDetailScreen() {
             >
               <IconSymbol name="photo.fill" size={16} color="#13191F" />
               <Text
-                style={{ flex: 1, color: '#13191F', fontFamily: Fonts.outfit.bold, fontSize: 15 }}
+                style={{ flex: 1, color: hp.onAccent, fontFamily: Fonts.outfit.bold, fontSize: 15 }}
                 numberOfLines={2}
               >
                 Make Gallery Thumbnail
@@ -8251,9 +8300,9 @@ export default function EventDetailScreen() {
                 handleSetGalleryPhotoAsCover(photoActionItem.url, event.id, "Event");
               }}
             >
-              <IconSymbol name="star.fill" size={16} color={MidnightColors.gold} />
+              <IconSymbol name="star.fill" size={16} color={hp.gold} />
               <Text
-                style={{ flex: 1, color: MidnightColors.gold, fontFamily: Fonts.outfit.bold, fontSize: 15 }}
+                style={{ flex: 1, color: hp.gold, fontFamily: Fonts.outfit.bold, fontSize: 15 }}
                 numberOfLines={2}
               >
                 Make Event Thumbnail
@@ -8282,8 +8331,8 @@ export default function EventDetailScreen() {
                   setPhotoActionItem(null);
                 }}
               >
-                <IconSymbol name={"folder" as any} size={16} color="#E2E8F0" />
-                <Text style={{ flex: 1, color: '#E2E8F0', fontFamily: Fonts.outfit.bold, fontSize: 15 }} numberOfLines={2}>
+                <IconSymbol name={"folder" as any} size={16} color={hostLight ? hp.white : '#E2E8F0'} />
+                <Text style={{ flex: 1, color: hostLight ? hp.white : '#E2E8F0', fontFamily: Fonts.outfit.bold, fontSize: 15 }} numberOfLines={2}>
                   Move to Another Gallery
                 </Text>
               </TouchableOpacity>
@@ -8310,8 +8359,8 @@ export default function EventDetailScreen() {
                 setPhotoActionItem(null);
               }}
             >
-              <IconSymbol name={"externaldrive.fill" as any} size={16} color="#A9C9B4" />
-              <Text style={{ flex: 1, color: '#A9C9B4', fontFamily: Fonts.outfit.bold, fontSize: 15 }} numberOfLines={2}>
+              <IconSymbol name={"externaldrive.fill" as any} size={16} color={hostLight ? '#3F6B4F' : '#A9C9B4'} />
+              <Text style={{ flex: 1, color: (hostLight ? '#3F6B4F' : '#A9C9B4'), fontFamily: Fonts.outfit.bold, fontSize: 15 }} numberOfLines={2}>
                 Save to EB Vault
               </Text>
             </TouchableOpacity>
@@ -8320,13 +8369,16 @@ export default function EventDetailScreen() {
       </Modal>
 
       {mediaToSave && (
-        <FolderPicker
-          title={`Save ${mediaToSave.length === 1 ? '1 item' : `${mediaToSave.length} items`} to EB Vault`}
-          confirmLabel="Save"
-          excludeFolderIds={[]}
-          onClose={() => setMediaToSave(null)}
-          onPick={handleSaveToVault}
-        />
+        // EB Vault's folder picker keeps Vault's dark look
+        <DarkThemeScope>
+          <FolderPicker
+            title={`Save ${mediaToSave.length === 1 ? '1 item' : `${mediaToSave.length} items`} to EB Vault`}
+            confirmLabel="Save"
+            excludeFolderIds={[]}
+            onClose={() => setMediaToSave(null)}
+            onPick={handleSaveToVault}
+          />
+        </DarkThemeScope>
       )}
 
       <Modal
@@ -8340,15 +8392,15 @@ export default function EventDetailScreen() {
           <View style={[styles.modalContent, { gap: 10 }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
               <View style={{ flex: 1, marginRight: 16 }}>
-                <Text style={{ fontSize: 22, color: '#fff', fontFamily: Fonts.outfit.bold }}>
+                <Text style={{ fontSize: 22, color: hostLight ? hp.white : '#fff', fontFamily: Fonts.outfit.bold }}>
                   Move {mediaToMove && mediaToMove.length > 1 ? `${mediaToMove.length} items` : '1 item'}
                 </Text>
-                <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
+                <Text style={{ color: hp.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
                   Choose a gallery in this event. Likes and comments move too.
                 </Text>
               </View>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" disabled={isMovingMedia} onPress={() => setMediaToMove(null)} style={{ marginTop: 2 }}>
-                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={hp.slate400} />
               </TouchableOpacity>
             </View>
             <ScrollView style={{ width: '100%', maxHeight: 320 }} contentContainerStyle={{ gap: 8 }}>
@@ -8376,19 +8428,19 @@ export default function EventDetailScreen() {
                         opacity: isCurrent ? 0.45 : 1,
                       }}
                     >
-                      <Text style={{ flex: 1, color: '#fff', fontFamily: Fonts.inter.semiBold, fontSize: 15 }} numberOfLines={1}>
+                      <Text style={{ flex: 1, color: hostLight ? hp.white : '#fff', fontFamily: Fonts.inter.semiBold, fontSize: 15 }} numberOfLines={1}>
                         {gallery.id === event?.id ? 'Home (Primary Gallery)' : gallery.title}
                       </Text>
                       {isCurrent ? (
-                        <Text style={{ color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.regular }}>Current</Text>
+                        <Text style={{ color: hp.slate400, fontSize: 12, fontFamily: Fonts.inter.regular }}>Current</Text>
                       ) : isMovingMedia ? null : (
-                        <IconSymbol name={"checkmark" as any} size={16} color={MidnightColors.gold} />
+                        <IconSymbol name={"checkmark" as any} size={16} color={hp.gold} />
                       )}
                     </TouchableOpacity>
                   );
                 })}
             </ScrollView>
-            {isMovingMedia && <ActivityIndicator color={MidnightColors.gold} />}
+            {isMovingMedia && <ActivityIndicator color={hp.gold} />}
           </View>
         </View>
       </Modal>
@@ -8473,7 +8525,7 @@ export default function EventDetailScreen() {
             </View>
 
             <TouchableOpacity style={styles.shareActionBtn} onPress={handleShare}>
-              <IconSymbol name="square.and.arrow.up" size={18} color={MidnightColors.background} />
+              <IconSymbol name="square.and.arrow.up" size={18} color={hp.onAccent} />
               <Text style={styles.shareActionText}>Share Invitation</Text>
             </TouchableOpacity>
 
@@ -8500,14 +8552,14 @@ export default function EventDetailScreen() {
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={{
                   fontSize: 18,
-                  color: MidnightColors.white,
+                  color: hp.white,
                   fontFamily: Fonts.outfit.bold,
                   textTransform: 'uppercase',
                   letterSpacing: 1.2
                 }}>Link a Partner</Text>
                 <Text style={{
                   fontSize: 12,
-                  color: MidnightColors.slate400,
+                  color: hp.slate400,
                   fontFamily: Fonts.inter.regular,
                   marginTop: 4,
                   lineHeight: 18
@@ -8516,7 +8568,7 @@ export default function EventDetailScreen() {
                 </Text>
               </View>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => { setLinkingVendor(false); setVendorCode(''); }}>
-                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={hp.slate400} />
               </TouchableOpacity>
             </View>
 
@@ -8524,7 +8576,7 @@ export default function EventDetailScreen() {
               <View style={styles.inputGroup}>
                 <Text style={{
                   fontSize: 11,
-                  color: '#cbd5e1',
+                  color: hostLight ? hp.slate300 : '#cbd5e1',
                   fontFamily: Fonts.inter.bold,
                   textTransform: 'uppercase',
                   letterSpacing: 1.2,
@@ -8532,8 +8584,8 @@ export default function EventDetailScreen() {
                 }}>Enter Vendor Code</Text>
                 <TextInput
                   style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                    color: MidnightColors.gold,
+                    backgroundColor: hp.tint(0.03),
+                    color: hp.gold,
                     fontSize: 18,
                     borderRadius: 12,
                     paddingHorizontal: 16,
@@ -8548,7 +8600,7 @@ export default function EventDetailScreen() {
                   value={vendorCode}
                   onChangeText={(text) => setVendorCode(text.toUpperCase())}
                   placeholder="e.g. VEN-1234"
-                  placeholderTextColor={MidnightColors.slate600}
+                  placeholderTextColor={hp.slate600}
                   autoCapitalize="characters"
                 />
               </View>
@@ -8560,23 +8612,23 @@ export default function EventDetailScreen() {
                     paddingVertical: 12,
                     borderRadius: 20,
                     borderWidth: 1,
-                    borderColor: MidnightColors.cardBorder,
+                    borderColor: hp.cardBorder,
                     alignItems: 'center'
                   }}
                   onPress={() => { setLinkingVendor(false); setVendorCode(''); }}
                 >
-                  <Text style={{ color: MidnightColors.slate400, fontFamily: Fonts.outfit.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>Cancel</Text>
+                  <Text style={{ color: hp.slate400, fontFamily: Fonts.outfit.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>Cancel</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={{
                     flex: 1,
-                    backgroundColor: MidnightColors.gold,
+                    backgroundColor: hp.goldFill,
                     paddingVertical: 12,
                     borderRadius: 20,
                     alignItems: 'center',
                     opacity: vendorCode.length > 3 ? 1 : 0.4,
-                    shadowColor: MidnightColors.gold,
+                    shadowColor: hp.gold,
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.15,
                     shadowRadius: 6,
@@ -8602,7 +8654,7 @@ export default function EventDetailScreen() {
                     }
                   }}
                 >
-                  <Text style={{ color: MidnightColors.background, fontFamily: Fonts.outfit.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>Submit</Text>
+                  <Text style={{ color: hp.onAccent, fontFamily: Fonts.outfit.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>Submit</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -8635,7 +8687,7 @@ export default function EventDetailScreen() {
       {showAdminView && (
         <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1000 }}>
           <ThemedAppBar
-            colors={{ background: MidnightColors.background, border: MidnightColors.cardBorder, active: MidnightColors.gold, inactive: MidnightColors.slate400 }}
+            colors={{ background: hp.background, border: hp.cardBorder, active: hp.gold, inactive: hostLight ? hp.slate600 : hp.slate400 }}
             activeTab="gallery"
           />
         </View>
@@ -8753,13 +8805,13 @@ export default function EventDetailScreen() {
               padding: 24,
               borderRadius: 24,
               borderWidth: 1.5,
-              backgroundColor: '#1B211F',
+              backgroundColor: hostLight ? hp.deepSlate : '#1B211F',
               borderColor: selectedTemplate.accentBg || 'rgba(202, 156, 104, 0.35)',
               alignItems: 'center',
               alignSelf: 'center',
               width: width * 0.85,
               maxWidth: 400,
-              shadowColor: '#000',
+              shadowColor: hostLight ? hp.shadow : '#000',
               shadowOffset: { width: 0, height: 10 },
               shadowOpacity: 0.5,
               shadowRadius: 20,
@@ -8783,7 +8835,7 @@ export default function EventDetailScreen() {
             <Text style={{
               fontSize: 22,
               fontWeight: 'bold',
-              color: selectedTemplate.accent || MidnightColors.gold || '#CCA43B',
+              color: selectedTemplate.accent || hp.gold || '#CCA43B',
               marginBottom: 10,
               fontFamily: Fonts.outfit.bold,
               textAlign: 'center',
@@ -8796,7 +8848,7 @@ export default function EventDetailScreen() {
               <View style={{ width: '100%', alignItems: 'center', marginBottom: 24 }}>
                 <Text style={{
                   fontSize: 14,
-                  color: '#cbd5e1',
+                  color: hostLight ? hp.slate300 : '#cbd5e1',
                   textAlign: 'center',
                   marginBottom: 12,
                   fontFamily: Fonts.inter.regular,
@@ -8808,14 +8860,14 @@ export default function EventDetailScreen() {
                     : `Processing photos: ${mobileIndexingStatus.indexed}/${mobileIndexingStatus.total} (${mobileIndexingStatus.percentComplete}%)`}
                 </Text>
                 {mobileIndexingStatus.status === 'processing' && (
-                  <View style={{ width: '100%', height: 4, backgroundColor: '#2B2F2E', borderRadius: 2, overflow: 'hidden' }}>
-                    <View style={{ width: `${mobileIndexingStatus.percentComplete}%`, height: '100%', backgroundColor: selectedTemplate.accent || MidnightColors.gold || '#CCA43B' }} />
+                  <View style={{ width: '100%', height: 4, backgroundColor: hostLight ? hp.slate800 : '#2B2F2E', borderRadius: 2, overflow: 'hidden' }}>
+                    <View style={{ width: `${mobileIndexingStatus.percentComplete}%`, height: '100%', backgroundColor: selectedTemplate.accent || hp.goldFill || '#CCA43B' }} />
                   </View>
                 )}
                 {mobileIndexingStatus.status === 'processing' && (
                   <Text style={{
                     fontSize: 12,
-                    color: MidnightColors.slate400,
+                    color: hp.slate400,
                     textAlign: 'center',
                     marginTop: 8,
                     fontStyle: 'italic',
@@ -8828,7 +8880,7 @@ export default function EventDetailScreen() {
             ) : (
               <Text style={{
                 fontSize: 14,
-                color: '#cbd5e1',
+                color: hostLight ? hp.slate300 : '#cbd5e1',
                 textAlign: 'center',
                 marginBottom: 24,
                 fontFamily: Fonts.inter.regular,
@@ -8841,13 +8893,13 @@ export default function EventDetailScreen() {
 
             <TouchableOpacity
               style={{
-                backgroundColor: selectedTemplate.accent || MidnightColors.gold || '#CCA43B',
+                backgroundColor: hostLight ? hp.goldFill : selectedTemplate.accent || hp.goldFill || '#CCA43B',
                 paddingVertical: 14,
                 paddingHorizontal: 24,
                 borderRadius: 14,
                 width: '100%',
                 alignItems: 'center',
-                shadowColor: selectedTemplate.accent || MidnightColors.gold || '#CCA43B',
+                shadowColor: selectedTemplate.accent || hp.gold || '#CCA43B',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.25,
                 shadowRadius: 8,
@@ -8855,7 +8907,7 @@ export default function EventDetailScreen() {
               }}
               onPress={() => setShowUploadCompleteModal(false)}
             >
-              <Text style={{ color: '#13191F', fontWeight: 'bold', fontSize: 15, fontFamily: Fonts.outfit.semiBold }}>
+              <Text style={{ color: hp.onAccent, fontWeight: 'bold', fontSize: 15, fontFamily: Fonts.outfit.semiBold }}>
                 Done
               </Text>
             </TouchableOpacity>
@@ -8878,13 +8930,13 @@ export default function EventDetailScreen() {
               padding: 24,
               borderRadius: 24,
               borderWidth: 1.5,
-              backgroundColor: '#1B211F',
+              backgroundColor: hostLight ? hp.deepSlate : '#1B211F',
               borderColor: 'rgba(239, 68, 68, 0.35)',
               alignItems: 'center',
               alignSelf: 'center',
               width: width * 0.85,
               maxWidth: 400,
-              shadowColor: '#000',
+              shadowColor: hostLight ? hp.shadow : '#000',
               shadowOffset: { width: 0, height: 10 },
               shadowOpacity: 0.5,
               shadowRadius: 20,
@@ -8908,7 +8960,7 @@ export default function EventDetailScreen() {
             <Text style={{
               fontSize: 22,
               fontWeight: 'bold',
-              color: '#ef4444',
+              color: (hostLight ? hp.danger : '#ef4444'),
               marginBottom: 10,
               fontFamily: Fonts.outfit.bold,
               textAlign: 'center',
@@ -8919,7 +8971,7 @@ export default function EventDetailScreen() {
 
             <Text style={{
               fontSize: 14,
-              color: '#cbd5e1',
+              color: hostLight ? hp.slate300 : '#cbd5e1',
               textAlign: 'center',
               marginBottom: 24,
               fontFamily: Fonts.inter.regular,
@@ -8931,7 +8983,7 @@ export default function EventDetailScreen() {
 
             <TouchableOpacity
               style={{
-                backgroundColor: 'rgba(255,255,255,0.08)',
+                backgroundColor: hp.tint(0.08),
                 paddingVertical: 14,
                 paddingHorizontal: 24,
                 borderRadius: 14,
@@ -8940,7 +8992,7 @@ export default function EventDetailScreen() {
               }}
               onPress={() => setShowUploadFailedModal(false)}
             >
-              <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 15, fontFamily: Fonts.outfit.semiBold }}>
+              <Text style={{ color: hostLight ? hp.white : '#ffffff', fontWeight: 'bold', fontSize: 15, fontFamily: Fonts.outfit.semiBold }}>
                 Close
               </Text>
             </TouchableOpacity>
@@ -8949,6 +9001,7 @@ export default function EventDetailScreen() {
       </Modal>
       {renderDeleteProgressCard()}
     </View>
+    </DarkThemeScope>
   );
 }
 
@@ -9092,3 +9145,7 @@ const localStyles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 });
+
+// Guest galleries keep their own theme whatever the Appearance choice (todo #1): the screen wraps everything but the
+// host view in a DarkThemeScope
+export default EventDetailScreen;

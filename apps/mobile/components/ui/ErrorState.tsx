@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-na
 import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
 import { Button } from '@/components/ui/Button';
 import { MidnightColors } from '@/constants/theme';
+import { useAppTheme } from '@/context/ThemeContext';
 import { FontFamily, FontSize } from '@/constants/typography';
 
 type ErrorStateProps = {
@@ -33,10 +34,12 @@ export function ErrorState({
   onSecondary,
   style,
 }: ErrorStateProps) {
+  const { colors } = useAppTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={[styles.container, style]} accessibilityRole="alert">
       <View style={styles.iconRing}>
-        <IconSymbol name={icon} size={26} color={MidnightColors.gold} />
+        <IconSymbol name={icon} size={26} color={colors.gold} />
       </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
@@ -57,7 +60,7 @@ export function ErrorState({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: typeof MidnightColors) => StyleSheet.create({
   container: {
     alignItems: 'center',
     paddingVertical: 32,
@@ -73,14 +76,14 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   title: {
-    color: MidnightColors.white,
+    color: colors.white,
     fontFamily: FontFamily.bold,
     fontSize: FontSize.headline,
     textAlign: 'center',
     marginBottom: 6,
   },
   message: {
-    color: MidnightColors.slate400,
+    color: colors.slate400,
     fontFamily: FontFamily.regular,
     fontSize: FontSize.body2,
     lineHeight: 20,

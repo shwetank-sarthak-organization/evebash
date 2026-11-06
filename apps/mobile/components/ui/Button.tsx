@@ -12,6 +12,7 @@ import {
 import { haptic as playHaptic } from '@/lib/haptics';
 import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
 import { MidnightColors } from '@/constants/theme';
+import { useAppTheme } from '@/context/ThemeContext';
 import { Radius } from '@/constants/layout';
 import { FontFamily, FontSize } from '@/constants/typography';
 
@@ -37,14 +38,19 @@ type ButtonProps = {
   textStyle?: StyleProp<TextStyle>;
 };
 
-const DANGER = MidnightColors.dangerStrong;
+type VariantColors = { bg: string; border: string; text: string; spinner: string };
 
-const VARIANTS: Record<ButtonVariant, { bg: string; border: string; text: string; spinner: string }> = {
-  primary: { bg: MidnightColors.gold, border: MidnightColors.gold, text: MidnightColors.background, spinner: MidnightColors.background },
-  secondary: { bg: 'rgba(202, 156, 104, 0.08)', border: 'rgba(202, 156, 104, 0.45)', text: MidnightColors.gold, spinner: MidnightColors.gold },
-  ghost: { bg: 'transparent', border: 'transparent', text: MidnightColors.slate300, spinner: MidnightColors.slate300 },
-  destructive: { bg: DANGER, border: DANGER, text: '#FFFFFF', spinner: '#FFFFFF' },
-};
+const variantColors = (c: typeof MidnightColors, isDark: boolean): Record<ButtonVariant, VariantColors> => ({
+  primary: { bg: c.goldFill, border: c.goldFill, text: c.onAccent, spinner: c.onAccent },
+  secondary: {
+    bg: isDark ? 'rgba(202, 156, 104, 0.08)' : 'rgba(165, 118, 54, 0.08)',
+    border: isDark ? 'rgba(202, 156, 104, 0.45)' : 'rgba(165, 118, 54, 0.5)',
+    text: c.gold,
+    spinner: c.gold,
+  },
+  ghost: { bg: 'transparent', border: 'transparent', text: c.slate300, spinner: c.slate300 },
+  destructive: { bg: c.dangerStrong, border: c.dangerStrong, text: '#FFFFFF', spinner: '#FFFFFF' },
+});
 
 /**
  * The app's standard button: one look per variant, a 48pt+ touch target,
@@ -66,7 +72,8 @@ export function Button({
   style,
   textStyle,
 }: ButtonProps) {
-  const colors = VARIANTS[variant];
+  const theme = useAppTheme();
+  const colors = React.useMemo(() => variantColors(theme.colors, theme.isDark), [theme.colors, theme.isDark])[variant];
   const isDisabled = disabled || loading;
   const useHaptic = haptic ?? (variant === 'primary' || variant === 'destructive');
   const iconSize = size === 'lg' ? 18 : 16;

@@ -13,7 +13,7 @@ const CREATE_BUSINESS_SECTION_ROUTES = new Set(['manage-business']);
 const EB_NETWORK_SECTION_ROUTES = new Set(['business/[id]']);
 
 export default function TabLayout() {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   return (
@@ -38,7 +38,7 @@ export default function TabLayout() {
       }}
       screenOptions={{
         tabBarActiveTintColor: colors.gold,
-        tabBarInactiveTintColor: colors.slate400,
+        tabBarInactiveTintColor: isDark ? colors.slate400 : colors.slate600,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: {

@@ -12,7 +12,7 @@ import {
   type AlbumComment, type AlbumCommentKind, type AlbumDetail, type AlbumPage, type AlbumPhoto, type LocalFile,
 } from '../../lib/albumApi';
 import { Fonts, MidnightColors } from '../../constants/theme';
-import { AlbumButton, albumStyles, PageStatusChip } from './albumUi';
+import { AlbumButton, PageStatusChip, useAlbumLook } from './albumUi';
 import { FavouritePicker } from './FavouritePicker';
 import { VoicePlayer, VoiceRecorder, type VoiceRecording } from './VoiceNote';
 
@@ -33,6 +33,9 @@ function Pin({ number, state, x, y, width, height, active, onPress }: {
   active?: boolean;
   onPress?: () => void;
 }) {
+  const { colors, isDark } = useAlbumLook();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+  // Pins sit on the page image, so they keep the dark look's colours in both looks
   const look = {
     draft: { backgroundColor: 'rgba(19,25,31,0.9)', borderColor: MidnightColors.gold, color: MidnightColors.gold, borderStyle: 'dashed' as const },
     open: { backgroundColor: MidnightColors.gold, borderColor: '#FFFFFF', color: MidnightColors.onAccent, borderStyle: 'solid' as const },
@@ -63,6 +66,8 @@ function CommentCard({ comment, number, replies, album, page, mode, active, onFo
   onFocus: () => void;
   onChanged: () => Promise<void>;
 }) {
+  const { colors, isDark, albumStyles } = useAlbumLook();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [replying, setReplying] = useState(false);
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
@@ -84,13 +89,13 @@ function CommentCard({ comment, number, replies, album, page, mode, active, onFo
 
   const badgeStyle = comment.status === 'done'
     ? { backgroundColor: '#10B981' }
-    : comment.isDraft ? { borderWidth: 1, borderStyle: 'dashed' as const, borderColor: MidnightColors.gold } : { backgroundColor: MidnightColors.gold };
+    : comment.isDraft ? { borderWidth: 1, borderStyle: 'dashed' as const, borderColor: colors.gold } : { backgroundColor: colors.goldFill };
 
   return (
     <Pressable onPress={onFocus} style={[styles.comment, active && styles.commentActive, comment.status === 'done' && !active && { opacity: 0.75 }]}>
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <View style={[styles.badge, badgeStyle]}>
-          <Text style={[styles.badgeText, { color: comment.isDraft && comment.status !== 'done' ? MidnightColors.gold : comment.status === 'done' ? '#FFFFFF' : MidnightColors.onAccent }]}>
+          <Text style={[styles.badgeText, { color: comment.isDraft && comment.status !== 'done' ? colors.gold : comment.status === 'done' ? '#FFFFFF' : colors.onAccent }]}>
             {comment.pinX !== null ? number : '•'}
           </Text>
         </View>
@@ -119,7 +124,7 @@ function CommentCard({ comment, number, replies, album, page, mode, active, onFo
             <View style={styles.replies}>
               {replies.map((r) => (
                 <View key={r.id} style={{ gap: 2 }}>
-                  <Text style={[albumStyles.small, { color: MidnightColors.slate400 }]}>{r.authorName}</Text>
+                  <Text style={[albumStyles.small, { color: colors.slate400 }]}>{r.authorName}</Text>
                   {!!r.body && <Text style={styles.bodyText}>{r.body}</Text>}
                   {!!r.voiceUrl && <VoicePlayer uri={r.voiceUrl} seconds={r.voiceSeconds} />}
                 </View>
@@ -128,7 +133,7 @@ function CommentCard({ comment, number, replies, album, page, mode, active, onFo
           )}
           {replying && (
             <View style={{ gap: 8 }}>
-              <TextInput value={reply} onChangeText={setReply} placeholder="Write a reply" placeholderTextColor={MidnightColors.slate600} multiline maxLength={2000} autoFocus style={[albumStyles.input, { minHeight: 64 }]} />
+              <TextInput value={reply} onChangeText={setReply} placeholder="Write a reply" placeholderTextColor={colors.slate600} multiline maxLength={2000} autoFocus style={[albumStyles.input, { minHeight: 64 }]} />
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
                 <AlbumButton kind="ghost" label="Cancel" onPress={() => { setReplying(false); setReply(''); }} />
                 <AlbumButton
@@ -178,6 +183,8 @@ function Composer({ album, page, version, draft, onCancel, onSaved }: {
   onCancel: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const { colors, isDark, albumStyles } = useAlbumLook();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [kind, setKind] = useState<AlbumCommentKind | null>(null);
   const [body, setBody] = useState('');
   const [voice, setVoice] = useState<VoiceRecording | null>(null);
@@ -219,7 +226,7 @@ function Composer({ album, page, version, draft, onCancel, onSaved }: {
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Text style={[styles.composerTitle, { flex: 1 }]}>{draft.pinX !== null ? 'Comment on this spot' : 'Comment on the whole page'}</Text>
         <TouchableOpacity onPress={onCancel} hitSlop={8} accessibilityLabel="Cancel comment">
-          <MaterialIcons name="close" size={20} color={MidnightColors.slate400} />
+          <MaterialIcons name="close" size={20} color={colors.slate400} />
         </TouchableOpacity>
       </View>
       <View style={styles.kinds}>
@@ -230,7 +237,7 @@ function Composer({ album, page, version, draft, onCancel, onSaved }: {
             style={[styles.kindChip, kind === id && styles.kindChipActive]}
             accessibilityState={{ selected: kind === id }}
           >
-            <Text style={[styles.kindChipText, kind === id && { color: MidnightColors.onAccent }]}>{label}</Text>
+            <Text style={[styles.kindChipText, kind === id && { color: colors.onAccent }]}>{label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -238,15 +245,15 @@ function Composer({ album, page, version, draft, onCancel, onSaved }: {
         <TouchableOpacity style={styles.replacement} onPress={() => setPicking(true)}>
           {photo?.thumbnailUrl
             ? <Image source={{ uri: photo.thumbnailUrl }} style={styles.replacementImage} contentFit="cover" />
-            : <View style={[styles.replacementImage, { alignItems: 'center', justifyContent: 'center' }]}><MaterialIcons name="favorite-border" size={20} color={MidnightColors.gold} /></View>}
-          <Text style={[albumStyles.body, { flex: 1, color: MidnightColors.slate300 }]}>{photo ? 'Change the replacement photo' : 'Pick the new photo from favourites (optional)'}</Text>
+            : <View style={[styles.replacementImage, { alignItems: 'center', justifyContent: 'center' }]}><MaterialIcons name="favorite-border" size={20} color={colors.gold} /></View>}
+          <Text style={[albumStyles.body, { flex: 1, color: colors.slate300 }]}>{photo ? 'Change the replacement photo' : 'Pick the new photo from favourites (optional)'}</Text>
         </TouchableOpacity>
       )}
       <TextInput
         value={body}
         onChangeText={setBody}
         placeholder="Describe the change (optional)"
-        placeholderTextColor={MidnightColors.slate600}
+        placeholderTextColor={colors.slate600}
         multiline
         maxLength={2000}
         style={[albumStyles.input, { minHeight: 80, textAlignVertical: 'top' }]}
@@ -276,6 +283,8 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
   refresh: () => Promise<void>;
   onUploadVersion: (page: AlbumPage) => Promise<void>;
 }) {
+  const { colors, isDark, albumStyles } = useAlbumLook();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const page = pages[index];
   const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -378,17 +387,17 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
       <View style={[styles.screen, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.headerButton} accessibilityLabel="Close">
-            <MaterialIcons name="close" size={24} color={MidnightColors.text} />
+            <MaterialIcons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.title} numberOfLines={1}>{label}</Text>
             <Text style={albumStyles.small}>{index + 1} of {pages.length} · {page.layout === 'spread' ? 'Spread' : 'Single page'}</Text>
           </View>
           <TouchableOpacity onPress={() => onIndexChange(index - 1)} disabled={index === 0} style={[styles.headerButton, index === 0 && { opacity: 0.3 }]} accessibilityLabel="Previous page">
-            <MaterialIcons name="chevron-left" size={28} color={MidnightColors.text} />
+            <MaterialIcons name="chevron-left" size={28} color={colors.text} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => onIndexChange(index + 1)} disabled={index === pages.length - 1} style={[styles.headerButton, index === pages.length - 1 && { opacity: 0.3 }]} accessibilityLabel="Next page">
-            <MaterialIcons name="chevron-right" size={28} color={MidnightColors.text} />
+            <MaterialIcons name="chevron-right" size={28} color={colors.text} />
           </TouchableOpacity>
         </View>
         <View style={styles.toolbar}>
@@ -398,18 +407,18 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
             <View style={styles.versions}>
               {visibleVersions.map((v) => (
                 <TouchableOpacity key={v.version} onPress={() => setShownVersion(v.version)} style={[styles.versionChip, v.version === version?.version && styles.versionChipActive]}>
-                  <Text style={[styles.versionText, v.version === version?.version && { color: MidnightColors.onAccent }]}>v{v.version}{v.round === 0 ? '*' : ''}</Text>
+                  <Text style={[styles.versionText, v.version === version?.version && { color: colors.onAccent }]}>v{v.version}{v.round === 0 ? '*' : ''}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           )}
           {previousVersion && (
             <TouchableOpacity onPress={() => setCompare(!compare)} style={[styles.toolButton, compare && styles.toolButtonActive]} accessibilityLabel="Compare with the previous version">
-              <MaterialIcons name="compare" size={20} color={compare ? MidnightColors.text : MidnightColors.slate400} />
+              <MaterialIcons name="compare" size={20} color={compare ? colors.text : colors.slate400} />
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={() => setZoom(!zoom)} style={[styles.toolButton, zoom && styles.toolButtonActive]} accessibilityLabel={zoom ? 'Fit to screen' : 'Zoom in'}>
-            <MaterialIcons name={zoom ? 'zoom-out' : 'zoom-in'} size={20} color={zoom ? MidnightColors.text : MidnightColors.slate400} />
+            <MaterialIcons name={zoom ? 'zoom-out' : 'zoom-in'} size={20} color={zoom ? colors.text : colors.slate400} />
           </TouchableOpacity>
         </View>
 
@@ -422,7 +431,7 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
               </View>
             )}
             <View style={styles.imageArea}>
-              {compare && version && <Text style={[styles.versionLabel, { color: MidnightColors.gold }]}>v{version.version} (now)</Text>}
+              {compare && version && <Text style={[styles.versionLabel, { color: colors.gold }]}>v{version.version} (now)</Text>}
               {version ? (
                 zoom ? (
                   <ScrollView horizontal style={{ maxWidth: screenWidth }} contentContainerStyle={{ paddingHorizontal: 12 }} showsHorizontalScrollIndicator>
@@ -495,56 +504,56 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
 
         {mode === 'client' && myDrafts > 0 && (
           <View style={[styles.footer, { paddingBottom: insets.bottom + 10 }]}>
-            <Text style={[albumStyles.small, { color: '#E8C9A0', textAlign: 'center' }]}>
+            <Text style={[albumStyles.small, { color: (isDark ? '#E8C9A0' : colors.gold), textAlign: 'center' }]}>
               {myDrafts === 1 ? '1 comment is' : `${myDrafts} comments are`} waiting. Close this view and tap Send feedback when you&apos;ve been through the pages.
             </Text>
           </View>
         )}
-        {busy && <ActivityIndicator style={StyleSheet.absoluteFill} color={MidnightColors.gold} pointerEvents="none" />}
+        {busy && <ActivityIndicator style={StyleSheet.absoluteFill} color={colors.gold} pointerEvents="none" />}
       </View>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (c: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#0B0F12' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 6, gap: 4 },
   headerButton: { padding: 8 },
-  title: { color: MidnightColors.text, fontSize: 18, fontFamily: Fonts.playfair.bold },
-  toolbar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
-  versions: { flexDirection: 'row', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 3, gap: 2 },
+  title: { color: c.text, fontSize: 18, fontFamily: Fonts.playfair.bold },
+  toolbar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: c.tint(0.08) },
+  versions: { flexDirection: 'row', borderWidth: 1, borderColor: c.tint(0.12), borderRadius: 12, padding: 3, gap: 2 },
   versionChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 9 },
-  versionChipActive: { backgroundColor: MidnightColors.gold },
-  versionText: { color: MidnightColors.slate300, fontSize: 12, fontFamily: Fonts.outfit.extraBold },
+  versionChipActive: { backgroundColor: c.goldFill },
+  versionText: { color: c.slate300, fontSize: 12, fontFamily: Fonts.outfit.extraBold },
   toolButton: { padding: 8, borderRadius: 10 },
-  toolButtonActive: { backgroundColor: 'rgba(255,255,255,0.1)' },
+  toolButtonActive: { backgroundColor: c.tint(0.1) },
   imageArea: { alignItems: 'center', paddingVertical: 12, backgroundColor: 'rgba(0,0,0,0.4)', gap: 6 },
-  versionLabel: { color: MidnightColors.slate400, fontSize: 10, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1.2, textTransform: 'uppercase' },
+  versionLabel: { color: c.slate400, fontSize: 10, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1.2, textTransform: 'uppercase' },
   panel: { padding: 14, gap: 12 },
   approved: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: 'rgba(52,211,153,0.4)', backgroundColor: 'rgba(52,211,153,0.1)', borderRadius: 16, paddingLeft: 14 },
-  approvedText: { color: '#A7F3D0', fontSize: 14, fontFamily: Fonts.outfit.extraBold },
-  notice: { color: MidnightColors.slate300, fontSize: 12, fontFamily: Fonts.outfit.semiBold, backgroundColor: 'rgba(255,255,255,0.05)', padding: 10, borderRadius: 12 },
-  hint: { borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: 12, alignItems: 'center', gap: 4 },
+  approvedText: { color: (isDark ? '#A7F3D0' : c.success), fontSize: 14, fontFamily: Fonts.outfit.extraBold },
+  notice: { color: c.slate300, fontSize: 12, fontFamily: Fonts.outfit.semiBold, backgroundColor: c.tint(0.05), padding: 10, borderRadius: 12 },
+  hint: { borderWidth: 1, borderStyle: 'dashed', borderColor: c.tint(0.15), borderRadius: 16, padding: 12, alignItems: 'center', gap: 4 },
   pin: { position: 'absolute', width: 28, height: 28, borderRadius: 14, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   pinActive: { transform: [{ scale: 1.25 }] },
   pinText: { fontSize: 12, fontFamily: Fonts.outfit.extraBold },
-  comment: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 12 },
+  comment: { borderWidth: 1, borderColor: c.tint(0.1), backgroundColor: c.tint(0.03), borderRadius: 16, padding: 12 },
   commentActive: { borderColor: 'rgba(202,156,104,0.7)', backgroundColor: 'rgba(202,156,104,0.07)' },
   badge: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   badgeText: { fontSize: 11, fontFamily: Fonts.outfit.extraBold },
-  kind: { color: '#E8C9A0', fontSize: 12, fontFamily: Fonts.outfit.extraBold, textTransform: 'uppercase', letterSpacing: 0.8 },
-  draft: { color: MidnightColors.slate300, fontSize: 9, fontFamily: Fonts.outfit.extraBold, textTransform: 'uppercase', backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
+  kind: { color: (isDark ? '#E8C9A0' : c.gold), fontSize: 12, fontFamily: Fonts.outfit.extraBold, textTransform: 'uppercase', letterSpacing: 0.8 },
+  draft: { color: c.slate300, fontSize: 9, fontFamily: Fonts.outfit.extraBold, textTransform: 'uppercase', backgroundColor: c.tint(0.1), paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
   done: { color: '#6EE7B7', fontSize: 10, fontFamily: Fonts.outfit.extraBold, textTransform: 'uppercase' },
-  bodyText: { color: MidnightColors.text, fontSize: 14, fontFamily: Fonts.inter.medium, lineHeight: 20 },
-  replacement: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 12, padding: 8 },
-  replacementImage: { width: 44, height: 44, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.05)' },
-  replies: { borderLeftWidth: 2, borderLeftColor: 'rgba(255,255,255,0.1)', paddingLeft: 10, gap: 8 },
+  bodyText: { color: c.text, fontSize: 14, fontFamily: Fonts.inter.medium, lineHeight: 20 },
+  replacement: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: c.tint(0.12), backgroundColor: isDark ? 'rgba(0,0,0,0.3)' : c.card, borderRadius: 12, padding: 8 },
+  replacementImage: { width: 44, height: 44, borderRadius: 8, backgroundColor: c.tint(0.05) },
+  replies: { borderLeftWidth: 2, borderLeftColor: c.tint(0.1), paddingLeft: 10, gap: 8 },
   composer: { borderWidth: 1, borderColor: 'rgba(202,156,104,0.5)', backgroundColor: 'rgba(202,156,104,0.06)', borderRadius: 18, padding: 14, gap: 12 },
-  composerTitle: { color: MidnightColors.text, fontSize: 14, fontFamily: Fonts.outfit.extraBold },
+  composerTitle: { color: c.text, fontSize: 14, fontFamily: Fonts.outfit.extraBold },
   kinds: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  kindChip: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  kindChipActive: { backgroundColor: MidnightColors.gold, borderColor: MidnightColors.gold },
-  kindChipText: { color: MidnightColors.slate300, fontSize: 12, fontFamily: Fonts.outfit.bold },
-  error: { color: MidnightColors.dangerSoft, fontSize: 12, fontFamily: Fonts.outfit.semiBold },
-  footer: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(202,156,104,0.06)', paddingHorizontal: 16, paddingTop: 10 },
+  kindChip: { borderWidth: 1, borderColor: c.tint(0.15), borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  kindChipActive: { backgroundColor: c.goldFill, borderColor: c.gold },
+  kindChipText: { color: c.slate300, fontSize: 12, fontFamily: Fonts.outfit.bold },
+  error: { color: c.dangerSoft, fontSize: 12, fontFamily: Fonts.outfit.semiBold },
+  footer: { borderTopWidth: 1, borderTopColor: c.tint(0.08), backgroundColor: 'rgba(202,156,104,0.06)', paddingHorizontal: 16, paddingTop: 10 },
 });

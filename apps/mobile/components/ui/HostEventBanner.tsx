@@ -18,7 +18,7 @@ export function HostEventBanner({ onPress, style }: HostEventBannerProps) {
   return (
     <TouchableOpacity activeOpacity={0.9} style={[styles.card, style]} onPress={onPress}>
       <LinearGradient
-        colors={['#151B21', '#10161C']}
+        colors={isDark ? ['#151B21', '#10161C'] : [colors.card, colors.surface]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradient}
@@ -32,7 +32,7 @@ export function HostEventBanner({ onPress, style }: HostEventBannerProps) {
             Create a stunning private gallery for weddings, parties or corporate meets.
           </Text>
           <View style={styles.button}>
-            <IconSymbol name="plus.circle.fill" size={12} color={MidnightColors.onAccent} />
+            <IconSymbol name="plus.circle.fill" size={12} color={colors.onAccent} />
             <Text style={styles.buttonText}>Create Now</Text>
           </View>
         </View>
@@ -53,7 +53,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104, 0.16)',
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 10,
@@ -84,13 +84,13 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     letterSpacing: 0.8,
   },
   title: {
-    color: isDark ? '#ffffff' : colors.deepSlate,
+    color: isDark ? '#ffffff' : colors.white,
     fontSize: 18,
     fontFamily: 'Outfit_800ExtraBold',
     marginBottom: 2,
   },
   subtitle: {
-    color: 'rgba(255,255,255,0.8)',
+    color: isDark ? 'rgba(255,255,255,0.8)' : colors.slate400,
     fontSize: 12,
     fontFamily: 'Inter_400Regular',
     marginBottom: 12,
@@ -102,11 +102,11 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 4,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.goldFill,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: isDark ? 0.2 : 0.05,
     shadowRadius: 4,

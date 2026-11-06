@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useSyncExternalStore } from 'react';
+import React, { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import {
   AccessibilityInfo,
   Animated,
@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MidnightColors } from '@/constants/theme';
+import { useAppTheme } from '@/context/ThemeContext';
 import {
   getFeedbackState,
   hideToast,
@@ -24,13 +25,10 @@ import {
 import { Radius, Spacing } from '@/constants/layout';
 import { FontFamily, FontSize } from '@/constants/typography';
 
-const DANGER = MidnightColors.dangerStrong;
-
 // Cached "reduce motion" setting so the toast can skip its slide
 let reduceMotion = false;
 AccessibilityInfo.isReduceMotionEnabled().then((value) => { reduceMotion = value; }).catch(() => {});
 AccessibilityInfo.addEventListener('reduceMotionChanged', (value) => { reduceMotion = value; });
-const SUCCESS = MidnightColors.success;
 
 /**
  * Renders the app-wide toast and (on Android) the themed alert dialog. Mount once at the root.
@@ -52,8 +50,15 @@ export function FeedbackHost({ toastOnly = false }: { toastOnly?: boolean }) {
   );
 }
 
+function useFeedbackStyles() {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+  return { colors, styles };
+}
+
 function Toast({ toast }: { toast: ToastItem }) {
   const insets = useSafeAreaInsets();
+  const { colors, styles } = useFeedbackStyles();
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -65,7 +70,7 @@ function Toast({ toast }: { toast: ToastItem }) {
   }, [progress, toast]);
 
   const icon = toast.type === 'error' ? 'exclamationmark.triangle.fill' : toast.type === 'info' ? 'info.circle' : 'checkmark.circle.fill';
-  const iconColor = toast.type === 'error' ? DANGER : toast.type === 'info' ? MidnightColors.gold : SUCCESS;
+  const iconColor = toast.type === 'error' ? colors.dangerStrong : toast.type === 'info' ? colors.gold : colors.success;
 
   return (
     <Animated.View
@@ -96,6 +101,7 @@ function Toast({ toast }: { toast: ToastItem }) {
 }
 
 function ThemedDialog({ dialog }: { dialog: DialogItem }) {
+  const { styles } = useFeedbackStyles();
   const cancelButton = dialog.buttons.find((button) => button.style === 'cancel');
   // Cancel goes first (left / bottom), the main action last, matching Android's native order
   const ordered = [
@@ -142,6 +148,7 @@ function ThemedDialog({ dialog }: { dialog: DialogItem }) {
 
 function DialogButton({ button, fill, onPress }: { button: AlertButton; fill: boolean; onPress: () => void }) {
   const variant = button.style === 'cancel' ? 'secondary' : button.style === 'destructive' ? 'danger' : 'primary';
+  const { colors, styles } = useFeedbackStyles();
   return (
     <Pressable
       onPress={onPress}
@@ -158,9 +165,9 @@ function DialogButton({ button, fill, onPress }: { button: AlertButton; fill: bo
       <Text
         style={[
           styles.buttonText,
-          variant === 'primary' && { color: MidnightColors.background },
+          variant === 'primary' && { color: colors.onAccent },
           variant === 'danger' && { color: '#FFFFFF' },
-          variant === 'secondary' && { color: MidnightColors.white },
+          variant === 'secondary' && { color: colors.white },
         ]}
         numberOfLines={1}
       >
@@ -170,7 +177,7 @@ function DialogButton({ button, fill, onPress }: { button: AlertButton; fill: bo
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   toastWrap: {
     position: 'absolute',
     left: 16,
@@ -182,32 +189,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: MidnightColors.deepSlate,
+    backgroundColor: colors.deepSlate,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: MidnightColors.border,
+    borderColor: colors.border,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
+    shadowOpacity: isDark ? 0.35 : 0.18,
     shadowRadius: 16,
   },
   toastTitle: {
-    color: MidnightColors.white,
+    color: colors.white,
     fontFamily: 'Inter_700Bold',
     fontSize: 14,
     marginBottom: 2,
   },
   toastMessage: {
-    color: MidnightColors.slate300,
+    color: colors.slate300,
     fontFamily: 'Inter_500Medium',
     fontSize: 14,
     lineHeight: 20,
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: isDark ? 'rgba(0, 0, 0, 0.6)' : colors.modalBackdrop,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -215,21 +222,21 @@ const styles = StyleSheet.create({
   dialog: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: MidnightColors.deepSlate,
+    backgroundColor: colors.deepSlate,
     borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: MidnightColors.border,
+    borderColor: colors.border,
     padding: Spacing.xl,
   },
   dialogTitle: {
-    color: MidnightColors.white,
+    color: colors.white,
     fontFamily: FontFamily.bold,
     fontSize: FontSize.headline,
     lineHeight: 24,
     marginBottom: 8,
   },
   dialogMessage: {
-    color: MidnightColors.slate300,
+    color: colors.slate300,
     fontFamily: FontFamily.regular,
     fontSize: FontSize.body,
     lineHeight: 22,
@@ -250,15 +257,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonPrimary: {
-    backgroundColor: MidnightColors.gold,
+    backgroundColor: colors.goldFill,
   },
   buttonDanger: {
-    backgroundColor: DANGER,
+    backgroundColor: colors.dangerStrong,
   },
   buttonSecondary: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: 'rgba(255, 247, 235, 0.16)',
+    borderColor: isDark ? 'rgba(255, 247, 235, 0.16)' : colors.tint(0.16),
   },
   buttonText: {
     fontFamily: 'Inter_700Bold',

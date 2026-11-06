@@ -2,12 +2,15 @@ import React, { useCallback, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { MidnightColors } from '../../constants/theme';
+import { useAppTheme } from '../../context/ThemeContext';
 import { formatStorageSize } from '../../lib/planLimits';
 import { eventTransfers, formatTransferExpiry, type IncomingTransfer } from '../../lib/eventTransfers';
 
 /** Dashboard: events someone wants to hand to this user. Rechecked on coming back, for example after upgrading. */
 export default function IncomingTransfers({ onAccepted }: { onAccepted: () => void }) {
   const router = useRouter();
+  const { colors, isDark } = useAppTheme();
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [requests, setRequests] = useState<IncomingTransfer[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -66,17 +69,17 @@ export default function IncomingTransfers({ onAccepted }: { onAccepted: () => vo
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   list: { gap: 12, paddingHorizontal: 16, paddingTop: 12 },
-  card: { padding: 16, gap: 8, borderRadius: 16, borderWidth: 1, borderColor: MidnightColors.gold, backgroundColor: MidnightColors.surface },
-  title: { color: MidnightColors.text, fontSize: 15, fontWeight: '700' },
-  note: { color: MidnightColors.slate400, fontSize: 13, lineHeight: 19 },
-  block: { color: MidnightColors.warning, fontSize: 13, lineHeight: 19, fontWeight: '600' },
-  error: { color: '#FB7185', fontSize: 13 },
+  card: { padding: 16, gap: 8, borderRadius: 16, borderWidth: 1, borderColor: colors.gold, backgroundColor: colors.surface },
+  title: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  note: { color: colors.slate400, fontSize: 13, lineHeight: 19 },
+  block: { color: colors.warning, fontSize: 13, lineHeight: 19, fontWeight: '600' },
+  error: { color: isDark ? '#FB7185' : colors.danger, fontSize: 13 },
   buttons: { flexDirection: 'row', gap: 10, marginTop: 6 },
-  primaryButton: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 22, backgroundColor: MidnightColors.gold },
-  primaryText: { color: MidnightColors.onAccent, fontSize: 14, fontWeight: '700' },
-  secondaryButton: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 22, borderWidth: 1, borderColor: MidnightColors.border },
-  secondaryText: { color: MidnightColors.text, fontSize: 14, fontWeight: '700' },
+  primaryButton: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 22, backgroundColor: colors.goldFill },
+  primaryText: { color: colors.onAccent, fontSize: 14, fontWeight: '700' },
+  secondaryButton: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.border },
+  secondaryText: { color: colors.text, fontSize: 14, fontWeight: '700' },
   disabled: { opacity: 0.6 },
 });

@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { albumApi, type AlbumDetail, type AlbumRoleCandidate, type AlbumRoles } from '../../lib/albumApi';
 import { Fonts, MidnightColors } from '../../constants/theme';
-import { AlbumButton, albumStyles } from './albumUi';
+import { AlbumButton, useAlbumLook } from './albumUi';
 
 const cache = new Map<string, AlbumRoleCandidate[]>();
 
@@ -18,6 +18,8 @@ function Person({ person, selected, disabled, multi, onPress }: {
   multi?: boolean;
   onPress: () => void;
 }) {
+  const { colors, isDark, albumStyles } = useAlbumLook();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -29,7 +31,7 @@ function Person({ person, selected, disabled, multi, onPress }: {
       <MaterialIcons
         name={multi ? (selected ? 'check-box' : 'check-box-outline-blank') : selected ? 'radio-button-checked' : 'radio-button-unchecked'}
         size={20}
-        color={selected ? MidnightColors.gold : MidnightColors.slate600}
+        color={selected ? colors.gold : colors.slate600}
       />
       <View style={{ flex: 1 }}>
         <Text style={styles.name} numberOfLines={1}>{person.name}</Text>
@@ -49,6 +51,8 @@ export function RolePicker({ eventId, value, onChange }: {
   value: Partial<AlbumRoles>;
   onChange: (roles: Partial<AlbumRoles>) => void;
 }) {
+  const { colors, isDark, albumStyles } = useAlbumLook();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [candidates, setCandidates] = useState<AlbumRoleCandidate[] | null>(cache.get(eventId) ?? null);
   const [error, setError] = useState('');
 
@@ -59,8 +63,8 @@ export function RolePicker({ eventId, value, onChange }: {
       .catch((e) => setError(e instanceof Error ? e.message : "Couldn't load the guest list."));
   }, [eventId]);
 
-  if (error) return <Text style={[albumStyles.body, { color: MidnightColors.dangerSoft }]}>{error}</Text>;
-  if (!candidates) return <ActivityIndicator color={MidnightColors.gold} style={{ marginVertical: 16 }} />;
+  if (error) return <Text style={[albumStyles.body, { color: colors.dangerSoft }]}>{error}</Text>;
+  if (!candidates) return <ActivityIndicator color={colors.gold} style={{ marginVertical: 16 }} />;
 
   const clients = value.clientIds ?? [];
   // Picking someone for one role takes them out of the other, so roles can be swapped in one go
@@ -96,7 +100,7 @@ export function RolePicker({ eventId, value, onChange }: {
         ))}
       </View>
       {(!value.photographerId || !clients.length) && (
-        <Text style={[albumStyles.small, { color: '#E8C9A0' }]}>
+        <Text style={[albumStyles.small, { color: (isDark ? '#E8C9A0' : colors.gold) }]}>
           {!value.photographerId ? 'Choose the photographer.' : 'Choose at least one client.'}
         </Text>
       )}
@@ -118,6 +122,8 @@ export function RolesModal({ eventId, albumId, initial, title, onClose, onSaved 
   onClose: () => void;
   onSaved: (album: AlbumDetail) => void;
 }) {
+  const { colors, isDark, albumStyles } = useAlbumLook();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const insets = useSafeAreaInsets();
   const [roles, setRoles] = useState<Partial<AlbumRoles>>(initial);
   const [saving, setSaving] = useState(false);
@@ -144,13 +150,13 @@ export function RolesModal({ eventId, albumId, initial, title, onClose, onSaved 
             <Text style={albumStyles.heading}>{title}</Text>
           </View>
           <TouchableOpacity onPress={onClose} disabled={saving} style={{ padding: 8 }} accessibilityLabel="Close">
-            <MaterialIcons name="close" size={24} color={MidnightColors.text} />
+            <MaterialIcons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
         <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 24 }}>
           <Text style={albumStyles.body}>Pick from the event host and guests with Admin Access.</Text>
           <RolePicker eventId={eventId} value={roles} onChange={setRoles} />
-          {!!error && <Text style={[albumStyles.body, { color: MidnightColors.dangerSoft }]}>{error}</Text>}
+          {!!error && <Text style={[albumStyles.body, { color: colors.dangerSoft }]}>{error}</Text>}
         </ScrollView>
         <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
           <AlbumButton label="Cancel" onPress={onClose} disabled={saving} style={{ flex: 1 }} />
@@ -161,14 +167,14 @@ export function RolesModal({ eventId, albumId, initial, title, onClose, onSaved 
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: MidnightColors.background },
+const getStyles = (c: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: c.background },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 },
-  footer: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
-  person: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 },
-  personSelected: { borderColor: MidnightColors.gold, backgroundColor: 'rgba(202,156,104,0.1)' },
-  name: { color: MidnightColors.text, fontSize: 14, fontFamily: Fonts.outfit.bold },
-  badge: { color: MidnightColors.slate300, backgroundColor: 'rgba(255,255,255,0.1)', fontSize: 9, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
-  hostBadge: { color: '#E8C9A0', backgroundColor: 'rgba(202,156,104,0.15)' },
-  hint: { color: '#E8C9A0', fontSize: 12, fontFamily: Fonts.outfit.semiBold, lineHeight: 18, borderWidth: 1, borderColor: 'rgba(202,156,104,0.25)', backgroundColor: 'rgba(202,156,104,0.06)', borderRadius: 14, padding: 12 },
+  footer: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.tint(0.08) },
+  person: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: c.tint(0.1), borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 },
+  personSelected: { borderColor: c.gold, backgroundColor: 'rgba(202,156,104,0.1)' },
+  name: { color: c.text, fontSize: 14, fontFamily: Fonts.outfit.bold },
+  badge: { color: c.slate300, backgroundColor: c.tint(0.1), fontSize: 9, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
+  hostBadge: { color: (isDark ? '#E8C9A0' : c.gold), backgroundColor: 'rgba(202,156,104,0.15)' },
+  hint: { color: (isDark ? '#E8C9A0' : c.gold), fontSize: 12, fontFamily: Fonts.outfit.semiBold, lineHeight: 18, borderWidth: 1, borderColor: 'rgba(202,156,104,0.25)', backgroundColor: 'rgba(202,156,104,0.06)', borderRadius: 14, padding: 12 },
 });

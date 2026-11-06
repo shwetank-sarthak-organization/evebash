@@ -9,7 +9,7 @@ import {
   Platform
 } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { MidnightColors } from '../../../constants/theme';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 interface GalleryDescriptionModalProps {
   visible: boolean;
@@ -32,6 +32,7 @@ export function GalleryDescriptionModal({
   selectedTemplate,
   styles
 }: GalleryDescriptionModalProps) {
+  const { colors, isDark } = useAppTheme();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
@@ -52,7 +53,7 @@ export function GalleryDescriptionModal({
               </Text>
             </View>
             <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={onClose}>
-              <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+              <IconSymbol name={"xmark.circle.fill" as any} size={24} color={colors.slate400} />
             </TouchableOpacity>
           </View>
 
@@ -66,22 +67,22 @@ export function GalleryDescriptionModal({
                     minHeight: 120,
                     textAlignVertical: 'top',
                     padding: 12,
-                    backgroundColor: MidnightColors.deepSlate,
+                    backgroundColor: colors.deepSlate,
                     borderRadius: 8,
-                    color: '#fff'
+                    color: isDark ? '#fff' : colors.white
                   }
                 ]}
                 value={galleryDescText}
                 onChangeText={setGalleryDescText}
                 placeholder="Write a beautiful welcome message for this gallery..."
-                placeholderTextColor={MidnightColors.slate600}
+                placeholderTextColor={colors.slate600}
                 multiline
                 numberOfLines={5}
               />
             </View>
 
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: selectedTemplate.accent, marginTop: 12 }]}
+              style={[styles.submitBtn, { backgroundColor: isDark ? selectedTemplate.accent : colors.goldFill, marginTop: 12 }]}
               onPress={onSave}
             >
               <Text style={[styles.submitBtnText, { color: '#000', fontWeight: 'bold' }]}>

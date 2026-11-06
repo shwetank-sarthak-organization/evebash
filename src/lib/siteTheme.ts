@@ -2,8 +2,10 @@
 // Settings > Appearance save a choice in this browser. Guest galleries, Vault and the embed pages never
 // change: only the (main) layout's <body> (and the global 404) has the site-themed class the light colours apply to.
 
-export type SiteThemeChoice = "light" | "dark" | "system";
-export type SiteTheme = "light" | "dark";
+import { resolveTheme, type ResolvedTheme, type ThemeChoice } from "../../shared/themes/themeChoice";
+
+export type SiteThemeChoice = ThemeChoice;
+export type SiteTheme = ResolvedTheme;
 
 export const SITE_THEME_KEY = "evebash_site_theme";
 // On <html>: the look showing now, and whether this page keeps the dark look whatever the choice
@@ -25,11 +27,8 @@ export function isSiteNoirPath(pathname: string, noirPaths: string[]): boolean {
     return false;
 }
 
-/** Self-contained (no outside references): its source is also inlined into <head>. */
-export function resolveSiteTheme(choice: string | null, prefersLight: boolean): SiteTheme {
-    if (choice === "light" || choice === "dark") return choice;
-    return prefersLight ? "light" : "dark";
-}
+/** Shared with the app (shared/themes/themeChoice.ts); self-contained, so its source is also inlined into <head>. */
+export const resolveSiteTheme = resolveTheme;
 
 // Runs in <head> before the page paints, so a light visitor never sees the dark page first
 export const siteThemeHeadScript = `try{var c=null;try{c=localStorage.getItem("${SITE_THEME_KEY}")}catch(e){}var h=document.documentElement;h.setAttribute("${SITE_THEME_ATTRIBUTE}",(${resolveSiteTheme.toString()})(c,matchMedia("(prefers-color-scheme: light)").matches));if((${isSiteNoirPath.toString()})(location.pathname,${JSON.stringify(
