@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 191
+Next test number: 192
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-04
+Last updated: 2026-11-06
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -5406,6 +5406,36 @@ How to test:
   4. App: Profile. Expect: the same notice and Storage card. Renew plan opens Upgrade Plan.
   5. An active paid account and a free account: expect no notice, and the card as before with its meter.
   6. Renew or extend the expired account, and refresh. Expect: the notice is gone and the free space is back.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#191 Album Proofs cards: new design with a next step
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     The album cards on the Album tab were redesigned: a bigger cover filled edge to edge, the status and page
+           count on the cover, and a line at the bottom saying what to do next. The website was checked in a browser
+           with sample albums (desktop and phone width); the app card has not been seen on a phone yet.
+Detail:    Commit 1f6a84a. Album proofing must be on (staging). The app needs a new staging build. Use an event with
+           several albums in different states: one with no pages, one in review, one with changes asked, one approved.
+How to test:
+  1. Website: Host > event > Album. Expect: covers fill the top of each card with no black bars at the sides, the
+     status chip at the top right and "N pages" along the bottom of the cover.
+  2. Cards in the same row line up: titles, progress bars and bottom lines at the same height.
+  3. An album with no pages, as the photographer: expect a dashed "Add pages" box on the cover, "No pages yet" and
+     "Add page designs" at the bottom.
+  4. With unsent comments: expect "Send 1 unsent comment" (singular) or "Send 2 unsent comments" in gold.
+  5. With changes asked by the client: as the photographer, expect "N changes to make" in red.
+  6. An approved album: expect a green full progress bar and "Approved <date> · ready for print".
+  7. Sign in as the client of an album in review. Expect: "Review N pages" in gold.
+  8. Tap a card. Expect: the album opens as before.
+  9. App: Event > Album. Expect: the same cards and wording as steps 1-8.
 Done by:
 Device / browser:
 Build / version:
