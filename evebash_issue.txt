@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 249
+Next issue number: 252
 
 =====================================================================
 ACTIVE ISSUES
@@ -1443,6 +1443,39 @@ Blocked by: -
 Found in: Applying the 10/15/30 discount prices (chat 2026-11-04)
 Issue: The app's Upgrade Plan page (apps/mobile/app/(tabs)/pricing.tsx) has its prices written into the code, while the website reads them from pricing_plans. A price change in the database or the admin dashboard doesn't reach the app, so it shows old prices until someone edits the file and ships an app update. The 3/6/12-month numbers were edited by hand for the 2026-11-04 prices. Fix idea: read them from /api/v1/pricing-plans, as the website does, with these as the fallback.
 How to reproduce: Change a price in pricing_plans; the website shows it and the app doesn't.
+
+#249
+Listed: 2026-11-06
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: Sarthak's OK to change a guest theme's design (themes keep their own designs; app changes so far were host-only)
+Found in: App screen review, item 18 (chat 2026-11-01); left out of that batch because guest themes weren't to be touched; logged 2026-11-06
+Issue: Sunlit Portrait guests scroll past two full-screen openings before the first photo. First the cover (PortraitHero in apps/mobile/app/events/[id].tsx), then the gallery's own opening (PortraitGalleryHeader, about line 6492), which fills the screen when the gallery has a highlight film. The second one is titled "Home" (the primary gallery's name) rather than the event's name. The code says that is on purpose ("The gallery's own name; the event's title is on the cover"), so this needs a design decision, not just a fix. Ideas: keep the film's opening shorter than the screen, or title it with the event's name when it's the primary gallery. Check the website's Sunlit page (src/components/TemplatePortrait.tsx) first so both stay the same.
+How to reproduce: Open a Sunlit Portrait gallery that has a highlight film, as a guest. Scroll down from the cover: a second full-screen opening titled "Home" comes before the photos.
+
+#250
+Listed: 2026-11-06
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: Sarthak's OK to change a guest theme's design (themes keep their own designs; app changes so far were host-only)
+Found in: App screen review, item 19 (chat 2026-11-01); left out of that batch because guest themes weren't to be touched; logged 2026-11-06
+Issue: On Sunlit Portrait the Find You heading isn't in the theme's Instrument Serif. apps/mobile/components/event/FindYouPanel.tsx (about line 285) uses selectedTemplate.serifItalic, and for the portrait template that falls through to the generic Fonts.serif (apps/mobile/app/events/[id].tsx about line 1017), while the rest of Sunlit uses Instrument Serif (apps/mobile/components/portrait/portraitFonts.ts). Fix idea: give the portrait template its Instrument Serif as serifItalic, then check every other place that uses serifItalic on Sunlit still looks right.
+How to reproduce: Open a Sunlit Portrait gallery and tap Find You. Compare the "Find You" heading with the cover's names: different typefaces.
+
+#251
+Listed: 2026-11-06
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: Sarthak's OK to change a guest theme's design (themes keep their own designs; app changes so far were host-only)
+Found in: App screen review, item 20 (chat 2026-11-01); left out of that batch because guest themes weren't to be touched; logged 2026-11-06
+Issue: In the Sunlit Portrait photo viewer, the area under the photo (Like / Comment / Share / Download, apps/mobile/components/PhotoViewer.tsx viewerActions with viewerActionsDocked in apps/mobile/components/eventStyles/visitorImmersiveStyles.ts) was about 185 pt tall and half empty on the iPhone 17 Pro, so the photo gets less room than it could. Seen before 40a55ee (#237) changed how that row hides behind the comment panel, so check it again first. Fix idea: size that area to the buttons, or let the photo use the space.
+How to reproduce: Open a Sunlit Portrait gallery as a guest on an iPhone and open a photo. Look at the empty space around the Like / Comment / Share / Download row.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
