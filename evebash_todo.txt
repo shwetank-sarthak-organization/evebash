@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 26
+Next todo number: 27
 
 Last updated: 2026-11-06
 
@@ -632,6 +632,30 @@ Brief:        Profile > Storage > Event Storage opens a list of the user's event
               with its size (sub-galleries, previews, streams, album designs and voice notes included).
               The rows add up to the Event Storage total. First 5, then Show all.
 Done in:      993a25b (2026-11-05), on staging. Device test #187.
+
+#26 App login screen fits on one screen, no scrolling
+Listed:       2026-11-06
+Platform:     App
+Priority:     Medium
+Phase:        1
+Status:       Idea
+Effort:       S
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Shrink the app's login screen (apps/mobile/app/login.tsx) so everything shows on one
+              phone screen without scrolling: the EveBash name and tagline, the "Welcome Back" card,
+              email and password, Forgot Password, Sign In, and the Google and Apple buttons. Today
+              it is one long ScrollView. Tighten sizes and gaps (brand block, card padding, input
+              heights, divider) rather than removing anything. Check on a small phone (iPhone SE,
+              667 pt tall; a small Android) and a large one, with and without the keyboard open.
+              To decide: whether "Create Account" must fit too (it adds full name, the password
+              checklist, confirm password and the policy checkbox, so it may still need to scroll),
+              and whether the brand block can shrink or move. Leave guest event themes alone. Add a
+              device test when it ships.
+Done in:      -
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
