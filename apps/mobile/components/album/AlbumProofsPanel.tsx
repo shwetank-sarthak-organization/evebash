@@ -7,6 +7,7 @@ import { Fonts, MidnightColors } from '../../constants/theme';
 import { AlbumButton, albumStyles, AlbumStatusChip, ProgressBar } from './albumUi';
 import { AlbumWorkspace } from './AlbumWorkspace';
 import { RolePicker, rolesComplete } from './RolePicker';
+import { albumNextStep, type AlbumNextStepTone } from '../../../../shared/text/albumNextStep';
 
 const STEPS = [
   ['Upload the pages', 'The photographer adds each page design: one image per page or per spread.'],
@@ -14,6 +15,64 @@ const STEPS = [
   ['Send new versions', 'Fix what was asked and send the changed pages back, round after round.'],
   ['Approved for print', 'Once every page is approved, the album is locked with the date.'],
 ] as const;
+
+const NEXT_STEP: Record<AlbumNextStepTone, { color: string; background: string; icon: keyof typeof MaterialIcons.glyphMap | null }> = {
+  action: { color: '#E8C9A0', background: 'rgba(202,156,104,0.1)', icon: null },
+  urgent: { color: '#FECDD3', background: 'rgba(251,113,133,0.1)', icon: 'chat-bubble-outline' },
+  waiting: { color: MidnightColors.slate400, background: 'rgba(255,255,255,0.04)', icon: 'schedule' },
+  done: { color: '#A7F3D0', background: 'rgba(52,211,153,0.1)', icon: 'check-circle-outline' },
+};
+
+function AlbumCard({ album, onOpen }: { album: AlbumSummary; onOpen: () => void }) {
+  const next = albumNextStep(album);
+  const role = album.myRole === 'viewer' ? null : `You: ${album.myRole === 'photographer' ? 'Photographer' : 'Client'}`;
+  const look = next ? NEXT_STEP[next.tone] : null;
+  return (
+    <Pressable onPress={onOpen} style={[albumStyles.card, styles.card]} accessibilityRole="button" accessibilityLabel={`Open ${album.title}`}>
+      <View style={styles.cover}>
+        {album.coverThumbnailUrl ? (
+          <Image source={{ uri: album.coverThumbnailUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        ) : album.pageCount > 0 ? (
+          <MaterialIcons name="photo-album" size={36} color={MidnightColors.slate700} />
+        ) : (
+          <View style={styles.emptyCover}>
+            {album.myRole === 'photographer'
+              ? <><MaterialIcons name="add" size={22} color={MidnightColors.gold} /><Text style={styles.emptyCoverText}>Add pages</Text></>
+              : <><MaterialIcons name="photo-album" size={26} color={MidnightColors.slate700} /><Text style={[styles.emptyCoverText, { color: MidnightColors.slate400 }]}>No pages yet</Text></>}
+          </View>
+        )}
+        <View style={styles.coverChip}><AlbumStatusChip status={album.status} /></View>
+        {album.pageCount > 0 ? (
+          <View style={styles.pageStrip}>
+            <MaterialIcons name="collections" size={14} color="rgba(255,255,255,0.9)" />
+            <Text style={styles.pageStripText}>{album.pageCount} {album.pageCount === 1 ? 'page' : 'pages'}</Text>
+          </View>
+        ) : null}
+      </View>
+      <View style={{ padding: 14, gap: 10 }}>
+        <Text style={[albumStyles.serifTitle, { fontSize: 21 }]} numberOfLines={1}>{album.title}</Text>
+        <View style={{ gap: 6 }}>
+          {album.pageCount > 0 ? <ProgressBar value={album.approvedCount} total={album.pageCount} /> : null}
+          <View style={styles.metaRow}>
+            <Text style={styles.meta}>
+              {album.pageCount > 0
+                ? <><Text style={{ color: MidnightColors.text }}>{album.approvedCount}</Text> of {album.pageCount} approved</>
+                : 'No pages yet'}
+            </Text>
+            <Text style={styles.meta}>{[album.currentRound > 0 ? `Round ${album.currentRound}` : null, role].filter(Boolean).join(' · ')}</Text>
+          </View>
+        </View>
+        {next && look ? (
+          <View style={[styles.nextStep, { backgroundColor: look.background }]}>
+            {look.icon ? <MaterialIcons name={look.icon} size={16} color={look.color} /> : null}
+            <Text style={[styles.nextStepText, { color: look.color }]} numberOfLines={1}>{next.label}</Text>
+            {next.tone === 'action' || next.tone === 'urgent' ? <MaterialIcons name="arrow-forward" size={16} color={look.color} /> : null}
+          </View>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
 
 /** The event's Album tab: album page proofs (owner and admins only). */
 export function AlbumProofsPanel({ eventId, initialAlbumId }: { eventId: string; initialAlbumId?: string }) {
@@ -100,29 +159,7 @@ export function AlbumProofsPanel({ eventId, initialAlbumId }: { eventId: string;
         </View>
       ) : albums && (
         albums.map((album) => (
-          <Pressable key={album.id} onPress={() => setOpenId(album.id)} style={albumStyles.card} accessibilityRole="button" accessibilityLabel={`Open ${album.title}`}>
-            <View style={styles.cover}>
-              {album.coverThumbnailUrl
-                ? <Image source={{ uri: album.coverThumbnailUrl }} style={StyleSheet.absoluteFill} contentFit="contain" />
-                : <MaterialIcons name="photo-album" size={36} color={MidnightColors.slate700} />}
-            </View>
-            <View style={{ padding: 14, gap: 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-                <Text style={[albumStyles.serifTitle, { flex: 1, fontSize: 19 }]} numberOfLines={1}>{album.title}</Text>
-                <AlbumStatusChip status={album.status} />
-              </View>
-              <ProgressBar value={album.approvedCount} total={album.pageCount} />
-              <Text style={albumStyles.small}>
-                {album.approvedCount}/{album.pageCount} approved
-                {album.currentRound > 0 ? ` · Round ${album.currentRound}` : ''}
-                {album.openRequestCount > 0 ? <Text style={{ color: '#FDA4AF' }}> · {album.openRequestCount} to do</Text> : null}
-                {album.myDraftCount > 0 ? <Text style={{ color: '#E8C9A0' }}> · {album.myDraftCount} unsent comments</Text> : null}
-                {!album.rolesAssigned
-                  ? <Text style={{ color: '#E8C9A0' }}> · Roles not assigned</Text>
-                  : album.myRole !== 'viewer' ? ` · You: ${album.myRole === 'photographer' ? 'Photographer' : 'Client'}` : null}
-              </Text>
-            </View>
-          </Pressable>
+          <AlbumCard key={album.id} album={album} onOpen={() => setOpenId(album.id)} />
         ))
       )}
     </View>
@@ -136,5 +173,15 @@ const styles = StyleSheet.create({
   step: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 14, padding: 12, gap: 3 },
   stepNumber: { color: MidnightColors.gold, fontSize: 10, fontFamily: Fonts.outfit.extraBold },
   stepTitle: { color: MidnightColors.text, fontSize: 14, fontFamily: Fonts.outfit.extraBold },
-  cover: { aspectRatio: 2, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
+  card: { borderColor: 'rgba(220,181,121,0.26)' },
+  cover: { aspectRatio: 1.5, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  emptyCover: { ...StyleSheet.absoluteFillObject, margin: 12, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(202,156,104,0.4)', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  emptyCoverText: { color: '#E8C9A0', fontSize: 13, fontFamily: Fonts.outfit.bold },
+  coverChip: { position: 'absolute', top: 12, right: 12, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.75)' },
+  pageStrip: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: 'rgba(0,0,0,0.7)' },
+  pageStripText: { color: 'rgba(255,255,255,0.9)', fontSize: 12, fontFamily: Fonts.outfit.bold },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', columnGap: 12, rowGap: 2 },
+  meta: { color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.outfit.semiBold },
+  nextStep: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
+  nextStepText: { flex: 1, fontSize: 13, fontFamily: Fonts.outfit.bold },
 });

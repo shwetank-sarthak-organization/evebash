@@ -33,7 +33,7 @@ export function ProgressBar({ value, total, className }: { value: number; total:
     const percent = total > 0 ? Math.round((value / total) * 100) : 0;
     return (
         <div className={cn("h-1.5 w-full overflow-hidden rounded-full bg-white/10", className)} role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
-            <div className="h-full rounded-full bg-emerald-400 transition-[width] duration-500" style={{ width: `${percent}%` }} />
+            <div className={cn("h-full rounded-full transition-[width] duration-500", percent === 100 ? "bg-emerald-400" : "bg-[var(--site-gold)]")} style={{ width: `${percent}%` }} />
         </div>
     );
 }

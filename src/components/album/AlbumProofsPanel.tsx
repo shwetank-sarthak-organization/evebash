@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BookImage, Loader2, MessageSquare, Plus } from "lucide-react";
+import { ArrowRight, BookImage, CheckCircle2, Clock, Files, Loader2, MessageSquare, Plus } from "lucide-react";
 import { albumApi, type AlbumRoles, type AlbumSummary } from "@/lib/albumApi";
 import { cn } from "@/lib/utils";
+import { albumNextStep, type AlbumNextStepTone } from "../../../shared/text/albumNextStep";
 import { AlbumWorkspace } from "./AlbumWorkspace";
 import { albumButton, AlbumStatusChip, ProgressBar } from "./albumUi";
 import { RolePicker, rolesComplete } from "./RolePicker";
@@ -14,6 +15,66 @@ const STEPS = [
     ["Send new versions", "Fix what was asked and send the changed pages back, round after round."],
     ["Approved for print", "Once every page is approved, the album is locked with the date."],
 ] as const;
+
+const NEXT_STEP: Record<AlbumNextStepTone, { className: string; Icon: typeof ArrowRight | null }> = {
+    action: { className: "bg-[var(--site-gold)]/10 text-[var(--site-gold-light)]", Icon: null },
+    urgent: { className: "bg-rose-400/10 text-rose-200", Icon: MessageSquare },
+    waiting: { className: "bg-white/[0.04] text-[var(--site-muted)]", Icon: Clock },
+    done: { className: "bg-emerald-400/10 text-emerald-200", Icon: CheckCircle2 },
+};
+
+function AlbumCard({ album, onOpen }: { album: AlbumSummary; onOpen: () => void }) {
+    const next = albumNextStep(album);
+    const role = album.myRole === "viewer" ? null : `You: ${album.myRole === "photographer" ? "Photographer" : "Client"}`;
+    const NextIcon = next ? NEXT_STEP[next.tone].Icon : null;
+    return (
+        <button
+            type="button"
+            onClick={onOpen}
+            className="group flex h-full flex-col overflow-hidden rounded-[1.2rem] border border-[var(--site-border)] bg-[var(--site-card)] text-left transition-colors hover:border-[var(--site-gold)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)]/60"
+        >
+            <div className="relative aspect-[3/2] w-full overflow-hidden bg-black/60">
+                {album.coverThumbnailUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={album.coverThumbnailUrl} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+                ) : album.pageCount > 0 ? (
+                    <div className="flex h-full items-center justify-center"><BookImage className="h-10 w-10 text-[var(--site-muted)]" /></div>
+                ) : (
+                    <div className="absolute inset-3 flex flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-[var(--site-gold)]/40 text-sm font-bold text-[var(--site-gold-light)]">
+                        {album.myRole === "photographer" ? <><Plus className="h-5 w-5" /> Add pages</> : <><BookImage className="h-6 w-6 text-[var(--site-muted)]" /><span className="text-[var(--site-muted)]">No pages yet</span></>}
+                    </div>
+                )}
+                <span className="absolute right-3 top-3 rounded-full bg-black/75"><AlbumStatusChip status={album.status} /></span>
+                {album.pageCount > 0 && (
+                    <span className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-black/70 px-3 py-2 text-xs font-bold text-white/90">
+                        <Files className="h-3.5 w-3.5" /> {album.pageCount} {album.pageCount === 1 ? "page" : "pages"}
+                    </span>
+                )}
+            </div>
+            <div className="flex flex-1 flex-col gap-3 p-4">
+                <p className="min-w-0 truncate font-serif text-[1.35rem] font-bold text-[var(--site-text)]">{album.title}</p>
+                <div className="space-y-1.5">
+                    {album.pageCount > 0 && <ProgressBar value={album.approvedCount} total={album.pageCount} />}
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[13px] font-semibold text-[var(--site-muted)]">
+                        <span>
+                            {album.pageCount > 0
+                                ? <><span className="text-[var(--site-text)]">{album.approvedCount}</span> of {album.pageCount} approved</>
+                                : "No pages yet"}
+                        </span>
+                        <span>{[album.currentRound > 0 ? `Round ${album.currentRound}` : null, role].filter(Boolean).join(" · ")}</span>
+                    </div>
+                </div>
+                {next && (
+                    <span className={cn("mt-auto flex items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-bold", NEXT_STEP[next.tone].className)}>
+                        {NextIcon && <NextIcon className="h-4 w-4 shrink-0" />}
+                        <span className="min-w-0 truncate">{next.label}</span>
+                        {(next.tone === "action" || next.tone === "urgent") && <ArrowRight className="ml-auto h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />}
+                    </span>
+                )}
+            </div>
+        </button>
+    );
+}
 
 /** The host page's Album tab: album page proofs for one event (owner and admins only). */
 export function AlbumProofsPanel({ eventId }: { eventId: string }) {
@@ -126,41 +187,7 @@ export function AlbumProofsPanel({ eventId }: { eventId: string }) {
                 </div>
             ) : albums && (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {albums.map((album) => (
-                        <button
-                            key={album.id}
-                            type="button"
-                            onClick={() => setOpenId(album.id)}
-                            className="group overflow-hidden rounded-[1.2rem] border border-white/10 bg-[var(--site-bg)] text-left transition-colors hover:border-[var(--site-gold)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)]/60"
-                        >
-                            <div className="flex aspect-[2/1] items-center justify-center bg-black/60">
-                                {album.coverThumbnailUrl ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={album.coverThumbnailUrl} alt="" className="h-full w-full object-contain" />
-                                ) : (
-                                    <BookImage className="h-10 w-10 text-[var(--site-muted)]" />
-                                )}
-                            </div>
-                            <div className="space-y-2.5 p-4">
-                                <div className="flex items-start justify-between gap-2">
-                                    <p className="min-w-0 truncate font-serif text-xl font-bold text-[var(--site-text)]">{album.title}</p>
-                                    <AlbumStatusChip status={album.status} />
-                                </div>
-                                <ProgressBar value={album.approvedCount} total={album.pageCount} />
-                                <p className="flex flex-wrap items-center gap-x-2 text-xs font-bold text-[var(--site-muted)]">
-                                    <span>{album.approvedCount}/{album.pageCount} approved</span>
-                                    {album.currentRound > 0 && <span>· Round {album.currentRound}</span>}
-                                    {album.openRequestCount > 0 && (
-                                        <span className={cn("inline-flex items-center gap-1 text-rose-300")}>· <MessageSquare className="h-3 w-3" />{album.openRequestCount} to do</span>
-                                    )}
-                                    {album.myDraftCount > 0 && <span className="text-[var(--site-gold-light)]">· {album.myDraftCount} unsent comments</span>}
-                                    {!album.rolesAssigned
-                                        ? <span className="text-[var(--site-gold-light)]">· Roles not assigned</span>
-                                        : album.myRole !== "viewer" && <span className="text-[var(--site-subtle)]">· You: {album.myRole === "photographer" ? "Photographer" : "Client"}</span>}
-                                </p>
-                            </div>
-                        </button>
-                    ))}
+                    {albums.map((album) => <AlbumCard key={album.id} album={album} onOpen={() => setOpenId(album.id)} />)}
                 </div>
             )}
         </div>

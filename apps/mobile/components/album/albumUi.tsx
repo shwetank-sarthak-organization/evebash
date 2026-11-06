@@ -38,7 +38,7 @@ export function ProgressBar({ value, total }: { value: number; total: number }) 
   const percent = total > 0 ? (value / total) * 100 : 0;
   return (
     <View style={styles.track} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: total, now: value }}>
-      <View style={[styles.fill, { width: `${percent}%` }]} />
+      <View style={[styles.fill, { width: `${percent}%`, backgroundColor: percent === 100 ? '#34D399' : MidnightColors.gold }]} />
     </View>
   );
 }
