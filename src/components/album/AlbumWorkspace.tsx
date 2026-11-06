@@ -2,23 +2,89 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    ArrowLeft, Camera, Check, CheckCircle2, GripVertical, Heart, Loader2, MessageSquare, MoreHorizontal, Pencil, RotateCcw, Send, Trash2, Upload, Users, X,
+    ArrowLeft, ArrowRight, ArrowUpDown, BookOpen, Camera, Check, CheckCircle2, Clock, GripVertical, Heart, History, ImageUp, Loader2, MessageSquare,
+    MoreHorizontal, Pencil, Play, Plus, RectangleVertical, RotateCcw, Send, Trash2, Upload, Users, X,
 } from "lucide-react";
 import {
     ALBUM_MAX_PAGE_BYTES, ALBUM_PAGE_TYPES, albumApi, albumCommentKindLabel, albumPageLabels, sortByFileName,
-    type AlbumDetail, type AlbumPage,
+    type AlbumDetail, type AlbumPage, type AlbumPageLayout, type AlbumPageVersion,
 } from "@/lib/albumApi";
 import { alertDialog, confirmDialog } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
 import { PageReviewer, type AlbumMode } from "./PageReviewer";
-import { albumButton, AlbumStatusChip, PageStatusChip, pinNumbers, ProgressBar } from "./albumUi";
+import { albumButton, pinNumbers, ProgressBar } from "./albumUi";
 import { RolesDialog } from "./RolePicker";
+import type { AlbumNextStepTone } from "../../../shared/text/albumNextStep";
+import {
+    ALBUM_PAGE_FILTERS, ALBUM_PAGE_STATE, ALBUM_STEPS, albumPageState, albumStep, albumWorkspaceStatus, formatAlbumDay, type AlbumPageState,
+} from "../../../shared/text/albumWorkspace";
 
 type UploadItem = { key: string; name: string; progress: number; state: "waiting" | "uploading" | "processing" | "done" | "failed"; error?: string };
 
 const PAGE_EXTENSIONS = /\.(jpe?g|png|webp|tiff?)$/i;
 const REFRESH_MS = 30_000;
 const UPLOAD_CONCURRENCY = 2;
+
+/** Page tiles are about this tall; their width follows the page's shape. */
+const TILE_HEIGHT_REM = 13;
+
+const TONE_TEXT: Record<AlbumNextStepTone, string> = {
+    action: "text-[var(--site-gold-light-text)]",
+    urgent: "text-rose-300 light:text-rose-700",
+    waiting: "text-[var(--site-muted)]",
+    done: "text-emerald-300 light:text-emerald-700",
+};
+const TONE_DOT: Record<AlbumNextStepTone, string> = {
+    action: "bg-[var(--site-gold)]",
+    urgent: "bg-rose-400",
+    waiting: "bg-[var(--site-tint)]/30",
+    done: "bg-emerald-400",
+};
+const TONE_ICON: Record<AlbumNextStepTone, typeof Clock> = { action: ArrowRight, urgent: MessageSquare, waiting: Clock, done: CheckCircle2 };
+
+const menuItem = "flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-[var(--site-text)] hover:bg-[var(--site-tint)]/5";
+
+/** Width over height of the page as uploaded; a guess from its layout when the size is unknown. */
+function pageRatio(version: AlbumPageVersion | undefined, layout: AlbumPageLayout) {
+    const ratio = version?.width && version.height ? version.width / version.height : layout === "spread" ? 2 : 0.75;
+    return Math.min(Math.max(ratio, 0.5), 3);
+}
+
+function StepTracker({ step, round }: { step: number; round: number }) {
+    const currentLabel = ALBUM_STEPS[step];
+    return (
+        <div>
+            <ol className="flex items-center gap-2" aria-label="Album progress">
+                {ALBUM_STEPS.map((label, i) => {
+                    const done = i < step;
+                    const current = i === step;
+                    return (
+                        <li key={label} className={cn("flex min-w-0 items-center gap-2", i < ALBUM_STEPS.length - 1 && "flex-1")} aria-current={current ? "step" : undefined}>
+                            <span className={cn(
+                                "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-black",
+                                done ? "border-[var(--site-gold)] bg-[var(--site-gold)] text-[var(--site-on-gold)]"
+                                    : current ? "border-[var(--site-gold)] text-[var(--site-gold-light-text)]" : "border-[var(--site-tint)]/15 text-[var(--site-muted)]"
+                            )}>
+                                {done ? <Check className="h-3.5 w-3.5" /> : i + 1}
+                            </span>
+                            <span className={cn(
+                                "whitespace-nowrap text-xs font-bold",
+                                "hidden md:inline", current ? "text-[var(--site-gold-light-text)]" : done ? "text-[var(--site-text)]" : "text-[var(--site-muted)]"
+                            )}>
+                                {label}{i === 2 && round > 0 ? ` · Round ${round}` : ""}
+                            </span>
+                            {i < ALBUM_STEPS.length - 1 && <span className="h-px min-w-3 flex-1 bg-[var(--site-tint)]/15" aria-hidden />}
+                        </li>
+                    );
+                })}
+            </ol>
+            {/* Phones show the dots only, and the current step in words under them */}
+            <p className="mt-2 text-xs font-bold text-[var(--site-gold-light-text)] md:hidden">
+                {currentLabel ? `Step ${step + 1} of ${ALBUM_STEPS.length}: ${currentLabel}${step === 2 && round > 0 ? ` · Round ${round}` : ""}` : "All steps done"}
+            </p>
+        </div>
+    );
+}
 
 function checkFile(file: File) {
     if (!ALBUM_PAGE_TYPES.includes(file.type) && !PAGE_EXTENSIONS.test(file.name)) return "Not a JPEG, PNG, WebP or TIFF image";
@@ -37,6 +103,12 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
     const [editingTitle, setEditingTitle] = useState<string | null>(null);
     const [menuOpen, setMenuOpen] = useState(false);
     const [rolesOpen, setRolesOpen] = useState(false);
+    const [filter, setFilter] = useState<"all" | AlbumPageState>("all");
+    const [reorder, setReorder] = useState(false);
+    const [pageMenu, setPageMenu] = useState<string | null>(null);
+    const [replaceId, setReplaceId] = useState<string | null>(null);
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const replaceRef = useRef<HTMLInputElement>(null);
     // Each person sees their own side: the photographer's, the client's, or (host and other admins) view only
     const mode: AlbumMode | null = album ? album.viewer.role : null;
     const fileRef = useRef<HTMLInputElement>(null);
@@ -68,6 +140,16 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
         window.addEventListener("beforeunload", warn);
         return () => window.removeEventListener("beforeunload", warn);
     }, [uploading]);
+
+    // A page's ⋯ menu closes on Escape or a click anywhere outside it
+    useEffect(() => {
+        if (!pageMenu) return;
+        const onPointer = (e: PointerEvent) => { if (!(e.target as Element).closest?.("[data-page-menu]")) setPageMenu(null); };
+        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPageMenu(null); };
+        document.addEventListener("pointerdown", onPointer);
+        document.addEventListener("keydown", onKey);
+        return () => { document.removeEventListener("pointerdown", onPointer); document.removeEventListener("keydown", onKey); };
+    }, [pageMenu]);
 
     const labels = useMemo(() => {
         const map = new Map<string, string>();
@@ -176,6 +258,32 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
             .map((comment) => ({ page, comment, number: numbers.get(comment.id) }));
     });
 
+    const pageState = (page: AlbumPage) => albumPageState(page, mode, album.viewer.id);
+    const stateCounts: Partial<Record<AlbumPageState, number>> = {};
+    for (const page of visiblePages) stateCounts[pageState(page)] = (stateCounts[pageState(page)] ?? 0) + 1;
+    const filters = ALBUM_PAGE_FILTERS[mode];
+    // A tab that empties (its last page was approved or sent) falls back to All
+    const activeFilter = filter !== "all" && !stateCounts[filter] ? "all" : filter;
+    const shownPages = activeFilter === "all" ? visiblePages : visiblePages.filter((p) => pageState(p) === activeFilter);
+    const toCheck = stateCounts.check ?? 0;
+    const status = albumWorkspaceStatus(album, mode, toCheck);
+    const StatusIcon = TONE_ICON[status.tone];
+    const activity = [
+        ...album.rounds.map((r) => ({
+            at: r.sentAt,
+            text: `Round ${r.number}: ${r.sentByName ?? "the photographer"} sent ${r.pageCount === 1 ? "1 page" : `${r.pageCount} pages`}${r.updatedPageCount ? ` (${r.updatedPageCount} updated)` : ""}`,
+            done: false,
+        })),
+        ...album.pages.filter((p) => p.approvedAt).map((p) => ({ at: p.approvedAt!, text: `${p.approvedByName ?? "The client"} approved ${labels.get(p.id)}`, done: false })),
+        ...(album.approvedAt ? [{ at: album.approvedAt, text: `${album.approvedByName ?? "The client"} approved the album for print`, done: true }] : []),
+    ].sort((a, b) => b.at.localeCompare(a.at));
+
+    const quickApprove = (page: AlbumPage) => run(`approve-${page.id}`, async () => {
+        const open = page.comments.filter((c) => !c.parentId && !c.isDraft && c.status === "open").length;
+        if (open && !await confirmDialog({ title: `Approve ${labels.get(page.id)}?`, message: `This also marks ${open === 1 ? "the open request" : `the ${open} open requests`} on it as done.`, confirmLabel: "Approve" })) return;
+        setAlbum((await albumApi.approvePage(album.id, page.id, true)).album);
+    });
+
     const sendForReview = () => run("send", async () => {
         const n = album.unsentCount;
         if (!await confirmDialog({
@@ -238,19 +346,18 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                     ) : (
                         <h4 className="truncate font-serif text-2xl font-bold text-[var(--site-text)] sm:text-3xl">{album.title}</h4>
                     )}
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold text-[var(--site-muted)]">
-                        <AlbumStatusChip status={album.status} />
-                        <span>{album.pageCount} {album.pageCount === 1 ? "page" : "pages"}</span>
-                        {album.currentRound > 0 && <span>· Round {album.currentRound}</span>}
-                        {locked && album.approvedAt && <span>· Approved by {album.approvedByName} on {new Date(album.approvedAt).toLocaleDateString()}</span>}
-                    </div>
                     {album.rolesAssigned && (
-                        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[var(--site-muted)]">
-                            <span><Camera className="mr-1 inline h-3.5 w-3.5 text-[var(--site-gold-text)]" />Photographer: <span className="font-bold text-[var(--site-text)]">{album.roles.photographer?.name}</span></span>
-                            <span><Heart className="mr-1 inline h-3.5 w-3.5 text-[var(--site-gold-text)]" />Client: <span className="font-bold text-[var(--site-text)]">{album.roles.clients.map((p) => p.name).join(", ")}</span></span>
-                            <span className="rounded-full bg-[var(--site-tint)]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--site-subtle)]">
-                                {mode === "photographer" ? "You: Photographer" : mode === "client" ? "You: Client" : "View only"}
+                        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-[var(--site-muted)]">
+                            <span className="inline-flex items-center gap-1.5" title="Photographer">
+                                <Camera className="h-4 w-4 text-[var(--site-gold-text)]" aria-label="Photographer" />
+                                <span className="text-[var(--site-text)]">{album.roles.photographer?.name}</span>{mode === "photographer" && " (you)"}
                             </span>
+                            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                            <span className="inline-flex items-center gap-1.5" title="Client">
+                                <Heart className="h-4 w-4 text-[var(--site-gold-text)]" aria-label="Client" />
+                                <span className="text-[var(--site-text)]">{album.roles.clients.map((p) => p.name).join(", ")}</span>{mode === "client" && " (you)"}
+                            </span>
+                            {mode === "viewer" && <span className="rounded-full bg-[var(--site-tint)]/10 px-2 py-0.5 text-[11px] font-bold text-[var(--site-subtle)]">View only</span>}
                         </p>
                     )}
                 </div>
@@ -300,60 +407,69 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                 </div>
             )}
 
-            {/* Progress and the main action for this side */}
-            <div className="flex flex-col gap-4 rounded-[1.2rem] border border-[var(--site-gold)]/25 bg-[linear-gradient(135deg,rgba(202,156,104,0.10),rgba(27,33,31,0.5)_60%)] p-4 sm:flex-row sm:items-center sm:p-5">
+            <StepTracker step={albumStep(album)} round={album.currentRound} />
+
+            {/* What now: where the album stands for this side, and at most one main action */}
+            <input
+                ref={fileRef}
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/webp,image/tiff"
+                className="hidden"
+                onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ""; void uploadPages(files); }}
+            />
+            <div className="flex flex-col gap-4 rounded-[1.2rem] border border-[var(--site-border)] bg-[var(--site-card)] p-4 sm:flex-row sm:items-center sm:p-5">
                 <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black text-[var(--site-text)]">
-                        {album.approvedCount} of {album.pageCount} pages approved
-                        {album.changesCount > 0 && <span className="text-rose-300 light:text-rose-700"> · {album.changesCount} need changes</span>}
+                    <p className="flex items-center gap-2 text-base font-black text-[var(--site-text)]">
+                        <StatusIcon className={cn("h-5 w-5 shrink-0", TONE_TEXT[status.tone])} /> {status.title}
                     </p>
-                    <ProgressBar value={album.approvedCount} total={album.pageCount} className="mt-2" />
-                    <p className="mt-2 text-xs font-semibold text-[var(--site-muted)]">
-                        {mode === "photographer"
-                            ? album.unsentCount
-                                ? `${album.unsentCount} ${album.unsentCount === 1 ? "page isn't" : "pages aren't"} sent yet.`
-                                : album.openRequestCount ? `${album.openRequestCount} ${album.openRequestCount === 1 ? "change" : "changes"} to do.` : album.currentRound ? "Waiting for the client." : "Upload the album pages to start."
-                            : mode === "viewer"
-                                ? "View only: you're not the photographer or the client in this album."
-                                : album.myDraftCount
-                                ? `${album.myDraftCount} ${album.myDraftCount === 1 ? "comment" : "comments"} not sent yet.`
-                                : album.currentRound ? "Open a page to comment on it, or approve it." : "The photographer hasn't sent any pages yet."}
-                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[var(--site-muted)]">{status.detail}</p>
+                    {visiblePages.length > 0 && (
+                        <>
+                            <ProgressBar value={album.approvedCount} total={visiblePages.length} className="mt-3" />
+                            <p className="mt-1.5 text-xs font-semibold text-[var(--site-muted)]">
+                                <span className="text-[var(--site-text)]">{album.approvedCount}</span> of {visiblePages.length} pages approved
+                                {filters.flatMap((f) => (f.id !== "all" && f.id !== "approved" && stateCounts[f.id] ? [` · ${stateCounts[f.id]} ${ALBUM_PAGE_STATE[f.id].counted}`] : [])).join("")}
+                            </p>
+                        </>
+                    )}
                 </div>
-                {!locked && (mode === "photographer" ? (
+                {!locked && album.rolesAssigned && (mode === "photographer" ? (
                     <div className="flex flex-col gap-2 sm:flex-row">
-                        <input
-                            ref={fileRef}
-                            type="file"
-                            multiple
-                            accept="image/jpeg,image/png,image/webp,image/tiff"
-                            className="hidden"
-                            onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ""; void uploadPages(files); }}
-                        />
+                        {album.openRequestCount > 0 && activeFilter !== "fix" && (
+                            <button type="button" className={albumButton.secondary} onClick={() => { setReorder(false); setFilter("fix"); }}>
+                                <MessageSquare className="h-4 w-4" /> See changes
+                            </button>
+                        )}
                         <button type="button" className={albumButton.secondary} onClick={() => fileRef.current?.click()}>
-                            <Upload className="h-4 w-4" /> Upload pages
+                            <Plus className="h-4 w-4" /> Add pages
                         </button>
-                        <button type="button" className={albumButton.primary} disabled={!album.unsentCount || busy === "send" || uploading} onClick={sendForReview}>
-                            {busy === "send" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                            Send for review{album.unsentCount ? ` (${album.unsentCount})` : ""}
-                        </button>
+                        {album.unsentCount > 0 && (
+                            <button type="button" className={albumButton.primary} disabled={busy === "send" || uploading} onClick={sendForReview}>
+                                {busy === "send" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                Send {album.unsentCount === 1 ? "1 page" : `${album.unsentCount} pages`}
+                            </button>
+                        )}
                     </div>
                 ) : mode === "client" && album.currentRound > 0 && (
                     <div className="flex flex-col gap-2 sm:flex-row">
-                        {allApproved && (
+                        {allApproved ? (
                             <button type="button" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-emerald-400 disabled:opacity-50" disabled={busy === "approve"} onClick={approveAlbum}>
                                 <CheckCircle2 className="h-4 w-4" /> Approve album
                             </button>
+                        ) : toCheck > 0 && (
+                            <button type="button" className={album.myDraftCount ? albumButton.secondary : albumButton.primary} onClick={() => setViewing(visiblePages.findIndex((p) => pageState(p) === "check"))}>
+                                <Play className="h-4 w-4" /> {album.approvedCount || album.changesCount ? "Continue review" : "Start review"}
+                            </button>
                         )}
-                        <button type="button" className={albumButton.primary} disabled={busy === "feedback"} onClick={sendFeedback}>
-                            {busy === "feedback" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                            Send feedback{album.myDraftCount ? ` (${album.myDraftCount})` : ""}
-                        </button>
+                        {!allApproved && (
+                            <button type="button" className={album.myDraftCount ? albumButton.primary : albumButton.secondary} disabled={busy === "feedback"} onClick={sendFeedback}>
+                                {busy === "feedback" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                {album.myDraftCount ? `Send ${album.myDraftCount === 1 ? "1 note" : `${album.myDraftCount} notes`}` : "Send feedback"}
+                            </button>
+                        )}
                     </div>
                 ))}
-                {locked && (
-                    <span className="inline-flex items-center gap-2 text-sm font-black text-emerald-200 light:text-emerald-800"><CheckCircle2 className="h-5 w-5" /> Approved for print</span>
-                )}
             </div>
 
             {/* Uploads */}
@@ -385,10 +501,38 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                 </div>
             )}
 
-            {/* Photographer: what the client asked for */}
-            {mode === "photographer" && openRequests.length > 0 && (
+            {visiblePages.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Show pages">
+                        {filters.filter((f) => f.id === "all" || stateCounts[f.id]).map((f) => (
+                            <button
+                                key={f.id}
+                                type="button"
+                                role="tab"
+                                aria-selected={activeFilter === f.id}
+                                onClick={() => { setReorder(false); setFilter(f.id); }}
+                                className={cn(
+                                    "rounded-full border px-3 py-1.5 text-xs font-bold transition-colors",
+                                    activeFilter === f.id ? "border-[var(--site-text)] bg-[var(--site-text)] text-[var(--site-bg)]" : "border-[var(--site-tint)]/15 text-[var(--site-muted)] hover:border-[var(--site-tint)]/30 hover:text-[var(--site-text)]"
+                                )}
+                            >
+                                {f.label} <span className="opacity-70">{f.id === "all" ? visiblePages.length : stateCounts[f.id]}</span>
+                            </button>
+                        ))}
+                    </div>
+                    {mode === "photographer" && !locked && visiblePages.length > 1 && (
+                        <button type="button" className={albumButton.ghost} onClick={() => { setFilter("all"); setReorder(!reorder); }}>
+                            {reorder ? <><Check className="h-4 w-4" /> Done</> : <><ArrowUpDown className="h-4 w-4" /> Reorder</>}
+                        </button>
+                    )}
+                </div>
+            )}
+            {reorder && <p className="-mt-2 text-sm font-semibold text-[var(--site-muted)]">Drag the pages into the order they appear in the album.</p>}
+
+            {/* Photographer, To fix tab: what the client asked for */}
+            {mode === "photographer" && activeFilter === "fix" && openRequests.length > 0 && (
                 <div className="rounded-[1.2rem] border border-rose-400/25 bg-rose-500/[0.04] p-4 sm:p-5">
-                    <p className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-rose-200 light:text-rose-800">Changes to do · {openRequests.length}</p>
+                    <p className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-rose-200 light:text-rose-800">Changes to make · {openRequests.length}</p>
                     <div className="space-y-2">
                         {openRequests.map(({ page, comment, number }) => (
                             <div key={comment.id} className="flex items-start gap-3 rounded-2xl border border-[var(--site-tint)]/10 bg-black/30 light:bg-[var(--site-tint)]/[0.04] p-3">
@@ -424,7 +568,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                 </div>
             )}
 
-            {/* Pages */}
+            {/* Pages, laid out like the album: each tile keeps its page's shape, so spreads are wide */}
             {visiblePages.length === 0 ? (
                 <div className={cn("flex flex-col items-center gap-3 rounded-[1.2rem] border-2 border-dashed p-10 text-center", dropActive ? "border-[var(--site-gold)] bg-[var(--site-gold)]/5" : "border-[var(--site-tint)]/10")}>
                     <Upload className="h-8 w-8 text-[var(--site-gold-text)]" />
@@ -434,7 +578,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                             <p className="max-w-md text-sm font-semibold text-[var(--site-muted)]">
                                 Drop the page designs here, one image per page or per spread. They&apos;re numbered by file name (01.jpg, 02.jpg…). We keep a sharp preview only; your original files aren&apos;t stored.
                             </p>
-                            <button type="button" className={albumButton.primary} onClick={() => fileRef.current?.click()} disabled={locked}><Upload className="h-4 w-4" /> Choose files</button>
+                            <button type="button" className={albumButton.primary} onClick={() => fileRef.current?.click()} disabled={locked || !album.rolesAssigned}><Upload className="h-4 w-4" /> Choose files</button>
                         </>
                     ) : (
                         <p className="max-w-md text-sm font-semibold text-[var(--site-muted)]">
@@ -443,94 +587,177 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                     )}
                 </div>
             ) : (
-                <div className={cn("grid grid-cols-1 gap-4 rounded-[1.2rem] sm:grid-cols-2 xl:grid-cols-3", dropActive && "outline-dashed outline-2 outline-offset-4 outline-[var(--site-gold)]")}>
-                    {visiblePages.map((page, index) => {
+                <div className={cn("flex flex-wrap gap-3 rounded-[1.2rem]", dropActive && "outline-dashed outline-2 outline-offset-4 outline-[var(--site-gold)]")}>
+                    <input
+                        ref={replaceRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/tiff"
+                        className="hidden"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            const page = album.pages.find((p) => p.id === replaceId);
+                            e.target.value = "";
+                            if (file && page) void run(`replace-${page.id}`, () => uploadVersion(page, file));
+                        }}
+                    />
+                    {shownPages.map((page) => {
+                        const index = visiblePages.indexOf(page);
+                        const label = labels.get(page.id);
+                        const state = pageState(page);
                         const shown = mode !== "photographer" ? page.versions.find((v) => v.version === page.sentVersion) : page.versions.at(-1);
+                        const ratio = pageRatio(shown, page.layout);
                         const requests = page.comments.filter((c) => !c.parentId && c.status === "open" && (!c.isDraft || c.authorId === album.viewer.id)).length;
                         const updated = mode !== "photographer" && (page.sentVersion ?? 0) > 1 && page.versions.find((v) => v.version === page.sentVersion)?.round === album.currentRound;
+                        const canEdit = mode === "photographer" && !locked;
                         return (
                             <div
                                 key={page.id}
-                                draggable={mode === "photographer" && !locked}
+                                style={{ flexGrow: ratio, flexBasis: `${ratio * TILE_HEIGHT_REM}rem` }}
+                                draggable={canEdit && reorder}
                                 onDragStart={(e) => { setDragId(page.id); e.dataTransfer.effectAllowed = "move"; }}
                                 onDragOver={(e) => { if (dragId) e.preventDefault(); }}
                                 onDrop={(e) => { if (dragId) { e.preventDefault(); e.stopPropagation(); void movePage(dragId, page.id); setDragId(null); } }}
                                 onDragEnd={() => setDragId(null)}
                                 className={cn(
-                                    "group overflow-hidden rounded-[1.2rem] border bg-[var(--site-bg)] transition-colors",
-                                    dragId === page.id ? "border-[var(--site-gold)] opacity-50" : "border-[var(--site-tint)]/10 hover:border-[var(--site-tint)]/25"
+                                    "group relative min-w-0 overflow-hidden rounded-2xl border bg-[var(--site-card)] transition-colors",
+                                    dragId === page.id ? "border-[var(--site-gold)] opacity-50" : reorder ? "cursor-grab border-dashed border-[var(--site-gold)]/50" : "border-[var(--site-tint)]/10 hover:border-[var(--site-tint)]/25"
                                 )}
                             >
-                                <button type="button" onClick={() => setViewing(index)} className="relative block aspect-[2/1] w-full bg-black/60" aria-label={`Open ${labels.get(page.id)}`}>
+                                <button
+                                    type="button"
+                                    onClick={() => !reorder && setViewing(index)}
+                                    className="relative block w-full bg-black/60"
+                                    style={{ aspectRatio: ratio }}
+                                    aria-label={reorder ? label : `Open ${label}`}
+                                    tabIndex={reorder ? -1 : undefined}
+                                >
                                     {shown && (
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={shown.thumbnailUrl} alt="" loading="lazy" className="h-full w-full object-contain" />
+                                        <img src={shown.thumbnailUrl} alt="" loading="lazy" draggable={false} className="h-full w-full object-cover" />
                                     )}
-                                    {updated && <span className="absolute left-2 top-2 rounded-full bg-[var(--site-gold)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--site-on-gold)]">Updated</span>}
-                                    {requests > 0 && (
-                                        <span className="site-noir absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/75 px-2 py-0.5 text-[11px] font-black text-white">
-                                            <MessageSquare className="h-3 w-3" /> {requests}
-                                        </span>
-                                    )}
+                                    {page.layout === "spread" && <span className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-black/40 shadow-[1px_0_0_rgba(255,255,255,0.12)]" aria-hidden />}
+                                    <span className="absolute left-2 top-2 flex gap-1.5">
+                                        {updated && <span className="rounded-full bg-[var(--site-gold)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--site-on-gold)]">Updated</span>}
+                                        {requests > 0 && (
+                                            <span className="site-noir inline-flex items-center gap-1 rounded-full bg-black/75 px-2 py-0.5 text-[11px] font-bold text-white">
+                                                <MessageSquare className="h-3 w-3" /> {requests}
+                                            </span>
+                                        )}
+                                    </span>
+                                    {reorder && <GripVertical className="site-noir absolute inset-0 m-auto h-7 w-7 rounded-lg bg-black/60 p-1 text-white" aria-hidden />}
                                 </button>
-                                <div className="flex items-center gap-2 p-3">
-                                    {mode === "photographer" && !locked && <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-[var(--site-muted)]" aria-hidden />}
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm font-black text-[var(--site-text)]">{labels.get(page.id)}</p>
-                                        <p className="truncate text-[11px] font-semibold text-[var(--site-muted)]">
-                                            {page.latestVersion > 1 ? `v${mode !== "photographer" ? page.sentVersion : page.latestVersion}` : "v1"}
-                                            {mode === "photographer" && page.latestVersion > (page.sentVersion ?? 0) ? " · not sent" : ""}
-                                            {page.versions.at(-1)?.fileName ? ` · ${page.versions.at(-1)!.fileName}` : ""}
-                                        </p>
-                                    </div>
-                                    <PageStatusChip status={page.status} />
-                                </div>
-                                {mode === "photographer" && !locked && (
-                                    <div className="flex items-center justify-between gap-1 border-t border-[var(--site-tint)]/5 px-2 py-1.5">
-                                        <div className="flex rounded-lg border border-[var(--site-tint)]/10 p-0.5" role="group" aria-label="Layout">
-                                            {(["spread", "single"] as const).map((layout) => (
-                                                <button
-                                                    key={layout}
-                                                    type="button"
-                                                    aria-pressed={page.layout === layout}
-                                                    onClick={() => page.layout !== layout && run(`layout-${page.id}`, async () => setAlbum((await albumApi.setLayout(album.id, page.id, layout)).album))}
-                                                    className={cn("rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wider", page.layout === layout ? "bg-[var(--site-tint)]/15 text-[var(--site-text)]" : "text-[var(--site-muted)] hover:text-[var(--site-subtle)]")}
-                                                >{layout === "spread" ? "Spread" : "Single"}</button>
-                                            ))}
-                                        </div>
+                                {canEdit && !reorder && (
+                                    <div className="absolute right-2 top-2" data-page-menu>
                                         <button
                                             type="button"
-                                            className={cn(albumButton.ghost, "hover:text-rose-300 light:hover:text-rose-700")}
-                                            aria-label={`Delete ${labels.get(page.id)}`}
-                                            disabled={busy === `delete-${page.id}`}
-                                            onClick={async () => {
-                                                if (!await confirmDialog({ title: `Delete ${labels.get(page.id)}?`, message: "All its versions and comments are deleted too.", confirmLabel: "Delete page", tone: "danger" })) return;
-                                                await run(`delete-${page.id}`, async () => setAlbum((await albumApi.removePage(album.id, page.id)).album));
-                                            }}
+                                            className="site-noir flex h-8 w-8 items-center justify-center rounded-lg bg-black/65 text-white hover:bg-black/85"
+                                            aria-label={`Options for ${label}`}
+                                            aria-expanded={pageMenu === page.id}
+                                            onClick={() => setPageMenu(pageMenu === page.id ? null : page.id)}
                                         >
-                                            <Trash2 className="h-3.5 w-3.5" />
+                                            {busy?.endsWith(page.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+                                        </button>
+                                        {pageMenu === page.id && (
+                                            <div className="absolute right-0 top-full z-30 mt-1 w-52 overflow-hidden rounded-2xl border border-[var(--site-tint)]/10 bg-[var(--site-bg)] py-1 shadow-2xl">
+                                                <button
+                                                    type="button"
+                                                    className={menuItem}
+                                                    onClick={() => {
+                                                        setPageMenu(null);
+                                                        const layout = page.layout === "spread" ? "single" : "spread";
+                                                        void run(`layout-${page.id}`, async () => setAlbum((await albumApi.setLayout(album.id, page.id, layout)).album));
+                                                    }}
+                                                >
+                                                    {page.layout === "spread" ? <><RectangleVertical className="h-4 w-4" /> Make it a single page</> : <><BookOpen className="h-4 w-4" /> Make it a spread</>}
+                                                </button>
+                                                <button type="button" className={menuItem} onClick={() => { setPageMenu(null); setReplaceId(page.id); replaceRef.current?.click(); }}>
+                                                    <ImageUp className="h-4 w-4" /> Upload a new version
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={cn(menuItem, "text-rose-300 light:text-rose-700 hover:bg-rose-500/10")}
+                                                    onClick={async () => {
+                                                        setPageMenu(null);
+                                                        if (!await confirmDialog({ title: `Delete ${label}?`, message: "All its versions and comments are deleted too.", confirmLabel: "Delete page", tone: "danger" })) return;
+                                                        await run(`delete-${page.id}`, async () => setAlbum((await albumApi.removePage(album.id, page.id)).album));
+                                                    }}
+                                                >
+                                                    <Trash2 className="h-4 w-4" /> Delete page
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+                                    <p className="min-w-0 truncate font-serif text-base font-bold text-[var(--site-text)]">
+                                        {label}{page.layout === "spread" && <span className="font-sans text-xs font-semibold text-[var(--site-muted)]"> · spread</span>}
+                                    </p>
+                                    <span className={cn("inline-flex shrink-0 items-center gap-1.5 text-xs font-bold", TONE_TEXT[ALBUM_PAGE_STATE[state].tone])}>
+                                        <span className={cn("h-2 w-2 rounded-full", TONE_DOT[ALBUM_PAGE_STATE[state].tone])} aria-hidden />
+                                        {ALBUM_PAGE_STATE[state].label}
+                                    </span>
+                                </div>
+                                {mode === "client" && !locked && state !== "approved" && (
+                                    <div className="flex flex-wrap gap-2 border-t border-[var(--site-tint)]/5 p-2">
+                                        <button
+                                            type="button"
+                                            disabled={busy === `approve-${page.id}`}
+                                            onClick={() => quickApprove(page)}
+                                            className="inline-flex min-w-[7.5rem] flex-1 whitespace-nowrap items-center justify-center gap-1.5 rounded-xl bg-emerald-400/10 px-2 py-2 text-xs font-bold text-emerald-200 light:text-emerald-800 hover:bg-emerald-400/20 disabled:opacity-50"
+                                        >
+                                            {busy === `approve-${page.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Approve
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setViewing(index)}
+                                            className="inline-flex min-w-[7.5rem] flex-1 whitespace-nowrap items-center justify-center gap-1.5 rounded-xl bg-[var(--site-tint)]/[0.06] px-2 py-2 text-xs font-bold text-[var(--site-subtle)] hover:bg-[var(--site-tint)]/10"
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" /> Ask for a change
                                         </button>
                                     </div>
                                 )}
                             </div>
                         );
                     })}
+                    {mode === "photographer" && !locked && !reorder && activeFilter === "all" && album.rolesAssigned && (
+                        <button
+                            type="button"
+                            onClick={() => fileRef.current?.click()}
+                            style={{ flexGrow: 0.75, flexBasis: `${0.75 * TILE_HEIGHT_REM}rem` }}
+                            className="flex min-h-[8rem] flex-col items-center justify-center gap-1.5 rounded-2xl border-[1.5px] border-dashed border-[var(--site-gold)]/40 text-sm font-bold text-[var(--site-gold-light-text)] hover:border-[var(--site-gold)] hover:bg-[var(--site-gold)]/5"
+                        >
+                            <Plus className="h-5 w-5" /> Add pages
+                        </button>
+                    )}
+                    {/* Takes the leftover space in the last row, so its pages keep their size */}
+                    <div className="grow-[999]" aria-hidden />
                 </div>
             )}
 
-            {album.rounds.length > 0 && (
-                <details className="rounded-[1.2rem] border border-[var(--site-tint)]/10 p-4">
-                    <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.14em] text-[var(--site-muted)]">Review history</summary>
-                    <ul className="mt-3 space-y-1.5 text-xs font-semibold text-[var(--site-muted)]">
-                        {[...album.rounds].reverse().map((r) => (
-                            <li key={r.number}>
-                                Round {r.number}: {r.sentByName ?? "Someone"} sent {r.pageCount} {r.pageCount === 1 ? "page" : "pages"}
-                                {r.updatedPageCount ? ` (${r.updatedPageCount} updated)` : ""} on {new Date(r.sentAt).toLocaleString()}
-                            </li>
-                        ))}
-                        {album.approvedAt && <li className="text-emerald-300 light:text-emerald-700">Approved for print by {album.approvedByName} on {new Date(album.approvedAt).toLocaleString()}</li>}
-                    </ul>
-                </details>
+            {activity.length > 0 && (
+                <div className="rounded-[1.2rem] border border-[var(--site-tint)]/10 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                        <History className="h-4 w-4 shrink-0 text-[var(--site-muted)]" />
+                        <p className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--site-muted)]">
+                            <span className="font-bold text-[var(--site-text)]">Activity</span>
+                            {!historyOpen && <> · {activity[0].text} · {formatAlbumDay(activity[0].at)}</>}
+                        </p>
+                        {activity.length > 1 && (
+                            <button type="button" className="shrink-0 text-xs font-bold text-[var(--site-gold-light-text)] hover:text-[var(--site-text)]" onClick={() => setHistoryOpen(!historyOpen)} aria-expanded={historyOpen}>
+                                {historyOpen ? "Hide" : `See all ${activity.length}`}
+                            </button>
+                        )}
+                    </div>
+                    {historyOpen && (
+                        <ul className="mt-3 space-y-2 border-l border-[var(--site-tint)]/10 pl-4">
+                            {activity.map((item, i) => (
+                                <li key={i} className="text-sm font-semibold text-[var(--site-muted)]">
+                                    <span className={item.done ? "text-emerald-200 light:text-emerald-800" : "text-[var(--site-text)]"}>{item.text}</span> · {formatAlbumDay(item.at)}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
             )}
 
             {rolesOpen && (
