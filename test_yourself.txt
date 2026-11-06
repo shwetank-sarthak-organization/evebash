@@ -5498,8 +5498,9 @@ How to test:
      "Ready to send 2 pages" with a "Send 2 pages" button.
   3. Pages keep their real shape with no black bars. Spreads are wide with a thin fold line in the middle.
   4. Each page shows a coloured dot and word: Approved (green), With client (gold), Not sent (grey), To fix (red).
-  5. Tap ⋯ on a page. Expect: Make it a spread / single page, Upload a new version, Delete page. Each works. The menu
-     closes when you tap outside it.
+  5. Each page has a Spread | Single switch under it: switch one and back. Tap ⋯ on a narrow (portrait) page. Expect:
+     Upload a new version and Delete page, shown in full (not cut off), and the menu closes when you tap outside it.
+     Page names on narrow pages are not cut short ("Pag…").
   6. Tap Reorder, drag a page to a new place, tap Done. Expect: the new order stays after a refresh.
   7. As the client, open the same album. Expect: "Check N pages", Start review, and Approve / Ask for a change under
      each page. Approve one page from its tile: it turns green and the counts change.
@@ -5534,7 +5535,8 @@ How to test:
   3. Pages sit in rows that fill the screen width, each in its real shape with no black bars. Spreads are wide with a
      thin fold line.
   4. Each page shows a coloured dot and word: Approved (green), With client (gold), Not sent (grey), To fix (red).
-  5. Tap ⋯ on a page. Expect: Make it a spread / single page, Upload a new version, Delete page, Cancel. Each works.
+  5. Each page has a Spread | Single switch under it: switch one and back. Tap ⋯ on a page. Expect: Upload a new
+     version, Delete page, Cancel. Each works.
   6. Tap Reorder. Expect: ← → under each page. Move one page, tap Done, pull to refresh. Expect: the new order stays.
   7. The tabs above the pages scroll sideways and filter the pages. To fix shows the list of changes the client asked for.
   8. As the client, open the same album. Expect: "Check N pages", Start review, and Approve / Change under each page
