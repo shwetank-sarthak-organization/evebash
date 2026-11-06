@@ -482,7 +482,7 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
 
             <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
                 {/* Page */}
-                <div className={cn("relative flex min-h-0 shrink-0 bg-black/40 p-3 sm:p-5 lg:flex-1", zoom ? "h-[45vh] overflow-auto lg:h-auto" : "max-h-[45vh] items-center justify-center lg:h-auto lg:max-h-none")}>
+                <div className={cn("relative flex min-h-0 shrink-0 bg-black/40 light:bg-[var(--site-tint)]/[0.04] p-3 sm:p-5 lg:flex-1", zoom ? "h-[45vh] overflow-auto lg:h-auto" : "max-h-[45vh] items-center justify-center lg:h-auto lg:max-h-none")}>
                     <div className={cn("flex gap-4", compare ? "flex-col sm:flex-row" : "", zoom ? "items-start" : "max-h-full max-w-full items-center justify-center")}>
                         {compare && previousVersion && (
                             <div className="relative opacity-80">

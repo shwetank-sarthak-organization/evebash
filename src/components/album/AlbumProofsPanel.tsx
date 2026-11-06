@@ -33,7 +33,7 @@ function AlbumCard({ album, onOpen }: { album: AlbumSummary; onOpen: () => void 
             onClick={onOpen}
             className="group flex h-full flex-col overflow-hidden rounded-[1.2rem] border border-[var(--site-border)] bg-[var(--site-card)] text-left transition-colors hover:border-[var(--site-gold)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)]/60"
         >
-            <div className="site-noir relative aspect-[3/2] w-full overflow-hidden bg-black/60">
+            <div className="relative aspect-[3/2] w-full overflow-hidden bg-black/60 light:bg-[var(--site-surface)]">
                 {album.coverThumbnailUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={album.coverThumbnailUrl} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
@@ -44,9 +44,9 @@ function AlbumCard({ album, onOpen }: { album: AlbumSummary; onOpen: () => void 
                         {album.myRole === "photographer" ? <><Plus className="h-5 w-5" /> Add pages</> : <><BookImage className="h-6 w-6 text-[var(--site-muted)]" /><span className="text-[var(--site-muted)]">No pages yet</span></>}
                     </div>
                 )}
-                <span className="absolute right-3 top-3 rounded-full bg-black/75"><AlbumStatusChip status={album.status} /></span>
+                <span className="site-noir absolute right-3 top-3 rounded-full bg-black/75"><AlbumStatusChip status={album.status} /></span>
                 {album.pageCount > 0 && (
-                    <span className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-black/70 px-3 py-2 text-xs font-bold text-white/90">
+                    <span className="site-noir absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-black/70 px-3 py-2 text-xs font-bold text-white/90">
                         <Files className="h-3.5 w-3.5" /> {album.pageCount} {album.pageCount === 1 ? "page" : "pages"}
                     </span>
                 )}
