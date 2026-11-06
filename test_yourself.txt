@@ -5422,7 +5422,7 @@ Platform:  Website + App
 Brief:     The album cards on the Album tab were redesigned: a bigger cover filled edge to edge, the status and page
            count on the cover, and a line at the bottom saying what to do next. The website was checked in a browser
            with sample albums (desktop and phone width); the app card has not been seen on a phone yet.
-Detail:    Commit 1f6a84a. Album proofing must be on (staging). The app needs a new staging build. Use an event with
+Detail:    Commit ee54463. Album proofing must be on (staging). The app needs a new staging build. Use an event with
            several albums in different states: one with no pages, one in review, one with changes asked, one approved.
 How to test:
   1. Website: Host > event > Album. Expect: covers fill the top of each card with no black bars at the sides, the
