@@ -132,20 +132,20 @@ export default function HeroShowcase() {
     return (
         <div onPointerEnter={() => setPaused(true)} onPointerLeave={() => setPaused(false)}>
             {/* Thin gold frame around the browser window */}
-            <div className="rounded-2xl bg-[image:var(--home-gold)] p-px shadow-2xl shadow-black/50">
+            <div className="rounded-2xl bg-[image:var(--home-gold)] p-px shadow-2xl shadow-(color:--home-shadow-strong)">
                 <div
                     role="img"
                     aria-label="An EveBash gallery showing its designs, switching albums and playing a wedding film"
-                    className="overflow-hidden rounded-[15px] bg-[#0E1318]"
+                    className="overflow-hidden rounded-[15px] bg-[var(--home-window)]"
                 >
                     {/* Browser bar */}
-                    <div className="flex items-center gap-3 border-b border-white/5 px-4 py-3">
+                    <div className="flex items-center gap-3 border-b border-[var(--home-window-line)] px-4 py-3">
                         <div className="flex gap-1.5">
-                            <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-                            <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-                            <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+                            <span className="h-2.5 w-2.5 rounded-full bg-[var(--home-window-dot)]" />
+                            <span className="h-2.5 w-2.5 rounded-full bg-[var(--home-window-dot)]" />
+                            <span className="h-2.5 w-2.5 rounded-full bg-[var(--home-window-dot)]" />
                         </div>
-                        <div className="flex-1 truncate rounded-md bg-white/5 px-3 py-1 text-xs text-white/50">evebash.com/events/isha-and-vihaan</div>
+                        <div className="flex-1 truncate rounded-md bg-[var(--home-window-url)] px-3 py-1 text-xs text-[var(--home-window-url-text)]">evebash.com/events/isha-and-vihaan</div>
                     </div>
 
                     {/* The page, at a desktop browser's proportions; anything below the fold is cut off. */}

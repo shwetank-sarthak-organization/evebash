@@ -5,15 +5,15 @@ import { createRoot } from "react-dom/client";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// One look for every website modal: dark surface, gold accents, X at the top right.
+// One look for every website modal: site surface (dark, or light on the light site), gold accents, X at the top right.
 export const modalStyles = {
-    overlay: "fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm",
-    panel: "relative w-full max-w-md rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)] p-6 text-[var(--site-text)] shadow-2xl shadow-black/50 sm:p-7",
+    overlay: "fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm light:bg-black/45",
+    panel: "relative w-full max-w-md rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)] p-6 text-[var(--site-text)] shadow-2xl shadow-black/50 light:shadow-(color:--home-shadow-strong) sm:p-7",
     // For native <dialog> elements, which centre themselves.
-    dialog: "m-auto w-[calc(100%-2rem)] max-w-md rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)] p-6 text-[var(--site-text)] shadow-2xl shadow-black/50 backdrop:bg-black/70 backdrop:backdrop-blur-sm sm:p-7",
+    dialog: "m-auto w-[calc(100%-2rem)] max-w-md rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)] p-6 text-[var(--site-text)] shadow-2xl shadow-black/50 backdrop:bg-black/70 backdrop:backdrop-blur-sm light:shadow-(color:--home-shadow-strong) light:backdrop:bg-black/45 sm:p-7",
     title: "text-2xl font-black tracking-tight text-[var(--site-text)]",
     subtitle: "mt-1 text-sm font-semibold leading-6 text-[var(--site-muted)]",
-    eyebrow: "mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-gold)]",
+    eyebrow: "mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-gold-text)]",
     body: "text-sm font-semibold leading-6 text-[var(--site-subtle)]",
     label: "mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]",
     input: "w-full rounded-2xl border border-[var(--site-border)] bg-[var(--site-bg)] px-5 py-4 text-base text-[var(--site-text)] outline-none transition-colors placeholder:text-[var(--site-muted)]/60 focus:border-[var(--site-gold)] focus:ring-1 focus:ring-[var(--site-gold)]",
@@ -21,8 +21,8 @@ export const modalStyles = {
     primary: "modal-btn-primary inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--site-gold)] px-5 py-3.5 text-sm font-black uppercase tracking-widest text-[var(--site-on-gold)] transition-colors hover:bg-[var(--site-gold-light)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
     secondary: "modal-btn-secondary inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--site-border)] px-5 py-3.5 text-sm font-black uppercase tracking-widest text-[var(--site-subtle)] transition-colors hover:bg-white/5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
     danger: "inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-500 px-5 py-3.5 text-sm font-black uppercase tracking-widest text-white transition-colors hover:bg-rose-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
-    error: "rounded-2xl border border-rose-400/25 bg-rose-400/10 p-4 text-center text-sm font-bold text-rose-200",
-    success: "rounded-2xl border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 p-4 text-center text-sm font-bold text-[#F5E7D4]",
+    error: "rounded-2xl border border-rose-400/25 bg-rose-400/10 p-4 text-center text-sm font-bold text-rose-200 light:text-rose-700",
+    success: "rounded-2xl border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 p-4 text-center text-sm font-bold text-[#F5E7D4] light:text-[var(--site-text)]",
 };
 
 export function ModalCloseButton({ onClick, disabled, label = "Close", className }: {

@@ -24,13 +24,13 @@ export default function LegalPolicyPage({
       <div className="mx-auto max-w-7xl">
         <Link
           href="/"
-          className="text-sm font-semibold text-sky-400 hover:text-sky-300"
+          className="text-sm font-semibold text-sky-400 hover:text-sky-300 light:text-sky-700 light:hover:text-sky-800"
         >
           Back to EveBash
         </Link>
 
         <article className="mt-6 rounded-2xl border border-[var(--site-border)] bg-[var(--site-card)] p-8 shadow-sm md:p-12">
-          <p className="text-sm font-semibold uppercase tracking-widest text-sky-400">
+          <p className="text-sm font-semibold uppercase tracking-widest text-sky-400 light:text-sky-700">
             EveBash Policy
           </p>
           <h1 className="mt-3 font-serif text-4xl font-bold text-[var(--site-text)] md:text-5xl">
@@ -63,7 +63,7 @@ export default function LegalPolicyPage({
             For questions about these policies, contact us at{" "}
             <a
               href="mailto:support@evebash.com"
-              className="font-semibold text-sky-400 hover:text-sky-300"
+              className="font-semibold text-sky-400 hover:text-sky-300 light:text-sky-700 light:hover:text-sky-800"
             >
               support@evebash.com
             </a>

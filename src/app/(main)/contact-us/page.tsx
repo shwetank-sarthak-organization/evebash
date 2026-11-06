@@ -66,41 +66,41 @@ export default function ContactUs() {
                             <div className="space-y-8">
                                 <div className="flex items-start group">
                                     <div className="p-3 bg-[var(--site-gold)]/10 rounded-lg group-hover:bg-[var(--site-gold)]/15 transition-colors">
-                                        <MapPin className="w-6 h-6 text-[var(--site-gold)]" />
+                                        <MapPin className="w-6 h-6 text-[var(--site-gold-text)]" />
                                     </div>
                                     <div className="ml-4">
-                                        <h3 className="font-sans text-xs leading-5 font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-1">Address</h3>
+                                        <h3 className="font-sans text-xs leading-5 font-black text-[var(--site-gold-text)] uppercase tracking-[0.2em] mb-1">Address</h3>
                                         <p className="text-[var(--site-subtle)] leading-relaxed">Dehradun, Uttarakhand, India - 248001</p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-start group">
                                     <div className="p-3 bg-[var(--site-gold)]/10 rounded-lg group-hover:bg-[var(--site-gold)]/15 transition-colors">
-                                        <Phone className="w-6 h-6 text-[var(--site-gold)]" />
+                                        <Phone className="w-6 h-6 text-[var(--site-gold-text)]" />
                                     </div>
                                     <div className="ml-4">
-                                        <h3 className="font-sans text-xs leading-5 font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-1">Phone</h3>
-                                        <p><a href="tel:+919871264964" className="text-[var(--site-subtle)] hover:text-[var(--site-gold)] transition-colors">+91 98712 64964</a></p>
-                                        <p><a href="tel:+918535029872" className="text-[var(--site-subtle)] hover:text-[var(--site-gold)] transition-colors">+91 85350 29872</a></p>
+                                        <h3 className="font-sans text-xs leading-5 font-black text-[var(--site-gold-text)] uppercase tracking-[0.2em] mb-1">Phone</h3>
+                                        <p><a href="tel:+919871264964" className="text-[var(--site-subtle)] hover:text-[var(--site-gold-text)] transition-colors">+91 98712 64964</a></p>
+                                        <p><a href="tel:+918535029872" className="text-[var(--site-subtle)] hover:text-[var(--site-gold-text)] transition-colors">+91 85350 29872</a></p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-start group">
                                     <div className="p-3 bg-[var(--site-gold)]/10 rounded-lg group-hover:bg-[var(--site-gold)]/15 transition-colors">
-                                        <Mail className="w-6 h-6 text-[var(--site-gold)]" />
+                                        <Mail className="w-6 h-6 text-[var(--site-gold-text)]" />
                                     </div>
                                     <div className="ml-4">
-                                        <h3 className="font-sans text-xs leading-5 font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-1">Email</h3>
-                                        <p><a href="mailto:support@evebash.com" className="text-[var(--site-subtle)] hover:text-[var(--site-gold)] transition-colors">support@evebash.com</a></p>
+                                        <h3 className="font-sans text-xs leading-5 font-black text-[var(--site-gold-text)] uppercase tracking-[0.2em] mb-1">Email</h3>
+                                        <p><a href="mailto:support@evebash.com" className="text-[var(--site-subtle)] hover:text-[var(--site-gold-text)] transition-colors">support@evebash.com</a></p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-start group">
                                     <div className="p-3 bg-[var(--site-gold)]/10 rounded-lg group-hover:bg-[var(--site-gold)]/15 transition-colors">
-                                        <Clock className="w-6 h-6 text-[var(--site-gold)]" />
+                                        <Clock className="w-6 h-6 text-[var(--site-gold-text)]" />
                                     </div>
                                     <div className="ml-4">
-                                        <h3 className="font-sans text-xs leading-5 font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-1">Business Hours</h3>
+                                        <h3 className="font-sans text-xs leading-5 font-black text-[var(--site-gold-text)] uppercase tracking-[0.2em] mb-1">Business Hours</h3>
                                         <p className="text-[var(--site-subtle)]">Mon - Fri: 10:00 AM - 6:00 PM</p>
                                     </div>
                                 </div>
@@ -116,7 +116,7 @@ export default function ContactUs() {
                         <form className="space-y-6" onSubmit={handleSubmit}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label htmlFor="firstName" className="block font-sans text-xs font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-2">First Name</label>
+                                    <label htmlFor="firstName" className="block font-sans text-xs font-black text-[var(--site-gold-text)] uppercase tracking-[0.2em] mb-2">First Name</label>
                                     <input
                                         type="text"
                                         id="firstName"
@@ -128,7 +128,7 @@ export default function ContactUs() {
                                     />
                                 </div>
                                 <div>
-                                    <label htmlFor="lastName" className="block font-sans text-xs font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-2">Last Name</label>
+                                    <label htmlFor="lastName" className="block font-sans text-xs font-black text-[var(--site-gold-text)] uppercase tracking-[0.2em] mb-2">Last Name</label>
                                     <input
                                         type="text"
                                         id="lastName"
@@ -142,7 +142,7 @@ export default function ContactUs() {
                             </div>
 
                             <div>
-                                <label htmlFor="email" className="block font-sans text-xs font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-2">Email Address</label>
+                                <label htmlFor="email" className="block font-sans text-xs font-black text-[var(--site-gold-text)] uppercase tracking-[0.2em] mb-2">Email Address</label>
                                 <input
                                     type="email"
                                     id="email"
@@ -155,7 +155,7 @@ export default function ContactUs() {
                             </div>
 
                             <div>
-                                <label htmlFor="message" className="block font-sans text-xs font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-2">Message</label>
+                                <label htmlFor="message" className="block font-sans text-xs font-black text-[var(--site-gold-text)] uppercase tracking-[0.2em] mb-2">Message</label>
                                 <textarea
                                     id="message"
                                     rows={5}
@@ -168,12 +168,12 @@ export default function ContactUs() {
                             </div>
 
                             {submitError && (
-                                <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-900/30 px-4 py-3 text-sm font-medium text-rose-300">
+                                <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-900/30 px-4 py-3 text-sm font-medium text-rose-300 light:bg-rose-50 light:text-rose-800">
                                     {submitError}
                                 </p>
                             )}
                             {submitSuccess && (
-                                <p role="status" className="rounded-lg border border-emerald-500/30 bg-emerald-900/30 px-4 py-3 text-sm font-medium text-emerald-300">
+                                <p role="status" className="rounded-lg border border-emerald-500/30 bg-emerald-900/30 px-4 py-3 text-sm font-medium text-emerald-300 light:bg-emerald-50 light:text-emerald-800">
                                     {submitSuccess}
                                 </p>
                             )}

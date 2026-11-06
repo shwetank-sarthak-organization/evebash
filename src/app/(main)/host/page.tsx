@@ -732,7 +732,7 @@ function FilterDropdown({ value, options, onChange, onOpen, ariaLabel }: {
                 <ChevronDown className={cn("h-4 w-4 shrink-0 text-[var(--site-muted)] transition-transform", open && "rotate-180")} />
             </button>
             {open && (
-                <div role="listbox" aria-label={ariaLabel} className="absolute right-0 top-full z-40 mt-1 max-h-72 min-w-full w-max max-w-[16rem] overflow-y-auto rounded-xl border border-[var(--site-border)] bg-[var(--site-bg)] p-1 shadow-2xl shadow-black/60">
+                <div role="listbox" aria-label={ariaLabel} className="absolute right-0 top-full z-40 mt-1 max-h-72 min-w-full w-max max-w-[16rem] overflow-y-auto rounded-xl border border-[var(--site-border)] bg-[var(--site-bg)] p-1 shadow-2xl shadow-black/60 light:shadow-(color:--home-shadow-strong)">
                     {options.map(option => {
                         const isSelected = option.value === value;
                         return (
@@ -744,11 +744,11 @@ function FilterDropdown({ value, options, onChange, onOpen, ariaLabel }: {
                                 onClick={() => { onChange(option.value); setOpen(false); }}
                                 className={cn(
                                     "flex w-full items-center justify-end gap-2 rounded-lg px-3 py-2 text-right text-sm font-semibold transition-colors",
-                                    isSelected ? "bg-[var(--site-gold)]/15 text-[var(--site-gold)]" : "text-[var(--site-text)] hover:bg-[var(--site-surface-2)]"
+                                    isSelected ? "bg-[var(--site-gold)]/15 text-[var(--site-gold-text)]" : "text-[var(--site-text)] hover:bg-[var(--site-surface-2)]"
                                 )}
                             >
                                 <span className="truncate">{option.label}</span>
-                                <Check className={cn("h-4 w-4 shrink-0", isSelected ? "text-[var(--site-gold)]" : "invisible")} />
+                                <Check className={cn("h-4 w-4 shrink-0", isSelected ? "text-[var(--site-gold-text)]" : "invisible")} />
                             </button>
                         );
                     })}
@@ -843,8 +843,8 @@ function DatePickerColumn({
                             className={cn(
                                 "flex h-14 w-full snap-center items-center justify-center rounded-xl text-center text-xl font-medium transition-colors",
                                 isSelected
-                                    ? "font-black text-[var(--site-gold)]"
-                                    : "text-[var(--site-muted)] hover:bg-white/5 hover:text-[var(--site-text)]"
+                                    ? "font-black text-[var(--site-gold-text)]"
+                                    : "text-[var(--site-muted)] hover:bg-[var(--site-tint)]/5 hover:text-[var(--site-text)]"
                             )}
                         >
                             {option.label}
@@ -3758,7 +3758,7 @@ function DashboardContent() {
                 <div className={cn("hidden border-b border-[var(--site-border)] bg-[var(--site-surface)] xl:grid", columns)}>
                     <div className={cn("row-span-2 self-center px-5 py-3", headerLabel)}>Member</div>
                     <div className={cn("row-span-2 flex items-center border-l border-[var(--site-line)] px-4", headerLabel)}>Role</div>
-                    <div className="col-span-4 border-b border-l border-[var(--site-line)] py-2.5 text-center text-[11px] font-black uppercase tracking-[0.18em] text-[var(--site-gold)]">Permissions</div>
+                    <div className="col-span-4 border-b border-l border-[var(--site-line)] py-2.5 text-center text-[11px] font-black uppercase tracking-[0.18em] text-[var(--site-gold-text)]">Permissions</div>
                     <div className={cn("row-span-2 flex items-center justify-end border-l border-[var(--site-line)] px-5", headerLabel)}>Actions</div>
                     {permissionColumns.map(({ key, label }) => (
                         <div key={key} className={cn("border-l border-[var(--site-line)] px-2 py-2.5 text-center", headerLabel)}>{label}</div>
@@ -3776,9 +3776,9 @@ function DashboardContent() {
                         const contact = memberLabel(memberDirectory[log.id], log.email || log.phone || "No contact");
                         const hasAdminAccess = Boolean(log.canAdmin);
                         const role = isPending
-                            ? { label: "Pending", icon: RefreshCw, className: "border-amber-400/30 bg-amber-400/10 text-amber-300" }
+                            ? { label: "Pending", icon: RefreshCw, className: "border-amber-400/30 bg-amber-400/10 text-amber-300 light:text-amber-700" }
                             : hasAdminAccess
-                                ? { label: "Admin", icon: ShieldCheck, className: "border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 text-[var(--site-gold)]" }
+                                ? { label: "Admin", icon: ShieldCheck, className: "border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 text-[var(--site-gold-text)]" }
                                 : { label: "Member", icon: Users, className: "border-[var(--site-border)] bg-[var(--site-surface-2)] text-[var(--site-subtle)]" };
                         const RoleIcon = role.icon;
                         const roleBadge = (
@@ -3809,11 +3809,11 @@ function DashboardContent() {
                                     title="View guest details"
                                     className="group/member col-start-1 row-start-1 flex min-w-0 items-center gap-3 text-left xl:px-5 xl:py-3.5"
                                 >
-                                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--site-gold)]/10 text-sm font-black text-[var(--site-gold)]">
+                                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--site-gold)]/10 text-sm font-black text-[var(--site-gold-text)]">
                                         {guestName.charAt(0)}
                                     </span>
                                     <span className="min-w-0">
-                                        <span className="block truncate text-base font-black text-[var(--site-text)] transition-colors group-hover/member:text-[var(--site-gold)]">{guestName}</span>
+                                        <span className="block truncate text-base font-black text-[var(--site-text)] transition-colors group-hover/member:text-[var(--site-gold-text)]">{guestName}</span>
                                         <span className="block truncate text-xs font-bold text-[var(--site-muted)]">{contact} • {loginDate}</span>
                                         <span className="mt-2 flex xl:hidden">{roleBadge}</span>
                                     </span>
@@ -3829,7 +3829,7 @@ function DashboardContent() {
                                             control = isPending ? (
                                                 <span className="flex h-7 items-center text-sm font-black text-[var(--site-muted)]" aria-label="Can't view until approved">—</span>
                                             ) : (
-                                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--site-gold)]/10 text-[var(--site-gold)]" aria-label="Can view" title="Approved guests can view this event">
+                                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--site-gold)]/10 text-[var(--site-gold-text)]" aria-label="Can view" title="Approved guests can view this event">
                                                     <Check className="h-4 w-4" />
                                                 </span>
                                             );
@@ -3877,14 +3877,14 @@ function DashboardContent() {
                                             <button
                                                 type="button"
                                                 onClick={() => void handleGuestStatusUpdate(log.id, "approved")}
-                                                className="flex-1 rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-300 xl:flex-none"
+                                                className="flex-1 rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-300 light:text-emerald-700 xl:flex-none"
                                             >
                                                 Approve
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={() => void handleGuestDeny(log)}
-                                                className="flex-1 rounded-full bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-300 xl:flex-none"
+                                                className="flex-1 rounded-full bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-300 light:text-rose-700 xl:flex-none"
                                             >
                                                 Deny
                                             </button>
@@ -3898,7 +3898,7 @@ function DashboardContent() {
                                             onClick={() => void removeGuest()}
                                             aria-label={`Remove ${guestName}`}
                                             title="Remove guest"
-                                            className="rounded-xl border border-[var(--site-border)] bg-[var(--site-surface-2)] p-2.5 text-[var(--site-muted)] transition-colors hover:border-rose-400/30 hover:bg-rose-500/10 hover:text-rose-400"
+                                            className="rounded-xl border border-[var(--site-border)] bg-[var(--site-surface-2)] p-2.5 text-[var(--site-muted)] transition-colors hover:border-rose-400/30 hover:bg-rose-500/10 hover:text-rose-400 light:hover:text-rose-700"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>
@@ -3942,7 +3942,7 @@ function DashboardContent() {
                     style={getCoverImageStyle(evt)}
                 />
                 {evt.category && (
-                    <div className="absolute left-3 top-3 z-10 rounded-full border border-[var(--site-gold)]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--site-gold)] backdrop-blur-sm">
+                    <div className="site-noir absolute left-3 top-3 z-10 rounded-full border border-[var(--site-gold)]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--site-gold-text)] backdrop-blur-sm">
                         {evt.category}
                     </div>
                 )}
@@ -3996,7 +3996,7 @@ function DashboardContent() {
                                     setShowTemplateModal(true);
                                     setActiveMenu(null);
                                 }}
-                                className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-[var(--site-surface)]/50 transition-colors border-t border-[var(--site-border)] text-sky-400"
+                                className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-[var(--site-surface)]/50 transition-colors border-t border-[var(--site-border)] text-sky-400 light:text-sky-700"
                                 title="Change design template"
                             >
                                 <LayoutDashboard className="w-4 h-4" />
@@ -4027,7 +4027,7 @@ function DashboardContent() {
                                 className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-[var(--site-surface)]/50 transition-colors border-t border-[var(--site-border)]"
                                 title="Share event invitation"
                             >
-                                <Share2 className="w-4 h-4 text-emerald-500" />
+                                <Share2 className="w-4 h-4 text-emerald-500 light:text-emerald-600" />
                                 <span>Share Event</span>
                             </button>
                             <button
@@ -4050,21 +4050,21 @@ function DashboardContent() {
             <div className="px-1 pb-1 pt-4 text-left text-[var(--site-text)]">
                 <h3 className="truncate text-xl leading-tight text-[var(--site-text)]" style={SERIF}>{evt.title}</h3>
                 <div className="mt-2 flex items-center gap-1.5 text-sm text-[var(--site-muted)]">
-                    <Calendar className="h-4 w-4 shrink-0 text-[var(--site-gold)]" aria-hidden="true" />
+                    <Calendar className="h-4 w-4 shrink-0 text-[var(--site-gold-text)]" aria-hidden="true" />
                     <span className="truncate">{formatShortEventDate(formatEventDate(evt.date))}</span>
                 </div>
                 {isSharedEvent && (
                     <div className="mt-3 flex flex-wrap gap-1.5">
-                        <div className="inline-flex max-w-full items-center rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--site-subtle)]">
+                        <div className="inline-flex max-w-full items-center rounded-full border border-[var(--site-tint)]/15 bg-[var(--site-tint)]/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--site-subtle)]">
                             <span className="truncate">Owner: {getEventOwnerName(evt)}</span>
                         </div>
-                        <div className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--site-subtle)]">
+                        <div className="w-fit rounded-full border border-[var(--site-tint)]/10 bg-[var(--site-tint)]/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--site-subtle)]">
                             {getSharedAccessLabel(evt)}
                         </div>
                     </div>
                 )}
                 {user?.delegatedBy && workspaceOwner && (
-                    <div className="mt-3 inline-flex max-w-full items-center rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--site-subtle)]">
+                    <div className="mt-3 inline-flex max-w-full items-center rounded-full border border-[var(--site-tint)]/15 bg-[var(--site-tint)]/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--site-subtle)]">
                         <span className="truncate">Managed for: {workspaceOwner.email}</span>
                     </div>
                 )}
@@ -4079,18 +4079,18 @@ function DashboardContent() {
         return (
             <div className="bg-[var(--site-gold)]/30 rounded-3xl p-6 border border-[var(--site-gold)]/30 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
                 <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-[var(--site-gold)]/50 rounded-2xl flex items-center justify-center text-[var(--site-gold)]">
+                    <div className="w-12 h-12 bg-[var(--site-gold)]/50 rounded-2xl flex items-center justify-center text-[var(--site-gold-text)]">
                         <Users size={24} />
                     </div>
                     <div>
                         <h3 className="text-lg font-bold text-[var(--site-text)] font-serif">Managed Workspace</h3>
                         <p className="text-sm text-[var(--site-muted)] font-sans">
-                            You are managing the account for <span className="text-[var(--site-gold)] font-bold">{workspaceOwner.email}</span>
+                            You are managing the account for <span className="text-[var(--site-gold-text)] font-bold">{workspaceOwner.email}</span>
                         </p>
                     </div>
                 </div>
                 <div className="hidden sm:block">
-                    <span className="px-4 py-1.5 bg-[var(--site-surface-2)] text-[var(--site-gold)] rounded-full text-[10px] font-black uppercase tracking-widest border border-[var(--site-gold)]/50 shadow-sm">
+                    <span className="px-4 py-1.5 bg-[var(--site-surface-2)] text-[var(--site-gold-text)] rounded-full text-[10px] font-black uppercase tracking-widest border border-[var(--site-gold)]/50 shadow-sm">
                         {user.roleType === 'primary' ? 'Full Manager' : 'Event Admin'}
                     </span>
                 </div>
@@ -4123,7 +4123,7 @@ function DashboardContent() {
     return (
         <div className={cn(
             "min-h-screen font-serif text-[var(--site-text)] transition-colors duration-300",
-            isImmersiveHostEventView ? "bg-black" : "bg-[#050505]"
+            isImmersiveHostEventView ? "bg-black light:bg-[var(--site-bg)]" : "bg-[#050505] light:bg-[var(--site-bg)]"
         )}>
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <AnimatePresence mode="wait">
@@ -4136,7 +4136,7 @@ function DashboardContent() {
                             className="space-y-8"
                         >
                             <div className="relative">
-                                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-[var(--site-bg)] p-3 shadow-2xl shadow-black/30 sm:p-4 xl:flex xl:gap-x-6">
+                                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-4 rounded-2xl border border-[var(--site-tint)]/10 bg-gradient-to-br from-[var(--site-tint)]/[0.04] to-[var(--site-bg)] p-3 shadow-2xl shadow-black/30 light:shadow-(color:--home-shadow) sm:p-4 xl:flex xl:gap-x-6">
                                     <div className="order-1 flex min-w-0 items-center gap-3 sm:gap-4">
                                         <Tooltip text="Plan Details">
                                             <button
@@ -4144,7 +4144,7 @@ function DashboardContent() {
                                                     fetchStorageStats();
                                                     setShowPlanDetailsModal(true);
                                                 }}
-                                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[var(--site-gold)] transition-colors hover:bg-white/10"
+                                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[var(--site-tint)]/10 bg-[var(--site-tint)]/[0.06] text-[var(--site-gold-text)] transition-colors hover:bg-[var(--site-tint)]/10"
                                                 aria-label="Plan Details"
                                             >
                                                 <HostConsoleIcon className="h-6 w-6" aria-hidden="true" />
@@ -4156,9 +4156,9 @@ function DashboardContent() {
                                         </div>
                                     </div>
 
-                                    <span className="order-2 hidden h-10 w-px shrink-0 bg-white/10 xl:block" />
+                                    <span className="order-2 hidden h-10 w-px shrink-0 bg-[var(--site-tint)]/10 xl:block" />
 
-                                    <div className="order-3 col-span-2 flex gap-1 overflow-x-auto rounded-2xl border border-white/10 bg-black/40 p-1.5 [scrollbar-width:none] sm:gap-1.5 xl:max-w-2xl xl:flex-1">
+                                    <div className="order-3 col-span-2 flex gap-1 overflow-x-auto rounded-2xl border border-[var(--site-tint)]/10 bg-black/40 light:bg-[var(--site-tint)]/[0.04] p-1.5 [scrollbar-width:none] sm:gap-1.5 xl:max-w-2xl xl:flex-1">
                                         {hostConsoleTabs.map(({ id, label, count, Icon }) => {
                                             const isActive = activeTab === id;
                                             const highlightCount = isActive || (id === "request" && count > 0);
@@ -4170,15 +4170,15 @@ function DashboardContent() {
                                                     className={cn(
                                                         "flex h-12 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-2 font-sans text-[11px] font-semibold uppercase tracking-[0.04em] max-[360px]:gap-1 max-[360px]:px-1.5 max-[360px]:tracking-normal transition-colors sm:h-[3.25rem] sm:gap-2.5 sm:px-4 sm:text-[13px] sm:tracking-[0.14em]",
                                                         isActive
-                                                            ? "border-[var(--site-gold)]/50 bg-gradient-to-b from-[var(--site-gold)]/20 to-[var(--site-gold)]/[0.06] text-[var(--site-gold)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-                                                            : "border-transparent text-[var(--site-muted)] hover:border-white/10 hover:bg-white/[0.04] hover:text-[var(--site-text)]"
+                                                            ? "border-[var(--site-gold)]/50 bg-gradient-to-b from-[var(--site-gold)]/20 to-[var(--site-gold)]/[0.06] text-[var(--site-gold-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                                                            : "border-transparent text-[var(--site-muted)] hover:border-[var(--site-tint)]/10 hover:bg-[var(--site-tint)]/[0.04] hover:text-[var(--site-text)]"
                                                     )}
                                                 >
                                                     <Icon className="hidden h-[18px] w-[18px] shrink-0 sm:block" />
                                                     {label}
                                                     <span className={cn(
                                                         "min-w-6 rounded-md px-1.5 py-0.5 text-center text-[11px] font-bold tracking-normal sm:min-w-7 sm:text-xs",
-                                                        highlightCount ? "bg-[var(--site-gold)] text-[var(--site-on-gold)]" : "bg-white/10 text-[var(--site-subtle)]"
+                                                        highlightCount ? "bg-[var(--site-gold)] text-[var(--site-on-gold)]" : "bg-[var(--site-tint)]/10 text-[var(--site-subtle)]"
                                                     )}>
                                                         {count}
                                                     </span>
@@ -4208,7 +4208,7 @@ function DashboardContent() {
                                     <div className="mt-6">
                                         {pendingGuestRequests.length === 0 ? (
                                             <div className="flex min-h-64 flex-col items-center justify-center rounded-[1.5rem] border-2 border-dashed border-[var(--site-border)] text-center text-[var(--site-muted)]">
-                                                <Check className="mb-4 h-10 w-10 text-emerald-400/40" />
+                                                <Check className="mb-4 h-10 w-10 text-emerald-400/40 light:text-emerald-700/40" />
                                                 <p className="mb-2 text-lg font-bold text-[var(--site-text)]">All caught up!</p>
                                                 <p className="text-sm">New access requests will appear here.</p>
                                             </div>
@@ -4216,7 +4216,7 @@ function DashboardContent() {
                                             <div className="space-y-5">
                                                 {pendingRequestsByEvent.map(([eventTitle, logs]) => (
                                                     <section key={eventTitle} className="rounded-[1.5rem] border border-[var(--site-border)] bg-[var(--site-surface)]/60 p-4 sm:p-5">
-                                                        <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/10 pb-3">
+                                                        <div className="mb-4 flex items-center justify-between gap-3 border-b border-[var(--site-tint)]/10 pb-3">
                                                             <div className="min-w-0">
                                                                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--site-muted)]">Event</p>
                                                                 <h3 className="truncate text-lg font-black text-[var(--site-text)]">{eventTitle}</h3>
@@ -4227,7 +4227,7 @@ function DashboardContent() {
                                                         </div>
                                                         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                                                             {logs.map((log) => (
-                                                                <div key={log.id} className="flex flex-col gap-4 rounded-[1.2rem] border border-white/10 bg-black p-4 sm:flex-row sm:items-center">
+                                                                <div key={log.id} className="flex flex-col gap-4 rounded-[1.2rem] border border-[var(--site-tint)]/10 bg-black light:bg-[var(--site-card)] p-4 sm:flex-row sm:items-center">
                                                                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--site-gold)] text-lg font-black text-[var(--site-on-gold)]">
                                                                         {(log.name || "G").charAt(0).toUpperCase()}
                                                                     </div>
@@ -4294,7 +4294,7 @@ function DashboardContent() {
                             </div>
 
 {/* HOST GUIDE SECTION */}
-                            <div className="mt-16 rounded-3xl border border-[var(--site-line)] bg-[var(--site-surface)]/90 p-6 shadow-xl shadow-black/25 backdrop-blur-sm sm:p-8">
+                            <div className="mt-16 rounded-3xl border border-[var(--site-line)] bg-[var(--site-surface)]/90 p-6 shadow-xl shadow-black/25 light:shadow-(color:--home-shadow) backdrop-blur-sm sm:p-8">
                                 <div className="mb-8">
                                     <h2 className="text-3xl font-bold text-[var(--site-text)]">Host Your Perfect Event</h2>
                                     <p className="text-[var(--site-muted)] mt-2">Everything you need to capture memories flawlessly.</p>
@@ -4304,7 +4304,7 @@ function DashboardContent() {
                                     {/* Benefit 1 */}
                                     <div className="rounded-xl border border-[var(--site-line)] bg-[var(--site-bg)] p-6">
                                         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--site-gold)]/20 bg-[var(--site-gold)]/10">
-                                            <ImageIcon className="h-6 w-6 text-[var(--site-gold)]" />
+                                            <ImageIcon className="h-6 w-6 text-[var(--site-gold-text)]" />
                                         </div>
                                         <h3 className="text-xl font-bold text-[var(--site-text)] mb-2">Stunning Galleries</h3>
                                         <p className="text-[var(--site-muted)] text-sm">Create unlimited, high-resolution albums to preserve every beautiful memory.</p>
@@ -4313,7 +4313,7 @@ function DashboardContent() {
                                     {/* Benefit 2 */}
                                     <div className="rounded-xl border border-[var(--site-line)] bg-[var(--site-bg)] p-6">
                                         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--site-gold)]/20 bg-[var(--site-gold)]/10">
-                                            <Users className="h-6 w-6 text-[var(--site-gold)]" />
+                                            <Users className="h-6 w-6 text-[var(--site-gold-text)]" />
                                         </div>
                                         <h3 className="text-xl font-bold text-[var(--site-text)] mb-2">Guest Sharing</h3>
                                         <p className="text-[var(--site-muted)] text-sm">Easily invite guests via QR codes and securely share photos directly with them.</p>
@@ -4322,7 +4322,7 @@ function DashboardContent() {
                                     {/* Benefit 3 */}
                                     <div className="rounded-xl border border-[var(--site-line)] bg-[var(--site-bg)] p-6">
                                         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--site-gold)]/20 bg-[var(--site-gold)]/10">
-                                            <Video className="h-6 w-6 text-[var(--site-gold)]" />
+                                            <Video className="h-6 w-6 text-[var(--site-gold-text)]" />
                                         </div>
                                         <h3 className="text-xl font-bold text-[var(--site-text)] mb-2">Live Streaming</h3>
                                         <p className="text-[var(--site-muted)] text-sm">Broadcast your special moments live to loved ones who could not attend in person.</p>
@@ -4332,12 +4332,12 @@ function DashboardContent() {
                                 {/* SECTION 4: HOW TO HOST (YouTube Card) */}
                                 <div
                                     onClick={() => window.open('https://www.youtube.com/@EveBashApp', '_blank')}
-                                    className="relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-[var(--site-surface-2)] to-[var(--site-surface)] p-6 cursor-pointer shadow-lg shadow-black/30 group border border-[var(--site-gold)]/15"
+                                    className="relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-[var(--site-surface-2)] to-[var(--site-surface)] p-6 cursor-pointer shadow-lg shadow-black/30 light:shadow-(color:--home-shadow) group border border-[var(--site-gold)]/15"
                                 >
                                     <div className="absolute right-0 top-0 w-64 h-64 bg-[var(--site-gold)]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
                                     <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between">
                                         <div className="mb-6 md:mb-0 max-w-md">
-                                            <div className="inline-block px-3 py-1 bg-[var(--site-gold)]/10 border border-[var(--site-gold)]/20 rounded-lg text-[var(--site-gold)] text-[10px] font-bold tracking-widest mb-3">
+                                            <div className="inline-block px-3 py-1 bg-[var(--site-gold)]/10 border border-[var(--site-gold)]/20 rounded-lg text-[var(--site-gold-text)] text-[10px] font-bold tracking-widest mb-3">
                                                 HOW TO HOST
                                             </div>
                                             <h3 className="text-2xl font-bold text-[var(--site-text)] mb-1">Watch & Learn</h3>
@@ -4398,7 +4398,7 @@ function DashboardContent() {
                             {manageLevel === "event-details" && !selectedMainEvent && (
                                 <div className="flex min-h-80 items-center justify-center rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)]/60 p-8 text-center">
                                     <div className="space-y-4">
-                                        <Loader2 className="mx-auto h-8 w-8 animate-spin text-sky-300" />
+                                        <Loader2 className="mx-auto h-8 w-8 animate-spin text-sky-300 light:text-sky-700" />
                                         <div>
                                             <h3 className="text-xl font-bold text-[var(--site-text)]">Loading Event Details</h3>
                                             <p className="mt-2 text-sm font-semibold text-[var(--site-muted)]">Restoring this event after refresh.</p>
@@ -4409,7 +4409,7 @@ function DashboardContent() {
 
                             {manageLevel === "event-details" && selectedMainEvent && (
                                 <div className="space-y-8">
-                                    <div className="relative overflow-hidden rounded-[2rem] border border-[var(--site-gold)]/25 bg-[var(--site-bg)] shadow-2xl shadow-black/50">
+                                    <div className="relative overflow-hidden rounded-[2rem] border border-[var(--site-gold)]/25 bg-[var(--site-bg)] shadow-2xl shadow-black/50 light:shadow-(color:--home-shadow-strong)">
                                         <div
                                             ref={(node) => {
                                                 if (activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id) {
@@ -4442,20 +4442,21 @@ function DashboardContent() {
                                             )}
                                             {isCoverUpdating && (
                                                 <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-[var(--site-bg)]/45 backdrop-blur-sm">
-                                                    <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-[var(--site-bg)]/80 px-5 py-4 text-sm font-bold text-[var(--site-text)] shadow-2xl">
+                                                    <div className="flex items-center gap-3 rounded-2xl border border-[var(--site-tint)]/20 bg-[var(--site-bg)]/80 px-5 py-4 text-sm font-bold text-[var(--site-text)] shadow-2xl">
                                                         <Loader2 className="h-5 w-5 animate-spin text-royal-gold" />
                                                         <span>{message || "Updating your cover image..."}</span>
                                                     </div>
                                                 </div>
                                             )}
                                             {!coverPositionEvent && (
-                                            <div className="absolute right-3 top-3 z-10 flex items-start gap-0.5 sm:right-6 sm:top-5 sm:gap-2">
+                                            // On the cover photo's dark top edge, so they keep the dark look's colours
+                                            <div className="site-noir absolute right-3 top-3 z-10 flex items-start gap-0.5 sm:right-6 sm:top-5 sm:gap-2">
                                                 {activeEventDetailEvent && (
                                                     <>
                                                         <button
                                                             onClick={() => handleToggleCoverMode(activeEventDetailEvent)}
                                                             disabled={status === "uploading"}
-                                                            className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                            className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-[var(--site-tint)]/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
                                                         >
                                                             {(activeEventDetailEvent.coverMode || "fill") === "fill"
                                                                 ? <Maximize2 className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
@@ -4466,7 +4467,7 @@ function DashboardContent() {
                                                             <button
                                                                 onClick={() => openCoverPosition(activeEventDetailEvent)}
                                                                 disabled={status === "uploading"}
-                                                                className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                                className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-[var(--site-tint)]/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
                                                             >
                                                                 <Settings className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
                                                                 <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs">Position</span>
@@ -4474,7 +4475,7 @@ function DashboardContent() {
                                                         )}
                                                     </>
                                                 )}
-                                                <label className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 cursor-pointer">
+                                                <label className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-[var(--site-tint)]/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 cursor-pointer">
                                                     <ImageIcon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
                                                     <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs">Change Cover</span>
                                                     <input
@@ -4488,7 +4489,7 @@ function DashboardContent() {
                                                 <button
                                                     onClick={() => activeEventDetailEvent && handleRemoveCoverForEvent(activeEventDetailEvent)}
                                                     disabled={status === "uploading"}
-                                                    className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 hover:text-rose-200"
+                                                    className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-[var(--site-tint)]/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 hover:text-rose-200 light:hover:text-rose-800"
                                                 >
                                                     <Trash2 className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
                                                     <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs">Remove Cover</span>
@@ -4503,21 +4504,21 @@ function DashboardContent() {
                                                 <div className="flex shrink-0 items-end gap-1 sm:gap-3">
                                                     <button
                                                         onClick={(e) => activeEventDetailEvent && handleRenameClick(e, activeEventDetailEvent, "title")}
-                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-[var(--site-tint)]/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
                                                     >
                                                         <Pencil className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />
                                                         <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs sm:text-sm">Edit Title</span>
                                                     </button>
                                                     <button
                                                         onClick={(e) => activeEventDetailEvent && handleRenameClick(e, activeEventDetailEvent, "date")}
-                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-[var(--site-tint)]/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
                                                     >
                                                         <Calendar className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />
                                                         <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs sm:text-sm">Edit Date</span>
                                                     </button>
                                                     <button
                                                         onClick={() => activeEventDetailEvent && handleShareEventLink(activeEventDetailEvent)}
-                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-[var(--site-text)]/85 transition-colors hover:bg-[var(--site-tint)]/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
                                                     >
                                                         <Share2 className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />
                                                         <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs sm:text-sm">Share</span>
@@ -4553,14 +4554,14 @@ function DashboardContent() {
                                                         "group relative flex min-h-[5.5rem] items-center overflow-hidden rounded-2xl border px-3 py-4 text-left transition-colors sm:px-5 sm:py-5",
                                                         isActive
                                                             ? "border-[var(--site-gold)]/70 bg-gradient-to-br from-[var(--site-gold)]/[0.09] via-[var(--site-bg)] to-[var(--site-bg)]"
-                                                            : "border-white/10 bg-gradient-to-br from-white/[0.04] to-[var(--site-bg)] hover:border-white/20 hover:from-white/[0.07]"
+                                                            : "border-[var(--site-tint)]/10 bg-gradient-to-br from-[var(--site-tint)]/[0.04] to-[var(--site-bg)] hover:border-[var(--site-tint)]/20 hover:from-[var(--site-tint)]/[0.07]"
                                                     )}
                                                 >
                                                     {isActive && (
                                                         <span className="absolute inset-x-0 top-0 h-[3px] bg-[var(--site-gold)]" />
                                                     )}
-                                                    <Icon className="h-6 w-6 shrink-0 text-[var(--site-gold)] sm:h-8 sm:w-8" />
-                                                    <span className="mx-2.5 h-10 w-px shrink-0 bg-white/10 sm:mx-5 sm:h-12" />
+                                                    <Icon className="h-6 w-6 shrink-0 text-[var(--site-gold-text)] sm:h-8 sm:w-8" />
+                                                    <span className="mx-2.5 h-10 w-px shrink-0 bg-[var(--site-tint)]/10 sm:mx-5 sm:h-12" />
                                                     <span className="min-w-0">
                                                         <span className="block truncate text-sm font-semibold text-[var(--site-text)] sm:text-lg">{label}</span>
                                                         <span className="mt-0.5 block text-[11px] leading-snug text-[var(--site-muted)] sm:mt-1 sm:text-sm">{subtitle}</span>
@@ -4576,7 +4577,7 @@ function DashboardContent() {
                                     </div>
 
                                     <div className={cn(
-                                        "rounded-[2rem] border border-white/10 bg-[var(--site-bg)] p-5 sm:p-6",
+                                        "rounded-[2rem] border border-[var(--site-tint)]/10 bg-[var(--site-bg)] p-5 sm:p-6",
                                         isInlineEventDetailGalleryEditor && "hidden"
                                     )}>
                                         {activeEventDetailTab === "galleries" && (
@@ -4584,7 +4585,7 @@ function DashboardContent() {
                                                 <div className="flex flex-wrap items-center justify-between gap-4">
                                                     <div className="flex min-w-0 items-center gap-3">
                                                         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10">
-                                                            <GalleryChaptersIcon className="h-6 w-6 text-[var(--site-gold)]" aria-hidden="true" />
+                                                            <GalleryChaptersIcon className="h-6 w-6 text-[var(--site-gold-text)]" aria-hidden="true" />
                                                         </div>
                                                         <div className="min-w-0">
                                                             <div className="flex items-center gap-2">
@@ -4622,7 +4623,7 @@ function DashboardContent() {
 
                                                         <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-5">
                                                             <div className="flex justify-end">
-                                                                <span className="rounded-full border border-[var(--site-gold)]/60 bg-black/55 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--site-gold-light)] shadow-[0_0_14px_rgba(202,156,104,0.35)] backdrop-blur-sm">Primary Collection</span>
+                                                                <span className="site-noir rounded-full border border-[var(--site-gold)]/60 bg-black/55 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--site-gold-light-text)] shadow-[0_0_14px_rgba(202,156,104,0.35)] backdrop-blur-sm">Primary Collection</span>
                                                             </div>
                                                             <div className="flex items-end justify-between gap-3">
                                                                 <h5 className="min-w-0 flex-1 line-clamp-2 font-serif text-2xl font-semibold leading-tight text-[var(--site-text)] drop-shadow-md sm:text-3xl">Home (Primary Gallery)</h5>
@@ -4677,8 +4678,8 @@ function DashboardContent() {
                                                                     className={cn(
                                                                         "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors",
                                                                         gallery.isHidden
-                                                                            ? "border-[var(--site-gold)]/60 bg-[var(--site-gold)]/15 text-[var(--site-gold)] hover:bg-[var(--site-gold)]/25"
-                                                                            : "border-white/15 bg-white/5 text-[var(--site-subtle)] hover:border-[var(--site-gold)]/50 hover:text-[var(--site-gold)]"
+                                                                            ? "border-[var(--site-gold)]/60 bg-[var(--site-gold)]/15 text-[var(--site-gold-text)] hover:bg-[var(--site-gold)]/25"
+                                                                            : "border-[var(--site-tint)]/15 bg-[var(--site-tint)]/5 text-[var(--site-subtle)] hover:border-[var(--site-gold)]/50 hover:text-[var(--site-gold-text)]"
                                                                     )}
                                                                 >
                                                                     {gallery.isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -4687,7 +4688,7 @@ function DashboardContent() {
                                                                     onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(gallery.id); }}
                                                                     aria-label={`Delete ${gallery.title}`}
                                                                     title="Delete gallery"
-                                                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-rose-400 transition-colors hover:border-rose-400/40 hover:bg-rose-500/15"
+                                                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--site-tint)]/15 bg-[var(--site-tint)]/5 text-rose-400 light:text-rose-700 transition-colors hover:border-rose-400/40 hover:bg-rose-500/15"
                                                                 >
                                                                     <Trash2 className="h-3.5 w-3.5" />
                                                                 </button>
@@ -4698,7 +4699,7 @@ function DashboardContent() {
                                                     <button
                                                         type="button"
                                                         onClick={() => setIsCreateSubGalleryModalOpen(true)}
-                                                        className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--site-gold)]/50 bg-transparent text-[var(--site-gold)] transition-colors hover:border-[var(--site-gold)] hover:bg-[var(--site-gold)]/5"
+                                                        className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--site-gold)]/50 bg-transparent text-[var(--site-gold-text)] transition-colors hover:border-[var(--site-gold)] hover:bg-[var(--site-gold)]/5"
                                                     >
                                                         <Plus className="h-8 w-8" strokeWidth={1.5} />
                                                         <span className="text-base">Create Sub-Gallery</span>
@@ -4707,7 +4708,7 @@ function DashboardContent() {
                                                 <div className="pt-6 flex justify-center">
                                                     <button
                                                         onClick={() => setShowDeleteConfirm(selectedMainEvent.id)}
-                                                        className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-8 py-3 text-sm font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-colors"
+                                                        className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-8 py-3 text-sm font-black uppercase tracking-widest text-rose-400 light:text-rose-700 hover:bg-rose-500/20 transition-colors"
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                         <span>Delete Event</span>
@@ -4745,7 +4746,7 @@ function DashboardContent() {
                                                                 </span>
                                                                 <span className="min-w-0 flex-1">
                                                                     <span className="block text-[10px] font-black uppercase tracking-widest text-[var(--site-muted)]">Event visibility</span>
-                                                                    <span className={cn("block text-sm font-bold", selectedMainEvent.isPublic ? "text-[var(--site-gold)]" : "text-[var(--site-text)]")}>{selectedMainEvent.isPublic ? "Public" : "Private"}</span>
+                                                                    <span className={cn("block text-sm font-bold", selectedMainEvent.isPublic ? "text-[var(--site-gold-text)]" : "text-[var(--site-text)]")}>{selectedMainEvent.isPublic ? "Public" : "Private"}</span>
                                                                     <span id="event-visibility-description" className="mt-0.5 block text-xs text-[var(--site-muted)]">{selectedMainEvent.isPublic ? "Anyone with the link can view this event and its sub-galleries." : "Guests need your approval to view this event."}</span>
                                                                 </span>
                                                                 <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", selectedMainEvent.isPublic ? "bg-[var(--site-gold)]" : "bg-[var(--site-surface-3)]", savingVisibility && "opacity-60")}>
@@ -4753,7 +4754,7 @@ function DashboardContent() {
                                                                 </span>
                                                             </button>
                                                             {savingVisibility && <p role="status" className="sr-only">Saving…</p>}
-                                                            {visibilityError && <p role="alert" className="mt-2 text-xs text-rose-300">{visibilityError}</p>}
+                                                            {visibilityError && <p role="alert" className="mt-2 text-xs text-rose-300 light:text-rose-700">{visibilityError}</p>}
                                                         </div>
                                                     )}
                                                 </div>
@@ -4781,7 +4782,7 @@ function DashboardContent() {
                                                                 <h5 className="text-sm font-black uppercase tracking-[0.18em] text-[var(--site-muted)]">
                                                                     Members ({eventDetailApprovedLogs.length})
                                                                     {eventDetailAdminCount > 0 && (
-                                                                        <span className="text-[var(--site-gold)]"> · {eventDetailAdminCount} {eventDetailAdminCount === 1 ? "Admin" : "Admins"}</span>
+                                                                        <span className="text-[var(--site-gold-text)]"> · {eventDetailAdminCount} {eventDetailAdminCount === 1 ? "Admin" : "Admins"}</span>
                                                                     )}
                                                                 </h5>
                                                                 {renderEventDetailPermissionTable(eventDetailApprovedLogs, false)}
@@ -4814,7 +4815,7 @@ function DashboardContent() {
                                                                 <span className="block text-[10px] font-black uppercase tracking-widest text-[var(--site-muted)]">Event Type</span>
                                                                 <span className="mt-1 block truncate font-serif text-2xl font-bold text-[var(--site-text)]">{selectedMainEvent.category || 'Select Type'}</span>
                                                             </span>
-                                                            <ChevronRight className="h-5 w-5 shrink-0 text-[var(--site-gold)]" />
+                                                            <ChevronRight className="h-5 w-5 shrink-0 text-[var(--site-gold-text)]" />
                                                         </button>
 
                                                         <button
@@ -4827,9 +4828,9 @@ function DashboardContent() {
                                                         >
                                                             <span className="min-w-0">
                                                                 <span className="block text-[10px] font-black uppercase tracking-widest text-[var(--site-muted)]">Template</span>
-                                                                <span className="mt-1 block truncate font-serif text-2xl font-bold text-[var(--site-gold)]">{designTemplateLabel}</span>
+                                                                <span className="mt-1 block truncate font-serif text-2xl font-bold text-[var(--site-gold-text)]">{designTemplateLabel}</span>
                                                             </span>
-                                                            <ChevronRight className="h-5 w-5 shrink-0 text-[var(--site-gold)]" />
+                                                            <ChevronRight className="h-5 w-5 shrink-0 text-[var(--site-gold-text)]" />
                                                         </button>
                                                     </div>
 
@@ -4838,13 +4839,13 @@ function DashboardContent() {
                                                             <div className="flex items-center gap-3">
                                                                 {designTemplate && (
                                                                     <span
-                                                                        className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10"
+                                                                        className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--site-tint)]/10"
                                                                         style={{ backgroundColor: designTemplate.background?.dark || "#000" }}
                                                                     >
                                                                         <span className="h-3 w-3 rounded-full" style={{ backgroundColor: designTemplate.accent }} />
                                                                     </span>
                                                                 )}
-                                                                <p className="min-w-0 truncate font-serif text-2xl font-bold text-[var(--site-gold)] sm:text-3xl">{designTemplateLabel}</p>
+                                                                <p className="min-w-0 truncate font-serif text-2xl font-bold text-[var(--site-gold-text)] sm:text-3xl">{designTemplateLabel}</p>
                                                             </div>
                                                             {designTemplate?.desc && (
                                                                 <p className="mt-2 text-base text-[var(--site-subtle)]">{designTemplate.desc}</p>
@@ -4856,7 +4857,7 @@ function DashboardContent() {
                                                             onClick={() => window.open(`/events/${encodeURIComponent(selectedMainEvent.id)}`, '_blank', 'noopener,noreferrer')}
                                                             className="flex w-full items-center gap-4 rounded-2xl border border-[var(--site-gold)]/40 bg-[var(--site-gold)]/10 px-5 py-4 text-left transition-colors hover:bg-[var(--site-gold)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)]/60"
                                                         >
-                                                            <Eye className="h-6 w-6 shrink-0 text-[var(--site-gold)]" />
+                                                            <Eye className="h-6 w-6 shrink-0 text-[var(--site-gold-text)]" />
                                                             <span className="min-w-0">
                                                                 <span className="block font-serif text-base font-bold leading-tight text-[var(--site-text)] sm:text-lg">Preview Guest Theme</span>
                                                                 <span className="mt-1 block text-[11px] font-bold uppercase leading-snug tracking-widest text-[var(--site-muted)]">
@@ -4892,8 +4893,8 @@ function DashboardContent() {
                                         {activeEventDetailTab === "partners" && (
                                             <div className="space-y-6">
                                                 <div className="rounded-[1.8rem] border border-[var(--site-gold)]/20 bg-[var(--site-surface)]/60 p-6 text-left shadow-xl backdrop-blur-md sm:p-8">
-                                                    <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold)]">
-                                                        <PartnersIcon className="h-4 w-4 text-[var(--site-gold)]" />
+                                                    <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold-text)]">
+                                                        <PartnersIcon className="h-4 w-4 text-[var(--site-gold-text)]" />
                                                         <span>Event Partners · Phase 2</span>
                                                     </div>
                                                     <h4 className="text-2xl font-black tracking-tight text-[var(--site-text)] sm:text-3xl">
@@ -4909,7 +4910,7 @@ function DashboardContent() {
                                                             { title: "Partner Showcase", desc: "Highlight credited partners to your guests on the event page.", icon: Star },
                                                         ].map(({ title, desc, icon: Icon }) => (
                                                             <div key={title} className="rounded-2xl border border-[var(--site-line)] bg-[var(--site-bg)]/70 p-4">
-                                                                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--site-gold)]/10 text-[var(--site-gold)]">
+                                                                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--site-gold)]/10 text-[var(--site-gold-text)]">
                                                                     <Icon className="h-4 w-4" />
                                                                 </div>
                                                                 <h5 className="text-xs font-black uppercase tracking-wider text-[var(--site-text)]">{title}</h5>
@@ -4926,10 +4927,10 @@ function DashboardContent() {
                                         <div className={cn(
                                             "rounded-2xl p-4 text-center text-sm font-bold",
                                             status === "success"
-                                                ? "bg-emerald-500/10 text-emerald-300"
+                                                ? "bg-emerald-500/10 text-emerald-300 light:text-emerald-700"
                                                 : status === "error"
-                                                    ? "bg-rose-500/10 text-rose-300"
-                                                    : "bg-sky-500/10 text-sky-300"
+                                                    ? "bg-rose-500/10 text-rose-300 light:text-rose-700"
+                                                    : "bg-sky-500/10 text-sky-300 light:text-sky-700"
                                         )}>
                                             {message}
                                         </div>
@@ -5179,7 +5180,7 @@ function DashboardContent() {
                                                         className={cn(modalStyles.input, "flex items-center justify-between text-left")}
                                                     >
                                                         <div className="flex items-center">
-                                                            <Calendar className="w-5 h-5 text-[var(--site-gold)] mr-3" />
+                                                            <Calendar className="w-5 h-5 text-[var(--site-gold-text)] mr-3" />
                                                             <span className={eventDate ? "text-[var(--site-text)]" : "text-[var(--site-muted)]"}>
                                                                 {eventDate || "Select event date"}
                                                             </span>
@@ -5280,8 +5281,8 @@ function DashboardContent() {
                                         )}
                                         {isCoverUpdating && (
                                             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-[var(--site-bg)]/45 backdrop-blur-sm">
-                                                <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-[var(--site-bg)]/80 px-5 py-4 text-sm font-bold text-[var(--site-text)] shadow-2xl">
-                                                    <Loader2 className="h-5 w-5 animate-spin text-sky-300" />
+                                                <div className="flex items-center gap-3 rounded-2xl border border-[var(--site-tint)]/20 bg-[var(--site-bg)]/80 px-5 py-4 text-sm font-bold text-[var(--site-text)] shadow-2xl">
+                                                    <Loader2 className="h-5 w-5 animate-spin text-sky-300 light:text-sky-700" />
                                                     <span>{message || "Updating your cover image..."}</span>
                                                 </div>
                                             </div>
@@ -5289,8 +5290,8 @@ function DashboardContent() {
 
                                         {/* Floating Glassmorphic "Change Cover" Button */}
                                         {!coverPositionEvent && (
-                                        <div className="absolute top-6 right-6 z-10">
-                                            <label className="flex items-center space-x-2 px-5 py-3 bg-[var(--site-surface-2)]/20 hover:bg-[var(--site-surface-2)]/30 active:bg-[var(--site-surface-2)]/40 backdrop-blur-md text-[var(--site-text)] rounded-full text-sm font-bold cursor-pointer transition-all border border-white/30 shadow-lg active:scale-95">
+                                        <div className="site-noir absolute top-6 right-6 z-10">
+                                            <label className="flex items-center space-x-2 px-5 py-3 bg-[var(--site-surface-2)]/20 hover:bg-[var(--site-surface-2)]/30 active:bg-[var(--site-surface-2)]/40 backdrop-blur-md text-[var(--site-text)] rounded-full text-sm font-bold cursor-pointer transition-all border border-[var(--site-tint)]/30 shadow-lg active:scale-95">
                                                 <Camera className="w-4 h-4" />
                                                 <span>Change Cover</span>
                                                 <input
@@ -5305,9 +5306,9 @@ function DashboardContent() {
                                         )}
 
                                         {/* Information overlay */}
-                                        <div className="absolute bottom-6 left-8 right-8 flex items-end justify-between">
+                                        <div className="site-noir absolute bottom-6 left-8 right-8 flex items-end justify-between">
                                             <div className="text-[var(--site-text)]">
-                                                <span className="text-[10px] font-sans font-bold uppercase tracking-[0.2em] text-sky-400">Sub-Event Cover</span>
+                                                <span className="text-[10px] font-sans font-bold uppercase tracking-[0.2em] text-sky-400 light:text-sky-700">Sub-Event Cover</span>
                                                 <div className="flex items-center space-x-3 mt-1">
                                                     <h4 className="text-2xl md:text-3xl font-bold font-serif tracking-tight">{selectedEventName}</h4>
                                                     <button
@@ -5316,7 +5317,7 @@ function DashboardContent() {
                                                                 handleRenameClick(e, activeSubEvent);
                                                             }
                                                         }}
-                                                        className="p-1.5 bg-[var(--site-surface-2)]/20 hover:bg-[var(--site-surface-2)]/30 backdrop-blur-md rounded-lg text-[var(--site-text)] transition-all active:scale-95 border border-white/20"
+                                                        className="p-1.5 bg-[var(--site-surface-2)]/20 hover:bg-[var(--site-surface-2)]/30 backdrop-blur-md rounded-lg text-[var(--site-text)] transition-all active:scale-95 border border-[var(--site-tint)]/20"
                                                         title="Rename sub-event"
                                                     >
                                                         <Pencil className="w-3.5 h-3.5" />
@@ -5377,7 +5378,7 @@ function DashboardContent() {
                                                 disabled={isHostZipping || currentEventPhotos.length === 0}
                                                 aria-label={`Download ${galleryMediaTab === "videos" ? "videos" : "photos"} shown (.ZIP)`}
                                                 title={`Download ${isAnyGalleryFilterActive ? "the filtered " : "all "}${galleryMediaTab === "videos" ? "videos" : "photos"} in this gallery (.ZIP)`}
-                                                className="flex h-10 min-w-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-[var(--site-gold)]/60 bg-[var(--site-gold)]/10 px-2.5 font-sans text-sm font-black text-[var(--site-gold)] transition-colors hover:bg-[var(--site-gold)]/20 disabled:opacity-40 sm:h-12 sm:px-3.5"
+                                                className="flex h-10 min-w-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-[var(--site-gold)]/60 bg-[var(--site-gold)]/10 px-2.5 font-sans text-sm font-black text-[var(--site-gold-text)] transition-colors hover:bg-[var(--site-gold)]/20 disabled:opacity-40 sm:h-12 sm:px-3.5"
                                             >
                                                 {isHostZipping ? (
                                                     <>
@@ -5428,7 +5429,7 @@ function DashboardContent() {
                                                 <p className="text-base font-semibold text-[var(--site-text)]">Welcome Message</p>
                                                 <span className={cn(
                                                     "text-sm",
-                                                    galleryMessageText.length >= 200 ? "text-rose-300" : "text-[var(--site-muted)]"
+                                                    galleryMessageText.length >= 200 ? "text-rose-300 light:text-rose-700" : "text-[var(--site-muted)]"
                                                 )}>
                                                     {galleryMessageText.length}/200
                                                 </span>
@@ -5448,7 +5449,7 @@ function DashboardContent() {
                                                         "flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-all active:scale-95",
                                                         hasGalleryMessageChanges && status !== "uploading"
                                                             ? "home-btn-gold"
-                                                            : "border border-[var(--site-gold)]/25 bg-[var(--site-gold)]/10 text-[var(--site-gold)]/70"
+                                                            : "border border-[var(--site-gold)]/25 bg-[var(--site-gold)]/10 text-[var(--site-gold-text)]/70"
                                                     )}
                                                 >
                                                     {status === "uploading" && message.toLowerCase().includes("gallery message") ? (
@@ -5517,11 +5518,11 @@ function DashboardContent() {
                                             className={cn(
                                                 "flex h-11 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors",
                                                 isGalleryFilterOpen || activeGalleryFilterCount > 0
-                                                    ? "border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10 text-[var(--site-gold)]"
+                                                    ? "border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10 text-[var(--site-gold-text)]"
                                                     : "border-[var(--site-border)] bg-[var(--site-surface)]/45 text-[var(--site-text)] hover:border-[var(--site-gold)]/45 hover:bg-[var(--site-surface)]/70"
                                             )}
                                         >
-                                            <SlidersHorizontal className="h-4 w-4 shrink-0 text-[var(--site-gold)]" />
+                                            <SlidersHorizontal className="h-4 w-4 shrink-0 text-[var(--site-gold-text)]" />
                                             <span>Filter</span>
                                             {activeGalleryFilterCount > 0 && (
                                                 <span className="min-w-5 rounded-md bg-[var(--site-gold)] px-1.5 py-0.5 text-center font-sans text-xs font-bold text-[var(--site-on-gold)]">{activeGalleryFilterCount}</span>
@@ -5530,10 +5531,10 @@ function DashboardContent() {
                                         </button>
                                         {/* Source gallery (or Favourites only), Uploaded by and Select */}
                                         {isGalleryFilterOpen && (
-                                        <div role="dialog" aria-label="Gallery filters" className="absolute left-0 top-full z-30 mt-2 flex w-[min(21rem,calc(100vw-2rem))] flex-col gap-3 rounded-2xl border border-[var(--site-border)] bg-[var(--site-bg)] p-3 shadow-2xl shadow-black/50">
+                                        <div role="dialog" aria-label="Gallery filters" className="absolute left-0 top-full z-30 mt-2 flex w-[min(21rem,calc(100vw-2rem))] flex-col gap-3 rounded-2xl border border-[var(--site-border)] bg-[var(--site-bg)] p-3 shadow-2xl shadow-black/50 light:shadow-(color:--home-shadow-strong)">
                                         {isPrimaryGalleryView ? (
                                         <div className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-[var(--site-border)] bg-[var(--site-surface)]/45 pl-3 pr-1.5" title="Filter Primary Gallery media by origin">
-                                            <Layers3 className="h-4 w-4 shrink-0 text-[var(--site-gold)]" />
+                                            <Layers3 className="h-4 w-4 shrink-0 text-[var(--site-gold-text)]" />
                                             <span className="flex-1 whitespace-nowrap text-sm font-semibold text-[var(--site-text)]">Source gallery</span>
                                             <FilterDropdown
                                                 value={effectiveSourceGalleryFilter}
@@ -5559,13 +5560,13 @@ function DashboardContent() {
                                                     : "border-[var(--site-border)] bg-[var(--site-surface)]/45 hover:border-[var(--site-gold)]/45 hover:bg-[var(--site-surface)]/70"
                                             )}
                                         >
-                                            <Star className={cn("h-4 w-4 shrink-0", showOnlyFavourites ? "fill-current text-[var(--site-gold)]" : "text-[var(--site-text)]")} />
-                                            <span className={cn("whitespace-nowrap text-sm font-semibold", showOnlyFavourites ? "text-[var(--site-gold)]" : "text-[var(--site-text)]")}>
+                                            <Star className={cn("h-4 w-4 shrink-0", showOnlyFavourites ? "fill-current text-[var(--site-gold-text)]" : "text-[var(--site-text)]")} />
+                                            <span className={cn("whitespace-nowrap text-sm font-semibold", showOnlyFavourites ? "text-[var(--site-gold-text)]" : "text-[var(--site-text)]")}>
                                                 Favourites only
                                             </span>
                                             <span className={cn(
                                                 "min-w-6 rounded-md px-1.5 py-0.5 text-center font-sans text-xs font-bold",
-                                                showOnlyFavourites ? "bg-[var(--site-gold)] text-[var(--site-on-gold)]" : "bg-white/10 text-[var(--site-subtle)]"
+                                                showOnlyFavourites ? "bg-[var(--site-gold)] text-[var(--site-on-gold)]" : "bg-[var(--site-tint)]/10 text-[var(--site-subtle)]"
                                             )}>
                                                 {activeFavouriteCount}
                                             </span>
@@ -5579,8 +5580,8 @@ function DashboardContent() {
                                         {showUploaderFilter && (
                                         <div className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-[var(--site-border)] bg-[var(--site-surface)]/45 pl-3 pr-1.5" title="Show only what one person uploaded">
                                             {loadingAllMedia
-                                                ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--site-gold)]" />
-                                                : <Users className="h-4 w-4 shrink-0 text-[var(--site-gold)]" />}
+                                                ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--site-gold-text)]" />
+                                                : <Users className="h-4 w-4 shrink-0 text-[var(--site-gold-text)]" />}
                                             <span className="flex-1 whitespace-nowrap text-sm font-semibold text-[var(--site-text)]">Uploaded by</span>
                                             <FilterDropdown
                                                 value={effectiveUploaderFilter}
@@ -5599,7 +5600,7 @@ function DashboardContent() {
                                             <button
                                                 type="button"
                                                 onClick={() => { setIsSelectingMedia(true); setIsGalleryFilterOpen(false); }}
-                                                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--site-gold)]/40 bg-[var(--site-gold)]/10 px-4 text-sm font-semibold text-[var(--site-gold)] hover:bg-[var(--site-gold)]/20"
+                                                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--site-gold)]/40 bg-[var(--site-gold)]/10 px-4 text-sm font-semibold text-[var(--site-gold-text)] hover:bg-[var(--site-gold)]/20"
                                             >
                                                 <CheckSquare className="h-4 w-4" />
                                                 <span>Select</span>
@@ -5623,7 +5624,7 @@ function DashboardContent() {
                                                 aria-pressed={galleryViewMode === "grid"}
                                                 className={cn(
                                                     "grid h-9 w-9 place-items-center rounded-lg transition-colors",
-                                                    galleryViewMode === "grid" ? "bg-[var(--site-gold)]/20 text-[var(--site-gold)]" : "text-[var(--site-muted)] hover:text-[var(--site-text)]"
+                                                    galleryViewMode === "grid" ? "bg-[var(--site-gold)]/20 text-[var(--site-gold-text)]" : "text-[var(--site-muted)] hover:text-[var(--site-text)]"
                                                 )}
                                             >
                                                 <LayoutGrid className="h-4 w-4" />
@@ -5636,7 +5637,7 @@ function DashboardContent() {
                                                 aria-pressed={galleryViewMode === "list"}
                                                 className={cn(
                                                     "grid h-9 w-9 place-items-center rounded-lg transition-colors",
-                                                    galleryViewMode === "list" ? "bg-[var(--site-gold)]/20 text-[var(--site-gold)]" : "text-[var(--site-muted)] hover:text-[var(--site-text)]"
+                                                    galleryViewMode === "list" ? "bg-[var(--site-gold)]/20 text-[var(--site-gold-text)]" : "text-[var(--site-muted)] hover:text-[var(--site-text)]"
                                                 )}
                                             >
                                                 <List className="h-4 w-4" />
@@ -5676,7 +5677,7 @@ function DashboardContent() {
                                                     type="button"
                                                     disabled={selectedMediaIds.size === 0}
                                                     onClick={() => setMediaToSave(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
-                                                    className="flex items-center gap-2 rounded-full border border-[#7FA38C]/50 bg-[#7FA38C]/10 px-4 py-2 text-sm font-semibold text-[#A9C9B4] disabled:opacity-40"
+                                                    className="flex items-center gap-2 rounded-full border border-[#7FA38C]/50 bg-[#7FA38C]/10 px-4 py-2 text-sm font-semibold text-[#A9C9B4] light:text-[#4E7A5E] disabled:opacity-40"
                                                 >
                                                     <HardDrive className="h-4 w-4" />
                                                     <span>Save to EB Vault</span>
@@ -5703,7 +5704,7 @@ function DashboardContent() {
                                                     type="button"
                                                     disabled={selectedMediaIds.size === 0}
                                                     onClick={() => void handleDeleteSelectedMedia()}
-                                                    className="flex items-center gap-2 rounded-full border border-rose-400/50 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-300 hover:bg-rose-500/20 disabled:opacity-40"
+                                                    className="flex items-center gap-2 rounded-full border border-rose-400/50 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-300 light:text-rose-700 hover:bg-rose-500/20 disabled:opacity-40"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                     <span>Delete</span>
@@ -5739,13 +5740,13 @@ function DashboardContent() {
                                                     disabled={status === "uploading"}
                                                 />
                                                 {status === "uploading" ? (
-                                                    <div className="flex flex-col items-center text-sky-400">
+                                                    <div className="flex flex-col items-center text-sky-400 light:text-sky-700">
                                                         <Loader2 className="w-10 h-10 animate-spin mb-3" />
                                                         <span className="text-sm font-semibold">Adding...</span>
                                                     </div>
                                                 ) : (
                                                     <div className="flex flex-col items-center gap-4 text-[var(--site-text)] transition-colors group-hover:text-[var(--site-text)]">
-                                                        <span className="grid h-14 w-14 place-items-center rounded-2xl border border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10 text-[var(--site-gold-light)] shadow-[0_0_28px_rgba(202,156,104,0.35)] transition-all group-hover:bg-[var(--site-gold)]/20 group-hover:shadow-[0_0_36px_rgba(202,156,104,0.5)] sm:h-16 sm:w-16">
+                                                        <span className="grid h-14 w-14 place-items-center rounded-2xl border border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10 text-[var(--site-gold-light-text)] shadow-[0_0_28px_rgba(202,156,104,0.35)] transition-all group-hover:bg-[var(--site-gold)]/20 group-hover:shadow-[0_0_36px_rgba(202,156,104,0.5)] sm:h-16 sm:w-16">
                                                             <Plus className="h-7 w-7 sm:h-8 sm:w-8" />
                                                         </span>
                                                         <span className="text-sm font-medium sm:text-base">
@@ -5767,7 +5768,7 @@ function DashboardContent() {
                                                         key={photo.id}
                                                         layout
                                                         className={cn(
-                                                            "group relative aspect-square rounded-2xl bg-[var(--site-surface)] shadow-md shadow-black/20 border border-[var(--site-border)]",
+                                                            "group relative aspect-square rounded-2xl bg-[var(--site-surface)] shadow-md shadow-black/20 light:shadow-(color:--home-shadow) border border-[var(--site-border)]",
                                                             isSelectingMedia ? "cursor-pointer" : "cursor-zoom-in",
                                                             isSelectingMedia && selectedMediaIds.has(photo.id) && "ring-2 ring-[var(--site-gold)] ring-offset-2 ring-offset-[var(--site-surface-2)]"
                                                         )}
@@ -5807,7 +5808,7 @@ function DashboardContent() {
                                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                             {isVideo && galleryOfMedia(photo)?.galleryVideoId === photo.id && (
                                                                 <span className="pointer-events-none absolute left-2.5 top-2.5 z-[1] flex items-center gap-1 rounded-full border border-[var(--site-gold)]/60 bg-[var(--site-bg)]/80 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--site-text)] backdrop-blur-sm">
-                                                                    <Clapperboard className="h-3 w-3 text-[var(--site-gold)]" aria-hidden="true" />
+                                                                    <Clapperboard className="h-3 w-3 text-[var(--site-gold-text)]" aria-hidden="true" />
                                                                     Cinematic highlight
                                                                 </span>
                                                             )}
@@ -5821,9 +5822,9 @@ function DashboardContent() {
                                                                 </>
                                                             )}
                                                             {shouldBlurMediaForPlan && (
-                                                                <div className="pointer-events-none absolute left-1/2 top-14 z-20 w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-2xl border border-[var(--site-gold)]/50 bg-[var(--site-bg)]/95 px-3 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.08em] text-[var(--site-text)] shadow-2xl shadow-black/50 backdrop-blur-md">
+                                                                <div className="pointer-events-none absolute left-1/2 top-14 z-20 w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-2xl border border-[var(--site-gold)]/50 bg-[var(--site-bg)]/95 px-3 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.08em] text-[var(--site-text)] shadow-2xl shadow-black/50 light:shadow-(color:--home-shadow-strong) backdrop-blur-md">
                                                                     Plan expired<br />
-                                                                    <span className="text-[9px] text-[var(--site-gold-light)]/90">May be deleted after grace period</span>
+                                                                    <span className="text-[9px] text-[var(--site-gold-light-text)]/90">May be deleted after grace period</span>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -5833,14 +5834,14 @@ function DashboardContent() {
                                                             <div
                                                                 role="status"
                                                                 onClick={(e) => e.stopPropagation()}
-                                                                className="absolute inset-0 z-30 flex cursor-wait flex-col items-center justify-center gap-2 rounded-2xl bg-[var(--site-bg)]/75 text-rose-200 backdrop-blur-[2px]"
+                                                                className="absolute inset-0 z-30 flex cursor-wait flex-col items-center justify-center gap-2 rounded-2xl bg-[var(--site-bg)]/75 text-rose-200 light:text-rose-800 backdrop-blur-[2px]"
                                                             >
                                                                 <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
                                                                 <span className="text-[11px] font-bold uppercase tracking-[0.12em]">Deleting {isVideo ? "video" : "photo"}...</span>
                                                             </div>
                                                         )}
                                                         {isSelectingMedia ? (
-                                                            <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-lg bg-[var(--site-bg)]/80 p-1.5 text-[var(--site-gold)] shadow-lg">
+                                                            <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-lg bg-[var(--site-bg)]/80 p-1.5 text-[var(--site-gold-text)] shadow-lg">
                                                                 {selectedMediaIds.has(photo.id) ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5 text-[var(--site-text)]" />}
                                                             </div>
                                                         ) : (<>
@@ -5853,7 +5854,7 @@ function DashboardContent() {
                                                                         e.stopPropagation();
                                                                         handleDeletePhoto(photo.id);
                                                                     }}
-                                                                    className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--site-bg)]/70 text-rose-300 shadow-lg backdrop-blur-md opacity-0 transition-all active:scale-95 group-hover:opacity-100 hover:bg-rose-500 hover:text-white"
+                                                                    className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--site-bg)]/70 text-rose-300 light:text-rose-700 shadow-lg backdrop-blur-md opacity-0 transition-all active:scale-95 group-hover:opacity-100 hover:bg-rose-500 hover:text-white"
                                                                 >
                                                                     <Trash2 className="h-4 w-4" />
                                                                 </button>
@@ -5906,7 +5907,7 @@ function DashboardContent() {
                                                             </button>
                                                         </div>
                                                         {!isFavouriteFilterActive && !isUploaderFilterActive && activeGalleryItems.length > 1 && (
-                                                            <div className="absolute bottom-2.5 left-2.5 z-10 flex overflow-hidden rounded-lg border border-white/10 bg-[var(--site-bg)]/70 font-sans text-[var(--site-text)] shadow-lg backdrop-blur-md">
+                                                            <div className="absolute bottom-2.5 left-2.5 z-10 flex overflow-hidden rounded-lg border border-[var(--site-tint)]/10 bg-[var(--site-bg)]/70 font-sans text-[var(--site-text)] shadow-lg backdrop-blur-md">
                                                                 <button
                                                                     type="button"
                                                                     onClick={(e) => {
@@ -5963,9 +5964,9 @@ function DashboardContent() {
                                                     className="hidden"
                                                     disabled={status === "uploading"}
                                                 />
-                                                <div className="mr-5 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10 text-[var(--site-gold-light)] shadow-[0_0_24px_rgba(202,156,104,0.3)] transition-all group-hover:bg-[var(--site-gold)]/20 sm:mr-6">
+                                                <div className="mr-5 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10 text-[var(--site-gold-light-text)] shadow-[0_0_24px_rgba(202,156,104,0.3)] transition-all group-hover:bg-[var(--site-gold)]/20 sm:mr-6">
                                                     {status === "uploading" ? (
-                                                        <Loader2 className="w-6 h-6 text-sky-400 animate-spin" />
+                                                        <Loader2 className="w-6 h-6 text-sky-400 light:text-sky-700 animate-spin" />
                                                     ) : (
                                                         <Plus className="w-6 h-6" />
                                                     )}
@@ -6052,9 +6053,9 @@ function DashboardContent() {
                                                                                     onThumbnailLoaded={handleThumbnailLoaded}
                                                                                 />
                                                                                 {shouldBlurMediaForPlan && (
-                                                                                    <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[calc(100%-1rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-[var(--site-gold)]/50 bg-[var(--site-bg)]/95 px-2 py-2 text-center text-[9px] font-black uppercase leading-4 tracking-[0.08em] text-[var(--site-text)] shadow-2xl shadow-black/50 backdrop-blur-md">
+                                                                                    <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[calc(100%-1rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-[var(--site-gold)]/50 bg-[var(--site-bg)]/95 px-2 py-2 text-center text-[9px] font-black uppercase leading-4 tracking-[0.08em] text-[var(--site-text)] shadow-2xl shadow-black/50 light:shadow-(color:--home-shadow-strong) backdrop-blur-md">
                                                                                         Plan expired<br />
-                                                                                        <span className="text-[8px] text-[var(--site-gold-light)]/90">May be deleted after grace period</span>
+                                                                                        <span className="text-[8px] text-[var(--site-gold-light-text)]/90">May be deleted after grace period</span>
                                                                                     </div>
                                                                                 )}
                                                                             </div>
@@ -6085,7 +6086,7 @@ function DashboardContent() {
                                                                                 </div>
                                                                                 <div className="flex items-center space-x-2 pt-1">
                                                                                     {!isVideo && isCover && (
-                                                                                        <span className="px-2 py-0.5 bg-sky-500/10 text-sky-400 text-[9px] font-bold uppercase rounded-md border border-sky-500/20">
+                                                                                        <span className="px-2 py-0.5 bg-sky-500/10 text-sky-400 light:text-sky-700 text-[9px] font-bold uppercase rounded-md border border-sky-500/20">
                                                                                             Gallery Thumb
                                                                                         </span>
                                                                                     )}
@@ -6179,7 +6180,7 @@ function DashboardContent() {
                                                 disabled={loadingPhotos}
                                                 className="px-8 py-3 bg-[var(--site-surface-2)] hover:bg-[var(--site-surface-3)] text-[var(--site-text)] rounded-full font-bold shadow-lg flex items-center space-x-2 transition-all border border-[var(--site-border)]"
                                             >
-                                                {loadingPhotos ? <Loader2 className="w-5 h-5 animate-spin text-sky-400" /> : <ChevronDown className="w-5 h-5 text-sky-400" />}
+                                                {loadingPhotos ? <Loader2 className="w-5 h-5 animate-spin text-sky-400 light:text-sky-700" /> : <ChevronDown className="w-5 h-5 text-sky-400 light:text-sky-700" />}
                                                 <span>{loadingPhotos ? "Loading..." : "Load More Photos"}</span>
                                             </button>
                                         </div>
@@ -6262,7 +6263,7 @@ function DashboardContent() {
                                                     </div>
                                                     <span className={cn(
                                                         "text-base font-bold",
-                                                        isActive ? "text-[var(--site-gold)]" : "text-[var(--site-text)]"
+                                                        isActive ? "text-[var(--site-gold-text)]" : "text-[var(--site-text)]"
                                                     )}>
                                                         {name}
                                                     </span>
@@ -6322,7 +6323,7 @@ function DashboardContent() {
                                             >
                                                 <div className="flex items-center gap-3 flex-1">
                                                     <div
-                                                        className="w-10 h-10 rounded-full flex items-center justify-center border border-white/10"
+                                                        className="w-10 h-10 rounded-full flex items-center justify-center border border-[var(--site-tint)]/10"
                                                         style={{ backgroundColor: template.background?.dark || '#000' }}
                                                     >
                                                         <div
@@ -6400,7 +6401,7 @@ function DashboardContent() {
                                                 className={cn(modalStyles.input, "flex items-center justify-between text-left hover:border-[var(--site-gold)]/60")}
                                             >
                                                 <span className="flex min-w-0 items-center gap-4">
-                                                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
+                                                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 light:text-sky-700">
                                                         <Calendar className="h-5 w-5" />
                                                     </span>
                                                     <span className="min-w-0">
@@ -6410,7 +6411,7 @@ function DashboardContent() {
                                                         </span>
                                                     </span>
                                                 </span>
-                                                <span className="rounded-full bg-[var(--site-gold)]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--site-gold)]">
+                                                <span className="rounded-full bg-[var(--site-gold)]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--site-gold-text)]">
                                                     Change
                                                 </span>
                                             </button>
@@ -6499,7 +6500,7 @@ function DashboardContent() {
                                             className={cn(
                                                 "mt-5 rounded-2xl border p-4 text-sm font-semibold leading-6",
                                                 subscriptionStatus.tone === "danger"
-                                                    ? "border-rose-400/25 bg-rose-400/10 text-rose-100"
+                                                    ? "border-rose-400/25 bg-rose-400/10 text-rose-100 light:text-rose-800"
                                                     : "border-[var(--site-gold)]/25 bg-[var(--site-gold)]/10 text-[var(--site-text)]"
                                             )}
                                         >
@@ -6523,7 +6524,7 @@ function DashboardContent() {
                                                 <span className="font-semibold text-[var(--site-muted)]">
                                                     / {planDetails.storageLabel}
                                                 </span>
-                                                <span className="rounded-full bg-[var(--site-gold)]/10 px-2 py-1 text-[10px] font-black text-[var(--site-gold)]">
+                                                <span className="rounded-full bg-[var(--site-gold)]/10 px-2 py-1 text-[10px] font-black text-[var(--site-gold-text)]">
                                                     {planDetails.storageBytes === Infinity ? "∞" : `${Math.round(storagePercent)}%`}
                                                 </span>
                                             </div>
@@ -6549,7 +6550,7 @@ function DashboardContent() {
                                                 <span className="font-semibold text-[var(--site-muted)]">
                                                     / {planDetails.eventLabel}
                                                 </span>
-                                                <span className="rounded-full bg-[var(--site-gold)]/10 px-2 py-1 text-[10px] font-black text-[var(--site-gold)]">
+                                                <span className="rounded-full bg-[var(--site-gold)]/10 px-2 py-1 text-[10px] font-black text-[var(--site-gold-text)]">
                                                     {planDetails.eventLimit === Infinity ? "∞" : `${Math.round(eventPercent)}%`}
                                                 </span>
                                             </div>
@@ -6611,7 +6612,7 @@ function DashboardContent() {
                                 <div className="mt-8">
                                     <p className="text-sm font-black uppercase tracking-widest text-[var(--site-muted)]">Unique Join ID</p>
                                     <div className="mx-auto mt-4 inline-flex min-w-56 items-center justify-center rounded-2xl border border-[var(--site-gold)]/40 px-8 py-4">
-                                        <span className="text-3xl font-black uppercase tracking-[0.25em] text-[var(--site-gold)]">{shareModalJoinId}</span>
+                                        <span className="text-3xl font-black uppercase tracking-[0.25em] text-[var(--site-gold-text)]">{shareModalJoinId}</span>
                                     </div>
                                 </div>
 
@@ -6635,15 +6636,15 @@ function DashboardContent() {
                             initial={{ opacity: 0, y: -16 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -16 }}
-                            className="fixed left-1/2 top-24 z-[80] flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 flex-col gap-3 rounded-[1.5rem] border border-white/15 bg-[var(--site-bg)]/90 p-3 text-[var(--site-text)] shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
+                            className="fixed left-1/2 top-24 z-[80] flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 flex-col gap-3 rounded-[1.5rem] border border-[var(--site-tint)]/15 bg-[var(--site-bg)]/90 p-3 text-[var(--site-text)] shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
                         >
                             <div className="flex flex-col gap-1 px-2">
-                                <span className="text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold)]">Drag image</span>
+                                <span className="text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold-text)]">Drag image</span>
                                 <span className="truncate text-sm font-bold text-[var(--site-subtle)]">{coverPositionEvent.title}</span>
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
-                                <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 p-1">
+                                <div className="flex items-center gap-2 rounded-full border border-[var(--site-tint)]/10 bg-[var(--site-tint)]/5 p-1">
                                     <button
                                         type="button"
                                         onClick={() => adjustCoverZoom(-0.1)}
@@ -6894,14 +6895,17 @@ function DashboardContent() {
                     const isCurrent = gallery.galleryVideoId === videoActionItem.id;
                     return { isCurrent, galleryTitle: gallery.title, isHidden: !!videoActionItem.isHidden, onToggle: () => { void handleSetGalleryVideo(videoActionItem, !isCurrent); setVideoActionItem(null); } };
                 })()} onClose={() => setVideoActionItem(null)} onChoose={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} onDelete={() => { void handleDeletePhoto(videoActionItem.id); setVideoActionItem(null); }} onMove={canMoveMedia ? () => { setMediaToMove([videoActionItem]); setVideoActionItem(null); } : undefined} onSaveToVault={() => { setMediaToSave([videoActionItem]); setVideoActionItem(null); }} />}
+                {/* Vault's folder picker keeps the Vault look (dark) on the light site */}
                 {mediaToSave && (
-                    <FolderPickerDialog
-                        title={`Save ${mediaToSave.length === 1 ? "1 item" : `${mediaToSave.length} items`} to EB Vault`}
-                        confirmLabel="Save"
-                        excludeFolderIds={[]}
-                        onClose={() => setMediaToSave(null)}
-                        onPick={handleSaveToVault}
-                    />
+                    <div className="site-noir">
+                        <FolderPickerDialog
+                            title={`Save ${mediaToSave.length === 1 ? "1 item" : `${mediaToSave.length} items`} to EB Vault`}
+                            confirmLabel="Save"
+                            excludeFolderIds={[]}
+                            onClose={() => setMediaToSave(null)}
+                            onPick={handleSaveToVault}
+                        />
+                    </div>
                 )}
                 {mediaToMove && (
                     <MoveToGalleryDialog
@@ -6947,7 +6951,7 @@ function DashboardContent() {
                                                 await handleSetAsCover(photoActionItem.url, selectedMainEvent.id, true);
                                                 setPhotoActionItem(null);
                                             }}
-                                            className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 px-5 py-4 text-left font-black text-[var(--site-gold)] transition-transform active:scale-[0.98]"
+                                            className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 px-5 py-4 text-left font-black text-[var(--site-gold-text)] transition-transform active:scale-[0.98]"
                                         >
                                             <Star className="h-5 w-5 shrink-0" />
                                             <span>Make Event Thumbnail</span>
@@ -6970,7 +6974,7 @@ function DashboardContent() {
                                             setMediaToSave([photoActionItem]);
                                             setPhotoActionItem(null);
                                         }}
-                                        className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-[#7FA38C]/40 px-5 py-4 text-left font-black text-[#A9C9B4] transition-transform active:scale-[0.98] hover:border-[#7FA38C]"
+                                        className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-[#7FA38C]/40 px-5 py-4 text-left font-black text-[#A9C9B4] light:text-[#4E7A5E] transition-transform active:scale-[0.98] hover:border-[#7FA38C]"
                                     >
                                         <HardDrive className="h-5 w-5 shrink-0" />
                                         <span>Save to EB Vault</span>
@@ -7036,7 +7040,7 @@ function DashboardContent() {
                                     </div>
 
                                     <div>
-                                        <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--site-gold)]">Member Privileges</p>
+                                        <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--site-gold-text)]">Member Privileges</p>
                                         <div className="space-y-3">
                                             {[
                                                 { key: "canAdmin", label: "Admin Access", desc: "Manage event, sub-galleries, and other guests", icon: ShieldCheck },
@@ -7058,7 +7062,7 @@ function DashboardContent() {
                                                     >
                                                         <span className={cn(
                                                             "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
-                                                            isActive ? "bg-[var(--site-gold)]/15 text-[var(--site-gold)]" : "bg-[var(--site-surface-2)] text-[var(--site-muted)]"
+                                                            isActive ? "bg-[var(--site-gold)]/15 text-[var(--site-gold-text)]" : "bg-[var(--site-surface-2)] text-[var(--site-muted)]"
                                                         )}>
                                                             <Icon className="h-5 w-5" />
                                                         </span>
@@ -7104,7 +7108,7 @@ function DashboardContent() {
                                 className={cn(modalStyles.panel, "max-w-sm text-center")}
                             >
                                 <ModalCloseButton onClick={closeCreateSuccessModal} className="absolute right-5 top-5" />
-                                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--site-gold)]/10 text-[var(--site-gold)]">
+                                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--site-gold)]/10 text-[var(--site-gold-text)]">
                                     <Check className="h-7 w-7" />
                                 </div>
                                 <h2 className={modalStyles.title}>Success</h2>
@@ -7198,7 +7202,7 @@ function DashboardContent() {
                                             <span className={eventDate ? "text-[var(--site-text)]" : "text-[var(--site-muted)]"}>
                                                 {eventDate || "Select event date"}
                                             </span>
-                                            <Calendar className="h-5 w-5 text-[var(--site-gold)]" />
+                                            <Calendar className="h-5 w-5 text-[var(--site-gold-text)]" />
                                         </button>
                                     </div>
 
@@ -7236,9 +7240,9 @@ function DashboardContent() {
                             <div className={cn(
                                 "px-6 py-4 rounded-2xl shadow-2xl font-bold text-sm text-center border backdrop-blur-xl",
                                 status === "success"
-                                    ? "bg-emerald-500/20 text-emerald-100 border-emerald-500/30"
+                                    ? "bg-emerald-500/20 text-emerald-100 light:text-emerald-800 border-emerald-500/30"
                                     : status === "error"
-                                        ? "bg-rose-500/20 text-rose-100 border-rose-500/30"
+                                        ? "bg-rose-500/20 text-rose-100 light:text-rose-800 border-rose-500/30"
                                         : "bg-[var(--site-gold)]/15 text-[var(--site-text)] border-[var(--site-gold)]/30"
                             )}>
                                 {message}
@@ -7256,7 +7260,7 @@ export default function UserDashboard() {
     return (
         <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center bg-[var(--site-surface)]/50">
-                <Loader2 className="w-10 h-10 animate-spin text-sky-400" />
+                <Loader2 className="w-10 h-10 animate-spin text-sky-400 light:text-sky-700" />
             </div>
         }>
             <DashboardContent />

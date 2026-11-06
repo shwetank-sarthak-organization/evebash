@@ -129,7 +129,7 @@ export function DashboardEventCard({ event, guests, onOpen, footer, className }:
                     style={getCoverImageStyle(event)}
                 />
                 {event.category && (
-                    <div className="absolute left-3 top-3 rounded-full border border-[var(--site-gold)]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--site-gold)] backdrop-blur-sm">
+                    <div className="site-noir absolute left-3 top-3 rounded-full border border-[var(--site-gold)]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--site-gold-text)] backdrop-blur-sm">
                         {event.category}
                     </div>
                 )}
@@ -138,11 +138,11 @@ export function DashboardEventCard({ event, guests, onOpen, footer, className }:
                 <h3 className="truncate text-xl leading-tight text-[var(--site-text)]" style={SERIF}>{event.title}</h3>
                 <div className="mt-2 flex items-center justify-between gap-3 text-sm">
                     <span className="flex min-w-0 items-center gap-1.5 text-[var(--site-muted)]">
-                        <Calendar className="h-4 w-4 shrink-0 text-[var(--site-gold)]" aria-hidden="true" />
+                        <Calendar className="h-4 w-4 shrink-0 text-[var(--site-gold-text)]" aria-hidden="true" />
                         <span className="truncate">{formatShortEventDate(event.date)}</span>
                     </span>
                     {guests != null && (
-                        <span className="flex shrink-0 items-center gap-1 font-medium text-[var(--site-gold)]" title={`${guests} ${guests === 1 ? "guest" : "guests"}`}>
+                        <span className="flex shrink-0 items-center gap-1 font-medium text-[var(--site-gold-text)]" title={`${guests} ${guests === 1 ? "guest" : "guests"}`}>
                             <GuestsIcon className="h-4 w-4" aria-hidden="true" />
                             <span>{guests}</span>
                         </span>

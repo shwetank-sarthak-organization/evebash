@@ -84,19 +84,19 @@ export default function Footer() {
                     {/* Brand, tagline and the main action */}
                     <div className="col-span-2 lg:col-span-1">
                         <Link href="/" className="group inline-flex h-10 items-center gap-3">
-                            <span className="rounded-xl border border-[#CA9C68]/35 bg-[#CA9C68]/10 p-2 transition-colors group-hover:border-[#CA9C68]/65">
-                                <EveBashLogo className="h-6 w-6 text-[#CA9C68]" aria-hidden="true" />
+                            <span className="rounded-xl border border-[var(--site-brand-mark)]/35 bg-[var(--site-brand-mark)]/10 p-2 transition-colors group-hover:border-[var(--site-brand-mark)]/65">
+                                <EveBashLogo className="h-6 w-6 text-[var(--site-brand-mark)]" aria-hidden="true" />
                             </span>
-                            <span className="font-brand text-[1.75rem] leading-none tracking-wide text-[var(--site-text)] transition-colors group-hover:text-[#CA9C68]">EveBash</span>
+                            <span className="font-brand text-[1.75rem] leading-none tracking-wide text-[var(--site-text)] transition-colors group-hover:text-[var(--site-brand-mark)]">EveBash</span>
                         </Link>
                         <p className={cn(playfair.className, "mt-4 max-w-xs text-base leading-snug text-[var(--site-text)]")}>
                             One gallery for every moment of every event.
                         </p>
                         <div className="mt-5 flex gap-2.5">
                             {socials.map(({ label, icon: Icon, href }) => {
-                                const className = "flex h-9 w-9 items-center justify-center rounded-full border border-[#CA9C68]/30 text-[#DCB579] transition-colors";
+                                const className = "flex h-9 w-9 items-center justify-center rounded-full border border-[var(--site-brand-mark)]/30 text-[var(--site-brand-text)] transition-colors";
                                 return href ? (
-                                    <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={`EveBash on ${label}`} className={cn(className, "hover:border-[#DCB579] hover:bg-[#CA9C68]/10")}>
+                                    <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={`EveBash on ${label}`} className={cn(className, "hover:border-[var(--site-brand-text)] hover:bg-[var(--site-brand-mark)]/10")}>
                                         <Icon className="h-4 w-4" aria-hidden />
                                     </a>
                                 ) : (
@@ -114,7 +114,7 @@ export default function Footer() {
                             <ul className="mt-4 space-y-2.5 text-sm">
                                 {links.map(({ label, href }) => (
                                     <li key={label}>
-                                        <Link href={href} className="transition-colors hover:text-[#DCB579]">{label}</Link>
+                                        <Link href={href} className="transition-colors hover:text-[var(--site-brand-text)]">{label}</Link>
                                     </li>
                                 ))}
                             </ul>
@@ -126,19 +126,19 @@ export default function Footer() {
                         <h3 className={cn(playfair.className, "flex h-10 items-center text-lg text-[var(--site-text)]")}>Contact</h3>
                         <div className="mt-4 space-y-3 text-sm">
                             <p className="flex items-start gap-2.5">
-                                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#CA9C68]" aria-hidden />
+                                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[var(--site-brand-mark)]" aria-hidden />
                                 Dehradun, Uttarakhand, India 248001
                             </p>
                             <div className="flex items-start gap-2.5">
-                                <Phone className="mt-0.5 h-4 w-4 shrink-0 text-[#CA9C68]" aria-hidden />
+                                <Phone className="mt-0.5 h-4 w-4 shrink-0 text-[var(--site-brand-mark)]" aria-hidden />
                                 <div className="space-y-1">
-                                    <a href="tel:+919871264964" className="block whitespace-nowrap transition-colors hover:text-[#DCB579]">+91 98712 64964</a>
-                                    <a href="tel:+918535029872" className="block whitespace-nowrap transition-colors hover:text-[#DCB579]">+91 85350 29872</a>
+                                    <a href="tel:+919871264964" className="block whitespace-nowrap transition-colors hover:text-[var(--site-brand-text)]">+91 98712 64964</a>
+                                    <a href="tel:+918535029872" className="block whitespace-nowrap transition-colors hover:text-[var(--site-brand-text)]">+91 85350 29872</a>
                                 </div>
                             </div>
                             <p className="flex items-start gap-2.5">
-                                <Mail className="mt-0.5 h-4 w-4 shrink-0 text-[#CA9C68]" aria-hidden />
-                                <a href="mailto:support@evebash.com" className="whitespace-nowrap transition-colors hover:text-[#DCB579]">support@evebash.com</a>
+                                <Mail className="mt-0.5 h-4 w-4 shrink-0 text-[var(--site-brand-mark)]" aria-hidden />
+                                <a href="mailto:support@evebash.com" className="whitespace-nowrap transition-colors hover:text-[var(--site-brand-text)]">support@evebash.com</a>
                             </p>
                         </div>
                     </div>

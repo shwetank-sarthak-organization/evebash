@@ -27,8 +27,8 @@ function Person({ person, selected, disabled, multi, onClick }: {
             aria-pressed={selected}
             className={cn(
                 "flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-colors",
-                selected ? "border-[var(--site-gold)] bg-[var(--site-gold)]/10" : "border-white/10 hover:border-white/25",
-                disabled && "cursor-not-allowed opacity-40 hover:border-white/10"
+                selected ? "border-[var(--site-gold)] bg-[var(--site-gold)]/10" : "border-[var(--site-tint)]/10 hover:border-[var(--site-tint)]/25",
+                disabled && "cursor-not-allowed opacity-40 hover:border-[var(--site-tint)]/10"
             )}
         >
             <span className={cn(
@@ -44,7 +44,7 @@ function Person({ person, selected, disabled, multi, onClick }: {
             </span>
             <span className={cn(
                 "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider",
-                person.isHost ? "bg-[var(--site-gold)]/15 text-[var(--site-gold-light)]" : "bg-white/10 text-[var(--site-subtle)]"
+                person.isHost ? "bg-[var(--site-gold)]/15 text-[var(--site-gold-light-text)]" : "bg-[var(--site-tint)]/10 text-[var(--site-subtle)]"
             )}>{person.isHost ? "Host" : "Admin"}</span>
         </button>
     );
@@ -70,7 +70,7 @@ export function RolePicker({ eventId, value, onChange }: {
     }, [eventId]);
 
     if (error) return <p className={modalStyles.error}>{error}</p>;
-    if (!candidates) return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-[var(--site-gold)]" /></div>;
+    if (!candidates) return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-[var(--site-gold-text)]" /></div>;
 
     const clients = value.clientIds ?? [];
     // Picking someone for one role takes them out of the other, so roles can be swapped in one go
@@ -84,7 +84,7 @@ export function RolePicker({ eventId, value, onChange }: {
         <div className="space-y-5">
             <div>
                 <p className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]">
-                    <Camera className="h-3.5 w-3.5 text-[var(--site-gold)]" /> Photographer
+                    <Camera className="h-3.5 w-3.5 text-[var(--site-gold-text)]" /> Photographer
                     <span className="normal-case tracking-normal text-[var(--site-muted)]">· uploads pages and sends them for review</span>
                 </p>
                 <div className="space-y-2">
@@ -100,7 +100,7 @@ export function RolePicker({ eventId, value, onChange }: {
             </div>
             <div>
                 <p className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]">
-                    <Heart className="h-3.5 w-3.5 text-[var(--site-gold)]" /> Client
+                    <Heart className="h-3.5 w-3.5 text-[var(--site-gold-text)]" /> Client
                     <span className="normal-case tracking-normal text-[var(--site-muted)]">· comment, approve and send feedback (one or more)</span>
                 </p>
                 <div className="space-y-2">
@@ -116,10 +116,10 @@ export function RolePicker({ eventId, value, onChange }: {
                 </div>
             </div>
             {(!value.photographerId || !clients.length) && (
-                <p className="text-xs font-bold text-[var(--site-gold-light)]">{!value.photographerId ? "Choose the photographer." : "Choose at least one client."}</p>
+                <p className="text-xs font-bold text-[var(--site-gold-light-text)]">{!value.photographerId ? "Choose the photographer." : "Choose at least one client."}</p>
             )}
             {candidates.length < 2 && (
-                <p className="rounded-2xl border border-[var(--site-gold)]/25 bg-[var(--site-gold)]/[0.06] p-3 text-xs font-semibold leading-5 text-[var(--site-gold-light)]">
+                <p className="rounded-2xl border border-[var(--site-gold)]/25 bg-[var(--site-gold)]/[0.06] p-3 text-xs font-semibold leading-5 text-[var(--site-gold-light-text)]">
                     Only the host can be picked right now. Add the photographer or the client as guests and turn on
                     <span className="font-black"> Admin Access</span> in Permissions, then come back.
                 </p>

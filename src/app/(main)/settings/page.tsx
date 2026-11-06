@@ -14,12 +14,17 @@ import {
     Lock,
     Mail,
     MessageSquare,
+    Monitor,
+    Moon,
     ScanFace,
     Settings,
     Shield,
+    Sun,
     Trash2,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
+import type { SiteThemeChoice } from "@/lib/siteTheme";
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
 import { cn } from "@/lib/utils";
@@ -29,11 +34,17 @@ import { withdrawFindYouConsent } from "@/components/FindYouConsentGate";
 const SUPPORT_EMAIL = "support@evebash.com";
 
 const CARD = "overflow-hidden rounded-[2rem] border border-[var(--site-line)] bg-[var(--site-surface)]";
-const SECTION_LABEL = "mb-3 px-1 font-sans text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-gold)]";
+const SECTION_LABEL = "mb-3 px-1 font-sans text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-gold-text)]";
 const ROW = "flex w-full items-center gap-4 px-5 py-4 text-left transition-colors sm:px-6";
 const ICON_BOX = "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl";
 
 type SignInMethod = { label: string; identifier: string };
+
+const THEME_CHOICES: { value: SiteThemeChoice; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+    { value: "light", label: "Light", icon: Sun },
+    { value: "dark", label: "Dark", icon: Moon },
+    { value: "system", label: "Match device", icon: Monitor },
+];
 
 function RowContent({ icon: Icon, title, subtitle, tone = "default", trailing = true }: {
     icon: React.ComponentType<{ className?: string }>;
@@ -45,20 +56,21 @@ function RowContent({ icon: Icon, title, subtitle, tone = "default", trailing = 
     const danger = tone === "danger";
     return (
         <>
-            <span className={cn(ICON_BOX, danger ? "bg-rose-500/10 text-rose-300" : "bg-[var(--site-gold)]/10 text-[var(--site-gold)]")}>
+            <span className={cn(ICON_BOX, danger ? "bg-rose-500/10 text-rose-300 light:text-rose-700" : "bg-[var(--site-gold)]/10 text-[var(--site-gold-text)]")}>
                 <Icon className="h-5 w-5" />
             </span>
             <span className="min-w-0 flex-1">
-                <span className={cn("block text-sm font-black", danger ? "text-rose-300" : "text-[var(--site-text)]")}>{title}</span>
+                <span className={cn("block text-sm font-black", danger ? "text-rose-300 light:text-rose-700" : "text-[var(--site-text)]")}>{title}</span>
                 {subtitle && <span className="mt-0.5 block text-xs font-semibold leading-5 text-[var(--site-muted)]">{subtitle}</span>}
             </span>
-            {trailing && <ChevronRight className={cn("h-4 w-4 shrink-0", danger ? "text-rose-300" : "text-[var(--site-muted)]")} />}
+            {trailing && <ChevronRight className={cn("h-4 w-4 shrink-0", danger ? "text-rose-300 light:text-rose-700" : "text-[var(--site-muted)]")} />}
         </>
     );
 }
 
 export default function SettingsPage() {
     const { user, loading: authLoading, logout } = useAuth();
+    const { choice: themeChoice, theme, setChoice: setThemeChoice } = useTheme();
     const router = useRouter();
 
     const [signInMethod, setSignInMethod] = useState<SignInMethod | null>(null);
@@ -202,7 +214,7 @@ export default function SettingsPage() {
     if (authLoading || !user) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-[var(--site-bg)] text-[var(--site-subtle)]">
-                <Loader2 className="h-8 w-8 animate-spin text-[var(--site-gold)]" />
+                <Loader2 className="h-8 w-8 animate-spin text-[var(--site-gold-text)]" />
             </div>
         );
     }
@@ -210,10 +222,10 @@ export default function SettingsPage() {
     return (
         <div className="min-h-screen bg-[var(--site-bg)] font-sans text-[var(--site-text)]">
             <main className="mx-auto max-w-3xl space-y-8 px-4 pt-12 pb-24 sm:px-6 lg:px-8">
-                <section className="rounded-[2rem] border border-[var(--site-line)] bg-[var(--site-surface)] p-5 shadow-2xl shadow-black/25 sm:p-8">
+                <section className="rounded-[2rem] border border-[var(--site-line)] bg-[var(--site-surface)] p-5 shadow-2xl shadow-black/25 light:shadow-(color:--home-shadow) sm:p-8">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[var(--site-gold)]">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[var(--site-tint)]/10 bg-[var(--site-tint)]/[0.06] text-[var(--site-gold-text)]">
                                 <Settings className="h-6 w-6" aria-hidden="true" />
                             </div>
                             <div className="min-w-0">
@@ -247,29 +259,56 @@ export default function SettingsPage() {
                                 <span className="min-w-0 truncate font-black text-[var(--site-text)]">{signInMethod?.identifier || "..."}</span>
                             </div>
                         </div>
-                        <div className="border-t border-white/5" />
-                        <button type="button" onClick={() => setShowPassword(true)} className={cn(ROW, "hover:bg-white/[0.03]")}>
+                        <div className="border-t border-[var(--site-tint)]/5" />
+                        <button type="button" onClick={() => setShowPassword(true)} className={cn(ROW, "hover:bg-[var(--site-tint)]/[0.03]")}>
                             <RowContent icon={Lock} title="Change Password" subtitle="Set a new password for signing in" />
                         </button>
-                        <div className="border-t border-white/5" />
-                        <button type="button" onClick={() => void handleWithdrawFindYou()} className={cn(ROW, "hover:bg-white/[0.03]")}>
+                        <div className="border-t border-[var(--site-tint)]/5" />
+                        <button type="button" onClick={() => void handleWithdrawFindYou()} className={cn(ROW, "hover:bg-[var(--site-tint)]/[0.03]")}>
                             <RowContent icon={ScanFace} title="Withdraw Find You Consent" subtitle="Stop Find You using your selfie" />
                         </button>
-                        <div className="border-t border-white/5" />
+                        <div className="border-t border-[var(--site-tint)]/5" />
                         <button type="button" onClick={() => setShowDeleteAccount(true)} className={cn(ROW, "hover:bg-rose-500/5")}>
                             <RowContent icon={Trash2} title="Delete Account" subtitle="Permanently removes your profile, hosted events, and uploaded media" tone="danger" />
                         </button>
                     </div>
                 </section>
 
+                {/* Light or dark site look; the navbar button switches it too (src/lib/siteTheme.ts) */}
+                <section data-appearance>
+                    <h2 className={SECTION_LABEL}>Appearance</h2>
+                    <div className={cn(CARD, "flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:px-6")}>
+                        <div className="flex min-w-0 flex-1 items-center gap-4">
+                            <RowContent icon={theme === "light" ? Sun : Moon} title="Theme" subtitle="Light, dark, or the same as this device" trailing={false} />
+                        </div>
+                        <div role="group" aria-label="Theme" className="flex shrink-0 gap-1 self-start rounded-full border border-[var(--site-line)] bg-[var(--site-bg)] p-1 sm:self-auto">
+                            {THEME_CHOICES.map(({ value, label, icon: Icon }) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    aria-pressed={themeChoice === value}
+                                    onClick={() => setThemeChoice(value)}
+                                    className={cn(
+                                        "flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--home-accent)]",
+                                        themeChoice === value ? "home-btn-gold" : "text-[var(--site-muted)] hover:text-[var(--site-text)]"
+                                    )}
+                                >
+                                    <Icon className="h-3.5 w-3.5" aria-hidden />
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
                 <section>
                     <h2 className={SECTION_LABEL}>Feedback &amp; Support</h2>
                     <div className={CARD}>
-                        <Link href="/contact-us" className={cn(ROW, "hover:bg-white/[0.03]")}>
+                        <Link href="/contact-us" className={cn(ROW, "hover:bg-[var(--site-tint)]/[0.03]")}>
                             <RowContent icon={MessageSquare} title="Report a Bug / Send Feedback" subtitle="Write to the EveBash team" />
                         </Link>
-                        <div className="border-t border-white/5" />
-                        <a href={`mailto:${SUPPORT_EMAIL}`} className={cn(ROW, "hover:bg-white/[0.03]")}>
+                        <div className="border-t border-[var(--site-tint)]/5" />
+                        <a href={`mailto:${SUPPORT_EMAIL}`} className={cn(ROW, "hover:bg-[var(--site-tint)]/[0.03]")}>
                             <RowContent icon={Mail} title="Contact Customer Support" subtitle={SUPPORT_EMAIL} />
                         </a>
                     </div>
@@ -278,15 +317,15 @@ export default function SettingsPage() {
                 <section>
                     <h2 className={SECTION_LABEL}>About &amp; Legal</h2>
                     <div className={CARD}>
-                        <Link href="/" className={cn(ROW, "hover:bg-white/[0.03]")}>
+                        <Link href="/" className={cn(ROW, "hover:bg-[var(--site-tint)]/[0.03]")}>
                             <RowContent icon={Home} title="About EveBash" />
                         </Link>
-                        <div className="border-t border-white/5" />
-                        <Link href="/terms-and-conditions" className={cn(ROW, "hover:bg-white/[0.03]")}>
+                        <div className="border-t border-[var(--site-tint)]/5" />
+                        <Link href="/terms-and-conditions" className={cn(ROW, "hover:bg-[var(--site-tint)]/[0.03]")}>
                             <RowContent icon={FileText} title="Terms of Service" />
                         </Link>
-                        <div className="border-t border-white/5" />
-                        <Link href="/privacy-policy" className={cn(ROW, "hover:bg-white/[0.03]")}>
+                        <div className="border-t border-[var(--site-tint)]/5" />
+                        <Link href="/privacy-policy" className={cn(ROW, "hover:bg-[var(--site-tint)]/[0.03]")}>
                             <RowContent icon={Shield} title="Privacy Policy" />
                         </Link>
                     </div>
@@ -294,7 +333,7 @@ export default function SettingsPage() {
             </main>
 
             {toast && (
-                <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-[var(--site-border)] bg-[var(--site-surface)] px-5 py-3 text-sm font-bold text-emerald-300 shadow-2xl">
+                <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-[var(--site-border)] bg-[var(--site-surface)] px-5 py-3 text-sm font-bold text-emerald-300 shadow-2xl light:text-emerald-800">
                     {toast}
                 </div>
             )}
@@ -316,8 +355,8 @@ export default function SettingsPage() {
                                 { met: passSpecial, text: "One special character" },
                             ].map((req) => (
                                 <div key={req.text} className="flex items-center gap-2 text-xs">
-                                    {req.met ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : <Circle className="h-4 w-4 text-[var(--site-muted)]" />}
-                                    <span className={req.met ? "font-semibold text-emerald-300" : "text-[var(--site-muted)]"}>{req.text}</span>
+                                    {req.met ? <CheckCircle2 className="h-4 w-4 text-emerald-400 light:text-emerald-600" /> : <Circle className="h-4 w-4 text-[var(--site-muted)]" />}
+                                    <span className={req.met ? "font-semibold text-emerald-300 light:text-emerald-800" : "text-[var(--site-muted)]"}>{req.text}</span>
                                 </div>
                             ))}
                         </div>
@@ -341,7 +380,7 @@ export default function SettingsPage() {
                 <div className={modalStyles.overlay} onMouseDown={() => !deletingAccount && setShowDeleteAccount(false)}>
                     <div className={cn(modalStyles.panel, "border-rose-500/30")} onMouseDown={(event) => event.stopPropagation()}>
                         <ModalHeader
-                            eyebrow={<span className="text-rose-300">Permanent action</span>}
+                            eyebrow={<span className="text-rose-300 light:text-rose-700">Permanent action</span>}
                             title="Delete your account?"
                             onClose={() => setShowDeleteAccount(false)}
                             closeDisabled={deletingAccount}
@@ -352,7 +391,7 @@ export default function SettingsPage() {
                             Type DELETE to confirm
                             <input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} disabled={deletingAccount} autoComplete="off" className={cn(modalStyles.input, "mt-2 font-black normal-case tracking-normal focus:border-rose-400 focus:ring-rose-400")} />
                         </label>
-                        {deleteError && <p className="mt-3 text-sm font-bold text-rose-300">{deleteError}</p>}
+                        {deleteError && <p className="mt-3 text-sm font-bold text-rose-300 light:text-rose-700">{deleteError}</p>}
                         <div className="mt-6 flex gap-3">
                             <button type="button" disabled={deletingAccount} onClick={() => setShowDeleteAccount(false)} className={cn(modalStyles.secondary, "flex-1")}>Cancel</button>
                             <button type="button" disabled={deleteConfirmation !== "DELETE" || deletingAccount} onClick={handleDeleteAccount} className={cn(modalStyles.danger, "flex-1")}>

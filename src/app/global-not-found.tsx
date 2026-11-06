@@ -4,6 +4,7 @@ import Image from "next/image";
 import "./globals.css";
 import { inter, playfair } from "./fonts";
 import NotFoundContent from "@/components/NotFoundContent";
+import { siteThemeHeadScript } from "@/lib/siteTheme";
 
 // Unknown addresses match no route group, so this page brings its own <html> (the site has several root layouts).
 export const metadata: Metadata = {
@@ -13,8 +14,12 @@ export const metadata: Metadata = {
 
 export default function GlobalNotFound() {
     return (
-        <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
-            <body className="antialiased font-sans bg-[var(--site-bg)]">
+        <html lang="en" className={`${inter.variable} ${playfair.variable}`} suppressHydrationWarning>
+            <head>
+                <script dangerouslySetInnerHTML={{ __html: siteThemeHeadScript }} />
+            </head>
+            {/* site-themed: light visitors get the light look; dark keeps this page's own colours */}
+            <body className="antialiased font-sans bg-[var(--site-bg)] site-themed">
                 <header className="flex justify-center px-4 pt-10">
                     <Link href="/" aria-label="EveBash home">
                         <Image src="/evebash-logo-gold.svg" alt="EveBash" width={56} height={56} priority />

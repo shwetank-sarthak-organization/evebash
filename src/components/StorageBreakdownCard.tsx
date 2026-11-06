@@ -45,7 +45,7 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, loading, pla
                     <HardDrive className="h-3.5 w-3.5" aria-hidden />
                     Storage
                 </p>
-                <p className={cn("text-[11px] font-bold", planExpired ? "text-rose-300" : "text-[var(--site-muted)]")}>{planLabel} plan{planExpired && " · expired"}</p>
+                <p className={cn("text-[11px] font-bold", planExpired ? "text-rose-300 light:text-rose-700" : "text-[var(--site-muted)]")}>{planLabel} plan{planExpired && " · expired"}</p>
             </div>
 
             <p className="mt-2 text-xl font-black text-[var(--site-text)]">
@@ -103,7 +103,7 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, loading, pla
                                 <button
                                     type="button"
                                     onClick={() => setAllEventsShown((shown) => !shown)}
-                                    className="mt-2 text-xs font-bold text-[var(--site-gold)]"
+                                    className="mt-2 text-xs font-bold text-[var(--site-gold-text)]"
                                 >
                                     {allEventsShown ? "Show fewer" : `Show all ${eventSizes.length} events`}
                                 </button>
@@ -135,7 +135,7 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, loading, pla
                 </li>
             </ul>
 
-            <p className={cn("mt-3 text-[11px] font-medium", overLimit || planExpired ? "text-rose-300" : "text-[var(--site-muted)]")}>
+            <p className={cn("mt-3 text-[11px] font-medium", overLimit || planExpired ? "text-rose-300 light:text-rose-700" : "text-[var(--site-muted)]")}>
                 {planExpired
                     ? "Your plan has expired. Uploads are paused until you renew."
                     : overLimit

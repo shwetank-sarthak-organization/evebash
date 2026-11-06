@@ -52,8 +52,8 @@ export function IncomingTransfers({ onAccepted }: { onAccepted: () => void }) {
                         {request.keepOldOwnerAsAdmin && " They stay on as an admin."}
                         {` Expires on ${formatTransferExpiry(request.expiresAt)}.`}
                     </p>
-                    {!request.canAccept && <p className="mt-2 text-sm font-bold text-amber-400">{request.blockMessage}</p>}
-                    {errors[request.id] && <p role="alert" className="mt-2 text-sm text-rose-400">{errors[request.id]}</p>}
+                    {!request.canAccept && <p className="mt-2 text-sm font-bold text-amber-400 light:text-amber-700">{request.blockMessage}</p>}
+                    {errors[request.id] && <p role="alert" className="mt-2 text-sm text-rose-400 light:text-rose-700">{errors[request.id]}</p>}
                     <div className="mt-4 flex flex-wrap gap-2">
                         {request.canAccept ? (
                             <button

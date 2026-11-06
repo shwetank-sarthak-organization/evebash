@@ -89,7 +89,7 @@ function OpenInAppBar() {
     const primaryClass =
         "shrink-0 rounded-full bg-[#CA9C68] px-4 py-2 text-sm font-semibold text-[#13191F] transition-colors hover:bg-[#d8ad7c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#CA9C68]";
     const secondaryClass =
-        "shrink-0 rounded-full border border-[#CA9C68]/60 px-3.5 py-2 text-sm font-semibold text-[#CA9C68] transition-colors hover:bg-[#CA9C68]/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#CA9C68]";
+        "shrink-0 rounded-full border border-[#CA9C68]/60 px-3.5 py-2 text-sm font-semibold text-[#CA9C68] light:text-[var(--site-gold-text)] transition-colors hover:bg-[#CA9C68]/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#CA9C68]";
 
     return (
         <aside
@@ -98,8 +98,8 @@ function OpenInAppBar() {
             className="lightbox-hide-ui fixed inset-x-0 bottom-0 z-[39] px-3 pt-2"
             style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
         >
-            <div className="mx-auto flex max-w-md items-center gap-2.5 rounded-2xl border border-[var(--site-border)] bg-[var(--site-surface)] py-2.5 pl-3 pr-1.5 text-[var(--site-text)] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--site-bg)] text-[#CA9C68]">
+            <div className="mx-auto flex max-w-md items-center gap-2.5 rounded-2xl border border-[var(--site-border)] bg-[var(--site-surface)] py-2.5 pl-3 pr-1.5 text-[var(--site-text)] shadow-[0_8px_30px_rgba(0,0,0,0.45)] light:shadow-[0_8px_30px_rgba(92,64,24,0.18)]">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--site-bg)] text-[#CA9C68] light:text-[var(--site-brand-mark)]">
                     <EveBashLogo className="h-6 w-6" aria-hidden="true" />
                 </span>
                 <span className="min-w-0 flex-1">

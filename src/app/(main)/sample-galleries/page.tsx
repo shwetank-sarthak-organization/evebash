@@ -30,7 +30,7 @@ export default function SampleGalleries() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
                 <header className="mb-20 text-center space-y-6">
                     <ScrollReveal direction="up">
-                        <div className="inline-flex items-center space-x-3 px-4 py-2 bg-royal-gold/10 rounded-full text-royal-gold text-xs font-bold uppercase tracking-widest mb-4 border border-royal-gold/20">
+                        <div className="inline-flex items-center space-x-3 px-4 py-2 bg-royal-gold/10 rounded-full text-royal-gold light:text-[var(--site-gold-text)] text-xs font-bold uppercase tracking-widest mb-4 border border-royal-gold/20">
                             <Camera className="w-4 h-4" />
                             <span>Try it as a guest</span>
                         </div>
@@ -38,7 +38,7 @@ export default function SampleGalleries() {
                     
                     <ScrollReveal direction="up" delay={0.1}>
                         <h1 className="text-5xl md:text-7xl font-bold text-[var(--site-text)] tracking-tight">
-                            Sample <span className="text-royal-gold">Galleries</span>
+                            Sample <span className="text-royal-gold light:text-[var(--site-gold-text)]">Galleries</span>
                         </h1>
                     </ScrollReveal>
                     

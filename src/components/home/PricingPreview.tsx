@@ -14,13 +14,13 @@ export default function PricingPreview() {
 
                 <Reveal delay={0.1}>
                     <div className="mx-auto mt-12 grid max-w-3xl gap-6 md:grid-cols-2">
-                        <div className="rounded-2xl border border-[var(--site-border)] bg-[var(--site-surface)] p-6 md:p-8">
+                        <div className="rounded-2xl border border-[var(--site-border)] bg-[var(--site-card)] p-6 md:p-8">
                             <p className="text-sm font-semibold text-[var(--site-muted)]">Free</p>
                             <p className={cn(displayFont.className, "mt-2 text-4xl font-semibold text-[var(--site-text)]")}>₹0</p>
                             <p className="mt-1 text-sm text-[var(--site-muted)]">forever</p>
                             <p className="mt-5 leading-relaxed text-[var(--site-subtle)]">1 event and 1 GB of storage, with photos and videos up to 200 MB.</p>
                         </div>
-                        <div className="rounded-2xl border border-royal-gold/40 bg-[var(--site-surface)] p-6 md:p-8">
+                        <div className="rounded-2xl border border-royal-gold/40 bg-[var(--site-card)] p-6 md:p-8">
                             <p className="text-sm font-semibold text-[var(--home-accent)]">Paid plans</p>
                             <p className={cn(displayFont.className, "mt-2 text-4xl font-semibold text-[var(--site-text)]")}>
                                 ₹150<span className="font-sans text-base font-normal text-[var(--site-muted)]"> / month</span>
@@ -37,7 +37,7 @@ export default function PricingPreview() {
                 </Reveal>
 
                 <Reveal delay={0.1}>
-                    <div className="mx-auto mt-16 flex max-w-3xl flex-col items-center gap-4 rounded-2xl border border-[var(--site-border)] bg-[var(--site-surface)] p-6 text-center md:flex-row md:justify-between md:p-8 md:text-left">
+                    <div className="mx-auto mt-16 flex max-w-3xl flex-col items-center gap-4 rounded-2xl border border-[var(--site-border)] bg-[var(--site-card)] p-6 text-center md:flex-row md:justify-between md:p-8 md:text-left">
                         <div>
                             <h3 className="text-lg font-semibold text-[var(--site-text)]">See it before you sign up</h3>
                             <p className="mt-1 text-[var(--site-subtle)]">Open a sample gallery and try it the way a guest would.</p>

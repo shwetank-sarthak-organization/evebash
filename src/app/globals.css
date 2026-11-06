@@ -8,6 +8,10 @@
 @import "./confetti-circle.css";
 @import "./periwinkle-script.css";
 
+/* light:text-rose-700 and the like: a class that only applies on site pages showing the light look (todo #1,
+   src/lib/siteTheme.ts). The plain class next to it stays the dark look. Not inside .site-noir mock-ups. */
+@custom-variant light (&:where(html[data-site-theme="light"]:not([data-site-noir]) body.site-themed *):not(.site-noir, .site-noir *));
+
 /* Suppress Native Browser Video Controls (Overflow 3-Dots & Picture-in-Picture) */
 video::-webkit-media-controls-overflow-button,
 video::-webkit-media-controls-picture-in-picture-button {
@@ -46,6 +50,14 @@ video::-webkit-media-controls-picture-in-picture-button {
   --site-gold: #CA9C68;
   --site-gold-light: #D7AE7D;
   --site-on-gold: #13191F;
+  /* The navbar and footer's logo gold, and their gold text and hover */
+  --site-brand-mark: #CA9C68;
+  --site-brand-text: #DCB579;
+  /* See-through overlays and lines: bg-[var(--site-tint)]/10 is white at 10% here, ink on the light site */
+  --site-tint: #FFFFFF;
+  /* Gold used as text: the same gold here, a readable bronze on the light site */
+  --site-gold-text: #CA9C68;
+  --site-gold-light-text: #D7AE7D;
 }
 
 .theme-dark {
@@ -72,8 +84,11 @@ video::-webkit-media-controls-picture-in-picture-button {
 
 /* Site look "Noir" (first made for the homepage, src/components/home): true black with one gold,
    #DCB579. Set on the site pages' <body> (same layouts as above), so navbar, footer and modals match.
-   Guest galleries ((public) layout) keep the :root values. Use these instead of hex codes. */
-.site-palette {
+   Guest galleries ((public) layout) keep the :root values. Use these instead of hex codes.
+   .site-noir puts it back inside a light page, on mock-ups of the product's own dark screens. */
+.site-palette,
+.site-noir {
+  --site-tint: #FFFFFF;
   --site-bg: #09090B;
   --site-surface: #141417;
   --site-surface-2: #1F1F24;
@@ -90,12 +105,112 @@ video::-webkit-media-controls-picture-in-picture-button {
   --site-input: rgba(220, 181, 121, 0.1);
   --site-gold: #DCB579;
   --site-gold-light: #F3DDAA;
+  --site-gold-text: #DCB579;
+  --site-gold-light-text: #F3DDAA;
   /* Text on a gold fill */
   --site-on-gold: #1A1205;
+}
+
+/* The homepage look's own colours: buttons, headlines, glows and demo frames. On :root too, because the
+   gold and frosted buttons also show outside the site pages (the 404 page for unknown links). */
+:root,
+.site-noir {
   --home-glow: rgba(220, 181, 121, 0.2);
   --home-accent: #DCB579;
   /* The gold gradient Midnight Hero uses (src/app/midnight-hero.css) */
   --home-gold: linear-gradient(135deg, #F6E4AD 0%, #DCB579 42%, #CA9C68 62%, #A87B45 100%);
+  /* Hero and closing headlines: luminous ivory to gold */
+  --home-title: linear-gradient(180deg, #FFF8EA 0%, #F3DDAA 55%, #CFA166 100%);
+  /* Soft out-of-focus string lights behind the hero, plus a warm spotlight */
+  --home-bokeh:
+    radial-gradient(ellipse 60% 50% at 75% 35%, var(--home-glow), transparent 70%),
+    radial-gradient(circle at 12% 18%, rgba(246, 228, 173, 0.35) 0, transparent 3px),
+    radial-gradient(circle at 22% 8%, rgba(246, 228, 173, 0.25) 0, transparent 2px),
+    radial-gradient(circle at 35% 22%, rgba(246, 228, 173, 0.18) 0, transparent 14px),
+    radial-gradient(circle at 48% 6%, rgba(246, 228, 173, 0.3) 0, transparent 2px),
+    radial-gradient(circle at 58% 14%, rgba(246, 228, 173, 0.14) 0, transparent 22px),
+    radial-gradient(circle at 66% 4%, rgba(246, 228, 173, 0.28) 0, transparent 3px),
+    radial-gradient(circle at 82% 10%, rgba(246, 228, 173, 0.2) 0, transparent 10px),
+    radial-gradient(circle at 92% 24%, rgba(246, 228, 173, 0.3) 0, transparent 2px),
+    radial-gradient(circle at 88% 62%, rgba(246, 228, 173, 0.12) 0, transparent 28px),
+    radial-gradient(circle at 6% 70%, rgba(246, 228, 173, 0.16) 0, transparent 18px),
+    radial-gradient(circle at 30% 88%, rgba(246, 228, 173, 0.22) 0, transparent 3px);
+  /* Gold foil and frosted buttons (.home-btn-gold, .home-btn-glass) */
+  --home-btn-gold: linear-gradient(135deg, #F6E4AD 0%, #DCB579 45%, #B98A50 100%);
+  --home-btn-gold-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  --home-glass: rgba(255, 255, 255, 0.06);
+  --home-glass-hover: rgba(255, 255, 255, 0.1);
+  --home-glass-border: rgba(220, 181, 121, 0.45);
+  --home-glass-border-hover: rgba(220, 181, 121, 0.75);
+  /* Drop shadows under the demo frames */
+  --home-shadow: rgb(0 0 0 / 0.4);
+  --home-shadow-strong: rgb(0 0 0 / 0.5);
+  /* The hero's browser window */
+  --home-window: #0E1318;
+  --home-window-line: rgba(255, 255, 255, 0.05);
+  --home-window-dot: rgba(255, 255, 255, 0.15);
+  --home-window-url: rgba(255, 255, 255, 0.05);
+  --home-window-url-text: rgba(255, 255, 255, 0.5);
+  /* The group chat in the closing demo */
+  --home-bubble: rgba(255, 255, 255, 0.07);
+  --home-chip: rgba(255, 255, 255, 0.15);
+  --home-chip-soft: rgba(255, 255, 255, 0.1);
+}
+
+/* Light site look (todo #1): warm ivory paper, ink text and a deeper bronze gold, so gold text and icons stay
+   readable (AA). siteThemeHeadScript and ThemeProvider (src/lib/siteTheme.ts) set the <html> attributes;
+   only the (main) layout's body is site-themed, and pages marked data-site-noir stay dark. */
+html[data-site-theme="light"]:not([data-site-noir]) body.site-themed {
+  --site-tint: #1C1915;
+  --site-bg: #FBF8F3;
+  --site-surface: #F4EEE4;
+  --site-surface-2: #EBE3D6;
+  --site-surface-3: #E0D6C6;
+  --site-card: #FFFFFF;
+  --site-text: #1C1915;
+  --site-subtle: #4A443C;
+  --site-muted: #6B6358;
+  --site-border: rgba(165, 118, 54, 0.28);
+  --site-line: rgba(28, 25, 21, 0.1);
+  --site-card-muted: rgba(165, 118, 54, 0.1);
+  --site-input: rgba(165, 118, 54, 0.08);
+  --site-gold: #CFA461;
+  --site-gold-light: #E2C38D;
+  --site-gold-text: #8A6224;
+  --site-gold-light-text: #6F4E1C;
+  --site-on-gold: #1A1205;
+  --site-brand-mark: #A57636;
+  --site-brand-text: #8A6224;
+  --home-glow: rgba(214, 170, 100, 0.26);
+  --home-accent: #8A6224;
+  --home-gold: linear-gradient(135deg, #EBCB8E 0%, #D2A762 42%, #BB8B48 62%, #8F672C 100%);
+  --home-title: linear-gradient(180deg, #2B231A 0%, #3F3122 50%, #7E5A22 100%);
+  /* Morning light instead of string lights: a warm spotlight and two soft washes */
+  --home-bokeh:
+    radial-gradient(ellipse 55% 50% at 78% 38%, var(--home-glow), transparent 70%),
+    radial-gradient(ellipse 45% 40% at 6% 0%, rgba(243, 221, 170, 0.45), transparent 70%),
+    radial-gradient(ellipse 35% 30% at 32% 100%, rgba(236, 214, 176, 0.35), transparent 70%);
+  --home-btn-gold: linear-gradient(135deg, #F0D9A6 0%, #D6AE6C 45%, #B4884A 100%);
+  --home-btn-gold-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -1px 0 rgba(90, 60, 20, 0.2), 0 6px 16px -8px rgba(140, 98, 36, 0.6);
+  --home-glass: rgba(255, 255, 255, 0.75);
+  --home-glass-hover: #FFFFFF;
+  --home-glass-border: rgba(165, 118, 54, 0.38);
+  --home-glass-border-hover: rgba(165, 118, 54, 0.7);
+  --home-shadow: rgb(92 64 24 / 0.16);
+  --home-shadow-strong: rgb(92 64 24 / 0.28);
+  --home-window: #F1EBE1;
+  --home-window-line: rgba(28, 25, 21, 0.08);
+  --home-window-dot: rgba(28, 25, 21, 0.15);
+  --home-window-url: #FFFFFF;
+  --home-window-url-text: #7A7266;
+  --home-bubble: #FFFFFF;
+  --home-chip: rgba(28, 25, 21, 0.08);
+  --home-chip-soft: rgba(28, 25, 21, 0.06);
+  /* The loading screen (src/components/LoadingScreen.tsx), which falls back to its dark colours */
+  --loading-bg: linear-gradient(135deg, #FBF8F3 0%, #F6EEE2 45%, #F2ECE2 100%);
+  --loading-brand: #8A6224;
+  --loading-brand-glow: 0 0 24px rgba(214, 170, 100, 0.35);
+  --loading-message: #6B6358;
 }
 
 @theme {
@@ -538,57 +653,44 @@ html[data-app-gate] body {
 
 /* The Noir colours now live on .site-palette (top of this file), so every site page matches the homepage. */
 
-/* Luminous ivory-to-gold lettering for the hero and closing headlines */
+/* Hero and closing headlines, in --home-title's gradient */
 .home-gold-text {
-  background: linear-gradient(180deg, #FFF8EA 0%, #F3DDAA 55%, #CFA166 100%);
+  background: var(--home-title);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-/* Soft out-of-focus string lights behind the hero, plus a warm spotlight */
 .home-bokeh {
-  background-image:
-    radial-gradient(ellipse 60% 50% at 75% 35%, var(--home-glow), transparent 70%),
-    radial-gradient(circle at 12% 18%, rgba(246, 228, 173, 0.35) 0, transparent 3px),
-    radial-gradient(circle at 22% 8%, rgba(246, 228, 173, 0.25) 0, transparent 2px),
-    radial-gradient(circle at 35% 22%, rgba(246, 228, 173, 0.18) 0, transparent 14px),
-    radial-gradient(circle at 48% 6%, rgba(246, 228, 173, 0.3) 0, transparent 2px),
-    radial-gradient(circle at 58% 14%, rgba(246, 228, 173, 0.14) 0, transparent 22px),
-    radial-gradient(circle at 66% 4%, rgba(246, 228, 173, 0.28) 0, transparent 3px),
-    radial-gradient(circle at 82% 10%, rgba(246, 228, 173, 0.2) 0, transparent 10px),
-    radial-gradient(circle at 92% 24%, rgba(246, 228, 173, 0.3) 0, transparent 2px),
-    radial-gradient(circle at 88% 62%, rgba(246, 228, 173, 0.12) 0, transparent 28px),
-    radial-gradient(circle at 6% 70%, rgba(246, 228, 173, 0.16) 0, transparent 18px),
-    radial-gradient(circle at 30% 88%, rgba(246, 228, 173, 0.22) 0, transparent 3px);
+  background-image: var(--home-bokeh);
 }
 
 /* Homepage buttons, style A: gold foil (main action) and frosted with a gold edge (second action) */
 .home-btn-gold,
 .site-palette .modal-btn-primary {
-  background: linear-gradient(135deg, #F6E4AD 0%, #DCB579 45%, #B98A50 100%);
+  background: var(--home-btn-gold);
   color: #1A1205;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  box-shadow: var(--home-btn-gold-shadow);
   transition: filter 150ms ease-out;
 }
 .home-btn-gold:hover:not(:disabled),
 .site-palette .modal-btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
 .home-btn-glass,
 .site-palette .modal-btn-secondary {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(220, 181, 121, 0.45);
+  background: var(--home-glass);
+  border: 1px solid var(--home-glass-border);
   color: var(--site-text);
   transition: background-color 150ms ease-out, border-color 150ms ease-out;
 }
 .home-btn-glass:hover:not(:disabled),
-.site-palette .modal-btn-secondary:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); border-color: rgba(220, 181, 121, 0.75); }
+.site-palette .modal-btn-secondary:hover:not(:disabled) { background: var(--home-glass-hover); border-color: var(--home-glass-border-hover); }
 /* Shared modal buttons (modalStyles in src/components/ui/Modal.tsx) use the homepage pill on site pages;
    guest galleries keep their own look */
 .site-palette :is(.modal-btn-primary, .modal-btn-secondary) { border-radius: 9999px; }
 /* The navbar's sign-up button (data-nav-cta in src/components/Navbar.tsx) matches, on every site page */
 .site-palette [data-nav-cta] {
-  background-image: linear-gradient(135deg, #F6E4AD 0%, #DCB579 45%, #B98A50 100%);
+  background-image: var(--home-btn-gold);
   color: #1A1205;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  box-shadow: var(--home-btn-gold-shadow);
 }
 .site-palette [data-nav-cta]:hover { filter: brightness(1.06); }

@@ -14,7 +14,7 @@ export default function NotFoundContent() {
     return (
         <section className="flex min-h-[70vh] items-center justify-center bg-[var(--site-bg)] px-4 py-24 text-center font-sans text-[var(--site-text)] sm:px-6">
             <div className="max-w-xl">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-royal-gold">Error 404</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-royal-gold light:text-[var(--site-gold-text)]">Error 404</p>
                 <h1 className={cn(displayFont.className, "mt-4 text-4xl font-semibold leading-tight sm:text-5xl")}>
                     We couldn&apos;t find that page
                 </h1>
@@ -31,7 +31,7 @@ export default function NotFoundContent() {
                 </div>
                 <nav aria-label="Helpful links" className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
                     {helpfulLinks.map(({ href, label }) => (
-                        <Link key={href} href={href} className="text-[var(--site-muted)] transition-colors hover:text-royal-gold">
+                        <Link key={href} href={href} className="text-[var(--site-muted)] transition-colors hover:text-royal-gold light:hover:text-[var(--site-gold-text)]">
                             {label}
                         </Link>
                     ))}

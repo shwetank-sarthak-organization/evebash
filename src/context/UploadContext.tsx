@@ -345,7 +345,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
                             role="status"
                             aria-live="polite"
-                            className="pointer-events-auto bg-slate-950/95 border border-slate-800 backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden font-sans"
+                            className="pointer-events-auto bg-slate-950/95 light:bg-[var(--site-card)]/95 border border-slate-800 light:border-[var(--site-line)] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden font-sans"
                         >
                             <div
                                 role="button"
@@ -359,23 +359,23 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                                         setIsDeletePanelMinimized(!isDeletePanelMinimized);
                                     }
                                 }}
-                                className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 cursor-pointer select-none hover:bg-slate-800/70 transition-colors"
+                                className="flex items-center justify-between px-4 py-3 bg-slate-900 light:bg-[var(--site-surface)] border-b border-slate-800 light:border-[var(--site-line)] cursor-pointer select-none hover:bg-slate-800/70 light:hover:bg-[var(--site-surface-2)]/70 transition-colors"
                             >
                                 <div className="flex items-center gap-2 min-w-0">
                                     {deleting > 0 ? (
-                                        <Loader2 className="w-4 h-4 animate-spin text-rose-300 shrink-0" />
+                                        <Loader2 className="w-4 h-4 animate-spin text-rose-300 light:text-rose-700 shrink-0" />
                                     ) : failed > 0 ? (
-                                        <X className="w-4 h-4 text-rose-400 shrink-0" />
+                                        <X className="w-4 h-4 text-rose-400 light:text-rose-700 shrink-0" />
                                     ) : (
-                                        <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                                        <Check className="w-4 h-4 text-emerald-400 light:text-emerald-700 shrink-0" />
                                     )}
-                                    <span className="text-xs font-bold text-slate-200 truncate">{headline}</span>
+                                    <span className="text-xs font-bold text-slate-200 light:text-[var(--site-subtle)] truncate">{headline}</span>
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                                     <button
                                         onClick={() => setDeleteQueue(previous => previous.filter(item => item.status === "deleting"))}
                                         disabled={deleting > 0}
-                                        className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                        className="p-1.5 text-slate-400 light:text-[var(--site-muted)] hover:text-white light:hover:text-[var(--site-text)] rounded hover:bg-slate-800 light:hover:bg-[var(--site-surface-2)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                         title={deleting > 0 ? "Wait for the deletes to finish" : "Close"}
                                         aria-label="Close"
                                     >
@@ -385,7 +385,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                             </div>
 
                             {/* Overall progress: items finished out of all items */}
-                            <div className="w-full h-1 bg-slate-900 overflow-hidden">
+                            <div className="w-full h-1 bg-slate-900 light:bg-[var(--site-surface)] overflow-hidden">
                                 <div
                                     className={cn("h-full transition-all duration-300", failed > 0 && deleting === 0 ? "bg-rose-400" : deleting === 0 ? "bg-emerald-400" : "bg-rose-300")}
                                     style={{ width: `${(done / deleteQueue.length) * 100}%` }}
@@ -398,19 +398,19 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                                         <div className="max-h-56 overflow-y-auto divide-y divide-slate-900">
                                             {deleteQueue.map(item => (
                                                 <div key={item.id} className="flex items-center justify-between gap-3 p-3">
-                                                    <div className="w-10 h-10 rounded-lg border border-slate-800 bg-slate-900 flex items-center justify-center shrink-0">
-                                                        {item.mediaType === "video" ? <Video className="w-5 h-5 text-sky-400" /> : <ImageIcon className="w-5 h-5 text-[#CA9C68]" />}
+                                                    <div className="w-10 h-10 rounded-lg border border-slate-800 light:border-[var(--site-line)] bg-slate-900 light:bg-[var(--site-surface)] flex items-center justify-center shrink-0">
+                                                        {item.mediaType === "video" ? <Video className="w-5 h-5 text-sky-400 light:text-sky-700" /> : <ImageIcon className="w-5 h-5 text-[#CA9C68] light:text-[var(--site-gold-text)]" />}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-xs font-bold text-slate-300 truncate" title={item.name}>{item.name}</p>
-                                                        <p className={cn("text-[10px] font-bold", item.status === "deleting" ? "text-rose-300 animate-pulse" : item.status === "deleted" ? "text-emerald-400" : "text-rose-400")}>
+                                                        <p className="text-xs font-bold text-slate-300 light:text-[var(--site-subtle)] truncate" title={item.name}>{item.name}</p>
+                                                        <p className={cn("text-[10px] font-bold", item.status === "deleting" ? "text-rose-300 light:text-rose-700 animate-pulse" : item.status === "deleted" ? "text-emerald-400 light:text-emerald-700" : "text-rose-400 light:text-rose-700")}>
                                                             {item.status === "deleting" ? `Deleting ${item.mediaType}...` : item.status === "deleted" ? "Deleted" : "Couldn't delete. Please try again."}
                                                         </p>
                                                     </div>
                                                     <div className="shrink-0">
-                                                        {item.status === "deleting" && <Trash2 className="w-4 h-4 text-rose-300 animate-pulse" />}
-                                                        {item.status === "deleted" && <Check className="w-4 h-4 text-emerald-400" />}
-                                                        {item.status === "error" && <X className="w-4 h-4 text-rose-400" />}
+                                                        {item.status === "deleting" && <Trash2 className="w-4 h-4 text-rose-300 light:text-rose-700 animate-pulse" />}
+                                                        {item.status === "deleted" && <Check className="w-4 h-4 text-emerald-400 light:text-emerald-700" />}
+                                                        {item.status === "error" && <X className="w-4 h-4 text-rose-400 light:text-rose-700" />}
                                                     </div>
                                                 </div>
                                             ))}
@@ -431,7 +431,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 50, scale: 0.95 }}
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        className="pointer-events-auto bg-slate-950/95 border border-slate-800 backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden font-sans"
+                        className="pointer-events-auto bg-slate-950/95 light:bg-[var(--site-card)]/95 border border-slate-800 light:border-[var(--site-line)] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden font-sans"
                     >
                         {/* Header */}
                         <div
@@ -446,27 +446,27 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                                     setIsUploadPanelMinimized(!isUploadPanelMinimized);
                                 }
                             }}
-                            className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 cursor-pointer select-none hover:bg-slate-800/70 transition-colors"
+                            className="flex items-center justify-between px-4 py-3 bg-slate-900 light:bg-[var(--site-surface)] border-b border-slate-800 light:border-[var(--site-line)] cursor-pointer select-none hover:bg-slate-800/70 light:hover:bg-[var(--site-surface-2)]/70 transition-colors"
                         >
                             <div className="flex items-center gap-2 min-w-0">
                                 {(uploadingItems > 0 || processingItems > 0) ? (
-                                    <Loader2 className="w-4 h-4 animate-spin text-[#CA9C68] shrink-0" />
+                                    <Loader2 className="w-4 h-4 animate-spin text-[#CA9C68] light:text-[var(--site-gold-text)] shrink-0" />
                                 ) : (
-                                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                                    <Check className="w-4 h-4 text-emerald-400 light:text-emerald-700 shrink-0" />
                                 )}
-                                <span className="text-xs font-bold text-slate-200 truncate">
+                                <span className="text-xs font-bold text-slate-200 light:text-[var(--site-subtle)] truncate">
                                     {overallStatusText}
                                 </span>
                             </div>
                             {/* Buttons here act on their own and don't minimize the panel */}
                             <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                                 {uploadQueue.some(isCancellable) && (
-                                    <button type="button" onClick={cancelAllUploads} className="px-2 py-1 text-xs text-rose-300 hover:text-white">Cancel all</button>
+                                    <button type="button" onClick={cancelAllUploads} className="px-2 py-1 text-xs text-rose-300 light:text-rose-700 hover:text-white light:hover:text-[var(--site-text)]">Cancel all</button>
                                 )}
                                 {completedItems === totalItems && (
                                     <button
                                         onClick={() => setUploadQueue([])}
-                                        className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-slate-800 transition-colors"
+                                        className="text-[10px] font-bold uppercase tracking-wider text-slate-400 light:text-[var(--site-muted)] hover:text-white light:hover:text-[var(--site-text)] px-2 py-1 rounded hover:bg-slate-800 light:hover:bg-[var(--site-surface-2)] transition-colors"
                                     >
                                         Clear
                                     </button>
@@ -474,7 +474,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                                 <button
                                     onClick={() => setIsUploadPanelOpen(false)}
                                     disabled={hasUnfinishedUploads}
-                                    className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                    className="p-1.5 text-slate-400 light:text-[var(--site-muted)] hover:text-white light:hover:text-[var(--site-text)] rounded hover:bg-slate-800 light:hover:bg-[var(--site-surface-2)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                     title={hasUnfinishedUploads ? "Video uploads and processing must finish before closing" : "Close"}
                                 >
                                     <X className="w-4 h-4" />
@@ -484,7 +484,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
                         {/* Overall progress bar at the very bottom of minimized header */}
                         {isUploadPanelMinimized && (uploadingItems > 0 || processingItems > 0 || (indexingStatus && indexingStatus.status === "processing")) && (
-                            <div className="w-full h-1 bg-slate-900 overflow-hidden relative">
+                            <div className="w-full h-1 bg-slate-900 light:bg-[var(--site-surface)] overflow-hidden relative">
                                 <div
                                     className="h-full bg-gradient-to-r from-[#CA9C68] to-sky-500 transition-all duration-300"
                                     style={{
@@ -511,59 +511,59 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                                         {uploadQueue.map((item) => (
                                             <div
                                                 key={item.id}
-                                                className="flex items-center justify-between gap-3 p-3 hover:bg-slate-900/50 transition-colors"
+                                                className="flex items-center justify-between gap-3 p-3 hover:bg-slate-900/50 light:hover:bg-[var(--site-surface)]/50 transition-colors"
                                             >
                                                 {/* File Preview Icon */}
-                                                <div className="w-10 h-10 rounded-lg border border-slate-800 bg-slate-900 flex items-center justify-center shrink-0">
+                                                <div className="w-10 h-10 rounded-lg border border-slate-800 light:border-[var(--site-line)] bg-slate-900 light:bg-[var(--site-surface)] flex items-center justify-center shrink-0">
                                                     {item.mediaType === "video" ? (
-                                                        <Video className="w-5 h-5 text-sky-400" />
+                                                        <Video className="w-5 h-5 text-sky-400 light:text-sky-700" />
                                                     ) : (
-                                                        <ImageIcon className="w-5 h-5 text-[#CA9C68]" />
+                                                        <ImageIcon className="w-5 h-5 text-[#CA9C68] light:text-[var(--site-gold-text)]" />
                                                     )}
                                                 </div>
 
                                                 {/* File Details & Progress */}
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center justify-between gap-2 mb-1">
-                                                        <p className="text-xs font-bold text-slate-300 truncate" title={item.fileName}>
+                                                        <p className="text-xs font-bold text-slate-300 light:text-[var(--site-subtle)] truncate" title={item.fileName}>
                                                             {item.fileName}
                                                         </p>
                                                         {item.status === "pending" && (
-                                                            <span className="text-[10px] font-bold text-slate-500 shrink-0">
+                                                            <span className="text-[10px] font-bold text-slate-500 light:text-[var(--site-muted)] shrink-0">
                                                                 Queued...
                                                             </span>
                                                         )}
                                                         {item.status === "uploading" && (
-                                                            <span className="text-[10px] font-bold text-[#CA9C68] shrink-0">
+                                                            <span className="text-[10px] font-bold text-[#CA9C68] light:text-[var(--site-gold-text)] shrink-0">
                                                                 {item.progress}%
                                                             </span>
                                                         )}
                                                         {(item.status === "finalizing" || item.status === "cancelling" || item.status === "cancelled") && (
-                                                            <span className="text-[10px] text-slate-300">{item.status === "finalizing" ? "Finalizing..." : item.status === "cancelling" ? (item.cancelRequested ? "Cancelling and deleting..." : "Cancelling...") : item.cancelRequested ? "Cancelled · deleted" : "Cancelled"}</span>
+                                                            <span className="text-[10px] text-slate-300 light:text-[var(--site-subtle)]">{item.status === "finalizing" ? "Finalizing..." : item.status === "cancelling" ? (item.cancelRequested ? "Cancelling and deleting..." : "Cancelling...") : item.cancelRequested ? "Cancelled · deleted" : "Cancelled"}</span>
                                                         )}
                                                         {item.status === "processing" && (
-                                                            <span className="text-[10px] font-bold text-sky-400 shrink-0 animate-pulse">
+                                                            <span className="text-[10px] font-bold text-sky-400 light:text-sky-700 shrink-0 animate-pulse">
                                                                 {item.mediaType === "video" ? "Processing video..." : indexingStatus && indexingStatus.status === "processing" ? "Indexing..." : "Resizing..."}
                                                             </span>
                                                         )}
                                                         {item.status === "success" && (
-                                                            <span className="text-[10px] font-bold text-emerald-400 shrink-0">
+                                                            <span className="text-[10px] font-bold text-emerald-400 light:text-emerald-700 shrink-0">
                                                                 {item.mediaType === "video" ? "100% · Ready" : "Done"}
                                                             </span>
                                                         )}
                                                         {item.status === "error" && (
-                                                            <span className="text-[10px] font-bold text-rose-400 shrink-0 truncate max-w-[80px]">
+                                                            <span className="text-[10px] font-bold text-rose-400 light:text-rose-700 shrink-0 truncate max-w-[80px]">
                                                                 Error
                                                             </span>
                                                         )}
                                                     </div>
 
                                                     {/* Progress bar */}
-                                                    <div className="w-full bg-slate-900 h-1 rounded-full overflow-hidden">
+                                                    <div className="w-full bg-slate-900 light:bg-[var(--site-surface)] h-1 rounded-full overflow-hidden">
                                                         <div
                                                             className={cn(
                                                                 "h-full rounded-full transition-all duration-300",
-                                                                item.status === "pending" ? "bg-slate-700" :
+                                                                item.status === "pending" ? "bg-slate-700 light:bg-[var(--site-surface-3)]" :
                                                                 item.status === "uploading" ? "bg-[#CA9C68]" :
                                                                 item.status === "processing" ? "bg-sky-400 animate-pulse" :
                                                                 item.status === "success" ? "bg-emerald-400" : "bg-rose-400"
@@ -576,22 +576,22 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                                                 </div>
 
                                                 {isCancellable(item) && (
-                                                    <button type="button" onClick={() => cancelUpload(item.id)} title={isSaved(item) ? `Cancel and delete: ${item.fileName}` : `Cancel upload: ${item.fileName}`} aria-label={isSaved(item) ? `Cancel and delete: ${item.fileName}` : `Cancel upload: ${item.fileName}`} className="rounded p-2 text-rose-300 hover:bg-rose-500/10"><X className="h-4 w-4" /></button>
+                                                    <button type="button" onClick={() => cancelUpload(item.id)} title={isSaved(item) ? `Cancel and delete: ${item.fileName}` : `Cancel upload: ${item.fileName}`} aria-label={isSaved(item) ? `Cancel and delete: ${item.fileName}` : `Cancel upload: ${item.fileName}`} className="rounded p-2 text-rose-300 light:text-rose-700 hover:bg-rose-500/10"><X className="h-4 w-4" /></button>
                                                 )}
                                                 {/* Status Icon */}
                                                 <div className="shrink-0">
                                                     {item.status === "uploading" && (
-                                                        <Loader2 className="w-4 h-4 animate-spin text-[#CA9C68]" />
+                                                        <Loader2 className="w-4 h-4 animate-spin text-[#CA9C68] light:text-[var(--site-gold-text)]" />
                                                     )}
                                                     {item.status === "processing" && (
-                                                        <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
+                                                        <Loader2 className="w-4 h-4 animate-spin text-sky-400 light:text-sky-700" />
                                                     )}
                                                     {item.status === "success" && (
-                                                        <Check className="w-4 h-4 text-emerald-400" />
+                                                        <Check className="w-4 h-4 text-emerald-400 light:text-emerald-700" />
                                                     )}
                                                     {item.status === "error" && (
                                                         <div title={item.error}>
-                                                            <X className="w-4 h-4 text-rose-400" />
+                                                            <X className="w-4 h-4 text-rose-400 light:text-rose-700" />
                                                         </div>
                                                     )}
                                                 </div>

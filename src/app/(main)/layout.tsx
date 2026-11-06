@@ -13,6 +13,7 @@ import { OpenInAppBanner } from "@/components/OpenInAppBanner";
 import { MobileAppGate } from "@/components/MobileAppGate";
 import { APP_GATE_ENABLED, appGateHeadScript } from "@/lib/appGate";
 import { jsonLd, siteUrl } from "@/lib/seo";
+import { SITE_BAR_DARK, SITE_BAR_LIGHT, siteThemeHeadScript } from "@/lib/siteTheme";
 
 // Who EveBash is, for search engines (brand result, logo, contact).
 const organizationJsonLd = {
@@ -61,8 +62,12 @@ export const metadata: Metadata = {
   },
 };
 
+// Before any script runs; ThemeProvider then sets the colour for a saved choice
 export const viewport: Viewport = {
-  themeColor: "#13191F",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: SITE_BAR_LIGHT },
+    { media: "(prefers-color-scheme: dark)", color: SITE_BAR_DARK },
+  ],
 };
 
 export default function RootLayout({
@@ -76,9 +81,10 @@ export default function RootLayout({
         <link rel="icon" href="/evebash-logo-gold.svg" type="image/svg+xml" />
         <link rel="alternate icon" href="/evebash-logo-gold.png" type="image/png" />
         <link rel="apple-touch-icon" href="/evebash-logo-gold.png" />
+        <script dangerouslySetInnerHTML={{ __html: siteThemeHeadScript }} />
         {APP_GATE_ENABLED && <script dangerouslySetInnerHTML={{ __html: appGateHeadScript }} />}
       </head>
-      <body className="antialiased font-sans site-palette">
+      <body className="antialiased font-sans site-palette site-themed">
         <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(organizationJsonLd)} />
         <AuthProvider>
           {APP_GATE_ENABLED && <MobileAppGate />}

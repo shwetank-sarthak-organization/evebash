@@ -104,7 +104,7 @@ export function VoiceRecorder({ value, onChange, disabled }: {
 
     if (value) {
         return (
-            <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 p-2">
+            <div className="flex items-center gap-2 rounded-2xl border border-[var(--site-tint)]/10 bg-black/30 light:bg-[var(--site-tint)]/[0.04] p-2">
                 <audio src={value.url} controls preload="metadata" className="h-9 min-w-0 flex-1" />
                 <button
                     type="button"
@@ -123,7 +123,7 @@ export function VoiceRecorder({ value, onChange, disabled }: {
     return (
         <div>
             {recording ? (
-                <button type="button" onClick={() => void stop()} className="inline-flex w-full items-center justify-center gap-3 rounded-2xl border border-rose-400/50 bg-rose-500/15 px-4 py-3 text-sm font-black text-rose-100">
+                <button type="button" onClick={() => void stop()} className="inline-flex w-full items-center justify-center gap-3 rounded-2xl border border-rose-400/50 bg-rose-500/15 px-4 py-3 text-sm font-black text-rose-100 light:text-rose-800">
                     <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-rose-400" aria-hidden />
                     Recording {formatSeconds(elapsed)} / {formatSeconds(ALBUM_MAX_VOICE_SECONDS)}
                     <Square className="h-4 w-4 fill-current" aria-hidden />
@@ -131,11 +131,11 @@ export function VoiceRecorder({ value, onChange, disabled }: {
                 </button>
             ) : (
                 <button type="button" onClick={start} disabled={disabled} className={`${albumButton.secondary} w-full normal-case tracking-normal`}>
-                    <Mic className="h-4 w-4 text-[var(--site-gold)]" aria-hidden />
+                    <Mic className="h-4 w-4 text-[var(--site-gold-text)]" aria-hidden />
                     Record a voice note
                 </button>
             )}
-            {error && <p className="mt-2 text-xs font-bold text-rose-300">{error}</p>}
+            {error && <p className="mt-2 text-xs font-bold text-rose-300 light:text-rose-700">{error}</p>}
         </div>
     );
 }

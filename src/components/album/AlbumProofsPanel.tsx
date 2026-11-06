@@ -17,10 +17,10 @@ const STEPS = [
 ] as const;
 
 const NEXT_STEP: Record<AlbumNextStepTone, { className: string; Icon: typeof ArrowRight | null }> = {
-    action: { className: "bg-[var(--site-gold)]/10 text-[var(--site-gold-light)]", Icon: null },
-    urgent: { className: "bg-rose-400/10 text-rose-200", Icon: MessageSquare },
-    waiting: { className: "bg-white/[0.04] text-[var(--site-muted)]", Icon: Clock },
-    done: { className: "bg-emerald-400/10 text-emerald-200", Icon: CheckCircle2 },
+    action: { className: "bg-[var(--site-gold)]/10 text-[var(--site-gold-light-text)]", Icon: null },
+    urgent: { className: "bg-rose-400/10 text-rose-200 light:text-rose-800", Icon: MessageSquare },
+    waiting: { className: "bg-[var(--site-tint)]/[0.04] text-[var(--site-muted)]", Icon: Clock },
+    done: { className: "bg-emerald-400/10 text-emerald-200 light:text-emerald-800", Icon: CheckCircle2 },
 };
 
 function AlbumCard({ album, onOpen }: { album: AlbumSummary; onOpen: () => void }) {
@@ -33,14 +33,14 @@ function AlbumCard({ album, onOpen }: { album: AlbumSummary; onOpen: () => void 
             onClick={onOpen}
             className="group flex h-full flex-col overflow-hidden rounded-[1.2rem] border border-[var(--site-border)] bg-[var(--site-card)] text-left transition-colors hover:border-[var(--site-gold)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)]/60"
         >
-            <div className="relative aspect-[3/2] w-full overflow-hidden bg-black/60">
+            <div className="site-noir relative aspect-[3/2] w-full overflow-hidden bg-black/60">
                 {album.coverThumbnailUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={album.coverThumbnailUrl} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
                 ) : album.pageCount > 0 ? (
                     <div className="flex h-full items-center justify-center"><BookImage className="h-10 w-10 text-[var(--site-muted)]" /></div>
                 ) : (
-                    <div className="absolute inset-3 flex flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-[var(--site-gold)]/40 text-sm font-bold text-[var(--site-gold-light)]">
+                    <div className="absolute inset-3 flex flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-[var(--site-gold)]/40 text-sm font-bold text-[var(--site-gold-light-text)]">
                         {album.myRole === "photographer" ? <><Plus className="h-5 w-5" /> Add pages</> : <><BookImage className="h-6 w-6 text-[var(--site-muted)]" /><span className="text-[var(--site-muted)]">No pages yet</span></>}
                     </div>
                 )}
@@ -136,7 +136,7 @@ export function AlbumProofsPanel({ eventId }: { eventId: string }) {
                 )}
             </div>
 
-            {error && <p className="rounded-2xl border border-rose-400/25 bg-rose-400/10 p-4 text-sm font-bold text-rose-200">{error}</p>}
+            {error && <p className="rounded-2xl border border-rose-400/25 bg-rose-400/10 p-4 text-sm font-bold text-rose-200 light:text-rose-800">{error}</p>}
 
             {creating && (
                 <form onSubmit={create} className="space-y-5 rounded-[1.2rem] border border-[var(--site-gold)]/40 bg-[var(--site-gold)]/[0.05] p-4 sm:p-5">
@@ -148,7 +148,7 @@ export function AlbumProofsPanel({ eventId }: { eventId: string }) {
                             maxLength={80}
                             autoFocus
                             placeholder="Wedding Album"
-                            className="w-full rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-base font-bold text-[var(--site-text)] outline-none placeholder:text-[var(--site-muted)] focus:border-[var(--site-gold)]"
+                            className="w-full rounded-xl border border-[var(--site-tint)]/15 bg-black/40 light:bg-[var(--site-tint)]/[0.04] px-4 py-3 text-base font-bold text-[var(--site-text)] outline-none placeholder:text-[var(--site-muted)] focus:border-[var(--site-gold)]"
                         />
                     </label>
                     <RolePicker eventId={eventId} value={roles} onChange={setRoles} />
@@ -162,18 +162,18 @@ export function AlbumProofsPanel({ eventId }: { eventId: string }) {
             )}
 
             {!albums && !error ? (
-                <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[var(--site-gold)]" /></div>
+                <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[var(--site-gold-text)]" /></div>
             ) : albums && albums.length === 0 && !creating ? (
                 <div className="rounded-[1.5rem] border border-[var(--site-border)] bg-[var(--site-bg)]/80 p-5 sm:p-8">
                     <div className="flex flex-col items-center text-center">
-                        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--site-gold)]/10"><BookImage className="h-7 w-7 text-[var(--site-gold)]" /></span>
+                        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--site-gold)]/10"><BookImage className="h-7 w-7 text-[var(--site-gold-text)]" /></span>
                         <p className="mt-4 font-serif text-2xl font-bold text-[var(--site-text)]">Proof the album here, not on WhatsApp</p>
                         <p className="mt-2 max-w-lg text-sm font-semibold text-[var(--site-muted)]">Every comment stays pinned to the photo it is about, every version is kept, and the final approval is on record.</p>
                     </div>
                     <ol className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         {STEPS.map(([heading, text], i) => (
-                            <li key={heading} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                                <span className="text-[11px] font-black text-[var(--site-gold)]">STEP {i + 1}</span>
+                            <li key={heading} className="rounded-2xl border border-[var(--site-tint)]/10 bg-[var(--site-tint)]/[0.03] p-4">
+                                <span className="text-[11px] font-black text-[var(--site-gold-text)]">STEP {i + 1}</span>
                                 <p className="mt-1 text-sm font-black text-[var(--site-text)]">{heading}</p>
                                 <p className="mt-1 text-xs font-semibold leading-5 text-[var(--site-muted)]">{text}</p>
                             </li>

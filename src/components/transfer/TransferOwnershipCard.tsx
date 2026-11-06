@@ -120,7 +120,7 @@ export function TransferOwnershipCard({ eventId }: { eventId: string }) {
                     )}
                 </>
             )}
-            {error && <p role="alert" className="mt-2 text-xs text-rose-400">{error}</p>}
+            {error && <p role="alert" className="mt-2 text-xs text-rose-400 light:text-rose-700">{error}</p>}
         </section>
     );
 }

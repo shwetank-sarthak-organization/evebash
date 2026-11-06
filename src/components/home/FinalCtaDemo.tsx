@@ -30,15 +30,15 @@ const chat = [
 function UsualWay({ animate }: { animate: boolean }) {
     return (
         <div className="flex h-full flex-col">
-            <div className="flex items-center gap-3 border-b border-white/10 pb-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-[var(--site-muted)]">
+            <div className="flex items-center gap-3 border-b border-[var(--home-chip-soft)] pb-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--home-chip-soft)] text-[var(--site-muted)]">
                     <Users className="h-4 w-4" aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-[var(--site-text)]">Wedding family group</p>
                     <p className="text-xs text-[var(--site-muted)]">243 members</p>
                 </div>
-                <m.span {...appear(animate, 2.6, { opacity: 0, scale: 0.6 })} className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold text-[var(--site-text)]">
+                <m.span {...appear(animate, 2.6, { opacity: 0, scale: 0.6 })} className="rounded-full bg-[var(--home-chip)] px-2.5 py-1 text-xs font-semibold text-[var(--site-text)]">
                     128 unread
                 </m.span>
             </div>
@@ -48,7 +48,7 @@ function UsualWay({ animate }: { animate: boolean }) {
                     <m.div key={index} {...appear(animate, 0.3 + index * 0.5)} className="max-w-[85%]">
                         <p className="mb-0.5 text-[11px] font-semibold text-[var(--site-muted)]">{message.who}</p>
                         {message.drive ? (
-                            <div className="flex items-center gap-3 rounded-2xl rounded-tl-sm bg-white/[0.07] px-3 py-2.5">
+                            <div className="flex items-center gap-3 rounded-2xl rounded-tl-sm bg-[var(--home-bubble)] px-3 py-2.5">
                                 <FolderClosed className="h-6 w-6 shrink-0 text-[var(--site-muted)]" aria-hidden />
                                 <div className="min-w-0">
                                     <p className="truncate text-sm text-[var(--site-text)]">Wedding_photos_FINAL (2).zip</p>
@@ -59,7 +59,7 @@ function UsualWay({ animate }: { animate: boolean }) {
                                 </div>
                             </div>
                         ) : (
-                            <p className="rounded-2xl rounded-tl-sm bg-white/[0.07] px-3 py-2 text-sm text-[var(--site-subtle)]">{message.text}</p>
+                            <p className="rounded-2xl rounded-tl-sm bg-[var(--home-bubble)] px-3 py-2 text-sm text-[var(--site-subtle)]">{message.text}</p>
                         )}
                     </m.div>
                 ))}
@@ -71,7 +71,7 @@ function UsualWay({ animate }: { animate: boolean }) {
 function WithEveBash({ animate }: { animate: boolean }) {
     return (
         <div className="flex h-full flex-col justify-center gap-3">
-            <m.div {...appear(animate, 0.2, { opacity: 0, scale: 0.94 })} className="overflow-hidden rounded-2xl border border-[var(--site-border)] bg-[#060A18]">
+            <m.div {...appear(animate, 0.2, { opacity: 0, scale: 0.94 })} className="site-noir overflow-hidden rounded-2xl border border-[var(--site-border)] bg-[#060A18]">
                 <div className="relative h-24 sm:h-28">
                     <Image src={photos.couple.src} alt="" fill sizes="(min-width: 1024px) 35vw, 90vw" className="object-cover object-[center_30%]" />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#060A18] to-transparent" />
@@ -157,7 +157,7 @@ export default function FinalCtaDemo() {
                 </AnimatePresence>
             </div>
             <div className="mt-3 flex justify-center gap-2 text-xs font-semibold">
-                <span className={cn("rounded-full px-3 py-1", shown === 0 ? "bg-white/15 text-[var(--site-text)]" : "text-[var(--site-muted)]")}>The usual way</span>
+                <span className={cn("rounded-full px-3 py-1", shown === 0 ? "bg-[var(--home-chip)] text-[var(--site-text)]" : "text-[var(--site-muted)]")}>The usual way</span>
                 <span className={cn("rounded-full px-3 py-1", shown === 1 ? "home-btn-gold" : "text-[var(--site-muted)]")}>With EveBash</span>
             </div>
         </div>

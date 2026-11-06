@@ -56,11 +56,11 @@ export function MobileAppGate() {
 
     return (
         <div
-            className="app-gate fixed inset-0 z-[1000] flex-col items-center justify-center overflow-y-auto bg-[#13191F] px-6 text-[var(--site-text)]"
+            className="app-gate fixed inset-0 z-[1000] flex-col items-center justify-center overflow-y-auto bg-[#13191F] light:bg-[var(--site-bg)] px-6 text-[var(--site-text)]"
             style={{ paddingTop: "max(2rem, env(safe-area-inset-top))", paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}
         >
             <div className="flex w-full max-w-sm flex-col items-center text-center">
-                <span className="flex h-20 w-20 items-center justify-center rounded-3xl border border-[var(--site-border)] bg-[var(--site-surface)] text-[#CA9C68]">
+                <span className="flex h-20 w-20 items-center justify-center rounded-3xl border border-[var(--site-border)] bg-[var(--site-surface)] text-[#CA9C68] light:text-[var(--site-brand-mark)]">
                     <EveBashLogo className="h-11 w-11" aria-hidden="true" />
                 </span>
                 <h1 className="mt-6 font-serif text-3xl font-semibold leading-tight">Get the EveBash app</h1>
@@ -80,10 +80,10 @@ export function MobileAppGate() {
                             </p>
                             {contact && <p className="mt-0.5 truncate text-xs text-[var(--site-muted)]">{contact}</p>}
                             <div className="mt-4 flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm font-semibold">
-                                <a href="/profile" className="text-[#CA9C68] hover:text-[#d8ad7c]">
+                                <a href="/profile" className="text-[#CA9C68] hover:text-[#d8ad7c] light:text-[var(--site-gold-text)] light:hover:text-[var(--site-gold-light-text)]">
                                     Profile
                                 </a>
-                                <a href="/profile?tab=plan" className="text-[#CA9C68] hover:text-[#d8ad7c]">
+                                <a href="/profile?tab=plan" className="text-[#CA9C68] hover:text-[#d8ad7c] light:text-[var(--site-gold-text)] light:hover:text-[var(--site-gold-light-text)]">
                                     Activate a plan
                                 </a>
                                 <button type="button" onClick={logout} className="text-[var(--site-muted)] hover:text-[var(--site-text)]">
@@ -94,10 +94,10 @@ export function MobileAppGate() {
                     ) : (
                         !loading && (
                             <div className="mt-4 flex justify-center gap-6 text-sm font-semibold">
-                                <a href="/login" className="text-[#CA9C68] hover:text-[#d8ad7c]">
+                                <a href="/login" className="text-[#CA9C68] hover:text-[#d8ad7c] light:text-[var(--site-gold-text)] light:hover:text-[var(--site-gold-light-text)]">
                                     Log in
                                 </a>
-                                <a href="/profile?tab=plan" className="text-[#CA9C68] hover:text-[#d8ad7c]">
+                                <a href="/profile?tab=plan" className="text-[#CA9C68] hover:text-[#d8ad7c] light:text-[var(--site-gold-text)] light:hover:text-[var(--site-gold-light-text)]">
                                     Activate a plan
                                 </a>
                             </div>

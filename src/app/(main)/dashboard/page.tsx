@@ -157,10 +157,10 @@ export default function DashboardHub() {
         <div className="min-h-screen bg-[var(--site-bg)] font-sans text-[var(--site-text)]">
             <main className="relative z-20 mx-auto max-w-7xl space-y-8 px-4 pt-12 pb-24 sm:px-6 lg:px-8">
                 <IncomingTransfers onAccepted={fetchData} />
-                <section className="rounded-[2rem] border border-[var(--site-line)] bg-[var(--site-surface)] p-5 shadow-2xl shadow-black/25 sm:p-8 lg:p-10">
+                <section className="rounded-[2rem] border border-[var(--site-line)] bg-[var(--site-surface)] p-5 shadow-2xl shadow-black/25 light:shadow-(color:--home-shadow) sm:p-8 lg:p-10">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[var(--site-gold)]">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[var(--site-tint)]/10 bg-[var(--site-tint)]/[0.06] text-[var(--site-gold-text)]">
                                 <CollectionsIcon className="h-6 w-6" aria-hidden="true" />
                             </div>
                             <div className="min-w-0">
@@ -185,28 +185,28 @@ export default function DashboardHub() {
                     <div className="mt-8 grid gap-4 sm:grid-cols-3">
                         <div className={STAT_BOX} style={STAT_BOX_SIZE}>
                             <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-[var(--site-muted)]">
-                                <PhotosStatIcon className="h-5 w-5 text-[var(--site-gold)]" aria-hidden="true" />
+                                <PhotosStatIcon className="h-5 w-5 text-[var(--site-gold-text)]" aria-hidden="true" />
                                 Total Photos
                             </span>
-                            <span className="truncate text-xl text-[var(--site-gold)] xl:text-2xl" style={SERIF}>
+                            <span className="truncate text-xl text-[var(--site-gold-text)] xl:text-2xl" style={SERIF}>
                                 {statsLoaded ? totalPhotos.toLocaleString("en-US") : "—"} {totalPhotos === 1 ? "Photo" : "Photos"}
                             </span>
                         </div>
                         <div className={STAT_BOX} style={STAT_BOX_SIZE}>
                             <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-[var(--site-muted)]">
-                                <VideosStatIcon className="h-5 w-5 text-[var(--site-gold)]" aria-hidden="true" />
+                                <VideosStatIcon className="h-5 w-5 text-[var(--site-gold-text)]" aria-hidden="true" />
                                 Total Videos
                             </span>
-                            <span className="truncate text-xl text-[var(--site-gold)] xl:text-2xl" style={SERIF}>
+                            <span className="truncate text-xl text-[var(--site-gold-text)] xl:text-2xl" style={SERIF}>
                                 {statsLoaded ? totalVideos.toLocaleString("en-US") : "—"} {totalVideos === 1 ? "Video" : "Videos"}
                             </span>
                         </div>
                         <div className={STAT_BOX} style={STAT_BOX_SIZE}>
                             <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-[var(--site-muted)]">
-                                <EventsJoinedStatIcon className="h-5 w-5 text-[var(--site-gold)]" aria-hidden="true" />
+                                <EventsJoinedStatIcon className="h-5 w-5 text-[var(--site-gold-text)]" aria-hidden="true" />
                                 Events Joined
                             </span>
-                            <span className="truncate text-xl text-[var(--site-gold)] xl:text-2xl" style={SERIF}>
+                            <span className="truncate text-xl text-[var(--site-gold-text)] xl:text-2xl" style={SERIF}>
                                 {attendedCount.toLocaleString("en-US")} {attendedCount === 1 ? "Event" : "Events"}
                             </span>
                         </div>
@@ -240,7 +240,7 @@ export default function DashboardHub() {
                                     <div className="absolute inset-0 bg-gradient-to-t from-[var(--site-bg)] via-[var(--site-bg)]/75 to-[var(--site-bg)]/40" />
                                     <div className="relative z-10 flex h-full min-h-64 flex-col items-center justify-center p-6">
                                         <h3 className="text-2xl text-[var(--site-text)]" style={SERIF}>Your memories</h3>
-                                        <div className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold">
+                                        <div className="mt-3 rounded-full border border-[var(--site-tint)]/15 bg-[var(--site-tint)]/10 px-3 py-1 text-xs font-bold">
                                             {events.length} {events.length === 1 ? "Collection" : "Collections"}
                                         </div>
                                         <div className="mt-6 inline-flex items-center gap-2 rounded-full home-btn-glass px-[15px] py-[7px] text-xs font-bold uppercase tracking-widest">
@@ -257,10 +257,10 @@ export default function DashboardHub() {
                 <div className="grid gap-6 md:grid-cols-2">
                     <section
                         onClick={() => router.push("/host")}
-                        className="group relative flex min-h-[220px] cursor-pointer flex-col justify-between overflow-hidden rounded-[2rem] border border-[var(--site-gold)]/20 bg-[var(--site-surface)] p-6 shadow-xl shadow-black/20 sm:p-8"
+                        className="group relative flex min-h-[220px] cursor-pointer flex-col justify-between overflow-hidden rounded-[2rem] border border-[var(--site-gold)]/20 bg-[var(--site-surface)] p-6 shadow-xl shadow-black/20 light:shadow-(color:--home-shadow) sm:p-8"
                     >
                         <div className="relative z-10 flex flex-col gap-4">
-                            <div className="w-fit rounded-full border border-[var(--site-gold)]/20 bg-[var(--site-gold)]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--site-gold)]">
+                            <div className="w-fit rounded-full border border-[var(--site-gold)]/20 bg-[var(--site-gold)]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--site-gold-text)]">
                                 For Hosts
                             </div>
                             <div>
@@ -280,7 +280,7 @@ export default function DashboardHub() {
                     >
                         <div className="absolute right-0 top-0 h-48 w-48 -translate-y-1/2 translate-x-1/4 rounded-full bg-[var(--site-gold)]/10 blur-2xl" />
                         <div className="relative z-10 flex flex-col gap-4">
-                            <div className="w-fit rounded-lg border border-[var(--site-gold)]/20 bg-[var(--site-gold)]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--site-gold)]">
+                            <div className="w-fit rounded-lg border border-[var(--site-gold)]/20 bg-[var(--site-gold)]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--site-gold-text)]">
                                 How To Host
                             </div>
                             <div>
@@ -304,7 +304,7 @@ export default function DashboardHub() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setShowJoinModal(false)}
-                            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                            className="absolute inset-0 bg-black/70 backdrop-blur-sm light:bg-black/45"
                         />
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -359,7 +359,7 @@ export default function DashboardHub() {
                                     }}
                                     className={cn(modalStyles.secondary, "mt-6 w-full py-4")}
                                 >
-                                    <QrCode className="h-5 w-5 text-[var(--site-gold)]" />
+                                    <QrCode className="h-5 w-5 text-[var(--site-gold-text)]" />
                                     <span>Scan QR Code</span>
                                 </button>
                             </form>

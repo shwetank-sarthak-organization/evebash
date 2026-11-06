@@ -74,7 +74,7 @@ export default function FindYouVisual() {
                             </m.div>
                         </m.div>
                     </AnimatePresence>
-                    <div className="absolute inset-x-3 bottom-3 flex items-center justify-center gap-2 rounded-full bg-[#09090B]/80 px-3 py-2 text-xs font-semibold text-[var(--site-text)] backdrop-blur">
+                    <div className="site-noir absolute inset-x-3 bottom-3 flex items-center justify-center gap-2 rounded-full bg-[#09090B]/80 px-3 py-2 text-xs font-semibold text-[var(--site-text)] backdrop-blur">
                         <ScanFace className="h-4 w-4 text-[var(--home-accent)]" aria-hidden />
                         Find my photos
                     </div>

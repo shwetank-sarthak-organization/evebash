@@ -152,7 +152,7 @@ const planVisuals: Record<string, {
         badge: null,
         badgeColor: "",
         description: "Get started and explore the platform at no cost.",
-        accentClass: "border border-slate-100",
+        accentClass: "border border-slate-100 light:border-[var(--site-border)]",
         btnClass: "home-btn-glass py-[11px]",
         checkClass: "bg-[var(--site-muted)]/12 text-[var(--site-muted)]",
     },
@@ -160,25 +160,25 @@ const planVisuals: Record<string, {
         badge: null,
         badgeColor: "",
         description: "For small personal galleries.",
-        accentClass: "border border-teal-100",
+        accentClass: "border border-teal-100 light:border-teal-200",
         btnClass: "home-btn-glass py-[11px]",
-        checkClass: "bg-teal-500/12 text-teal-500",
+        checkClass: "bg-teal-500/12 text-teal-500 light:text-teal-700",
     },
     basic: {
         badge: null,
         badgeColor: "",
         description: "For individuals and small events.",
-        accentClass: "border border-teal-100",
+        accentClass: "border border-teal-100 light:border-teal-200",
         btnClass: "home-btn-glass py-[11px]",
-        checkClass: "bg-teal-500/12 text-teal-500",
+        checkClass: "bg-teal-500/12 text-teal-500 light:text-teal-700",
     },
     standard: {
         badge: null,
         badgeColor: "",
         description: "Best for frequent users and families.",
-        accentClass: "border border-sky-100",
+        accentClass: "border border-sky-100 light:border-sky-200",
         btnClass: "home-btn-glass py-[11px]",
-        checkClass: "bg-sky-500/12 text-sky-500",
+        checkClass: "bg-sky-500/12 text-sky-500 light:text-sky-700",
     },
     premium: {
         badge: "Most Popular",
@@ -186,31 +186,31 @@ const planVisuals: Record<string, {
         description: "For professional photographers.",
         accentClass: "ring-2 ring-[var(--site-gold)]",
         btnClass: "home-btn-gold py-3",
-        checkClass: "bg-[var(--site-gold)]/12 text-[var(--site-gold)]",
+        checkClass: "bg-[var(--site-gold)]/12 text-[var(--site-gold-text)]",
     },
     pro: {
         badge: null,
         badgeColor: "",
         description: "For growing professional teams.",
-        accentClass: "border border-violet-100",
+        accentClass: "border border-violet-100 light:border-violet-200",
         btnClass: "home-btn-glass py-[11px]",
-        checkClass: "bg-violet-500/12 text-violet-500",
+        checkClass: "bg-violet-500/12 text-violet-500 light:text-violet-700",
     },
     elite: {
         badge: null,
-        badgeColor: "bg-pink-600 text-[var(--site-text)]",
+        badgeColor: "bg-pink-600 text-[var(--site-text)] light:text-white",
         description: "For studios and heavy users.",
         accentClass: "ring-2 ring-pink-400",
         btnClass: "home-btn-glass py-[11px]",
-        checkClass: "bg-pink-500/12 text-pink-500",
+        checkClass: "bg-pink-500/12 text-pink-500 light:text-pink-700",
     },
     ultimate: {
         badge: "Best Value",
-        badgeColor: "bg-[var(--site-gold)]/15 text-[var(--site-gold)]",
+        badgeColor: "bg-[var(--site-gold)]/15 text-[var(--site-gold-text)]",
         description: "For large studios and high-volume workflows.",
         accentClass: "ring-1 ring-[var(--site-gold)]/50",
         btnClass: "home-btn-glass py-[11px]",
-        checkClass: "bg-[var(--site-gold)]/12 text-[var(--site-gold)]",
+        checkClass: "bg-[var(--site-gold)]/12 text-[var(--site-gold-text)]",
     },
 };
 
@@ -583,10 +583,10 @@ export default function Pricing() {
                     <div
                         className={`mx-auto mb-8 max-w-2xl rounded-2xl border px-5 py-4 text-center text-sm font-medium ${
                             checkoutMessage.type === "success"
-                                ? "border-emerald-500/30 bg-emerald-900/30 text-emerald-300"
+                                ? "border-emerald-500/30 bg-emerald-900/30 text-emerald-300 light:bg-emerald-50 light:text-emerald-800"
                                 : checkoutMessage.type === "info"
                                     ? "border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 text-[var(--site-subtle)]"
-                                    : "border-rose-500/30 bg-rose-900/30 text-rose-300"
+                                    : "border-rose-500/30 bg-rose-900/30 text-rose-300 light:bg-rose-50 light:text-rose-800"
                         }`}
                     >
                         {checkoutMessage.text}
@@ -601,8 +601,8 @@ export default function Pricing() {
                 )}
 
                 {pricingStatus === "unavailable" && (
-                    <div className="mx-auto max-w-2xl rounded-2xl border border-amber-500/30 bg-amber-900/20 p-10 text-center shadow-sm">
-                        <p className="text-sm font-bold uppercase tracking-widest text-amber-300">Pricing Unavailable</p>
+                    <div className="mx-auto max-w-2xl rounded-2xl border border-amber-500/30 bg-amber-900/20 p-10 text-center shadow-sm light:bg-amber-50">
+                        <p className="text-sm font-bold uppercase tracking-widest text-amber-300 light:text-amber-800">Pricing Unavailable</p>
                         <h2 className="mt-3 font-serif text-2xl text-[var(--site-text)]">Pricing is temporarily unavailable.</h2>
                         <p className="mt-3 text-sm leading-6 text-[var(--site-subtle)]">
                             We could not load the latest pricing plans right now. Please try again shortly or contact support.
@@ -698,7 +698,7 @@ export default function Pricing() {
                     <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {includedInEveryPlan.map((feature) => (
                             <li key={feature} className="flex items-start gap-2 text-sm text-[var(--site-subtle)]">
-                                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--site-gold)]" />
+                                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--site-gold-text)]" />
                                 {feature}
                             </li>
                         ))}
@@ -742,11 +742,11 @@ export default function Pricing() {
 
                                 <div className={`rounded-xl border p-4 ${
                                     confirmPlanIsDowngrade
-                                        ? "border-amber-500/30 bg-amber-900/20"
-                                        : "border-emerald-500/30 bg-emerald-900/20"
+                                        ? "border-amber-500/30 bg-amber-900/20 light:bg-amber-50"
+                                        : "border-emerald-500/30 bg-emerald-900/20 light:bg-emerald-50"
                                 }`}>
                                     <p className={`text-[11px] font-black uppercase tracking-widest ${
-                                        confirmPlanIsDowngrade ? "text-amber-300" : "text-emerald-300"
+                                        confirmPlanIsDowngrade ? "text-amber-300 light:text-amber-800" : "text-emerald-300 light:text-emerald-800"
                                     }`}>
                                         {confirmPlanIsDowngrade ? "Scheduled Plan" : "New Plan After Payment"}
                                     </p>
@@ -757,7 +757,7 @@ export default function Pricing() {
                                 </div>
                             </div>
 
-                            <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-900/20 p-4 text-sm leading-6 text-amber-200">
+                            <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-900/20 p-4 text-sm leading-6 text-amber-200 light:bg-amber-50 light:text-amber-900">
                                 {confirmPlanIsDowngrade
                                     ? "Downgrades are scheduled for the next billing cycle so your current paid storage is not reduced early."
                                     : "Your current plan period will be replaced by this new plan period. The upgraded storage and limits will apply immediately after payment verification."}
@@ -794,7 +794,7 @@ export default function Pricing() {
                         Running a large studio or enterprise operation? Let&apos;s build a plan tailored to your exact needs.
                     </p>
                     <Link href="/contact-us" className="inline-block">
-                        <span className="text-[var(--site-gold)] font-semibold border-b-2 border-transparent hover:border-[var(--site-gold)] transition-all duration-300">
+                        <span className="text-[var(--site-gold-text)] font-semibold border-b-2 border-transparent hover:border-[var(--site-gold)] transition-all duration-300">
                             Contact Us for Custom Quote &rarr;
                         </span>
                     </Link>

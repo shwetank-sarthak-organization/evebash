@@ -7,9 +7,9 @@ export const ALBUM_GOLD = "#CA9C68";
 
 const PAGE_STATUS: Record<AlbumPageStatus, { label: string; className: string }> = {
     draft: { label: "Not sent", className: "border-[var(--site-border)] bg-[var(--site-surface-2)]/80 text-[var(--site-subtle)]" },
-    pending: { label: "Waiting for review", className: "border-[var(--site-gold)]/40 bg-[var(--site-gold)]/10 text-[var(--site-gold-light)]" },
-    approved: { label: "Approved", className: "border-emerald-400/40 bg-emerald-400/10 text-emerald-200" },
-    changes_requested: { label: "Changes requested", className: "border-rose-400/40 bg-rose-400/10 text-rose-200" },
+    pending: { label: "Waiting for review", className: "border-[var(--site-gold)]/40 bg-[var(--site-gold)]/10 text-[var(--site-gold-light-text)]" },
+    approved: { label: "Approved", className: "border-emerald-400/40 bg-emerald-400/10 text-emerald-200 light:text-emerald-800" },
+    changes_requested: { label: "Changes requested", className: "border-rose-400/40 bg-rose-400/10 text-rose-200 light:text-rose-800" },
 };
 
 const ALBUM_STATUS: Record<AlbumStatus, { label: string; className: string }> = {
@@ -32,7 +32,7 @@ export function AlbumStatusChip({ status, className }: { status: AlbumStatus; cl
 export function ProgressBar({ value, total, className }: { value: number; total: number; className?: string }) {
     const percent = total > 0 ? Math.round((value / total) * 100) : 0;
     return (
-        <div className={cn("h-1.5 w-full overflow-hidden rounded-full bg-white/10", className)} role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+        <div className={cn("h-1.5 w-full overflow-hidden rounded-full bg-[var(--site-tint)]/10", className)} role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
             <div className={cn("h-full rounded-full transition-[width] duration-500", percent === 100 ? "bg-emerald-400" : "bg-[var(--site-gold)]")} style={{ width: `${percent}%` }} />
         </div>
     );
@@ -56,5 +56,5 @@ export function formatSeconds(seconds: number) {
 export const albumButton = {
     primary: "home-btn-gold inline-flex items-center justify-center gap-2 rounded-full px-4 py-3 text-xs font-black uppercase tracking-widest active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
     secondary: "home-btn-glass inline-flex items-center justify-center gap-2 rounded-full px-4 py-3 text-xs font-black uppercase tracking-widest active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
-    ghost: "inline-flex items-center justify-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-bold text-[var(--site-subtle)] transition-colors hover:bg-white/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50",
+    ghost: "inline-flex items-center justify-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-bold text-[var(--site-subtle)] transition-colors hover:bg-[var(--site-tint)]/10 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-50",
 };

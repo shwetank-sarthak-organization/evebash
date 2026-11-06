@@ -101,7 +101,7 @@ export function VideoThumbnailPicker({ video, onClose, onSaved }: Props) {
     }} onLoadedData={capture} onSeeking={() => setFrame('')} onSeeked={capture} />
     <label className={cn(modalStyles.label, 'mt-4')} htmlFor="thumbnail-timeline">Frame position: {timeLabel(time)} / {timeLabel(duration)}</label>
     <input id="thumbnail-timeline" type="range" min={0} max={Math.max(0, duration - 0.05)} step={0.01} value={time} disabled={!duration || saving} onChange={e => seek(Number(e.target.value))} className="my-3 w-full accent-[var(--site-gold)]" />
-    <div className="flex gap-3"><button type="button" disabled={!duration || saving} onClick={() => seek(time - 0.1)} className="rounded-xl border border-[var(--site-border)] px-3 py-2 text-[var(--site-subtle)] hover:bg-white/5 disabled:opacity-40">−0.1s</button><button type="button" disabled={!duration || saving} onClick={() => seek(time + 0.1)} className="rounded-xl border border-[var(--site-border)] px-3 py-2 text-[var(--site-subtle)] hover:bg-white/5 disabled:opacity-40">+0.1s</button></div>
+    <div className="flex gap-3"><button type="button" disabled={!duration || saving} onClick={() => seek(time - 0.1)} className="rounded-xl border border-[var(--site-border)] px-3 py-2 text-[var(--site-subtle)] hover:bg-[var(--site-tint)]/5 disabled:opacity-40">−0.1s</button><button type="button" disabled={!duration || saving} onClick={() => seek(time + 0.1)} className="rounded-xl border border-[var(--site-border)] px-3 py-2 text-[var(--site-subtle)] hover:bg-[var(--site-tint)]/5 disabled:opacity-40">+0.1s</button></div>
     {frame ? <img src={frame} alt="Selected thumbnail preview" className="mx-auto mt-4 max-h-40 object-contain" /> : <p role="status" className={cn(modalStyles.body, 'mt-4')}>Loading frame…</p>}
     {error && <p role="alert" className={cn(modalStyles.error, 'mt-4')}>{error}</p>}
     <div className={modalStyles.actions}><button type="button" onClick={onClose} disabled={saving} className={modalStyles.secondary}>Cancel</button><button type="button" onClick={save} disabled={!frame || saving} className={modalStyles.primary}>{saving ? 'Saving…' : 'Save thumbnail'}</button></div>
@@ -130,8 +130,8 @@ export function VideoThumbnailActions({ ready, galleryVideo, onClose, onChoose, 
       </p>
     </>}
     {onMove && <button type="button" onClick={onMove} className={cn(modalStyles.secondary, 'mt-3 w-full')}>Move to another gallery</button>}
-    {onSaveToVault && <button type="button" onClick={onSaveToVault} className={cn(modalStyles.secondary, 'mt-3 w-full border-[#7FA38C]/40 text-[#A9C9B4]')}>Save to EB Vault</button>}
-    <button type="button" onClick={onDelete} className={cn(modalStyles.secondary, 'mt-3 w-full border-rose-400/40 text-rose-300 hover:bg-rose-400/10')}>Delete video</button>
+    {onSaveToVault && <button type="button" onClick={onSaveToVault} className={cn(modalStyles.secondary, 'mt-3 w-full border-[#7FA38C]/40 text-[#A9C9B4] light:text-[#4E7A5E]')}>Save to EB Vault</button>}
+    <button type="button" onClick={onDelete} className={cn(modalStyles.secondary, 'mt-3 w-full border-rose-400/40 text-rose-300 light:text-rose-700 hover:bg-rose-400/10')}>Delete video</button>
     <button type="button" onClick={onClose} className={cn(modalStyles.secondary, 'mt-3 w-full')}>Cancel</button>
   </dialog>;
 }

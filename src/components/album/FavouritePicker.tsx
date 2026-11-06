@@ -38,10 +38,10 @@ export function FavouritePicker({ albumId, selectedId, onPick, onClose }: {
                 {error ? (
                     <p className={modalStyles.error}>{error}</p>
                 ) : !photos ? (
-                    <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[var(--site-gold)]" /></div>
+                    <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[var(--site-gold-text)]" /></div>
                 ) : photos.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 py-10 text-center">
-                        <Heart className="h-8 w-8 text-[var(--site-gold)]" />
+                        <Heart className="h-8 w-8 text-[var(--site-gold-text)]" />
                         <p className="text-sm font-bold text-[var(--site-subtle)]">No favourites yet.</p>
                         <p className="max-w-sm text-xs font-semibold text-[var(--site-muted)]">Mark photos as favourites in the galleries, then pick one here. You can also describe the photo you want in the comment.</p>
                     </div>
@@ -53,8 +53,8 @@ export function FavouritePicker({ albumId, selectedId, onPick, onClose }: {
                                 type="button"
                                 onClick={() => onPick(photo)}
                                 className={cn(
-                                    "relative aspect-square overflow-hidden rounded-xl border-2 bg-black/40 transition-colors",
-                                    photo.id === selectedId ? "border-[var(--site-gold)]" : "border-transparent hover:border-white/30"
+                                    "relative aspect-square overflow-hidden rounded-xl border-2 bg-black/40 light:bg-[var(--site-tint)]/[0.04] transition-colors",
+                                    photo.id === selectedId ? "border-[var(--site-gold)]" : "border-transparent hover:border-[var(--site-tint)]/30"
                                 )}
                                 aria-pressed={photo.id === selectedId}
                             >

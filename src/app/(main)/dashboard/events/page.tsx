@@ -193,10 +193,10 @@ function YourEvents() {
     return (
         <div className="min-h-screen bg-[var(--site-bg)] font-sans text-[var(--site-text)]">
             <main className="relative z-20 mx-auto max-w-7xl px-4 pt-24 pb-24 sm:px-6 lg:px-8">
-                <section className="rounded-[2rem] border border-[var(--site-line)] bg-[var(--site-surface)] p-5 shadow-2xl shadow-black/25 sm:p-8 lg:p-10">
+                <section className="rounded-[2rem] border border-[var(--site-line)] bg-[var(--site-surface)] p-5 shadow-2xl shadow-black/25 light:shadow-(color:--home-shadow) sm:p-8 lg:p-10">
                     <Link
                         href="/dashboard"
-                        className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--site-muted)] transition-colors hover:text-[var(--site-gold)]"
+                        className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--site-muted)] transition-colors hover:text-[var(--site-gold-text)]"
                     >
                         <ArrowLeft className="h-4 w-4" />
                         <span>Dashboard</span>
@@ -260,7 +260,7 @@ function YourEvents() {
                                 <button
                                     type="button"
                                     onClick={clearFilters}
-                                    className="h-12 shrink-0 rounded-xl px-4 text-sm font-semibold text-[var(--site-gold)] transition-colors hover:bg-[var(--site-gold)]/10"
+                                    className="h-12 shrink-0 rounded-xl px-4 text-sm font-semibold text-[var(--site-gold-text)] transition-colors hover:bg-[var(--site-gold)]/10"
                                 >
                                     Clear
                                 </button>

@@ -37,7 +37,7 @@ function Tile({ photo, className, children }: { photo: Photo; className?: string
 // An album spread: one big photo on the left page, two on the right. `top` lets a scene swap the top-right photo.
 function Spread({ top, className }: { top: React.ReactNode; className?: string }) {
     return (
-        <div className={cn("relative grid aspect-[2/1] grid-cols-2 gap-1.5 rounded-md bg-[#F4EFE6] p-1.5 shadow-lg shadow-black/40 sm:gap-2 sm:p-2", className)}>
+        <div className={cn("relative grid aspect-[2/1] grid-cols-2 gap-1.5 rounded-md bg-[#F4EFE6] p-1.5 shadow-lg shadow-(color:--home-shadow) sm:gap-2 sm:p-2", className)}>
             <Tile photo={photos.couple} />
             <div className="grid grid-rows-2 gap-1.5 sm:gap-2">
                 {top}
@@ -120,7 +120,7 @@ function DesignScene({ animate }: Motion) {
     return (
         <div className="flex h-full flex-col items-center justify-center gap-4">
             <p className="text-sm font-semibold text-[var(--site-text)]">Pages 6 and 7, draft 1</p>
-            <div className="relative grid aspect-[2/1] w-full max-w-2xl grid-cols-2 gap-2 rounded-md bg-[#F4EFE6] p-2 shadow-lg shadow-black/40">
+            <div className="relative grid aspect-[2/1] w-full max-w-2xl grid-cols-2 gap-2 rounded-md bg-[#F4EFE6] p-2 shadow-lg shadow-(color:--home-shadow)">
                 <m.div {...appear(animate, 0.3, { opacity: 0, scale: 0.85 })} className="relative overflow-hidden rounded-sm">
                     <Image src={photos.couple.src} alt="" fill sizes="(min-width: 1024px) 35vw, 45vw" className="object-cover" />
                 </m.div>
@@ -142,7 +142,7 @@ function ReviewScene({ animate }: Motion) {
     return (
         <div className="flex h-full flex-col items-stretch gap-4 md:flex-row md:items-center md:gap-6">
             {/* Client's phone */}
-            <div className="mx-auto w-full max-w-[260px] rounded-[1.75rem] border-[5px] border-[#26262C] bg-[#0E0E11] p-3 md:mx-0 md:w-[32%] md:max-w-none">
+            <div className="site-noir mx-auto w-full max-w-[260px] rounded-[1.75rem] border-[5px] border-[#26262C] bg-[#0E0E11] p-3 md:mx-0 md:w-[32%] md:max-w-none">
                 <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--home-accent)]">Client&apos;s phone</p>
                 <Spread top={<SwappingTop animate={animate} pinAt={0.4} swapAt={3.6} />} />
                 <div className="mt-3 space-y-2">
@@ -157,7 +157,7 @@ function ReviewScene({ animate }: Motion) {
             </div>
 
             {/* Photographer's laptop */}
-            <div className="hidden flex-1 md:block">
+            <div className="site-noir hidden flex-1 md:block">
                 <div className="rounded-t-xl border border-[#2A2A30] bg-[#0E0E11] p-3">
                     <div className="mb-2 flex items-center justify-between">
                         <div className="flex gap-1.5">
@@ -237,7 +237,7 @@ export default function AlbumDemo() {
             <div
                 role="img"
                 aria-label={`Album proofing, step ${scene + 1} of 4: ${steps[scene]}`}
-                className="relative h-[560px] overflow-hidden rounded-3xl border border-[var(--site-border)] bg-[var(--site-bg)] p-4 shadow-2xl shadow-black/40 sm:p-6 md:h-[440px] lg:h-[480px] lg:p-8"
+                className="relative h-[560px] overflow-hidden rounded-3xl border border-[var(--site-border)] bg-[var(--site-bg)] p-4 shadow-2xl shadow-(color:--home-shadow) sm:p-6 md:h-[440px] lg:h-[480px] lg:p-8"
             >
                 <AnimatePresence initial={false} mode="wait">
                     <m.div

@@ -39,7 +39,7 @@ type FormField = keyof typeof EMPTY_FORM;
 
 const inputClass =
   "w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-[var(--site-gold)] focus:ring-4 focus:ring-[var(--site-gold)]/10 transition-all";
-const labelClass = "block font-sans text-xs font-black text-[var(--site-gold)] uppercase tracking-[0.2em] mb-2";
+const labelClass = "block font-sans text-xs font-black text-[var(--site-gold-text)] uppercase tracking-[0.2em] mb-2";
 
 export default function EbNetworkComingSoon() {
   const [form, setForm] = useState(EMPTY_FORM);
@@ -105,12 +105,12 @@ export default function EbNetworkComingSoon() {
     <main className="min-h-screen bg-[var(--site-bg)] px-4 py-24 text-[var(--site-text)] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-20">
         <section className="mx-auto max-w-3xl text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-[var(--site-gold)]/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[var(--site-gold)]">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-[var(--site-gold)]/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[var(--site-gold-text)]">
             <Sparkles className="h-4 w-4" />
             Coming soon
           </div>
           <h1 className="font-serif text-5xl text-[var(--site-text)] sm:text-6xl">EB Network</h1>
-          <p className="mt-4 text-xl text-[var(--site-gold)] sm:text-2xl">{TAGLINE}</p>
+          <p className="mt-4 text-xl text-[var(--site-gold-text)] sm:text-2xl">{TAGLINE}</p>
           <p className="mt-6 text-base leading-8 text-[var(--site-subtle)] sm:text-lg">{INTRO}</p>
           <a
             href="#list-your-business"
@@ -126,7 +126,7 @@ export default function EbNetworkComingSoon() {
           <ol className="grid gap-4 md:grid-cols-3">
             {STEPS.map((step, index) => (
               <li key={step.title} className="rounded-2xl border border-[var(--site-border)] bg-[var(--site-card)] p-6">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--site-gold)]/15 font-bold text-[var(--site-gold)]">{index + 1}</span>
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--site-gold)]/15 font-bold text-[var(--site-gold-text)]">{index + 1}</span>
                 <h3 className="mt-4 text-lg font-bold">{step.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-[var(--site-muted)]">{step.text}</p>
               </li>
@@ -147,7 +147,7 @@ export default function EbNetworkComingSoon() {
           <div className="grid gap-4 md:grid-cols-3">
             {PERKS.map(({ icon: Icon, title, text }) => (
               <div key={title} className="rounded-2xl border border-[var(--site-border)] bg-[var(--site-card)] p-6">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--site-gold)]/10 text-[var(--site-gold)]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--site-gold)]/10 text-[var(--site-gold-text)]">
                   <Icon className="h-5 w-5" />
                 </div>
                 <h3 className="mt-4 text-lg font-bold">{title}</h3>
@@ -160,7 +160,7 @@ export default function EbNetworkComingSoon() {
         <section id="list-your-business" className="mx-auto max-w-3xl scroll-mt-24 rounded-2xl border border-[var(--site-border)] bg-[var(--site-card)] p-6 shadow-xl sm:p-10">
           {submitted ? (
             <div role="status" className="flex flex-col items-center gap-3 py-6 text-center">
-              <CheckCircle2 className="h-12 w-12 text-[var(--site-gold)]" />
+              <CheckCircle2 className="h-12 w-12 text-[var(--site-gold-text)]" />
               <h2 className="font-serif text-3xl">You&apos;re on the list</h2>
               <p className="text-[var(--site-muted)]">Thanks for registering. Our team will contact you soon.</p>
               <button
@@ -201,7 +201,7 @@ export default function EbNetworkComingSoon() {
                         }}
                         className={`rounded-full border px-4 py-2 text-sm transition-colors ${
                           selected
-                            ? "border-[var(--site-gold)] bg-[var(--site-gold)]/15 font-semibold text-[var(--site-gold)]"
+                            ? "border-[var(--site-gold)] bg-[var(--site-gold)]/15 font-semibold text-[var(--site-gold-text)]"
                             : "border-[var(--site-border)] text-[var(--site-muted)] hover:border-[var(--site-gold)]/60"
                         }`}
                       >
@@ -269,7 +269,7 @@ function DirectoryPreview() {
           <span
             key={chip}
             className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${
-              index === 0 ? "border-[var(--site-gold)] bg-[var(--site-gold)]/15 text-[var(--site-gold)]" : "border-[var(--site-border)] text-[var(--site-muted)]"
+              index === 0 ? "border-[var(--site-gold)] bg-[var(--site-gold)]/15 text-[var(--site-gold-text)]" : "border-[var(--site-border)] text-[var(--site-muted)]"
             }`}
           >
             {chip}
@@ -288,7 +288,7 @@ function DirectoryPreview() {
                 <MapPin className="h-3.5 w-3.5" />
                 <div className="h-3 w-1/3 rounded bg-[var(--site-muted)]/20" />
               </div>
-              <div className="flex items-center gap-1 text-[var(--site-gold)]">
+              <div className="flex items-center gap-1 text-[var(--site-gold-text)]">
                 {[0, 1, 2, 3, 4].map((star) => (
                   <Star key={star} className="h-3.5 w-3.5" />
                 ))}

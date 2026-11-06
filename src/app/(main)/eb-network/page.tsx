@@ -177,7 +177,7 @@ function LegacyMarketplacePage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <button
             type="button"
-            className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-400/20 bg-indigo-400/10 text-indigo-300"
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-400/20 bg-indigo-400/10 text-indigo-300 light:text-indigo-700"
             aria-label="Shortlist"
           >
             <Heart className="h-5 w-5" />
@@ -189,7 +189,7 @@ function LegacyMarketplacePage() {
           <button
             type="button"
             onClick={() => setShowFilterModal(true)}
-            className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-400/20 bg-indigo-400/10 text-indigo-300"
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-400/20 bg-indigo-400/10 text-indigo-300 light:text-indigo-700"
             aria-label="Filters"
           >
             <Filter className="h-5 w-5" />
@@ -245,7 +245,7 @@ function LegacyMarketplacePage() {
             <p className="mt-2 max-w-lg font-semibold leading-7 text-indigo-100">
               Reach thousands of event organizers and grow your brand today.
             </p>
-            <div className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-[#1e1b4b] px-5 py-3 text-sm font-black text-[var(--site-text)]">
+            <div className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-[#1e1b4b] px-5 py-3 text-sm font-black text-[var(--site-text)] light:text-[#F7F2E8]">
               <span>Get Started</span>
               <ArrowRight className="h-4 w-4" />
             </div>
@@ -254,7 +254,7 @@ function LegacyMarketplacePage() {
 
         {loading ? (
           <div className="flex justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-300" />
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-300 light:text-indigo-700" />
           </div>
         ) : (
           <>
@@ -262,7 +262,7 @@ function LegacyMarketplacePage() {
               <section className="space-y-5">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-black text-[var(--site-text)]">Featured Vendors</h2>
-                  <button type="button" onClick={() => setSelectedCategory("All")} className="text-sm font-black text-indigo-300">
+                  <button type="button" onClick={() => setSelectedCategory("All")} className="text-sm font-black text-indigo-300 light:text-indigo-700">
                     View All
                   </button>
                 </div>
@@ -309,7 +309,7 @@ function LegacyMarketplacePage() {
 
       <AnimatePresence>
         {showFilterModal && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm light:bg-black/45">
             <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-2xl rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)] p-6 shadow-2xl">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="text-2xl font-black text-[var(--site-text)]">Sort & Filter</h3>
@@ -321,8 +321,8 @@ function LegacyMarketplacePage() {
               <div className="space-y-6">
                 <div>
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="text-xs font-black uppercase tracking-widest text-indigo-300">Select City</p>
-                    <button type="button" onClick={detectLocation} className="flex items-center gap-2 rounded-full bg-indigo-400/10 px-3 py-2 text-xs font-black text-indigo-300">
+                    <p className="text-xs font-black uppercase tracking-widest text-indigo-300 light:text-indigo-700">Select City</p>
+                    <button type="button" onClick={detectLocation} className="flex items-center gap-2 rounded-full bg-indigo-400/10 px-3 py-2 text-xs font-black text-indigo-300 light:text-indigo-700">
                       {detecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />}
                       <span>{detecting ? "Detecting..." : "Near Me"}</span>
                     </button>
@@ -332,13 +332,13 @@ function LegacyMarketplacePage() {
 
                 {selectedLocation === "Near Me" && (
                   <div>
-                    <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-300">Distance Radius</p>
+                    <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-300 light:text-indigo-700">Distance Radius</p>
                     <ChipGroup options={DISTANCE_OPTIONS.map(item => `${item}km`)} value={`${maxDistance}km`} onChange={(value) => setMaxDistance(Number(value.replace("km", "")))} />
                   </div>
                 )}
 
                 <div>
-                  <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-300">Sort By</p>
+                  <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-300 light:text-indigo-700">Sort By</p>
                   <ChipGroup options={SORT_OPTIONS} value={sortBy} onChange={setSortBy} />
                 </div>
 
@@ -386,7 +386,7 @@ function VendorCard({ vendor, shortlisted, onShortlist, onOpen, featured = false
   const typeColors = getBusinessTypeColor(vendor.type);
   const image = vendor.coverImage || DEFAULT_BUSINESS_COVER;
   return (
-    <article onClick={onOpen} className="cursor-pointer overflow-hidden rounded-[1.75rem] border border-[var(--site-border)] bg-[var(--site-surface)] shadow-xl shadow-black/10">
+    <article onClick={onOpen} className="cursor-pointer overflow-hidden rounded-[1.75rem] border border-[var(--site-border)] bg-[var(--site-surface)] shadow-xl shadow-black/10 light:shadow-(color:--home-shadow)">
       <div className={`${featured ? "h-56" : "h-44"} relative bg-[var(--site-bg)]`}>
         <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35 blur-xl" />
         <img src={image} alt={vendor.name} className="relative h-full w-full object-contain" />
@@ -394,14 +394,14 @@ function VendorCard({ vendor, shortlisted, onShortlist, onOpen, featured = false
           <Heart className={`h-5 w-5 ${shortlisted ? "fill-rose-500 text-rose-500" : ""}`} />
         </button>
         <div className="absolute right-4 top-4 flex items-center gap-1 rounded-full border border-white/15 bg-[var(--site-bg)]/70 px-3 py-1 text-sm font-black backdrop-blur">
-          <Star className="h-3.5 w-3.5 fill-amber-300 text-amber-300" />
+          <Star className="h-3.5 w-3.5 fill-amber-300 text-amber-300 light:fill-amber-500 light:text-amber-600" />
           <span>{vendor.rating || 0}</span>
         </div>
       </div>
       <div className="space-y-3 p-5">
         <div className="flex min-w-0 items-center gap-2">
           <h3 className="truncate text-lg font-black text-[var(--site-text)]">{vendor.name}</h3>
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-400" />
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-400 light:text-blue-600" />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full border px-3 py-1 text-xs font-black uppercase" style={{ backgroundColor: typeColors.bg, borderColor: typeColors.border, color: typeColors.text }}>
@@ -447,7 +447,7 @@ function VendorListCard(props: {
                 <span className="rounded-full border px-3 py-1 text-xs font-black uppercase" style={{ backgroundColor: typeColors.bg, borderColor: typeColors.border, color: typeColors.text }}>
                   {vendor.type}
                 </span>
-                <CheckCircle2 className="h-4 w-4 text-blue-400" />
+                <CheckCircle2 className="h-4 w-4 text-blue-400 light:text-blue-600" />
               </div>
             </div>
             <button type="button" onClick={(event) => { event.stopPropagation(); onShortlist(); }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--site-border)] bg-[var(--site-bg)] text-[var(--site-text)]">
@@ -456,11 +456,11 @@ function VendorListCard(props: {
           </div>
           <div className="flex flex-wrap gap-3 text-sm font-bold text-[var(--site-muted)]">
             <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{getVendorLocation(vendor)}</span>
-            <span className="flex items-center gap-1"><Calendar className="h-4 w-4 text-amber-300" />{getExperienceLabel(vendor.experience)}</span>
-            <span className="flex items-center gap-1"><Star className="h-4 w-4 fill-amber-300 text-amber-300" />{vendor.rating || 0}</span>
+            <span className="flex items-center gap-1"><Calendar className="h-4 w-4 text-amber-300 light:text-amber-600" />{getExperienceLabel(vendor.experience)}</span>
+            <span className="flex items-center gap-1"><Star className="h-4 w-4 fill-amber-300 text-amber-300 light:fill-amber-500 light:text-amber-600" />{vendor.rating || 0}</span>
           </div>
         </div>
-        <button type="button" onClick={(event) => { event.stopPropagation(); onOpen(); }} className="flex w-fit items-center gap-2 rounded-full border border-indigo-400/30 px-4 py-2 text-xs font-black uppercase tracking-widest text-indigo-300">
+        <button type="button" onClick={(event) => { event.stopPropagation(); onOpen(); }} className="flex w-fit items-center gap-2 rounded-full border border-indigo-400/30 px-4 py-2 text-xs font-black uppercase tracking-widest text-indigo-300 light:text-indigo-700">
           <span>View Details</span>
           <ArrowRight className="h-4 w-4" />
         </button>
@@ -490,7 +490,7 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
   };
 
   return (
-    <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 p-4 backdrop-blur-sm light:bg-black/45">
       <motion.div initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }} className="mx-auto max-w-4xl overflow-hidden rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)] shadow-2xl">
         <div className="relative h-80 bg-[var(--site-bg)]">
           <img src={galleryImages[0]} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35 blur-xl" />
@@ -518,11 +518,11 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
                 {vendor.type}
               </span>
               {vendor.vendorCode && (
-                <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-black text-sky-300">
+                <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-black text-sky-300 light:text-sky-700">
                   Code: {vendor.vendorCode}
                 </span>
               )}
-              <span className="flex items-center gap-1 rounded-full bg-[var(--site-surface-2)] px-3 py-1 text-xs font-black text-amber-300">
+              <span className="flex items-center gap-1 rounded-full bg-[var(--site-surface-2)] px-3 py-1 text-xs font-black text-amber-300 light:text-amber-700">
                 <Star className="h-3.5 w-3.5 fill-amber-300" />
                 {vendor.rating || 0}
               </span>
@@ -560,7 +560,7 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
                   <h3 className="mb-3 text-xl font-black text-[var(--site-text)]">Services Offered</h3>
                   <div className="flex flex-wrap gap-2">
                     {vendor.services.map((service) => (
-                      <span key={service} className="rounded-full bg-indigo-400/10 px-3 py-1 text-sm font-bold text-indigo-200">{service}</span>
+                      <span key={service} className="rounded-full bg-indigo-400/10 px-3 py-1 text-sm font-bold text-indigo-200 light:text-indigo-700">{service}</span>
                     ))}
                   </div>
                 </section>
@@ -572,7 +572,7 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
             <section>
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-xl font-black text-[var(--site-text)]">Portfolio</h3>
-                <span className="text-sm font-black text-indigo-300">{vendor.portfolioEvents?.length || 0} Events</span>
+                <span className="text-sm font-black text-indigo-300 light:text-indigo-700">{vendor.portfolioEvents?.length || 0} Events</span>
               </div>
               {vendor.portfolioEvents && vendor.portfolioEvents.length > 0 ? (
                 <div className="space-y-5">
@@ -598,7 +598,7 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
                       </div>
                       <div className="flex items-center justify-between px-4 py-3 text-sm font-bold text-[var(--site-muted)]">
                         <span>{portfolio.media?.length || 0} images</span>
-                        <span className="text-indigo-300">Open gallery</span>
+                        <span className="text-indigo-300 light:text-indigo-700">Open gallery</span>
                       </div>
                     </button>
                   ))}

@@ -159,10 +159,10 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
             <div className="flex min-h-[16rem] flex-col items-center justify-center gap-3 text-center">
                 {error ? (
                     <>
-                        <p className="text-sm font-bold text-rose-300">{error}</p>
+                        <p className="text-sm font-bold text-rose-300 light:text-rose-700">{error}</p>
                         <button type="button" className={albumButton.secondary} onClick={onBack}>Back to albums</button>
                     </>
-                ) : <Loader2 className="h-6 w-6 animate-spin text-[var(--site-gold)]" />}
+                ) : <Loader2 className="h-6 w-6 animate-spin text-[var(--site-gold-text)]" />}
             </div>
         );
     }
@@ -231,7 +231,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                 void run("rename", async () => { setAlbum((await albumApi.rename(album.id, editingTitle)).album); setEditingTitle(null); });
                             }}
                         >
-                            <input value={editingTitle} onChange={(e) => setEditingTitle(e.target.value)} maxLength={80} autoFocus className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black/40 px-3 py-2 font-serif text-xl font-bold text-[var(--site-text)] outline-none focus:border-[var(--site-gold)]" />
+                            <input value={editingTitle} onChange={(e) => setEditingTitle(e.target.value)} maxLength={80} autoFocus className="min-w-0 flex-1 rounded-xl border border-[var(--site-tint)]/15 bg-black/40 light:bg-[var(--site-tint)]/[0.04] px-3 py-2 font-serif text-xl font-bold text-[var(--site-text)] outline-none focus:border-[var(--site-gold)]" />
                             <button type="submit" className={albumButton.ghost} aria-label="Save name" disabled={busy === "rename"}><Check className="h-5 w-5" /></button>
                             <button type="button" className={albumButton.ghost} aria-label="Cancel" onClick={() => setEditingTitle(null)}><X className="h-5 w-5" /></button>
                         </form>
@@ -246,9 +246,9 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                     </div>
                     {album.rolesAssigned && (
                         <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[var(--site-muted)]">
-                            <span><Camera className="mr-1 inline h-3.5 w-3.5 text-[var(--site-gold)]" />Photographer: <span className="font-bold text-[var(--site-text)]">{album.roles.photographer?.name}</span></span>
-                            <span><Heart className="mr-1 inline h-3.5 w-3.5 text-[var(--site-gold)]" />Client: <span className="font-bold text-[var(--site-text)]">{album.roles.clients.map((p) => p.name).join(", ")}</span></span>
-                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--site-subtle)]">
+                            <span><Camera className="mr-1 inline h-3.5 w-3.5 text-[var(--site-gold-text)]" />Photographer: <span className="font-bold text-[var(--site-text)]">{album.roles.photographer?.name}</span></span>
+                            <span><Heart className="mr-1 inline h-3.5 w-3.5 text-[var(--site-gold-text)]" />Client: <span className="font-bold text-[var(--site-text)]">{album.roles.clients.map((p) => p.name).join(", ")}</span></span>
+                            <span className="rounded-full bg-[var(--site-tint)]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--site-subtle)]">
                                 {mode === "photographer" ? "You: Photographer" : mode === "client" ? "You: Client" : "View only"}
                             </span>
                         </p>
@@ -260,21 +260,21 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                             <MoreHorizontal className="h-5 w-5" />
                         </button>
                         {menuOpen && (
-                            <div className="absolute right-0 top-full z-30 mt-1 w-48 overflow-hidden rounded-2xl border border-white/10 bg-[var(--site-bg)] py-1 shadow-2xl" onMouseLeave={() => setMenuOpen(false)}>
-                                <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-[var(--site-text)] hover:bg-white/5" onClick={() => { setMenuOpen(false); setEditingTitle(album.title); }}>
+                            <div className="absolute right-0 top-full z-30 mt-1 w-48 overflow-hidden rounded-2xl border border-[var(--site-tint)]/10 bg-[var(--site-bg)] py-1 shadow-2xl" onMouseLeave={() => setMenuOpen(false)}>
+                                <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-[var(--site-text)] hover:bg-[var(--site-tint)]/5" onClick={() => { setMenuOpen(false); setEditingTitle(album.title); }}>
                                     <Pencil className="h-4 w-4" /> Rename
                                 </button>
-                                <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-[var(--site-text)] hover:bg-white/5" onClick={() => { setMenuOpen(false); setRolesOpen(true); }}>
+                                <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-[var(--site-text)] hover:bg-[var(--site-tint)]/5" onClick={() => { setMenuOpen(false); setRolesOpen(true); }}>
                                     <Users className="h-4 w-4" /> {album.rolesAssigned ? "Change roles" : "Assign roles"}
                                 </button>
                                 {locked && (
-                                    <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-[var(--site-text)] hover:bg-white/5" onClick={() => { setMenuOpen(false); void run("reopen", async () => setAlbum((await albumApi.reopen(album.id)).album)); }}>
+                                    <button type="button" className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-[var(--site-text)] hover:bg-[var(--site-tint)]/5" onClick={() => { setMenuOpen(false); void run("reopen", async () => setAlbum((await albumApi.reopen(album.id)).album)); }}>
                                         <RotateCcw className="h-4 w-4" /> Reopen album
                                     </button>
                                 )}
                                 <button
                                     type="button"
-                                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-rose-300 hover:bg-rose-500/10"
+                                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-rose-300 light:text-rose-700 hover:bg-rose-500/10"
                                     onClick={async () => {
                                         setMenuOpen(false);
                                         if (!await confirmDialog({ title: `Delete “${album.title}”?`, message: "Every page, version, comment and voice note in it is deleted for good.", confirmLabel: "Delete album", tone: "danger" })) return;
@@ -291,7 +291,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
 
             {!album.rolesAssigned && (
                 <div className="flex flex-col gap-3 rounded-[1.2rem] border border-[var(--site-gold)]/50 bg-[var(--site-gold)]/[0.08] p-4 sm:flex-row sm:items-center sm:p-5">
-                    <Users className="h-6 w-6 shrink-0 text-[var(--site-gold)]" />
+                    <Users className="h-6 w-6 shrink-0 text-[var(--site-gold-text)]" />
                     <div className="min-w-0 flex-1">
                         <p className="text-sm font-black text-[var(--site-text)]">Assign the photographer and the client</p>
                         <p className="mt-1 text-xs font-semibold text-[var(--site-muted)]">Pick them from the event host and guests with Admin Access. Nothing can be uploaded or reviewed until then.</p>
@@ -305,7 +305,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                 <div className="min-w-0 flex-1">
                     <p className="text-sm font-black text-[var(--site-text)]">
                         {album.approvedCount} of {album.pageCount} pages approved
-                        {album.changesCount > 0 && <span className="text-rose-300"> · {album.changesCount} need changes</span>}
+                        {album.changesCount > 0 && <span className="text-rose-300 light:text-rose-700"> · {album.changesCount} need changes</span>}
                     </p>
                     <ProgressBar value={album.approvedCount} total={album.pageCount} className="mt-2" />
                     <p className="mt-2 text-xs font-semibold text-[var(--site-muted)]">
@@ -352,13 +352,13 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                     </div>
                 ))}
                 {locked && (
-                    <span className="inline-flex items-center gap-2 text-sm font-black text-emerald-200"><CheckCircle2 className="h-5 w-5" /> Approved for print</span>
+                    <span className="inline-flex items-center gap-2 text-sm font-black text-emerald-200 light:text-emerald-800"><CheckCircle2 className="h-5 w-5" /> Approved for print</span>
                 )}
             </div>
 
             {/* Uploads */}
             {uploads.length > 0 && (
-                <div className="space-y-2 rounded-[1.2rem] border border-white/10 bg-black/30 p-4">
+                <div className="space-y-2 rounded-[1.2rem] border border-[var(--site-tint)]/10 bg-black/30 light:bg-[var(--site-tint)]/[0.04] p-4">
                     <div className="flex items-center justify-between">
                         <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--site-muted)]">
                             Uploads · {uploads.filter((u) => u.state === "done").length} of {uploads.length} done
@@ -370,12 +370,12 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                             <div key={u.key} className="flex items-center gap-3 text-xs">
                                 <span className="min-w-0 flex-1 truncate font-bold text-[var(--site-text)]">{u.name}</span>
                                 {u.state === "failed" ? (
-                                    <span className="max-w-[60%] truncate font-bold text-rose-300" title={u.error}>{u.error}</span>
+                                    <span className="max-w-[60%] truncate font-bold text-rose-300 light:text-rose-700" title={u.error}>{u.error}</span>
                                 ) : u.state === "done" ? (
-                                    <Check className="h-4 w-4 text-emerald-300" />
+                                    <Check className="h-4 w-4 text-emerald-300 light:text-emerald-700" />
                                 ) : (
                                     <span className="flex w-32 items-center gap-2">
-                                        <span className="h-1 flex-1 overflow-hidden rounded-full bg-white/10"><span className="block h-full bg-[var(--site-gold)]" style={{ width: `${Math.round(u.progress * 100)}%` }} /></span>
+                                        <span className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--site-tint)]/10"><span className="block h-full bg-[var(--site-gold)]" style={{ width: `${Math.round(u.progress * 100)}%` }} /></span>
                                         <span className="w-16 text-right font-bold text-[var(--site-muted)]">{u.state === "processing" ? "Processing" : u.state === "waiting" ? "Waiting" : `${Math.round(u.progress * 100)}%`}</span>
                                     </span>
                                 )}
@@ -388,10 +388,10 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
             {/* Photographer: what the client asked for */}
             {mode === "photographer" && openRequests.length > 0 && (
                 <div className="rounded-[1.2rem] border border-rose-400/25 bg-rose-500/[0.04] p-4 sm:p-5">
-                    <p className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-rose-200">Changes to do · {openRequests.length}</p>
+                    <p className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-rose-200 light:text-rose-800">Changes to do · {openRequests.length}</p>
                     <div className="space-y-2">
                         {openRequests.map(({ page, comment, number }) => (
-                            <div key={comment.id} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/30 p-3">
+                            <div key={comment.id} className="flex items-start gap-3 rounded-2xl border border-[var(--site-tint)]/10 bg-black/30 light:bg-[var(--site-tint)]/[0.04] p-3">
                                 <button type="button" onClick={() => setViewing(visiblePages.findIndex((p) => p.id === page.id))} className="shrink-0">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={page.versions.find((v) => v.version === comment.version)?.thumbnailUrl ?? page.versions.at(-1)?.thumbnailUrl} alt="" className="h-14 w-24 rounded-lg bg-black object-contain" />
@@ -400,7 +400,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                     <p className="text-xs font-bold text-[var(--site-muted)]">
                                         {labels.get(page.id)} · {comment.pinX !== null ? `pin ${number}` : "whole page"} · {comment.authorName}
                                     </p>
-                                    <p className="text-sm font-black text-[var(--site-gold-light)]">{albumCommentKindLabel(comment.kind)}</p>
+                                    <p className="text-sm font-black text-[var(--site-gold-light-text)]">{albumCommentKindLabel(comment.kind)}</p>
                                     {comment.body && <p className="mt-0.5 line-clamp-2 text-sm text-[var(--site-text)]">{comment.body}</p>}
                                     {comment.voiceUrl && <audio src={comment.voiceUrl} controls preload="none" className="mt-1.5 h-8 w-full max-w-xs" />}
                                     {comment.replacementPhoto?.thumbnailUrl && (
@@ -426,8 +426,8 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
 
             {/* Pages */}
             {visiblePages.length === 0 ? (
-                <div className={cn("flex flex-col items-center gap-3 rounded-[1.2rem] border-2 border-dashed p-10 text-center", dropActive ? "border-[var(--site-gold)] bg-[var(--site-gold)]/5" : "border-white/10")}>
-                    <Upload className="h-8 w-8 text-[var(--site-gold)]" />
+                <div className={cn("flex flex-col items-center gap-3 rounded-[1.2rem] border-2 border-dashed p-10 text-center", dropActive ? "border-[var(--site-gold)] bg-[var(--site-gold)]/5" : "border-[var(--site-tint)]/10")}>
+                    <Upload className="h-8 w-8 text-[var(--site-gold-text)]" />
                     {mode === "photographer" ? (
                         <>
                             <p className="font-serif text-xl font-bold text-[var(--site-text)]">Add the album pages</p>
@@ -458,7 +458,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                 onDragEnd={() => setDragId(null)}
                                 className={cn(
                                     "group overflow-hidden rounded-[1.2rem] border bg-[var(--site-bg)] transition-colors",
-                                    dragId === page.id ? "border-[var(--site-gold)] opacity-50" : "border-white/10 hover:border-white/25"
+                                    dragId === page.id ? "border-[var(--site-gold)] opacity-50" : "border-[var(--site-tint)]/10 hover:border-[var(--site-tint)]/25"
                                 )}
                             >
                                 <button type="button" onClick={() => setViewing(index)} className="relative block aspect-[2/1] w-full bg-black/60" aria-label={`Open ${labels.get(page.id)}`}>
@@ -468,7 +468,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                     )}
                                     {updated && <span className="absolute left-2 top-2 rounded-full bg-[var(--site-gold)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--site-on-gold)]">Updated</span>}
                                     {requests > 0 && (
-                                        <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/75 px-2 py-0.5 text-[11px] font-black text-white">
+                                        <span className="site-noir absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/75 px-2 py-0.5 text-[11px] font-black text-white">
                                             <MessageSquare className="h-3 w-3" /> {requests}
                                         </span>
                                     )}
@@ -486,21 +486,21 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                     <PageStatusChip status={page.status} />
                                 </div>
                                 {mode === "photographer" && !locked && (
-                                    <div className="flex items-center justify-between gap-1 border-t border-white/5 px-2 py-1.5">
-                                        <div className="flex rounded-lg border border-white/10 p-0.5" role="group" aria-label="Layout">
+                                    <div className="flex items-center justify-between gap-1 border-t border-[var(--site-tint)]/5 px-2 py-1.5">
+                                        <div className="flex rounded-lg border border-[var(--site-tint)]/10 p-0.5" role="group" aria-label="Layout">
                                             {(["spread", "single"] as const).map((layout) => (
                                                 <button
                                                     key={layout}
                                                     type="button"
                                                     aria-pressed={page.layout === layout}
                                                     onClick={() => page.layout !== layout && run(`layout-${page.id}`, async () => setAlbum((await albumApi.setLayout(album.id, page.id, layout)).album))}
-                                                    className={cn("rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wider", page.layout === layout ? "bg-white/15 text-[var(--site-text)]" : "text-[var(--site-muted)] hover:text-[var(--site-subtle)]")}
+                                                    className={cn("rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wider", page.layout === layout ? "bg-[var(--site-tint)]/15 text-[var(--site-text)]" : "text-[var(--site-muted)] hover:text-[var(--site-subtle)]")}
                                                 >{layout === "spread" ? "Spread" : "Single"}</button>
                                             ))}
                                         </div>
                                         <button
                                             type="button"
-                                            className={cn(albumButton.ghost, "hover:text-rose-300")}
+                                            className={cn(albumButton.ghost, "hover:text-rose-300 light:hover:text-rose-700")}
                                             aria-label={`Delete ${labels.get(page.id)}`}
                                             disabled={busy === `delete-${page.id}`}
                                             onClick={async () => {
@@ -519,7 +519,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
             )}
 
             {album.rounds.length > 0 && (
-                <details className="rounded-[1.2rem] border border-white/10 p-4">
+                <details className="rounded-[1.2rem] border border-[var(--site-tint)]/10 p-4">
                     <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.14em] text-[var(--site-muted)]">Review history</summary>
                     <ul className="mt-3 space-y-1.5 text-xs font-semibold text-[var(--site-muted)]">
                         {[...album.rounds].reverse().map((r) => (
@@ -528,7 +528,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                 {r.updatedPageCount ? ` (${r.updatedPageCount} updated)` : ""} on {new Date(r.sentAt).toLocaleString()}
                             </li>
                         ))}
-                        {album.approvedAt && <li className="text-emerald-300">Approved for print by {album.approvedByName} on {new Date(album.approvedAt).toLocaleString()}</li>}
+                        {album.approvedAt && <li className="text-emerald-300 light:text-emerald-700">Approved for print by {album.approvedByName} on {new Date(album.approvedAt).toLocaleString()}</li>}
                     </ul>
                 </details>
             )}

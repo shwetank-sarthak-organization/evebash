@@ -49,7 +49,7 @@ export function MoveToGalleryDialog({ itemCount, galleries, currentGalleryIds, o
         >
             <ModalHeader
                 titleId="move-gallery-title"
-                title={<span className="flex items-center gap-2"><FolderInput className="h-5 w-5 text-[var(--site-gold)]" aria-hidden />Move {itemCount === 1 ? "1 item" : `${itemCount} items`}</span>}
+                title={<span className="flex items-center gap-2"><FolderInput className="h-5 w-5 text-[var(--site-gold-text)]" aria-hidden />Move {itemCount === 1 ? "1 item" : `${itemCount} items`}</span>}
                 subtitle="Choose a gallery in this event. Likes and comments move with each item."
                 onClose={onClose}
                 closeDisabled={moving}
@@ -77,7 +77,7 @@ export function MoveToGalleryDialog({ itemCount, galleries, currentGalleryIds, o
                             {isCurrent ? (
                                 <span className="shrink-0 text-xs text-[var(--site-muted)]">Current</span>
                             ) : selected ? (
-                                <Check className="h-4 w-4 shrink-0 text-[var(--site-gold)]" aria-hidden />
+                                <Check className="h-4 w-4 shrink-0 text-[var(--site-gold-text)]" aria-hidden />
                             ) : null}
                         </button>
                     );

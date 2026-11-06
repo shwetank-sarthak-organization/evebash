@@ -51,7 +51,7 @@ export default function PublicProfilePage() {
   if (loading) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center bg-[var(--site-bg)] text-[var(--site-subtle)]">
-        <div className="h-9 w-9 animate-spin rounded-full border-2 border-indigo-300 border-t-transparent" />
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-indigo-300 border-t-transparent light:border-indigo-500 light:border-t-transparent" />
       </div>
     );
   }
@@ -60,7 +60,7 @@ export default function PublicProfilePage() {
     return (
       <div className="flex min-h-[70vh] flex-col items-center justify-center bg-[var(--site-bg)] px-4 text-center text-[var(--site-text)]">
         <h1 className="text-2xl font-black">Profile not found.</h1>
-        <button onClick={() => router.back()} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[var(--site-bg)]">
+        <button onClick={() => router.back()} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[var(--site-bg)] light:text-[var(--site-text)]">
           Go Back
         </button>
       </div>
@@ -82,15 +82,15 @@ export default function PublicProfilePage() {
             {profile.profileImage ? (
               <img src={profile.profileImage} alt={profile.name || username} className="h-full w-full object-cover" />
             ) : (
-              <UserRound className="h-12 w-12 text-indigo-300" />
+              <UserRound className="h-12 w-12 text-indigo-300 light:text-indigo-700" />
             )}
           </div>
 
           <h1 className="mt-5 text-3xl font-black text-[var(--site-text)]">{profile.name || "Name not set"}</h1>
-          <p className="mt-2 text-sm font-black text-indigo-300">{username}</p>
+          <p className="mt-2 text-sm font-black text-indigo-300 light:text-indigo-700">{username}</p>
 
           {isPrivate ? (
-            <div className="mx-auto mt-6 max-w-md rounded-2xl border border-[var(--site-line)] bg-black/30 p-5">
+            <div className="mx-auto mt-6 max-w-md rounded-2xl border border-[var(--site-line)] bg-black/30 p-5 light:bg-[var(--site-surface)]">
               <Lock className="mx-auto mb-3 h-6 w-6 text-[var(--site-muted)]" />
               <p className="text-sm font-bold text-[var(--site-subtle)]">This profile is private.</p>
             </div>
@@ -111,7 +111,7 @@ export default function PublicProfilePage() {
 function InfoTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-[var(--site-border)] bg-[var(--site-bg)] p-4 text-left">
-      <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-400/10 text-indigo-300">
+      <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-400/10 text-indigo-300 light:text-indigo-700">
         {icon}
       </div>
       <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--site-muted)]">{label}</p>

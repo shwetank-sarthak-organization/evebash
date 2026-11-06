@@ -121,7 +121,7 @@ function InfoItem({
         <div className="group rounded-2xl border border-[var(--site-line)] bg-[var(--site-bg)]/70 p-4 transition-all duration-200 hover:border-[var(--site-gold)]/40 hover:bg-[var(--site-surface)]/50">
             <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]">
-                    <Icon className="h-3.5 w-3.5 text-[var(--site-gold)]" />
+                    <Icon className="h-3.5 w-3.5 text-[var(--site-gold-text)]" />
                     {label}
                 </span>
                 {badge}
@@ -134,7 +134,7 @@ function InfoItem({
 function VerificationBadge({ verified, missing, missingText }: { verified: boolean; missing: boolean; missingText: string }) {
     if (missing) {
         return (
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.08em] text-amber-200">
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.08em] text-amber-200 light:text-amber-800">
                 <AlertCircle className="h-3 w-3" />
                 {missingText}
             </span>
@@ -145,8 +145,8 @@ function VerificationBadge({ verified, missing, missingText }: { verified: boole
         <span className={cn(
             "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.08em]",
             verified
-                ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200"
-                : "border-rose-400/25 bg-rose-400/10 text-rose-200"
+                ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200 light:text-emerald-800"
+                : "border-rose-400/25 bg-rose-400/10 text-rose-200 light:text-rose-800"
         )}>
             {verified ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
             {verified ? "Verified" : "Unverified"}
@@ -465,7 +465,7 @@ export default function ProfilePage() {
     if (authLoading || !user) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-[var(--site-bg)] text-[var(--site-subtle)]">
-                <Loader2 className="h-8 w-8 animate-spin text-[var(--site-gold)]" />
+                <Loader2 className="h-8 w-8 animate-spin text-[var(--site-gold-text)]" />
             </div>
         );
     }
@@ -488,7 +488,7 @@ export default function ProfilePage() {
                         {/* User Identity Info */}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-5">
                             {/* Avatar with gold ring & upload trigger */}
-                            <div className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.75rem] border-2 border-[var(--site-gold)]/50 bg-[var(--site-bg)] shadow-xl shadow-black/30 ring-4 ring-[var(--site-bg)]">
+                            <div className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.75rem] border-2 border-[var(--site-gold)]/50 bg-[var(--site-bg)] shadow-xl shadow-black/30 ring-4 ring-[var(--site-bg)] light:shadow-(color:--home-shadow)">
                                 {profileImage ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img src={profileImage} alt={user.name || "Profile"} className="h-full w-full object-cover" />
@@ -503,9 +503,9 @@ export default function ProfilePage() {
                                     className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 backdrop-blur-xs transition-opacity duration-200 group-hover:opacity-100 disabled:cursor-not-allowed"
                                 >
                                     {uploading ? (
-                                        <Loader2 className="h-6 w-6 animate-spin text-[var(--site-gold)]" />
+                                        <Loader2 className="h-6 w-6 animate-spin text-[var(--site-gold-text)]" />
                                     ) : (
-                                        <Camera className="h-6 w-6 text-[var(--site-gold)]" />
+                                        <Camera className="h-6 w-6 text-[var(--site-gold-text)]" />
                                     )}
                                 </button>
                             </div>
@@ -522,11 +522,11 @@ export default function ProfilePage() {
                                     <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[var(--site-text)]">
                                         {user.name || "EveBash User"}
                                     </h1>
-                                    <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-0.5 text-[11px] font-black uppercase tracking-[0.14em] text-emerald-300">
+                                    <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-0.5 text-[11px] font-black uppercase tracking-[0.14em] text-emerald-300 light:text-emerald-800">
                                         {activePlan.name}
                                     </span>
                                 </div>
-                                <p className="mt-0.5 text-sm font-bold text-[var(--site-gold)]">
+                                <p className="mt-0.5 text-sm font-bold text-[var(--site-gold-text)]">
                                     @{user.username || "set_username"}
                                 </p>
                                 
@@ -602,7 +602,7 @@ export default function ProfilePage() {
                             href="/vault"
                             className="group inline-flex items-center gap-2 rounded-full border border-[#7FA38C]/30 bg-[#7FA38C]/10 px-4 py-2.5 text-xs font-black text-[var(--site-text)] transition hover:border-[#7FA38C]/60 hover:bg-[#7FA38C]/15"
                         >
-                            <HardDrive className="h-3.5 w-3.5 text-[#7FA38C]" />
+                            <HardDrive className="h-3.5 w-3.5 text-[#7FA38C] light:text-[#4E7A5E]" />
                             EB Vault
                             <ChevronRight className="h-3.5 w-3.5 text-[var(--site-muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--site-text)]" />
                         </Link>
@@ -616,7 +616,7 @@ export default function ProfilePage() {
                     <div className="mt-8 space-y-8 animate-fade-in-up">
                         {planExpired && (
                             <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-rose-400/30 bg-rose-400/10 p-4 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="flex items-start gap-2 text-sm font-bold text-rose-200">
+                                <p className="flex items-start gap-2 text-sm font-bold text-rose-200 light:text-rose-800">
                                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                                     {subscriptionStatus?.message} Uploads are paused.
                                 </p>
@@ -629,7 +629,7 @@ export default function ProfilePage() {
                         {/* 1. Activity Telemetry Bento Row (3 Cards) */}
                         <section>
                             <div className="mb-3 flex items-center justify-between">
-                                <h2 className="font-sans text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold)]">
+                                <h2 className="font-sans text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold-text)]">
                                     Activity & Engagement
                                 </h2>
                             </div>
@@ -659,7 +659,7 @@ export default function ProfilePage() {
                                         title={item.subtext}
                                         className="flex items-center gap-3 rounded-2xl border border-[var(--site-line)] bg-[var(--site-surface)]/50 px-4 py-3 transition-colors duration-200 hover:border-[var(--site-gold)]/40"
                                     >
-                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--site-gold)]/10 text-[var(--site-gold)] ring-1 ring-[var(--site-gold)]/20">
+                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--site-gold)]/10 text-[var(--site-gold-text)] ring-1 ring-[var(--site-gold)]/20">
                                             <item.icon className="h-4 w-4" />
                                         </div>
                                         <div className="min-w-0">
@@ -681,7 +681,7 @@ export default function ProfilePage() {
                                 <section className="rounded-3xl border border-[var(--site-line)] bg-[var(--site-surface)]/50 p-6 sm:p-8 shadow-xl">
                                     <div className="mb-6 flex items-center justify-between">
                                         <div>
-                                            <h2 className="font-sans text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold)]">
+                                            <h2 className="font-sans text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold-text)]">
                                                 Personal Dossier
                                             </h2>
                                             <p className="text-xs text-[var(--site-muted)] mt-0.5">
@@ -764,7 +764,7 @@ export default function ProfilePage() {
                                 <section className="rounded-3xl border border-[var(--site-line)] bg-[var(--site-surface)]/50 p-6 shadow-xl">
                                     <div className="mb-4 flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--site-gold)]/10 text-[var(--site-gold)]">
+                                            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--site-gold)]/10 text-[var(--site-gold-text)]">
                                                 <HardDrive className="h-4 w-4" />
                                             </div>
                                             <h3 className="font-black text-[var(--site-text)] text-sm">Storage Usage</h3>
@@ -797,16 +797,16 @@ export default function ProfilePage() {
                                     <button
                                         type="button"
                                         onClick={() => router.push("/pricing")}
-                                        className="flex w-full items-center justify-center gap-2 rounded-full border border-[var(--site-gold)]/40 bg-[var(--site-gold)]/10 px-5 py-3.5 text-xs font-black text-[var(--site-gold)] transition hover:bg-[var(--site-gold)]/20 shadow-md shadow-black/30"
+                                        className="flex w-full items-center justify-center gap-2 rounded-full border border-[var(--site-gold)]/40 bg-[var(--site-gold)]/10 px-5 py-3.5 text-xs font-black text-[var(--site-gold-text)] transition hover:bg-[var(--site-gold)]/20 shadow-md shadow-black/30 light:shadow-(color:--home-shadow)"
                                     >
-                                        <Sparkles className="h-4 w-4 text-[var(--site-gold)]" />
+                                        <Sparkles className="h-4 w-4 text-[var(--site-gold-text)]" />
                                         Extend / Upgrade Plan
                                     </button>
 
                                     <button
                                         type="button"
                                         onClick={logout}
-                                        className="flex w-full items-center justify-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-5 py-3 text-xs font-black text-rose-300 transition hover:bg-rose-500/20"
+                                        className="flex w-full items-center justify-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-5 py-3 text-xs font-black text-rose-300 transition hover:bg-rose-500/20 light:text-rose-700"
                                     >
                                         <LogOut className="h-4 w-4" />
                                         Sign Out
@@ -832,7 +832,7 @@ export default function ProfilePage() {
                                         <span className="rounded-full bg-[var(--site-gold)] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--site-on-gold)] shadow-md">
                                             Active Subscription
                                         </span>
-                                        <span className="text-xs font-bold text-[var(--site-gold)]">
+                                        <span className="text-xs font-bold text-[var(--site-gold-text)]">
                                             Tier: {activePlan.name}
                                         </span>
                                     </div>
@@ -846,15 +846,15 @@ export default function ProfilePage() {
                                     {/* Plan Validity Date Notice */}
                                     <div className="mt-4 flex flex-wrap items-center gap-4 text-xs font-bold">
                                         <span className="flex items-center gap-1.5 text-[var(--site-subtle)]">
-                                            <Clock className="h-4 w-4 text-[var(--site-gold)]" />
-                                            Valid until: <strong className="text-[var(--site-gold)]">{formatPlanDate(user?.planEndDate)}</strong>
+                                            <Clock className="h-4 w-4 text-[var(--site-gold-text)]" />
+                                            Valid until: <strong className="text-[var(--site-gold-text)]">{formatPlanDate(user?.planEndDate)}</strong>
                                         </span>
                                         {subscriptionStatus?.message && (
                                             <span className={cn(
                                                 "rounded-full px-2.5 py-0.5 text-[11px] font-bold border",
                                                 subscriptionStatus.tone === "danger"
-                                                    ? "border-rose-400/30 bg-rose-400/10 text-rose-200"
-                                                    : "border-amber-400/30 bg-amber-400/10 text-amber-200"
+                                                    ? "border-rose-400/30 bg-rose-400/10 text-rose-200 light:text-rose-800"
+                                                    : "border-amber-400/30 bg-amber-400/10 text-amber-200 light:text-amber-800"
                                             )}>
                                                 {subscriptionStatus.message}
                                             </span>
@@ -885,7 +885,7 @@ export default function ProfilePage() {
                             {/* Scheduled Pending Plan Notification */}
                             {hasPendingPlanChange && (
                                 <div className="mt-6 rounded-2xl border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 p-4 text-[var(--site-text)]">
-                                    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-400">Scheduled Tier Upgrade</p>
+                                    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-400 light:text-sky-700">Scheduled Tier Upgrade</p>
                                     <p className="mt-1 text-sm font-bold text-[var(--site-text)]">
                                         {pendingPlan.name} ({pendingPlan.storageLabel}) starts {formatPlanDate(user?.pendingPlanStartDate)}.
                                     </p>
@@ -895,7 +895,7 @@ export default function ProfilePage() {
 
                         {/* 2. Real-time Storage Breakdown Telemetry */}
                         <section className="rounded-3xl border border-[var(--site-line)] bg-[var(--site-surface)]/50 p-6 sm:p-8 shadow-xl">
-                            <h3 className="font-sans text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold)] mb-4">
+                            <h3 className="font-sans text-xs font-black uppercase tracking-[0.2em] text-[var(--site-gold-text)] mb-4">
                                 Live Storage Meter
                             </h3>
                             <StorageBreakdownCard
@@ -921,7 +921,7 @@ export default function ProfilePage() {
                                 <button
                                     type="button"
                                     onClick={() => router.push("/pricing")}
-                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--site-gold)] hover:text-[var(--site-gold)] transition"
+                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--site-gold-text)] hover:text-[var(--site-gold-text)] transition"
                                 >
                                     Full Pricing Breakdown
                                     <ArrowRight className="h-3.5 w-3.5" />
@@ -957,7 +957,7 @@ export default function ProfilePage() {
                                                     {/* Plan Name */}
                                                     <td className="py-4 px-5">
                                                         <div className="flex items-center gap-2">
-                                                            <span className={cn("font-black text-sm", isActive ? "text-[var(--site-gold)]" : "text-[var(--site-text)]")}>
+                                                            <span className={cn("font-black text-sm", isActive ? "text-[var(--site-gold-text)]" : "text-[var(--site-text)]")}>
                                                                 {plan.name}
                                                             </span>
                                                             {isActive && (
@@ -981,7 +981,7 @@ export default function ProfilePage() {
                                                     {/* Video */}
                                                     <td className="py-4 px-4">
                                                         {plan.videoUpload ? (
-                                                            <span className="inline-flex items-center gap-1 text-emerald-400 font-bold">
+                                                            <span className="inline-flex items-center gap-1 text-emerald-400 font-bold light:text-emerald-700">
                                                                 <Video className="h-3.5 w-3.5" />
                                                                 {plan.videoLimitMb ? `Up to ${plan.videoLimitMb} MB` : "Included"}
                                                             </span>
@@ -1000,7 +1000,7 @@ export default function ProfilePage() {
                                                         {plan.discountedYearlyPrice === 0 ? (
                                                             <span className="text-[var(--site-muted)]">Free</span>
                                                         ) : (
-                                                            <span className="font-bold text-[var(--site-gold)]">
+                                                            <span className="font-bold text-[var(--site-gold-text)]">
                                                                 ₹{plan.discountedYearlyPrice.toLocaleString("en-IN")} / yr
                                                             </span>
                                                         )}
@@ -1009,7 +1009,7 @@ export default function ProfilePage() {
                                                     {/* Status / Action */}
                                                     <td className="py-4 px-5 text-right">
                                                         {isActive ? (
-                                                            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-[11px] font-black text-emerald-300">
+                                                            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-[11px] font-black text-emerald-300 light:text-emerald-800">
                                                                 <Check className="h-3 w-3" />
                                                                 Current Plan
                                                             </span>
@@ -1044,7 +1044,7 @@ export default function ProfilePage() {
                 {/* Toast Feedback */}
                 {(saveMessage || saveError) && (
                     <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-[var(--site-border)] bg-[var(--site-surface)]/95 px-5 py-3 text-sm font-bold shadow-2xl backdrop-blur-md">
-                        <span className={saveError ? "text-rose-300" : "text-emerald-300"}>
+                        <span className={saveError ? "text-rose-300 light:text-rose-700" : "text-emerald-300 light:text-emerald-800"}>
                             {saveError || saveMessage}
                         </span>
                     </div>
@@ -1078,7 +1078,7 @@ export default function ProfilePage() {
                                     type="button"
                                     onClick={() => !uploading && fileInputRef.current?.click()}
                                     disabled={uploading || removingImage || saving}
-                                    className="inline-flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-xs font-black text-sky-300 transition hover:bg-[var(--site-gold)]/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="inline-flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-xs font-black text-sky-300 light:text-sky-700 transition hover:bg-[var(--site-gold)]/15 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
                                     Change Profile Photo
@@ -1088,7 +1088,7 @@ export default function ProfilePage() {
                                         type="button"
                                         onClick={handleRemoveProfileImage}
                                         disabled={removingImage || uploading || saving}
-                                        className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs font-black text-rose-300 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs font-black text-rose-300 light:text-rose-700 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {removingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
                                         Remove Profile Photo
@@ -1110,7 +1110,7 @@ export default function ProfilePage() {
                                 <label key={field} className="block">
                                     <span className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]">
                                         {label}
-                                        {required && <span className="ml-1 text-[var(--site-gold)]">*</span>}
+                                        {required && <span className="ml-1 text-[var(--site-gold-text)]">*</span>}
                                     </span>
                                     <input
                                         value={form[field as keyof typeof form] as string}
@@ -1133,7 +1133,7 @@ export default function ProfilePage() {
                                     {field === "username" && usernameStatus !== "idle" && (
                                         <span className={cn(
                                             "mt-2 flex items-center gap-1 text-xs font-bold",
-                                            usernameStatus === "available" ? "text-emerald-300" : usernameStatus === "checking" ? "text-[var(--site-muted)]" : "text-rose-300"
+                                            usernameStatus === "available" ? "text-emerald-300 light:text-emerald-800" : usernameStatus === "checking" ? "text-[var(--site-muted)]" : "text-rose-300 light:text-rose-700"
                                         )}>
                                             {usernameStatus === "checking" && <Loader2 className="h-3 w-3 animate-spin" />}
                                             {usernameStatus === "available" && <CheckCircle2 className="h-3 w-3" />}
@@ -1193,7 +1193,7 @@ export default function ProfilePage() {
                         </div>
 
                         {saveError && (
-                            <p className="mt-5 flex items-center gap-2 text-sm font-bold text-rose-300">
+                            <p className="mt-5 flex items-center gap-2 text-sm font-bold text-rose-300 light:text-rose-700">
                                 <AlertCircle className="h-4 w-4" />
                                 {saveError}
                             </p>

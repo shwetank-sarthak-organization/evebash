@@ -26,7 +26,8 @@ export default function LoadingScreen({ message = "Capturing the moment" }: Load
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #0d0808 0%, #180a0a 40%, #0a150f 100%)",
+        // --loading-* are set by the light site look (globals.css); elsewhere the dark values below show
+        background: "var(--loading-bg, linear-gradient(135deg, #0d0808 0%, #180a0a 40%, #0a150f 100%))",
         overflow: "hidden",
       }}
     >
@@ -128,8 +129,8 @@ export default function LoadingScreen({ message = "Capturing the moment" }: Load
           fontSize: "1.5rem",
           fontWeight: 700,
           letterSpacing: "0.06em",
-          color: "#CA9C68",
-          textShadow: "0 0 24px rgba(212,175,55,0.5)",
+          color: "var(--loading-brand, #CA9C68)",
+          textShadow: "var(--loading-brand-glow, 0 0 24px rgba(212,175,55,0.5))",
         }}>EveBash</span>
       </div>
 
@@ -140,7 +141,7 @@ export default function LoadingScreen({ message = "Capturing the moment" }: Load
         fontSize: "0.68rem",
         letterSpacing: "0.22em",
         textTransform: "uppercase",
-        color: "rgba(255,253,208,0.45)",
+        color: "var(--loading-message, rgba(255,253,208,0.45))",
         animation: "ls-fadeup 0.8s ease-out 0.3s both",
         textAlign: "center",
         minWidth: 200,

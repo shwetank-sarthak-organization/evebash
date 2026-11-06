@@ -57,7 +57,7 @@ function GalleryVideoChooser({ videos, currentId, onChoose, onClose }: {
                         onClick={() => onChoose(video.id)}
                         className={cn(
                             "rounded-2xl p-1 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--site-gold)]",
-                            video.id === currentId ? "bg-[var(--site-gold)]/25 ring-2 ring-[var(--site-gold)]" : "hover:bg-white/5"
+                            video.id === currentId ? "bg-[var(--site-gold)]/25 ring-2 ring-[var(--site-gold)]" : "hover:bg-[var(--site-tint)]/5"
                         )}
                     >
                         <VideoThumb video={video} />
@@ -168,7 +168,7 @@ export function GalleryVideoPanel({ gallery, canUpload, onUpload, onChange, onPl
                                 type="button"
                                 disabled={saving}
                                 onClick={() => void change(null)}
-                                className={cn(outlineButton, "border-rose-400/40 text-rose-300 hover:bg-rose-400/10")}
+                                className={cn(outlineButton, "border-rose-400/40 text-rose-300 light:text-rose-700 hover:bg-rose-400/10")}
                             >
                                 {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <X className="h-4 w-4" aria-hidden="true" />}
                                 Remove
@@ -178,7 +178,7 @@ export function GalleryVideoPanel({ gallery, canUpload, onUpload, onChange, onPl
                 </div>
             ) : (
                 <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-[var(--site-gold)]/40 px-4 py-6 text-center">
-                    <Clapperboard className="h-7 w-7 text-[var(--site-gold)]" aria-hidden="true" />
+                    <Clapperboard className="h-7 w-7 text-[var(--site-gold-text)]" aria-hidden="true" />
                     <p className="text-sm text-[var(--site-subtle)]">No cinematic highlight video yet.</p>
                     <div className="flex flex-wrap justify-center gap-2">
                         {canUpload && (
@@ -196,7 +196,7 @@ export function GalleryVideoPanel({ gallery, canUpload, onUpload, onChange, onPl
             )}
 
             {isUploading && (
-                <p className="mt-3 flex items-center gap-2 text-sm text-[var(--site-gold)]">
+                <p className="mt-3 flex items-center gap-2 text-sm text-[var(--site-gold-text)]">
                     <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
                     <span className="min-w-0 flex-1">
                         Uploading &quot;{pendingUpload?.fileName}&quot;. It becomes the cinematic highlight video once it&apos;s saved; progress shows in the upload panel.
