@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 194
+Next test number: 195
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5507,6 +5507,40 @@ How to test:
      list of changes under the To fix tab.
   9. The Activity line at the bottom shows the latest event; See all lists rounds sent and pages approved.
  10. Switch the site to the light look (sun icon in the navbar). Expect: everything readable; labels on photos stay dark.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#194 Album screen redesign (app): steps, one clear action, album-shaped pages
+Status:    TODO
+Priority:  Medium
+Platform:  App
+Brief:     The app's screen inside an album (Event > Album > an album) was redesigned to match the website (test #193):
+           where the album stands, what to do next, and pages shown in their real shape. Checked on the iPhone 16e
+           simulator with sample data (photographer and client views, quick Approve), not with real albums. Reorder
+           mode was not tried on the simulator.
+Detail:    Commit 5cf3690. Needs a new EAS staging build. Album proofing must be on (staging). You need two accounts:
+           the album's photographer and its client.
+How to test:
+  1. As the photographer, open an album that was sent to the client. Expect: "<photographer name> (you) → <client name>"
+     under the title (no "YOU: COUPLE" badge), then 4 dots with "Step 3 of 4: Client reviews · Round 1" under them.
+  2. The box under the steps says what to do, e.g. "Waiting for <client> to review" with only Add pages, or
+     "Ready to send 2 pages" with a "Send 2 pages" button.
+  3. Pages sit in rows that fill the screen width, each in its real shape with no black bars. Spreads are wide with a
+     thin fold line.
+  4. Each page shows a coloured dot and word: Approved (green), With client (gold), Not sent (grey), To fix (red).
+  5. Tap ⋯ on a page. Expect: Make it a spread / single page, Upload a new version, Delete page, Cancel. Each works.
+  6. Tap Reorder. Expect: ← → under each page. Move one page, tap Done, pull to refresh. Expect: the new order stays.
+  7. The tabs above the pages scroll sideways and filter the pages. To fix shows the list of changes the client asked for.
+  8. As the client, open the same album. Expect: "Check N pages", Start review, and Approve / Change under each page
+     ("Ask for a change" on wide pages). Approve one from its tile: it turns green and the counts change.
+  9. The Activity line at the bottom shows the latest event; See all lists rounds sent and pages approved.
+ 10. Try a small phone (iPhone SE or a small Android). Expect: no text cut off or overlapping.
 Done by:
 Device / browser:
 Build / version:
