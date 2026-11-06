@@ -613,14 +613,15 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                 onDrop={(e) => { if (dragId) { e.preventDefault(); e.stopPropagation(); void movePage(dragId, page.id); setDragId(null); } }}
                                 onDragEnd={() => setDragId(null)}
                                 className={cn(
-                                    "group relative min-w-0 overflow-hidden rounded-2xl border bg-[var(--site-card)] transition-colors",
+                                    "group relative min-w-0 rounded-2xl border bg-[var(--site-card)] transition-colors",
                                     dragId === page.id ? "border-[var(--site-gold)] opacity-50" : reorder ? "cursor-grab border-dashed border-[var(--site-gold)]/50" : "border-[var(--site-tint)]/10 hover:border-[var(--site-tint)]/25"
                                 )}
                             >
                                 <button
                                     type="button"
                                     onClick={() => !reorder && setViewing(index)}
-                                    className="relative block w-full bg-black/60"
+                                    // Rounded here, not on the tile, so the page's ⋯ menu can stick out past a narrow page
+                                    className="relative block w-full overflow-hidden rounded-t-[15px] bg-black/60"
                                     style={{ aspectRatio: ratio }}
                                     aria-label={reorder ? label : `Open ${label}`}
                                     tabIndex={reorder ? -1 : undefined}
@@ -653,17 +654,6 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                         </button>
                                         {pageMenu === page.id && (
                                             <div className="absolute right-0 top-full z-30 mt-1 w-52 overflow-hidden rounded-2xl border border-[var(--site-tint)]/10 bg-[var(--site-bg)] py-1 shadow-2xl">
-                                                <button
-                                                    type="button"
-                                                    className={menuItem}
-                                                    onClick={() => {
-                                                        setPageMenu(null);
-                                                        const layout = page.layout === "spread" ? "single" : "spread";
-                                                        void run(`layout-${page.id}`, async () => setAlbum((await albumApi.setLayout(album.id, page.id, layout)).album));
-                                                    }}
-                                                >
-                                                    {page.layout === "spread" ? <><RectangleVertical className="h-4 w-4" /> Make it a single page</> : <><BookOpen className="h-4 w-4" /> Make it a spread</>}
-                                                </button>
                                                 <button type="button" className={menuItem} onClick={() => { setPageMenu(null); setReplaceId(page.id); replaceRef.current?.click(); }}>
                                                     <ImageUp className="h-4 w-4" /> Upload a new version
                                                 </button>
@@ -682,15 +672,37 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                         )}
                                     </div>
                                 )}
-                                <div className="flex items-center justify-between gap-2 px-3 py-2.5">
-                                    <p className="min-w-0 truncate font-serif text-base font-bold text-[var(--site-text)]">
-                                        {label}{page.layout === "spread" && <span className="font-sans text-xs font-semibold text-[var(--site-muted)]"> · spread</span>}
+                                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 px-3 py-2.5">
+                                    <p className="min-w-0 whitespace-nowrap font-serif text-base font-bold text-[var(--site-text)]">
+                                        {label}{page.layout === "spread" && !(canEdit && !reorder) && <span className="font-sans text-xs font-semibold text-[var(--site-muted)]"> · spread</span>}
                                     </p>
                                     <span className={cn("inline-flex shrink-0 items-center gap-1.5 text-xs font-bold", TONE_TEXT[ALBUM_PAGE_STATE[state].tone])}>
                                         <span className={cn("h-2 w-2 rounded-full", TONE_DOT[ALBUM_PAGE_STATE[state].tone])} aria-hidden />
                                         {ALBUM_PAGE_STATE[state].label}
                                     </span>
                                 </div>
+                                {canEdit && !reorder && (
+                                    <div className="border-t border-[var(--site-tint)]/5 p-2">
+                                        <div className="flex rounded-xl border border-[var(--site-tint)]/10 p-0.5" role="group" aria-label={`Layout of ${label}`}>
+                                            {(["spread", "single"] as const).map((layout) => (
+                                                <button
+                                                    key={layout}
+                                                    type="button"
+                                                    aria-pressed={page.layout === layout}
+                                                    disabled={busy === `layout-${page.id}`}
+                                                    onClick={() => page.layout !== layout && run(`layout-${page.id}`, async () => setAlbum((await albumApi.setLayout(album.id, page.id, layout)).album))}
+                                                    className={cn(
+                                                        "inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-bold transition-colors",
+                                                        page.layout === layout ? "bg-[var(--site-tint)]/15 text-[var(--site-text)]" : "text-[var(--site-muted)] hover:text-[var(--site-text)]"
+                                                    )}
+                                                >
+                                                    {layout === "spread" ? <BookOpen className="h-3.5 w-3.5" /> : <RectangleVertical className="h-3.5 w-3.5" />}
+                                                    {layout === "spread" ? "Spread" : "Single"}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                                 {mode === "client" && !locked && state !== "approved" && (
                                     <div className="flex flex-wrap gap-2 border-t border-[var(--site-tint)]/5 p-2">
                                         <button

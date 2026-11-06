@@ -340,10 +340,6 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
     confirm(`Approve ${labels.get(page.id)}?`, `This also marks ${open === 1 ? 'the open request' : `the ${open} open requests`} on it as done.`, 'Approve', approve);
   };
   const pageOptions = (page: AlbumPage) => Alert.alert(labels.get(page.id) ?? 'Page', undefined, [
-    {
-      text: page.layout === 'spread' ? 'Make it a single page' : 'Make it a spread',
-      onPress: () => void run(`layout-${page.id}`, async () => setAlbum((await albumApi.setLayout(album.id, page.id, page.layout === 'spread' ? 'single' : 'spread')).album)),
-    },
     { text: 'Upload a new version', onPress: () => void uploadVersion(page) },
     {
       text: 'Delete page',
@@ -613,12 +609,34 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                       </TouchableOpacity>
                     )}
                     <View style={styles.tileInfo}>
-                      <Text style={styles.pageLabel} numberOfLines={1}>{label}{page.layout === 'spread' ? <Text style={styles.spreadWord}> · spread</Text> : null}</Text>
+                      <Text style={styles.pageLabel} numberOfLines={1}>{label}{page.layout === 'spread' && !(canEdit && !reorder) ? <Text style={styles.spreadWord}> · spread</Text> : null}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                         <View style={[styles.dot, { backgroundColor: TONE_DOT[state.tone] }]} />
                         <Text style={[styles.stateText, { color: TONE_COLOR[state.tone] }]} numberOfLines={1}>{state.label}</Text>
                       </View>
                     </View>
+                    {canEdit && !reorder && (
+                      <View style={styles.layoutRow}>
+                        <View style={styles.layoutToggle} accessibilityRole="radiogroup" accessibilityLabel={`Layout of ${label}`}>
+                          {(['spread', 'single'] as const).map((layout) => {
+                            const selected = page.layout === layout;
+                            return (
+                              <TouchableOpacity
+                                key={layout}
+                                onPress={() => !selected && void run(`layout-${page.id}`, async () => setAlbum((await albumApi.setLayout(album.id, page.id, layout)).album))}
+                                disabled={busy === `layout-${page.id}`}
+                                style={[styles.layoutItem, selected && styles.layoutActive]}
+                                accessibilityRole="radio"
+                                accessibilityState={{ selected }}
+                              >
+                                <MaterialIcons name={layout === 'spread' ? 'menu-book' : 'crop-portrait'} size={14} color={selected ? MidnightColors.text : MidnightColors.slate400} />
+                                <Text style={[styles.layoutText, selected && { color: MidnightColors.text }]}>{layout === 'spread' ? 'Spread' : 'Single'}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    )}
                     {reorder && (
                       <View style={styles.reorderRow}>
                         <TouchableOpacity onPress={() => movePage(page.id, -1)} disabled={pageIndex === 0} style={[styles.toolIcon, pageIndex === 0 && { opacity: 0.3 }]} accessibilityLabel={`Move ${label} earlier`}>
@@ -744,6 +762,11 @@ const styles = StyleSheet.create({
   spreadWord: { color: MidnightColors.slate400, fontSize: 11, fontFamily: Fonts.outfit.semiBold },
   dot: { width: 7, height: 7, borderRadius: 4 },
   stateText: { fontSize: 12, fontFamily: Fonts.outfit.bold },
+  layoutRow: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', padding: 6 },
+  layoutToggle: { flexDirection: 'row', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: 2 },
+  layoutItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 7, borderRadius: 10 },
+  layoutActive: { backgroundColor: 'rgba(255,255,255,0.15)' },
+  layoutText: { color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.outfit.bold },
   reorderRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 4 },
   quickRow: { flexDirection: 'row', gap: 6, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', padding: 6 },
   quick: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 6 },
