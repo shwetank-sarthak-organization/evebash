@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 27
+Next todo number: 28
 
 Last updated: 2026-11-07
 
@@ -682,6 +682,36 @@ Brief:        Shrink the app's login screen (apps/mobile/app/login.tsx) so every
               checklist, confirm password and the policy checkbox, so it may still need to scroll),
               and whether the brand block can shrink or move. Leave guest event themes alone. Add a
               device test when it ships.
+Done in:      -
+
+#27 Event change log: who changed what in an event, and when (seen in the analytics dashboard)
+Listed:       2026-11-07
+Platform:     Analytics dashboard
+Priority:     Medium
+Phase:        TBD (1 or 2, decide after discussion)
+Status:       Idea
+Effort:       M
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Each time an event or sub-gallery is changed (title, date, cover, message/description,
+              theme, join ID, privacy and the like), save a log row: the event, the field, the old and
+              new value, who did it (owner, admin, couple in guest edit mode #11, or a platform admin),
+              from where (website, app or backend) and when. We, as platform owners, see it in the
+              analytics dashboard (apps/analytics-dashboard): a Change log on each gallery and a list of
+              recent changes across all events, filtered by event or user. Helps support ("who changed
+              our cover?") and settles disputes.
+              Today nothing is logged. The website (src/lib/database.ts updateEvent), the app
+              (apps/mobile/lib/database.ts) and the backend (apps/backend/src/routes) all write to the
+              events table directly, so a database trigger on events is the one place that catches every
+              change. Backend writes use the service key, so there the trigger can't see the user; the
+              backend has to pass who did it. The new log table needs RLS on, readable by platform
+              admins only (see issue #21).
+              To decide: which fields to log (skip noisy ones like order and cover offsets?), whether to
+              keep old and new values for long text, how long to keep logs, whether hosts also see the
+              log on their event, and whether photo, album and permission changes join later.
 Done in:      -
 
 =====================================================================
