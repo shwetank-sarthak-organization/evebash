@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 196
+Next test number: 197
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-06
+Last updated: 2026-11-07
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -5590,6 +5590,26 @@ How to test:
   8. In light, open guest galleries in Royal Emerald, Midnight Hero, Classic White and Sunlit Portrait. Expect: each
      looks exactly as before, in its own design.
   9. Repeat steps 1-3 on Android.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#196 App theme change reaches every album on the website
+Status:    TODO
+Priority:  Medium
+Platform:  App + Website
+Brief:     Changing an event's theme in the app (Design > Change Template) now saves it on the main gallery and on every album, like the website's host page does. Before, the albums kept their old theme on the website.
+Detail:    Issue #254, commit <commit>. Needs a new EAS staging build. Not checked on a phone yet.
+How to test:
+  1. In the app, open Host > an event that has at least two albums. Note the theme of an album on the website (open the album's page on staging.evebash.com).
+  2. In the app, go to Design > Change Template and pick a different theme. Expect: the app shows the new theme.
+  3. On the website, open each album of that event (reload the page). Expect: every album shows the new theme.
 Done by:
 Device / browser:
 Build / version:

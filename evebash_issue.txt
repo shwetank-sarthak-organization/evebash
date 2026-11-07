@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 254
+Next issue number: 255
 
 =====================================================================
 ACTIVE ISSUES
@@ -1502,6 +1502,18 @@ How to reproduce: In the app, open a Classic White gallery as a guest (e.g. 10-o
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#254
+Listed: 2026-11-07
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Testing the guest-page edit mode, todo #11 (chat 2026-11-07)
+Issue: Changing an event's theme in the app saves it on the main gallery only; the website's host page also saves it on every album. After a change in the app, the albums keep their old theme on the website (the app shows them in the new theme because it uses the main gallery's theme). Fix: handleUpdateTemplate in apps/mobile/app/events/[id].tsx now also saves the theme on every album of a main gallery, like src/app/(main)/host/page.tsx.
+How to reproduce: In the app, Host > a main gallery with albums > Design > Change Template > pick another theme. Open an album of it on the website: it still shows the old theme.
+Fixed in: <commit> (2026-11-07). Device test #196.
 
 #248
 Listed: 2026-11-05

@@ -2977,6 +2977,12 @@ function EventDetailScreen() {
       setEvent({ ...event, templateId });
       const saved = await updateEvent(event.id, { templateId });
       if (!saved) throw new Error('updateEvent returned false');
+      // A main gallery's theme is also saved on every album, like the website's host page does.
+      if (!event.parentId) {
+        const albums = await getSubEvents(event.id, event.legacyId);
+        const results = await Promise.all(albums.map((album) => updateEvent(album.id, { templateId })));
+        if (results.some((ok) => !ok)) throw new Error('updateEvent returned false for an album');
+      }
       setShowTemplateModal(false);
     } catch (err) {
       setEvent(event);
