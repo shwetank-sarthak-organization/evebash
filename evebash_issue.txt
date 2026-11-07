@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 257
+Next issue number: 258
 
 =====================================================================
 ACTIVE ISSUES
@@ -1519,6 +1519,18 @@ Note 2026-11-07: all four parts fixed on staging in 610b2c0a and 65238da8. The c
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
 
+#257
+Listed: 2026-11-07
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Checking a gap under the Confetti Circle cover on the iPhone 17 Pro simulator (chat 2026-11-07)
+Issue: Two parts of the app's Confetti Circle gallery used dark-theme colours on its light page. (1) The Collections menu fell back to Royal Emerald's dark green with dark album names, so they were hard to read (apps/mobile/components/event/ThemeHeader.tsx only had light colours for Classic White and Sunlit Portrait). (2) The photo viewer treated Confetti as a dark theme, so its counter, close button and Like / Comment / Share / Download row were white on the light background (the light-theme list in apps/mobile/components/PhotoViewer.tsx).
+How to reproduce: In the app, open a Confetti Circle gallery with albums. Tap COLLECTIONS: the menu is dark green with hard-to-read names. Tap a photo: the buttons along the bottom are almost invisible.
+Fixed in: 6804a08b (2026-11-07). The Collections menu uses the page's paper colour, a thin ink border and a pink tint on the open album; Confetti is in the viewer's list of light themes, so its controls are dark on light. Other themes unchanged. Checked on the iPhone 17 Pro simulator (dev build on a local bundler with this commit, gallery "samarth weds Jyoti"): the menu's album names read clearly and the viewer's counter, close button and bottom row show dark. Device test #203 step 10.
+
 #256
 Listed: 2026-11-07
 Platform: Website
@@ -2079,63 +2091,3 @@ Built 2026-10-27, code on staging in cb8cda4, Modal v133 deployed 2026-10-27 (mi
 - Tests: apps/backend/tests/watchdogQueueAware.test.ts (decision rule; backend suite 109/109 pass); a full watchdog run against a fake database (off = old behaviour, on = waiting/running left alone, migration missing = old rule) and the Modal worker changes against fake Modal dicts and a fake database (off = no writes and no skip; on = heartbeats, skip of a processed copy, lock still works, DB errors fail open) both passed locally.
 Turn on in this order: 1) apply the migration; 2) deploy Modal, then video_gpu_switch.py queue-aware on; 3) deploy the backend, then VIDEO_WATCHDOG_QUEUE_AWARE=true on Railway. Check: upload 20+ videos to a test gallery within 10 min; transcode_attempts should stay 0, no video should turn failed, and modal_cost_logs should have one process_video_* row per video. Rollback: VIDEO_WATCHDOG_QUEUE_AWARE=false and queue-aware off (no deploy).
 Fixed in: cb8cda4 (code), migration applied 2026-10-28, switches on 2026-10-28 (Modal queue_aware on, Railway VIDEO_WATCHDOG_QUEUE_AWARE=true). Checked: a test video on test-face-new-155c got transcode_queued_at and transcode_heartbeat_at from Modal and was processed with 0 re-sends. RunPod jobs (todo #18) don't write these notes; their duplicates are stopped by the worker's /start check. Rollback: either switch off.
-
-#163
-Listed: 2026-10-27
-Platform: Both
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Sunlit Portrait review (2026-10-27)
-Issue: The host's "show welcome card" switch (events.show_welcome_card) only works in the app. The app hides the gallery message when it is off (apps/mobile/app/events/[id].tsx, every theme's gallery header); the website shows it anyway (src/app/(public)/events/[slug]/page.tsx, activeGalleryMessage is passed to every gallery header). So the same gallery shows its message on the website but not in the app. Fix: map show_welcome_card in src/lib/database.ts and pass the message only when it isn't false, like the app.
-How to reproduce: In the app, turn the gallery's welcome card off. Open the gallery on the website and in the app: the website still shows the message.
-Fixed in: no change needed (2026-10-28). Not a bug: the events table has no show_welcome_card column (checked in the database 2026-10-28) and nothing in the app or website sets it, so there is no switch to respect; the app's check reads a value that is always missing and always shows the message, same as the website. A host hides the message by clearing the gallery's welcome text. The app's unused switch code is #168.
-
-#164
-Listed: 2026-10-27
-Platform: Website
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Sunlit Portrait review (2026-10-27)
-Issue: While a gallery's highlight film starts in Sunlit Portrait, the video player's "loading" badge (src/components/ui/HLSVideoPlayer.tsx, top left) sits on top of "Back to Gallery" on the film's top edge (src/components/portrait/PortraitGalleryHeader.tsx). It goes away once the film plays. Fix: hide Back / Share while the film plays (as the app now does) or move the badge for this theme.
-How to reproduce: Open a Sunlit Portrait gallery that has a highlight film on the website and press play: "Back to Gallery" and the loading badge overlap for a moment.
-Fixed in: c1373c6 (2026-10-28). Once the film plays, the Sunlit Portrait opening becomes the paper layout, as in the app: Back / Share on their line, the film at its own shape under them (as big as fits on the screen with the strip and the name, soft corners), the date, name and message under it (src/components/portrait/PortraitGalleryHeader.tsx, .portrait-gh__playing-film in src/app/sunlit-portrait.css). The loading badge is now inside the film box. Checked in the built-in browser at 1280x800 (film below the strip; a test video stood in for the film). Device test #149 step 5.
-
-#165
-Listed: 2026-10-27
-Platform: Website
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Sunlit Portrait review (2026-10-27)
-Issue: "Back to Gallery" on a main gallery goes to /dashboard (goBack in src/app/(public)/events/[slug]/page.tsx), not back to the gallery. A guest who isn't logged in lands on the login page. Same in Sunlit Portrait, Classic White and the other themes that show the button. Fix: on the main gallery, scroll to the top / cover instead (or hide the button), and keep /dashboard only for logged-in hosts.
-How to reproduce: Open a public gallery link while logged out, scroll to the gallery and press "Back to Gallery": the login page opens.
-Fixed in: c1373c6 (2026-10-28). goBack in src/app/(public)/events/[slug]/page.tsx: an album goes to its main gallery as before; on a main gallery a signed-in viewer still goes to /dashboard and a guest who isn't signed in scrolls back up to the cover. The cover's own back buttons (onBack passed to the theme) use the same rule. Checked in the built-in browser logged out: Back to Gallery kept the page and scrolled to the top. Device test #149 step 5.
-
-#166
-Listed: 2026-10-27
-Platform: App
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Sunlit Portrait review (2026-10-27)
-Issue: Sunlit Portrait's date line ("Happily married since ..."), navbar links and Back / Share look lighter in the app than on the website. The website makes Instrument Serif (one weight only) read as bold with a 0.6px text stroke (src/app/sunlit-portrait.css, --sp-label-stroke); React Native can't draw a text stroke, so the app shows the plain weight. Fix options: a slightly larger size or stronger shadow in apps/mobile/components/portrait, or a heavier serif for those labels only (would need a new font).
-How to reproduce: Compare the cover's date line on the website and in the app: the app's is thinner.
-Fixed in: c1373c6 (2026-10-28). apps/mobile/components/portrait/PortraitBoldText.tsx draws a label twice, the second copy 0.6pt to the right, which thickens the strokes like the website's 0.6px text stroke. Used for the cover's date line, Back / Share and the gallery tabs (Home, Collections and its menu, Find You). Checked in the iOS simulator: visibly heavier, the two copies line up. Device test #158.
-
-#167
-Listed: 2026-10-27
-Platform: App
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Sunlit Portrait review (2026-10-27)
-Issue: App builds made before e4091d4 (2026-10-27) don't know the "portrait" theme id. A gallery set to Sunlit Portrait opens in those builds in the generic layout with the first theme's colours (Royal Emerald), since MOBILE_TEMPLATE_THEMES has no entry for it. Only testers on older staging builds see this (nothing has launched), but any theme added later will do the same on older app versions. Fix: fall back to a neutral theme (e.g. Classic White) for unknown ids instead of the first in the list, and ship that before the first store release.
-How to reproduce: Install a staging build from before 2026-10-27 and open a Sunlit Portrait gallery: it shows Royal Emerald colours.
-Fixed in: c1373c6 (2026-10-28). Closed as not needed before launch (Sarthak, 2026-10-28: the app isn't live, the new build knows the theme). Kept for after launch: the event screen falls back to Midnight Hero, the default, for a theme id it doesn't know (apps/mobile/app/events/[id].tsx), and the host's design section says "A newer theme (update the app)" instead of a blank. Type-checked only.

@@ -5775,7 +5775,7 @@ Brief:     The wedding theme Confetti Circle (#151 on the website) now has an ap
            with the highlight video in a soft-edged frame, the bride and the groom, the gallery
            header, whole-photo rows and the torn-paper footer, as on the website.
 Detail:    Todo #12: 4b97ef14 (app design), d805e71c (cover like the design's phone layout) and
-           c39ba50c (website edit-mode fix, step 9), on staging 2026-11-07. apps/mobile/components/confetti/, the event
+           c39ba50c (website edit-mode fix, step 9), on staging 2026-11-07; 6804a08b (step 10, issue #257). apps/mobile/components/confetti/, the event
            screen (apps/mobile/app/events/[id].tsx), ThemeHeader.tsx, constants/templates.ts; shared
            logic in shared/themes/confettiCircle.ts. Needs the new app code on a staging build or the
            dev app with Metro (the Bebas Neue font package is new; it loads like the other theme
@@ -5814,6 +5814,9 @@ How to test:
      Celebration" card where the gallery needs a login.
   9. Website: open the gallery in edit mode (Preview Guest Theme on the host page). Expect: no dark
      band above the torn-paper footer, and the edit bar doesn't cover the footer's links.
+  10. Tap COLLECTIONS. Expect: a light menu in the page's paper colour with the album names in dark
+     capitals, the open album tinted pink (not dark green). Tap a photo. Expect: the counter, the close
+     X and the Like / Comment / Share / Download row are dark and easy to read on the light background.
 Done by:
 Device / browser:
 Build / version:
