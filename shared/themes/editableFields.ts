@@ -39,9 +39,8 @@ export const DATE_FIELD: EditableField = { key: "date", label: "Date", kind: "da
 export const MESSAGE_FIELD: EditableField = { key: "message", label: "Message", kind: "longText", column: "description", where: "every", maxLength: 200 };
 export const VIDEO_FIELD: EditableField = { key: "video", label: "Video", kind: "video", column: "galleryVideoId", where: "every" };
 
-// Confetti Circle's bride and groom (todo #10): the app shows the section (todo #12) but has no Couple sheet yet, so the
-// field stays web-only until that sheet is built
-export const COUPLE_FIELD: EditableField = { key: "couple", label: "Couple", kind: "couple", column: "themeContent", block: "couple", where: "every", platforms: ["web"] };
+// Confetti Circle's bride and groom (todo #10; the app's sheet came with todo #12)
+export const COUPLE_FIELD: EditableField = { key: "couple", label: "Couple", kind: "couple", column: "themeContent", block: "couple", where: "every" };
 
 export const STANDARD_EDITABLE_FIELDS: readonly EditableField[] = [COVER_FIELD, TITLE_FIELD, DATE_FIELD, MESSAGE_FIELD, VIDEO_FIELD];
 

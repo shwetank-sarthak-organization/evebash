@@ -5,7 +5,7 @@ import { sendPushNotificationDirectly } from "./notifications";
 import { DEFAULT_EVENT_COVER_IMAGE } from "./eventCovers";
 import { appAlert } from "./feedback";
 import { isMissingUploadedFile } from "../../../shared/media/missingUpload";
-import { readThemeContent, type ThemeContent } from "../../../shared/themes/themeContent";
+import { readThemeContent, type ThemeContent, type ThemeContentBlock } from "../../../shared/themes/themeContent";
 
 const COVER_USAGE_TAG = "__cover_usage__";
 const BUSINESS_PORTFOLIO_EVENTS_KEY = "__portfolio_events__";
@@ -2404,6 +2404,27 @@ export async function setGalleryVideo(galleryId: string, videoId: string | null)
         error: error.code === 'PGRST204'
             ? "Cinematic highlight videos aren't available yet (database update pending)."
             : "Couldn't update the cinematic highlight video. Please try again.",
+    };
+}
+
+/**
+ * Saves one block of the event's theme content (shared/themes/themeContent.ts) on its main event, keeping the other
+ * blocks; null removes it. Any gallery id of the event works. Returns the event's theme content as now saved. Same as
+ * the website's saveThemeContentBlock; supabase/migrations/20261107120000_theme_content.sql
+ */
+export async function saveThemeContentBlock<B extends ThemeContentBlock>(
+    galleryId: string,
+    block: B,
+    value: ThemeContent[B] | null,
+): Promise<{ success: boolean; content?: ThemeContent; error?: string }> {
+    const { data, error } = await supabase.rpc('set_theme_content_block', { p_event_id: galleryId, p_block: block, p_value: value });
+    if (!error) return { success: true, content: readThemeContent(data) };
+    console.error('Error saving the theme content:', error);
+    return {
+        success: false,
+        error: error.code === 'PGRST202'
+            ? "The couple details can't be saved until the database update is applied."
+            : "Couldn't save the couple details. Please try again.",
     };
 }
 

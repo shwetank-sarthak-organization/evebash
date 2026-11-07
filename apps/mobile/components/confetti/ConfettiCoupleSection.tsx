@@ -5,14 +5,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Polygon } from 'react-native-svg';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { HighlightPlayer } from '@/components/event/GalleryHighlightVideo';
-import { EditChip } from '@/components/event/guestEdit/EditChip';
+import { EditChip, useGuestEditSpots } from '@/components/event/guestEdit/EditChip';
 import { GUEST_EDIT_ENABLED } from '@/components/event/guestEdit/useGuestEdit';
 import { SOCIAL_ICONS } from '@/components/icons/SocialIcons';
 import { Fonts } from '@/constants/theme';
 import type { GalleryVideo } from '@/lib/database';
 import { splitCoupleNames } from '../../../../shared/text/coupleNames';
 import { CONFETTI_COLORS, CONFETTI_FRAME_SPECKS, confettiCoupleHeading } from '../../../../shared/themes/confettiCircle';
-import { SOCIAL_NETWORKS, SOCIAL_NETWORK_NAMES, shownCouple, type CoupleBlock, type CouplePerson } from '../../../../shared/themes/themeContent';
+import {
+  COUPLE_SIDES,
+  SOCIAL_NETWORKS,
+  SOCIAL_NETWORK_NAMES,
+  coupleSideEditName,
+  shownCouple,
+  type CoupleBlock,
+  type CouplePerson,
+  type CoupleSide,
+} from '../../../../shared/themes/themeContent';
 import { ConfettiSpecks } from './ConfettiBits';
 import { type ConfettiFontSet } from './confettiFonts';
 
@@ -43,7 +52,14 @@ export interface ConfettiCoupleSectionProps {
   fonts: ConfettiFontSet;
 }
 
-function Person({ person, placeholder, fonts }: { person: CouplePerson; placeholder?: boolean; fonts: ConfettiFontSet }) {
+function Person({ side, person, placeholder, editName, fonts }: {
+  side: CoupleSide;
+  person: CouplePerson;
+  placeholder?: boolean;
+  /** What the pencil calls this side ("bride"); set only while editing */
+  editName?: string;
+  fonts: ConfettiFontSet;
+}) {
   const networks = placeholder ? PLACEHOLDER_NETWORKS : SOCIAL_NETWORKS.filter((network) => person.links[network]);
   return (
     <View style={local.person}>
@@ -70,6 +86,11 @@ function Person({ person, placeholder, fonts }: { person: CouplePerson; placehol
           })}
         </View>
       )}
+      {!!editName && (
+        <View style={local.personEdit}>
+          <EditChip field="couple" part={side} label={editName.charAt(0).toUpperCase() + editName.slice(1)} />
+        </View>
+      )}
     </View>
   );
 }
@@ -77,17 +98,20 @@ function Person({ person, placeholder, fonts }: { person: CouplePerson; placehol
 export function ConfettiCoupleSection({ title, category, couple, video, coverSource, width, fonts }: ConfettiCoupleSectionProps) {
   const [playing, setPlaying] = useState(false);
   const heading = confettiCoupleHeading(category);
+  // Edit mode (todo #11): a pencil on each side, or, for an empty side, only a place to add it; guests see none
+  const editing = useGuestEditSpots();
 
   // Edit mode off: the names of a "Name and Name" title with placeholders, as on the website before todo #10
   const titleNames = GUEST_EDIT_ENABLED ? null : splitCoupleNames(title);
-  // Edit mode on: only the sides the host named (filling them in from the app comes with todo #12's second step)
+  // Edit mode on: only the sides the host named
   const shown = GUEST_EDIT_ENABLED ? shownCouple(couple) : {};
-  const people: { person: CouplePerson; placeholder?: boolean }[] = titleNames
+  const people: { side: CoupleSide; person?: CouplePerson; placeholder?: boolean }[] = titleNames
     ? [
-      { person: { label: 'The Bride', name: titleNames[0], about: PLACEHOLDER_BIO, links: {} }, placeholder: true },
-      { person: { label: 'The Groom', name: titleNames[1], about: PLACEHOLDER_BIO, links: {} }, placeholder: true },
+      { side: 'left', person: { label: 'The Bride', name: titleNames[0], about: PLACEHOLDER_BIO, links: {} }, placeholder: true },
+      { side: 'right', person: { label: 'The Groom', name: titleNames[1], about: PLACEHOLDER_BIO, links: {} }, placeholder: true },
     ]
-    : (['left', 'right'] as const).flatMap((side) => (shown[side] ? [{ person: shown[side]! }] : []));
+    // While editing, both sides (an empty one as a place to add it)
+    : COUPLE_SIDES.flatMap((side) => (shown[side] || editing ? [{ side, person: shown[side] }] : []));
   const ribbonNames = titleNames || (shown.left && shown.right ? [shown.left.name, shown.right.name] : null);
 
   const frameHeight = Math.round((width * 9) / 16);
@@ -156,8 +180,12 @@ export function ConfettiCoupleSection({ title, category, couple, video, coverSou
 
       {people.length > 0 && (
         <View style={local.people}>
-          {people.map(({ person, placeholder }, index) => (
-            <Person key={index} person={person} placeholder={placeholder} fonts={fonts} />
+          {people.map(({ side, person, placeholder }) => person ? (
+            <Person key={side} side={side} person={person} placeholder={placeholder} editName={editing ? coupleSideEditName(couple, side, category) : undefined} fonts={fonts} />
+          ) : (
+            <View key={side} style={local.person}>
+              <EditChip field="couple" part={side} label={`Add ${coupleSideEditName(couple, side, category)}`} adding />
+            </View>
           ))}
         </View>
       )}
@@ -194,6 +222,7 @@ const local = StyleSheet.create({
   ribbonText: { color: CONFETTI_COLORS.ink, letterSpacing: 1.2 },
   people: { flexDirection: 'row', alignSelf: 'stretch', gap: 20, marginTop: 12 },
   person: { flex: 1, alignItems: 'center', minWidth: 0 },
+  personEdit: { marginTop: 14 },
   role: { color: CONFETTI_COLORS.pink, fontSize: 17, letterSpacing: 1, marginBottom: 4 },
   name: { color: CONFETTI_COLORS.ink, fontSize: 30, lineHeight: 32, textAlign: 'center' },
   bio: { marginTop: 12, color: '#5d5555', fontFamily: Fonts.inter.regular, fontSize: 14, lineHeight: 23, textAlign: 'center' },

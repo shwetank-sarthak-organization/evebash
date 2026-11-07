@@ -21,6 +21,7 @@ import {
 import {
   cleanCouple,
   cleanThemeContentBlock,
+  coupleSideEditName,
   editableCouple,
   readThemeContent,
   sameCouple,
@@ -184,9 +185,16 @@ assert.deepEqual(setDraftBlock(withCouple, 'root', 'couple', undefined, true), E
 const shownRoot = applyGalleryDraft({ title: 'Asha and Raj', themeContent: { couple: { right: { label: '', name: 'Raj', about: '', links: {} } } } }, withCouple.root);
 assert.equal(shownRoot.themeContent?.couple, typed);
 
-// Confetti Circle lists the couple on the website only (the app shows the section from todo #12), on every gallery
+// What the pencils call each side: the host's label without "The", else the wedding default, else its place
+assert.equal(coupleSideEditName(undefined, 'left', 'Wedding'), 'bride');
+assert.equal(coupleSideEditName(undefined, 'right', 'Wedding'), 'groom');
+assert.equal(coupleSideEditName({ right: { label: 'THE BEST MAN', name: 'Raj', about: '', links: {} } }, 'right', 'Wedding'), 'best man');
+assert.equal(coupleSideEditName(undefined, 'left', 'Birthday'), 'first person');
+assert.equal(coupleSideEditName({ right: { label: '  ', name: 'Raj', about: '', links: {} } }, 'right', 'Birthday'), 'second person');
+
+// Confetti Circle lists the couple on the website and in the app (todo #12), on every gallery
 assert.ok(editableFieldsFor('confetti', 'web', false).some(field => field.key === 'couple' && field.block === 'couple'));
-assert.ok(!editableFieldsFor('confetti', 'app', true).some(field => field.key === 'couple'));
+assert.ok(editableFieldsFor('confetti', 'app', false).some(field => field.key === 'couple' && field.block === 'couple'));
 assert.ok(!editableFieldsFor('classic', 'web', true).some(field => field.key === 'couple'));
 
 console.log('guest edit tests passed');

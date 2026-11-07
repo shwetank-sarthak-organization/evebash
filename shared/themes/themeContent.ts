@@ -40,6 +40,13 @@ export function defaultCoupleLabels(category?: string): Record<CoupleSide, strin
     return category === "Wedding" ? { left: "The Bride", right: "The Groom" } : { left: "", right: "" };
 }
 
+/** What an edit pencil calls a side ("Add bride", "Bride"): its label without "The", else the default label, else its
+ *  place. Lower case; the theme capitalises it where it needs to. */
+export function coupleSideEditName(block: CoupleBlock | undefined, side: CoupleSide, category?: string): string {
+    const name = (block?.[side]?.label?.trim() || defaultCoupleLabels(category)[side]).replace(/^the\s+/i, "");
+    return (name || (side === "left" ? "first person" : "second person")).toLowerCase();
+}
+
 const SOCIAL_HOSTS: Readonly<Record<SocialNetwork, readonly string[]>> = {
     instagram: ["instagram.com"],
     facebook: ["facebook.com", "fb.com"],

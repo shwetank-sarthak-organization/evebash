@@ -11,7 +11,7 @@ import {
     COUPLE_SIDES,
     SOCIAL_NETWORKS,
     SOCIAL_NETWORK_NAMES,
-    defaultCoupleLabels,
+    coupleSideEditName,
     shownCouple,
     type CoupleBlock,
     type CouplePerson as CouplePersonContent,
@@ -124,12 +124,7 @@ export function ConfettiCoupleSection({ title, category, couple, video, coverIma
     const titleNames = GUEST_EDIT_ENABLED ? null : splitCoupleNames(title);
     // Edit mode on: only the sides the host named; while editing, both sides (an empty one as a place to add it)
     const shown = GUEST_EDIT_ENABLED ? shownCouple(couple) : {};
-    const defaultLabels = defaultCoupleLabels(category);
-    const editName = (side: CoupleSide) => {
-        if (!editing) return undefined;
-        const name = (couple?.[side]?.label.trim() || defaultLabels[side]).replace(/^the\s+/i, "");
-        return (name || (side === "left" ? "first person" : "second person")).toLowerCase();
-    };
+    const editName = (side: CoupleSide) => (editing ? coupleSideEditName(couple, side, category) : undefined);
     const sides = COUPLE_SIDES.filter((side) => shown[side] || editing);
     const ribbonNames = titleNames || (shown.left && shown.right ? [shown.left.name, shown.right.name] : null);
     const sideBySide = titleNames ? true : sides.length > 0;

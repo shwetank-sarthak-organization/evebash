@@ -2032,7 +2032,7 @@ function EventDetailScreen() {
   // Midnight Hero's cover size, to zoom it around the focus point (lib/coverStyle.ts)
   const [midnightCoverSize, setMidnightCoverSize] = useState<{ width: number; height: number }>();
   const guestEditSpots = React.useMemo(() => isEditingGuestView && !guestEdit.viewingAsGuest && editGalleryId
-    ? { galleryId: editGalleryId, open: (galleryId: string, key: string) => openGuestEditPanel({ galleryId, key }) }
+    ? { galleryId: editGalleryId, open: (galleryId: string, key: string, part?: string) => openGuestEditPanel({ galleryId, key, part }) }
     : null, [editGalleryId, guestEdit.viewingAsGuest, isEditingGuestView, openGuestEditPanel]);
 
   const handleEventBack = useCallback(() => {
