@@ -5716,7 +5716,7 @@ Feedback: Partly checked by Claude 2026-11-07 on the iPhone 16e simulator with a
 
 --------------------------------------------------------------------------------
 #201 Website: Confetti Circle bride and groom details
-Status:    RETEST
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Brief:     Confetti Circle's section under the cover now shows the bride and groom only as the host fills them in (label, name, a few words, Instagram / Facebook / X). Nothing is taken from the event title; a side shows only with a name, and only the links that were added.
@@ -5736,7 +5736,7 @@ Date tested: 2026-11-07
 Account used: host (owner of test-face-new-155c)
 Screenshot / recording:
 Fix ref: 65238da8 (2026-11-07): after saving a couple with both sides cleared, the page kept the old names until a reload
-Feedback: Steps 1-6 pass (empty frame with Add bride / Add groom and no placeholder words; bride with words and Instagram only; wrong Facebook link refused with the red note and hidden; groom name only gives the ribbon "Jyoti ♥ Samarth" with names level; saved and shown on the album as a guest, Instagram opens in a new tab; side by side at phone width). Step 7 FAIL: after clearing both sides and Save the database was empty but the page still showed the old couple until reloaded. Fixed in 65238da8; retest step 7 once it is on staging. Sarthak's own Jyoti / Samarth put back.
+Feedback: Steps 1-6 pass (empty frame with Add bride / Add groom and no placeholder words; bride with words and Instagram only; wrong Facebook link refused with the red note and hidden; groom name only gives the ribbon "Jyoti ♥ Samarth" with names level; saved and shown on the album as a guest, Instagram opens in a new tab; side by side at phone width). Step 7 FAIL: after clearing both sides and Save the database was empty but the page still showed the old couple until reloaded. Fixed in 65238da8; retest step 7 once it is on staging. Sarthak's own Jyoti / Samarth put back. RETEST 2026-11-07 on staging 13c41036: step 7 now passes (after clearing both sides and Save the page shows no names at once and "Add bride" is back; the database is empty). Jyoti / Samarth put back again.
 
 --------------------------------------------------------------------------------
 #202 Plan event limit is also checked by the database
