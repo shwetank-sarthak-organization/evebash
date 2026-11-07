@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 253
+Next issue number: 256
 
 =====================================================================
 ACTIVE ISSUES
@@ -205,12 +205,13 @@ How to reproduce: In the app, Settings: turn every notification switch off. Have
 Listed: 2026-10-13
 Platform: Both
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Chat with Sarthak about choosing an event cover (2026-10-13)
 Issue: When a host picks a cover photo, they can't see how it will look on the guest page in their chosen theme, on a phone or on a computer. (1) The Fit/Fill and Position (move/zoom) settings only change the host's own view: the website host page (src/app/(main)/host/page.tsx), the dashboard and the app's host view (apps/mobile/app/events/[id].tsx) use coverMode/coverOffset/coverOffsetX/coverScale. In the app the guest view of the same screen also applies them for the Classic theme and the default hero (other app themes draw their own hero), but no website guest theme reads them (src/components/Template*.tsx, guest page under src/app/(public)/events/[slug]/). Each website theme does its own thing: TemplateCinematic, for example, uses object-contain (fit) on phones and a centred, slowly panning background-cover on computers. (2) Only one setting is saved per cover, but a tall phone frame and a wide computer frame need different crops. (3) The offsets are saved as pixels measured on the host's preview box (host page), while the web dashboard reads them as percentages (50 + offset), so the same values put the image in different places. (4) The website's phone-and-computer theme preview (src/components/EventDesignPreview.tsx) always draws the cover centred with object-cover and ignores the host's settings, so it doesn't match the real guest page either. Fix: decide per theme how the cover is framed; save the position in a size-independent form (a focal point in % plus zoom), possibly one for phone and one for computer; have every theme and preview use it; and show a live phone + computer preview while the host positions the cover.
 How to reproduce: On the website host page, open an event, Change Cover to a tall photo, set Fill and use Position to move it to the top. Open the website guest page on a computer and on a phone: the crop ignores your position (and on a phone with the Cinematic theme the image is fitted, not filled).
+Note 2026-11-06: Being fixed with todo #11 on local branch feat/guest-edit-mode (not on staging yet), no database change. The position fields now mean the same everywhere (shared/themes/coverFocus.ts): coverOffsetX / coverOffset are the focus point's distance from the middle in percent of the photo (-50..50), coverScale the zoom (1-2.5), and zoom grows around the focus point. Website guest themes, dashboard cards and the host page's Position editor use it (src/lib/coverStyle.ts); the app's Royal Emerald, Classic White and Sunlit Portrait covers too (apps/mobile/lib/coverStyle.ts); the app's own cover (Midnight Hero, host view) maps it onto its pixel shift. Preview Guest Theme's cover panel has Move and zoom (drag a dot on the photo, zoom slider) on both platforms. One focus point serves the phone and the computer frame. The 2 test galleries already moved in pixels (up to 50) now read as percent and shift a little.
 
 #65
 Listed: 2026-10-13
@@ -1487,6 +1488,28 @@ Blocked by: -
 Found in: light theme check of the host page (chat 2026-11-04)
 Issue: On a phone-width screen, the host event page (Host -> an event) scrolls sideways by about 180 px. The "Home (Primary Gallery) and sub-galleries" info popover (src/components/GalleryTypesInfo.tsx) is only hidden (invisible + opacity 0), so its 22rem-wide box still sticks out past the right edge (page 554 px wide at 375 px). Same in the dark and light look. Fix idea: keep the popover inside the screen (right-0 on small screens, or max-w from the button's position), or take it out of the layout while closed (display none).
 How to reproduce: Open Host -> any event on a 375 px wide screen (or a phone) and swipe sideways: the page moves right; empty space appears on the right.
+
+#254
+Listed: 2026-11-07
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Classic White edit-mode pencils test (todo #11, chat 2026-11-07)
+Issue: Changing an event's theme in the app (Design tab > Change Template, handleUpdateTemplate in apps/mobile/app/events/[id].tsx) saves the new theme on the main gallery only. The website's host page (handleUpdateTemplate in src/app/(main)/host/page.tsx) also saves it on every album. So after a change in the app, the albums keep their old theme: the app still shows them in the new theme (it uses the main gallery's theme), but on the website each album opens in its old theme. Guests see two different looks depending on where they open the album. Fix idea: cascade to the albums in the app as the website does (getSubEvents + updateEvent for each album), or move that step into one shared helper both use.
+How to reproduce: In the app, open a main gallery that has albums, Design tab > Change Template, pick another theme. Then open one of its albums on the website: it still shows the old theme.
+
+#255
+Listed: 2026-11-07
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: Sarthak's OK to change a guest theme (themes keep their own designs)
+Found in: Midnight Hero edit-mode pencils test (todo #11, chat 2026-11-07)
+Issue: In the app's Midnight Hero gallery (the default theme), the welcome card shows a box with a question mark after the host's message instead of the white heart the screen adds (' 🤍' after the description in apps/mobile/app/events/[id].tsx, the shared welcome card used by Midnight Hero and the older themes). The card's serif italic font has no emoji, and here iOS didn't fall back to the emoji font. Guests see it on every gallery with a message. Seen on the iPhone 16e simulator; check on a real phone. Fix idea: draw the heart in its own Text with the system font, or drop it.
+How to reproduce: In the app, open a Midnight Hero gallery with a welcome message as a guest and scroll to the card under the cover: a "?" box follows the message.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

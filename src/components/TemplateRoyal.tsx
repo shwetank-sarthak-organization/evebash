@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Crown } from "lucide-react";
 import { royalDisplay, royalScript, royalSerif } from "@/components/royal/royalFonts";
 import { coupleInitials, displayCoupleTitle, splitCoupleNames } from "../../shared/text/coupleNames";
+import { EditChip, useGuestEditSpots } from "@/components/guestEdit/EditChip";
 import {
     RoyalDivider,
     RoyalFiligreeFrame,
@@ -52,6 +53,8 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
     const couple = hasParent ? null : splitCoupleNames(title);
     const sealInitials = couple ? coupleInitials(title) : null;
     const longestName = couple ? Math.max(couple[0].length, couple[1].length) : title.length;
+    // Edit mode (todo #11): pencils on the cover, title and date; the host's view only, guests see none of it
+    const editing = useGuestEditSpots();
 
     const scrollToContent = () => {
         document.getElementById("royal-collection-section")?.scrollIntoView({ behavior: "smooth" });
@@ -78,6 +81,7 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
                         <article className="royal-card">
                             <div className="royal-card__paper" aria-hidden="true" />
                             <div className="royal-card__rules" aria-hidden="true" />
+                            <EditChip field="title" label="Title" style={{ top: 10, right: 10 }} />
                             {couple && <p className="royal-card__lead royal-foil">{coupleLead(event.category)}</p>}
                             {title && (
                                 <h1 className={cn("royal-card__names royal-foil", nameSizeClass(longestName, !!couple))}>
@@ -92,6 +96,9 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
                             )}
                             <RoyalFlourish className="royal-card__flourish" />
                             {event.date && <p className="royal-card__date">{event.date}</p>}
+                            {event.date
+                                ? <EditChip field="date" label="Date" style={{ bottom: 10, right: 10 }} />
+                                : editing && <EditChip field="date" label="Add date" adding className="mt-3" />}
                             {location && <p className="royal-card__place">{location}</p>}
                             <RoyalWaxSeal initials={sealInitials} className="royal-card__seal" />
                         </article>
@@ -109,6 +116,7 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
                                 sizes="(max-width: 879px) 88vw, 520px"
                                 style={coverImageStyle(event)}
                             />
+                            <EditChip field="cover" label="Cover" style={{ top: 12, right: 12 }} />
                         </RoyalFiligreeFrame>
                     </div>
                 </div>

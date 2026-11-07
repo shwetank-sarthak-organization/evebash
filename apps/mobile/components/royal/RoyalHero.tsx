@@ -5,6 +5,8 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { coupleInitials, splitCoupleNames } from '../../../../shared/text/coupleNames';
 import { RoyalFiligreeFrame, RoyalFlourish, RoyalPaperCard, RoyalScreenCorner, RoyalWaxSeal } from './RoyalOrnaments';
 import type { RoyalFontSet } from './royalFonts';
+import { EditChip } from '@/components/event/guestEdit/EditChip';
+import { coverContentPosition, coverZoomStyle } from '@/lib/coverStyle';
 
 // Royal Emerald hero for phones, from the website design (src/components/TemplateRoyal.tsx): gold corners on an
 // emerald screen, the cover in the gold filigree frame (always portrait 4:5), and the ivory title card with the wax
@@ -47,14 +49,9 @@ export interface RoyalHeroProps {
   fonts: RoyalFontSet;
 }
 
-/** The host's cover settings, as on the website: the focus point decides which part of a landscape cover shows */
-function coverPosition(gallery: RoyalHeroProps['gallery']) {
-  const x = Math.max(0, Math.min(100, 50 + (gallery.coverOffsetX || 0)));
-  const y = Math.max(0, Math.min(100, 50 + (gallery.coverOffset || 0)));
-  return { left: `${x}%`, top: `${y}%` } as const;
-}
-
 export function RoyalHero({ gallery, isAlbum, coverSource, width, height, insetTop, insetBottom, fonts }: RoyalHeroProps) {
+  // The cover image's size, to zoom it around the focus point (lib/coverStyle.ts)
+  const [coverSize, setCoverSize] = React.useState<{ width: number; height: number }>();
   const title = (gallery.title || '').trim();
   const couple = isAlbum ? null : splitCoupleNames(title);
   const initials = couple ? coupleInitials(title) : null;
@@ -97,16 +94,20 @@ export function RoyalHero({ gallery, isAlbum, coverSource, width, height, insetT
         <RoyalFiligreeFrame width={frameWidth}>
           <ExpoImage
             source={coverSource}
-            style={[StyleSheet.absoluteFill, gallery.coverMode !== 'fit' && { transform: [{ scale: gallery.coverScale || 1 }] }]}
+            style={[StyleSheet.absoluteFill, coverZoomStyle(gallery, coverSize)]}
+            onLayout={(event) => setCoverSize(event.nativeEvent.layout)}
             contentFit={gallery.coverMode === 'fit' ? 'contain' : 'cover'}
-            contentPosition={coverPosition(gallery)}
+            contentPosition={coverContentPosition(gallery)}
             transition={200}
             accessibilityLabel={title || 'Cover photo'}
           />
+          {/* Edit mode (todo #11): pencils on the cover, title and date; nothing for guests */}
+          <EditChip field="cover" label="Cover" at={{ top: 10, right: 10 }} />
         </RoyalFiligreeFrame>
 
         <View style={{ marginTop: CARD_GAP, alignItems: 'center', zIndex: 2 }}>
           <RoyalPaperCard style={[local.card, { width: cardWidth }]}>
+            <EditChip field="title" label="Title" at={{ top: 6, right: 6 }} />
             {/* Script swashes reach past the letters, so each line has side padding (Android clips them otherwise) */}
             {couple && <Text style={[local.lead, { fontFamily: fonts.script }]}>{coupleLead(gallery.category)} </Text>}
             {couple ? (
@@ -134,6 +135,7 @@ export function RoyalHero({ gallery, isAlbum, coverSource, width, height, insetT
             )}
             <View style={{ marginTop: 10, marginBottom: 10 }}><RoyalFlourish width={80} /></View>
             {!!gallery.date && <Text style={[local.date, { fontFamily: fonts.displayBold }]}>{gallery.date.toUpperCase()}</Text>}
+            <EditChip field="date" label={gallery.date ? 'Date' : 'Add date'} adding={!gallery.date} at={{ bottom: 6, right: 6 }} />
           </RoyalPaperCard>
           <View style={{ marginTop: -SEAL / 2 }}>
             <RoyalWaxSeal initials={initials} size={SEAL} fonts={fonts} />

@@ -6,6 +6,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MidnightColors, Fonts } from '../constants/theme';
 import { useAppTheme } from '@/context/ThemeContext';
 import { Event, getSampleGalleryEvents } from '@/lib/database';
+import { withPhoneCover } from '@/lib/eventCovers';
 
 export default function SampleGalleriesScreen() {
   const router = useRouter();
@@ -77,7 +78,7 @@ export default function SampleGalleriesScreen() {
               activeOpacity={0.85}
               onPress={() => router.push(`/events/${album.id}`)}
             >
-              <Image source={{ uri: album.coverImage }} style={styles.cardImage} />
+              <Image source={{ uri: withPhoneCover(album).coverImage || album.coverImage }} style={styles.cardImage} />
               <LinearGradient
                 colors={['transparent', 'rgba(19, 25, 31, 0.9)']}
                 style={styles.cardGradient}

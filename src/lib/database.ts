@@ -5,6 +5,7 @@ import { getApiUrl } from "./apiBase";
 import { isMissingUploadedFile } from "../../shared/media/missingUpload";
 import { readEventSizes, type EventStorageSize } from "../../shared/storage/eventSizes";
 import { fetchMemberDetails, fetchMemberDirectory } from "../../shared/permissions/memberDetails";
+import { readThemeContent, type ThemeContent, type ThemeContentBlock } from "../../shared/themes/themeContent";
 
 // Memory caches to optimize lookups
 const eventCache: Record<string, Event> = {};
@@ -37,6 +38,12 @@ export interface Event {
     coverOffsetX?: number;
     coverScale?: number;
     coverMode?: 'fit' | 'fill';
+    // The phone cover (app and phone browsers); empty = the cover fields above (shared/themes/phoneCover.ts)
+    phoneCoverImage?: string | null;
+    phoneCoverMode?: 'fit' | 'fill' | null;
+    phoneCoverOffset?: number | null;
+    phoneCoverOffsetX?: number | null;
+    phoneCoverScale?: number | null;
     order?: number;
     isSampleGallery?: boolean;
     sampleGalleryOrder?: number;
@@ -44,6 +51,8 @@ export interface Event {
     isHidden?: boolean;
     /** The gallery's own video the host shows at the top of its guest page (photos.id); null = none */
     galleryVideoId?: string | null;
+    /** The theme's own content (Confetti Circle's couple...), main events only; undefined = not read (no column yet) */
+    themeContent?: ThemeContent;
     createdAt?: any;
 }
 
@@ -284,6 +293,11 @@ function mapSqlToEvent(e: any): Event {
         coverOffset: e.cover_offset,
         coverOffsetX: e.cover_offset_x,
         coverScale: e.cover_scale,
+        phoneCoverImage: e.phone_cover_image ?? null,
+        phoneCoverMode: e.phone_cover_mode ?? null,
+        phoneCoverOffset: e.phone_cover_offset ?? null,
+        phoneCoverOffsetX: e.phone_cover_offset_x ?? null,
+        phoneCoverScale: e.phone_cover_scale ?? null,
         coverMode: e.cover_mode,
         order: e.order,
         isPublic: !!e.is_public,
@@ -291,6 +305,7 @@ function mapSqlToEvent(e: any): Event {
         isHidden: !!e.is_hidden,
         // undefined when the row didn't include the column (e.g. open_gallery's read-only view): not known
         galleryVideoId: e.gallery_video_id === undefined ? undefined : e.gallery_video_id,
+        themeContent: e.theme_content === undefined ? undefined : readThemeContent(e.theme_content),
         sampleGalleryOrder: e.sample_gallery_order,
         createdAt: e.created_at
     };
@@ -2339,6 +2354,29 @@ export async function setGalleryVideo(galleryId: string, videoId: string | null)
 }
 
 /**
+ * Saves one block of the event's theme content (shared/themes/themeContent.ts) on its main event, keeping the other
+ * blocks; null removes it. Any gallery id of the event works. Returns the event's theme content as now saved.
+ */
+export async function saveThemeContentBlock<B extends ThemeContentBlock>(
+    galleryId: string,
+    block: B,
+    value: ThemeContent[B] | null,
+): Promise<{ success: boolean; content?: ThemeContent; error?: string }> {
+    const { data, error } = await supabase.rpc('set_theme_content_block', { p_event_id: galleryId, p_block: block, p_value: value });
+    if (!error) {
+        Object.keys(eventCache).forEach((id) => delete eventCache[id]);
+        return { success: true, content: readThemeContent(data) };
+    }
+    console.error("Error saving the theme content:", formatSupabaseError(error));
+    return {
+        success: false,
+        error: error.code === 'PGRST202'
+            ? "The couple details can't be saved until the database update is applied."
+            : "Couldn't save the couple details. Please try again.",
+    };
+}
+
+/**
  * A gallery's own videos, newest first, for the host's "Gallery video" chooser (includes hidden and still-processing
  * ones, so the host sees everything they uploaded). Older uploads may be stored under the gallery's legacy id.
  */
@@ -2434,6 +2472,11 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
         if (data.coverOffset !== undefined) updateData.cover_offset = data.coverOffset;
         if (data.coverOffsetX !== undefined) updateData.cover_offset_x = data.coverOffsetX;
         if (data.coverScale !== undefined) updateData.cover_scale = data.coverScale;
+        if (data.phoneCoverImage !== undefined) updateData.phone_cover_image = data.phoneCoverImage;
+        if (data.phoneCoverMode !== undefined) updateData.phone_cover_mode = data.phoneCoverMode;
+        if (data.phoneCoverOffset !== undefined) updateData.phone_cover_offset = data.phoneCoverOffset;
+        if (data.phoneCoverOffsetX !== undefined) updateData.phone_cover_offset_x = data.phoneCoverOffsetX;
+        if (data.phoneCoverScale !== undefined) updateData.phone_cover_scale = data.phoneCoverScale;
         if (data.coverMode !== undefined) updateData.cover_mode = data.coverMode;
         if (data.order !== undefined) updateData.order = data.order;
         if (data.isSampleGallery !== undefined) updateData.is_sample_gallery = data.isSampleGallery;
@@ -2464,6 +2507,11 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
                     cover_offset: 'coverOffset',
                     cover_offset_x: 'coverOffsetX',
                     cover_scale: 'coverScale',
+                    phone_cover_image: 'phoneCoverImage',
+                    phone_cover_mode: 'phoneCoverMode',
+                    phone_cover_offset: 'phoneCoverOffset',
+                    phone_cover_offset_x: 'phoneCoverOffsetX',
+                    phone_cover_scale: 'phoneCoverScale',
                     cover_mode: 'coverMode',
                     order: 'order',
                     is_sample_gallery: 'isSampleGallery',

@@ -6,10 +6,13 @@ import Image from "next/image";
 import { ArrowRight, Camera } from "lucide-react";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { Event, getSampleGalleryEvents } from "@/lib/database";
+import { useCoverTarget, withScreenCover } from "@/lib/screenCover";
 
 export default function SampleGalleries() {
     const [albums, setAlbums] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
+    // Each sample's phone cover on phones, its computer cover on wider screens
+    const coverTarget = useCoverTarget();
 
     useEffect(() => {
         let mounted = true;
@@ -66,7 +69,7 @@ export default function SampleGalleries() {
                             >
                                 <div className="absolute inset-0">
                                     <Image
-                                        src={album.coverImage}
+                                        src={withScreenCover(album, coverTarget).coverImage || album.coverImage || ""}
                                         alt={album.title}
                                         fill
                                         className="object-cover transition-transform duration-1000 group-hover:scale-110"

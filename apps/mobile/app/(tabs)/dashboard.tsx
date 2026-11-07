@@ -52,6 +52,7 @@ import { appAlert, showToast } from '@/lib/feedback';
 import { MidnightColors } from '@/constants/theme';
 import { EventGrid, getEventGridCardWidth } from '@/constants/layout';
 import { galleryIdFromLink } from '@/lib/webLinks';
+import { withPhoneCover } from '@/lib/eventCovers';
 
 const { width, height } = Dimensions.get('window');
 
@@ -600,7 +601,7 @@ export default function DashboardScreen() {
                         title={event.title}
                         date={event.date}
                         category={event.category}
-                        coverImage={event.coverImage}
+                        coverImage={withPhoneCover(event).coverImage}
                         onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
                       />
                     );

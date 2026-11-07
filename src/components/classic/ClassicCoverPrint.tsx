@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { CSSProperties } from "react";
+import { EditChip, useGuestEditSpots } from "@/components/guestEdit/EditChip";
 
 // Classic White cover (styles in src/app/classic-white.css): the cover photo as a print in a thick white mount,
 // with a short line of the theme's own text on a pale card overlapping its top edge. The card sits in the page flow,
@@ -29,6 +30,8 @@ export function ClassicCoverPrint({ coverImage, alt, cardText: message, imageSty
     // Longer text gets a smaller line so the card stays a strip across the top, not a block
     const length = message?.length || 0;
     const sizeClass = length > 220 ? " classic-print__card--long" : length > 90 ? " classic-print__card--medium" : "";
+    // Edit mode (todo #11): a pencil on the photo, or a place to add one
+    const editing = useGuestEditSpots();
 
     return (
         <div className={coverImage ? "classic-print" : "classic-print classic-print--no-cover"}>
@@ -44,8 +47,15 @@ export function ClassicCoverPrint({ coverImage, alt, cardText: message, imageSty
                     <div className="classic-print__mount">
                         <div className="classic-print__photo">
                             <Image src={coverImage} alt={alt} fill sizes="(min-width: 1200px) 1000px, 90vw" style={imageStyle} priority />
+                            {/* Turned back level against the print's tilt */}
+                            <EditChip field="cover" label="Cover" style={{ top: 12, right: 12, rotate: "2.2deg" }} />
                         </div>
                     </div>
+                </div>
+            )}
+            {!coverImage && editing && (
+                <div className="mt-6 flex justify-center">
+                    <EditChip field="cover" label="Add cover photo" adding />
                 </div>
             )}
         </div>

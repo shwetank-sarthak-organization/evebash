@@ -12,9 +12,11 @@
 /* Like the reference: the dark tag starts right under the navbar and the circle reaches down to the torn edge. The circle
    is sized from that space (screen height less the navbar, the part of the tag above the circle (9% of the circle's
    width) and a few pixels the torn edge overlaps); phones are limited by the screen width instead. */
+/* --guest-edit-bar: the host's edit bar while it shows (src/components/guestEdit/GuestEditBar.tsx), so the circle and the
+   button stay above it; unset for guests */
 .confetti-hero {
   --cc-nav-h: 73px; /* .confetti-nav: 56px bar + 2 x 8px padding + 1px border */
-  --cc-size: min(92vw, calc((max(100svh, 600px) - var(--cc-nav-h) - 8px) / 1.09));
+  --cc-size: min(92vw, calc((max(100svh, 600px) - var(--cc-nav-h) - 8px - var(--guest-edit-bar, 0px)) / 1.09));
   position: relative;
   display: flex; flex-direction: column; align-items: center;
   height: 100vh;
@@ -157,7 +159,7 @@
 .confetti-hero__open {
   position: absolute;
   right: clamp(20px, 4vw, 56px);
-  bottom: clamp(44px, 7svh, 76px);
+  bottom: calc(clamp(44px, 7svh, 76px) + var(--guest-edit-bar, 0px));
   display: grid; place-items: center;
   width: 48px; height: 48px;
   border-radius: 999px;
@@ -179,7 +181,7 @@
 
 /* Phones: the circle fills the width and the open button moves under it */
 @media (max-width: 639px) {
-  .confetti-hero__open { right: 50%; transform: translateX(50%); bottom: 36px; }
+  .confetti-hero__open { right: 50%; transform: translateX(50%); bottom: calc(36px + var(--guest-edit-bar, 0px)); }
   .confetti-hero__open:hover { transform: translateX(50%) translateY(2px); }
 }
 
@@ -216,11 +218,19 @@
 }
 .confetti-couple__frame { grid-column: 1 / -1; grid-row: 1; }
 .confetti-couple__row--single { grid-template-columns: minmax(0, 1fr); }
+/* The host's couple (todo #10): each side has only what was filled in, so the two can differ in height. Both start
+   at the top, so their names line up; on computers a little lower, beside the video. Only one side filled in: phones
+   give it the full width; computers keep it on its own side of the video. */
+.confetti-couple__person--left, .confetti-couple__person--right { align-self: start; }
+.confetti-couple__person--alone { grid-column: 1 / -1; }
 @media (min-width: 1024px) {
   .confetti-couple__row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr) minmax(0, 1fr); gap: clamp(24px, 3vw, 56px); }
   .confetti-couple__frame { grid-column: 2; }
   .confetti-couple__row--single { grid-template-columns: minmax(0, 1fr); }
   .confetti-couple__row--single .confetti-couple__frame { grid-column: 1; }
+  .confetti-couple__person--left { grid-column: 1; grid-row: 1; }
+  .confetti-couple__person--right { grid-column: 3; grid-row: 1; }
+  .confetti-couple__person--left, .confetti-couple__person--right { padding-top: clamp(16px, 4vw, 56px); }
 }
 
 .confetti-couple__person { display: flex; flex-direction: column; align-items: center; min-width: 0; }
@@ -249,6 +259,8 @@
   color: #5d5555;
   font-size: 15px;
   line-height: 1.75;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 .confetti-couple__socials { display: flex; gap: 10px; margin-top: 22px; }
 .confetti-couple__social {
@@ -259,6 +271,15 @@
   color: var(--cc-ink);
 }
 .confetti-couple__social svg { width: 17px; height: 17px; }
+.confetti-couple__social a {
+  display: grid; place-items: center;
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  color: inherit;
+  transition: background-color .2s, color .2s;
+}
+.confetti-couple__social a:hover { background: var(--cc-ink); color: #fff; }
+.confetti-couple__social a:focus-visible { outline: 2px solid var(--cc-ink); outline-offset: 3px; }
 
 /* The frame: every size inside it is a share of its width (cqi). A widescreen rectangle whose edges fade out; specks
    round it. */

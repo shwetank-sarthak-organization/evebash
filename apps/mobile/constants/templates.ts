@@ -1,3 +1,4 @@
+import { comingSoonThemes, pickableThemes } from '../../../shared/themes/activeThemes';
 
 export interface TemplateTheme {
   id: string;
@@ -566,16 +567,15 @@ const getPickerTemplateCategoryForEventCategory = (category?: string) => {
 };
 
 /**
- * Themes a host can pick for an event of this category (hidden themes left out).
- * Pass the event's current theme so a hidden one still shows (first) as the current choice.
+ * Themes a host can pick for an event: the active ones (shared/themes/activeThemes.ts), the same for every event type.
+ * Pass the event's current theme so one that isn't active still shows (first) as the current choice.
  */
-export const getPickerTemplatesForEventCategory = (category?: string, currentTemplateId?: string) => {
-  const templateCategory = getPickerTemplateCategoryForEventCategory(category);
-  const templates = MOBILE_TEMPLATE_THEMES.filter((theme) => theme.category === templateCategory && !isTemplateHidden(theme.id));
-  const current = isTemplateHidden(currentTemplateId) ? MOBILE_TEMPLATE_THEMES.find((theme) => theme.id === currentTemplateId) : undefined;
-  if (current) return [current, ...templates];
-  return templates;
-};
+export const getPickerTemplatesForEventCategory = (_category?: string, currentTemplateId?: string) =>
+  pickableThemes(MOBILE_TEMPLATE_THEMES, currentTemplateId);
+
+/** The event type's own themes that can't be picked yet: the pickers show them greyed out as "Coming soon" */
+export const getComingSoonTemplatesForEventCategory = (category?: string, currentTemplateId?: string) =>
+  comingSoonThemes(MOBILE_TEMPLATE_THEMES, getPickerTemplateCategoryForEventCategory(category), isTemplateHidden, currentTemplateId);
 
 export const getDefaultTemplateForEventCategory = (category?: string) => {
   const templates = getPickerTemplatesForEventCategory(category);

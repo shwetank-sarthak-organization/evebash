@@ -179,13 +179,22 @@ Listed:       2026-10-27
 Platform:     Website
 Priority:     Medium
 Phase:        1 (v1 launch)
-Status:       Agreed
+Status:       In progress
 Effort:       M
 Suggested by: Sarthak (2026-10-27: "use dummy data and add it to todo list")
 Discussed:    Yes
 Decision:     2026-10-27 Sarthak: ship the couple section with placeholder text first; hosts fill the
               real details later in the theme editor (Preview theme in the host section).
-Owner:        Unassigned
+              2026-11-07 Sarthak (with Claude): edited from Preview Guest Theme's edit mode (#11), as a
+              Couple panel and pencils on each side. Never take names from the title (it can name
+              the wrong people). Each side: a label the host picks (weddings start with "The Bride" /
+              "The Groom"), name, a few words (160), Instagram / Facebook / X links. A side shows only
+              with a name, a link only when filled in; the ribbon says "Name ♥ Name" only when both
+              names are in. Stored in one new JSON column events.theme_content on the main event
+              (blocks: couple now; later milestones, how we met...), written per block by
+              set_theme_content_block so a save only replaces the changed block. Behind
+              NEXT_PUBLIC_GUEST_EDIT_MODE: while it is off the section stays as it is today.
+Owner:        Sarthak (with Claude)
 Depends on:   -
 Brief:        The Confetti Circle theme (id "confetti") has a section under the cover: "We're getting
               married!", the bride on the left, the highlight video in a faded frame in the middle,
@@ -241,13 +250,16 @@ Done in:      -
 #12 Confetti Circle theme in the app
 Listed:       2026-10-27
 Platform:     App
-Priority:     Medium
+Priority:     High
 Phase:        1 (v1 launch)
 Status:       Agreed
 Effort:       M
 Suggested by: Sarthak (2026-10-27: "website looks done, next is mobile app for this theme")
 Discussed:    Yes
 Decision:     2026-10-27 Sarthak: the website version is done; build the app version next.
+              2026-11-06 Sarthak: High priority, build it before launch. It is one of the five themes
+              every event type can pick (shared/themes/activeThemes.ts); until it's built the app's
+              pickers show the other four.
 Owner:        Unassigned
 Depends on:   - (#10 for real bride / groom details; until then the same placeholders as the website)
 Brief:        The website has the wedding theme "Confetti Circle" (id "confetti", device test #151),
@@ -273,8 +285,8 @@ Brief:        The website has the wedding theme "Confetti Circle" (id "confetti"
               - Footer: torn-paper edge, Create your own event / Sample galleries / Pricing at the
                 far left, "S ♥ R" with "Made with EveBash" (EveBash font) in the middle, Privacy /
                 Terms / Contact us at the far right.
-              Keep the web and app pickers the same (src/lib/hiddenTemplates.test.ts checks the app
-              list). Add a device test when it ships.
+              Once the app has it, the app's pickers offer it on their own (it's in ACTIVE_THEME_IDS):
+              update the app list in src/lib/hiddenTemplates.test.ts. Add a device test when it ships.
 Done in:      -
 
 #13 Videos: add a 4K stream when the upload is 4K (never above the upload's own size)

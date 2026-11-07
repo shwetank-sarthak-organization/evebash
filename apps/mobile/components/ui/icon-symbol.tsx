@@ -30,6 +30,7 @@ const MAPPING = {
   'camera.fill': 'photo-camera',
   'camera': 'camera-alt',
   'phone.fill': 'phone',
+  'iphone': 'smartphone',
   'envelope.fill': 'mail',
   'clock.fill': 'schedule',
   'ellipsis': 'more-horiz',

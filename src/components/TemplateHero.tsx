@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { coverImageStyle } from "@/lib/coverStyle";
 import { midnightDisplay, midnightScript } from "@/components/midnight/midnightFonts";
 import { displayCoupleTitle, splitCoupleNames } from "../../shared/text/coupleNames";
+import { EditChip, useGuestEditSpots } from "@/components/guestEdit/EditChip";
 
 interface TemplateHeroProps {
   event: Event;
@@ -38,6 +39,9 @@ export function TemplateHero({ event, mainTitle, mainCategory, hasParent = false
   // Albums show their own name, with the main event above it; the couple line belongs to the main gallery
   const couple = hasParent ? null : splitCoupleNames(title);
   const isFit = event.coverMode === "fit";
+  // Edit mode (todo #11): pencils on the cover, and on the card's title and date (an album's own); guests see none
+  const editing = useGuestEditSpots();
+  const date = event.date?.trim();
 
   const scrollToContent = () => {
     document.getElementById("event-content")?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth" });
@@ -74,6 +78,8 @@ export function TemplateHero({ event, mainTitle, mainCategory, hasParent = false
           )}
         </motion.div>
         <div className="midnight-hero__shade" aria-hidden="true" />
+        {/* Below the navbar, which sits on the cover */}
+        <EditChip field="cover" label={event.coverImage ? "Cover" : "Add cover photo"} adding={!event.coverImage} style={{ top: 84, right: 20 }} />
 
         {/* A printed invitation: square card, thin double gold border */}
         <div className="midnight-card">
@@ -89,6 +95,12 @@ export function TemplateHero({ event, mainTitle, mainCategory, hasParent = false
               )}
             </h1>
             {event.date && <p className="midnight-card__date">{event.date}</p>}
+            {editing && (
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <EditChip field="title" label="Title" />
+                <EditChip field="date" label={date ? "Date" : "Add date"} adding={!date} />
+              </div>
+            )}
 
             <div className="midnight-card__actions">
             <button type="button" onClick={scrollToContent} className="midnight-enter">

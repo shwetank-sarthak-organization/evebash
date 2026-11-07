@@ -5,6 +5,7 @@ import { Check, ChevronLeft, Play, Share2 } from "lucide-react";
 import { HLSVideoPlayer } from "@/components/ui/HLSVideoPlayer";
 import { coupleInitials } from "../../../shared/text/coupleNames";
 import { RoyalCrest, RoyalPlaqueCorner, RoyalTitleRule } from "@/components/royal/RoyalOrnaments";
+import { EditChip, useGuestEditSpots } from "@/components/guestEdit/EditChip";
 
 // Top of the gallery section in the Royal Emerald design (styles in src/app/royal-emerald.css):
 // crest, title between gold rules, the gallery video (when the host picked one), Back / welcome plaque / Share,
@@ -67,6 +68,7 @@ function RoyalVideoFrame({ video, title }: { video: RoyalGalleryVideo; title: st
                         </span>
                     </button>
                 )}
+                <EditChip field="video" label="Video" style={{ top: 12, right: 12 }} />
             </div>
         </div>
     );
@@ -88,6 +90,8 @@ export function RoyalGalleryHeader({
 }: RoyalGalleryHeaderProps) {
     const initials = coupleTitle ? coupleInitials(coupleTitle) : null;
     const welcome = message?.trim();
+    // Edit mode (todo #11): pencils on the video and the message, or a place to add them
+    const editing = useGuestEditSpots();
 
     return (
         <section className="royal-gh" aria-label={`${title} gallery`}>
@@ -100,6 +104,11 @@ export function RoyalGalleryHeader({
             </div>
 
             {video && <RoyalVideoFrame video={video} title={title} />}
+            {!video && editing && (
+                <div className="mt-6 flex justify-center">
+                    <EditChip field="video" label="Add highlight video" adding />
+                </div>
+            )}
 
             <div className={welcome ? "royal-gh__bar" : "royal-gh__bar royal-gh__bar--no-message"}>
                 <button type="button" onClick={onBack} className="royal-gh__side royal-gh__back" aria-label={backLabel} title={backLabel}>
@@ -114,6 +123,7 @@ export function RoyalGalleryHeader({
                             <RoyalPlaqueCorner key={corner} className={`royal-plaque__corner royal-plaque__corner--${corner}`} />
                         ))}
                         <p className="royal-plaque__text">{welcome}</p>
+                        <EditChip field="message" label="Message" style={{ top: 8, right: 14 }} />
                     </div>
                 )}
 
@@ -122,6 +132,12 @@ export function RoyalGalleryHeader({
                     {copied ? "Link copied" : "Share"}
                 </button>
             </div>
+
+            {!welcome && editing && (
+                <div className="mt-6 flex justify-center">
+                    <EditChip field="message" label="Add welcome message" adding />
+                </div>
+            )}
 
             <div className="royal-gh__tabs" role="group" aria-label="Photos or videos">
                 {([

@@ -22,12 +22,17 @@ import { GalleryHighlightVideo } from "@/components/GalleryHighlightVideo";
 import { getWebLightboxTheme, getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { ClassicGalleryHeader } from "@/components/classic/ClassicGalleryHeader";
 import { ConfettiCoupleSection } from "@/components/confetti/ConfettiCoupleSection";
+import type { ThemeContent } from "../../../../../shared/themes/themeContent";
 import { ConfettiGalleryHeader } from "@/components/confetti/ConfettiGalleryHeader";
 import { coverImageStyle } from "@/lib/coverStyle";
 import { PortraitGalleryHeader } from "@/components/portrait/PortraitGalleryHeader";
 import { supabase } from "@/lib/supabase";
 import { uploadEventImage } from "@/lib/storage";
 import { alertDialog } from "@/components/ui/Modal";
+import { GuestEditBar } from "@/components/guestEdit/GuestEditBar";
+import { GuestEditSpots } from "@/components/guestEdit/EditChip";
+import { useCoverTarget, withScreenCover } from "@/lib/screenCover";
+import { GUEST_EDIT_ENABLED, editedVideoFor, getGuestEditState, startGuestEdit, useGuestEditState, wasEditing, withGuestEdits } from "@/components/guestEdit/guestEditStore";
 
 const PUBLIC_PAGE_SIZE = 60;
 
@@ -102,14 +107,14 @@ function EventPageContent() {
     const isShared = searchParams.get("shared") === "true";
     const { user, loading: authLoading } = useAuth();
 
-    const [event, setEvent] = useState<Event | any | null>(null);
+    const [loadedEvent, setEvent] = useState<Event | any | null>(null);
     // The main event's title and category when this page is an album opened by its own link (Classic White's cover
     // shows them)
-    const [parentInfo, setParentInfo] = useState<{ title?: string; category?: string; date?: string }>({});
+    const [loadedParentInfo, setParentInfo] = useState<{ title?: string; category?: string; date?: string; themeContent?: ThemeContent }>({});
     const [subEvents, setSubEvents] = useState<Event[]>([]);
     const [photos, setPhotos] = useState<any[]>([]);
     const [mediaTotals, setMediaTotals] = useState({ photos: 0, videos: 0 });
-    const [activeGallery, setActiveGallery] = useState<Event | null>(null);
+    const [loadedActiveGallery, setActiveGallery] = useState<Event | null>(null);
     const [galleryMediaTab, setGalleryMediaTab] = useState<"photos" | "videos">("photos");
     const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
     const [favouriteMediaIds, setFavouriteMediaIds] = useState<Set<string>>(new Set());
@@ -139,6 +144,28 @@ function EventPageContent() {
     const [guestUploadError, setGuestUploadError] = useState("");
     const guestFileInputRef = useRef<HTMLInputElement | null>(null);
 
+    // Preview Guest Theme's edit mode (todo #11): the event's managers see their unsaved changes on the real page.
+    // Everyone else, and everyone while NEXT_PUBLIC_GUEST_EDIT_MODE is off, gets the loaded gallery unchanged.
+    const guestEdit = useGuestEditState();
+    const editRootId: string | null = loadedEvent ? loadedEvent.parentId || loadedEvent.id : null;
+    const isEditing = GUEST_EDIT_ENABLED && access === "manage" && !!editRootId && guestEdit.rootId === editRootId;
+    // Phones get the gallery's phone cover, wider screens its computer cover (shared/themes/phoneCover.ts)
+    const coverTarget = useCoverTarget();
+    const event = withScreenCover(isEditing ? withGuestEdits(loadedEvent, guestEdit) : loadedEvent, coverTarget);
+    const activeGallery = withScreenCover(isEditing ? withGuestEdits(loadedActiveGallery, guestEdit) : loadedActiveGallery, coverTarget);
+    // An album's cover also shows its main event's title and date
+    const editedParent = isEditing && loadedEvent?.parentId
+        ? withGuestEdits({ ...loadedParentInfo, id: loadedEvent.parentId } as Event, guestEdit)
+        : null;
+    const parentInfo = editedParent
+        ? { title: editedParent.title, category: editedParent.category, date: editedParent.date, themeContent: editedParent.themeContent }
+        : loadedParentInfo;
+
+    // Opened with ?edit=1 (Design tab > Preview Guest Theme), or reloaded while editing
+    useEffect(() => {
+        if (!GUEST_EDIT_ENABLED || access !== "manage" || !editRootId) return;
+        if (searchParams.get("edit") === "1" || wasEditing(editRootId)) startGuestEdit(editRootId);
+    }, [access, editRootId, searchParams]);
 
     // Parallax logic
     const containerRef = useRef(null);
@@ -218,7 +245,9 @@ function EventPageContent() {
         });
         return () => { cancelled = true; };
     }, [wantsGalleryVideo, shownGalleryId, shownGallery?.galleryVideoId]);
-    const galleryVideo = wantsGalleryVideo && loadedGalleryVideo?.galleryId === shownGalleryId ? loadedGalleryVideo.video : null;
+    const savedGalleryVideo = wantsGalleryVideo && loadedGalleryVideo?.galleryId === shownGalleryId ? loadedGalleryVideo.video : null;
+    const editedGalleryVideo = isEditing && shownGalleryId ? editedVideoFor(guestEdit, shownGalleryId) : undefined;
+    const galleryVideo = editedGalleryVideo !== undefined ? editedGalleryVideo : savedGalleryVideo;
 
     // A gallery with videos but no photos opens on Videos. Decided once per gallery, after its media has loaded,
     // so a guest who then picks Photos keeps their choice.
@@ -332,7 +361,7 @@ function EventPageContent() {
                 console.error("[EventPage] Could not read the main event of this album:", e);
             }
         }
-        setParentInfo({ title: parent?.title, category: parent?.category, date: parent?.date });
+        setParentInfo({ title: parent?.title, category: parent?.category, date: parent?.date, themeContent: parent?.themeContent });
         await loadPublicPhotos(eventData, 0, false);
     };
 
@@ -399,7 +428,9 @@ function EventPageContent() {
 
             // A sub-gallery hidden from guests opens only in the Host section, for everyone (the database also
             // refuses it to anyone but the event's managers)
-            if (eventData && eventData.parentId && eventData.isHidden) {
+            const editingHiddenAlbum = !!eventData?.parentId && GUEST_EDIT_ENABLED && opened.access === "manage"
+                && (searchParams.get("edit") === "1" || getGuestEditState().rootId === eventData.parentId || wasEditing(eventData.parentId));
+            if (eventData && eventData.parentId && eventData.isHidden && !editingHiddenAlbum) {
                 eventData = null;
             }
 
@@ -413,14 +444,16 @@ function EventPageContent() {
             let parentCategory: string | undefined;
             let mainTitle: string | undefined;
             let parentDate: string | undefined;
+            let parentThemeContent: ThemeContent | undefined;
             if (eventData.parentId) {
                 const parentEvent = await getEventById(eventData.parentId, true);
                 eventData.isPublic = !!parentEvent?.isPublic;
                 parentCategory = parentEvent?.category;
                 mainTitle = parentEvent?.title;
                 parentDate = parentEvent?.date;
+                parentThemeContent = parentEvent?.themeContent;
             }
-            setParentInfo({ title: mainTitle, category: parentCategory, date: parentDate });
+            setParentInfo({ title: mainTitle, category: parentCategory, date: parentDate, themeContent: parentThemeContent });
 
             // Resolve event cover image to preview format
             const eventCategory = eventData.category || parentCategory;
@@ -715,6 +748,7 @@ function EventPageContent() {
                         activeTab={galleryMediaTab}
                         onTabChange={setGalleryMediaTab}
                         video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
+                        editableTitle={!!activeGallery || !!event.parentId}
                     />
                 ) : displayEvent.templateId === "portrait" ? (
                     <PortraitGalleryHeader
@@ -731,6 +765,7 @@ function EventPageContent() {
                         activeTab={galleryMediaTab}
                         onTabChange={setGalleryMediaTab}
                         video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl, width: galleryVideo.width, height: galleryVideo.height } : null}
+                        editableTitle={!!activeGallery || !!event.parentId}
                     />
                 ) : isClassicGallery ? (
                     <>
@@ -740,6 +775,8 @@ function EventPageContent() {
                             <ConfettiCoupleSection
                                 title={event.parentId ? parentInfo.title || event.title : event.title}
                                 category={event.parentId ? parentInfo.category || event.category : event.category}
+                                // The couple belongs to the whole event: kept on the main gallery
+                                couple={(event.parentId ? parentInfo.themeContent : event.themeContent)?.couple}
                                 video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
                                 coverImage={displayEvent.coverImage}
                                 coverImageStyle={coverImageStyle(displayEvent)}
@@ -775,6 +812,8 @@ function EventPageContent() {
                                 activeTab={galleryMediaTab}
                                 onTabChange={setGalleryMediaTab}
                                 video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
+                                editableTitle={!!activeGallery || !!event.parentId}
+                                messageElsewhere={displayEvent.templateId === "periwinkle"}
                             />
                         )}
                     </>
@@ -980,6 +1019,8 @@ function EventPageContent() {
                 "--event-template-border": templateChrome.border,
             } as React.CSSProperties}
         >
+            {/* Edit mode: the theme's pencils (EditChip) show only inside this */}
+            <GuestEditSpots.Provider value={isEditing ? { galleryId: (activeGallery || event).id } : null}>
             <TemplateComponent
                 event={displayEvent}
                 // Classic White keeps the main event's title (and its theme line) on the cover in every album
@@ -1002,6 +1043,18 @@ function EventPageContent() {
             >
                 {renderContent()}
             </TemplateComponent>
+            </GuestEditSpots.Provider>
+            {isEditing && user && (
+                <>
+                    {!guestEdit.viewingAsGuest && <div aria-hidden="true" className="h-44 lg:h-28" />}
+                    <GuestEditBar
+                        galleryId={(activeGallery || event).id}
+                        templateId={displayEvent.templateId}
+                        userId={user.uid}
+                        photos={photoItems}
+                    />
+                </>
+            )}
         </main>
     );
 }

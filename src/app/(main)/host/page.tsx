@@ -79,6 +79,7 @@ import {
     HardDrive,
     SlidersHorizontal,
     BookImage,
+    Monitor,
 } from "lucide-react";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -105,8 +106,6 @@ import {
     getUserById,
     getProfileCard,
     getApprovedSharedEventsForUser,
-    saveCoverUsagePhoto,
-    deleteCoverUsagePhoto,
     updatePhotosOrder,
     updateSubEventsOrder,
 	    getEventFavouritePhotos,
@@ -123,6 +122,12 @@ import {
 	type DashboardEventStats,
 	} from "@/lib/database";
 import { uploadEventImage, validateVideoFile } from "@/lib/storage";
+import { removeEventCover, uploadEventCover } from "@/lib/eventCoverUpload";
+import { eventDateInputValue } from "../../../../shared/text/eventDate";
+import { comingSoonThemes, pickableThemes } from "../../../../shared/themes/activeThemes";
+import { clampCoverZoom, dragCoverFocus, focusToOffsets } from "../../../../shared/themes/coverFocus";
+import { coverImageStyle } from "@/lib/coverStyle";
+import { GUEST_EDIT_ENABLED } from "@/components/guestEdit/guestEditStore";
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
 import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDetails } from "@/lib/uploaders";
@@ -666,15 +671,44 @@ const getPickerTemplateCategoryForEventCategory = (category?: string) => {
     return getTemplateCategoryForEventCategory(category);
 };
 
-// Themes a host can pick for an event of this category (hidden themes left out).
-// Pass the event's current theme so a hidden one still shows (first) as the current choice.
-const getTemplatesForEventCategory = (category?: string, currentTemplateId?: string) => {
-    const templateCategory = getPickerTemplateCategoryForEventCategory(category);
-    const templates = TEMPLATE_THEMES.filter((theme) => theme.category === templateCategory && !isTemplateHidden(theme.id));
-    const current = isTemplateHidden(currentTemplateId) ? TEMPLATE_THEMES.find((theme) => theme.id === currentTemplateId) : undefined;
-    if (current) return [current, ...templates];
-    return templates;
-};
+// Themes a host can pick for an event: the active ones (shared/themes/activeThemes.ts), the same for every event type.
+// Pass the event's current theme so one that isn't active still shows (first) as the current choice.
+const getTemplatesForEventCategory = (_category?: string, currentTemplateId?: string) =>
+    pickableThemes(TEMPLATE_THEMES, currentTemplateId);
+
+// The event type's own themes that can't be picked yet: the pickers show them greyed out as "Coming soon"
+const getComingSoonTemplatesForEventCategory = (category?: string, currentTemplateId?: string) =>
+    comingSoonThemes(TEMPLATE_THEMES, getPickerTemplateCategoryForEventCategory(category), isTemplateHidden, currentTemplateId);
+
+function ComingSoonTemplateRows({ templates }: { templates: typeof TEMPLATE_THEMES }) {
+    if (templates.length === 0) return null;
+    return (
+        <>
+            <p className="mt-2 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]">Coming soon</p>
+            {templates.map((template) => (
+                <div
+                    key={template.id}
+                    aria-disabled="true"
+                    className="flex cursor-not-allowed items-center justify-between rounded-2xl border-2 border-[var(--site-border)] bg-[var(--site-bg)]/50 p-3 opacity-50"
+                >
+                    <div className="flex flex-1 items-center gap-3">
+                        <div
+                            className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--site-tint)]/10"
+                            style={{ backgroundColor: template.background?.dark || "#000" }}
+                        >
+                            <div className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: template.accent || "#fff" }} />
+                        </div>
+                        <div className="mr-2 flex-1">
+                            <div className="font-outfit text-sm font-bold text-[var(--site-subtle)]">{template.label}</div>
+                            <div className="mt-0.5 truncate font-inter text-[11px] text-[var(--site-muted)]">{template.desc}</div>
+                        </div>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-[var(--site-gold)]/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--site-gold-text)]">Coming soon</span>
+                </div>
+            ))}
+        </>
+    );
+}
 
 type EventDetailLog = {
     id: string;
@@ -1405,54 +1439,6 @@ function DashboardContent() {
             isMounted = false;
         };
     }, [selectedMainEventId, selectedMainEventLegacyId, manageLevel]);
-
-    const compressImage = async (file: File): Promise<File> => {
-        // Only compress if larger than 5MB
-        if (file.size < 5 * 1024 * 1024) return file;
-
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.src = URL.createObjectURL(file);
-            img.onload = () => {
-                const canvas = document.createElement("canvas");
-                let width = img.width;
-                let height = img.height;
-
-                // Max dimension 2500px for web display
-                const MAX_DIM = 2500;
-                if (width > height) {
-                    if (width > MAX_DIM) {
-                        height *= MAX_DIM / width;
-                        width = MAX_DIM;
-                    }
-                } else {
-                    if (height > MAX_DIM) {
-                        width *= MAX_DIM / height;
-                        height = MAX_DIM;
-                    }
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext("2d");
-                ctx?.drawImage(img, 0, 0, width, height);
-
-                canvas.toBlob(
-                    (blob) => {
-                        if (blob) {
-                            resolve(new File([blob], file.name, { type: "image/jpeg" }));
-                        } else {
-                            resolve(file);
-                        }
-                    },
-                    "image/jpeg",
-                    0.85 // High quality but significantly smaller filesize
-                );
-                URL.revokeObjectURL(img.src);
-            };
-            img.onerror = (err) => reject(err);
-        });
-    };
 
     const fetchUserEvents = async () => {
         if (!user || !user.uid) return;
@@ -2815,20 +2801,14 @@ function DashboardContent() {
             };
         }
 
+        // The same focus point and zoom the guest pages use (shared/themes/coverFocus.ts, issue #64)
         const isDraftTarget = coverPositionEvent?.id === evt.id;
-        const x = isDraftTarget ? coverDraft.coverOffsetX : (evt.coverOffsetX || 0);
-        const y = isDraftTarget ? coverDraft.coverOffset : (evt.coverOffset || 0);
-        const scale = isDraftTarget ? coverDraft.coverScale : (evt.coverScale || 1);
         return {
             position: "absolute",
-            left: 0,
-            right: 0,
-            top: -50,
+            inset: 0,
             width: "100%",
-            height: "calc(100% + 100px)",
-            objectFit: "cover",
-            transform: `translate3d(${x}px, ${y}px, 0) scale(${scale})`,
-            transformOrigin: "center",
+            height: "100%",
+            ...coverImageStyle({ coverMode: "fill", ...(isDraftTarget ? coverDraft : evt) }),
         };
     };
 
@@ -2856,29 +2836,10 @@ function DashboardContent() {
     const openCoverPosition = (targetEvent: Event) => {
         setCoverPositionEvent(targetEvent);
         setCoverDraft({
-            coverOffset: targetEvent.coverOffset || 0,
-            coverOffsetX: targetEvent.coverOffsetX || 0,
-            coverScale: targetEvent.coverScale || 1,
+            coverOffset: Number(targetEvent.coverOffset || 0),
+            coverOffsetX: Number(targetEvent.coverOffsetX || 0),
+            coverScale: Number(targetEvent.coverScale || 1),
         });
-    };
-
-    const getCoverDragLimits = (scale = coverDraft.coverScale) => {
-        const rect = coverPreviewRef.current?.getBoundingClientRect();
-        const width = rect?.width || 1;
-        const height = rect?.height || 1;
-        return {
-            x: Math.max(0, (width * scale - width) / 2),
-            y: 50 + Math.max(0, (height * scale - height) / 2),
-        };
-    };
-
-    const clampCoverDraft = (draft: typeof coverDraft) => {
-        const limits = getCoverDragLimits(draft.coverScale);
-        return {
-            coverScale: draft.coverScale,
-            coverOffsetX: Math.min(Math.max(draft.coverOffsetX, -limits.x), limits.x),
-            coverOffset: Math.min(Math.max(draft.coverOffset, -limits.y), limits.y),
-        };
     };
 
     const handleCoverPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -2896,12 +2857,16 @@ function DashboardContent() {
     const handleCoverPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
         const start = coverDragStartRef.current;
         if (!start || start.pointerId !== event.pointerId) return;
-        const nextDraft = {
-            ...coverDraft,
-            coverOffsetX: start.coverOffsetX + event.clientX - start.startX,
-            coverOffset: start.coverOffset + event.clientY - start.startY,
-        };
-        setCoverDraft(clampCoverDraft(nextDraft));
+        // The photo follows the pointer; the saved focus point moves the other way, in percent of the photo
+        const rect = coverPreviewRef.current?.getBoundingClientRect();
+        const focus = dragCoverFocus(
+            { x: 50 + start.coverOffsetX, y: 50 + start.coverOffset },
+            event.clientX - start.startX,
+            event.clientY - start.startY,
+            { width: rect?.width || 1, height: rect?.height || 1 },
+            coverDraft.coverScale,
+        );
+        setCoverDraft({ ...coverDraft, ...focusToOffsets(focus.x, focus.y) });
     };
 
     const handleCoverPointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -2911,10 +2876,7 @@ function DashboardContent() {
     };
 
     const adjustCoverZoom = (delta: number) => {
-        setCoverDraft(prev => {
-            const nextScale = Math.min(Math.max(Number((prev.coverScale + delta).toFixed(2)), 1), 2.5);
-            return clampCoverDraft({ ...prev, coverScale: nextScale });
-        });
+        setCoverDraft(prev => ({ ...prev, coverScale: clampCoverZoom(prev.coverScale + delta) }));
     };
 
     const handleSaveCoverPosition = async () => {
@@ -2966,16 +2928,7 @@ function DashboardContent() {
         setMessage("Removing cover picture...");
 
         try {
-            const coverUrlToRemove = targetEvent.coverImage;
-            const success = await updateEvent(targetEvent.id, { coverImage: "" });
-            if (!success) {
-                throw new Error("Failed to remove cover picture.");
-            }
-
-            const usageDeleted = await deleteCoverUsagePhoto(targetEvent.id, coverUrlToRemove);
-            if (!usageDeleted) {
-                console.warn("[Dashboard] Cover removed, but storage usage could not be synced.");
-            }
+            await removeEventCover(targetEvent.id, targetEvent.coverImage);
 
             syncCoverImageForEvent(targetEvent.id, "");
             setStatus("success");
@@ -3002,34 +2955,9 @@ function DashboardContent() {
         setStatus("uploading");
         setMessage("Optimizing and uploading cover picture...");
 
-        const optimizedFile = await compressImage(file);
-        if (optimizedFile.size !== file.size) {
-            console.log(`[Dashboard] Optimized cover: ${Math.round(file.size / 1024 / 1024 * 10) / 10}MB -> ${Math.round(optimizedFile.size / 1024 / 1024 * 10) / 10}MB`);
-        }
+        const coverUrl = await uploadEventCover(file, targetEvent.id, user?.uid || "anonymous");
 
-        const uploadResult = await uploadEventImage(optimizedFile, targetEvent.id, user?.uid || "anonymous");
-        const success = await updateEvent(targetEvent.id, { coverImage: uploadResult.url });
-
-        if (!success) {
-            throw new Error("Cover upload completed, but saving the event cover failed.");
-        }
-
-        const usageSaved = await saveCoverUsagePhoto({
-            eventId: targetEvent.id,
-            storageKey: uploadResult.publicId || uploadResult.url,
-            url: uploadResult.url,
-            userId: user?.uid || "anonymous",
-            width: uploadResult.width,
-            height: uploadResult.height,
-            size: uploadResult.bytes || optimizedFile.size,
-            format: uploadResult.format,
-        });
-
-        if (!usageSaved) {
-            console.warn("[Dashboard] Cover updated, but storage usage could not be synced.");
-        }
-
-        syncCoverImageForEvent(targetEvent.id, uploadResult.url);
+        syncCoverImageForEvent(targetEvent.id, coverUrl);
         setStatus("success");
         setMessage("Cover picture updated! ✨");
         await fetchUserEvents();
@@ -3146,19 +3074,7 @@ function DashboardContent() {
         }
     };
 
-    const toDateInputValue = (value?: string) => {
-        if (!value) return "";
-        const trimmed = value.trim();
-        if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-
-        const parsed = new Date(trimmed);
-        if (Number.isNaN(parsed.getTime())) return "";
-
-        const year = parsed.getFullYear();
-        const month = String(parsed.getMonth() + 1).padStart(2, "0");
-        const day = String(parsed.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
-    };
+    const toDateInputValue = eventDateInputValue;
 
     const getDaysInMonth = (month: number, year: number) => new Date(year, month + 1, 0).getDate();
 
@@ -4448,6 +4364,16 @@ function DashboardContent() {
                                                     </div>
                                                 </div>
                                             )}
+                                            {!coverPositionEvent && GUEST_EDIT_ENABLED && (
+                                                // Phones can have their own cover (shared/themes/phoneCover.ts): this one is the computer cover
+                                                <div
+                                                    className="site-noir absolute left-3 top-3 z-10 flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white/90 backdrop-blur-md sm:left-6 sm:top-5"
+                                                    title="Phones show the phone cover: set it in the EveBash app, or in Preview Guest Theme (Cover, Phone tab)."
+                                                >
+                                                    <Monitor className="h-3.5 w-3.5" aria-hidden="true" />
+                                                    Computer cover
+                                                </div>
+                                            )}
                                             {!coverPositionEvent && (
                                             // On the cover photo's dark top edge, so they keep the dark look's colours
                                             <div className="site-noir absolute right-3 top-3 z-10 flex items-start gap-0.5 sm:right-6 sm:top-5 sm:gap-2">
@@ -4854,14 +4780,15 @@ function DashboardContent() {
 
                                                         <button
                                                             type="button"
-                                                            onClick={() => window.open(`/events/${encodeURIComponent(selectedMainEvent.id)}`, '_blank', 'noopener,noreferrer')}
+                                                            // With edit mode on (todo #11) the guest page opens ready to edit
+                                                            onClick={() => window.open(`/events/${encodeURIComponent(selectedMainEvent.id)}${GUEST_EDIT_ENABLED ? "?edit=1" : ""}`, '_blank', 'noopener,noreferrer')}
                                                             className="flex w-full items-center gap-4 rounded-2xl border border-[var(--site-gold)]/40 bg-[var(--site-gold)]/10 px-5 py-4 text-left transition-colors hover:bg-[var(--site-gold)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)]/60"
                                                         >
                                                             <Eye className="h-6 w-6 shrink-0 text-[var(--site-gold-text)]" />
                                                             <span className="min-w-0">
                                                                 <span className="block font-serif text-base font-bold leading-tight text-[var(--site-text)] sm:text-lg">Preview Guest Theme</span>
                                                                 <span className="mt-1 block text-[11px] font-bold uppercase leading-snug tracking-widest text-[var(--site-muted)]">
-                                                                    See how guests view your {designTemplateLabel} theme
+                                                                    {GUEST_EDIT_ENABLED ? "See and edit" : "See"} how guests view your {designTemplateLabel} theme
                                                                 </span>
                                                             </span>
                                                         </button>
@@ -5097,6 +5024,7 @@ function DashboardContent() {
                                                         </div>
                                                     );
                                                 })}
+                                                <ComingSoonTemplateRows templates={getComingSoonTemplatesForEventCategory(eventType)} />
                                             </div>
                                         </div>
 
@@ -6356,6 +6284,7 @@ function DashboardContent() {
                                             </div>
                                         );
                                     })}
+                                    <ComingSoonTemplateRows templates={getComingSoonTemplatesForEventCategory(templateTargetEvent.category, templateTargetEvent.templateId)} />
                                 </div>
                             </motion.div>
                         </motion.div>

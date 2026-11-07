@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MidnightColors, Fonts } from '../../../constants/theme';
-import { getPickerTemplatesForEventCategory } from '../../../constants/templates';
+import { getComingSoonTemplatesForEventCategory, getPickerTemplatesForEventCategory } from '../../../constants/templates';
+import { ComingSoonTemplates } from '../ComingSoonTemplates';
 
 interface TemplateSelectionModalProps {
   visible: boolean;
@@ -31,6 +32,7 @@ export function TemplateSelectionModal({
 
   const category = event?.category || 'Wedding';
   const templates = getPickerTemplatesForEventCategory(category, event?.templateId);
+  const comingSoon = getComingSoonTemplatesForEventCategory(category, event?.templateId);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -98,6 +100,7 @@ export function TemplateSelectionModal({
             {templates.length === 0 && (
               <Text style={{ color: '#fff', textAlign: 'center', marginTop: 20 }}>No templates available.</Text>
             )}
+            <ComingSoonTemplates templates={comingSoon} isDark={isDark} styles={styles} />
           </ScrollView>
         </View>
       </View>

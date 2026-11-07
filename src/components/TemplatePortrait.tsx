@@ -11,6 +11,7 @@ import { portraitDisplay } from "@/components/portrait/portraitFonts";
 import { useFitOneLine } from "@/components/portrait/useFitOneLine";
 import { portraitIntro, portraitIntroJoinsDate } from "../../shared/themes/portraitIntro";
 import { displayCoupleTitle } from "../../shared/text/coupleNames";
+import { EditChip, useGuestEditSpots } from "@/components/guestEdit/EditChip";
 
 interface TemplatePortraitProps {
     event: Event;
@@ -20,13 +21,16 @@ interface TemplatePortraitProps {
     mainCategory?: string;
     /** The main event's date: before it a wedding says "We're getting married", after it "Happily married since" */
     mainDate?: string;
+    /** An album: the cover's title (and a "since" date) are then its main event's, so edit mode leaves their pencils
+     *  to the gallery header and the edit bar */
+    hasParent?: boolean;
     children?: React.ReactNode;
 }
 
 // Sunlit Portrait (styles in src/app/sunlit-portrait.css): the cover photo fills the first screen with the couple's
 // names in a large serif along its bottom edge. The gallery below uses Classic White's markup (.classic-template,
 // classic-white.css) in its own warm paper and ink look (sunlit-portrait.css).
-export function TemplatePortrait({ event, mainTitle, mainCategory, mainDate, children }: TemplatePortraitProps) {
+export function TemplatePortrait({ event, mainTitle, mainCategory, mainDate, hasParent = false, children }: TemplatePortraitProps) {
     const reducedMotion = useReducedMotion();
     const location = "location" in event && typeof event.location === "string" ? event.location.trim() : "";
     const intro = portraitIntro(mainCategory || event.category, mainDate || event.date);
@@ -39,6 +43,10 @@ export function TemplatePortrait({ event, mainTitle, mainCategory, mainDate, chi
     const titleRef = useRef<HTMLHeadingElement>(null);
     useFitOneLine(titleRef, title);
     const isFit = event.coverMode === "fit";
+    // Edit mode (todo #11): pencils on the cover, title and date; the host's view only, guests see none of it
+    const editing = useGuestEditSpots();
+    const editTitle = !hasParent;
+    const editDate = !(hasParent && joinsDate);
 
     const scrollToContent = () => {
         document.getElementById("event-content")?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth" });
@@ -65,8 +73,16 @@ export function TemplatePortrait({ event, mainTitle, mainCategory, mainDate, chi
                     <div className="portrait-hero__empty" />
                 )}
                 <div className="portrait-hero__shade" aria-hidden="true" />
+                {/* Below the navbar, which sits on the cover */}
+                <EditChip field="cover" label={event.coverImage ? "Cover" : "Add cover photo"} adding={!event.coverImage} style={{ top: 84, right: 20 }} />
 
                 <div className="portrait-hero__text">
+                    {editing && (editTitle || editDate) && (
+                        <div className="mb-3 flex flex-wrap gap-2">
+                            {editTitle && <EditChip field="title" label="Title" />}
+                            {editDate && <EditChip field="date" label={event.date?.trim() ? "Date" : "Add date"} adding={!event.date?.trim()} />}
+                        </div>
+                    )}
                     {(intro || details) && (
                         <p className="portrait-hero__details">
                             {intro && <span>{intro}</span>}

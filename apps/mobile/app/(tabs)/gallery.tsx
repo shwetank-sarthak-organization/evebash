@@ -27,11 +27,12 @@ import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { formatStorageSize, getPlanDetails, getUsagePercent } from '@/lib/planLimits';
-import { EVENT_PLACEHOLDER_IMAGES } from '@/lib/eventCovers';
+import { EVENT_PLACEHOLDER_IMAGES, withPhoneCover } from '@/lib/eventCovers';
 import { supabase } from '@/lib/supabase';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { EventGrid, getEventGridCardWidth } from '../../constants/layout';
-import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory, isTemplateHidden } from '../../constants/templates';
+import { getComingSoonTemplatesForEventCategory, getDefaultTemplateForEventCategory, getPickerTemplatesForEventCategory } from '../../constants/templates';
+import { ComingSoonTemplates } from '../../components/event/ComingSoonTemplates';
 import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
 import { BottomSheet, BottomSheetHeader } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
@@ -528,7 +529,7 @@ export default function PortfolioTabScreen() {
         title={event.title}
         date={event.date}
         category={event.category}
-        coverImage={event.coverImage}
+        coverImage={withPhoneCover(event).coverImage}
         tall={isSharedCard}
         onPress={() => router.push(`/events/${event.id}?mode=admin`)}
       >
@@ -1072,7 +1073,7 @@ export default function PortfolioTabScreen() {
 
             {templateVisible ? (
               <ScrollView showsVerticalScrollIndicator={false} style={styles.templateModalContent}>
-                {MOBILE_TEMPLATE_THEMES.filter((template) => !isTemplateHidden(template.id) || template.id === (targetEvent?.templateId || 'hero')).map((template) => {
+                {getPickerTemplatesForEventCategory(targetEvent?.category, targetEvent?.templateId || 'hero').map((template) => {
                   const isActive = (targetEvent?.templateId || 'hero') === template.id;
                   return (
                     <TouchableOpacity
@@ -1108,6 +1109,7 @@ export default function PortfolioTabScreen() {
                     </TouchableOpacity>
                   );
                 })}
+                <ComingSoonTemplates templates={getComingSoonTemplatesForEventCategory(targetEvent?.category, targetEvent?.templateId)} isDark={isDark} styles={styles} />
               </ScrollView>
             ) : (
               <View style={styles.optionsList}>

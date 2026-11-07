@@ -6,6 +6,7 @@ import { GalleryHighlightVideo } from '@/components/event/GalleryHighlightVideo'
 import type { GalleryVideo } from '@/lib/database';
 import { coupleInitials } from '../../../../shared/text/coupleNames';
 import { RoyalCrest, RoyalPlaqueCorner, RoyalTitleRule } from './RoyalOrnaments';
+import { EditChip, useGuestEditSpots } from '@/components/event/guestEdit/EditChip';
 import type { RoyalFontSet } from './royalFonts';
 
 // Top of the gallery section in Royal Emerald, from the website (src/components/royal/RoyalGalleryHeader.tsx):
@@ -43,6 +44,8 @@ export function RoyalGalleryHeader({
 }) {
   const initials = coupleTitle ? coupleInitials(coupleTitle) : null;
   const welcome = message?.trim();
+  // Edit mode (todo #11): pencils on the video and the message, or a place to add them
+  const editing = useGuestEditSpots();
 
   return (
     <View style={local.wrap} accessibilityLabel={`${title} gallery`}>
@@ -54,7 +57,13 @@ export function RoyalGalleryHeader({
         <View style={local.ruleSlot}><RoyalTitleRule flip /></View>
       </View>
 
-      {video && <GalleryHighlightVideo video={video} title={title} selectedTemplate={selectedTemplate} />}
+      {video && (editing ? (
+        <View>
+          <GalleryHighlightVideo video={video} title={title} selectedTemplate={selectedTemplate} />
+          <EditChip field="video" label="Video" at={{ top: 10, right: 10 }} />
+        </View>
+      ) : <GalleryHighlightVideo video={video} title={title} selectedTemplate={selectedTemplate} />)}
+      {!video && <EditChip field="video" label="Add highlight video" adding style={{ marginTop: 14 }} />}
 
       {!!welcome && (
         <View style={local.plaque}>
@@ -72,8 +81,10 @@ export function RoyalGalleryHeader({
           <View style={[local.plaqueDiamond, { left: -7 }]} />
           <View style={[local.plaqueDiamond, { right: -7 }]} />
           <Text style={[local.plaqueText, { fontFamily: fonts.serif }]}>{welcome}</Text>
+          <EditChip field="message" label="Message" at={{ top: 6, right: 10 }} />
         </View>
       )}
+      {!welcome && <EditChip field="message" label="Add welcome message" adding style={{ marginTop: 14 }} />}
 
       <View style={local.sideRow}>
         <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" style={local.side} activeOpacity={0.8}>

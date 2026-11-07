@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { ArrowLeft, Check, Play, Share2 } from "lucide-react";
 import { HLSVideoPlayer } from "@/components/ui/HLSVideoPlayer";
+import { EditChip, useGuestEditSpots } from "@/components/guestEdit/EditChip";
 
 // Top of the gallery section in the Classic White design (styles in src/app/classic-white.css). With a gallery video
 // the text column is as tall as the video on its right: Back / Share at the top, the gallery name, date and the host's
@@ -36,6 +37,11 @@ interface ClassicGalleryHeaderProps {
     onTabChange: (tab: MediaTab) => void;
     /** Shown only when the host has chosen a gallery video for this page */
     video?: ClassicGalleryVideo | null;
+    /** The title is this gallery's own name (an album's), so edit mode puts a pencil on it; the main gallery's is
+     *  just "Home" and its title is on the cover */
+    editableTitle?: boolean;
+    /** The theme shows the gallery message somewhere else (Periwinkle Script's cover card): no message pencil here */
+    messageElsewhere?: boolean;
 }
 
 function ClassicVideoFrame({ video, title }: { video: ClassicGalleryVideo; title: string }) {
@@ -65,6 +71,7 @@ function ClassicVideoFrame({ video, title }: { video: ClassicGalleryVideo; title
                         </span>
                     </button>
                 )}
+                <EditChip field="video" label="Video" style={{ top: 12, right: 12 }} />
             </div>
             <figcaption className="classic-gh__caption">Highlight film</figcaption>
         </figure>
@@ -84,7 +91,13 @@ export function ClassicGalleryHeader({
     activeTab,
     onTabChange,
     video,
+    editableTitle = false,
+    messageElsewhere = false,
 }: ClassicGalleryHeaderProps) {
+    const welcome = message?.trim();
+    // Edit mode (todo #11): pencils on the album's title, the message and the video, or places to add them
+    const editing = useGuestEditSpots();
+
     return (
         <section className={video ? "classic-gh classic-gh--video" : "classic-gh"} aria-label={`${title} gallery`}>
             <div className="classic-gh__text">
@@ -102,7 +115,16 @@ export function ClassicGalleryHeader({
                 <div className="classic-gh__middle">
                     <h2 className="classic-gh__title">{title}</h2>
                     {details && <p className="classic-gh__details">{details}</p>}
-                    {message?.trim() && <p className="classic-gh__message">&ldquo;{message.trim()}&rdquo;</p>}
+                    {welcome && <p className="classic-gh__message">&ldquo;{welcome}&rdquo;</p>}
+                    {editing && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            {editableTitle && <EditChip field="title" label="Title" />}
+                            {!messageElsewhere && (
+                                <EditChip field="message" label={welcome ? "Message" : "Add welcome message"} adding={!welcome} />
+                            )}
+                            {!video && <EditChip field="video" label="Add highlight video" adding />}
+                        </div>
+                    )}
                 </div>
 
                 <div className="classic-gh__tabs" role="group" aria-label="Photos or videos">

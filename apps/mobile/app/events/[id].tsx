@@ -11,7 +11,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Button } from '@/components/ui/Button';
-import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, getMemberDirectory, GuestProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery, getGalleryVideo, setGalleryVideo, type GalleryVideo } from '@/lib/database';
+import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, getMemberDirectory, GuestProfile, removeGuestChatPermission, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery, getGalleryVideo, setGalleryVideo, type GalleryVideo } from '@/lib/database';
 import { confirmDenyRequest } from '@/lib/denyRequest';
 import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDetails } from '@/lib/uploaders';
 import { useAuth } from '@/context/AuthContext';
@@ -23,8 +23,13 @@ import { albumApi } from '../../lib/albumApi';
 import PhotoViewer from '../../components/PhotoViewer';
 import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../../constants/templates';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadEventImage, uploadEventMedia } from '@/lib/storage';
-import * as ImageManipulator from 'expo-image-manipulator';
+import { uploadEventMedia } from '@/lib/storage';
+import { COVER_PICKER_OPTIONS, NO_PHONE_COVER, RESET_COVER_POSITION, RESET_PHONE_COVER_POSITION, removeEventCover, uploadEventCover } from '@/lib/eventCoverUpload';
+import { GUEST_EDIT_ENABLED, useGuestEdit } from '../../components/event/guestEdit/useGuestEdit';
+import { GuestEditBar } from '../../components/event/guestEdit/GuestEditBar';
+import { EditChip, GuestEditSpots } from '../../components/event/guestEdit/EditChip';
+import { coverContentPosition, coverZoomStyle } from '@/lib/coverStyle';
+import { focusToOffsets } from '../../../../shared/themes/coverFocus';
 import { subscribeToUploadQueue, addToUploadQueue, retryUploadItem, cancelUploadItem, clearFinishedUploads, resetUploadQueue, UploadQueueItem, WAITING_FOR_CONNECTION, uploadErrorMessage } from '@/lib/uploadQueue';
 import { validateVideoAsset } from '@/lib/videoValidation';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -32,7 +37,8 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import Sortable from 'react-native-sortables';
 import { supabase } from '@/lib/supabase';
 import { getGridThumbnail } from '@/lib/imageUrl';
-import { getEventCoverSource, resolveEventCoverImage } from '@/lib/eventCovers';
+import { getEventCoverSource, resolveEventCoverImage, withPhoneCover } from '@/lib/eventCovers';
+import { COVER_FIELD_NAMES, hasPhoneFraming, hasPhonePhoto } from '../../../../shared/themes/phoneCover';
 import { getPlanDetails, getUsagePercent } from '@/lib/planLimits';
 import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 
@@ -810,7 +816,14 @@ export default function EventDetailScreen() {
     return (value || '').trim().toLowerCase();
   }, []);
 
-  const [event, setEvent] = useState<DatabaseEvent | null>(null);
+  // Preview Guest Theme's edit mode (todo #11): while the host edits, the guest view shows their unsaved changes.
+  // Only the host view's Preview Guest Theme starts it; otherwise the loaded event is used as it is.
+  const guestEdit = useGuestEdit();
+  const [isAdminViewActive, setIsAdminViewActive] = useState(mode === 'admin');
+  const isEditingGuestView = guestEdit.active && !isAdminViewActive;
+  const [loadedEvent, setEvent] = useState<DatabaseEvent | null>(null);
+  const applyGuestEdit = guestEdit.apply;
+  const event = React.useMemo(() => isEditingGuestView ? applyGuestEdit(loadedEvent) : loadedEvent, [applyGuestEdit, isEditingGuestView, loadedEvent]);
   const [selectedGuest, setSelectedGuest] = useState<GuestLog | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<GuestLog | null>(null);
   const [selectedGuestProfile, setSelectedGuestProfile] = useState<GuestProfile | null>(null);
@@ -819,7 +832,8 @@ export default function EventDetailScreen() {
   const [selectedRequestProfile, setSelectedRequestProfile] = useState<GuestProfile | null>(null);
   const [loadingRequestProfile, setLoadingRequestProfile] = useState(false);
   const [showRequestInfo, setShowRequestInfo] = useState(false);
-  const [subEvents, setSubEvents] = useState<DatabaseEvent[]>([]);
+  const [loadedSubEvents, setSubEvents] = useState<DatabaseEvent[]>([]);
+  const subEvents = React.useMemo(() => isEditingGuestView ? loadedSubEvents.map((gallery) => applyGuestEdit(gallery)) : loadedSubEvents, [applyGuestEdit, isEditingGuestView, loadedSubEvents]);
   const [loading, setLoading] = useState(true);
   // What this viewer may do with the link (open_gallery)
   const [galleryAccess, setGalleryAccess] = useState<GalleryAccess | null>(null);
@@ -967,7 +981,6 @@ export default function EventDetailScreen() {
   // Decide which view to show
   // We show Admin view only when the route asks for it and the current user can manage this event.
   // Otherwise, we default to the premium Visitor view.
-  const [isAdminViewActive, setIsAdminViewActive] = useState(mode === 'admin');
   const showAdminView = isAdminViewActive && canManageEvent;
   // Read by the upload-queue listener, which is set up once per gallery
   const showAdminViewRef = React.useRef(showAdminView);
@@ -1102,6 +1115,18 @@ export default function EventDetailScreen() {
     offsetXRef.current = tempCoverOffsetX;
   }, [tempCoverOffsetX]);
 
+  // The host view's cover, and themes without a cover of their own, shift the photo by pixels inside the room the
+  // zoom leaves. The saved position is a focus point in percent (shared/themes/coverFocus.ts, issue #64): 0 is the
+  // middle and ±50 an edge of the photo, which is the most this cover can shift.
+  const coverShiftRoom = React.useCallback((scale: number) => ({
+    y: 50 + (heroHeight * scale - heroHeight) / 2,
+    x: (SCREEN_WIDTH * scale - SCREEN_WIDTH) / 2,
+  }), [heroHeight]);
+  const coverShift = (offsetY: number, offsetX: number, scale: number) => {
+    const room = coverShiftRoom(scale);
+    return [{ translateY: -(offsetY / 50) * room.y }, { translateX: -(offsetX / 50) * room.x }];
+  };
+
   const panResponder = React.useMemo(() => {
     let startOffsetY = 0;
     let startOffsetX = 0;
@@ -1113,20 +1138,18 @@ export default function EventDetailScreen() {
         startOffsetX = offsetXRef.current;
       },
       onPanResponderMove: (evt, gestureState) => {
-        // Vertical offset has a base limit of 50, and scales with scaleFactor
-        const limitY = 50 + (heroHeight * scaleRef.current - heroHeight) / 2;
-        // Horizontal offset limit is strictly determined by extra width of scaling factor
-        const limitX = (SCREEN_WIDTH * scaleRef.current - SCREEN_WIDTH) / 2;
+        // The photo follows the finger, so the focus point moves the other way (one pixel of drag, one of shift)
+        const room = coverShiftRoom(scaleRef.current);
+        const offsetY = room.y > 0 ? startOffsetY - (gestureState.dy / room.y) * 50 : startOffsetY;
+        const offsetX = room.x > 0 ? startOffsetX - (gestureState.dx / room.x) * 50 : startOffsetX;
+        const next = focusToOffsets(50 + offsetX, 50 + offsetY);
 
-        const nextOffsetY = Math.min(Math.max(startOffsetY + gestureState.dy, -limitY), limitY);
-        const nextOffsetX = Math.min(Math.max(startOffsetX + gestureState.dx, -limitX), limitX);
-
-        setTempCoverOffset(nextOffsetY);
-        setTempCoverOffsetX(nextOffsetX);
+        setTempCoverOffset(next.coverOffset);
+        setTempCoverOffsetX(next.coverOffsetX);
       },
       onPanResponderRelease: () => {}
     });
-  }, [heroHeight]);
+  }, [coverShiftRoom]);
 
   // Modals
   const [showSubEventModal, setShowSubEventModal] = useState(false);
@@ -1272,7 +1295,8 @@ export default function EventDetailScreen() {
   const [showShareModal, setShowShareModal] = useState(share === 'true');
   const [showApproved, setShowApproved] = useState(false);
 
-  const [activeSubEvent, setActiveSubEvent] = useState<DatabaseEvent | null>(null);
+  const [loadedActiveSubEvent, setActiveSubEvent] = useState<DatabaseEvent | null>(null);
+  const activeSubEvent = React.useMemo(() => isEditingGuestView ? applyGuestEdit(loadedActiveSubEvent) : loadedActiveSubEvent, [applyGuestEdit, isEditingGuestView, loadedActiveSubEvent]);
   const [photos, setPhotos] = useState<any[]>([]);
   // Photos and videos being deleted: the card at the bottom and the "Deleting..." cover on their tiles
   const [deleteJobs, setDeleteJobs] = useState<{ id: string; name: string; mediaType: 'photo' | 'video'; status: 'deleting' | 'deleted' | 'error' }[]>([]);
@@ -1451,12 +1475,29 @@ export default function EventDetailScreen() {
   const currentActiveEvent = selectedAdminGallery !== undefined
     ? (selectedAdminGallery || event)
     : (activeSubEvent || event);
-  const activeCoverSource = getEventCoverSource(currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl, 'preview', currentActiveEvent?.category || event?.category);
+  // The app shows each gallery's phone cover (shared/themes/phoneCover.ts): the computer cover until a host sets one
+  const shownActiveEvent = currentActiveEvent ? withPhoneCover(currentActiveEvent) : currentActiveEvent;
+  const shownEvent = event ? withPhoneCover(event) : event;
+  const activeCoverSource = getEventCoverSource(shownActiveEvent?.coverImage || shownEvent?.coverImage || (event as any)?.coverUrl, 'preview', currentActiveEvent?.category || event?.category);
 
-  const activeCoverMode = currentActiveEvent ? currentActiveEvent.coverMode : event?.coverMode;
-  const activeCoverOffset = currentActiveEvent ? currentActiveEvent.coverOffset : event?.coverOffset;
-  const activeCoverOffsetX = currentActiveEvent ? currentActiveEvent.coverOffsetX : event?.coverOffsetX;
-  const activeCoverScale = currentActiveEvent ? currentActiveEvent.coverScale : event?.coverScale;
+  const activeCoverMode = shownActiveEvent ? shownActiveEvent.coverMode : shownEvent?.coverMode;
+  const activeCoverOffset = shownActiveEvent ? shownActiveEvent.coverOffset : shownEvent?.coverOffset;
+  const activeCoverOffsetX = shownActiveEvent ? shownActiveEvent.coverOffsetX : shownEvent?.coverOffsetX;
+  const activeCoverScale = shownActiveEvent ? shownActiveEvent.coverScale : shownEvent?.coverScale;
+
+  // With edit mode on (todo #11) the app's cover buttons edit the phone cover; the computer cover is set on the website.
+  // Off, they edit the one cover as before.
+  const appEditsPhoneCover = GUEST_EDIT_ENABLED;
+  const coverFieldsToSave = (fields: { image?: string; mode?: 'fit' | 'fill'; offset?: number; offsetX?: number; scale?: number }) => {
+    const names = COVER_FIELD_NAMES[appEditsPhoneCover ? 'phone' : 'computer'];
+    const saved: Record<string, string | number> = {};
+    if (fields.image !== undefined) saved[names.image] = fields.image;
+    if (fields.mode !== undefined) saved[names.mode] = fields.mode;
+    if (fields.offset !== undefined) saved[names.offset] = fields.offset;
+    if (fields.offsetX !== undefined) saved[names.offsetX] = fields.offsetX;
+    if (fields.scale !== undefined) saved[names.scale] = fields.scale;
+    return saved as Partial<DatabaseEvent>;
+  };
 
   // Image Viewer State
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -1871,7 +1912,12 @@ export default function EventDetailScreen() {
 
   const handleSubEventChange = (sub: DatabaseEvent | null) => {
     setGalleryMediaTab('photos');
-    setActiveSubEvent(sub);
+    // While editing, the theme's tabs pass albums with the unsaved changes on them: keep the saved album, the
+    // changes are shown on top of it (so Discard really takes them away)
+    const savedSub = isEditingGuestView && sub
+      ? loadedSubEvents.find((item) => item.id === sub.id) || guestEdit.galleries.find((item) => item.id === sub.id) || sub
+      : sub;
+    setActiveSubEvent(savedSub);
     if (sub?.id === 'event-partners' || sub?.id === 'find-you') {
       return;
     }
@@ -1890,6 +1936,49 @@ export default function EventDetailScreen() {
     findYouLinkHandledRef.current = true;
     handleSubEventChange({ id: 'find-you', title: 'Find You' } as any);
   }, [findYou, loading, event, showAdminView, isPublicView, hasMemberAccess]);
+
+  // Leaving edit mode goes back to the host view (asking first if there are unsaved changes). The host view then
+  // loads again: it shows hidden media and whatever was saved, which the guest view's data doesn't have.
+  const [reloadHostView, setReloadHostView] = useState(false);
+  const finishGuestEdit = useCallback(() => {
+    const leave = () => {
+      guestEdit.stop();
+      setActiveSubEvent(null);
+      setGalleryMediaTab('photos');
+      setIsAdminViewActive(true);
+      setReloadHostView(true);
+    };
+    if (!guestEdit.hasChanges) {
+      leave();
+      return;
+    }
+    appAlert('Leave without saving?', 'Your unsaved changes will be lost.', [
+      { text: 'Keep editing', style: 'cancel' },
+      { text: 'Leave', style: 'destructive', onPress: leave },
+    ]);
+  }, [guestEdit]);
+  useEffect(() => {
+    if (!reloadHostView || !isAdminViewActive) return;
+    setReloadHostView(false);
+    void loadEvent();
+    // loadEvent is recreated every render; this runs once, after the switch back to the host view
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadHostView, isAdminViewActive]);
+
+  // The gallery the edit bar and the theme's pencils edit: the album on screen, else Home (Find You and Event
+  // partners are pages, not galleries)
+  const editGalleryId = loadedActiveSubEvent && loadedActiveSubEvent.id !== 'find-you' && loadedActiveSubEvent.id !== 'event-partners'
+    ? loadedActiveSubEvent.id
+    : loadedEvent?.id;
+  const openGuestEditPanel = guestEdit.openPanelFor;
+  // The edit bar's height, so a theme with text at the bottom of its cover (Sunlit Portrait, Midnight Hero) lifts it
+  // above the bar
+  const [guestEditBarHeight, setGuestEditBarHeight] = useState(0);
+  // Midnight Hero's cover size, to zoom it around the focus point (lib/coverStyle.ts)
+  const [midnightCoverSize, setMidnightCoverSize] = useState<{ width: number; height: number }>();
+  const guestEditSpots = React.useMemo(() => isEditingGuestView && !guestEdit.viewingAsGuest && editGalleryId
+    ? { galleryId: editGalleryId, open: (galleryId: string, key: string) => openGuestEditPanel({ galleryId, key }) }
+    : null, [editGalleryId, guestEdit.viewingAsGuest, isEditingGuestView, openGuestEditPanel]);
 
   const handleEventBack = useCallback(() => {
     if (selectedAdminGallery !== undefined) {
@@ -1910,12 +1999,18 @@ export default function EventDetailScreen() {
       return;
     }
 
+    // Editing the guest view: back leaves edit mode for the host view, not the screen
+    if (isEditingGuestView) {
+      finishGuestEdit();
+      return;
+    }
+
     if (router.canGoBack()) {
       router.back();
     } else {
       router.replace('/(tabs)/dashboard');
     }
-  }, [activeSubEvent, event, loadPrimaryGalleryPhotos, router, selectedAdminGallery]);
+  }, [activeSubEvent, event, finishGuestEdit, isEditingGuestView, loadPrimaryGalleryPhotos, router, selectedAdminGallery]);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -2324,25 +2419,27 @@ export default function EventDetailScreen() {
     );
   };
 
-  const syncCoverForEvent = (targetId: string, coverImage: string) => {
+  const syncCoverForEvent = (targetId: string, coverFields: Partial<DatabaseEvent>) => {
     if (event?.id === targetId) {
-      setEvent({ ...event, coverImage });
+      setEvent({ ...event, ...coverFields });
     }
     if (selectedAdminGallery?.id === targetId) {
-      setSelectedAdminGallery({ ...selectedAdminGallery, coverImage });
+      setSelectedAdminGallery({ ...selectedAdminGallery, ...coverFields });
     }
     if (activeSubEvent?.id === targetId) {
-      setActiveSubEvent({ ...activeSubEvent, coverImage });
+      setActiveSubEvent({ ...activeSubEvent, ...coverFields });
     }
-    setSubEvents(prev => prev.map(sub => sub.id === targetId ? { ...sub, coverImage } : sub));
+    setSubEvents(prev => prev.map(sub => sub.id === targetId ? { ...sub, ...coverFields } : sub));
   };
 
   const handleSetGalleryPhotoAsCover = async (photoUrl: string, targetId: string, label: string) => {
     setUpdating(true);
     try {
-      const success = await updateEvent(targetId, { coverImage: photoUrl });
+      // With edit mode on, the phone cover (filled and centred, like a new cover)
+      const coverFields = appEditsPhoneCover ? { phoneCoverImage: photoUrl, ...RESET_PHONE_COVER_POSITION } : { coverImage: photoUrl };
+      const success = await updateEvent(targetId, coverFields);
       if (!success) throw new Error("Cover update failed");
-      syncCoverForEvent(targetId, photoUrl);
+      syncCoverForEvent(targetId, coverFields);
       setPhotoActionItem(null);
       showToast(`${label} thumbnail updated.`);
     } catch (err) {
@@ -2490,7 +2587,9 @@ export default function EventDetailScreen() {
     });
     return () => { cancelled = true; };
   }, [wantsGalleryVideo, shownGalleryId, shownGalleryVideoId]);
-  const galleryVideo = wantsGalleryVideo && loadedGalleryVideo?.galleryId === shownGalleryId ? loadedGalleryVideo.video : null;
+  const savedGalleryVideo = wantsGalleryVideo && loadedGalleryVideo?.galleryId === shownGalleryId ? loadedGalleryVideo.video : null;
+  const editedGalleryVideo = isEditingGuestView && shownGalleryId ? guestEdit.videoFor(shownGalleryId) : undefined;
+  const galleryVideo = editedGalleryVideo !== undefined ? editedGalleryVideo : savedGalleryVideo;
 
   useEffect(() => {
     const unsubscribe = subscribeToUploadQueue((items) => {
@@ -2726,9 +2825,7 @@ export default function EventDetailScreen() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
+      ...COVER_PICKER_OPTIONS,
     });
 
     if (!result.canceled) {
@@ -2737,25 +2834,18 @@ export default function EventDetailScreen() {
       setUpdating(true);
       setCoverUploadMessage("Updating your cover image...");
       try {
-        setCoverUploadMessage("Preparing your cover image...");
-        const manipulated = await ImageManipulator.manipulateAsync(
-          result.assets[0].uri,
-          [{ resize: { width: 1200 } }],
-          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-        );
-        const file = { uri: manipulated.uri, name: 'cover.jpg', type: 'image/jpeg' } as any;
-        setCoverUploadMessage("Uploading your cover image...");
-        const upload = await uploadEventImage(file, event?.id || target.id, user.uid);
+        const coverUrl = await uploadEventCover({
+          uri: result.assets[0].uri,
+          eventId: target.id,
+          storageEventId: event?.id || target.id,
+          userId: user.uid,
+          target: appEditsPhoneCover ? 'phone' : 'computer',
+          onStep: setCoverUploadMessage,
+        });
 
-        const updatedFields = {
-          coverImage: upload.url,
-          coverOffset: 0,
-          coverOffsetX: 0,
-          coverScale: 1.0
-        };
-
-        const saved = await updateEvent(target.id, updatedFields);
-        if (!saved) throw new Error('updateEvent returned false');
+        const updatedFields: Partial<DatabaseEvent> = appEditsPhoneCover
+          ? { phoneCoverImage: coverUrl, ...RESET_PHONE_COVER_POSITION }
+          : { coverImage: coverUrl, ...RESET_COVER_POSITION };
 
         if (selectedAdminGallery) {
           const newSub = { ...selectedAdminGallery, ...updatedFields };
@@ -2767,23 +2857,6 @@ export default function EventDetailScreen() {
           setSubEvents(prev => prev.map(sub => sub.id === activeSubEvent.id ? newSub : sub));
         } else if (event) {
           setEvent({ ...event, ...updatedFields });
-        }
-
-        const usageSaved = await saveCoverUsagePhoto({
-          eventId: target.id,
-          storageKey: upload.storageKey || upload.publicId || upload.url,
-          url: upload.url,
-          userId: user.uid,
-          width: upload.width,
-          height: upload.height,
-          size: upload.bytes,
-          format: upload.format,
-          mediaType: (upload.mediaType as 'photo' | 'video') || 'photo',
-          resourceType: upload.resourceType || 'image',
-        });
-
-        if (!usageSaved) {
-          console.warn("[EventDetail] Cover updated, but storage usage could not be synced.");
         }
 
         showToast("Cover image updated successfully!");
@@ -2800,13 +2873,18 @@ export default function EventDetailScreen() {
     const target = currentActiveEvent;
     if (!target) return;
 
-    if (!target.coverImage) {
+    // With edit mode on, Remove takes off the phone cover; the computer cover is removed on the website
+    if (appEditsPhoneCover && !hasPhonePhoto(target) && !hasPhoneFraming(target)) {
+      appAlert("Phone cover", "Phones show the computer cover, which is set on the website from a computer. To give phones (the app and phone browsers) their own cover, use Change Cover here.");
+      return;
+    }
+    if (!appEditsPhoneCover && !target.coverImage) {
       showToast("This gallery is already using the default cover.");
       return;
     }
 
     appAlert(
-      "Remove Cover",
+      appEditsPhoneCover ? "Remove Phone Cover" : "Remove Cover",
       "This will remove only the cover picture. Your event and galleries will stay as they are.",
       [
         { text: "Cancel", style: "cancel" },
@@ -2816,16 +2894,8 @@ export default function EventDetailScreen() {
           onPress: async () => {
             setUpdating(true);
             try {
-              const coverUrlToRemove = target.coverImage;
-              const updatedFields = {
-                coverImage: "",
-                coverOffset: 0,
-                coverOffsetX: 0,
-                coverScale: 1.0
-              };
-
-              const saved = await updateEvent(target.id, updatedFields);
-              if (!saved) throw new Error('updateEvent returned false');
+              const updatedFields: Partial<DatabaseEvent> = appEditsPhoneCover ? NO_PHONE_COVER : { coverImage: "", ...RESET_COVER_POSITION };
+              await removeEventCover(target.id, (appEditsPhoneCover ? target.phoneCoverImage : target.coverImage) || "", appEditsPhoneCover ? 'phone' : 'computer');
 
               if (selectedAdminGallery) {
                 const newSub = { ...selectedAdminGallery, ...updatedFields };
@@ -2837,11 +2907,6 @@ export default function EventDetailScreen() {
                 setSubEvents(prev => prev.map(sub => sub.id === activeSubEvent.id ? newSub : sub));
               } else if (event) {
                 setEvent({ ...event, ...updatedFields });
-              }
-
-              const usageDeleted = await deleteCoverUsagePhoto(target.id, coverUrlToRemove);
-              if (!usageDeleted) {
-                console.warn("[EventDetail] Cover removed, but storage usage could not be synced.");
               }
 
               showToast("Cover picture removed. Default cover restored.");
@@ -3382,6 +3447,8 @@ export default function EventDetailScreen() {
   const photoActionItemIsFavourite = photoActionItem ? eventFavouritePhotoIds.has(photoActionItem.id) : false;
 
   return (
+    // Edit mode: the theme's pencils (EditChip) show only inside this
+    <GuestEditSpots.Provider value={guestEditSpots}>
     <View style={[styles.safeArea, { backgroundColor: pageBackground }]}>
       <Stack.Screen
         options={{
@@ -3475,6 +3542,7 @@ export default function EventDetailScreen() {
         bounces={false}
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={!showAdminView ? [1] : undefined}
+        contentContainerStyle={isEditingGuestView && !guestEdit.viewingAsGuest ? { paddingBottom: 200 } : undefined}
         scrollEventThrottle={16}
         onScroll={RNAnimated.event([{ nativeEvent: { contentOffset: { y: scrollYAnim } } }], { useNativeDriver: true, listener: handleScrollNearEnd })}
       >
@@ -3581,7 +3649,7 @@ export default function EventDetailScreen() {
             </View>
           ) : isRoyalGuest ? (
             <RoyalHero
-              gallery={currentActiveEvent || event!}
+              gallery={shownActiveEvent || shownEvent!}
               isAlbum={!!activeSubEvent}
               coverSource={activeCoverSource}
               width={windowWidth}
@@ -3833,16 +3901,18 @@ export default function EventDetailScreen() {
             </View>
           ) : isPortraitGuest ? (
             <PortraitHero
-              gallery={currentActiveEvent || event!}
+              gallery={shownActiveEvent || shownEvent!}
               mainTitle={classicParent?.title || event!.title}
               mainCategory={classicParent?.category || event!.category}
               mainDate={classicParent?.date || event!.date}
+              isAlbum={!!activeSubEvent || !!event!.parentId}
               coverSource={activeCoverSource}
               width={windowWidth}
               height={heroHeight}
               insetTop={insets.top}
               // The pinned gallery tabs' top spacer overlaps the cover's bottom edge
-              insetBottom={Math.max(insets.bottom, stickyTabsTopInset)}
+              // In edit mode the names and the button sit above the edit bar
+              insetBottom={Math.max(insets.bottom, stickyTabsTopInset, guestEditSpots ? guestEditBarHeight : 0)}
               fonts={portraitFonts}
               onOpenGallery={() => scrollViewRef.current?.scrollTo({ y: heroHeight - stickyTabsTopInset, animated: true })}
               onBack={handleEventBack}
@@ -3850,9 +3920,10 @@ export default function EventDetailScreen() {
             />
           ) : isClassicGuest ? (
             <ClassicHero
-              gallery={currentActiveEvent || event!}
+              gallery={shownActiveEvent || shownEvent!}
               mainTitle={classicParent?.title || event!.title}
               mainCategory={classicParent?.category || event!.category}
+              isAlbum={!!activeSubEvent || !!event!.parentId}
               coverSource={activeCoverSource}
               width={windowWidth}
               height={heroHeight}
@@ -4263,6 +4334,17 @@ export default function EventDetailScreen() {
                 <Text style={styles.brutalistHeroMarkerText}>GRID</Text>
               </View>
             </View>
+          ) : (!showAdminView && event?.templateId === 'hero' && activeCoverMode !== 'fit') ? (
+            // Midnight Hero: the focus point and zoom as on the website and the other themed covers, so a cover moved
+            // left or right shows that way at 100% too (the shift below only has room once zoomed)
+            <ExpoImage
+              source={activeCoverSource}
+              style={[StyleSheet.absoluteFill, coverZoomStyle({ coverOffset: activeCoverOffset, coverOffsetX: activeCoverOffsetX, coverScale: activeCoverScale }, midnightCoverSize)]}
+              onLayout={(layoutEvent) => setMidnightCoverSize(layoutEvent.nativeEvent.layout)}
+              contentFit="cover"
+              contentPosition={coverContentPosition({ coverOffset: activeCoverOffset, coverOffsetX: activeCoverOffsetX })}
+              transition={200}
+            />
           ) : (
             <Image
               source={activeCoverSource}
@@ -4279,8 +4361,11 @@ export default function EventDetailScreen() {
                   top: -50,
                   resizeMode: 'cover',
                   transform: [
-                    { translateY: isRepositioning ? tempCoverOffset : (activeCoverOffset || 0) },
-                    { translateX: isRepositioning ? tempCoverOffsetX : (activeCoverOffsetX || 0) },
+                    ...coverShift(
+                      isRepositioning ? tempCoverOffset : Number(activeCoverOffset || 0),
+                      isRepositioning ? tempCoverOffsetX : Number(activeCoverOffsetX || 0),
+                      isRepositioning ? tempCoverScale : Number(activeCoverScale || 1.0),
+                    ),
                     { scale: isRepositioning ? tempCoverScale : (activeCoverScale || 1.0) }
                   ],
                 }
@@ -4313,6 +4398,19 @@ export default function EventDetailScreen() {
             </TouchableOpacity>
           )}
 
+          {/* With edit mode on, the cover buttons edit the phone cover (todo #11): say so under them, and where the other one is */}
+          {showAdminView && !isRepositioning && appEditsPhoneCover && (
+            <TouchableOpacity
+              style={[styles.coverControlRow, { top: (insets.top > 0 ? insets.top + 8 : 16) + 44 }]}
+              onPress={() => appAlert("Phone cover", "These buttons change the phone cover: what the EveBash app and phone browsers show. The computer cover is set on the website from a computer.")}
+              accessibilityRole="button"
+              accessibilityLabel="Phone cover. What does this mean?"
+            >
+              <IconSymbol name="iphone" size={13} color="#fff" />
+              <Text style={styles.coverControlText}>Phone cover</Text>
+              <IconSymbol name="info.circle" size={13} color="rgba(255,255,255,0.7)" />
+            </TouchableOpacity>
+          )}
           {showAdminView && !isRepositioning && (
             <View style={[styles.coverControlRow, { top: insets.top > 0 ? insets.top + 8 : 16 }]}>
               {/* Fit / Toggle */}
@@ -4321,15 +4419,10 @@ export default function EventDetailScreen() {
                 onPress={async () => {
                   const target = currentActiveEvent;
                   if (!target) return;
-                  const newMode: 'fit' | 'fill' = (target.coverMode || 'fill') === 'fill' ? 'fit' : 'fill';
+                  const newMode: 'fit' | 'fill' = ((appEditsPhoneCover ? withPhoneCover(target) : target).coverMode || 'fill') === 'fill' ? 'fit' : 'fill';
                   setUpdating(true);
                   try {
-                    const updatedFields = {
-                      coverMode: newMode,
-                      coverOffset: 0,
-                      coverOffsetX: 0,
-                      coverScale: 1.0
-                    };
+                    const updatedFields = coverFieldsToSave({ mode: newMode, offset: 0, offsetX: 0, scale: 1.0 });
 
                     const saved = await updateEvent(target.id, updatedFields);
                     if (!saved) throw new Error('updateEvent returned false');
@@ -4371,10 +4464,10 @@ export default function EventDetailScreen() {
                 <TouchableOpacity
                   style={styles.coverControlSubBtn}
                   onPress={() => {
-                    const target = currentActiveEvent;
-                    setTempCoverOffset(target?.coverOffset || 0);
-                    setTempCoverOffsetX(target?.coverOffsetX || 0);
-                    setTempCoverScale(target?.coverScale || 1.0);
+                    const target = currentActiveEvent && appEditsPhoneCover ? withPhoneCover(currentActiveEvent) : currentActiveEvent;
+                    setTempCoverOffset(Number(target?.coverOffset || 0));
+                    setTempCoverOffsetX(Number(target?.coverOffsetX || 0));
+                    setTempCoverScale(Number(target?.coverScale || 1.0));
                     setIsRepositioning(true);
                   }}
                   disabled={updating}
@@ -4452,7 +4545,8 @@ export default function EventDetailScreen() {
               </View>
             </View>
           ) : (!showAdminView && event?.templateId === 'hero') ? (
-            <View style={styles.heroHeroOverlay}>
+            // In edit mode the card and the line under it end above the edit bar
+            <View style={[styles.heroHeroOverlay, guestEditSpots && guestEditBarHeight > 0 && { bottom: guestEditBarHeight }]}>
               {/* 1. Immersive dark linear gradient overlay for ultimate depth */}
               <LinearGradient
                 colors={['rgba(0, 0, 0, 0.25)', 'rgba(0, 0, 0, 0.92)']}
@@ -4483,6 +4577,14 @@ export default function EventDetailScreen() {
                   {`— ${currentActiveEvent?.date || event.date || 'SAVE THE DATE'} —`.toUpperCase()}
                 </Text>
 
+                {/* Edit mode (todo #11): pencils on the gallery's title and date */}
+                {!!guestEditSpots && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 14 }}>
+                    <EditChip field="title" label="Title" />
+                    <EditChip field="date" label={(currentActiveEvent?.date || event.date) ? 'Date' : 'Add date'} adding={!(currentActiveEvent?.date || event.date)} />
+                  </View>
+                )}
+
                 {/* Symmetrical parallel buttons block */}
                 <View style={styles.heroActionRow}>
                   {/* Left: Gold bordered Square back/chevron icon button */}
@@ -4510,6 +4612,8 @@ export default function EventDetailScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
+
+              <EditChip field="cover" label={activeCoverSource ? 'Cover' : 'Add cover photo'} adding={!activeCoverSource} at={{ top: insets.top + 12, right: 16 }} />
 
               {/* 3. Infinite Dark Star Sign-off */}
               <View style={styles.heroBottomContent}>
@@ -5333,7 +5437,7 @@ export default function EventDetailScreen() {
 	                            }}
                             activeOpacity={0.85}
                           >
-                            <ExpoImage source={getEventCoverSource(event.coverImage, 'thumbnail', event.category)} style={styles.subImageFull} contentFit="cover" cachePolicy="memory-disk" transition={150} />
+                            <ExpoImage source={getEventCoverSource(withPhoneCover(event).coverImage, 'thumbnail', event.category)} style={styles.subImageFull} contentFit="cover" cachePolicy="memory-disk" transition={150} />
                             <LinearGradient
                               colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
                               style={StyleSheet.absoluteFillObject}
@@ -5409,7 +5513,7 @@ export default function EventDetailScreen() {
 	                                }}
                                 activeOpacity={0.85}
                               >
-                                <ExpoImage source={getEventCoverSource(sub.coverImage, 'thumbnail', sub.category || event?.category)} style={[styles.subImageFull, sub.isHidden && { opacity: 0.45 }]} contentFit="cover" cachePolicy="memory-disk" transition={150} />
+                                <ExpoImage source={getEventCoverSource(withPhoneCover(sub).coverImage, 'thumbnail', sub.category || event?.category)} style={[styles.subImageFull, sub.isHidden && { opacity: 0.45 }]} contentFit="cover" cachePolicy="memory-disk" transition={150} />
                                 <LinearGradient
                                   colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
                                   style={StyleSheet.absoluteFillObject}
@@ -6381,13 +6485,15 @@ export default function EventDetailScreen() {
                         setSelectedAdminGallery(undefined);
                         handleSubEventChange(null);
                         setIsAdminViewActive(false);
+                        // With edit mode on (todo #11) the guest view opens ready to edit
+                        if (GUEST_EDIT_ENABLED && loadedEvent) guestEdit.start(loadedEvent);
                         requestAnimationFrame(() => scrollViewRef.current?.scrollTo({ y: 0, animated: false }));
                       }}
                     >
                       <View style={styles.designInfo}>
                         <Text style={[styles.designLabel, { color: MidnightColors.gold }]}>Preview Guest Theme</Text>
                         <Text style={[styles.designValue, { color: MidnightColors.slate300, fontSize: 12, fontFamily: Fonts.inter.regular, marginTop: 2 }]}>
-                          See how guests view your {event.templateId ? MOBILE_TEMPLATE_THEMES.find(t => t.id === event.templateId)?.label ?? 'new' : 'Hero'} theme
+                          {GUEST_EDIT_ENABLED ? 'See and edit' : 'See'} how guests view your {event.templateId ? MOBILE_TEMPLATE_THEMES.find(t => t.id === event.templateId)?.label ?? 'new' : 'Hero'} theme
                         </Text>
                       </View>
                       <IconSymbol name="eye.fill" size={16} color={MidnightColors.gold} />
@@ -6485,6 +6591,7 @@ export default function EventDetailScreen() {
                     tabs={mediaTabs}
                     activeTab={galleryMediaTab}
                     onTabChange={setGalleryMediaTab}
+                    editableTitle={!!activeSubEvent || !!event.parentId}
                   />
                 )}
 
@@ -6506,6 +6613,7 @@ export default function EventDetailScreen() {
                     videoCount={String(displayedVideoCount)}
                     activeTab={galleryMediaTab}
                     onTabChange={setGalleryMediaTab}
+                    editableTitle={!!activeSubEvent || !!event.parentId}
                   />
                 )}
 
@@ -6817,6 +6925,15 @@ export default function EventDetailScreen() {
                           textAlign: 'center',
                         }
                       ]}>{activeSubEvent ? activeSubEvent.description : event.description}{(isSportsTemplate || isCyberTechTemplate || isRetroArcadeTemplate || isNeonCarnivalTemplate || isMuseumTemplate || isBrutalistTemplate || isTechSleekTemplate || isExecutiveTemplate) ? '' : ' 🤍'}</Text>
+                      {/* Edit mode (todo #11), Midnight Hero: a pencil on the message */}
+                      {event.templateId === 'hero' && (
+                        <EditChip
+                          field="message"
+                          label={(activeSubEvent ? activeSubEvent.description : event.description)?.trim() ? 'Message' : 'Add welcome message'}
+                          adding={!(activeSubEvent ? activeSubEvent.description : event.description)?.trim()}
+                          style={{ marginTop: 14 }}
+                        />
+                      )}
 
                       {isScrapbookTemplate && (
                         <View style={[styles.scrapbookInfoRule, styles.scrapbookInfoRuleBottom]}>
@@ -6834,6 +6951,10 @@ export default function EventDetailScreen() {
                     title={shownGallery?.title || event.title}
                     selectedTemplate={selectedTemplate}
                   />
+                )}
+                {/* Edit mode (todo #11), Midnight Hero: a pencil on the film, or a place to add one */}
+                {event.templateId === 'hero' && (
+                  <EditChip field="video" label={galleryVideo ? 'Video' : 'Add highlight video'} adding={!galleryVideo} style={{ marginTop: 14 }} />
                 )}
 
                 {galleryAccess === 'member' && memberCanUpload && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
@@ -7360,7 +7481,7 @@ export default function EventDetailScreen() {
                             }}
                           >
                             <ExpoImage
-                              source={getEventCoverSource(sub.coverImage || event?.coverImage, 'thumbnail', sub.category || event?.category)}
+                              source={getEventCoverSource(withPhoneCover(sub).coverImage || shownEvent?.coverImage, 'thumbnail', sub.category || event?.category)}
                               style={{ width: 48, height: 48, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.2)' }}
                               contentFit="cover"
                               transition={200}
@@ -8680,11 +8801,13 @@ export default function EventDetailScreen() {
                 setIsRepositioning(false);
                 setUpdating(true);
                 try {
-                  const updatedFields = {
-                    coverOffset: tempCoverOffset,
-                    coverOffsetX: tempCoverOffsetX,
-                    coverScale: tempCoverScale
-                  };
+                  // The phone cover gets its own framing (Fill) when it's first moved
+                  const updatedFields = coverFieldsToSave({
+                    ...(appEditsPhoneCover && { mode: 'fill' as const }),
+                    offset: tempCoverOffset,
+                    offsetX: tempCoverOffsetX,
+                    scale: tempCoverScale,
+                  });
 
                   const saved = await updateEvent(target.id, updatedFields);
                   if (!saved) throw new Error('updateEvent returned false');
@@ -8948,7 +9071,20 @@ export default function EventDetailScreen() {
         </View>
       </Modal>
       {renderDeleteProgressCard()}
+      {isEditingGuestView && editGalleryId && user?.uid && (
+        <GuestEditBar
+          edit={guestEdit}
+          galleryId={editGalleryId}
+          templateId={activeSubEvent?.templateId || event?.templateId}
+          userId={user.uid}
+          photos={photos}
+          onSelectGallery={(gallery) => handleSubEventChange(gallery.id === loadedEvent?.id ? null : gallery)}
+          onDone={finishGuestEdit}
+          onHeightChange={setGuestEditBarHeight}
+        />
+      )}
     </View>
+    </GuestEditSpots.Provider>
   );
 }
 

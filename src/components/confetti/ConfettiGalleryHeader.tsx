@@ -3,6 +3,7 @@
 import React from "react";
 import { ArrowLeft, Check, Share2 } from "lucide-react";
 import { displayCoupleTitle } from "../../../shared/text/coupleNames";
+import { EditChip, useGuestEditSpots } from "@/components/guestEdit/EditChip";
 
 // Top of the gallery section in the Confetti Circle design (styles in src/app/confetti-circle.css), in place of
 // Classic White's header: Back / Share in a thin row, then "Photo gallery | GALLERY NAME | Video gallery", where the
@@ -41,6 +42,8 @@ export function ConfettiGalleryHeader({
 }) {
     const heading = displayCoupleTitle(title?.trim() || "") || "Captured moments";
     const fullMessage = message?.trim() && message.trim().length > CONFETTI_TAG_LONG_MESSAGE ? message.trim() : "";
+    // Edit mode (todo #11): a pencil on the gallery's name (the message and video have theirs on the cover and the film)
+    const editing = useGuestEditSpots();
 
     const tab = (id: MediaTab, label: string, count: string) => (
         <button
@@ -72,6 +75,11 @@ export function ConfettiGalleryHeader({
                 <h2 className="confetti-gh__title">{heading}</h2>
                 {tab("videos", "Video gallery", videoCountLabel)}
             </div>
+            {editing && (
+                <div className="mt-4 flex justify-center">
+                    <EditChip field="title" label="Title" />
+                </div>
+            )}
 
             {fullMessage && <p className="confetti-gh__message">&ldquo;{fullMessage}&rdquo;</p>}
         </section>

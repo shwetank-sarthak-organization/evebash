@@ -25,6 +25,7 @@ import { MidnightColors, Fonts } from '@/constants/theme';
 import { EventGrid, getEventGridCardWidth } from '@/constants/layout';
 import { getUserEvents, getApprovedSharedEventsForUser, Event as DatabaseEvent } from '@/lib/database';
 import { eventDateValue } from '../../../../shared/text/eventDate';
+import { withPhoneCover } from '@/lib/eventCovers';
 
 const { width } = Dimensions.get('window');
 
@@ -223,7 +224,7 @@ export default function YourEventsScreen() {
             title={event.title}
             date={event.date}
             category={event.category}
-            coverImage={event.coverImage}
+            coverImage={withPhoneCover(event).coverImage}
             onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
           />
         ))}

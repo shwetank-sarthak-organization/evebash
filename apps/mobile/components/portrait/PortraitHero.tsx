@@ -3,9 +3,11 @@ import { View, Text, TouchableOpacity, StyleSheet, type ImageSourcePropType } fr
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { coverPosition, type ClassicHeroProps } from '@/components/classic/ClassicHero';
+import { type ClassicHeroProps } from '@/components/classic/ClassicHero';
+import { coverContentPosition, coverZoomStyle } from '@/lib/coverStyle';
 import { displayCoupleTitle } from '../../../../shared/text/coupleNames';
-import { portraitIntro } from '../../../../shared/themes/portraitIntro';
+import { portraitIntro, portraitIntroJoinsDate } from '../../../../shared/themes/portraitIntro';
+import { EditChip, useGuestEditSpots } from '@/components/event/guestEdit/EditChip';
 import { PORTRAIT, type PortraitFontSet } from './portraitFonts';
 import { PortraitBoldText } from './PortraitBoldText';
 
@@ -22,6 +24,9 @@ export interface PortraitHeroProps {
   /** The main event's category and date, which pick the small line above the names */
   mainCategory?: string;
   mainDate?: string;
+  /** An album: the cover's title (and a "since" date) are then its main event's, so edit mode leaves their pencils to
+   *  the gallery header and the edit bar */
+  isAlbum?: boolean;
   coverSource?: ImageSourcePropType | null;
   width: number;
   height: number;
@@ -33,14 +38,22 @@ export interface PortraitHeroProps {
   onShare: () => void;
 }
 
-export function PortraitHero({ gallery, mainTitle, mainCategory, mainDate, coverSource, width, height, insetTop, insetBottom, fonts, onOpenGallery, onBack, onShare }: PortraitHeroProps) {
+export function PortraitHero({ gallery, mainTitle, mainCategory, mainDate, isAlbum = false, coverSource, width, height, insetTop, insetBottom, fonts, onOpenGallery, onBack, onShare }: PortraitHeroProps) {
+  // The cover image's size, to zoom it around the focus point (lib/coverStyle.ts)
+  const [coverSize, setCoverSize] = React.useState<{ width: number; height: number }>();
   const title = displayCoupleTitle((mainTitle || gallery.title || '').trim());
   const intro = portraitIntro(mainCategory || gallery.category, mainDate || gallery.date);
   // "Happily married since" is followed by the wedding's date, even in an album with a date of its own
-  const date = ((intro.endsWith('since') ? mainDate : undefined) || gallery.date || '').trim();
+  const joinsDate = portraitIntroJoinsDate(intro);
+  const date = ((joinsDate ? mainDate : undefined) || gallery.date || '').trim();
   const isFit = gallery.coverMode === 'fit';
   // About the website's phone size; long names shrink further to stay on one line
   const titleSize = Math.round(Math.min(width * 0.2, height * 0.12, 96));
+  // Edit mode (todo #11): pencils on the cover, title and date; nothing for guests
+  const editing = useGuestEditSpots();
+  const editTitle = !isAlbum;
+  const editDate = !(isAlbum && joinsDate);
+  const ownDate = (gallery.date || '').trim();
 
   return (
     <View style={[local.screen, { width, height }]}>
@@ -50,9 +63,10 @@ export function PortraitHero({ gallery, mainTitle, mainCategory, mainDate, cover
           {isFit && <ExpoImage source={coverSource} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={30} accessible={false} />}
           <ExpoImage
             source={coverSource}
-            style={[StyleSheet.absoluteFill, !isFit && { transform: [{ scale: gallery.coverScale || 1 }] }]}
+            style={[StyleSheet.absoluteFill, coverZoomStyle(gallery, coverSize)]}
+            onLayout={(event) => setCoverSize(event.nativeEvent.layout)}
             contentFit={isFit ? 'contain' : 'cover'}
-            contentPosition={coverPosition(gallery)}
+            contentPosition={coverContentPosition(gallery)}
             transition={200}
             accessibilityLabel={title ? `Cover photo of ${title}` : 'Cover photo'}
           />
@@ -74,7 +88,16 @@ export function PortraitHero({ gallery, mainTitle, mainCategory, mainDate, cover
         </TouchableOpacity>
       </View>
 
+      {/* Under Share */}
+      <EditChip field="cover" label={coverSource ? 'Cover' : 'Add cover photo'} adding={!coverSource} at={{ top: insetTop + 62, right: 16 }} />
+
       <View style={[local.text, { bottom: insetBottom + 30 }]}>
+        {editing && (editTitle || editDate) && (
+          <View style={local.editRow}>
+            {editTitle && <EditChip field="title" label="Title" />}
+            {editDate && <EditChip field="date" label={ownDate ? 'Date' : 'Add date'} adding={!ownDate} />}
+          </View>
+        )}
         {/* On a phone the line and the date take a line each, so no heart between them (as on the website) */}
         {!!intro && <PortraitBoldText style={[local.details, { fontFamily: fonts.serif }]}>{intro}</PortraitBoldText>}
         {!!date && <PortraitBoldText style={[local.details, { fontFamily: fonts.serif }]}>{date}</PortraitBoldText>}
@@ -106,6 +129,7 @@ const local = StyleSheet.create({
   top: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between' },
   roundGlass: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,16,12,0.28)' },
   text: { position: 'absolute', left: 20, right: 84 },
+  editRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   details: { color: '#ffffff', fontSize: 21, lineHeight: 26, ...shadow },
   title: { color: '#ffffff', ...shadow, textShadowRadius: 24 },
   open: {

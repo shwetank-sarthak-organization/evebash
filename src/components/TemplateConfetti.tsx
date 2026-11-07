@@ -10,6 +10,7 @@ import { confettiDisplay } from "@/components/confetti/confettiFonts";
 import { makeSpecks } from "@/components/confetti/confettiSpecks";
 import { CONFETTI_TAG_LONG_MESSAGE } from "@/components/confetti/ConfettiGalleryHeader";
 import { displayCoupleTitle, splitCoupleNames } from "../../shared/text/coupleNames";
+import { EditChip, useGuestEditSpots } from "@/components/guestEdit/EditChip";
 
 interface TemplateConfettiProps {
     event: Event;
@@ -17,6 +18,9 @@ interface TemplateConfettiProps {
     mainTitle?: string;
     /** The main event's category, which picks the dark tag's line when the gallery has no message (default: event.category) */
     mainCategory?: string;
+    /** An album: the circle's names are then its main event's, so edit mode leaves the title pencil to the gallery
+     *  header */
+    hasParent?: boolean;
     children?: React.ReactNode;
 }
 
@@ -45,7 +49,7 @@ const SPECKS = makeSpecks({ seed: 7, count: 90, heavyAngle: Math.PI * 0.85, ligh
 // circle in the middle holding the couple's names in pink-to-orange capitals, a dark tag with a red heart and the
 // gallery's message on its top edge, and a torn-paper edge into the page. The gallery below is Classic White's
 // (.classic-template, classic-white.css), with the couple section (ConfettiCoupleSection) above its header.
-export function TemplateConfetti({ event, mainTitle, mainCategory, children }: TemplateConfettiProps) {
+export function TemplateConfetti({ event, mainTitle, mainCategory, hasParent = false, children }: TemplateConfettiProps) {
     const reducedMotion = useReducedMotion();
     const rawTitle = mainTitle || event.title;
     const couple = splitCoupleNames(rawTitle);
@@ -64,6 +68,8 @@ export function TemplateConfetti({ event, mainTitle, mainCategory, children }: T
     const longest = couple ? Math.max(couple[0].length, couple[1].length) : title.length;
     const nameSize = longest > 16 ? " confetti-hero__name--xlong" : longest > 9 ? " confetti-hero__name--long" : "";
     const isFit = event.coverMode === "fit";
+    // Edit mode (todo #11): pencils on the cover, and on the circle's names, date and the tag's message; guests see none
+    const editing = useGuestEditSpots();
 
     const scrollToContent = () => {
         document.getElementById("event-content")?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth" });
@@ -89,6 +95,8 @@ export function TemplateConfetti({ event, mainTitle, mainCategory, children }: T
                 ) : (
                     <div className="confetti-hero__empty" />
                 )}
+                {/* Below the navbar, which sits on the cover */}
+                <EditChip field="cover" label={event.coverImage ? "Cover" : "Add cover photo"} adding={!event.coverImage} style={{ top: 84, right: 20 }} />
 
                 <div className="confetti-hero__circle">
                     <div className="confetti-hero__specks" aria-hidden="true">
@@ -130,6 +138,13 @@ export function TemplateConfetti({ event, mainTitle, mainCategory, children }: T
                             <p className="confetti-hero__date confetti-hero__date--plain">{date}</p>
                         )}
                         {location && <p className="confetti-hero__place">{location}</p>}
+                        {editing && (
+                            <div className="mt-3 flex flex-wrap justify-center gap-2">
+                                {!hasParent && <EditChip field="title" label="Title" />}
+                                <EditChip field="date" label={date ? "Date" : "Add date"} adding={!date} />
+                                <EditChip field="message" label={message ? "Message" : "Add message"} adding={!message} />
+                            </div>
+                        )}
                     </div>
                 </div>
 

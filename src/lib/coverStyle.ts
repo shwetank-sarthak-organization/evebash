@@ -1,11 +1,10 @@
 import type React from "react";
-import type { Event } from "@/lib/database";
+import { coverFocus, type CoverPosition } from "../../shared/themes/coverFocus";
 
-/** Applies the host's cover settings (focus point, zoom, fit), as the dashboard cards do.
- *  Used by the Midnight Hero, Royal Emerald and Classic White guest pages. */
-export function coverImageStyle(event: Event): React.CSSProperties {
+/** Applies the host's cover settings (focus point, zoom, fit; shared/themes/coverFocus.ts): the photo fills the frame
+ *  with the focus point in view, zoomed around it. Used by the guest pages, the dashboard cards and the host page. */
+export function coverImageStyle(event: CoverPosition & { coverMode?: "fit" | "fill" | null }): React.CSSProperties {
     if (event.coverMode === "fit") return { objectFit: "contain" };
-    const x = Math.max(0, Math.min(100, 50 + (event.coverOffsetX || 0)));
-    const y = Math.max(0, Math.min(100, 50 + (event.coverOffset || 0)));
-    return { objectFit: "cover", objectPosition: `${x}% ${y}%`, transform: `scale(${event.coverScale || 1})` };
+    const { x, y, zoom } = coverFocus(event);
+    return { objectFit: "cover", objectPosition: `${x}% ${y}%`, transform: `scale(${zoom})`, transformOrigin: `${x}% ${y}%` };
 }

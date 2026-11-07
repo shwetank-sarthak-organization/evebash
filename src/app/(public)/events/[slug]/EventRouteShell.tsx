@@ -24,6 +24,7 @@ import { downloadGalleryAsZip } from "@/lib/zipDownload";
 import { getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { alertDialog, choiceDialog } from "@/components/ui/Modal";
 import { fetchEntireEventZipItems, HOME_DOWNLOAD_DIALOG, toZipItem } from "@/lib/galleryDownload";
+import { useGuestEditState, withGuestEdits } from "@/components/guestEdit/guestEditStore";
 
 interface EventRouteShellProps {
     children: React.ReactNode;
@@ -39,8 +40,14 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
     const { user, loading: authLoading } = useAuth();
     const [isPublicView, setIsPublicView] = useState(false);
     const [event, setEvent] = useState<Event | null>(null);
-    const [mainEvent, setMainEvent] = useState<Event | null>(null);
-    const [subEvents, setSubEvents] = useState<Event[]>([]);
+    const [loadedMainEvent, setMainEvent] = useState<Event | null>(null);
+    const [loadedSubEvents, setSubEvents] = useState<Event[]>([]);
+    // Preview Guest Theme's edit mode (todo #11): the menu shows the host's unsaved gallery names too. Only an
+    // event's managers can start it, so for everyone else these are the loaded galleries.
+    const guestEdit = useGuestEditState();
+    const isEditing = !isPublicView && !!loadedMainEvent && guestEdit.rootId === loadedMainEvent.id;
+    const mainEvent = useMemo(() => isEditing ? withGuestEdits(loadedMainEvent, guestEdit) : loadedMainEvent, [guestEdit, isEditing, loadedMainEvent]);
+    const subEvents = useMemo(() => isEditing ? loadedSubEvents.map((gallery) => withGuestEdits(gallery, guestEdit, "thumbnail")) : loadedSubEvents, [guestEdit, isEditing, loadedSubEvents]);
     const [isZipping, setIsZipping] = useState(false);
     const [zipProgress, setZipProgress] = useState(0);
 

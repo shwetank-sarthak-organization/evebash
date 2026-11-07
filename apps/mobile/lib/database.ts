@@ -75,6 +75,12 @@ export interface Event {
     coverOffsetX?: number;
     coverScale?: number;
     coverMode?: 'fit' | 'fill';
+    // The phone cover (app and phone browsers); empty = the cover fields above (shared/themes/phoneCover.ts)
+    phoneCoverImage?: string | null;
+    phoneCoverMode?: 'fit' | 'fill' | null;
+    phoneCoverOffset?: number | null;
+    phoneCoverOffsetX?: number | null;
+    phoneCoverScale?: number | null;
     order?: number;
     titleAlign?: 'left' | 'center' | 'right';
     hostName?: string;
@@ -330,6 +336,11 @@ function mapSqlToEvent(e: any): Event {
         coverOffset: e.cover_offset,
         coverOffsetX: e.cover_offset_x,
         coverScale: e.cover_scale,
+        phoneCoverImage: e.phone_cover_image ?? null,
+        phoneCoverMode: e.phone_cover_mode ?? null,
+        phoneCoverOffset: e.phone_cover_offset ?? null,
+        phoneCoverOffsetX: e.phone_cover_offset_x ?? null,
+        phoneCoverScale: e.phone_cover_scale ?? null,
         coverMode: e.cover_mode,
         titleAlign: e.title_align,
         vendors: e.vendors || [],
@@ -2446,6 +2457,11 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
         if (data.coverOffset !== undefined) updateObj.cover_offset = data.coverOffset;
         if (data.coverOffsetX !== undefined) updateObj.cover_offset_x = data.coverOffsetX;
         if (data.coverScale !== undefined) updateObj.cover_scale = data.coverScale;
+        if (data.phoneCoverImage !== undefined) updateObj.phone_cover_image = data.phoneCoverImage;
+        if (data.phoneCoverMode !== undefined) updateObj.phone_cover_mode = data.phoneCoverMode;
+        if (data.phoneCoverOffset !== undefined) updateObj.phone_cover_offset = data.phoneCoverOffset;
+        if (data.phoneCoverOffsetX !== undefined) updateObj.phone_cover_offset_x = data.phoneCoverOffsetX;
+        if (data.phoneCoverScale !== undefined) updateObj.phone_cover_scale = data.phoneCoverScale;
         if (data.coverMode !== undefined) updateObj.cover_mode = data.coverMode;
         if (data.order !== undefined) updateObj.order = data.order;
         if (data.joinId !== undefined) updateObj.join_id = data.joinId;
@@ -2471,6 +2487,11 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
                         cover_offset: 'coverOffset',
                         cover_offset_x: 'coverOffsetX',
                         cover_scale: 'coverScale',
+                        phone_cover_image: 'phoneCoverImage',
+                        phone_cover_mode: 'phoneCoverMode',
+                        phone_cover_offset: 'phoneCoverOffset',
+                        phone_cover_offset_x: 'phoneCoverOffsetX',
+                        phone_cover_scale: 'phoneCoverScale',
                         cover_mode: 'coverMode',
                         order: 'order',
                         title_align: 'titleAlign',

@@ -4,6 +4,7 @@ import { GalleryHighlightVideo } from '@/components/event/GalleryHighlightVideo'
 import type { GalleryVideo } from '@/lib/database';
 import { CLASSIC } from './ClassicHero';
 import type { ClassicFontSet } from './classicFonts';
+import { EditChip, useGuestEditSpots } from '@/components/event/guestEdit/EditChip';
 
 // Top of the gallery section in Classic White, from the website (src/components/classic/ClassicGalleryHeader.tsx):
 // the gallery name in capitals, the date, the host's gallery message in quotes, the highlight video in a white mat,
@@ -22,6 +23,7 @@ export function ClassicGalleryHeader({
   tabs,
   activeTab,
   onTabChange,
+  editableTitle = false,
 }: {
   title: string;
   /** Date line under the title; left out when empty */
@@ -34,16 +36,33 @@ export function ClassicGalleryHeader({
   tabs: { id: MediaTab; label: string }[];
   activeTab: MediaTab;
   onTabChange: (tab: MediaTab) => void;
+  /** The title is this gallery's own name (an album's), so edit mode puts a pencil on it; the main gallery's is just
+   *  "Home" and its title is on the cover */
+  editableTitle?: boolean;
 }) {
   const text = message?.trim();
+  // Edit mode (todo #11): pencils on the album's title, the message and the video, or places to add them
+  const editing = useGuestEditSpots();
 
   return (
     <View style={local.wrap} accessibilityLabel={`${title} gallery`}>
       <Text style={[local.title, { fontFamily: fonts.serifMedium }]} accessibilityRole="header">{title.toUpperCase()}</Text>
       {!!details && <Text style={[local.details, { fontFamily: fonts.serifItalic }]}>{details}</Text>}
       {!!text && <Text style={[local.message, { fontFamily: fonts.serifItalic }]}>{`“${text}”`}</Text>}
+      {editing && (
+        <View style={local.editRow}>
+          {editableTitle && <EditChip field="title" label="Title" />}
+          <EditChip field="message" label={text ? 'Message' : 'Add welcome message'} adding={!text} />
+          {!video && <EditChip field="video" label="Add highlight video" adding />}
+        </View>
+      )}
 
-      {video && <GalleryHighlightVideo video={video} title={title} selectedTemplate={selectedTemplate} />}
+      {video && (editing ? (
+        <View>
+          <GalleryHighlightVideo video={video} title={title} selectedTemplate={selectedTemplate} />
+          <EditChip field="video" label="Video" at={{ top: 10, right: 10 }} />
+        </View>
+      ) : <GalleryHighlightVideo video={video} title={title} selectedTemplate={selectedTemplate} />)}
 
       <View style={local.tabs} accessibilityRole="tablist">
         {tabs.map((tab) => {
@@ -75,6 +94,7 @@ const local = StyleSheet.create({
   title: { color: '#1F2620', fontSize: 34, lineHeight: 38, letterSpacing: -0.2 },
   details: { marginTop: 12, color: CLASSIC.text, fontSize: 18, lineHeight: 24 },
   message: { marginTop: 10, color: CLASSIC.muted, fontSize: 16, lineHeight: 25 },
+  editRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   tabs: {
     flexDirection: 'row',
     // Centred on the phone screen (the website keeps them under the text, on the left)

@@ -39,11 +39,13 @@
     linear-gradient(0deg, rgba(20, 16, 12, .62) 0%, rgba(20, 16, 12, .25) 30%, rgba(20, 16, 12, 0) 55%);
 }
 
+/* --guest-edit-bar: the host's edit bar while it shows (src/components/guestEdit/GuestEditBar.tsx), so the names and the
+   button stay above it; unset for guests */
 .portrait-hero__text {
   position: absolute;
   left: clamp(20px, 4vw, 56px);
   right: clamp(84px, 9vw, 140px);
-  bottom: clamp(28px, 6svh, 64px);
+  bottom: calc(clamp(28px, 6svh, 64px) + var(--guest-edit-bar, 0px));
   color: #fff;
 }
 .portrait-hero__details {
@@ -80,7 +82,7 @@
 .portrait-hero__open {
   position: absolute;
   right: clamp(20px, 4vw, 56px);
-  bottom: clamp(32px, 6svh, 68px);
+  bottom: calc(clamp(32px, 6svh, 68px) + var(--guest-edit-bar, 0px));
   display: grid; place-items: center;
   width: 48px; height: 48px;
   border-radius: 999px;

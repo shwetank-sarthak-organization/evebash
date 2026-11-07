@@ -6,6 +6,8 @@ import Svg, { Ellipse, Path } from 'react-native-svg';
 import { displayCoupleTitle } from '../../../../shared/text/coupleNames';
 import { classicCoverLine } from '../../../../shared/themes/classicCoverLine';
 import type { ClassicFontSet } from './classicFonts';
+import { coverContentPosition, coverZoomStyle } from '@/lib/coverStyle';
+import { EditChip, useGuestEditSpots } from '@/components/event/guestEdit/EditChip';
 
 // Classic White cover for phones, from the website (src/components/TemplateClassic.tsx and
 // src/components/classic/ClassicCoverPrint.tsx): date, the title in capitals ("X & Y"), a sage divider, the cover
@@ -56,14 +58,6 @@ export function ClassicDivider({ style }: { style?: object }) {
   );
 }
 
-/** The host's cover settings, as on the website: the focus point decides which part of the cover shows (also used by
- *  Sunlit Portrait's cover) */
-export function coverPosition(gallery: ClassicHeroProps['gallery']) {
-  const x = Math.max(0, Math.min(100, 50 + (gallery.coverOffsetX || 0)));
-  const y = Math.max(0, Math.min(100, 50 + (gallery.coverOffset || 0)));
-  return { left: `${x}%`, top: `${y}%` } as const;
-}
-
 /** Capitals run wide, so longer titles get a smaller size and keep the print's room */
 function titleSize(title: string) {
   if (title.length > 32) return 21;
@@ -79,6 +73,9 @@ export interface ClassicHeroProps {
   mainTitle?: string;
   /** The main event's category, which picks the card's line */
   mainCategory?: string;
+  /** An album: the cover's title is then its main event's, so edit mode puts the album's title pencil in the gallery
+   *  header instead */
+  isAlbum?: boolean;
   coverSource?: ImageSourcePropType | null;
   width: number;
   height: number;
@@ -90,11 +87,15 @@ export interface ClassicHeroProps {
   onShare: () => void;
 }
 
-export function ClassicHero({ gallery, mainTitle, mainCategory, coverSource, width, height, insetTop, insetBottom, fonts, onOpenGallery, onBack, onShare }: ClassicHeroProps) {
+export function ClassicHero({ gallery, mainTitle, mainCategory, isAlbum = false, coverSource, width, height, insetTop, insetBottom, fonts, onOpenGallery, onBack, onShare }: ClassicHeroProps) {
+  // The cover image's size, to zoom it around the focus point (lib/coverStyle.ts)
+  const [coverSize, setCoverSize] = React.useState<{ width: number; height: number }>();
   const title = displayCoupleTitle((mainTitle || gallery.title || '').trim());
   const date = (gallery.date || '').trim();
   const size = titleSize(title);
   const [space, setSpace] = useState({ width: 0, height: 0 });
+  // Edit mode (todo #11): pencils on the title, date and cover; nothing for guests
+  const editing = useGuestEditSpots();
 
   const onSpaceLayout = (e: LayoutChangeEvent) => {
     const { width: w, height: h } = e.nativeEvent.layout;
@@ -124,6 +125,12 @@ export function ClassicHero({ gallery, mainTitle, mainCategory, coverSource, wid
           {title.toUpperCase()}
         </Text>
       )}
+      {editing && (
+        <View style={local.editRow}>
+          {!isAlbum && <EditChip field="title" label="Title" />}
+          <EditChip field="date" label={date ? 'Date' : 'Add date'} adding={!date} />
+        </View>
+      )}
       <ClassicDivider style={{ marginTop: 14 }} />
 
       <View style={local.print}>
@@ -140,18 +147,23 @@ export function ClassicHero({ gallery, mainTitle, mainCategory, coverSource, wid
                 <View style={local.photo}>
                   <ExpoImage
                     source={coverSource}
-                    style={[StyleSheet.absoluteFill, gallery.coverMode !== 'fit' && { transform: [{ scale: gallery.coverScale || 1 }] }]}
+                    style={[StyleSheet.absoluteFill, coverZoomStyle(gallery, coverSize)]}
+                    onLayout={(event) => setCoverSize(event.nativeEvent.layout)}
                     contentFit={gallery.coverMode === 'fit' ? 'contain' : 'cover'}
-                    contentPosition={coverPosition(gallery)}
+                    contentPosition={coverContentPosition(gallery)}
                     transition={200}
                     accessibilityLabel={title || 'Cover photo'}
                   />
+                  {/* Turned back level against the print's tilt */}
+                  <EditChip field="cover" label="Cover" at={{ top: 10, right: 10 }} style={{ transform: [{ rotate: '2.2deg' }] }} />
                 </View>
               </View>
             )}
           </View>
         ) : (
-          <View style={{ flex: 1 }} />
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <EditChip field="cover" label="Add cover photo" adding />
+          </View>
         )}
       </View>
 
@@ -174,6 +186,7 @@ const local = StyleSheet.create({
   screen: { backgroundColor: CLASSIC.background, paddingHorizontal: 16, alignItems: 'center' },
   details: { color: CLASSIC.text, fontSize: 12, lineHeight: 16, fontWeight: '600', letterSpacing: 3, textAlign: 'center' },
   title: { marginTop: 8, color: CLASSIC.text, letterSpacing: 0.6, textAlign: 'center', alignSelf: 'stretch' },
+  editRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 10 },
   divider: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
   dividerLine: { width: 48, height: StyleSheet.hairlineWidth * 2, backgroundColor: 'rgba(139,154,110,0.5)' },
   dividerDiamond: { width: 6, height: 6, backgroundColor: CLASSIC.sage, transform: [{ rotate: '45deg' }] },

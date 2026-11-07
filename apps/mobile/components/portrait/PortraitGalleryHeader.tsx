@@ -7,6 +7,7 @@ import { HighlightPlayer } from '@/components/event/GalleryHighlightVideo';
 import type { GalleryVideo } from '@/lib/database';
 import { PORTRAIT, type PortraitFontSet } from './portraitFonts';
 import { PortraitBoldText } from './PortraitBoldText';
+import { EditChip, useGuestEditSpots } from '@/components/event/guestEdit/EditChip';
 
 // Top of the gallery section in Sunlit Portrait, from the website (src/components/portrait/PortraitGalleryHeader.tsx).
 // With a highlight film the opening fills the screen under the gallery tabs, like the cover: the film edge to edge
@@ -35,6 +36,9 @@ export interface PortraitGalleryHeaderProps {
   videoCount: string;
   activeTab: MediaTab;
   onTabChange: (tab: MediaTab) => void;
+  /** The title is this gallery's own name (an album's), so edit mode puts a pencil on it; the main gallery's is just
+   *  "Home" and its title is on the cover */
+  editableTitle?: boolean;
 }
 
 function Strip({ onFilm, backLabel, onBack, onShare, fonts }: { onFilm: boolean } & Pick<PortraitGalleryHeaderProps, 'backLabel' | 'onBack' | 'onShare' | 'fonts'>) {
@@ -54,7 +58,8 @@ function Strip({ onFilm, backLabel, onBack, onShare, fonts }: { onFilm: boolean 
   );
 }
 
-function Intro({ onFilm, title, details, message, fonts, width }: { onFilm: boolean } & Pick<PortraitGalleryHeaderProps, 'title' | 'details' | 'message' | 'fonts' | 'width'>) {
+/** Date, gallery name and message (edit mode adds its pencils under them) */
+function Intro({ onFilm, title, details, message, fonts, width, chips }: { onFilm: boolean; chips?: React.ReactNode } & Pick<PortraitGalleryHeaderProps, 'title' | 'details' | 'message' | 'fonts' | 'width'>) {
   const size = Math.round(Math.min(width * 0.2, 88));
   return (
     <View>
@@ -74,14 +79,25 @@ function Intro({ onFilm, title, details, message, fonts, width }: { onFilm: bool
           {`“${message}”`}
         </Text>
       )}
+      {chips}
     </View>
   );
 }
 
 export function PortraitGalleryHeader(props: PortraitGalleryHeaderProps) {
-  const { title, details, message, video, fonts, width, screenHeight, photoCount, videoCount, activeTab, onTabChange } = props;
+  const { title, details, message, video, fonts, width, screenHeight, photoCount, videoCount, activeTab, onTabChange, editableTitle = false } = props;
   const [playing, setPlaying] = useState(false);
   const quote = message?.trim();
+  // Edit mode (todo #11): pencils on the album's title, the message and the film (Back / Share hold the film's
+  // corners, so they sit with the text), or places to add them
+  const editing = useGuestEditSpots();
+  const chips = editing ? (
+    <View style={local.editRow}>
+      {editableTitle && <EditChip field="title" label="Title" />}
+      <EditChip field="message" label={quote ? 'Message' : 'Add welcome message'} adding={!quote} />
+      <EditChip field="video" label={video ? 'Video' : 'Add highlight video'} adding={!video} />
+    </View>
+  ) : null;
 
   return (
     <View accessibilityLabel={`${title} gallery`}>
@@ -94,7 +110,7 @@ export function PortraitGalleryHeader(props: PortraitGalleryHeaderProps) {
             <HighlightPlayer src={video.streamUrl} />
           </View>
           <View style={{ marginTop: 16 }}>
-            <Intro onFilm={false} title={title} details={details} message={quote} fonts={fonts} width={width - 48} />
+            <Intro onFilm={false} title={title} details={details} message={quote} fonts={fonts} width={width - 48} chips={chips} />
           </View>
         </View>
       ) : video ? (
@@ -107,7 +123,7 @@ export function PortraitGalleryHeader(props: PortraitGalleryHeaderProps) {
           )}
           <LinearGradient colors={['rgba(20,16,12,0)', 'rgba(20,16,12,0.3)', 'rgba(20,16,12,0.7)']} locations={[0, 0.4, 1]} style={[local.shade, { bottom: 0, height: '60%' }]} pointerEvents="none" />
           <View style={local.filmText}>
-            <Intro onFilm title={title} details={details} message={quote} fonts={fonts} width={width - 96} />
+            <Intro onFilm title={title} details={details} message={quote} fonts={fonts} width={width - 96} chips={chips} />
           </View>
           <TouchableOpacity onPress={() => setPlaying(true)} accessibilityRole="button" accessibilityLabel={`Play the ${title} highlight film`} style={local.play} activeOpacity={0.85}>
             <IconSymbol name="play.fill" size={22} color={PORTRAIT.ink} />
@@ -120,7 +136,7 @@ export function PortraitGalleryHeader(props: PortraitGalleryHeaderProps) {
         <View>
           <Strip onFilm={false} {...props} />
           <View style={{ marginTop: 28 }}>
-            <Intro onFilm={false} title={title} details={details} message={quote} fonts={fonts} width={width - 48} />
+            <Intro onFilm={false} title={title} details={details} message={quote} fonts={fonts} width={width - 48} chips={chips} />
           </View>
         </View>
       )}
@@ -164,6 +180,7 @@ const local = StyleSheet.create({
   details: { marginBottom: 2, color: PORTRAIT.clay, fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 2.6 },
   title: { letterSpacing: -0.5 },
   quote: { marginTop: 4, fontSize: 20, lineHeight: 26 },
+  editRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   film: { marginHorizontal: -24, marginTop: -24, overflow: 'hidden', backgroundColor: PORTRAIT.ink },
   shade: { position: 'absolute', left: 0, right: 0 },
   filmText: { position: 'absolute', left: 20, right: 76, bottom: 32 },

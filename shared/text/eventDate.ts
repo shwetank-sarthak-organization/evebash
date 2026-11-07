@@ -14,3 +14,14 @@ export function eventDateValue(date?: string): number | null {
   const parsed = Date.parse(text);
   return Number.isNaN(parsed) ? null : parsed;
 }
+
+/** The date as "2026-11-06" (what the website's date inputs use and save), or "" if unreadable. */
+export function eventDateInputValue(date?: string): string {
+  const text = date?.trim();
+  if (!text) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const value = eventDateValue(text);
+  if (value === null) return '';
+  const day = new Date(value);
+  return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+}

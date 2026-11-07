@@ -6,6 +6,7 @@ import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { ClassicCoverPrint } from "@/components/classic/ClassicCoverPrint";
 import { displayCoupleTitle } from "../../shared/text/coupleNames";
 import { classicCoverLine } from "../../shared/themes/classicCoverLine";
+import { EditChip, useGuestEditSpots } from "@/components/guestEdit/EditChip";
 
 interface TemplateClassicProps {
     event: Event;
@@ -13,6 +14,9 @@ interface TemplateClassicProps {
     mainTitle?: string;
     /** The main event's category, which picks the cover card's line (default: event.category) */
     mainCategory?: string;
+    /** An album: the cover's title is then its main event's, so edit mode puts the album's title pencil in the
+     *  gallery header instead */
+    hasParent?: boolean;
     children?: React.ReactNode;
 }
 
@@ -29,12 +33,14 @@ function ClassicDivider({ className }: { className?: string }) {
 
 // Colours come from the Classic White palette (src/lib/webTemplateTheme.ts): soft white #FCFCFA, white mount,
 // dark green text #2C352E, muted #596653, sage #8B9A6E (lines only: too light for text).
-export function TemplateClassic({ event, mainTitle, mainCategory, children }: TemplateClassicProps) {
+export function TemplateClassic({ event, mainTitle, mainCategory, hasParent = false, children }: TemplateClassicProps) {
     const location = "location" in event && typeof event.location === "string" ? event.location.trim() : "";
     const details = [event.date?.trim(), location].filter(Boolean).join(" · ");
     const title = displayCoupleTitle(mainTitle || event.title);
     // Capitals run wide, so longer titles get a smaller size and keep the cover's room
     const titleSize = title.length > 32 ? " classic-hero__title--xlong" : title.length > 18 ? " classic-hero__title--long" : "";
+    // Edit mode (todo #11): pencils on the title, date and cover; the host's view only, guests see none of it
+    const editing = useGuestEditSpots();
 
     const scrollToContent = () => {
         document.getElementById("event-content")?.scrollIntoView({ behavior: "smooth" });
@@ -57,6 +63,12 @@ export function TemplateClassic({ event, mainTitle, mainCategory, children }: Te
                     <h1 className={`classic-hero__title${titleSize}`}>
                         {title}
                     </h1>
+                    {editing && (
+                        <div className="mt-3 flex flex-wrap justify-center gap-2">
+                            {!hasParent && <EditChip field="title" label="Title" />}
+                            <EditChip field="date" label={event.date?.trim() ? "Date" : "Add date"} adding={!event.date?.trim()} />
+                        </div>
+                    )}
 
                     <ScrollReveal delay={0.1}>
                         <ClassicDivider className="mt-[clamp(8px,1.6svh,18px)]" />

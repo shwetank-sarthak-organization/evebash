@@ -56,10 +56,12 @@
 }
 
 /* Invitation card: a square card with a thin double gold border (no pill), names, date, Enter Gallery and Share */
+/* --guest-edit-bar: the host's edit bar while it shows (src/components/guestEdit/GuestEditBar.tsx), so the card stays
+   above it; unset for guests */
 .midnight-card {
   position: absolute;
   left: 50%;
-  bottom: clamp(24px, 6vh, 64px);
+  bottom: calc(clamp(24px, 6vh, 64px) + var(--guest-edit-bar, 0px));
   width: min(560px, calc(100% - 32px));
   padding: 5px;
   border: 1px solid #ca9c69b3;

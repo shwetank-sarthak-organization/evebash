@@ -1,4 +1,5 @@
 import { getImageUrl } from "./imageUrl";
+import { withShownCover, type TwoCovers } from '../../../shared/themes/phoneCover';
 
 export const EVENT_PLACEHOLDER_IMAGES = [
   "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop",
@@ -39,4 +40,10 @@ export function getEventCoverSource(coverImage?: string | null, mode: 'preview' 
   const categoryCover = CATEGORY_DEFAULT_COVERS[category?.trim().toLowerCase() || ''];
   if (categoryCover && isDefaultEventCover(coverImage)) return categoryCover;
   return { uri: resolveEventCoverImage(coverImage, mode) };
+}
+
+/** The gallery with its phone cover in the cover fields: what the app shows (shared/themes/phoneCover.ts). The same
+ *  object when the gallery has no phone cover of its own. */
+export function withPhoneCover<T extends TwoCovers>(gallery: T): T {
+  return withShownCover(gallery, 'phone', isDefaultEventCover);
 }

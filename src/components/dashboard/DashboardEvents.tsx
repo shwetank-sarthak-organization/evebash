@@ -6,6 +6,8 @@ import { Event, getApprovedSharedEventsForUser, getUserEvents } from "@/lib/data
 import { getCreatedTime } from "@/lib/eventSort";
 import { cn } from "@/lib/utils";
 import { Calendar } from "lucide-react";
+import { coverImageStyle } from "@/lib/coverStyle";
+import { useCoverTarget, withScreenCover } from "@/lib/screenCover";
 
 // Shared by the dashboard (src/app/(main)/dashboard/page.tsx) and its full events list (dashboard/events/page.tsx).
 
@@ -53,13 +55,7 @@ function getCoverImageStyle(event?: Event): React.CSSProperties {
         return { objectFit: "contain", backgroundColor: "#050505" };
     }
 
-    const x = 50 + (event?.coverOffsetX || 0);
-    const y = 50 + (event?.coverOffset || 0);
-    return {
-        objectFit: "cover",
-        objectPosition: `${Math.max(0, Math.min(100, x))}% ${Math.max(0, Math.min(100, y))}%`,
-        transform: `scale(${event?.coverScale || 1})`,
-    };
+    return coverImageStyle({ ...event, coverMode: "fill" });
 }
 
 export function DashboardTabs({ active, onChange }: { active: DashboardTab; onChange: (tab: DashboardTab) => void }) {
@@ -109,7 +105,9 @@ export function DashboardEventCard({ event, guests, onOpen, footer, className }:
     // e.g. a darker background when the card sits inside a panel (Dashboard)
     className?: string;
 }) {
-    const coverImage = resolveEventCoverImage(event.coverImage, "thumbnail", event.category);
+    // The cover for this screen: the phone cover on phones, the computer cover on wider screens
+    const shownEvent = withScreenCover(event, useCoverTarget(), "thumbnail");
+    const coverImage = resolveEventCoverImage(shownEvent.coverImage, "thumbnail", event.category);
     return (
         <button
             type="button"
@@ -126,7 +124,7 @@ export function DashboardEventCard({ event, guests, onOpen, footer, className }:
                     src={coverImage}
                     alt={event.title}
                     className="absolute inset-0 h-full w-full transition-transform duration-700 group-hover:scale-105"
-                    style={getCoverImageStyle(event)}
+                    style={getCoverImageStyle(shownEvent)}
                 />
                 {event.category && (
                     <div className="site-noir absolute left-3 top-3 rounded-full border border-[var(--site-gold)]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--site-gold-text)] backdrop-blur-sm">
