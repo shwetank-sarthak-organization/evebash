@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 256
+Next issue number: 257
 
 =====================================================================
 ACTIVE ISSUES
@@ -1512,6 +1512,18 @@ Blocked by: Sarthak's OK to change a guest theme (themes keep their own designs)
 Found in: Midnight Hero edit-mode pencils test (todo #11, chat 2026-11-07)
 Issue: In the app's Midnight Hero gallery (the default theme), the welcome card shows a box with a question mark after the host's message instead of the white heart the screen adds (' 🤍' after the description in apps/mobile/app/events/[id].tsx, the shared welcome card used by Midnight Hero and the older themes). The card's serif italic font has no emoji, and here iOS didn't fall back to the emoji font. Guests see it on every gallery with a message. Seen on the iPhone 16e simulator; check on a real phone. Fix idea: draw the heart in its own Text with the system font, or drop it.
 How to reproduce: In the app, open a Midnight Hero gallery with a welcome message as a guest and scroll to the card under the cover: a "?" box follows the message.
+
+#256
+Listed: 2026-11-07
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Building the app's Couple sheet, todo #12 step 2 (chat 2026-11-07); found by reading the code, not yet seen in a browser
+Issue: In the website's edit mode, clearing both sides of Confetti Circle's couple and pressing Save removes the couple from the database, but the page keeps showing the old names until it is reloaded. The save stores the event's theme content as returned (without the removed "couple" block), and the page merges it over the loaded event's theme content (applyGalleryDraft in shared/guestEdit/draft.ts spreads the saved blocks over the old ones), so the old block stays. The website doesn't reload the page after Save. The app's save (apps/mobile/components/event/guestEdit/useGuestEdit.ts, step 4) names the block even when it was removed, so the app is not affected. Fix idea: do the same in saveGuestEdits (src/components/guestEdit/guestEditStore.ts): save themeContent as { ...result.content, [block]: result.content?.[block] }.
+How to reproduce: On staging (edit mode on), open a Confetti Circle gallery with a saved couple > Preview Guest Theme > Couple. Clear this side on both sides and Save. Expect: the section shows no names. Actual: the old names stay until you reload the page.
+Note 2026-11-07: the same bug was also found with device test #201 and is already fixed in 65238da8 (branch feat/guest-edit-mode, not on staging yet): move this entry to RECENTLY FIXED with "Fixed in: 65238da8" when that lands, and move Jira EB-154 to Done.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

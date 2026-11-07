@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 204
+Next test number: 205
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5828,3 +5828,31 @@ Feedback:         2026-11-07 Claude, iPhone 17 Pro simulator, dev build on a loc
                   width); play works. The phone-layout cover (d805e71c) checked the same way.
                   Step 9 checked on staging in the built-in browser by applying the
                   two style changes in the page. Not done: 5, 7, 8, Android, a real phone.
+
+--------------------------------------------------------------------------------
+#204 App: Confetti Circle bride and groom in edit mode
+Status:    TODO
+Priority:  Medium
+Platform:  App
+Brief:     In the app's edit mode, Confetti Circle now has a Couple sheet (as on the website, #201): pencils on the bride and the groom open it on that side; the host fills in the label, name, a few words and Instagram / Facebook / X. Saved for the whole event, so Home and every album show the same couple.
+Detail:    Todo #12 step 2, commit 6d0b2861. Needs an app build made with EXPO_PUBLIC_GUEST_EDIT_MODE=true (like #200). Uses the same saved details as the website, so a change in one shows in the other.
+How to test:
+  1. Host > a Wedding event in Confetti Circle > Design > Preview Guest Theme. Scroll to "We're getting married!". Expect: under the video, each side with a name has a "Bride" / "Groom" pencil; an empty side shows only an "Add bride" / "Add groom" pencil. The edit bar also has a Couple button (scroll its buttons sideways).
+  2. Tap the Groom pencil. Expect: the Couple sheet opens on The Groom's tab with what is saved.
+  3. Type a few words and an Instagram @username. In Facebook type instagram.com/someone. Expect: a red "Not a Facebook profile link" note; Done: the page shows the words and only the Instagram icon; the bar says 1 change.
+  4. Save. Open the event's website page in a browser. Expect: the same words and Instagram icon; the icon opens the profile.
+  5. Switch the bar to an album ("Editing" > an album). Expect: the same couple; change something there and Save; Home shows the change too.
+  6. Clear this side on the bride, Done. Expect: an "Add bride" pencil and the event title in the ribbon. Discard. Expect: the bride is back.
+  7. With the app's edit mode switch off: the section shows the names from a "Name and Name" title with placeholder words, as before, and no pencils.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:         2026-11-07 Claude, iPhone 17 Pro simulator, dev build on a local bundler with the switch on
+                  (staging data, host account signed in, gallery mehandi night and its album newcheck):
+                  steps 1, 2, 3, 5 and 6 as described; the save from Home and the restore from the album
+                  were checked in the database (albums keep {}); the couple was put back to Jyoti /
+                  Samarth. Not done: 4 (website after an app save), 7, Android, a real phone.

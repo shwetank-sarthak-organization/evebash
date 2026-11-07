@@ -257,6 +257,13 @@ Decision:     2026-10-27 Sarthak: the website version is done; build the app ver
               another chat builds the app's Couple sheet (EditChip, useGuestEdit, GuestEditBar) on top
               of the design. Design built and checked in the iOS simulator; on staging in 4b97ef14
               (device test #203). The Couple sheet (step 2) is still to come.
+              2026-11-07 step 2 built (Claude): the app's Couple sheet in edit mode (EXPO_PUBLIC_GUEST_EDIT_MODE):
+              "Add bride" / "Bride" pencils on each side open the sheet on that side (label, name, a few
+              words, Instagram / Facebook / X; a wrong link is flagged and not saved), saved with
+              set_theme_content_block on the main event from Home or any album. COUPLE_FIELD is no longer
+              web-only. Checked on the iPhone 17 Pro simulator with mehandi night (Home + album newcheck,
+              save checked in the database, then put back to Jyoti / Samarth). Device test #204. On
+              staging in 6d0b2861 (Sarthak's go, 2026-11-07); the app switch stays off.
 Owner:        Sarthak (with Claude)
 Depends on:   -
 Brief:        The website has the wedding theme "Confetti Circle" (id "confetti", device test #151),
