@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { WebView } from 'react-native-webview';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { loadGuestPreviewSnapshot, type GuestPreviewSnapshot } from '@/lib/guestPreviewSnapshot';
 import { supabase } from '@/lib/supabase';
 import { getGalleryWebUrl, getWebBaseUrl } from '@/lib/webLinks';
 import { Fonts, MidnightColors } from '../../constants/theme';
+
+const PHONE_SCREEN_WIDTH = 160;
 
 // The screen size the guest page is drawn at before it is shrunk: a laptop's (the website's Guest Home Preview uses
 // the same)
@@ -42,21 +46,34 @@ true;`;
 
 interface GuestPagePreviewProps {
   eventId: string;
+  /** The event's template now: a picture taken with another one is out of date */
+  templateId: string | null;
   /** Changes after the host saves a design change, so the page loads again with it */
   refreshKey?: number;
   /** The host view's colours (useAppTheme), for the card around the preview */
   colors: typeof MidnightColors;
 }
 
-// The website guest page itself (not a sketch), drawn at a computer's size and shrunk to fit: the theme's own layout,
-// fonts, covers and photos, as guests who open the gallery link on a computer see it. Guests on phones see the
-// gallery in the app, which is Preview Guest Theme. The page opens with ?preview=1 (no edit mode, no "Open in app"
-// banner) and takes no touches.
-export function GuestPagePreview({ eventId, refreshKey = 0, colors }: GuestPagePreviewProps) {
+// What guests see, small: the app (phone guests) as a picture of its guest home, taken when the host last had it open
+// with Preview Guest Theme (lib/guestPreviewSnapshot.ts; the app's guest view is part of the event screen and can't be
+// drawn small), and the website guest page itself on a computer, drawn at a computer's size and shrunk to fit. The
+// page opens with ?preview=1 (no edit mode, no "Open in app" banner) and takes no touches.
+export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }: GuestPagePreviewProps) {
   const [reloads, setReloads] = useState(0);
   const [session, setSession] = useState<WebSession | undefined>(undefined);
   const [sessionVersion, setSessionVersion] = useState(0);
   const [width, setWidth] = useState(0);
+  const [snapshot, setSnapshot] = useState<GuestPreviewSnapshot | null | undefined>(undefined);
+  const screen = useWindowDimensions();
+  const phoneScreenHeight = Math.round(PHONE_SCREEN_WIDTH * (screen.height / screen.width));
+  const snapshotOutOfDate = !!snapshot && (snapshot.templateId ?? null) !== templateId;
+
+  // The picture is taken while this card isn't shown (the guest view replaces it), so it's read each time the card opens
+  useEffect(() => {
+    let active = true;
+    loadGuestPreviewSnapshot(eventId).then((saved) => { if (active) setSnapshot(saved); });
+    return () => { active = false; };
+  }, [eventId]);
 
   // A new access token (the app renews it about once an hour) loads the page again with it
   useEffect(() => {
@@ -91,7 +108,7 @@ export function GuestPagePreview({ eventId, refreshKey = 0, colors }: GuestPageP
         <View style={styles.headerText}>
           <Text style={[styles.title, { color: colors.white }]}>Guest Home Preview</Text>
           <Text style={[styles.subtitle, { color: colors.slate400 }]}>
-            Your real guest page, as the gallery link opens on a computer. Guests on phones see it in this app: use Preview Guest Theme.
+            What guests see: this app on phones, and the website on a computer.
           </Text>
         </View>
         <TouchableOpacity
@@ -105,22 +122,51 @@ export function GuestPagePreview({ eventId, refreshKey = 0, colors }: GuestPageP
         </TouchableOpacity>
       </View>
 
-      <View style={styles.browser}>
-        <View style={styles.browserBar}>
-          <View style={styles.browserDots}>
-            <View style={[styles.browserDot, { backgroundColor: '#ff5f57' }]} />
-            <View style={[styles.browserDot, { backgroundColor: '#febc2e' }]} />
-            <View style={[styles.browserDot, { backgroundColor: '#28c840' }]} />
+      <View style={styles.column}>
+        <View style={styles.phoneBezel}>
+          <View style={[styles.phoneScreen, { width: PHONE_SCREEN_WIDTH, height: phoneScreenHeight }]}>
+            {snapshot ? (
+              <Image
+                source={{ uri: snapshot.uri }}
+                style={[StyleSheet.absoluteFill, snapshotOutOfDate && styles.outOfDate]}
+                contentFit="cover"
+                contentPosition="top"
+                accessibilityLabel="Picture of the app's guest home"
+              />
+            ) : snapshot === null ? (
+              <Text style={styles.phoneEmpty}>Open Preview Guest Theme once to see the app here.</Text>
+            ) : null}
           </View>
-          <Text style={styles.browserAddress} numberOfLines={1}>
-            {getWebBaseUrl().replace(/^https?:\/\/(www\.)?/, '')}/events/{eventId}
+        </View>
+        <Text style={[styles.caption, { color: colors.slate400 }]}>App</Text>
+        {snapshot && (
+          <Text style={[styles.note, { color: snapshotOutOfDate ? colors.gold : colors.slate400 }]}>
+            {snapshotOutOfDate
+              ? 'The theme changed since this picture. Open Preview Guest Theme to update it.'
+              : `Picture from ${new Date(snapshot.takenAt).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}. Preview Guest Theme updates it.`}
           </Text>
+        )}
+      </View>
+
+      <View style={styles.column}>
+        <View style={styles.browser}>
+          <View style={styles.browserBar}>
+            <View style={styles.browserDots}>
+              <View style={[styles.browserDot, { backgroundColor: '#ff5f57' }]} />
+              <View style={[styles.browserDot, { backgroundColor: '#febc2e' }]} />
+              <View style={[styles.browserDot, { backgroundColor: '#28c840' }]} />
+            </View>
+            <Text style={styles.browserAddress} numberOfLines={1}>
+              {getWebBaseUrl().replace(/^https?:\/\/(www\.)?/, '')}/events/{eventId}
+            </Text>
+          </View>
+          <View onLayout={(event) => setWidth(Math.floor(event.nativeEvent.layout.width))}>
+            {width > 0 && session !== undefined && (
+              <PageFrame key={`${eventId}:${refreshKey}:${reloads}:${sessionVersion}`} eventId={eventId} script={signInScript(session)} width={width} />
+            )}
+          </View>
         </View>
-        <View onLayout={(event) => setWidth(Math.floor(event.nativeEvent.layout.width))}>
-          {width > 0 && session !== undefined && (
-            <PageFrame key={`${eventId}:${refreshKey}:${reloads}:${sessionVersion}`} eventId={eventId} script={signInScript(session)} width={width} />
-          )}
-        </View>
+        <Text style={[styles.caption, { color: colors.slate400 }]}>Website on a computer</Text>
       </View>
     </View>
   );
@@ -171,7 +217,14 @@ const styles = StyleSheet.create({
   title: { fontSize: 15, fontFamily: Fonts.outfit.bold },
   subtitle: { fontSize: 12, fontFamily: Fonts.inter.regular, marginTop: 2, lineHeight: 17 },
   reload: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  browser: { borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', backgroundColor: '#1c1c1f' },
+  column: { alignItems: 'center', gap: 8 },
+  phoneBezel: { padding: 6, borderRadius: 30, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.15)', backgroundColor: '#050505' },
+  phoneScreen: { borderRadius: 24, overflow: 'hidden', backgroundColor: '#0b0b0c', alignItems: 'center', justifyContent: 'center' },
+  phoneEmpty: { color: '#94a3b8', fontSize: 11, fontFamily: Fonts.inter.medium, textAlign: 'center', lineHeight: 16, paddingHorizontal: 18 },
+  outOfDate: { opacity: 0.45 },
+  caption: { fontSize: 9.5, fontFamily: Fonts.inter.medium, textTransform: 'uppercase', letterSpacing: 1.5 },
+  note: { fontSize: 11, fontFamily: Fonts.inter.regular, textAlign: 'center', lineHeight: 16, paddingHorizontal: 8 },
+  browser: { alignSelf: 'stretch', borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', backgroundColor: '#1c1c1f' },
   browserBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.05)' },
   browserDots: { flexDirection: 'row', gap: 5 },
   browserDot: { width: 8, height: 8, borderRadius: 4 },

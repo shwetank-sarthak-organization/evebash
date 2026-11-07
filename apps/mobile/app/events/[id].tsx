@@ -86,6 +86,7 @@ import { appAlert, showToast } from '@/lib/feedback';
 import { FolderPicker } from '@/components/vault/VaultModals';
 import { getGalleryWebUrl } from '@/lib/webLinks';
 import { GuestPagePreview } from '@/components/event/GuestPagePreview';
+import { saveGuestPreviewSnapshot } from '@/lib/guestPreviewSnapshot';
 import { useReloadOnReturn } from '@/hooks/use-reload-on-return';
 import { DarkThemeScope, useAppTheme, useStatusBarOverride } from '@/context/ThemeContext';
 import { useIsFocused } from '@react-navigation/native';
@@ -785,8 +786,11 @@ function EventDetailScreen() {
   const hostPastCoverThresholdRef = React.useRef<number | null>(null);
   const hostPastCoverRef = React.useRef(false);
   const [hostPastCover, setHostPastCover] = useState(false);
+  // Exact scroll position, for the guest home picture (only taken at the top)
+  const lastScrollYRef = React.useRef(0);
   const handleScrollNearEnd = useCallback((e: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    lastScrollYRef.current = contentOffset.y;
     const distanceFromEnd = contentSize.height - (contentOffset.y + layoutMeasurement.height);
     if (distanceFromEnd < layoutMeasurement.height * 1.5) loadMorePhotosRef.current?.();
     if (Math.abs(contentOffset.y - coarseScrollYRef.current) > 200) {
@@ -1355,6 +1359,23 @@ function EventDetailScreen() {
 
   const [loadedActiveSubEvent, setActiveSubEvent] = useState<DatabaseEvent | null>(null);
   const activeSubEvent = React.useMemo(() => isEditingGuestView ? applyGuestEdit(loadedActiveSubEvent) : loadedActiveSubEvent, [applyGuestEdit, isEditingGuestView, loadedActiveSubEvent]);
+
+  // The Design tab's Guest Home Preview shows a picture of this guest home (todo #29), taken while a host has it open
+  // (Preview Guest Theme): 3 seconds in, if it's still at the top. Not while editing, which shows pencils and unsaved
+  // changes. The picture stays on this phone (lib/guestPreviewSnapshot.ts).
+  const snapshotEventId = event?.id;
+  const snapshotTemplateId = event?.templateId ?? null;
+  const showsGuestHomeToHost = !!snapshotEventId && !loading && canManageEvent && !showAdminView && !loadedActiveSubEvent && isFocused
+    && !showShareModal && (!isEditingGuestView || (guestEdit.viewingAsGuest && !guestEdit.hasChanges));
+  useEffect(() => {
+    if (!showsGuestHomeToHost || !snapshotEventId) return;
+    const timer = setTimeout(() => {
+      if (lastScrollYRef.current > 4) return;
+      void saveGuestPreviewSnapshot(snapshotEventId, snapshotTemplateId);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [showsGuestHomeToHost, snapshotEventId, snapshotTemplateId]);
+
   const [photos, setPhotos] = useState<any[]>([]);
   // Photos and videos being deleted: the card at the bottom and the "Deleting..." cover on their tiles
   const [deleteJobs, setDeleteJobs] = useState<{ id: string; name: string; mediaType: 'photo' | 'video'; status: 'deleting' | 'deleted' | 'error' }[]>([]);
@@ -6577,6 +6598,7 @@ function EventDetailScreen() {
                         setIsAdminViewActive(false);
                         // With edit mode on (todo #11) the guest view opens ready to edit
                         if (GUEST_EDIT_ENABLED && loadedEvent) guestEdit.start(loadedEvent);
+                        lastScrollYRef.current = 0;
                         requestAnimationFrame(() => scrollViewRef.current?.scrollTo({ y: 0, animated: false }));
                       }}
                     >
@@ -6589,7 +6611,7 @@ function EventDetailScreen() {
                       <IconSymbol name="eye.fill" size={16} color={hp.gold} />
                     </TouchableOpacity>
 
-                    <GuestPagePreview eventId={event.id} refreshKey={designPreviewVersion} colors={hp} />
+                    <GuestPagePreview eventId={event.id} templateId={event.templateId ?? null} refreshKey={designPreviewVersion} colors={hp} />
                 </View>
               )}
 
