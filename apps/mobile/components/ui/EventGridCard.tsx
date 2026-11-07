@@ -94,7 +94,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderColor: 'rgba(202, 156, 104,0.14)',
     backgroundColor: isDark ? colors.surface : '#ffffff',
     marginBottom: EventGrid.rowGap,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 10,
@@ -106,7 +106,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   imageWrap: {
     width: '100%',
     height: EventGrid.imageHeight,
-    backgroundColor: isDark ? colors.surface : '#f1f5f9',
+    backgroundColor: colors.surface,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -125,9 +125,10 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
+  // On the cover photo, so it keeps the dark look's gold
   categoryText: {
     fontSize: 10,
-    color: colors.gold,
+    color: MidnightColors.gold,
     fontFamily: Fonts.inter.bold,
     letterSpacing: 0.7,
   },

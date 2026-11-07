@@ -87,7 +87,7 @@ export default function ContactUsScreen() {
           
           <View style={styles.infoItem}>
             <View style={styles.iconBox}>
-              <IconSymbol name="house.fill" size={24} color={MidnightColors.gold} />
+              <IconSymbol name="house.fill" size={24} color={colors.gold} />
             </View>
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoLabel}>ADDRESS</Text>
@@ -97,7 +97,7 @@ export default function ContactUsScreen() {
 
           <View style={styles.infoItem}>
             <View style={styles.iconBox}>
-              <IconSymbol name="phone.fill" size={24} color={MidnightColors.gold} />
+              <IconSymbol name="phone.fill" size={24} color={colors.gold} />
             </View>
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoLabel}>PHONE</Text>
@@ -108,7 +108,7 @@ export default function ContactUsScreen() {
 
           <View style={styles.infoItem}>
             <View style={styles.iconBox}>
-              <IconSymbol name="envelope.fill" size={24} color={MidnightColors.gold} />
+              <IconSymbol name="envelope.fill" size={24} color={colors.gold} />
             </View>
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoLabel}>EMAIL</Text>
@@ -118,7 +118,7 @@ export default function ContactUsScreen() {
 
           <View style={styles.infoItem}>
             <View style={styles.iconBox}>
-              <IconSymbol name="clock.fill" size={24} color={MidnightColors.gold} />
+              <IconSymbol name="clock.fill" size={24} color={colors.gold} />
             </View>
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoLabel}>BUSINESS HOURS</Text>
@@ -137,7 +137,7 @@ export default function ContactUsScreen() {
             <TextInput
               style={styles.input}
               placeholder="John"
-              placeholderTextColor={colors.slate400}
+              placeholderTextColor={isDark ? colors.slate400 : colors.slate600}
               value={firstName}
               onChangeText={(value) => {
                 setFirstName(value);
@@ -151,7 +151,7 @@ export default function ContactUsScreen() {
             <TextInput
               style={styles.input}
               placeholder="Doe"
-              placeholderTextColor={colors.slate400}
+              placeholderTextColor={isDark ? colors.slate400 : colors.slate600}
               value={lastName}
               onChangeText={(value) => {
                 setLastName(value);
@@ -165,7 +165,7 @@ export default function ContactUsScreen() {
             <TextInput
               style={styles.input}
               placeholder="john@example.com"
-              placeholderTextColor={colors.slate400}
+              placeholderTextColor={isDark ? colors.slate400 : colors.slate600}
               keyboardType="email-address"
               autoCapitalize="none"
               value={email}
@@ -181,7 +181,7 @@ export default function ContactUsScreen() {
             <TextInput 
               style={[styles.input, styles.textArea]} 
               placeholder="Tell us more about your event..." 
-              placeholderTextColor={colors.slate400}
+              placeholderTextColor={isDark ? colors.slate400 : colors.slate600}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -246,7 +246,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     marginBottom: 24,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -297,7 +297,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     marginBottom: 24,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,

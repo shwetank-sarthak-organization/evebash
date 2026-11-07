@@ -107,6 +107,24 @@ export function getPlanDetails(role?: string): PlanDetails {
   }
 }
 
+// The plan colours are bright, made for the dark look. As text or icons on the light look (todo #1) each plan uses a
+// deeper shade of its colour, so it stays readable (WCAG AA on the page, surface and its own soft badge).
+const LIGHT_ACCENT_TEXT: Record<string, string> = {
+  '#CA9C68': '#8A6224',
+  '#a855f7': '#7E22CE',
+  '#f97316': '#9A3412',
+  '#818cf8': '#4338CA',
+  '#38bdf8': '#0369A1',
+  '#22c55e': '#166534',
+  '#14b8a6': '#0F766E',
+  '#94a3b8': '#475569',
+};
+
+/** A plan's colour for text and icons in the current look. */
+export function planAccentText(accent: string, isDark: boolean): string {
+  return isDark ? accent : LIGHT_ACCENT_TEXT[accent] ?? accent;
+}
+
 export function getUsagePercent(current: number, limit: number) {
   if (limit === Infinity) return 0;
   if (limit <= 0) return current > 0 ? 100 : 0;

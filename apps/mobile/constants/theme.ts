@@ -53,6 +53,50 @@ export const MidnightColors = {
   dangerStrong: '#DC2626',
   /** Red text and icons on dark backgrounds */
   dangerSoft: '#F87171',
+  /** Gold fills (primary buttons, badges, switches); `gold` is for gold text, icons and lines */
+  goldFill: '#CA9C68',
+  /** The EB logo's gold */
+  brandMark: '#CA9C68',
+  /** Shadow colour under cards and sheets */
+  shadow: '#000',
+  /** Soft washes and hairlines: white over the dark look, ink over the light one */
+  tint: (alpha: number) => `rgba(255, 255, 255, ${alpha})`,
+};
+
+/**
+ * The light look (todo #1): the website's light palette (src/app/globals.css,
+ * `html[data-site-theme="light"]:not([data-site-noir]) body.site-themed`), so keep the two in step.
+ * Warm ivory paper, ink text, and a deeper bronze for gold text and icons: the normal gold is only
+ * 2.2:1 on light, #8A6224 is 5.1:1. Gold text belongs on the page, surface or card, not on slate800.
+ */
+export const LightColors: typeof MidnightColors = {
+  background: '#FBF8F3',
+  deepSlate: '#FFFFFF',
+  slate900: '#FFFFFF',
+  slate800: '#EBE3D6',
+  slate700: '#D9CDBB',
+  slate600: '#6B6358',
+  slate400: '#4A443C',
+  slate300: '#4A443C',
+  gold: '#8A6224',
+  white: '#1C1915',
+  ghostWhite: '#1C1915',
+  text: '#1C1915',
+  card: '#FFFFFF',
+  border: 'rgba(165, 118, 54, 0.28)',
+  cardBorder: 'rgba(165, 118, 54, 0.2)',
+  modalBackdrop: 'rgba(28, 25, 21, 0.45)',
+  surface: '#F4EEE4',
+  onAccent: '#1A1205',
+  success: '#166534',
+  warning: '#92400E',
+  danger: '#B91C1C',
+  dangerStrong: '#DC2626',
+  dangerSoft: '#B91C1C',
+  goldFill: '#CFA461',
+  brandMark: '#A57636',
+  shadow: 'rgb(92, 64, 24)',
+  tint: (alpha: number) => `rgba(28, 25, 21, ${alpha})`,
 };
 
 export const RoyalColors = {

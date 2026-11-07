@@ -33,7 +33,7 @@ import { StorageBreakdownCard } from '@/components/StorageBreakdownCard';
 
 import { removeProfileImage, uploadProfileImage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
-import { getPlanDetails } from '@/lib/planLimits';
+import { getPlanDetails, planAccentText } from '@/lib/planLimits';
 import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
 import { APP_VERSION } from '@/lib/appVersion';
@@ -411,7 +411,7 @@ export default function ProfileScreen() {
       <IconSymbol
         name={verified && !missing ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"}
         size={12}
-        color={missing ? MidnightColors.warning : verified ? MidnightColors.success : MidnightColors.dangerSoft}
+        color={missing ? colors.warning : verified ? colors.success : colors.dangerSoft}
       />
       <Text
         style={[
@@ -427,6 +427,8 @@ export default function ProfileScreen() {
   if (!user) return null;
 
   const planDetails = getPlanDetails(user.role);
+  // EB Vault's green, deeper on the light look so its title stays readable
+  const vaultGreen = isDark ? '#7FA38C' : '#3F6B4F';
   const subscriptionStatus = getSubscriptionStatus({ role: user.role, planStartDate: user.planStartDate, planEndDate: user.planEndDate });
   const planExpired = subscriptionStatus.status === 'grace' || subscriptionStatus.status === 'expired';
   const savedPersonas = getPersonasArray(user.persona);
@@ -451,7 +453,7 @@ export default function ProfileScreen() {
         title="Profile"
         right={
           <HeaderAction onPress={() => router.push('/settings' as any)} accessibilityLabel="Settings">
-            <SettingsIcon size={22} color={MidnightColors.gold} />
+            <SettingsIcon size={22} color={colors.gold} />
           </HeaderAction>
         }
       />
@@ -464,7 +466,7 @@ export default function ProfileScreen() {
                 <Image source={{ uri: user.profileImage }} style={styles.avatar} />
               ) : (
                 <View style={styles.avatarPlaceholder}>
-                  <IconSymbol name="person.fill" size={24} color={MidnightColors.slate600} />
+                  <IconSymbol name="person.fill" size={24} color={colors.slate600} />
                 </View>
               )}
             </View>
@@ -482,7 +484,7 @@ export default function ProfileScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.planBadgeText, { color: planDetails.accent }]} numberOfLines={1}>
+                  <Text style={[styles.planBadgeText, { color: planAccentText(planDetails.accent, isDark) }]} numberOfLines={1}>
                     {planDetails.name}
                   </Text>
                 </View>
@@ -500,9 +502,9 @@ export default function ProfileScreen() {
           
           {planExpired && (
             <View accessibilityRole="alert" style={{ gap: 10, padding: 14, marginBottom: 12, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(248, 113, 113, 0.35)', backgroundColor: 'rgba(248, 113, 113, 0.1)' }}>
-              <Text style={{ color: '#fca5a5', fontSize: 13, lineHeight: 19, fontWeight: '600' }}>{subscriptionStatus.message} Uploads are paused.</Text>
-              <TouchableOpacity accessibilityRole="button" onPress={() => router.push('/(tabs)/pricing')} style={{ alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 22, backgroundColor: MidnightColors.gold }}>
-                <Text style={{ color: MidnightColors.onAccent, fontSize: 14, fontWeight: '700' }}>Renew plan</Text>
+              <Text style={{ color: isDark ? '#fca5a5' : colors.danger, fontSize: 13, lineHeight: 19, fontWeight: '600' }}>{subscriptionStatus.message} Uploads are paused.</Text>
+              <TouchableOpacity accessibilityRole="button" onPress={() => router.push('/(tabs)/pricing')} style={{ alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 22, backgroundColor: colors.goldFill }}>
+                <Text style={{ color: colors.onAccent, fontSize: 14, fontWeight: '700' }}>Renew plan</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -532,7 +534,7 @@ export default function ProfileScreen() {
           <View style={styles.sectionHead}>
             <Text style={styles.sectionLabel}>Account Info</Text>
             <TouchableOpacity style={styles.editBtn} activeOpacity={0.7} onPress={openEditModal}>
-              <IconSymbol name="pencil" size={12} color={MidnightColors.onAccent} style={{ marginTop: -1 }} />
+              <IconSymbol name="pencil" size={12} color={colors.onAccent} style={{ marginTop: -1 }} />
               <Text style={styles.editBtnText}>Edit</Text>
             </TouchableOpacity>
           </View>
@@ -540,7 +542,7 @@ export default function ProfileScreen() {
           <View style={styles.settingsCard}>
             <View style={styles.infoRow}>
               <View style={styles.infoIconBox}>
-                <IconSymbol name="person.fill" size={18} color={MidnightColors.gold} />
+                <IconSymbol name="person.fill" size={18} color={colors.gold} />
               </View>
               <View style={styles.infoTextContainer}>
                 <Text style={styles.infoLabel}>Full Name</Text>
@@ -552,7 +554,7 @@ export default function ProfileScreen() {
 
             <View style={styles.infoRow}>
               <View style={styles.infoIconBox}>
-                <IconSymbol name="person.fill" size={18} color={MidnightColors.gold} />
+                <IconSymbol name="person.fill" size={18} color={colors.gold} />
               </View>
               <View style={styles.infoTextContainer}>
                 <Text style={styles.infoLabel}>Username</Text>
@@ -564,7 +566,7 @@ export default function ProfileScreen() {
 
             <View style={styles.infoRow}>
               <View style={styles.infoIconBox}>
-                <IconSymbol name="envelope.fill" size={16} color={MidnightColors.gold} />
+                <IconSymbol name="envelope.fill" size={16} color={colors.gold} />
               </View>
               <View style={styles.infoTextContainer}>
                 <Text style={styles.infoLabel}>Email Address</Text>
@@ -581,7 +583,7 @@ export default function ProfileScreen() {
 
             <View style={styles.infoRow}>
               <View style={styles.infoIconBox}>
-                <IconSymbol name="phone.fill" size={16} color={MidnightColors.gold} />
+                <IconSymbol name="phone.fill" size={16} color={colors.gold} />
               </View>
               <View style={styles.infoTextContainer}>
                 <Text style={styles.infoLabel}>Phone Number</Text>
@@ -603,7 +605,7 @@ export default function ProfileScreen() {
               <React.Fragment key={field.label}>
                 <View style={styles.infoRow}>
                   <View style={styles.infoIconBox}>
-                    <IconSymbol name={field.icon} size={16} color={MidnightColors.gold} />
+                    <IconSymbol name={field.icon} size={16} color={colors.gold} />
                   </View>
                   <View style={styles.infoTextContainer}>
                     <Text style={styles.infoLabel}>{field.label}</Text>
@@ -624,13 +626,13 @@ export default function ProfileScreen() {
                   accessibilityLabel={`Complete your profile. ${completeProfileHint}`}
                 >
                   <View style={[styles.infoIconBox, styles.completeProfileIcon]}>
-                    <IconSymbol name="sparkles" size={16} color={MidnightColors.gold} />
+                    <IconSymbol name="sparkles" size={16} color={colors.gold} />
                   </View>
                   <View style={styles.infoTextContainer}>
                     <Text style={styles.completeProfileTitle}>Complete your profile</Text>
                     <Text style={styles.completeProfileBody}>{completeProfileHint}</Text>
                   </View>
-                  <IconSymbol name="chevron.right" size={16} color={MidnightColors.gold} />
+                  <IconSymbol name="chevron.right" size={16} color={colors.gold} />
                 </TouchableOpacity>
                 <View style={styles.divider} />
               </>
@@ -638,7 +640,7 @@ export default function ProfileScreen() {
 
             <View style={styles.infoRow}>
               <View style={styles.infoIconBox}>
-                <IconSymbol name="person.2.fill" size={16} color={MidnightColors.gold} />
+                <IconSymbol name="person.2.fill" size={16} color={colors.gold} />
               </View>
               <View style={styles.infoTextContainer}>
                 <Text style={styles.infoLabel}>I am a</Text>
@@ -660,7 +662,7 @@ export default function ProfileScreen() {
 
             <View style={styles.infoRow}>
               <View style={styles.infoIconBox}>
-                <IconSymbol name="calendar" size={16} color={MidnightColors.gold} />
+                <IconSymbol name="calendar" size={16} color={colors.gold} />
               </View>
               <View style={styles.infoTextContainer}>
                 <Text style={styles.infoLabel}>Joined EveBash</Text>
@@ -687,14 +689,14 @@ export default function ProfileScreen() {
                 style={styles.usageGradient}
               >
                 <View style={styles.usageIconBox}>
-                  <IconSymbol name="chart.bar.fill" size={20} color={MidnightColors.gold} />
+                  <IconSymbol name="chart.bar.fill" size={20} color={colors.gold} />
                 </View>
                 <View style={styles.usageTextContent}>
                   <Text style={styles.usageTitle}>Usage & Plan</Text>
                   <Text style={styles.usageSubtitle}>View limits and upgrade</Text>
                 </View>
                 <View style={styles.usageArrowBox}>
-                  <IconSymbol name="chevron.right" size={14} color={MidnightColors.gold} />
+                  <IconSymbol name="chevron.right" size={14} color={colors.gold} />
                 </View>
               </LinearGradient>
             </TouchableOpacity>
@@ -715,14 +717,14 @@ export default function ProfileScreen() {
                 style={styles.usageGradient}
               >
                 <View style={[styles.usageIconBox, { backgroundColor: 'rgba(127, 163, 140, 0.2)' }]}>
-                  <IconSymbol name="externaldrive.fill" size={20} color="#7FA38C" />
+                  <IconSymbol name="externaldrive.fill" size={20} color={vaultGreen} />
                 </View>
                 <View style={styles.usageTextContent}>
-                  <Text style={[styles.usageTitle, { color: '#7FA38C' }]}>EB Vault</Text>
+                  <Text style={[styles.usageTitle, { color: vaultGreen }]}>EB Vault</Text>
                   <Text style={styles.usageSubtitle}>Your personal storage</Text>
                 </View>
                 <View style={[styles.usageArrowBox, { backgroundColor: 'rgba(127, 163, 140, 0.15)' }]}>
-                  <IconSymbol name="chevron.right" size={14} color="#7FA38C" />
+                  <IconSymbol name="chevron.right" size={14} color={vaultGreen} />
                 </View>
               </LinearGradient>
             </TouchableOpacity>
@@ -739,7 +741,7 @@ export default function ProfileScreen() {
               ])
             }
           >
-            <IconSymbol name="rectangle.portrait.and.arrow.right" size={16} color={MidnightColors.dangerSoft} />
+            <IconSymbol name="rectangle.portrait.and.arrow.right" size={16} color={colors.dangerSoft} />
             <Text style={styles.signOutText}>Sign Out</Text>
           </TouchableOpacity>
         </View>
@@ -769,7 +771,7 @@ export default function ProfileScreen() {
                 disabled={saving}
                 style={styles.modalCloseBtn}
               >
-                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
+                <IconSymbol name="xmark" size={20} color={colors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -789,11 +791,11 @@ export default function ProfileScreen() {
                     <Image source={{ uri: editImage }} style={styles.editAvatar} />
                   ) : (
                     <View style={styles.editAvatarPlaceholder}>
-                      <IconSymbol name="person.fill" size={40} color={MidnightColors.slate600} />
+                      <IconSymbol name="person.fill" size={40} color={colors.slate600} />
                     </View>
                   )}
                   <View style={styles.changePhotoOverlay}>
-                    <IconSymbol name="camera.fill" size={16} color="#ffffff" />
+                    <IconSymbol name="camera.fill" size={16} color={isDark ? '#ffffff' : colors.onAccent} />
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -821,13 +823,13 @@ export default function ProfileScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Full Name <Text style={styles.requiredMark}>*</Text></Text>
                   <View style={styles.inputWrapper}>
-                    <IconSymbol name="person.fill" size={16} color={MidnightColors.gold} style={styles.inputIcon} />
+                    <IconSymbol name="person.fill" size={16} color={colors.gold} style={styles.inputIcon} />
                     <TextInput
                       style={styles.textInput}
                       value={editName}
                       onChangeText={setEditName}
                       placeholder="Enter full name"
-                      placeholderTextColor={MidnightColors.slate600}
+                      placeholderTextColor={colors.slate600}
                       editable={!saving}
                     />
                   </View>
@@ -837,13 +839,13 @@ export default function ProfileScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Email Address <Text style={styles.requiredMark}>*</Text></Text>
                   <View style={styles.inputWrapper}>
-                    <IconSymbol name="envelope.fill" size={16} color={MidnightColors.gold} style={styles.inputIcon} />
+                    <IconSymbol name="envelope.fill" size={16} color={colors.gold} style={styles.inputIcon} />
                     <TextInput
                       style={styles.textInput}
                       value={editEmail}
                       onChangeText={(val) => setEditEmail(val.trim().toLowerCase())}
                       placeholder="name@example.com"
-                      placeholderTextColor={MidnightColors.slate600}
+                      placeholderTextColor={colors.slate600}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
@@ -862,14 +864,14 @@ export default function ProfileScreen() {
                       value={editUsername}
                       onChangeText={(val) => setEditUsername(val.replace(/\s+/g, '').toLowerCase())}
                       placeholder="username"
-                      placeholderTextColor={MidnightColors.slate600}
+                      placeholderTextColor={colors.slate600}
                       autoCapitalize="none"
                       autoCorrect={false}
                       maxLength={12}
                       editable={!saving}
                     />
                     {usernameStatus === 'checking' && (
-                      <ActivityIndicator size="small" color={MidnightColors.gold} style={styles.inputSpinner} />
+                      <ActivityIndicator size="small" color={colors.gold} style={styles.inputSpinner} />
                     )}
                   </View>
                   
@@ -899,13 +901,13 @@ export default function ProfileScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Phone Number</Text>
                   <View style={styles.inputWrapper}>
-                    <IconSymbol name="phone.fill" size={16} color={MidnightColors.gold} style={styles.inputIcon} />
+                    <IconSymbol name="phone.fill" size={16} color={colors.gold} style={styles.inputIcon} />
                     <TextInput
                       style={styles.textInput}
                       value={editPhone}
                       onChangeText={setEditPhone}
                       placeholder="e.g. +91 98765 43210"
-                      placeholderTextColor={MidnightColors.slate600}
+                      placeholderTextColor={colors.slate600}
                       keyboardType="phone-pad"
                       editable={!saving}
                     />
@@ -917,13 +919,13 @@ export default function ProfileScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Location</Text>
                   <View style={styles.inputWrapper}>
-                    <IconSymbol name="mappin.and.ellipse" size={16} color={MidnightColors.gold} style={styles.inputIcon} />
+                    <IconSymbol name="mappin.and.ellipse" size={16} color={colors.gold} style={styles.inputIcon} />
                     <TextInput
                       style={styles.textInput}
                       value={editLocation}
                       onChangeText={setEditLocation}
                       placeholder="e.g. Mumbai, Maharashtra"
-                      placeholderTextColor={MidnightColors.slate600}
+                      placeholderTextColor={colors.slate600}
                       editable={!saving}
                     />
                   </View>
@@ -957,13 +959,13 @@ export default function ProfileScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Birthday</Text>
                   <View style={styles.inputWrapper}>
-                    <IconSymbol name="gift.fill" size={16} color={MidnightColors.gold} style={styles.inputIcon} />
+                    <IconSymbol name="gift.fill" size={16} color={colors.gold} style={styles.inputIcon} />
                     <TextInput
                       style={styles.textInput}
                       value={editBirthday}
                       onChangeText={setEditBirthday}
                       placeholder="e.g. October 24 (or DD/MM/YYYY)"
-                      placeholderTextColor={MidnightColors.slate600}
+                      placeholderTextColor={colors.slate600}
                       editable={!saving}
                     />
                   </View>
@@ -1150,7 +1152,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.goldFill,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -1178,7 +1180,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     padding: 24, 
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    shadowColor: '#000', 
+    shadowColor: colors.shadow, 
     shadowOffset: { width: 0, height: 12 }, 
     shadowOpacity: isDark ? 0.3 : 0.05, 
     shadowRadius: 24, 
@@ -1392,7 +1394,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderWidth: 1,
     borderColor: colors.cardBorder,
     maxHeight: '90%',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: isDark ? 0.5 : 0.08,
     shadowRadius: 20,
@@ -1448,7 +1450,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     position: 'absolute',
     bottom: 3,
     right: 3,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.goldFill,
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -1461,7 +1463,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     marginTop: 12,
   },
   changePhotoText: {
-    color: '#60a5fa',
+    color: isDark ? '#60a5fa' : '#1D4ED8',
     fontSize: 14,
     fontFamily: 'Outfit_600SemiBold',
   },
@@ -1543,7 +1545,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     color: colors.danger,
   },
   feedbackInvalid: {
-    color: '#f43f5e',
+    color: isDark ? '#f43f5e' : colors.danger,
   },
   inputHint: {
     fontSize: 11,
@@ -1575,7 +1577,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     flex: 2,
     height: 56,
     borderRadius: 16,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.goldFill,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: colors.gold,
@@ -1604,7 +1606,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderWidth: 1,
     borderColor: colors.cardBorder,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: isDark ? 0.15 : 0.02,
     shadowRadius: 8,

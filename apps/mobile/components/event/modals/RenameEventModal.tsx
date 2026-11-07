@@ -6,7 +6,7 @@ import {
   Text,
   TextInput,
 } from 'react-native';
-import { MidnightColors } from '../../../constants/theme';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 interface RenameEventModalProps {
   visible: boolean;
@@ -29,6 +29,7 @@ export function RenameEventModal({
   updating,
   styles
 }: RenameEventModalProps) {
+  const { colors, isDark } = useAppTheme();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
@@ -52,12 +53,12 @@ export function RenameEventModal({
             value={editTitle}
             onChangeText={setEditTitle}
             placeholder="Event Name"
-            placeholderTextColor={MidnightColors.slate400}
+            placeholderTextColor={isDark ? colors.slate400 : colors.slate600}
             multiline
             blurOnSubmit={false}
           />
 
-          <Text style={{ fontSize: 11, color: MidnightColors.slate400, marginTop: 6, marginBottom: 12 }}>
+          <Text style={{ fontSize: 11, color: colors.slate400, marginTop: 6, marginBottom: 12 }}>
             Tip: Press Enter / Return to add a new line.
           </Text>
 

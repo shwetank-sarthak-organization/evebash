@@ -12,7 +12,7 @@ import {
   StyleSheet
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { MidnightColors } from '../../../constants/theme';
+import { useAppTheme } from '../../../context/ThemeContext';
 import { IconSymbol } from '../../ui/icon-symbol';
 
 interface SubEventModalProps {
@@ -44,6 +44,7 @@ export function SubEventModal({
   updating,
   styles
 }: SubEventModalProps) {
+  const { colors, isDark } = useAppTheme();
   const savePressRef = React.useRef(false);
   const canSave = newSubTitle.trim().length > 0 && subDate.trim().length > 0 && !updating;
 
@@ -84,12 +85,12 @@ export function SubEventModal({
                 borderRadius: 18,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: 'rgba(255,255,255,0.08)',
+                backgroundColor: colors.tint(0.08),
                 borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.12)'
+                borderColor: colors.tint(0.12)
               }}
             >
-              <Text style={{ color: '#fff', fontSize: 22, lineHeight: 24 }}>×</Text>
+              <Text style={{ color: isDark ? '#fff' : colors.white, fontSize: 22, lineHeight: 24 }}>×</Text>
             </TouchableOpacity>
           </View>
           <TextInput
@@ -97,7 +98,7 @@ export function SubEventModal({
             value={newSubTitle}
             onChangeText={setNewSubTitle}
             placeholder="Sub-gallery name"
-            placeholderTextColor={MidnightColors.slate400}
+            placeholderTextColor={isDark ? colors.slate400 : colors.slate600}
             autoFocus
             returnKeyType="done"
             blurOnSubmit
@@ -110,8 +111,8 @@ export function SubEventModal({
                 minHeight: 56,
                 borderRadius: 18,
                 borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.14)',
-                backgroundColor: 'rgba(255,255,255,0.05)',
+                borderColor: colors.tint(0.14),
+                backgroundColor: colors.tint(0.05),
                 paddingHorizontal: 16,
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -124,10 +125,10 @@ export function SubEventModal({
               activeOpacity={0.85}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                <IconSymbol name="calendar" size={18} color={MidnightColors.gold} />
-                <Text style={{ color: '#fff', fontSize: 16, flex: 1 }}>{subDate}</Text>
+                <IconSymbol name="calendar" size={18} color={colors.gold} />
+                <Text style={{ color: isDark ? '#fff' : colors.white, fontSize: 16, flex: 1 }}>{subDate}</Text>
               </View>
-              <IconSymbol name="chevron.down" size={18} color={MidnightColors.slate400} />
+              <IconSymbol name="chevron.down" size={18} color={colors.slate400} />
             </TouchableOpacity>
             {showSubDatePicker && (
               <DateTimePicker
@@ -147,7 +148,7 @@ export function SubEventModal({
             accessibilityRole="button"
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-              {updating ? <ActivityIndicator size="small" color={MidnightColors.background} /> : null}
+              {updating ? <ActivityIndicator size="small" color={colors.onAccent} /> : null}
               <Text style={styles.submitBtnText}>
               {updating ? 'Creating...' : 'Create Sub-Gallery'}
               </Text>

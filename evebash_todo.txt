@@ -40,28 +40,6 @@ Last updated: 2026-11-06
 ACTIVE TODOS
 =====================================================================
 
-#1  Light theme for the app and website
-Listed:       2026-10-26
-Platform:     Both
-Priority:     Medium
-Phase:        2
-Status:       In progress
-Effort:       L
-Suggested by: Sarthak
-Discussed:    Yes
-Decision:     Website: device setting + switch (2026-11-04, Sarthak)
-Owner:        Sarthak (with Claude)
-Depends on:   -
-Brief:        Add a light theme to the app and the website, alongside the current look.
-              To decide: follow the phone/browser setting, a switch in settings, or both;
-              and whether gallery themes (e.g. Classic White) stay separate from it.
-              2026-11-04 decided (Sarthak): website follows the device setting, with a navbar sun/moon button
-              and Settings > Appearance to override; login, forgot and reset password stay as they are.
-              Website: on staging in 69c388f (2026-11-06), device test #192. Every site page, EB Business,
-              EB Network, the upload panel, loading and app-download screens; only the login screens stay
-              as they are (Sarthak 2026-11-06). The app's light theme is not started.
-Done in:      -
-
 #2  One-time event payment plan
 Listed:       2026-10-26
 Platform:     Both
@@ -672,6 +650,34 @@ Done in:      -
 =====================================================================
 DONE / DROPPED (delete after 14 days)
 =====================================================================
+
+#1  Light theme for the app and website
+Listed:       2026-10-26
+Platform:     Both
+Priority:     Medium
+Phase:        2
+Status:       Done
+Effort:       L
+Suggested by: Sarthak
+Discussed:    Yes
+Decision:     Website: device setting + switch (2026-11-04, Sarthak)
+              App: device setting + Settings > Appearance; login, sign-up, forgot password and the terms
+              screen stay dark; of the business screens only the visible EB Network tab gets the light
+              look, the hidden Phase 2 ones stay dark (2026-11-06, Sarthak)
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        Add a light theme to the app and the website, alongside the current look.
+              To decide: follow the phone/browser setting, a switch in settings, or both;
+              and whether gallery themes (e.g. Classic White) stay separate from it.
+              2026-11-04 decided (Sarthak): website follows the device setting, with a navbar sun/moon button
+              and Settings > Appearance to override; login, forgot and reset password stay as they are.
+              Website: on staging in 69c388f (2026-11-06), device test #192. Every site page, EB Business,
+              EB Network, the upload panel, loading and app-download screens; only the login screens stay
+              as they are (Sarthak 2026-11-06).
+              App: on staging in 94def90 (2026-11-06), device test #195. Settings, the main tabs, EB Network and
+              the host's event screen (host view only). Guest themes, Vault, the photo viewer and the login
+              screens keep their own look. Dark compared pixel by pixel with the old app on the simulator.
+Done in:      Website 69c388f (2026-11-06), device test #192. App 94def90 (2026-11-06), device test #195.
 
 #22 App-open animation: camera clicks a photo of the EB logo
 Listed:       2026-11-03

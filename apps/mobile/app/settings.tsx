@@ -23,13 +23,22 @@ import { appAlert, showToast } from '@/lib/feedback';
 import { haptic } from '@/lib/haptics';
 import * as Clipboard from 'expo-clipboard';
 import { MidnightColors } from '@/constants/theme';
+import type { IconSymbolName } from '@/components/ui/icon-symbol';
+import type { ThemeChoice } from '../../../shared/themes/themeChoice';
 
 /** Business lead alerts are hidden until Phase 2 (they come with EB Business and EB Network). */
 const SHOW_BUSINESS_ALERTS = false;
 
+// Appearance (todo #1): the same three choices as the website's Settings
+const THEME_CHOICES: { value: ThemeChoice; label: string; icon: IconSymbolName }[] = [
+  { value: 'light', label: 'Light', icon: 'sun.max.fill' },
+  { value: 'dark', label: 'Dark', icon: 'moon.fill' },
+  { value: 'system', label: 'Match device', icon: 'iphone' },
+];
+
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
-  const { colors, isDark } = useAppTheme();
+  const { colors, isDark, choice: themeChoice, setChoice: setThemeChoice } = useAppTheme();
   const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
 
@@ -282,7 +291,7 @@ export default function SettingsScreen() {
               onPress={() => setPasswordModalVisible(true)}
             >
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-                <IconSymbol name="lock.fill" size={18} color={MidnightColors.gold} />
+                <IconSymbol name="lock.fill" size={18} color={colors.gold} />
               </View>
               <Text style={styles.actionText}>Change Password</Text>
               <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -290,7 +299,7 @@ export default function SettingsScreen() {
           ) : (
             <View style={[styles.actionItemRow, { opacity: 0.5 }]}>
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.05)' }]}>
-                <IconSymbol name="lock.fill" size={18} color={MidnightColors.slate400} />
+                <IconSymbol name="lock.fill" size={18} color={colors.slate400} />
               </View>
               <Text style={[styles.actionText, { color: colors.slate400 }]}>Change Password (Phone Login)</Text>
             </View>
@@ -304,11 +313,47 @@ export default function SettingsScreen() {
             onPress={() => setDeleteModalVisible(true)}
           >
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
-              <IconSymbol name="trash.fill" size={18} color={MidnightColors.danger} />
+              <IconSymbol name="trash.fill" size={18} color={colors.danger} />
             </View>
-            <Text style={[styles.actionText, { color: MidnightColors.dangerSoft }]}>Delete Account</Text>
-            <IconSymbol name="chevron.right" size={16} color={MidnightColors.dangerSoft} />
+            <Text style={[styles.actionText, { color: colors.dangerSoft }]}>Delete Account</Text>
+            <IconSymbol name="chevron.right" size={16} color={colors.dangerSoft} />
           </TouchableOpacity>
+        </View>
+
+        {/* Light or dark look (todo #1), like the website's Settings > Appearance */}
+        <Text style={styles.sectionLabel}>Appearance</Text>
+        <View style={styles.settingsCard}>
+          <View style={styles.actionItemRow}>
+            <View style={styles.infoIconBox}>
+              <IconSymbol name={isDark ? 'moon.fill' : 'sun.max.fill'} size={18} color={colors.gold} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.actionText}>Theme</Text>
+              <Text style={styles.actionSubtext}>Light, dark, or the same as this device</Text>
+            </View>
+          </View>
+          <View style={styles.themeChoices} accessibilityRole="radiogroup" accessibilityLabel="Theme">
+            {THEME_CHOICES.map(({ value, label, icon }) => {
+              const selected = themeChoice === value;
+              return (
+                <TouchableOpacity
+                  key={value}
+                  style={[styles.themeChoice, value === 'system' && styles.themeChoiceWide, selected && styles.themeChoiceActive]}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    haptic('select');
+                    setThemeChoice(value);
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={label}
+                >
+                  <IconSymbol name={icon} size={14} color={selected ? colors.onAccent : colors.slate400} />
+                  <Text style={[styles.themeChoiceText, selected && styles.themeChoiceTextActive]} numberOfLines={1}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         {/* Privacy Settings */}
@@ -316,7 +361,7 @@ export default function SettingsScreen() {
         <View style={styles.settingsCard}>
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={withdrawFindYouConsent} accessibilityRole="button" accessibilityLabel="Withdraw Find You consent">
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="person.fill" size={18} color={MidnightColors.gold} />
+              <IconSymbol name="person.fill" size={18} color={colors.gold} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionText}>Withdraw Find You Consent</Text>
@@ -389,7 +434,7 @@ export default function SettingsScreen() {
             onPress={() => setFeedbackModalVisible(true)}
           >
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="bell.fill" size={18} color={MidnightColors.gold} />
+              <IconSymbol name="bell.fill" size={18} color={colors.gold} />
             </View>
             <Text style={styles.actionText}>Report a Bug / Send Feedback</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -412,7 +457,7 @@ export default function SettingsScreen() {
             ])}
           >
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="envelope.fill" size={16} color={MidnightColors.gold} />
+              <IconSymbol name="envelope.fill" size={16} color={colors.gold} />
             </View>
             <Text style={styles.actionText}>Contact Customer Support</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -435,7 +480,7 @@ export default function SettingsScreen() {
                   <IconSymbol
                     name={isExpanded ? "chevron.down" : "chevron.right"}
                     size={16}
-                    color={MidnightColors.gold}
+                    color={colors.gold}
                   />
                 </TouchableOpacity>
                 {isExpanded && (
@@ -454,7 +499,7 @@ export default function SettingsScreen() {
         <View style={styles.settingsCard}>
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => router.push('/(tabs)' as any)}>
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="house.fill" size={18} color={MidnightColors.gold} />
+              <IconSymbol name="house.fill" size={18} color={colors.gold} />
             </View>
             <Text style={styles.actionText}>About EveBash</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -464,7 +509,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => openLegalModal('terms')}>
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="doc.on.doc.fill" size={18} color={MidnightColors.gold} />
+              <IconSymbol name="doc.on.doc.fill" size={18} color={colors.gold} />
             </View>
             <Text style={styles.actionText}>Terms of Service</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -474,7 +519,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => openLegalModal('privacy')}>
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="shield.fill" size={18} color={MidnightColors.gold} />
+              <IconSymbol name="shield.fill" size={18} color={colors.gold} />
             </View>
             <Text style={styles.actionText}>Privacy Policy</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -503,7 +548,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Change Password</Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setPasswordModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
+                <IconSymbol name="xmark" size={20} color={colors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -516,7 +561,7 @@ export default function SettingsScreen() {
                   onChangeText={setNewPassword}
                   secureTextEntry={true}
                   placeholder="At least 6 characters"
-                  placeholderTextColor={MidnightColors.slate600}
+                  placeholderTextColor={colors.slate600}
                 />
               </View>
 
@@ -528,7 +573,7 @@ export default function SettingsScreen() {
                   onChangeText={setConfirmPassword}
                   secureTextEntry={true}
                   placeholder="Re-enter password"
-                  placeholderTextColor={MidnightColors.slate600}
+                  placeholderTextColor={colors.slate600}
                 />
               </View>
             </View>
@@ -565,11 +610,11 @@ export default function SettingsScreen() {
         onRequestClose={() => setDeleteModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { borderTopColor: MidnightColors.danger, borderTopWidth: 4 }]}>
+          <View style={[styles.modalContent, { borderTopColor: colors.danger, borderTopWidth: 4 }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: MidnightColors.danger }]}>Delete Account Permanently?</Text>
+              <Text style={[styles.modalTitle, { color: colors.danger }]}>Delete Account Permanently?</Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setDeleteModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
+                <IconSymbol name="xmark" size={20} color={colors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -586,7 +631,7 @@ export default function SettingsScreen() {
                 autoCorrect={false}
                 editable={!deletingAccount}
                 placeholder="DELETE"
-                placeholderTextColor={MidnightColors.slate600}
+                placeholderTextColor={colors.slate600}
               />
             </View>
 
@@ -633,7 +678,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Send Feedback</Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setFeedbackModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
+                <IconSymbol name="xmark" size={20} color={colors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -658,7 +703,7 @@ export default function SettingsScreen() {
                   value={feedbackText}
                   onChangeText={setFeedbackText}
                   placeholder="Describe your issue or suggest a premium feature..."
-                  placeholderTextColor={MidnightColors.slate600}
+                  placeholderTextColor={colors.slate600}
                   multiline={true}
                   numberOfLines={5}
                 />
@@ -703,7 +748,7 @@ export default function SettingsScreen() {
                 {legalModalType === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
               </Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setLegalModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
+                <IconSymbol name="xmark" size={20} color={colors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -765,7 +810,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     padding: 20,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 24,
@@ -833,6 +878,41 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   toggleDotActive: {
     alignSelf: 'flex-end',
   },
+  themeChoices: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 16,
+    padding: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.background,
+  },
+  themeChoice: {
+    flex: 1,
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+  },
+  // "Match device" is the longest label
+  themeChoiceWide: {
+    flex: 1.45,
+  },
+  themeChoiceActive: {
+    backgroundColor: colors.goldFill,
+  },
+  themeChoiceText: {
+    fontSize: 13,
+    fontFamily: 'Inter_700Bold',
+    color: colors.slate400,
+  },
+  themeChoiceTextActive: {
+    color: colors.onAccent,
+  },
   divider: {
     height: 1,
     backgroundColor: colors.cardBorder,
@@ -873,7 +953,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   // MODALS STYLING
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(19, 25, 31, 0.75)',
+    backgroundColor: isDark ? 'rgba(19, 25, 31, 0.75)' : colors.modalBackdrop,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -885,9 +965,9 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderWidth: 1,
     borderColor: colors.cardBorder,
     padding: 24,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.5,
+    shadowOpacity: isDark ? 0.5 : 0.2,
     shadowRadius: 30,
     elevation: 20,
   },
@@ -999,7 +1079,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     color: colors.slate400,
   },
   saveBtn: {
-    backgroundColor: colors.gold,
+    backgroundColor: colors.goldFill,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 16,

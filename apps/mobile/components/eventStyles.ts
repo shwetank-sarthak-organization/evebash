@@ -1,5 +1,5 @@
 import { StyleSheet, Dimensions, Platform } from 'react-native';
-import { MidnightColors, Fonts } from '../constants/theme';
+import { MidnightColors, Fonts, LightColors } from '../constants/theme';
 
 import { baseStyles } from './eventStyles/baseStyles';
 import { cyberTechStyles } from './eventStyles/cyberTechStyles';
@@ -16,6 +16,7 @@ import { techSleekStyles } from './eventStyles/techSleekStyles';
 import { executiveSuiteStyles } from './eventStyles/executiveSuiteStyles';
 import { sportsStyles } from './eventStyles/sportsStyles';
 import { FunkyFonts } from './eventStyles/funkyFonts';
+import { makeHostLightStyles } from './eventStyles/hostLightStyles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -37,3 +38,6 @@ export const styles = StyleSheet.create({
   ...executiveSuiteStyles,
   ...sportsStyles,
 } as any);
+
+// The host's event screen in the light look (todo #1); guests and the dark look always use `styles`
+export const hostLightStyles = makeHostLightStyles(styles, LightColors);

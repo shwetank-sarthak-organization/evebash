@@ -740,7 +740,7 @@ export default function PortfolioTabScreen() {
             <View style={styles.premiumModalBackdrop}>
               <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                 <LinearGradient
-                  colors={['#1B211F', '#13191F']}
+                  colors={isDark ? ['#1B211F', '#13191F'] : [colors.card, colors.surface]}
                   style={styles.premiumModalContent}
                 >
                   {/* Header: Member Identity */}
@@ -759,7 +759,7 @@ export default function PortfolioTabScreen() {
                       <Text style={styles.premiumModalSub}>Requesting Access</Text>
                     </View>
                     <TouchableOpacity onPress={() => setSelectedRequest(null)} style={styles.closeModalCircle} accessibilityRole="button" accessibilityLabel="Close" hitSlop={8}>
-                      <IconSymbol name="xmark" size={16} color={MidnightColors.slate400} />
+                      <IconSymbol name="xmark" size={16} color={colors.slate400} />
                     </TouchableOpacity>
                   </View>
 
@@ -798,7 +798,7 @@ export default function PortfolioTabScreen() {
                         }
                       }}
                     >
-                      <Text style={[styles.modalActionText, { color: MidnightColors.danger }]}>Deny</Text>
+                      <Text style={[styles.modalActionText, { color: colors.danger }]}>Deny</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -813,10 +813,10 @@ export default function PortfolioTabScreen() {
                       }}
                     >
                       <LinearGradient
-                        colors={[colors.gold, colors.gold]}
+                        colors={[colors.goldFill, colors.goldFill]}
                         style={styles.approveGradient}
                       >
-                        <Text style={[styles.modalActionTextWhite, { color: MidnightColors.onAccent }]}>Approve Access</Text>
+                        <Text style={[styles.modalActionTextWhite, { color: colors.onAccent }]}>Approve Access</Text>
                       </LinearGradient>
                     </TouchableOpacity>
                   </View>
@@ -869,7 +869,7 @@ export default function PortfolioTabScreen() {
             onPress={() => Linking.openURL('https://www.youtube.com/@EveBashApp')}
           >
             <LinearGradient
-              colors={['#1E1B17', '#12171C']}
+              colors={isDark ? ['#1E1B17', '#12171C'] : [colors.card, colors.surface]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.howToHostGradient}
@@ -973,7 +973,7 @@ export default function PortfolioTabScreen() {
                 </View>
                 <View style={styles.quotaBarTrack}>
                   <LinearGradient
-                    colors={[colors.gold, '#f5d080']}
+                    colors={isDark ? [colors.gold, '#f5d080'] : [colors.gold, colors.goldFill]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={[
@@ -991,14 +991,14 @@ export default function PortfolioTabScreen() {
               <View style={styles.quotaMetricRow}>
                 <View style={styles.quotaMetricTop}>
                   <View style={styles.quotaMetricLeft}>
-                    <View style={[styles.quotaDot, { backgroundColor: MidnightColors.gold }]} />
+                    <View style={[styles.quotaDot, { backgroundColor: colors.gold }]} />
                     <Text style={styles.quotaMetricLabel}>Events</Text>
                   </View>
                   <View style={styles.quotaMetricRight}>
                     <Text style={styles.quotaMetricValue}>{mainEventCount}</Text>
                     <Text style={styles.quotaMetricMax}> / {planDetails.eventLabel}</Text>
                     <View style={[styles.quotaPercentChip, { backgroundColor: 'rgba(202, 156, 104, 0.12)' }]}>
-                      <Text style={[styles.quotaPercentText, { color: MidnightColors.gold }]}>
+                      <Text style={[styles.quotaPercentText, { color: colors.gold }]}>
                         {planDetails.eventLimit === Infinity ? '∞' : `${Math.round(eventPercent)}%`}
                       </Text>
                     </View>
@@ -1006,7 +1006,7 @@ export default function PortfolioTabScreen() {
                 </View>
                 <View style={styles.quotaBarTrack}>
                   <LinearGradient
-                    colors={[MidnightColors.gold, MidnightColors.slate400]}
+                    colors={isDark ? [MidnightColors.gold, MidnightColors.slate400] : [colors.gold, colors.goldFill]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={[
@@ -1024,7 +1024,7 @@ export default function PortfolioTabScreen() {
               onPress={() => { setShowQuotaModal(false); router.push('/(tabs)/usage'); }}
             >
               <LinearGradient
-                colors={[colors.gold, '#c9960a']}
+                colors={isDark ? [colors.gold, '#c9960a'] : [colors.goldFill, '#B4884A']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.quotaUpgradeBtn}
@@ -1081,7 +1081,7 @@ export default function PortfolioTabScreen() {
                       style={[
                         styles.templateRowCard,
                         isActive && styles.activeTemplateRowCard,
-                        { borderColor: isActive ? template.accent : 'rgba(255,255,255,0.06)' },
+                        { borderColor: isActive ? template.accent : isDark ? 'rgba(255,255,255,0.06)' : colors.tint(0.08) },
                       ]}
                       onPress={() => { handleTemplateSelect(template.id); setTemplateVisible(false); }}
                       activeOpacity={0.9}
@@ -1092,7 +1092,7 @@ export default function PortfolioTabScreen() {
                         </View>
 
                         <View style={styles.templateRowText}>
-                          <Text style={[styles.templateRowName, isActive && { color: template.accent }]}>
+                          <Text style={[styles.templateRowName, isActive && { color: isDark ? template.accent : colors.gold }]}>
                             {template.label}
                           </Text>
                           <Text style={styles.templateRowDesc} numberOfLines={1}>
@@ -1175,8 +1175,8 @@ export default function PortfolioTabScreen() {
                     if (targetEvent) handleDeleteEvent(targetEvent);
                   }}
                 >
-                  <IconSymbol name="trash.fill" size={20} color={MidnightColors.danger} />
-                  <Text style={[styles.optionText, { color: MidnightColors.danger }]}>Delete Event</Text>
+                  <IconSymbol name="trash.fill" size={20} color={colors.danger} />
+                  <Text style={[styles.optionText, { color: colors.danger }]}>Delete Event</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1208,7 +1208,7 @@ export default function PortfolioTabScreen() {
                   value={editTitle}
                   onChangeText={setEditTitle}
                   placeholder="Enter new name..."
-                  placeholderTextColor={colors.slate400}
+                  placeholderTextColor={isDark ? colors.slate400 : colors.slate600}
                   returnKeyType="done"
                   blurOnSubmit
                   onSubmitEditing={handleRenameSubmit}
@@ -1255,7 +1255,7 @@ export default function PortfolioTabScreen() {
                   value={newEventTitle}
                   onChangeText={setNewEventTitle}
                   placeholder="e.g. Wedding of John & Jane"
-                  placeholderTextColor={colors.slate400}
+                  placeholderTextColor={isDark ? colors.slate400 : colors.slate600}
                   returnKeyType="done"
                   blurOnSubmit
                 />
@@ -1272,7 +1272,7 @@ export default function PortfolioTabScreen() {
                         style={[styles.eventTypeOption, isSelected && styles.eventTypeOptionActive]}
                         onPress={() => setNewEventType(option.name)}
                       >
-                        <IconSymbol name={option.icon as any} size={16} color={isSelected ? MidnightColors.background : colors.gold} />
+                        <IconSymbol name={option.icon as any} size={16} color={isSelected ? colors.onAccent : colors.gold} />
                         <Text style={[styles.eventTypeText, isSelected && styles.eventTypeTextActive]}>{option.name}</Text>
                       </TouchableOpacity>
                     );
@@ -1377,7 +1377,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     overflow: 'hidden',
     marginTop: 16,
     elevation: 6,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 14,
@@ -1406,13 +1406,13 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     letterSpacing: 0.8,
   },
   howToHostTitle: {
-    color: '#ffffff',
+    color: isDark ? '#ffffff' : colors.white,
     fontSize: 18,
     fontFamily: Fonts.outfit.extraBold,
     marginBottom: 4,
   },
   howToHostSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
+    color: isDark ? 'rgba(255,255,255,0.8)' : colors.slate400,
     fontSize: 12,
     fontFamily: Fonts.inter.regular,
     lineHeight: 17,
@@ -1437,7 +1437,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : colors.tint(0.05),
     borderWidth: 1.5,
     borderColor: 'rgba(202, 156, 104, 0.3)',
     justifyContent: 'center',
@@ -1489,11 +1489,11 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderColor: 'transparent',
   },
   tabBadge: { position: 'absolute', top: -6, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: colors.background },
-  tabBadgeText: { color: colors.white, fontSize: 10, fontFamily: Fonts.inter.bold },
+  tabBadgeText: { color: isDark ? colors.white : '#FFFFFF', fontSize: 10, fontFamily: Fonts.inter.bold },
   // Selected tab uses the Dashboard "Join Event" button colours
   tabButtonActive: {
-    backgroundColor: colors.gold,
-    borderColor: colors.gold,
+    backgroundColor: colors.goldFill,
+    borderColor: colors.goldFill,
   },
   tabText: { fontSize: 13, color: colors.slate400, fontFamily: Fonts.inter.medium },
   tabTextActive: { color: colors.onAccent, fontFamily: Fonts.inter.bold },
@@ -1509,7 +1509,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderColor: 'rgba(202, 156, 104,0.14)',
     backgroundColor: isDark ? colors.surface : '#ffffff',
     marginBottom: EventGrid.rowGap,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 10,
@@ -1519,7 +1519,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : colors.tint(0.08),
   },
   sharedOwnerLine: {
     fontSize: 10,
@@ -1558,7 +1558,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     gap: 12,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : colors.tint(0.08),
   },
   requestGroupLabel: {
     color: colors.slate400,
@@ -1577,13 +1577,13 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     minWidth: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.goldFill,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8,
   },
   requestGroupCountText: {
-    color: MidnightColors.background,
+    color: colors.onAccent,
     fontSize: 12,
     fontFamily: Fonts.outfit.bold,
   },
@@ -1611,7 +1611,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
 
   // Request Modal Styles
   ironCladWrapper: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
-  premiumRequestModal: { width: width * 0.85, borderRadius: 28, padding: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  premiumRequestModal: { width: width * 0.85, borderRadius: 28, padding: 24, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.1)' : colors.cardBorder },
   largeAvatar: { width: 80, height: 80, borderRadius: 40, overflow: 'hidden', marginBottom: 16 },
   avatarGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   largeAvatarText: { color: MidnightColors.background, fontSize: 32, fontFamily: Fonts.outfit.extraBold },
@@ -1635,7 +1635,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(19, 25, 31, 0.85)',
+    backgroundColor: isDark ? 'rgba(19, 25, 31, 0.85)' : colors.modalBackdrop,
     paddingHorizontal: 20,
   },
   quotaModalContent: {
@@ -1841,8 +1841,8 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
   },
   eventTypeOptionActive: {
-    backgroundColor: MidnightColors.gold,
-    borderColor: MidnightColors.gold,
+    backgroundColor: colors.goldFill,
+    borderColor: colors.goldFill,
   },
   eventTypeText: {
     color: colors.white,
@@ -1850,7 +1850,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     fontFamily: Fonts.inter.bold,
   },
   eventTypeTextActive: {
-    color: MidnightColors.background,
+    color: colors.onAccent,
   },
   dateSelectBtn: {
     minHeight: 58,
@@ -1874,7 +1874,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     fontFamily: Fonts.inter.medium,
   },
   submitBtn: {
-    backgroundColor: MidnightColors.gold,
+    backgroundColor: colors.goldFill,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1882,13 +1882,13 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     padding: 18,
     borderRadius: 20,
     marginTop: 10,
-    shadowColor: MidnightColors.gold,
+    shadowColor: colors.gold,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
-  submitBtnText: { color: MidnightColors.background, fontFamily: Fonts.outfit.extraBold, fontSize: 16, textTransform: 'uppercase', letterSpacing: 1 },
+  submitBtnText: { color: colors.onAccent, fontFamily: Fonts.outfit.extraBold, fontSize: 16, textTransform: 'uppercase', letterSpacing: 1 },
 
   modalDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 24 },
 
@@ -1917,7 +1917,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
   },
   activeTemplateRowCard: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : colors.tint(0.04),
   },
   templateRowLeft: {
     flexDirection: 'row',
@@ -1968,7 +1968,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(19, 25, 31, 0.95)',
+    backgroundColor: isDark ? 'rgba(19, 25, 31, 0.95)' : colors.modalBackdrop,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000
@@ -1979,33 +1979,33 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderRadius: 28,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    shadowColor: '#000',
+    borderColor: isDark ? 'rgba(255,255,255,0.1)' : colors.cardBorder,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 10
   },
-  premiumModalHeader: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: 'rgba(255,255,255,0.02)' },
+  premiumModalHeader: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : colors.tint(0.02) },
   premiumAvatar: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden' },
   premiumAvatarText: { color: MidnightColors.background, fontSize: 20, fontFamily: Fonts.outfit.extraBold },
-  premiumModalTitle: { color: '#fff', fontSize: 18, fontFamily: Fonts.outfit.bold },
-  premiumModalSub: { color: MidnightColors.gold, fontSize: 10, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginTop: 1, opacity: 0.8 },
-  closeModalCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
+  premiumModalTitle: { color: isDark ? '#fff' : colors.white, fontSize: 18, fontFamily: Fonts.outfit.bold },
+  premiumModalSub: { color: colors.gold, fontSize: 10, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginTop: 1, opacity: 0.8 },
+  closeModalCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.tint(0.05), alignItems: 'center', justifyContent: 'center' },
   permissionsScroll: { padding: 16 },
-  userInfoToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.025)', padding: 10, borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)', gap: 10 },
+  userInfoToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.025)' : colors.tint(0.025), padding: 10, borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.04)' : colors.tint(0.05), gap: 10 },
   userInfoToggleActive: { backgroundColor: 'rgba(202, 156, 104, 0.06)', borderColor: 'rgba(202, 156, 104, 0.18)' },
   userInfoToggleIcon: { width: 30, height: 30, borderRadius: 12, backgroundColor: 'rgba(202, 156, 104, 0.1)', alignItems: 'center', justifyContent: 'center' },
-  userInfoToggleTitle: { color: '#fff', fontSize: 13, fontFamily: Fonts.outfit.bold },
+  userInfoToggleTitle: { color: isDark ? '#fff' : colors.white, fontSize: 13, fontFamily: Fonts.outfit.bold },
   userInfoToggleSub: { color: colors.slate400, fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 1 },
-  userInfoPanel: { backgroundColor: 'rgba(255,255,255,0.025)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', padding: 10, marginBottom: 10 },
+  userInfoPanel: { backgroundColor: isDark ? 'rgba(255,255,255,0.025)' : colors.tint(0.025), borderRadius: 16, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.05)' : colors.tint(0.06), padding: 10, marginBottom: 10 },
   userInfoProfileRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   userInfoLargeAvatar: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden' },
   memberInfoAvatarImage: { width: '100%', height: '100%' },
-  userInfoName: { color: '#fff', fontSize: 14, fontFamily: Fonts.outfit.bold },
-  userInfoHandle: { color: MidnightColors.gold, fontSize: 11, fontFamily: Fonts.inter.bold, marginTop: 2 },
+  userInfoName: { color: isDark ? '#fff' : colors.white, fontSize: 14, fontFamily: Fonts.outfit.bold },
+  userInfoHandle: { color: colors.gold, fontSize: 11, fontFamily: Fonts.inter.bold, marginTop: 2 },
   userInfoDetails: { gap: 6 },
-  userInfoDetailRow: { backgroundColor: 'rgba(27, 33, 31, 0.7)', padding: 9, borderRadius: 12 },
+  userInfoDetailRow: { backgroundColor: isDark ? 'rgba(27, 33, 31, 0.7)' : colors.card, padding: 9, borderRadius: 12 },
   userInfoDetailLabel: { color: colors.slate400, fontSize: 10, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.8 },
-  userInfoDetailValue: { color: '#fff', fontSize: 12, fontFamily: Fonts.inter.medium },
+  userInfoDetailValue: { color: isDark ? '#fff' : colors.white, fontSize: 12, fontFamily: Fonts.inter.medium },
 });

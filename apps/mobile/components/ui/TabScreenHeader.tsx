@@ -32,7 +32,7 @@ export function TabScreenHeader({ title, left, right }: TabScreenHeaderProps) {
       style={[styles.header, { paddingTop: insets.top + 4 }]}
     >
       <View style={[styles.side, { justifyContent: 'flex-start' }]}>
-        {left ?? <EveBashLogoBadge />}
+        {left ?? <EveBashLogoBadge color={colors.brandMark} />}
       </View>
       <View style={styles.center}>
         <Text style={styles.title} accessibilityRole="header">{title}</Text>
@@ -69,7 +69,7 @@ export function HeaderAction({ onPress, accessibilityLabel, showBadge, children 
   );
 }
 
-const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -79,13 +79,13 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingBottom: 20,
     backgroundColor: colors.background,
     gap: 14,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 10,
     elevation: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(202, 156, 104, 0.12)',
+    borderBottomColor: isDark ? 'rgba(202, 156, 104, 0.12)' : colors.cardBorder,
   },
   side: { width: 48, flexDirection: 'row', alignItems: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },

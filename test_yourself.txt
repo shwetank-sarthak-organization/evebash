@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 195
+Next test number: 197
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-06
+Last updated: 2026-11-07
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -5460,8 +5460,10 @@ Brief:     The website now has a light look (ivory paper, dark text, bronze gold
            Appearance (Light / Dark / Match device) change it, and the browser remembers the choice. The dark look
            must be exactly as before. Log in, Forgot password, Reset password, guest galleries and Vault stay as
            they are.
-Detail:    Commit 69c388f. Checked in a browser on a computer (desktop and phone width), not yet on a real phone.
-           Album proofing and the upload panel could not be seen there, so look at them closely (steps 5-6).
+Detail:    Commit 69c388f, plus de10377 (album list, page reviewer and Design tab fixes, 2026-11-06). Checked in a
+           browser on a computer (desktop and phone width), not yet on a real phone. Album proofing was checked on
+           staging in light and dark on 2026-11-06. The upload panel has not been seen yet, so look at it closely
+           (step 6).
 How to test:
   1. On a phone set to light mode, open staging.evebash.com in Safari, logged out. Expect: the light look from the
      first moment (no dark flash), and the browser's top bar ivory.
@@ -5548,6 +5550,66 @@ How to test:
      ("Ask for a change" on wide pages). Approve one from its tile: it turns green and the counts change.
   9. The Activity line at the bottom shows the latest event; See all lists rounds sent and pages approved.
  10. Try a small phone (iPhone SE or a small Android). Expect: no text cut off or overlapping.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#195 App light theme: Settings > Appearance, the phone's setting and every host screen
+Status:    TODO
+Priority:  Medium
+Platform:  App
+Brief:     The app now has a light look (ivory paper, dark text, bronze gold), with the same colours as the website's
+           (test #192). It starts on the phone's light/dark setting; Settings > Appearance (Light / Dark / Match device)
+           changes it, and the phone remembers the choice. The dark look must be exactly as before. Log in, Sign up,
+           Forgot password, the terms screen, guest galleries, the photo viewer and Vault keep their own look.
+Detail:    Commit 94def90. Needs a new EAS staging build. Checked on the iPhone 17 Pro simulator only: dark compared pixel by
+           pixel with the old app (no difference), light checked by eye. Not tried on Android or a real phone.
+           Known limits: iOS pop-up alerts and the keyboard follow the phone's setting, not the app's choice; so do
+           Android's 3-button navigation icons.
+How to test:
+  1. Set the phone to light mode and open the app. Expect: Dashboard, Host, EB Network and Profile in the light look,
+     with a light tab bar and a dark clock.
+  2. Set the phone to dark mode. Expect: the app turns dark at once and looks exactly as before this change.
+  3. Open Profile > Settings > Appearance. Pick Light, then Dark, then Match device. Expect: the app follows each one at
+     once. Close the app fully and open it again: the choice is kept.
+  4. In light, open Plan & Usage, Upgrade, Your Events, Sample galleries, Contact us, the Terms and Privacy pages, and
+     the Join event and Create event sheets. Expect: all text easy to read; no white text on a light background.
+  5. In light, open Host > an event. Expect: the cover photo, its title and its buttons stay dark (a "Fit" cover gets
+     dark bars around it); below the cover the page is light. Scroll down: the clock turns dark once the cover has
+     gone. Check Galleries, Permissions, Design and Album, and open Share Event, Add Sub-Gallery, Event Type, Choose
+     Style and a photo's ⋯ menu.
+  6. In light, open a gallery's photos and an album (Album > an album). Expect: light and readable; badges and buttons
+     on photos stay dark.
+  7. In light, log out. Expect: Log in, Sign up and Forgot password look exactly as before (dark).
+  8. In light, open guest galleries in Royal Emerald, Midnight Hero, Classic White and Sunlit Portrait. Expect: each
+     looks exactly as before, in its own design.
+  9. Repeat steps 1-3 on Android.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#196 App theme change reaches every album on the website
+Status:    TODO
+Priority:  Medium
+Platform:  App + Website
+Brief:     Changing an event's theme in the app (Design > Change Template) now saves it on the main gallery and on every album, like the website's host page does. Before, the albums kept their old theme on the website.
+Detail:    Issue #254, commit 9dbddbed. Needs a new EAS staging build. Not checked on a phone yet.
+How to test:
+  1. In the app, open Host > an event that has at least two albums. Note the theme of an album on the website (open the album's page on staging.evebash.com).
+  2. In the app, go to Design > Change Template and pick a different theme. Expect: the app shows the new theme.
+  3. On the website, open each album of that event (reload the page). Expect: every album shows the new theme.
 Done by:
 Device / browser:
 Build / version:

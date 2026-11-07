@@ -4760,7 +4760,7 @@ function DashboardContent() {
                                                         </button>
                                                     </div>
 
-                                                    <div className="flex flex-col justify-between gap-5 rounded-[1.2rem] border border-[var(--site-gold)]/25 bg-[linear-gradient(135deg,rgba(202,156,104,0.12),rgba(27,33,31,0.5)_60%)] p-5 sm:p-6 lg:col-span-7">
+                                                    <div className="flex flex-col justify-between gap-5 rounded-[1.2rem] border border-[var(--site-gold)]/25 bg-[linear-gradient(135deg,rgba(202,156,104,0.12),rgba(27,33,31,0.5)_60%)] light:bg-[linear-gradient(135deg,rgba(165,118,54,0.12),var(--site-card)_60%)] p-5 sm:p-6 lg:col-span-7">
                                                         <div className="min-w-0">
                                                             <div className="flex items-center gap-3">
                                                                 {designTemplate && (

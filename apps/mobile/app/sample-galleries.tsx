@@ -110,7 +110,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: MidnightColors.border,
+    borderBottomColor: colors.border,
   },
   backBtn: {
     width: 44,
@@ -138,9 +138,10 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   cardGradient: { ...StyleSheet.absoluteFillObject },
   cardContent: { position: 'absolute', bottom: 20, left: 20, right: 20 },
   categoryBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, backgroundColor: 'rgba(202, 156, 104,0.2)', borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(202, 156, 104,0.3)' },
-  categoryText: { fontSize: 10, color: colors.gold, fontFamily: Fonts.inter.bold, textTransform: 'uppercase' },
+  // Card text sits on the cover photo, so it keeps the dark look's colours
+  categoryText: { fontSize: 10, color: MidnightColors.gold, fontFamily: Fonts.inter.bold, textTransform: 'uppercase' },
   cardTitle: { fontSize: 20, color: '#fff', fontFamily: Fonts.outfit.bold },
-  cardYear: { fontSize: 12, color: colors.slate400, fontFamily: Fonts.inter.medium, marginTop: 2 },
+  cardYear: { fontSize: 12, color: MidnightColors.slate400, fontFamily: Fonts.inter.medium, marginTop: 2 },
   emptyState: {
     minHeight: 180,
     borderRadius: 24,

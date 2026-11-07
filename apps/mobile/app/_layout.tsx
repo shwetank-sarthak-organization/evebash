@@ -13,7 +13,8 @@ import AppIntro from '@/components/intro/AppIntro';
 import { FeedbackHost } from '@/components/feedback/FeedbackHost';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { AppThemeProvider, useAppTheme } from '@/context/ThemeContext';
+import { AppThemeProvider, DarkThemeScope, StatusBarOverrideContext, useAppTheme, type StatusBarLook } from '@/context/ThemeContext';
+import * as SystemUI from 'expo-system-ui';
 import * as SplashScreen from 'expo-splash-screen';
 import { initUploadQueue } from '@/lib/uploadQueue';
 import { registerDeviceForPushNotifications } from '@/lib/notifications';
@@ -63,6 +64,18 @@ LogBox.ignoreLogs([
 
 // A screen that fails to draw shows an error page instead of closing the app (#184)
 export { ScreenErrorBoundary as ErrorBoundary } from '@/components/ui/ScreenErrorBoundary';
+
+// Screens that keep the dark look whatever the Appearance choice (todo #1): the login screens (left as they are, like the
+// website's), guest galleries with their own themes, Vault, and the Phase 2 business pages
+const DARK_LOOK_ROUTES = new Set(['login', 'forgot-password', 'events', 'chat', 'customer-chats', 'business-enquiries', 'business-near-you', 'business-portfolio', 'shortlist', 'profile']);
+const DARK_LOOK_TAB_ROUTES = new Set(['vault', 'businesses', 'explore-business', 'manage-business', 'business']);
+
+function routeKeepsDarkLook(segments: string[]): boolean {
+  // Before the first screen: the dark loading screen
+  if (segments.length === 0) return true;
+  if (segments[0] === '(tabs)') return DARK_LOOK_TAB_ROUTES.has(segments[1] ?? '');
+  return DARK_LOOK_ROUTES.has(segments[0] ?? '');
+}
 
 export const unstable_settings = {
   // Ensure any route can link back to `/`
@@ -164,6 +177,14 @@ function AuthGate({ children, onReady }: { children: React.ReactNode; onReady: (
 
 function RootLayoutContent({ onReady }: { onReady: () => void }) {
   const { isDark, colors } = useAppTheme();
+  const keepsDarkLook = routeKeepsDarkLook(useSegments());
+  // Set by the host's event screen, whose top is a cover photo and then the page (see useStatusBarOverride)
+  const [statusBarOverride, setStatusBarOverride] = useState<StatusBarLook | null>(null);
+
+  // The window behind the screens follows the look (the dark one matches app.json's backgroundColor)
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(colors.background).catch(() => undefined);
+  }, [colors.background]);
 
   useEffect(() => {
     initUploadQueue().catch(err => console.error('[RootLayout] Queue init failed:', err));
@@ -190,26 +211,31 @@ function RootLayoutContent({ onReady }: { onReady: () => void }) {
 
   return (
     <ThemeProvider value={customTheme}>
-      <AuthGate onReady={onReady}>
-        <Stack screenOptions={{
-          ...(Platform.OS === 'ios' ? { headerBackTitle: '' } : {}),
-          headerTintColor: colors.white,
-          headerStyle: { backgroundColor: 'transparent' },
-          headerShadowVisible: false,
-          headerTransparent: true,
-        }}>
-          {/* Redirect-only route; without this its default header ("index") flashes at startup */}
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          <Stack.Screen name="settings" options={{ headerShown: false }} />
-        </Stack>
-      </AuthGate>
-      <StatusBar style={isDark ? "light" : "dark"} />
+      <StatusBarOverrideContext.Provider value={setStatusBarOverride}>
+        <AuthGate onReady={onReady}>
+          <Stack screenOptions={{
+            ...(Platform.OS === 'ios' ? { headerBackTitle: '' } : {}),
+            headerTintColor: colors.white,
+            headerStyle: { backgroundColor: 'transparent' },
+            headerShadowVisible: false,
+            headerTransparent: true,
+          }}>
+            {/* Redirect-only route; without this its default header ("index") flashes at startup */}
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="login" options={{ headerShown: false }} />
+            <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            <Stack.Screen name="settings" options={{ headerShown: false }} />
+          </Stack>
+        </AuthGate>
+      </StatusBarOverrideContext.Provider>
+      <StatusBar style={statusBarOverride ?? (isDark || keepsDarkLook ? "light" : "dark")} />
       {/* App-wide toasts and the themed alert dialog (see lib/feedback.ts) */}
-      <FeedbackHost />
+      {/* A screen that sets its own status bar (the host's event screen) also follows the chosen look for toasts */}
+      <DarkThemeScope enabled={keepsDarkLook && !statusBarOverride}>
+        <FeedbackHost />
+      </DarkThemeScope>
     </ThemeProvider>
   );
 }

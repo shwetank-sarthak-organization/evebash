@@ -23,7 +23,7 @@ import { useRouter, Stack } from 'expo-router';
 import * as Location from 'expo-location';
 import { onTopRatedBusinesses, getTopRatedBusinesses, toggleShortlistBusiness, Business, getBusinessTypeColor } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
-import { useAppTheme } from '@/context/ThemeContext';
+import { useAppTheme, DarkThemeScope } from '@/context/ThemeContext';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
 
 const { width } = Dimensions.get('window');
@@ -72,7 +72,7 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   return R * c;
 }
 
-export default function ExploreBusinessScreen() {
+function ExploreBusinessScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
@@ -1447,3 +1447,12 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     letterSpacing: 0.5,
   },
 });
+
+// Phase 2 business pages keep the dark look whatever the Appearance choice (todo #1)
+export default function ExploreBusinessScreenRoute() {
+  return (
+    <DarkThemeScope>
+      <ExploreBusinessScreen />
+    </DarkThemeScope>
+  );
+}

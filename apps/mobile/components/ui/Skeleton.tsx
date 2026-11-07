@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, type DimensionValue, type StyleProp, type ViewStyle } from 'react-native';
+import { useAppTheme } from '@/context/ThemeContext';
 
 type SkeletonProps = {
   width?: DimensionValue;
@@ -15,6 +16,7 @@ type SkeletonProps = {
  */
 export function Skeleton({ width = '100%', height = 16, radius = 10, style }: SkeletonProps) {
   const opacity = useRef(new Animated.Value(0.55)).current;
+  const { colors, isDark } = useAppTheme();
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export function Skeleton({ width = '100%', height = 16, radius = 10, style }: Sk
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
       style={[
-        { width, height, borderRadius: radius, backgroundColor: 'rgba(255, 247, 235, 0.08)', opacity },
+        { width, height, borderRadius: radius, backgroundColor: isDark ? 'rgba(255, 247, 235, 0.08)' : colors.tint(0.07), opacity },
         style,
       ]}
     />

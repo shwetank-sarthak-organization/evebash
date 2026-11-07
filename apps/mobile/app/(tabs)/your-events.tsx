@@ -431,7 +431,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104, 0.25)',
   },
-  chipSelected: { backgroundColor: colors.gold, borderColor: colors.gold },
+  chipSelected: { backgroundColor: colors.goldFill, borderColor: colors.goldFill },
   chipText: { fontSize: 13, color: colors.white, fontFamily: Fonts.inter.medium },
   chipTextSelected: { color: colors.onAccent, fontFamily: Fonts.inter.bold },
 

@@ -59,7 +59,7 @@ const { width, height } = Dimensions.get('window');
 interface SwipeableNotificationItemProps {
   children: React.ReactNode;
   onDismiss: () => void;
-  colors: any;
+  colors: typeof MidnightColors;
   isDark: boolean;
 }
 
@@ -101,7 +101,7 @@ export function SwipeableNotificationItem({ children, onDismiss, colors, isDark 
     <View style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, marginBottom: 12 }}>
       {/* Background delete action indicator */}
       <View style={[StyleSheet.absoluteFill, {
-        backgroundColor: colors.gold,
+        backgroundColor: colors.goldFill,
         justifyContent: 'center',
         alignItems: 'flex-end',
         paddingRight: 24,
@@ -521,7 +521,7 @@ export default function DashboardScreen() {
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MidnightColors.gold} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
       >
         <IncomingTransfers onAccepted={fetchData} />
         {loading && !refreshing && events.length === 0
@@ -560,7 +560,7 @@ export default function DashboardScreen() {
                     activeOpacity={0.8}
                     onPress={() => setShowJoinModal(true)}
                   >
-                    <IconSymbol name="plus.circle.fill" size={12} color={MidnightColors.onAccent} />
+                    <IconSymbol name="plus.circle.fill" size={12} color={colors.onAccent} />
                     <Text style={styles.catchyActionPillText}>Join Event</Text>
                   </TouchableOpacity>
                 </View>
@@ -655,7 +655,7 @@ export default function DashboardScreen() {
                 onPress={() => Linking.openURL('https://www.youtube.com/@EveBashApp')}
               >
                 <LinearGradient
-                  colors={['#1E1B17', '#12171C']}
+                  colors={isDark ? ['#1E1B17', '#12171C'] : [colors.card, colors.surface]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.heroGradient}
@@ -733,7 +733,7 @@ export default function DashboardScreen() {
                             value={joinCode}
                             onChangeText={setJoinCode}
                             placeholder="E.G. A1B2C3"
-                            placeholderTextColor={MidnightColors.slate600}
+                            placeholderTextColor={colors.slate600}
                             autoCapitalize="characters"
                           />
                         </View>
@@ -924,7 +924,7 @@ export default function DashboardScreen() {
                                   <IconSymbol
                                     name={NOTIFICATION_ICONS[item.type] || 'bell.fill'}
                                     size={20}
-                                    color={item.type === 'upload_failed' ? MidnightColors.danger : item.type === 'upload_success' ? MidnightColors.success : colors.gold}
+                                    color={item.type === 'upload_failed' ? colors.danger : item.type === 'upload_success' ? colors.success : colors.gold}
                                   />
                                 </View>
                                 <View style={styles.notificationTextWrapper}>
@@ -1014,7 +1014,7 @@ export default function DashboardScreen() {
                         : statusModalConfig.type === 'pending'
                         ? (isDark ? 'rgba(202, 156, 104, 0.4)' : 'rgba(202, 156, 104, 0.2)')
                         : (isDark ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.2)'),
-                      shadowColor: statusModalConfig.type === 'success' ? MidnightColors.success : statusModalConfig.type === 'pending' ? colors.gold : MidnightColors.danger,
+                      shadowColor: statusModalConfig.type === 'success' ? colors.success : statusModalConfig.type === 'pending' ? colors.gold : colors.danger,
                       shadowOffset: { width: 0, height: 10 },
                       shadowOpacity: isDark ? 0.15 : 0.08,
                       shadowRadius: 20,
@@ -1050,10 +1050,10 @@ export default function DashboardScreen() {
                             : "xmark.circle.fill"}
                           size={32}
                           color={statusModalConfig.type === 'success'
-                            ? MidnightColors.success
+                            ? colors.success
                             : statusModalConfig.type === 'pending'
                             ? colors.gold
-                            : MidnightColors.danger}
+                            : colors.danger}
                         />
                       </View>
 
@@ -1076,10 +1076,10 @@ export default function DashboardScreen() {
                         fontSize: 16,
                         fontFamily: 'Outfit_700Bold',
                         color: statusModalConfig.type === 'success'
-                          ? MidnightColors.success
+                          ? colors.success
                           : statusModalConfig.type === 'pending'
                           ? colors.gold
-                          : MidnightColors.danger,
+                          : colors.danger,
                         textAlign: 'center',
                         marginBottom: 16,
                         paddingHorizontal: 16
@@ -1091,7 +1091,7 @@ export default function DashboardScreen() {
                     <Text style={{
                       fontSize: 14,
                       fontFamily: 'Inter_400Regular',
-                      color: isDark ? colors.slate400 : MidnightColors.slate600,
+                      color: isDark ? colors.slate400 : colors.slate600,
                       textAlign: 'center',
                       lineHeight: 22,
                       marginBottom: statusModalConfig.type === 'pending' ? 28 : 20
@@ -1117,13 +1117,13 @@ export default function DashboardScreen() {
                           name="info.circle"
                           size={18}
                           color={statusModalConfig.type === 'success'
-                            ? MidnightColors.success
-                            : MidnightColors.danger}
+                            ? colors.success
+                            : colors.danger}
                         />
                         <Text style={{
                           fontSize: 12,
                           fontFamily: 'Inter_500Medium',
-                          color: isDark ? colors.slate400 : MidnightColors.slate600,
+                          color: isDark ? colors.slate400 : colors.slate600,
                           flex: 1,
                           lineHeight: 16
                         }}>
@@ -1153,15 +1153,15 @@ export default function DashboardScreen() {
                       padding: 24,
                       borderRadius: 24,
                       borderWidth: 1.5,
-                      backgroundColor: MidnightColors.deepSlate,
+                      backgroundColor: colors.deepSlate,
                       borderColor: 'rgba(202, 156, 104, 0.3)',
                       alignItems: 'center',
                       alignSelf: 'center',
                       width: width * 0.85,
                       maxWidth: 400,
-                      shadowColor: '#000',
+                      shadowColor: colors.shadow,
                       shadowOffset: { width: 0, height: 10 },
-                      shadowOpacity: 0.5,
+                      shadowOpacity: isDark ? 0.5 : 0.2,
                       shadowRadius: 20,
                       elevation: 10,
                     }
@@ -1177,7 +1177,7 @@ export default function DashboardScreen() {
                       borderWidth: 1,
                       borderColor: 'rgba(34, 197, 94, 0.35)',
                     }}>
-                      <IconSymbol name="checkmark.circle.fill" size={34} color={MidnightColors.success} />
+                      <IconSymbol name="checkmark.circle.fill" size={34} color={colors.success} />
                     </View>
 
                     <Text style={{
@@ -1194,7 +1194,7 @@ export default function DashboardScreen() {
 
                     <Text style={{
                       fontSize: 14,
-                      color: MidnightColors.slate300,
+                      color: colors.slate300,
                       textAlign: 'center',
                       marginBottom: 24,
                       fontFamily: 'Inter_400Regular',
@@ -1261,7 +1261,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.goldFill,
     borderWidth: 1.5,
     borderColor: colors.background,
   },
@@ -1308,16 +1308,17 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     backgroundColor: isDark ? 'rgba(202, 156, 104,0.08)' : 'rgba(202, 156, 104,0.04)',
     borderRadius: 20, borderWidth: 1, borderColor: colors.border,
   },
-  viewAllLabel: { fontSize: 11, color: colors.gold, fontFamily: 'Outfit_700Bold' },
+  // Only used on the black QR scanner, so it keeps the dark look's gold
+  viewAllLabel: { fontSize: 11, color: MidnightColors.gold, fontFamily: 'Outfit_700Bold' },
   catchyActionPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.goldFill,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: isDark ? 0.2 : 0.05,
     shadowRadius: 4,
@@ -1337,7 +1338,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderRadius: 24, overflow: 'hidden',
     backgroundColor: colors.background,
     borderWidth: 1, borderColor: colors.cardBorder,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: isDark ? 0.4 : 0.05,
     shadowRadius: 16,
@@ -1346,8 +1347,9 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   vignetteTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 70 },
   vignetteBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 120 },
   eventCardBody: { position: 'absolute', bottom: 14, left: 18, right: 18 },
+  // Event and memory cards: text on a photo keeps the dark look's colours
   eventCardTitle: {
-    fontSize: 16, color: colors.white,
+    fontSize: 16, color: MidnightColors.white,
     fontFamily: 'Outfit_700Bold',
     letterSpacing: 0.1,
     textShadowColor: 'rgba(0,0,0,0.5)',
@@ -1361,9 +1363,9 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: 'rgba(27, 33, 31,0.65)',
     paddingHorizontal: 7, paddingVertical: 3, borderRadius: 20,
-    borderWidth: 1, borderColor: colors.border,
+    borderWidth: 1, borderColor: MidnightColors.border,
   },
-  ratingText: { fontSize: 10, color: colors.gold, fontFamily: 'Outfit_700Bold' },
+  ratingText: { fontSize: 10, color: MidnightColors.gold, fontFamily: 'Outfit_700Bold' },
 
   // ── Empty State ──
   emptySlate: {
@@ -1393,7 +1395,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104, 0.16)',
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 10,
@@ -1424,13 +1426,13 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     letterSpacing: 0.8,
   },
   heroTitle: {
-    color: isDark ? '#ffffff' : colors.deepSlate,
+    color: isDark ? '#ffffff' : colors.white,
     fontSize: 18,
     fontFamily: 'Outfit_800ExtraBold',
     marginBottom: 2,
   },
   heroSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
+    color: isDark ? 'rgba(255,255,255,0.8)' : colors.slate400,
     fontSize: 12,
     fontFamily: 'Inter_400Regular',
     marginBottom: 12,
@@ -1457,12 +1459,12 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   },
 
   // ── Modal Styles ──
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(19, 25, 31, 0.9)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalBackdrop: { flex: 1, backgroundColor: isDark ? 'rgba(19, 25, 31, 0.9)' : colors.modalBackdrop, justifyContent: 'center', alignItems: 'center', padding: 24 },
   modalContent: { backgroundColor: colors.slate900, width: '100%', borderRadius: 28, padding: 28, borderWidth: 1, borderColor: colors.border },
   modalTitle: { fontSize: 24, color: colors.white, fontFamily: 'Outfit_800ExtraBold', marginBottom: 12, letterSpacing: -0.5 },
   modalText: { fontSize: 16, color: colors.slate400, fontFamily: 'Inter_400Regular', lineHeight: 26, marginBottom: 28 },
-  modalCloseBtn: { backgroundColor: colors.gold, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
-  modalCloseBtnText: { color: colors.deepSlate, fontFamily: 'Outfit_800ExtraBold', fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
+  modalCloseBtn: { backgroundColor: colors.goldFill, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
+  modalCloseBtnText: { color: isDark ? colors.deepSlate : colors.onAccent, fontFamily: 'Outfit_800ExtraBold', fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
 
   // ── Join Event Modal Specific ──
   form: { gap: 16 },
@@ -1478,7 +1480,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderColor: colors.cardBorder,
   },
   submitBtn: {
-    backgroundColor: colors.gold,
+    backgroundColor: colors.goldFill,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1487,9 +1489,9 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderRadius: 20,
     marginTop: 10,
   },
-  submitBtnText: { color: colors.deepSlate, fontFamily: 'Outfit_800ExtraBold', fontSize: 16, textTransform: 'uppercase', letterSpacing: 1 },
+  submitBtnText: { color: isDark ? colors.deepSlate : colors.onAccent, fontFamily: 'Outfit_800ExtraBold', fontSize: 16, textTransform: 'uppercase', letterSpacing: 1 },
   modalDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 24 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
+  dividerLine: { flex: 1, height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : colors.tint(0.1) },
   dividerText: { color: colors.slate600, fontSize: 12, fontFamily: 'Inter_700Bold' },
   scanBtn: {
     flexDirection: 'row',
@@ -1506,8 +1508,8 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   scannerContainer: { width: '100%', height: 350, borderRadius: 24, overflow: 'hidden', backgroundColor: '#000', justifyContent: 'center' },
   scanner: { flex: 1 },
   scannerCloseBtn: { position: 'absolute', bottom: 20, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
-  scannerCloseText: { color: colors.white, fontFamily: 'Inter_700Bold', fontSize: 12 },
-  permissionText: { color: colors.white, textAlign: 'center', marginBottom: 20, fontFamily: 'Inter_500Medium' },
+  scannerCloseText: { color: MidnightColors.white, fontFamily: 'Inter_700Bold', fontSize: 12 },
+  permissionText: { color: MidnightColors.white, textAlign: 'center', marginBottom: 20, fontFamily: 'Inter_500Medium' },
 
   // ── All Events Card Styles ──
   allEventsCard: {
@@ -1518,7 +1520,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderWidth: 1,
     borderColor: colors.border,
     padding: 20,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 20,
@@ -1575,7 +1577,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   cardActionBtnMain: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.goldFill,
     paddingVertical: 12,
     borderRadius: 12,
     justifyContent: 'center',
@@ -1629,7 +1631,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderWidth: 1,
     borderColor: colors.cardBorder,
     elevation: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: isDark ? 0.4 : 0.05,
     shadowRadius: 12,
@@ -1643,7 +1645,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderWidth: 1,
     borderColor: colors.cardBorder,
     elevation: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: isDark ? 0.4 : 0.05,
     shadowRadius: 12,
@@ -1656,7 +1658,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   },
   recentEventTitle: {
     fontSize: 16,
-    color: colors.white,
+    color: MidnightColors.white,
     fontFamily: 'Outfit_700Bold',
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
@@ -1750,7 +1752,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.goldFill,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 16,
@@ -1772,7 +1774,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104, 0.16)',
     backgroundColor: isDark ? colors.surface : '#ffffff',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 10,
@@ -1807,21 +1809,21 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   },
   aestheticExploreTitle: {
     fontSize: 15,
-    color: colors.white,
+    color: MidnightColors.white,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: -0.2,
   },
   aestheticCountPill: {
-    backgroundColor: isDark ? 'rgba(202, 156, 104,0.1)' : 'rgba(202, 156, 104,0.04)',
+    backgroundColor: 'rgba(202, 156, 104,0.1)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
     borderWidth: 0.5,
-    borderColor: colors.border,
+    borderColor: MidnightColors.border,
   },
   aestheticCountText: {
     fontSize: 10,
-    color: colors.gold,
+    color: MidnightColors.gold,
     fontFamily: 'Inter_700Bold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1831,7 +1833,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: colors.gold,
+    backgroundColor: MidnightColors.goldFill,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
@@ -1839,7 +1841,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   },
   aestheticExploreBtnText: {
     fontSize: 11,
-    color: colors.onAccent,
+    color: MidnightColors.onAccent,
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,

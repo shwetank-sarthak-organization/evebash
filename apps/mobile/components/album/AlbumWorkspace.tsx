@@ -9,7 +9,7 @@ import {
   type AlbumDetail, type AlbumPage, type LocalFile,
 } from '../../lib/albumApi';
 import { Fonts, MidnightColors } from '../../constants/theme';
-import { AlbumButton, albumStyles, ProgressBar } from './albumUi';
+import { AlbumButton, ProgressBar, useAlbumLook } from './albumUi';
 import { PageReviewer, type AlbumMode } from './PageReviewer';
 import { RolesModal } from './RolePicker';
 import { VoicePlayer } from './VoiceNote';
@@ -29,8 +29,9 @@ const UPLOAD_CONCURRENCY = 2;
 const TILE_HEIGHT = 180;
 const TILE_GAP = 8;
 
-const TONE_COLOR: Record<AlbumNextStepTone, string> = { action: '#E8C9A0', urgent: '#FDA4AF', waiting: MidnightColors.slate400, done: '#6EE7B7' };
-const TONE_DOT: Record<AlbumNextStepTone, string> = { action: MidnightColors.gold, urgent: '#FB7185', waiting: 'rgba(255,255,255,0.3)', done: '#34D399' };
+// Pale tone colours on the dark look, deeper shades of the same colours on the light one (todo #1)
+const toneColors = (c: typeof MidnightColors, isDark: boolean): Record<AlbumNextStepTone, string> => ({ action: isDark ? '#E8C9A0' : c.gold, urgent: isDark ? '#FDA4AF' : c.danger, waiting: c.slate400, done: isDark ? '#6EE7B7' : c.success });
+const toneDots = (c: typeof MidnightColors): Record<AlbumNextStepTone, string> => ({ action: c.gold, urgent: '#FB7185', waiting: c.tint(0.3), done: '#34D399' });
 const TONE_ICON: Record<AlbumNextStepTone, keyof typeof MaterialIcons.glyphMap> = { action: 'arrow-forward', urgent: 'chat-bubble-outline', waiting: 'schedule', done: 'check-circle' };
 
 /**
@@ -57,6 +58,8 @@ function packRows<T extends { ratio: number }>(items: T[], width: number, target
 }
 
 function StepTracker({ step, round }: { step: number; round: number }) {
+  const { colors, isDark } = useAlbumLook();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const currentLabel = ALBUM_STEPS[step];
   return (
     <View style={{ gap: 8 }} accessibilityLabel="Album progress">
@@ -67,7 +70,7 @@ function StepTracker({ step, round }: { step: number; round: number }) {
           return (
             <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: i < ALBUM_STEPS.length - 1 ? 1 : 0 }}>
               <View style={[styles.stepDot, done && styles.stepDone, current && styles.stepCurrent]} accessibilityLabel={`${label}${done ? ', done' : current ? ', now' : ''}`}>
-                {done ? <MaterialIcons name="check" size={14} color={MidnightColors.onAccent} /> : <Text style={[styles.stepNumber, current && { color: '#E8C9A0' }]}>{i + 1}</Text>}
+                {done ? <MaterialIcons name="check" size={14} color={colors.onAccent} /> : <Text style={[styles.stepNumber, current && { color: (isDark ? '#E8C9A0' : colors.gold) }]}>{i + 1}</Text>}
               </View>
               {i < ALBUM_STEPS.length - 1 && <View style={styles.stepLine} />}
             </View>
@@ -119,6 +122,8 @@ function pickPageFiles(multiple: boolean): Promise<LocalFile[]> {
 }
 
 export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: () => void }) {
+  const { colors, isDark, albumStyles } = useAlbumLook();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [album, setAlbum] = useState<AlbumDetail | null>(null);
   const [error, setError] = useState('');
   const [uploads, setUploads] = useState<UploadItem[]>([]);
@@ -260,10 +265,10 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
       <View style={styles.loading}>
         {error ? (
           <>
-            <Text style={[albumStyles.body, { color: MidnightColors.dangerSoft, textAlign: 'center' }]}>{error}</Text>
+            <Text style={[albumStyles.body, { color: colors.dangerSoft, textAlign: 'center' }]}>{error}</Text>
             <AlbumButton label="Back to albums" onPress={onBack} />
           </>
-        ) : <ActivityIndicator color={MidnightColors.gold} />}
+        ) : <ActivityIndicator color={colors.gold} />}
       </View>
     );
   }
@@ -354,7 +359,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
     <View style={{ gap: 14 }}>
       {/* Header */}
       <TouchableOpacity onPress={onBack} style={styles.back} accessibilityRole="button">
-        <MaterialIcons name="arrow-back" size={16} color={MidnightColors.slate400} />
+        <MaterialIcons name="arrow-back" size={16} color={colors.slate400} />
         <Text style={styles.backText}>All albums</Text>
       </TouchableOpacity>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
@@ -367,10 +372,10 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                 style={{ padding: 6 }}
                 accessibilityLabel="Save name"
               >
-                <MaterialIcons name="check" size={22} color={MidnightColors.gold} />
+                <MaterialIcons name="check" size={22} color={colors.gold} />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setEditingTitle(null)} style={{ padding: 6 }} accessibilityLabel="Cancel">
-                <MaterialIcons name="close" size={22} color={MidnightColors.slate400} />
+                <MaterialIcons name="close" size={22} color={colors.slate400} />
               </TouchableOpacity>
             </View>
           ) : (
@@ -378,17 +383,17 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
           )}
           {album.rolesAssigned && (
             <View style={styles.people}>
-              <MaterialIcons name="photo-camera" size={15} color={MidnightColors.gold} accessibilityLabel="Photographer" />
+              <MaterialIcons name="photo-camera" size={15} color={colors.gold} accessibilityLabel="Photographer" />
               <Text style={styles.person}>{album.roles.photographer?.name}{mode === 'photographer' ? <Text style={styles.you}> (you)</Text> : null}</Text>
-              <MaterialIcons name="arrow-forward" size={13} color={MidnightColors.slate600} />
-              <MaterialIcons name="favorite-border" size={15} color={MidnightColors.gold} accessibilityLabel="Client" />
+              <MaterialIcons name="arrow-forward" size={13} color={colors.slate600} />
+              <MaterialIcons name="favorite-border" size={15} color={colors.gold} accessibilityLabel="Client" />
               <Text style={styles.person}>{album.roles.clients.map((p) => p.name).join(', ')}{mode === 'client' ? <Text style={styles.you}> (you)</Text> : null}</Text>
               {mode === 'viewer' ? <Text style={styles.viewOnly}>View only</Text> : null}
             </View>
           )}
         </View>
         <TouchableOpacity onPress={showOptions} style={{ padding: 6 }} accessibilityLabel="Album options">
-          <MaterialIcons name="more-horiz" size={24} color={MidnightColors.slate400} />
+          <MaterialIcons name="more-horiz" size={24} color={colors.slate400} />
         </TouchableOpacity>
       </View>
 
@@ -405,7 +410,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
       {/* What now: where the album stands for this side, and at most one main action */}
       <View style={styles.progressCard}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <MaterialIcons name={TONE_ICON[status.tone]} size={20} color={TONE_COLOR[status.tone]} />
+          <MaterialIcons name={TONE_ICON[status.tone]} size={20} color={toneColors(colors, isDark)[status.tone]} />
           <Text style={[styles.statusTitle, { flex: 1 }]}>{status.title}</Text>
         </View>
         <Text style={albumStyles.body}>{status.detail}</Text>
@@ -413,7 +418,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
           <View style={{ gap: 6 }}>
             <ProgressBar value={album.approvedCount} total={visiblePages.length} />
             <Text style={albumStyles.small}>
-              <Text style={{ color: MidnightColors.text }}>{album.approvedCount}</Text> of {visiblePages.length} pages approved
+              <Text style={{ color: colors.text }}>{album.approvedCount}</Text> of {visiblePages.length} pages approved
               {filters.flatMap((f) => (f.id !== 'all' && f.id !== 'approved' && stateCounts[f.id] ? [` · ${stateCounts[f.id]} ${ALBUM_PAGE_STATE[f.id].counted}`] : [])).join('')}
             </Text>
           </View>
@@ -469,11 +474,11 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
           </View>
           {uploads.map((u) => (
             <View key={u.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={[albumStyles.small, { flex: 1, color: MidnightColors.slate300 }]} numberOfLines={1}>{u.name}</Text>
+              <Text style={[albumStyles.small, { flex: 1, color: colors.slate300 }]} numberOfLines={1}>{u.name}</Text>
               {u.state === 'failed' ? (
-                <Text style={[albumStyles.small, { color: MidnightColors.dangerSoft, maxWidth: '60%' }]} numberOfLines={2}>{u.error}</Text>
+                <Text style={[albumStyles.small, { color: colors.dangerSoft, maxWidth: '60%' }]} numberOfLines={2}>{u.error}</Text>
               ) : u.state === 'done' ? (
-                <MaterialIcons name="check" size={18} color="#6EE7B7" />
+                <MaterialIcons name="check" size={18} color={isDark ? '#6EE7B7' : colors.success} />
               ) : (
                 <Text style={albumStyles.small}>{u.state === 'processing' ? 'Processing' : u.state === 'waiting' ? 'Waiting' : `${Math.round(u.progress * 100)}%`}</Text>
               )}
@@ -496,7 +501,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                   accessibilityRole="tab"
                   accessibilityState={{ selected }}
                 >
-                  <Text style={[styles.tabText, selected && { color: MidnightColors.background }]}>
+                  <Text style={[styles.tabText, selected && { color: colors.background }]}>
                     {f.label} <Text style={{ opacity: 0.7 }}>{f.id === 'all' ? visiblePages.length : stateCounts[f.id]}</Text>
                   </Text>
                 </TouchableOpacity>
@@ -521,7 +526,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
       {/* Photographer, To fix tab: what the client asked for */}
       {mode === 'photographer' && activeFilter === 'fix' && openRequests.length > 0 && (
         <View style={styles.todo}>
-          <Text style={[albumStyles.eyebrow, { color: '#FECDD3' }]}>Changes to make · {openRequests.length}</Text>
+          <Text style={[albumStyles.eyebrow, { color: (isDark ? '#FECDD3' : colors.danger) }]}>Changes to make · {openRequests.length}</Text>
           {openRequests.map(({ page, comment, number }) => (
             <View key={comment.id} style={styles.todoItem}>
               <TouchableOpacity onPress={() => openPage(page.id)}>
@@ -530,7 +535,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={albumStyles.small}>{labels.get(page.id)} · {comment.pinX !== null ? `pin ${number}` : 'whole page'} · {comment.authorName}</Text>
                 <Text style={styles.todoKind}>{albumCommentKindLabel(comment.kind)}</Text>
-                {!!comment.body && <Text style={[albumStyles.body, { color: MidnightColors.text }]} numberOfLines={3}>{comment.body}</Text>}
+                {!!comment.body && <Text style={[albumStyles.body, { color: colors.text }]} numberOfLines={3}>{comment.body}</Text>}
                 {!!comment.voiceUrl && <VoicePlayer uri={comment.voiceUrl} seconds={comment.voiceSeconds} />}
                 {comment.replacementPhoto?.thumbnailUrl && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -551,7 +556,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
       {/* Pages, laid out like the album: rows that fill the width, each page keeping its own shape */}
       {visiblePages.length === 0 ? (
         <View style={styles.empty}>
-          <MaterialIcons name="photo-album" size={32} color={MidnightColors.gold} />
+          <MaterialIcons name="photo-album" size={32} color={colors.gold} />
           {mode === 'photographer' ? (
             <>
               <Text style={styles.emptyTitle}>Add the album pages</Text>
@@ -574,7 +579,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                 if (!page) {
                   return (
                     <TouchableOpacity key="add" onPress={() => void uploadPages()} disabled={uploading} style={[styles.addTile, { width, height: row.height }]} accessibilityRole="button">
-                      <MaterialIcons name="add" size={22} color={MidnightColors.gold} />
+                      <MaterialIcons name="add" size={22} color={colors.gold} />
                       <Text style={styles.addTileText}>Add pages</Text>
                     </TouchableOpacity>
                   );
@@ -611,8 +616,8 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                     <View style={styles.tileInfo}>
                       <Text style={styles.pageLabel} numberOfLines={1}>{label}{page.layout === 'spread' && !(canEdit && !reorder) ? <Text style={styles.spreadWord}> · spread</Text> : null}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                        <View style={[styles.dot, { backgroundColor: TONE_DOT[state.tone] }]} />
-                        <Text style={[styles.stateText, { color: TONE_COLOR[state.tone] }]} numberOfLines={1}>{state.label}</Text>
+                        <View style={[styles.dot, { backgroundColor: toneDots(colors)[state.tone] }]} />
+                        <Text style={[styles.stateText, { color: toneColors(colors, isDark)[state.tone] }]} numberOfLines={1}>{state.label}</Text>
                       </View>
                     </View>
                     {canEdit && !reorder && (
@@ -629,8 +634,8 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                                 accessibilityRole="radio"
                                 accessibilityState={{ selected }}
                               >
-                                <MaterialIcons name={layout === 'spread' ? 'menu-book' : 'crop-portrait'} size={14} color={selected ? MidnightColors.text : MidnightColors.slate400} />
-                                <Text style={[styles.layoutText, selected && { color: MidnightColors.text }]}>{layout === 'spread' ? 'Spread' : 'Single'}</Text>
+                                <MaterialIcons name={layout === 'spread' ? 'menu-book' : 'crop-portrait'} size={14} color={selected ? colors.text : colors.slate400} />
+                                <Text style={[styles.layoutText, selected && { color: colors.text }]}>{layout === 'spread' ? 'Spread' : 'Single'}</Text>
                               </TouchableOpacity>
                             );
                           })}
@@ -640,22 +645,22 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
                     {reorder && (
                       <View style={styles.reorderRow}>
                         <TouchableOpacity onPress={() => movePage(page.id, -1)} disabled={pageIndex === 0} style={[styles.toolIcon, pageIndex === 0 && { opacity: 0.3 }]} accessibilityLabel={`Move ${label} earlier`}>
-                          <MaterialIcons name="arrow-back" size={18} color={MidnightColors.text} />
+                          <MaterialIcons name="arrow-back" size={18} color={colors.text} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => movePage(page.id, 1)} disabled={pageIndex === album.pages.length - 1} style={[styles.toolIcon, pageIndex === album.pages.length - 1 && { opacity: 0.3 }]} accessibilityLabel={`Move ${label} later`}>
-                          <MaterialIcons name="arrow-forward" size={18} color={MidnightColors.text} />
+                          <MaterialIcons name="arrow-forward" size={18} color={colors.text} />
                         </TouchableOpacity>
                       </View>
                     )}
                     {mode === 'client' && !locked && pageState(page) !== 'approved' && (
                       <View style={[styles.quickRow, narrow && { flexDirection: 'column' }]}>
                         <TouchableOpacity onPress={() => quickApprove(page)} disabled={busy === `approve-${page.id}`} style={[styles.quick, styles.quickApprove]} accessibilityRole="button" accessibilityLabel={`Approve ${label}`}>
-                          {busy === `approve-${page.id}` ? <ActivityIndicator size="small" color="#A7F3D0" /> : <MaterialIcons name="check" size={15} color="#A7F3D0" />}
-                          <Text style={[styles.quickText, { color: '#A7F3D0' }]}>Approve</Text>
+                          {busy === `approve-${page.id}` ? <ActivityIndicator size="small" color={isDark ? '#A7F3D0' : colors.success} /> : <MaterialIcons name="check" size={15} color={isDark ? '#A7F3D0' : colors.success} />}
+                          <Text style={[styles.quickText, { color: (isDark ? '#A7F3D0' : colors.success) }]}>Approve</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setViewing(index)} style={[styles.quick, styles.quickChange]} accessibilityRole="button" accessibilityLabel={`Ask for a change on ${label}`}>
-                          <MaterialIcons name="edit" size={14} color={MidnightColors.slate300} />
-                          <Text style={[styles.quickText, { color: MidnightColors.slate300 }]} numberOfLines={1}>{roomy ? 'Ask for a change' : 'Change'}</Text>
+                          <MaterialIcons name="edit" size={14} color={colors.slate300} />
+                          <Text style={[styles.quickText, { color: colors.slate300 }]} numberOfLines={1}>{roomy ? 'Ask for a change' : 'Change'}</Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -670,9 +675,9 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
       {activity.length > 0 && (
         <View style={[albumStyles.card, { paddingHorizontal: 14, paddingVertical: 12, gap: 10 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <MaterialIcons name="history" size={16} color={MidnightColors.slate400} />
+            <MaterialIcons name="history" size={16} color={colors.slate400} />
             <Text style={[albumStyles.small, { flex: 1 }]} numberOfLines={historyOpen ? 1 : 2}>
-              <Text style={{ color: MidnightColors.text }}>Activity</Text>
+              <Text style={{ color: colors.text }}>Activity</Text>
               {!historyOpen ? ` · ${activity[0].text} · ${formatAlbumDay(activity[0].at)}` : ''}
             </Text>
             {activity.length > 1 && (
@@ -685,7 +690,7 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
             <View style={styles.activityList}>
               {activity.map((item, i) => (
                 <Text key={i} style={albumStyles.small}>
-                  <Text style={{ color: item.done ? '#A7F3D0' : MidnightColors.text }}>{item.text}</Text> · {formatAlbumDay(item.at)}
+                  <Text style={{ color: item.done ? (isDark ? '#A7F3D0' : colors.success) : colors.text }}>{item.text}</Text> · {formatAlbumDay(item.at)}
                 </Text>
               ))}
             </View>
@@ -722,60 +727,60 @@ export function AlbumWorkspace({ albumId, onBack }: { albumId: string; onBack: (
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (c: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   loading: { minHeight: 200, alignItems: 'center', justifyContent: 'center', gap: 12 },
   back: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
-  backText: { color: MidnightColors.slate400, fontSize: 11, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1.4, textTransform: 'uppercase' },
+  backText: { color: c.slate400, fontSize: 11, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1.4, textTransform: 'uppercase' },
   people: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 6, rowGap: 4 },
-  person: { color: MidnightColors.text, fontSize: 13, fontFamily: Fonts.outfit.semiBold },
-  you: { color: MidnightColors.slate400 },
-  viewOnly: { color: MidnightColors.slate300, backgroundColor: 'rgba(255,255,255,0.1)', fontSize: 11, fontFamily: Fonts.outfit.bold, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
-  stepDot: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  stepDone: { backgroundColor: MidnightColors.gold, borderColor: MidnightColors.gold },
-  stepCurrent: { borderColor: MidnightColors.gold },
-  stepNumber: { color: MidnightColors.slate400, fontSize: 11, fontFamily: Fonts.outfit.extraBold },
-  stepLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.15)' },
-  stepCaption: { color: '#E8C9A0', fontSize: 12, fontFamily: Fonts.outfit.bold },
+  person: { color: c.text, fontSize: 13, fontFamily: Fonts.outfit.semiBold },
+  you: { color: c.slate400 },
+  viewOnly: { color: c.slate300, backgroundColor: c.tint(0.1), fontSize: 11, fontFamily: Fonts.outfit.bold, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
+  stepDot: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: c.tint(0.15), alignItems: 'center', justifyContent: 'center' },
+  stepDone: { backgroundColor: c.goldFill, borderColor: c.gold },
+  stepCurrent: { borderColor: c.gold },
+  stepNumber: { color: c.slate400, fontSize: 11, fontFamily: Fonts.outfit.extraBold },
+  stepLine: { flex: 1, height: 1, backgroundColor: c.tint(0.15) },
+  stepCaption: { color: (isDark ? '#E8C9A0' : c.gold), fontSize: 12, fontFamily: Fonts.outfit.bold },
   assignCard: { borderWidth: 1, borderColor: 'rgba(202,156,104,0.5)', backgroundColor: 'rgba(202,156,104,0.08)', borderRadius: 20, padding: 14, gap: 8 },
-  progressCard: { borderWidth: 1, borderColor: 'rgba(220,181,121,0.26)', backgroundColor: MidnightColors.surface, borderRadius: 20, padding: 14, gap: 10 },
-  progressTitle: { color: MidnightColors.text, fontSize: 14, fontFamily: Fonts.outfit.extraBold },
-  statusTitle: { color: MidnightColors.text, fontSize: 16, fontFamily: Fonts.outfit.extraBold },
-  tab: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  tabSelected: { backgroundColor: MidnightColors.text, borderColor: MidnightColors.text },
-  tabText: { color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.outfit.bold },
+  progressCard: { borderWidth: 1, borderColor: 'rgba(220,181,121,0.26)', backgroundColor: c.surface, borderRadius: 20, padding: 14, gap: 10 },
+  progressTitle: { color: c.text, fontSize: 14, fontFamily: Fonts.outfit.extraBold },
+  statusTitle: { color: c.text, fontSize: 16, fontFamily: Fonts.outfit.extraBold },
+  tab: { borderWidth: 1, borderColor: c.tint(0.15), borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  tabSelected: { backgroundColor: c.text, borderColor: c.text },
+  tabText: { color: c.slate400, fontSize: 12, fontFamily: Fonts.outfit.bold },
   todo: { borderWidth: 1, borderColor: 'rgba(251,113,133,0.25)', backgroundColor: 'rgba(244,63,94,0.04)', borderRadius: 20, padding: 12, gap: 10 },
-  todoItem: { flexDirection: 'row', gap: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 16, padding: 10 },
+  todoItem: { flexDirection: 'row', gap: 10, borderWidth: 1, borderColor: c.tint(0.1), backgroundColor: isDark ? 'rgba(0,0,0,0.3)' : c.card, borderRadius: 16, padding: 10 },
   todoThumb: { width: 84, height: 48, borderRadius: 8, backgroundColor: '#000' },
-  todoKind: { color: '#E8C9A0', fontSize: 13, fontFamily: Fonts.outfit.extraBold },
-  empty: { alignItems: 'center', gap: 10, borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.1)', borderRadius: 20, padding: 24 },
-  emptyTitle: { color: MidnightColors.text, fontSize: 18, fontFamily: Fonts.playfair.bold },
-  tile: { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: MidnightColors.surface, overflow: 'hidden' },
+  todoKind: { color: (isDark ? '#E8C9A0' : c.gold), fontSize: 13, fontFamily: Fonts.outfit.extraBold },
+  empty: { alignItems: 'center', gap: 10, borderWidth: 2, borderStyle: 'dashed', borderColor: c.tint(0.1), borderRadius: 20, padding: 24 },
+  emptyTitle: { color: c.text, fontSize: 18, fontFamily: Fonts.playfair.bold },
+  tile: { borderRadius: 16, borderWidth: 1, borderColor: c.tint(0.1), backgroundColor: c.surface, overflow: 'hidden' },
   tileReorder: { borderStyle: 'dashed', borderColor: 'rgba(202,156,104,0.5)' },
   fold: { position: 'absolute', top: 0, bottom: 0, left: '50%', width: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
   badges: { position: 'absolute', left: 8, top: 8, flexDirection: 'row', gap: 6 },
-  updated: { backgroundColor: MidnightColors.gold, color: MidnightColors.onAccent, fontSize: 9, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
+  updated: { backgroundColor: c.goldFill, color: c.onAccent, fontSize: 9, fontFamily: Fonts.outfit.extraBold, letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
   requestCount: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.75)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   requestCountText: { color: '#FFFFFF', fontSize: 11, fontFamily: Fonts.outfit.extraBold },
   tileMenu: { position: 'absolute', right: 6, top: 6, width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center' },
   tileInfo: { paddingHorizontal: 10, paddingVertical: 8, gap: 3 },
-  pageLabel: { color: MidnightColors.text, fontSize: 15, fontFamily: Fonts.playfair.bold },
-  spreadWord: { color: MidnightColors.slate400, fontSize: 11, fontFamily: Fonts.outfit.semiBold },
+  pageLabel: { color: c.text, fontSize: 15, fontFamily: Fonts.playfair.bold },
+  spreadWord: { color: c.slate400, fontSize: 11, fontFamily: Fonts.outfit.semiBold },
   dot: { width: 7, height: 7, borderRadius: 4 },
   stateText: { fontSize: 12, fontFamily: Fonts.outfit.bold },
-  layoutRow: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', padding: 6 },
-  layoutToggle: { flexDirection: 'row', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: 2 },
+  layoutRow: { borderTopWidth: 1, borderTopColor: c.tint(0.05), padding: 6 },
+  layoutToggle: { flexDirection: 'row', borderWidth: 1, borderColor: c.tint(0.1), borderRadius: 12, padding: 2 },
   layoutItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 7, borderRadius: 10 },
-  layoutActive: { backgroundColor: 'rgba(255,255,255,0.15)' },
-  layoutText: { color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.outfit.bold },
-  reorderRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 4 },
-  quickRow: { flexDirection: 'row', gap: 6, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', padding: 6 },
+  layoutActive: { backgroundColor: c.tint(0.15) },
+  layoutText: { color: c.slate400, fontSize: 12, fontFamily: Fonts.outfit.bold },
+  reorderRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: c.tint(0.05), paddingHorizontal: 4 },
+  quickRow: { flexDirection: 'row', gap: 6, borderTopWidth: 1, borderTopColor: c.tint(0.05), padding: 6 },
   quick: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 6 },
   quickApprove: { backgroundColor: 'rgba(52,211,153,0.12)' },
-  quickChange: { backgroundColor: 'rgba(255,255,255,0.06)' },
+  quickChange: { backgroundColor: c.tint(0.06) },
   quickText: { fontSize: 12, fontFamily: Fonts.outfit.bold },
   addTile: { borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(202,156,104,0.4)', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  addTileText: { color: '#E8C9A0', fontSize: 13, fontFamily: Fonts.outfit.bold },
-  seeAll: { color: '#E8C9A0', fontSize: 12, fontFamily: Fonts.outfit.bold },
-  activityList: { gap: 6, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.1)', paddingLeft: 12 },
+  addTileText: { color: (isDark ? '#E8C9A0' : c.gold), fontSize: 13, fontFamily: Fonts.outfit.bold },
+  seeAll: { color: (isDark ? '#E8C9A0' : c.gold), fontSize: 12, fontFamily: Fonts.outfit.bold },
+  activityList: { gap: 6, borderLeftWidth: 1, borderLeftColor: c.tint(0.1), paddingLeft: 12 },
   toolIcon: { padding: 8 },
 });

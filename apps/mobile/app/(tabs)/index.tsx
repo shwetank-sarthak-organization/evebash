@@ -12,6 +12,7 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -20,6 +21,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Fonts, MidnightColors } from '@/constants/theme';
 
 const { height } = Dimensions.get('window');
+const HERO_HEIGHT = Math.max(620, height * 0.86);
 
 const HERO_IMAGE = 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1400&auto=format&fit=crop';
 
@@ -28,14 +30,23 @@ export default function HomeScreen() {
   const { colors, isDark } = useAppTheme();
   const { user } = useAuth();
   const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+  // The hero is a dark photo in both looks, so the light look only darkens the status bar once it has scrolled past
+  const [pastHero, setPastHero] = React.useState(false);
+  // Tab screens stay mounted, so only set the status bar while this one is showing
+  const isFocused = useIsFocused();
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      {isFocused && <StatusBar barStyle={isDark || !pastHero ? 'light-content' : 'dark-content'} />}
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={32}
+        onScroll={isDark ? undefined : (e) => {
+          const next = e.nativeEvent.contentOffset.y > HERO_HEIGHT - 60;
+          if (next !== pastHero) setPastHero(next);
+        }}
       >
         <View style={styles.hero}>
           <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} contentFit="cover" />
@@ -52,7 +63,7 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.heroChip}>
-              <IconSymbol name="sparkles" size={14} color={colors.gold} />
+              <IconSymbol name="sparkles" size={14} color={MidnightColors.gold} />
               <Text style={styles.heroChipText}>Private Event Galleries</Text>
             </View>
 
@@ -127,7 +138,7 @@ export default function HomeScreen() {
         <View style={styles.footer}>
           <View style={styles.footerSection}>
             <View style={styles.footerBrandRow}>
-              <EveBashLogoBadge size={34} logoSize={21} />
+              <EveBashLogoBadge size={34} logoSize={21} color={colors.brandMark} />
               <Text style={styles.footerBrandName}>EveBash</Text>
             </View>
             <Text style={styles.footerDescription}>
@@ -215,10 +226,11 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   scrollContent: {
     paddingBottom: 92,
   },
+  // The hero is drawn on a photo, so it keeps the dark look's colours in both looks
   hero: {
-    minHeight: Math.max(620, height * 0.86),
+    minHeight: HERO_HEIGHT,
     justifyContent: 'flex-end',
-    backgroundColor: colors.background,
+    backgroundColor: MidnightColors.background,
   },
   heroImage: {
     ...StyleSheet.absoluteFillObject,
@@ -272,7 +284,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     marginBottom: 18,
   },
   heroTitleAccent: {
-    color: colors.gold,
+    color: MidnightColors.gold,
     fontFamily: Fonts.playfair.bold,
   },
   heroSubtitle: {
@@ -309,7 +321,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     gap: 10,
   },
   primaryButtonText: {
-    color: colors.onAccent,
+    color: MidnightColors.onAccent,
     fontFamily: Fonts.outfit.extraBold,
     fontSize: 13,
     letterSpacing: 1.2,

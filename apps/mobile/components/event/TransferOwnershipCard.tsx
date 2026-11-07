@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { MidnightColors } from '../../constants/theme';
+import { useAppTheme } from '../../context/ThemeContext';
 import { formatStorageSize } from '../../lib/planLimits';
 import { eventTransfers, formatTransferExpiry, type EventTransferStatus } from '../../lib/eventTransfers';
 
 /** Event > Permissions; keyed by event. Shows nothing unless the backend says this user can transfer the event. */
 export default function TransferOwnershipCard({ eventId }: { eventId: string }) {
+  const { colors, isDark } = useAppTheme();
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [status, setStatus] = useState<EventTransferStatus | null>(null);
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
@@ -65,7 +68,7 @@ export default function TransferOwnershipCard({ eventId }: { eventId: string }) 
                 value={email}
                 onChangeText={setEmail}
                 placeholder="New owner's email"
-                placeholderTextColor={MidnightColors.slate600}
+                placeholderTextColor={colors.slate600}
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="email-address"
@@ -73,7 +76,7 @@ export default function TransferOwnershipCard({ eventId }: { eventId: string }) 
               />
               <View style={styles.switchRow}>
                 <Text style={styles.switchLabel}>Keep the current owner on as an admin</Text>
-                <Switch accessibilityLabel="Keep the current owner on as an admin" value={keepAdmin} onValueChange={setKeepAdmin} trackColor={{ true: MidnightColors.gold }} />
+                <Switch accessibilityLabel="Keep the current owner on as an admin" value={keepAdmin} onValueChange={setKeepAdmin} trackColor={{ true: colors.goldFill }} />
               </View>
               <TouchableOpacity
                 accessibilityRole="button"
@@ -81,7 +84,7 @@ export default function TransferOwnershipCard({ eventId }: { eventId: string }) 
                 onPress={() => run(() => eventTransfers.startTransfer(eventId, email.trim(), keepAdmin))}
                 style={[styles.primaryButton, (busy || !email.trim()) && styles.disabled]}
               >
-                {busy ? <ActivityIndicator size="small" color={MidnightColors.onAccent} /> : <Text style={styles.primaryText}>Send transfer request</Text>}
+                {busy ? <ActivityIndicator size="small" color={colors.onAccent} /> : <Text style={styles.primaryText}>Send transfer request</Text>}
               </TouchableOpacity>
             </View>
           )}
@@ -92,18 +95,18 @@ export default function TransferOwnershipCard({ eventId }: { eventId: string }) 
   );
 }
 
-const styles = StyleSheet.create({
-  card: { marginTop: 12, padding: 14, gap: 8, borderRadius: 14, borderWidth: 1, borderColor: MidnightColors.border, backgroundColor: MidnightColors.surface },
-  title: { color: MidnightColors.text, fontSize: 14, fontWeight: '700' },
-  note: { marginTop: 2, color: MidnightColors.slate400, fontSize: 12, lineHeight: 18 },
+const getStyles = (c: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
+  card: { marginTop: 12, padding: 14, gap: 8, borderRadius: 14, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface },
+  title: { color: c.text, fontSize: 14, fontWeight: '700' },
+  note: { marginTop: 2, color: c.slate400, fontSize: 12, lineHeight: 18 },
   form: { gap: 10, marginTop: 4 },
-  input: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: MidnightColors.border, backgroundColor: MidnightColors.background, color: MidnightColors.text, fontSize: 14 },
+  input: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: c.border, backgroundColor: c.background, color: c.text, fontSize: 14 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  switchLabel: { flex: 1, color: MidnightColors.text, fontSize: 13 },
-  primaryButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 22, backgroundColor: MidnightColors.gold },
-  primaryText: { color: MidnightColors.onAccent, fontSize: 14, fontWeight: '700' },
+  switchLabel: { flex: 1, color: c.text, fontSize: 13 },
+  primaryButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 22, backgroundColor: c.goldFill },
+  primaryText: { color: c.onAccent, fontSize: 14, fontWeight: '700' },
   disabled: { opacity: 0.6 },
-  secondaryButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44, marginTop: 4, borderRadius: 22, borderWidth: 1, borderColor: MidnightColors.border },
-  secondaryText: { color: MidnightColors.text, fontSize: 14, fontWeight: '700' },
-  error: { color: '#FB7185', fontSize: 12 },
+  secondaryButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44, marginTop: 4, borderRadius: 22, borderWidth: 1, borderColor: c.border },
+  secondaryText: { color: c.text, fontSize: 14, fontWeight: '700' },
+  error: { color: isDark ? '#FB7185' : c.danger, fontSize: 12 },
 });

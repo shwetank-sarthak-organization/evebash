@@ -7,7 +7,7 @@ How to use this file (people and Claude sessions alike):
 - Numbers are never reused. If #1 is fixed and removed, the next new issue still takes the next number.
 - Starting work on an issue: set Status to "In progress" and Owner to your name.
 - Fixed (merged to staging): move the whole entry to RECENTLY FIXED, set Status to "Fixed", and add
-  "Fixed in: <commit> (YYYY-MM-DD)". Delete entries from RECENTLY FIXED once they are older than 7 days.
+  "Fixed in: 9dbddbed (YYYY-MM-DD)". Delete entries from RECENTLY FIXED once they are older than 7 days.
 - Dates are YYYY-MM-DD.
 
 Field values:
@@ -1489,16 +1489,16 @@ Found in: light theme check of the host page (chat 2026-11-04)
 Issue: On a phone-width screen, the host event page (Host -> an event) scrolls sideways by about 180 px. The "Home (Primary Gallery) and sub-galleries" info popover (src/components/GalleryTypesInfo.tsx) is only hidden (invisible + opacity 0), so its 22rem-wide box still sticks out past the right edge (page 554 px wide at 375 px). Same in the dark and light look. Fix idea: keep the popover inside the screen (right-0 on small screens, or max-w from the button's position), or take it out of the layout while closed (display none).
 How to reproduce: Open Host -> any event on a 375 px wide screen (or a phone) and swipe sideways: the page moves right; empty space appears on the right.
 
-#254
-Listed: 2026-11-07
+#253
+Listed: 2026-11-06
 Platform: App
-Priority: Medium
+Priority: Low
 Status: Open
 Owner: Unassigned
-Blocked by: -
-Found in: Classic White edit-mode pencils test (todo #11, chat 2026-11-07)
-Issue: Changing an event's theme in the app (Design tab > Change Template, handleUpdateTemplate in apps/mobile/app/events/[id].tsx) saves the new theme on the main gallery only. The website's host page (handleUpdateTemplate in src/app/(main)/host/page.tsx) also saves it on every album. So after a change in the app, the albums keep their old theme: the app still shows them in the new theme (it uses the main gallery's theme), but on the website each album opens in its old theme. Guests see two different looks depending on where they open the album. Fix idea: cascade to the albums in the app as the website does (getSubEvents + updateEvent for each album), or move that step into one shared helper both use.
-How to reproduce: In the app, open a main gallery that has albums, Design tab > Change Template, pick another theme. Then open one of its albums on the website: it still shows the old theme.
+Blocked by: Sarthak's OK to change a guest theme (themes keep their own designs)
+Found in: app light theme check (todo #1, chat 2026-11-06)
+Issue: On a Classic White guest gallery in the app, the clock and Wi-Fi icon at the top are white on the white page, so they can hardly be seen. The app's status bar has always been white on event pages (apps/mobile/app/_layout.tsx keeps them on the "light" status bar), which suits the dark themes but not Classic White. Not caused by the light theme: the old app looks the same. Sunlit Portrait already sets its own status bar (isPortraitGuest in apps/mobile/app/events/[id].tsx); fix idea: do the same for Classic White guests, a dark status bar on its white page.
+How to reproduce: In the app, open a Classic White gallery as a guest (e.g. 10-oct-reject-73a7) and look at the top of the screen.
 
 #255
 Listed: 2026-11-07
@@ -1514,6 +1514,18 @@ How to reproduce: In the app, open a Midnight Hero gallery with a welcome messag
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#254
+Listed: 2026-11-07
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Testing the guest-page edit mode, todo #11 (chat 2026-11-07)
+Issue: Changing an event's theme in the app saves it on the main gallery only; the website's host page also saves it on every album. After a change in the app, the albums keep their old theme on the website (the app shows them in the new theme because it uses the main gallery's theme). Fix: handleUpdateTemplate in apps/mobile/app/events/[id].tsx now also saves the theme on every album of a main gallery, like src/app/(main)/host/page.tsx.
+How to reproduce: In the app, Host > a main gallery with albums > Design > Change Template > pick another theme. Open an album of it on the website: it still shows the old theme.
+Fixed in: 9dbddbed (2026-11-07). Device test #196.
 
 #248
 Listed: 2026-11-05

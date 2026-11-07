@@ -23,7 +23,7 @@ import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '@/context/AuthContext';
-import { useAppTheme } from '@/context/ThemeContext';
+import { useAppTheme, DarkThemeScope } from '@/context/ThemeContext';
 import { createBusiness, getUserBusinesses, Business, generateShortId, getBusinessTypeColor, getUserTotalStorage } from '@/lib/database';
 import { uploadEventImage } from '@/lib/storage';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
@@ -52,7 +52,7 @@ const BENEFITS = [
   { id: '3', title: 'Premium Portfolio', desc: 'Showcase your work to a diverse audience with high-resolution galleries.', icon: 'photo.on.rectangle.fill' },
 ];
 
-export default function BusinessLandingScreen() {
+function BusinessLandingScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
@@ -1549,3 +1549,12 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     letterSpacing: 0.2,
   },
 });
+
+// Phase 2 business pages keep the dark look whatever the Appearance choice (todo #1)
+export default function BusinessLandingScreenRoute() {
+  return (
+    <DarkThemeScope>
+      <BusinessLandingScreen />
+    </DarkThemeScope>
+  );
+}

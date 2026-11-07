@@ -1,4 +1,4 @@
-import { useAppTheme } from '@/context/ThemeContext';
+import { useAppTheme, DarkThemeScope } from '@/context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useMemo, useState, useEffect } from 'react';
 import {
@@ -61,7 +61,7 @@ const PORTFOLIO_SORT_OPTIONS = [
 ] as const;
 type PortfolioSortValue = typeof PORTFOLIO_SORT_OPTIONS[number]['value'];
 
-export default function ManageBusinessScreen() {
+function ManageBusinessScreen() {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = getStyles(colors, isDark, insets);
@@ -4128,3 +4128,12 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     fontFamily: 'Inter_500Medium',
   },
 });
+
+// Phase 2 business pages keep the dark look whatever the Appearance choice (todo #1)
+export default function ManageBusinessScreenRoute() {
+  return (
+    <DarkThemeScope>
+      <ManageBusinessScreen />
+    </DarkThemeScope>
+  );
+}
