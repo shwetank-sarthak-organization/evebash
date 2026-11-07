@@ -36,6 +36,7 @@ Issue: Storage and plan limits only apply on the website. The app and backend do
 How to reproduce: With a free account near its 1 GB limit, upload past the limit from the website (blocked) and from the app (allowed). Compare the storage used shown on each.
 Update 2026-10-10: events and EB Vault now share one plan storage pool. Website/app totals include Vault usage, and Vault uploads are checked on the backend. Event uploads are still only checked on the website and app, so this stays open.
 Update 2026-10-10 (8acf63a): the gallery OWNER pays (decided by Sarthak): vault_event_storage_bytes counts media in galleries the owner owns, whoever uploaded it (migration 20261010030000 applied). The server checks the owner's plan (events + Vault, videos x1.35, paused while a paid plan is expired) before handing out upload links, behind EVENT_UPLOAD_LIMITS (off by default). Website and app read storage from GET /api/v1/media/storage-usage. Move to fixed once the switch is on and test #40 passes.
+Update 2026-11-07: the plan's event limit was also only checked on the website and app. Migration 20261107000000_event_count_limit.sql adds the same check in the database (trigger on new top-level events from website/app sessions; admins, delegated accounts and the backend aren't limited; existing events untouched; applied 2026-11-07). The app now shows the database's refusal message too, like the website. Device test #202. Still open until EVENT_UPLOAD_LIMITS=true is set on Railway and device test #40 passes.
 
 #9
 Listed: 2026-10-09

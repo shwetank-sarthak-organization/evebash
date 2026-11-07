@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 202
+Next test number: 203
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5727,6 +5727,32 @@ How to test:
   5. Save. Open the main gallery and an album in a private window. Expect: the same details; the Instagram icon opens the profile in a new tab.
   6. At phone width. Expect: both sides under the video, side by side; with only one side filled it takes the full width.
   7. Clear this side for both and Save. Expect: only the video frame, with the event title in the ribbon.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#202 Plan event limit is also checked by the database
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Detail:    Issue #6. Needs migration 20261107000000_event_count_limit.sql. Use a free account that already has 1 event
+           (Free allows 1), and a paid account below its limit.
+How to test:
+  1. Free account, website: Host > create an event. Expect: refused with the plan-limit message, as before.
+  2. Same in the app. Expect: the "Plan Limit Reached" pop-up, as before.
+  3. Free account: add a sub-gallery to its event, and edit the event's title and date. Expect: all work.
+  4. Paid account below its limit: create an event. Expect: created as normal.
+  5. Platform admin: create several events. Expect: no limit.
+  6. Transfer an event to an account with a free slot (todo #24). Expect: it still works.
+  7. App, any account: create an event and a sub-gallery as normal. Expect: both work, and a failed create still shows
+     an error pop-up. (If the database refuses an event, the app now shows its message, e.g. "Your plan allows 1
+     event, and you have 1..." under "Couldn't create event". The app's own check usually catches this first.)
 Done by:
 Device / browser:
 Build / version:

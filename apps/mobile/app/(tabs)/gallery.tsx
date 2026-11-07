@@ -364,7 +364,7 @@ export default function PortfolioTabScreen() {
         }
     }
     try {
-      const success = await createEvent({
+      const created = await createEvent({
         id,
         title,
         date: normalizeEventDate(newEventDate),
@@ -376,16 +376,18 @@ export default function PortfolioTabScreen() {
         category: newEventType
       });
 
-      if (success) {
-        setCreateModalVisible(false);
-        setNewEventTitle('');
-        const today = new Date();
-        setNewEventDateValue(today);
-        setNewEventDate(formatDisplayDate(today));
-        setNewEventType('Wedding');
-        fetchData();
-        showToast("Your event has been created!");
+      if (!created.success) {
+        appAlert("Couldn't create event", created.error || "Failed to create event. Please try again.");
+        return;
       }
+      setCreateModalVisible(false);
+      setNewEventTitle('');
+      const today = new Date();
+      setNewEventDateValue(today);
+      setNewEventDate(formatDisplayDate(today));
+      setNewEventType('Wedding');
+      fetchData();
+      showToast("Your event has been created!");
     } catch (err) {
       console.error('[CreateEvent] Error:', err);
       appAlert("Error", "Failed to create event.");

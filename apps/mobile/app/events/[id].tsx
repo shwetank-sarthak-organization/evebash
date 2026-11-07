@@ -3008,7 +3008,7 @@ function EventDetailScreen() {
     setUpdating(true);
     try {
       const subId = `${newSubTitle.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).slice(-4)}`;
-      const success = await createEvent({
+      const created = await createEvent({
         id: subId,
         title: newSubTitle,
         date: normalizeEventDate(newSubDate) || newSubDate,
@@ -3020,8 +3020,8 @@ function EventDetailScreen() {
         templateId: event.templateId || 'hero',
         order: subEvents.length
       });
-      if (!success) {
-        appAlert("Error", "Failed to create gallery. Please try again.");
+      if (!created.success) {
+        appAlert("Error", created.error || "Failed to create gallery. Please try again.");
         return;
       }
       setNewSubTitle('');

@@ -1758,7 +1758,11 @@ export function safeParseDateToISO(dateInput?: string | Date): string | null {
     }
 }
 
-export async function createEvent(event: Event) {
+/**
+ * Saves a new event. On failure `error` is set only for refusals written for users (SQLSTATE EBA02, such as the plan's
+ * event limit); other failures leave it empty so screens show their own wording.
+ */
+export async function createEvent(event: Event): Promise<{ success: boolean; error?: string }> {
     try {
         const payload: Record<string, any> = {
             id: event.id,
@@ -1788,7 +1792,7 @@ export async function createEvent(event: Event) {
         }
 
         if (error) throw error;
-        return true;
+        return { success: true };
     } catch (error) {
         const details = error && typeof error === "object"
             ? {
@@ -1799,7 +1803,9 @@ export async function createEvent(event: Event) {
             }
             : error;
         console.error("Error creating event:", details);
-        return false;
+        const isUserMessage = error && typeof error === "object" && "code" in error && error.code === 'EBA02'
+            && "message" in error && typeof error.message === "string";
+        return { success: false, error: isUserMessage ? (error as { message: string }).message : undefined };
     }
 }
 
