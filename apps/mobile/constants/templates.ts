@@ -70,6 +70,24 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     useSerif: true
   },
   {
+    // Confetti Circle: the cover photo with a big see-through white circle and the names in pink-to-orange Bebas Neue
+    // capitals; Classic White's soft white below it (website: src/components/TemplateConfetti.tsx,
+    // src/app/confetti-circle.css; app: components/confetti)
+    id: 'confetti',
+    category: 'Wedding',
+    label: 'Confetti Circle',
+    desc: 'Couple photo, white circle & pink-orange names',
+    background: { light: '#FCFCFA', dark: '#FCFCFA' },
+    panel: { light: '#ffffff', dark: '#ffffff' },
+    text: { light: '#2a2727', dark: '#2a2727' },
+    muted: { light: '#6b5f5f', dark: '#6b5f5f' },
+    accent: '#e8175d',
+    accentBg: { light: 'rgba(232,23,93,0.08)', dark: 'rgba(232,23,93,0.08)' },
+    tileBg: { light: '#ffffff', dark: '#ffffff' },
+    radius: 0,
+    overlay: { light: ['rgba(252,252,250,0.1)', 'rgba(252,252,250,1)'], dark: ['rgba(252,252,250,0.1)', 'rgba(252,252,250,1)'] },
+  },
+  {
     id: 'hero',
     category: 'Wedding',
     label: 'Midnight Hero',

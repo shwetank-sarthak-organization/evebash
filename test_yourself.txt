@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 203
+Next test number: 205
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5763,3 +5763,96 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback:
+
+--------------------------------------------------------------------------------
+#203 Confetti Circle theme in the app (iPhone and Android)
+Status:    TODO
+Priority:  High
+Platform:  App (step 9: Website)
+Brief:     The wedding theme Confetti Circle (#151 on the website) now has an app version: the cover
+           photo with a big see-through white circle holding the couple's names in pink-to-orange
+           capitals, a dark tag with a red heart and the gallery's message, "We're getting married!"
+           with the highlight video in a soft-edged frame, the bride and the groom, the gallery
+           header, whole-photo rows and the torn-paper footer, as on the website.
+Detail:    Todo #12: 4b97ef14 (app design), d805e71c (cover like the design's phone layout) and
+           c39ba50c (website edit-mode fix, step 9), on staging 2026-11-07. apps/mobile/components/confetti/, the event
+           screen (apps/mobile/app/events/[id].tsx), ThemeHeader.tsx, constants/templates.ts; shared
+           logic in shared/themes/confettiCircle.ts. Needs the new app code on a staging build or the
+           dev app with Metro (the Bebas Neue font package is new; it loads like the other theme
+           fonts, so no new native build). The bride / groom details are filled in by another change
+           (the app's Couple sheet, todo #12 step 2); until edit mode is on, a "Name and Name" title
+           shows placeholder words and icons, as on the website. Pick Confetti Circle for a wedding
+           gallery first (website host page, or the app's theme picker, where it now shows).
+How to test:
+  1. Open a Confetti Circle gallery titled "A and B" in the app. Expect: a soft-white top bar with
+     Back, the initials "A ♥ B" (pink heart) and Share, and a dark clock; under it a band of the cover
+     photo with a big see-through white circle (about 80% of the screen's width): A, "- AND -", B in
+     tall pink-to-orange capitals and the date as "July | 17 | 2026"; a dark tag hanging from the bar
+     onto the circle with a red heart and the gallery's message in italics and quotes ("HAPPILY
+     MARRIED" when there is none); pink and orange specks round the circle; a torn-paper edge just
+     under it. No white fade over the photo, no arrow button.
+  2. Right under the torn edge: HOME, COLLECTIONS, FIND YOU in tall capitals, the chosen one pink with
+     a pink line under it. Scroll: the bar pins at the top and the strip under the clock is solid,
+     nothing shows through it.
+  3. Under the bar: "WE'RE GETTING MARRIED!", the highlight video's picture in a widescreen frame that
+     fades into the page, a pink play button, specks round it and a white "A ♥ B" ribbon (the heart
+     drawn, not a box); THE BRIDE / A and THE GROOM / B side by side with a few words and Facebook,
+     Instagram and X circles. Tap play: the film plays in a plain box with its controls, the ribbon
+     under it. Without a video the frame shows the cover photo and no play button.
+  4. Then BACK TO GALLERY / SHARE EVENT, the gallery's name big ("A & B", or the album's name), and
+     PHOTO GALLERY n | VIDEO GALLERY n: switching works, the chosen one is pink. Photos are whole (not
+     cropped) in full-width rows; videos the same with a play circle; tapping opens the viewer.
+  5. Give the gallery a message over 90 characters. Expect: the cover tag shows it cut to 4 lines; the
+     whole message is under the gallery tabs in italics and quotes.
+  6. Scroll to the bottom. Expect: a torn-paper edge across the full width, "A ♥ B" initials, "Made
+     with EveBash" (EveBash in its own font), Create your own event / Sample galleries / Pricing at
+     the left, Privacy / Terms / Contact us at the right; each link opens its screen.
+  7. Open an album under Collections, and an album's own link: the cover keeps the couple's names, the
+     gallery name is the album's. A title that isn't two names (e.g. "Sharma Wedding"): one or two
+     lines of capitals in the circle, no bride / groom columns.
+  8. Logged out, open a public Confetti Circle gallery link: the same design; an "Enter the
+     Celebration" card where the gallery needs a login.
+  9. Website: open the gallery in edit mode (Preview Guest Theme on the host page). Expect: no dark
+     band above the torn-paper footer, and the edit bar doesn't cover the footer's links.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:         2026-11-07 Claude, iPhone 17 Pro simulator, dev build on a local bundler from the
+                  worktree (staging data, gallery "samarth weds Jyoti", host account already signed
+                  in): steps 1-4 and 6 look as described after fixes (white fade over the cover, the
+                  ribbon's heart, FIND YOU's font, the strip under the clock, the footer edge's
+                  width); play works. The phone-layout cover (d805e71c) checked the same way.
+                  Step 9 checked on staging in the built-in browser by applying the
+                  two style changes in the page. Not done: 5, 7, 8, Android, a real phone.
+
+--------------------------------------------------------------------------------
+#204 App: Confetti Circle bride and groom in edit mode
+Status:    TODO
+Priority:  Medium
+Platform:  App
+Brief:     In the app's edit mode, Confetti Circle now has a Couple sheet (as on the website, #201): pencils on the bride and the groom open it on that side; the host fills in the label, name, a few words and Instagram / Facebook / X. Saved for the whole event, so Home and every album show the same couple.
+Detail:    Todo #12 step 2, commit 6d0b2861. Needs an app build made with EXPO_PUBLIC_GUEST_EDIT_MODE=true (like #200). Uses the same saved details as the website, so a change in one shows in the other.
+How to test:
+  1. Host > a Wedding event in Confetti Circle > Design > Preview Guest Theme. Scroll to "We're getting married!". Expect: under the video, each side with a name has a "Bride" / "Groom" pencil; an empty side shows only an "Add bride" / "Add groom" pencil. The edit bar also has a Couple button (scroll its buttons sideways).
+  2. Tap the Groom pencil. Expect: the Couple sheet opens on The Groom's tab with what is saved.
+  3. Type a few words and an Instagram @username. In Facebook type instagram.com/someone. Expect: a red "Not a Facebook profile link" note; Done: the page shows the words and only the Instagram icon; the bar says 1 change.
+  4. Save. Open the event's website page in a browser. Expect: the same words and Instagram icon; the icon opens the profile.
+  5. Switch the bar to an album ("Editing" > an album). Expect: the same couple; change something there and Save; Home shows the change too.
+  6. Clear this side on the bride, Done. Expect: an "Add bride" pencil and the event title in the ribbon. Discard. Expect: the bride is back.
+  7. With the app's edit mode switch off: the section shows the names from a "Name and Name" title with placeholder words, as before, and no pencils.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:         2026-11-07 Claude, iPhone 17 Pro simulator, dev build on a local bundler with the switch on
+                  (staging data, host account signed in, gallery mehandi night and its album newcheck):
+                  steps 1, 2, 3, 5 and 6 as described; the save from Home and the restore from the album
+                  were checked in the database (albums keep {}); the couple was put back to Jyoti /
+                  Samarth. Not done: 4 (website after an app save), 7, Android, a real phone.

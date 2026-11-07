@@ -3,6 +3,7 @@
 import React from "react";
 import { ArrowLeft, Check, Share2 } from "lucide-react";
 import { displayCoupleTitle } from "../../../shared/text/coupleNames";
+import { CONFETTI_TAG_LONG_MESSAGE } from "../../../shared/themes/confettiCircle";
 import { EditChip, useGuestEditSpots } from "@/components/guestEdit/EditChip";
 
 // Top of the gallery section in the Confetti Circle design (styles in src/app/confetti-circle.css), in place of
@@ -12,8 +13,6 @@ import { EditChip, useGuestEditSpots } from "@/components/guestEdit/EditChip";
 
 type MediaTab = "photos" | "videos";
 
-/** Messages longer than this get the cover tag's smallest size and may be cut there (TemplateConfetti) */
-export const CONFETTI_TAG_LONG_MESSAGE = 90;
 
 export function ConfettiGalleryHeader({
     title,

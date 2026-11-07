@@ -16,6 +16,8 @@ interface ThemeHeaderProps {
   royalFontFamily?: string;
   /** Sunlit Portrait: its Instrument Serif, loaded by the event screen (components/portrait/portraitFonts.ts) */
   portraitFontFamily?: string;
+  /** Confetti Circle: its Bebas Neue, loaded by the event screen (components/confetti/confettiFonts.ts) */
+  confettiFontFamily?: string;
 }
 
 /** Event Partners is hidden until Phase 2 (it comes with EB Business and EB Network). */
@@ -55,6 +57,8 @@ const SPORTS_HEADER_THEMES: Record<string, any> = {
 const COLLECTIONS_TAB_HEIGHT = 40;
 // Height of Sunlit Portrait's pinned tab bar; its gallery header's film opening fills the screen under it
 export const PORTRAIT_TABS_HEIGHT = 56;
+// Height of Confetti Circle's tab bar
+const CONFETTI_TABS_HEIGHT = 56;
 
 const getSportsHeaderTheme = (templateId?: string) => SPORTS_HEADER_THEMES[templateId || ''] || SPORTS_HEADER_THEMES.bohemian;
 
@@ -67,6 +71,7 @@ export function ThemeHeader({
   styles,
   royalFontFamily,
   portraitFontFamily,
+  confettiFontFamily,
 }: ThemeHeaderProps) {
   // Website navbar links: Cinzel, gold when chosen
   const royalTabText = (active: boolean) => isRoyalFont && { fontFamily: royalFontFamily, fontWeight: 'normal' as const, letterSpacing: 1.6, color: active ? '#f3d68f' : '#cdb48a' };
@@ -78,13 +83,18 @@ export function ThemeHeader({
   // Its labels are drawn a little bolder, as on the website (components/portrait/PortraitBoldText.tsx, #166)
   const TabLabel = isPortrait ? PortraitBoldText : Text;
   const portraitTabText = (active: boolean) => isPortrait && !!portraitFontFamily && { fontFamily: portraitFontFamily, fontWeight: 'normal' as const, textTransform: 'none' as const, letterSpacing: 0, fontSize: 20, color: active ? '#1F1B17' : '#6B6158' };
+  // Confetti Circle (website: its navbar in confetti-circle.css): Bebas Neue capitals, ink, pink when chosen with a pink
+  // line under it, on the soft white paper
+  const isConfetti = templateId === 'confetti';
+  const confettiTabText = (active: boolean) => isConfetti && !!confettiFontFamily && { fontFamily: confettiFontFamily, fontWeight: 'normal' as const, textTransform: 'uppercase' as const, letterSpacing: 1, fontSize: 19, color: active ? '#e8175d' : 'rgba(42,39,39,0.75)' };
   const isRoyalFont = isRoyal && !!royalFontFamily;
   const { width: windowWidth } = useWindowDimensions();
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [collectionsAnchor, setCollectionsAnchor] = useState<{ x: number; y: number } | null>(null);
   const isClassic = templateId === 'classic';
-  // Royal Emerald, Classic White and Sunlit Portrait group the albums under one Collections tab, like the website's navbar
-  const groupsCollections = isRoyalFont || isClassic || isPortrait;
+  // Royal Emerald, Classic White, Sunlit Portrait and Confetti Circle group the albums under one Collections tab, like the
+  // website's navbar
+  const groupsCollections = isRoyalFont || isClassic || isPortrait || isConfetti;
   const isHero = templateId === 'hero';
   const isEthereal = templateId === 'ethereal';
   const isScrapbook = templateId === 'scrapbook';
@@ -107,7 +117,7 @@ export function ThemeHeader({
   const isBrutalist = templateId === 'brutalist';
   const isTechSleek = templateId === 'tech_sleek';
   const isExecutive = templateId === 'executive';
-  const isThemeHeader = isRoyal || isClassic || isPortrait || isHero || isEthereal || isGarden;
+  const isThemeHeader = isRoyal || isClassic || isPortrait || isConfetti || isHero || isEthereal || isGarden;
 
   const birthdayTextColor = isSportsTemplate ? sportsHeaderTheme.text : (isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#F2E7D2' : (isRoseGarden ? '#562733' : (isMinimalLove ? '#4a2f1d' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : (isMuseum ? '#9b7a44' : (isBrutalist ? '#111113' : (isTechSleek ? '#7dd3fc' : (isExecutive ? '#e8d8b8' : '#cca43b')))))))))))))));
 
@@ -154,13 +164,14 @@ export function ThemeHeader({
   });
 
   const themeTextColor = (active: boolean) => active
-    ? (isGarden ? '#FFFFFF' : (isHero ? '#cca43b' : (isRoyal ? '#fff' : (isEthereal ? selectedTemplate.accent : (isClassic ? '#2C352E' : (isPortrait ? '#1F1B17' : '#cca43b'))))))
+    ? (isGarden ? '#FFFFFF' : (isHero ? '#cca43b' : (isRoyal ? '#fff' : (isEthereal ? selectedTemplate.accent : (isClassic ? '#2C352E' : (isPortrait ? '#1F1B17' : (isConfetti ? '#e8175d' : '#cca43b')))))))
     : (isGarden ? '#64748b' : (isHero ? '#CDB89E' : selectedTemplate.muted));
 
   // The Collections tab and its menu items: Royal Emerald's gold Cinzel, Classic White like its other tabs
   const collectionTabText = (active: boolean) => isRoyalFont
     ? royalTabText(active)
     : isPortrait ? [{ color: themeTextColor(active), fontFamily: selectedTemplate.bodyMedium }, portraitTabText(active)]
+    : isConfetti ? [{ color: themeTextColor(active), fontFamily: selectedTemplate.bodyMedium }, confettiTabText(active)]
     : { color: themeTextColor(active), fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold' as const, textTransform: 'uppercase' as const, letterSpacing: 1.5, fontSize: 13 };
 
   const academicTabStyle = {
@@ -215,6 +226,7 @@ export function ThemeHeader({
         !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
         royalTabText(isActive),
         portraitTabText(isActive),
+        confettiTabText(isActive),
         isAcademicEditorial && {
           fontFamily: selectedTemplate.serifBold,
           fontSize: 13,
@@ -249,6 +261,10 @@ export function ThemeHeader({
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: -4, alignItems: 'center' }}>
         <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: '#A24E30' }} />
       </View>
+    );
+    // A pink line under the label without taking room, like the website's link underline
+    if (isConfetti && isActive) return (
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: -3, height: 1.5, backgroundColor: '#e8175d' }} />
     );
     if (isClassic && isActive) return (
       <View style={{ alignItems: 'center', marginTop: 4 }}>
@@ -325,6 +341,7 @@ export function ThemeHeader({
         : { height: 70, marginTop: 12, marginBottom: 0 }),
       isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#FCFCFA' },
       isPortrait && { height: PORTRAIT_TABS_HEIGHT, marginTop: 0, marginBottom: 0, borderBottomWidth: 1, borderBottomColor: '#E7DFD4', backgroundColor: '#FBF8F3' },
+      isConfetti && { height: CONFETTI_TABS_HEIGHT, marginTop: 0, marginBottom: 0, borderBottomWidth: 1, borderBottomColor: 'rgba(42,39,39,0.08)', backgroundColor: '#FCFCFA' },
       isHero && { height: 64, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', backgroundColor: '#000000' },
       isEthereal && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.accent + '26', backgroundColor: selectedTemplate.background },
       isAcademicEditorial && { height: 52, marginTop: 12, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.text + '1a', backgroundColor: selectedTemplate.background },
@@ -520,6 +537,7 @@ export function ThemeHeader({
               !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
               royalTabText(isFindYouActive),
               portraitTabText(isFindYouActive),
+              confettiTabText(isFindYouActive),
               isAcademicEditorial && {
                 fontFamily: selectedTemplate.serifBold,
                 fontSize: 13,
@@ -532,7 +550,7 @@ export function ThemeHeader({
               {(isCyberTech || isNeonCarnival) ? (isFindYouActive ? '[ FIND YOU ]' : '  FIND YOU  ') : (
                 isRetroArcade ? 'FIND YOU 📸' : (
                   isAcademicEditorial ? `${String(subEvents.length + 4).padStart(2, '0')} / FIND YOU` : (
-                    (isSportsTemplate || isMuseum || isBrutalist || isTechSleek || isExecutive || isRoyalFont || isClassic || isPortrait) ? 'Find You' : <>Find You <Text style={{ fontSize: 10 }}>📸</Text></>
+                    (isSportsTemplate || isMuseum || isBrutalist || isTechSleek || isExecutive || isRoyalFont || isClassic || isPortrait || isConfetti) ? 'Find You' : <>Find You <Text style={{ fontSize: 10 }}>📸</Text></>
                   )
                 )
               )}

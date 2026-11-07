@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 256
+Next issue number: 257
 
 =====================================================================
 ACTIVE ISSUES
@@ -1514,6 +1514,18 @@ How to reproduce: On the website host page, open an event, Change Cover to a tal
 Note 2026-11-07: parts 1-3 on staging in 610b2c0a (todo #11): the position is now a focus point in % plus a zoom everywhere (shared/themes/coverFocus.ts), the website's active themes and the app follow it, and a gallery can have a separate phone cover (set in edit mode, behind the switches). 3 of 74 events had a moved cover, none past 50, so none snaps to an edge. Device test #198. Left: (4) EventDesignPreview.tsx still draws the cover centred, and website themes outside the five active ones plus Periwinkle Script (e.g. Cinematic) still ignore the position.
 Note 2026-11-06: Being fixed with todo #11 on local branch feat/guest-edit-mode (not on staging yet), no database change. The position fields now mean the same everywhere (shared/themes/coverFocus.ts): coverOffsetX / coverOffset are the focus point's distance from the middle in percent of the photo (-50..50), coverScale the zoom (1-2.5), and zoom grows around the focus point. Website guest themes, dashboard cards and the host page's Position editor use it (src/lib/coverStyle.ts); the app's Royal Emerald, Classic White and Sunlit Portrait covers too (apps/mobile/lib/coverStyle.ts); the app's own cover (Midnight Hero, host view) maps it onto its pixel shift. Preview Guest Theme's cover panel has Move and zoom (drag a dot on the photo, zoom slider) on both platforms. One focus point serves the phone and the computer frame. The 2 test galleries already moved in pixels (up to 50) now read as percent and shift a little.
 Note 2026-11-07: all four parts fixed on staging in 610b2c0a and 65238da8. The cover position is a focus point in % plus a zoom everywhere; the five active website themes, the app and the host page's Guest Home Preview (phone frame = phone cover, browser frame = computer cover) follow it; a gallery can have a separate phone cover. Themes outside the five (now "Coming soon") keep their old cover look. Checked on staging.evebash.com and in the browser on localhost. Device test #198.
+
+#256
+Listed: 2026-11-07
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Building the app's Couple sheet, todo #12 step 2 (chat 2026-11-07); found by reading the code, not yet seen in a browser
+Issue: In the website's edit mode, clearing both sides of Confetti Circle's couple and pressing Save removes the couple from the database, but the page keeps showing the old names until it is reloaded. The save stores the event's theme content as returned (without the removed "couple" block), and the page merges it over the loaded event's theme content (applyGalleryDraft in shared/guestEdit/draft.ts spreads the saved blocks over the old ones), so the old block stays. The website doesn't reload the page after Save. The app's save (apps/mobile/components/event/guestEdit/useGuestEdit.ts, step 4) names the block even when it was removed, so the app is not affected. Fix idea: do the same in saveGuestEdits (src/components/guestEdit/guestEditStore.ts): save themeContent as { ...result.content, [block]: result.content?.[block] }.
+How to reproduce: On staging (edit mode on), open a Confetti Circle gallery with a saved couple > Preview Guest Theme > Couple. Clear this side on both sides and Save. Expect: the section shows no names. Actual: the old names stay until you reload the page.
+Note 2026-11-07: the same bug was also found with device test #201 and is already fixed in 65238da8 (branch feat/guest-edit-mode, not on staging yet): move this entry to RECENTLY FIXED with "Fixed in: 65238da8" when that lands, and move Jira EB-154 to Done.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

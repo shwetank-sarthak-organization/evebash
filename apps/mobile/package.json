@@ -11,6 +11,7 @@
     "lint": "expo lint"
   },
   "dependencies": {
+    "@expo-google-fonts/bebas-neue": "^0.4.1",
     "@expo-google-fonts/bubblegum-sans": "^0.4.1",
     "@expo-google-fonts/cinzel": "^0.4.2",
     "@expo-google-fonts/cinzel-decorative": "^0.4.1",

@@ -8,9 +8,21 @@ import { COVER_DRAFT_FIELDS, PHONE_COVER_DRAFT_FIELDS, draftSummaryText, editabl
 import { hasPhoneFraming, hasPhonePhoto } from '../../../../../shared/themes/phoneCover';
 import { clampCoverZoom, coverFocus, focusToOffsets, MAX_COVER_ZOOM, MIN_COVER_ZOOM } from '../../../../../shared/themes/coverFocus';
 import { editableFieldsFor, type EditableField } from '../../../../../shared/themes/editableFields';
+import {
+  COUPLE_LIMITS,
+  COUPLE_SIDES,
+  SOCIAL_NETWORKS,
+  SOCIAL_NETWORK_NAMES,
+  emptyCouplePerson,
+  socialLinkUrl,
+  type CouplePerson,
+  type CoupleSide,
+  type SocialNetwork,
+} from '../../../../../shared/themes/themeContent';
 import { eventDateValue } from '../../../../../shared/text/eventDate';
 import { BottomSheet, BottomSheetHeader } from '@/components/ui/BottomSheet';
 import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
+import { SOCIAL_ICONS } from '@/components/icons/SocialIcons';
 import { Fonts, MidnightColors } from '@/constants/theme';
 import { getGalleryVideos, type Event, type Photo } from '@/lib/database';
 import { COVER_PICKER_OPTIONS } from '@/lib/eventCoverUpload';
@@ -29,7 +41,7 @@ const FIELD_ICONS: Record<EditableField['kind'], IconSymbolName> = {
   date: 'calendar',
   longText: 'pencil',
   video: 'video.fill',
-  // Theme content (the couple): not on the app yet (todo #12), so never listed for it
+  // Theme content: Confetti Circle's couple
   couple: 'heart.fill',
 };
 
@@ -62,14 +74,23 @@ export function GuestEditBar({ edit, galleryId, templateId, userId, photos, onSe
   // The open sheet (opened here or by a pencil on the page) belongs to the gallery it was opened on
   const openFieldDef = edit.openPanel?.galleryId === galleryId ? fields.find((field) => field.key === edit.openPanel?.key) : undefined;
   const setOpenField = edit.openPanelFor;
+  // Theme content belongs to the whole event: edited and saved on the main gallery from any gallery
+  const draftGalleryId = (field: EditableField) => (field.block && edit.rootId ? edit.rootId : galleryId);
+  const isChanged = (field: EditableField) => {
+    const draft = edit.draft[draftGalleryId(field)];
+    if (field.block) return draft?.themeContent?.[field.block] !== undefined;
+    return draft?.[field.column] !== undefined || (field.kind === 'cover' && COVER_DRAFT_FIELDS.some((cover) => draft?.[cover] !== undefined));
+  };
 
   if (!edit.rootId) return null;
 
   const save = async () => {
     setOpenField(null);
-    const { failed } = await edit.save(userId);
+    const { failed, reasons } = await edit.save(userId);
     if (failed.length > 0) {
-      appAlert("Some changes weren't saved", `Saving ${failed.join(', ')} failed. Those changes are still here: check your connection and tap Save again.`);
+      appAlert("Some changes weren't saved", reasons.length > 0
+        ? `Saving ${failed.join(', ')} failed. ${reasons.join(' ')} Those changes are still here.`
+        : `Saving ${failed.join(', ')} failed. Those changes are still here: check your connection and tap Save again.`);
     } else {
       setSavedNote(true);
       setTimeout(() => setSavedNote(false), 2500);
@@ -119,8 +140,7 @@ export function GuestEditBar({ edit, galleryId, templateId, userId, photos, onSe
         {/* The theme's edit buttons */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.fieldRow}>
           {fields.map((field) => {
-            const changed = edit.draft[galleryId]?.[field.column] !== undefined
-              || (field.kind === 'cover' && COVER_DRAFT_FIELDS.some((cover) => edit.draft[galleryId]?.[cover] !== undefined));
+            const changed = isChanged(field);
             return (
               <TouchableOpacity key={field.key} style={styles.fieldButton} onPress={() => setOpenField({ galleryId, key: field.key })} accessibilityRole="button" accessibilityLabel={`${field.label}${changed ? ', changed' : ''}`}>
                 <IconSymbol name={FIELD_ICONS[field.kind]} size={15} color={MidnightColors.gold} />
@@ -168,24 +188,34 @@ export function GuestEditBar({ edit, galleryId, templateId, userId, photos, onSe
 
       <BottomSheet visible={!!openFieldDef} onClose={() => setOpenField(null)}>
         {openFieldDef && (
-          <EditSheet field={openFieldDef} edit={edit} galleryId={galleryId} legacyId={gallery?.legacyId} photos={photos} onClose={() => setOpenField(null)} />
+          <EditSheet
+            field={openFieldDef}
+            edit={edit}
+            galleryId={draftGalleryId(openFieldDef)}
+            part={edit.openPanel?.part}
+            changed={isChanged(openFieldDef)}
+            legacyId={gallery?.legacyId}
+            photos={photos}
+            onClose={() => setOpenField(null)}
+          />
         )}
       </BottomSheet>
     </View>
   );
 }
 
-function EditSheet({ field, edit, galleryId, legacyId, photos, onClose }: {
+function EditSheet({ field, edit, galleryId, part, changed, legacyId, photos, onClose }: {
   field: EditableField;
   edit: GuestEdit;
+  /** The gallery whose draft the sheet changes (the main gallery for theme content) */
   galleryId: string;
+  /** The part to show first (a pencil's) */
+  part?: string;
+  changed: boolean;
   legacyId?: string;
   photos: GuestEditBarProps['photos'];
   onClose: () => void;
 }) {
-  const galleryDraft = edit.draft[galleryId];
-  const changed = galleryDraft?.[field.column] !== undefined
-    || (field.kind === 'cover' && COVER_DRAFT_FIELDS.some((cover) => galleryDraft?.[cover] !== undefined));
   const savedText = String(edit.currentValue(galleryId, field.column) ?? '');
   // A new main gallery's automatic "Main Event: <title>" message isn't for guests: the sheet starts empty
   const textValue = field.column === 'description' && !changed ? editableMessage(savedText, edit.galleries[0]?.title) : savedText;
@@ -198,7 +228,9 @@ function EditSheet({ field, edit, galleryId, legacyId, photos, onClose }: {
       {changed && (
         <TouchableOpacity
           style={styles.undo}
-          onPress={() => edit.undo(galleryId, field.kind === 'cover' ? [...COVER_DRAFT_FIELDS] : [field.column])}
+          onPress={() => field.block
+            ? edit.undoBlock(galleryId, field.block)
+            : edit.undo(galleryId, field.kind === 'cover' ? [...COVER_DRAFT_FIELDS] : [field.column])}
           accessibilityRole="button"
         >
           <IconSymbol name="arrow.uturn.backward" size={14} color={MidnightColors.gold} />
@@ -227,6 +259,7 @@ function EditSheet({ field, edit, galleryId, legacyId, photos, onClose }: {
       {field.kind === 'date' && <DateField edit={edit} galleryId={galleryId} />}
       {field.kind === 'cover' && <CoverField edit={edit} galleryId={galleryId} photos={photos} />}
       {field.kind === 'video' && <VideoField edit={edit} galleryId={galleryId} legacyId={legacyId} />}
+      {field.kind === 'couple' && <CoupleField edit={edit} galleryId={galleryId} firstSide={part === 'right' ? 'right' : 'left'} />}
       </ScrollView>
 
       <TouchableOpacity style={[styles.goldButton, styles.doneButton]} onPress={onClose} accessibilityRole="button">
@@ -548,6 +581,123 @@ function VideoField({ edit, galleryId, legacyId }: { edit: GuestEdit; galleryId:
   );
 }
 
+const LINK_HINTS: Readonly<Record<SocialNetwork, string>> = {
+  instagram: 'instagram.com/name or @name',
+  facebook: 'facebook.com/name',
+  x: 'x.com/name or @name',
+};
+
+/** The couple (Confetti Circle), as on the website: each side's label, name, a few words and links. Only a side with
+ *  a name shows, and only the links that are filled in; nothing is taken from the gallery title. */
+function CoupleField({ edit, galleryId, firstSide }: { edit: GuestEdit; galleryId: string; firstSide: CoupleSide }) {
+  const [side, setSide] = useState<CoupleSide>(firstSide);
+  const couple = edit.currentCouple(galleryId);
+  const person = couple[side];
+  const sideName = (key: CoupleSide) => couple[key].label.trim() || couple[key].name.trim() || (key === 'left' ? 'Left side' : 'Right side');
+  const hasContent = !!(person.name.trim() || person.about.trim() || SOCIAL_NETWORKS.some((network) => person.links[network]?.trim()));
+  const setPerson = (changes: Partial<CouplePerson>) => edit.setCouple(galleryId, { ...couple, [side]: { ...person, ...changes } });
+
+  return (
+    <View style={styles.coupleField}>
+      <View style={[styles.segment, styles.sideSegment]} accessibilityRole="tablist">
+        {COUPLE_SIDES.map((key) => (
+          <Pressable
+            key={key}
+            onPress={() => setSide(key)}
+            style={[styles.segmentItem, styles.sideItem, side === key && styles.segmentItemOn]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: side === key }}
+          >
+            <Text style={[styles.segmentText, side === key && styles.segmentTextOn]} numberOfLines={1}>{sideName(key)}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <Text style={styles.hint}>
+        {person.name.trim()
+          ? `Shows on the ${side} under the video, on Home and every album. Only what you fill in shows.`
+          : hasContent
+            ? 'Add a name: guests see this side only once it has one.'
+            : "Guests don't see this side until you add a name."}
+      </Text>
+
+      <View style={styles.coupleRow}>
+        <View style={styles.coupleLabelColumn}>
+          <Text style={styles.sectionLabel}>SHOWN AS</Text>
+          <TextInput
+            value={person.label}
+            onChangeText={(label) => setPerson({ label })}
+            maxLength={COUPLE_LIMITS.label}
+            placeholder="e.g. The Bride"
+            placeholderTextColor={MidnightColors.slate600}
+            style={[styles.input, styles.inputSmall]}
+          />
+        </View>
+        <View style={styles.coupleNameColumn}>
+          <Text style={styles.sectionLabel}>NAME</Text>
+          <TextInput
+            value={person.name}
+            onChangeText={(name) => setPerson({ name })}
+            maxLength={COUPLE_LIMITS.name}
+            placeholder="Their name"
+            placeholderTextColor={MidnightColors.slate600}
+            autoCapitalize="words"
+            style={[styles.input, styles.inputSmall]}
+          />
+        </View>
+      </View>
+
+      <Text style={styles.sectionLabel}>A FEW WORDS</Text>
+      <TextInput
+        value={person.about}
+        onChangeText={(about) => setPerson({ about })}
+        maxLength={COUPLE_LIMITS.about}
+        multiline
+        placeholder="Optional"
+        placeholderTextColor={MidnightColors.slate600}
+        style={[styles.input, styles.inputSmall, styles.inputAbout]}
+      />
+      <Text style={styles.counter}>{person.about.length}/{COUPLE_LIMITS.about}</Text>
+
+      <Text style={styles.sectionLabel}>SOCIAL LINKS (OPTIONAL)</Text>
+      {SOCIAL_NETWORKS.map((network) => {
+        const Icon = SOCIAL_ICONS[network];
+        const value = person.links[network] || '';
+        const wrong = !!value.trim() && !socialLinkUrl(network, value);
+        return (
+          <View key={network} style={styles.linkField}>
+            <View>
+              <View style={styles.linkIcon} pointerEvents="none">
+                <Icon size={16} color={MidnightColors.slate400} />
+              </View>
+              <TextInput
+                value={value}
+                onChangeText={(text) => setPerson({ links: { ...person.links, [network]: text } })}
+                maxLength={COUPLE_LIMITS.link}
+                placeholder={LINK_HINTS[network]}
+                placeholderTextColor={MidnightColors.slate600}
+                accessibilityLabel={SOCIAL_NETWORK_NAMES[network]}
+                keyboardType="url"
+                autoCapitalize="none"
+                autoCorrect={false}
+                spellCheck={false}
+                style={[styles.input, styles.inputSmall, styles.inputLink, wrong && styles.inputWrong]}
+              />
+            </View>
+            {wrong && <Text style={styles.wrongText}>{`Not a ${SOCIAL_NETWORK_NAMES[network]} profile link, so it won't show.`}</Text>}
+          </View>
+        );
+      })}
+
+      {hasContent && (
+        <TouchableOpacity style={[styles.quietButton, styles.clearButton]} onPress={() => setPerson(emptyCouplePerson(person.label))} accessibilityRole="button">
+          <Text style={[styles.quietText, styles.clearText]}>Clear this side</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 10, zIndex: 1100, elevation: 1100 },
   bar: {
@@ -615,5 +765,20 @@ const styles = StyleSheet.create({
   zoomButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: MidnightColors.border },
   zoomButtonText: { color: MidnightColors.text, fontSize: 18, fontFamily: Fonts.inter.bold },
   zoomValue: { minWidth: 48, textAlign: 'center', color: MidnightColors.text, fontSize: 14, fontFamily: Fonts.inter.bold },
+  coupleField: { gap: 4 },
+  sideSegment: { alignSelf: 'flex-start', maxWidth: '100%' },
+  sideItem: { maxWidth: 170 },
+  coupleRow: { flexDirection: 'row', gap: 8 },
+  coupleLabelColumn: { flex: 2 },
+  coupleNameColumn: { flex: 3 },
+  inputSmall: { marginTop: 6, fontSize: 15, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14 },
+  inputAbout: { minHeight: 84, textAlignVertical: 'top' },
+  linkField: { marginTop: 6 },
+  linkIcon: { position: 'absolute', left: 14, top: 6, bottom: 0, zIndex: 1, justifyContent: 'center' },
+  inputLink: { paddingLeft: 40 },
+  inputWrong: { borderColor: '#f87171' },
+  wrongText: { marginTop: 4, color: '#fca5a5', fontSize: 12, fontFamily: Fonts.inter.regular },
+  clearButton: { marginTop: 12, borderColor: 'rgba(248, 113, 113, 0.45)' },
+  clearText: { color: '#fca5a5' },
   videoBadge: { margin: 4, alignSelf: 'flex-start', paddingHorizontal: 4, borderRadius: 4, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 10, fontFamily: Fonts.inter.bold },
 });

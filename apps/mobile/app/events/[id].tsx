@@ -66,6 +66,11 @@ import { PortraitHero } from '../../components/portrait/PortraitHero';
 import { PortraitGalleryHeader } from '../../components/portrait/PortraitGalleryHeader';
 import { PortraitFooter } from '../../components/portrait/PortraitFooter';
 import { usePortraitFonts } from '../../components/portrait/portraitFonts';
+import { ConfettiHero, confettiHeroHeight } from '../../components/confetti/ConfettiHero';
+import { ConfettiCoupleSection } from '../../components/confetti/ConfettiCoupleSection';
+import { ConfettiGalleryHeader } from '../../components/confetti/ConfettiGalleryHeader';
+import { ConfettiFooter } from '../../components/confetti/ConfettiFooter';
+import { useConfettiFonts } from '../../components/confetti/confettiFonts';
 import { ThemedAppBar } from '../../components/navigation/ThemedAppBar';
 import { isMissingUploadedFile } from '../../../../shared/media/missingUpload';
 import { appTabBarMetrics } from '../../components/navigation/appTabs';
@@ -107,7 +112,7 @@ const PHOTO_PAGE_SIZE = 20;
 // Logged-out public view pages through previews (get_public_gallery_media)
 const PUBLIC_PAGE_SIZE = 60;
 // Visitor templates that draw their own back/share buttons inside the hero instead of the native header
-const NATIVE_HEADER_HIDDEN_TEMPLATES = ['royal', 'classic', 'portrait', 'hero', 'pop', 'ethereal', 'cyber_tech', 'retro_arcade', 'academic_editorial', 'neon_carnival', 'garden', 'bohemian', 'tech_sleek', 'executive'];
+const NATIVE_HEADER_HIDDEN_TEMPLATES = ['royal', 'classic', 'portrait', 'confetti', 'hero', 'pop', 'ethereal', 'cyber_tech', 'retro_arcade', 'academic_editorial', 'neon_carnival', 'garden', 'bohemian', 'tech_sleek', 'executive'];
 const FREE_PLAN_VIDEO_LIMIT_BYTES = 200 * 1024 * 1024;
 const SPORTS_TEMPLATE_IDS = [
   'bohemian',
@@ -1090,6 +1095,9 @@ function EventDetailScreen() {
     ? 400
     : isSportsTemplate
       ? 555 + insets.top
+    // Confetti Circle: a top bar and a band of the photo round its circle, as in the design's phone layout
+    : event?.templateId === 'confetti'
+      ? confettiHeroHeight(windowWidth, insets.top)
     : event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'portrait' || event?.templateId === 'hero'
       // The cover fills the screen above the bottom bar when it shows
       ? windowHeight - themedAppBarHeight
@@ -2024,7 +2032,7 @@ function EventDetailScreen() {
   // Midnight Hero's cover size, to zoom it around the focus point (lib/coverStyle.ts)
   const [midnightCoverSize, setMidnightCoverSize] = useState<{ width: number; height: number }>();
   const guestEditSpots = React.useMemo(() => isEditingGuestView && !guestEdit.viewingAsGuest && editGalleryId
-    ? { galleryId: editGalleryId, open: (galleryId: string, key: string) => openGuestEditPanel({ galleryId, key }) }
+    ? { galleryId: editGalleryId, open: (galleryId: string, key: string, part?: string) => openGuestEditPanel({ galleryId, key, part }) }
     : null, [editGalleryId, guestEdit.viewingAsGuest, isEditingGuestView, openGuestEditPanel]);
 
   const handleEventBack = useCallback(() => {
@@ -2594,15 +2602,22 @@ function EventDetailScreen() {
   const isClassicGuest = !showAdminView && event?.templateId === 'classic';
   // Sunlit Portrait guest view: the website's design (components/portrait), on Classic White's photo rows
   const isPortraitGuest = !showAdminView && event?.templateId === 'portrait';
+  // Confetti Circle guest view: the website's design (components/confetti), on Classic White's photo rows
+  const isConfettiGuest = !showAdminView && event?.templateId === 'confetti';
   const royalFonts = useRoyalFonts(event?.templateId === 'royal');
   const classicFonts = useClassicFonts(event?.templateId === 'classic');
   const portraitFonts = usePortraitFonts(event?.templateId === 'portrait');
-  // Sunlit Portrait's photo rows: a little more space and soft corners, as on its website
-  const portraitRowProps = isPortraitGuest ? { gap: 8, tileRadius: 6, placeholderColor: 'rgba(162,78,48,0.08)' } : {};
-  // An album opened by its own link: Classic White's and Sunlit Portrait's covers still show the main event's title and
-  // theme line (Sunlit Portrait's line also needs the wedding's date)
-  const [classicParent, setClassicParent] = useState<{ title?: string; category?: string; date?: string } | null>(null);
-  const classicParentId = isClassicGuest || isPortraitGuest ? event?.parentId : undefined;
+  const confettiFonts = useConfettiFonts(event?.templateId === 'confetti');
+  // Sunlit Portrait's photo rows: a little more space and soft corners, as on its website; Confetti Circle's: the wider
+  // gaps of its website, square corners
+  const portraitRowProps = isPortraitGuest
+    ? { gap: 8, tileRadius: 6, placeholderColor: 'rgba(162,78,48,0.08)' }
+    : isConfettiGuest ? { gap: 8, placeholderColor: 'rgba(232,23,93,0.06)' } : {};
+  // An album opened by its own link: Classic White's, Sunlit Portrait's and Confetti Circle's covers still show the main
+  // event's title and theme line (Sunlit Portrait's line also needs the wedding's date, Confetti Circle's couple section
+  // the main event's theme content)
+  const [classicParent, setClassicParent] = useState<{ title?: string; category?: string; date?: string; themeContent?: DatabaseEvent['themeContent'] } | null>(null);
+  const classicParentId = isClassicGuest || isPortraitGuest || isConfettiGuest ? event?.parentId : undefined;
   useEffect(() => {
     if (!classicParentId) { setClassicParent(null); return; }
     let active = true;
@@ -2613,7 +2628,7 @@ function EventDetailScreen() {
       ? openGallery(classicParentId).then((opened) => (opened.access === 'public_view' ? opened.event ?? null : null))
       : getEventById(classicParentId);
     loadParent
-      .then((parent) => { if (active) setClassicParent(parent ? { title: parent.title, category: parent.category, date: parent.date } : null); })
+      .then((parent) => { if (active) setClassicParent(parent ? { title: parent.title, category: parent.category, date: parent.date, themeContent: parent.themeContent } : null); })
       .catch(() => { if (active) setClassicParent(null); });
     return () => { active = false; };
   }, [classicParentId, isPublicView]);
@@ -3973,6 +3988,20 @@ function EventDetailScreen() {
               onBack={handleEventBack}
               onShare={() => setShowShareModal(true)}
             />
+          ) : isConfettiGuest ? (
+            <ConfettiHero
+              gallery={(shownActiveEvent || shownEvent!) as any}
+              mainTitle={classicParent?.title || event!.title}
+              mainCategory={classicParent?.category || event!.category}
+              isAlbum={!!activeSubEvent || !!event!.parentId}
+              coverSource={activeCoverSource}
+              width={windowWidth}
+              height={heroHeight}
+              insetTop={insets.top}
+              fonts={confettiFonts}
+              onBack={handleEventBack}
+              onShare={() => setShowShareModal(true)}
+            />
           ) : isClassicGuest ? (
             <ClassicHero
               gallery={shownActiveEvent || shownEvent!}
@@ -4428,7 +4457,7 @@ function EventDetailScreen() {
               blurRadius={isGoldenYearsTemplate ? 0.8 : (isVintageTemplate ? 1.1 : 0)}
             />
           )}
-          {!isSportsTemplate && !isRoyalGuest && selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'portrait' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && selectedTemplate.id !== 'garden' && selectedTemplate.id !== 'bohemian' && selectedTemplate.id !== 'museum' && selectedTemplate.id !== 'brutalist' && selectedTemplate.id !== 'tech_sleek' && selectedTemplate.id !== 'executive' && (
+          {!isSportsTemplate && !isRoyalGuest && selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'portrait' && selectedTemplate.id !== 'confetti' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && selectedTemplate.id !== 'garden' && selectedTemplate.id !== 'bohemian' && selectedTemplate.id !== 'museum' && selectedTemplate.id !== 'brutalist' && selectedTemplate.id !== 'tech_sleek' && selectedTemplate.id !== 'executive' && (
             <LinearGradient
               colors={selectedTemplate.overlay as any}
               style={styles.heroGradient}
@@ -4555,7 +4584,7 @@ function EventDetailScreen() {
           )}
 
 
-          {(!showAdminView && (isSportsTemplate || event?.templateId === 'academic_editorial' || event?.templateId === 'bohemian' || event?.templateId === 'museum' || event?.templateId === 'brutalist' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (isRoyalGuest || isClassicGuest || isPortraitGuest) ? null : (!showAdminView && event?.templateId === 'ethereal') ? (
+          {(!showAdminView && (isSportsTemplate || event?.templateId === 'academic_editorial' || event?.templateId === 'bohemian' || event?.templateId === 'museum' || event?.templateId === 'brutalist' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (isRoyalGuest || isClassicGuest || isPortraitGuest || isConfettiGuest) ? null : (!showAdminView && event?.templateId === 'ethereal') ? (
             <View style={styles.etherealOverlayContainer}>
               {/* Back button at top left */}
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
@@ -5366,9 +5395,9 @@ function EventDetailScreen() {
             // With the themed bottom bar (Classic White) the spacer starts below the cover instead of overlapping it: the
             // list's sticky wrapper catches taps, so the cover's bottom buttons must not sit under it
             // React Native's sticky wrapper takes this style (and so the spacer's paddingTop) onto itself, outside the fading
-            // background below, so the spacer stays see-through when pinned. Sunlit Portrait draws its spacer inside instead,
-            // where the background covers it
-            style={{ marginTop: showsThemedAppBar ? 0 : -stickyTabsTopInset, paddingTop: isPortraitGuest ? 0 : stickyTabsTopInset, backgroundColor: isRoyalGuest ? '#021a15' : undefined }}
+            // background below, so the spacer stays see-through when pinned. Sunlit Portrait and Confetti Circle draw their
+            // spacer inside instead, where the background covers it
+            style={{ marginTop: showsThemedAppBar ? 0 : -stickyTabsTopInset, paddingTop: isPortraitGuest || isConfettiGuest ? 0 : stickyTabsTopInset, backgroundColor: isRoyalGuest ? '#021a15' : undefined }}
             onLayout={(e) => setStickyTabsY(e.nativeEvent.layout.y)}
           >
             <RNAnimated.View
@@ -5385,7 +5414,7 @@ function EventDetailScreen() {
                 },
               ]}
             />
-            {isPortraitGuest && <View pointerEvents="none" style={{ height: stickyTabsTopInset }} />}
+            {(isPortraitGuest || isConfettiGuest) && <View pointerEvents="none" style={{ height: stickyTabsTopInset }} />}
             <ThemeHeader
               event={event}
               selectedTemplate={selectedTemplate}
@@ -5395,6 +5424,7 @@ function EventDetailScreen() {
               styles={styles}
               royalFontFamily={isRoyalGuest ? royalFonts.displayBold : undefined}
               portraitFontFamily={isPortraitGuest ? portraitFonts.serif : undefined}
+              confettiFontFamily={isConfettiGuest ? confettiFonts.display : undefined}
             />
           </View>
         )}
@@ -6672,7 +6702,36 @@ function EventDetailScreen() {
                   />
                 )}
 
-                {!isRoyalGuest && !isClassicGuest && !isPortraitGuest && (event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
+                {isConfettiGuest && onGalleryPage && (
+                  <>
+                    {/* "We're getting married!", the highlight video (or the cover photo) and the couple, then the gallery */}
+                    <ConfettiCoupleSection
+                      title={classicParent?.title || event.title}
+                      category={classicParent?.category || event.category}
+                      // The couple is the main event's (an album opened by its own link reads its main event's)
+                      couple={(event.parentId ? classicParent?.themeContent : event.themeContent)?.couple}
+                      video={galleryVideo}
+                      coverSource={activeCoverSource}
+                      width={windowWidth - 48}
+                      fonts={confettiFonts}
+                    />
+                    <ConfettiGalleryHeader
+                      // The gallery's own name (the album's, or the main gallery's)
+                      title={activeSubEvent ? activeSubEvent.title : event.title}
+                      message={(event as any).showWelcomeCard !== false ? (activeSubEvent ? activeSubEvent.description : event.description) : undefined}
+                      fonts={confettiFonts}
+                      backLabel={event.parentId ? 'Back to Event' : 'Back to Gallery'}
+                      onBack={handleEventBack}
+                      onShare={() => setShowShareModal(true)}
+                      photoCount={String(displayedPhotoCount)}
+                      videoCount={String(displayedVideoCount)}
+                      activeTab={galleryMediaTab}
+                      onTabChange={setGalleryMediaTab}
+                    />
+                  </>
+                )}
+
+                {!isRoyalGuest && !isClassicGuest && !isPortraitGuest && !isConfettiGuest && (event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
                   <View style={[
                     styles.mainInfoBox,
                     {
@@ -7000,7 +7059,7 @@ function EventDetailScreen() {
                   </View>
                 )}
 
-                {galleryVideo && !isRoyalGuest && !isClassicGuest && !isPortraitGuest && (
+                {galleryVideo && !isRoyalGuest && !isClassicGuest && !isPortraitGuest && !isConfettiGuest && (
                   <GalleryHighlightVideo
                     video={galleryVideo}
                     title={shownGallery?.title || event.title}
@@ -7031,21 +7090,21 @@ function EventDetailScreen() {
                 )}
 
                 {/* Classic White's photos start right under its Photos / Videos tabs, as on the website */}
-                {!isClassicGuest && !isPortraitGuest && <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />}
+                {!isClassicGuest && !isPortraitGuest && !isConfettiGuest && <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />}
 
                 {/* Find You and Event partners are for signed-in guests; logged-out visitors get a log-in prompt */}
                 {isPublicView && !user && (activeSubEvent?.id === 'find-you' || activeSubEvent?.id === 'event-partners') ? (
-                  <View style={isClassicGuest ? styles.classicGuestSection : isPortraitGuest ? styles.portraitGuestSection : styles.guestSection}>
-                    <Text style={isClassicGuest ? [styles.classicGuestTitle, { fontFamily: classicFonts.serif }] : isPortraitGuest ? [styles.portraitGuestTitle, { fontFamily: portraitFonts.serif }] : styles.guestTitle}>
+                  <View style={isClassicGuest || isConfettiGuest ? styles.classicGuestSection : isPortraitGuest ? styles.portraitGuestSection : styles.guestSection}>
+                    <Text style={isConfettiGuest ? [styles.classicGuestTitle, { fontFamily: confettiFonts.display, color: '#2a2727' }] : isClassicGuest ? [styles.classicGuestTitle, { fontFamily: classicFonts.serif }] : isPortraitGuest ? [styles.portraitGuestTitle, { fontFamily: portraitFonts.serif }] : styles.guestTitle}>
                       {activeSubEvent?.id === 'find-you' ? 'Find yourself in the photos' : 'Meet the event partners'}
                     </Text>
-                    <Text style={isClassicGuest ? styles.classicGuestSub : isPortraitGuest ? styles.portraitGuestSub : styles.guestSub}>
+                    <Text style={isClassicGuest || isConfettiGuest ? styles.classicGuestSub : isPortraitGuest ? styles.portraitGuestSub : styles.guestSub}>
                       {activeSubEvent?.id === 'find-you'
                         ? "Log in to use Find You: take a selfie and we'll show the photos you're in."
                         : 'Log in to see the vendors behind this event.'}
                     </Text>
-                    <TouchableOpacity style={isClassicGuest ? styles.classicAccessBtn : isPortraitGuest ? styles.portraitAccessBtn : styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
-                      <Text style={isClassicGuest ? styles.classicAccessBtnText : isPortraitGuest ? styles.portraitAccessBtnText : styles.accessBtnText}>Log in</Text>
+                    <TouchableOpacity style={isConfettiGuest ? [styles.classicAccessBtn, { backgroundColor: '#2a2727' }] : isClassicGuest ? styles.classicAccessBtn : isPortraitGuest ? styles.portraitAccessBtn : styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
+                      <Text style={isClassicGuest || isConfettiGuest ? styles.classicAccessBtnText : isPortraitGuest ? styles.portraitAccessBtnText : styles.accessBtnText}>Log in</Text>
                     </TouchableOpacity>
                   </View>
                 ) : activeSubEvent?.id === 'find-you' ? (
@@ -7196,7 +7255,7 @@ function EventDetailScreen() {
                   </View>
                 ) : (
                   <>
-                {!isRoyalGuest && !isClassicGuest && !isPortraitGuest && (<>
+                {!isRoyalGuest && !isClassicGuest && !isPortraitGuest && !isConfettiGuest && (<>
                 <View style={[
                   styles.galleryHeader,
                   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 16 },
@@ -7550,14 +7609,14 @@ function EventDetailScreen() {
                       </View>
                     ) : activeGalleryItems.length === 0 ? (
                       <View style={styles.emptyGallery}>
-                        <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={40} color={isCyberTechTemplate ? 'rgba(0, 240, 255, 0.15)' : isClassicGuest ? 'rgba(139,154,110,0.55)' : isPortraitGuest ? 'rgba(162,78,48,0.45)' : 'rgba(255,255,255,0.05)'} />
-                        <Text style={[styles.emptyText, isCyberTechTemplate && styles.cyberEmptyText, isClassicGuest && [styles.classicEmptyText, { fontFamily: classicFonts.serifItalic, fontStyle: 'normal' }], isPortraitGuest && [styles.portraitEmptyText, { fontFamily: portraitFonts.serif }]]}>
+                        <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={40} color={isCyberTechTemplate ? 'rgba(0, 240, 255, 0.15)' : isClassicGuest ? 'rgba(139,154,110,0.55)' : isPortraitGuest ? 'rgba(162,78,48,0.45)' : isConfettiGuest ? 'rgba(232,23,93,0.45)' : 'rgba(255,255,255,0.05)'} />
+                        <Text style={[styles.emptyText, isCyberTechTemplate && styles.cyberEmptyText, isClassicGuest && [styles.classicEmptyText, { fontFamily: classicFonts.serifItalic, fontStyle: 'normal' }], isPortraitGuest && [styles.portraitEmptyText, { fontFamily: portraitFonts.serif }], isConfettiGuest && { color: '#6b5f5f' }]}>
                           {isFavouriteFilterActive
                             ? `No favourite ${galleryMediaTab === 'videos' ? 'videos' : 'photos'} in this gallery yet.`
                             : isCyberTechTemplate ? '// NO_DATA_AVAILABLE' : (galleryMediaTab === 'videos' ? 'No videos yet.' : 'No photos yet.')}
                         </Text>
                       </View>
-                    ) : galleryMediaTab === 'videos' && (isClassicGuest || isPortraitGuest) ? (
+                    ) : galleryMediaTab === 'videos' && (isClassicGuest || isPortraitGuest || isConfettiGuest) ? (
                       // Classic White and Sunlit Portrait: videos in the same full-width rows as the photos, poster with a
                       // frosted play button
                       <ClassicPhotoRows
@@ -7604,7 +7663,8 @@ function EventDetailScreen() {
                     ) : (
                       (() => {
                         // Classic White and Sunlit Portrait: rows that fill the width with thin gaps, like the website
-                        if (isClassicGuest || isPortraitGuest) {
+                        // (and Confetti Circle: each photo whole, never cropped)
+                        if (isClassicGuest || isPortraitGuest || isConfettiGuest) {
                           return (
                             <ClassicPhotoRows
                               scrollY={coarseScrollY}
@@ -8051,28 +8111,31 @@ function EventDetailScreen() {
                 )}
 
                 {/* Classic White ends the gallery with the photos, as on the website */}
-                {!isClassicGuest && !isPortraitGuest && <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />}
+                {!isClassicGuest && !isPortraitGuest && !isConfettiGuest && <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />}
 
                 {/* Logged-out visitors of a public gallery see previews only */}
                 {isPublicView && !user && activeSubEvent?.id !== 'find-you' && activeSubEvent?.id !== 'event-partners' && (
-                  <View style={isClassicGuest ? styles.classicGuestSection : isPortraitGuest ? styles.portraitGuestSection : styles.guestSection}>
-                    <Text style={isClassicGuest ? [styles.classicGuestTitle, { fontFamily: classicFonts.serif }] : isPortraitGuest ? [styles.portraitGuestTitle, { fontFamily: portraitFonts.serif }] : styles.guestTitle}>Enter the Celebration</Text>
-                    <Text style={isClassicGuest ? styles.classicGuestSub : isPortraitGuest ? styles.portraitGuestSub : styles.guestSub}>Log in to join this gallery, see full-size photos, like and comment</Text>
-                    <TouchableOpacity style={isClassicGuest ? styles.classicAccessBtn : isPortraitGuest ? styles.portraitAccessBtn : styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
-                      <Text style={isClassicGuest ? styles.classicAccessBtnText : isPortraitGuest ? styles.portraitAccessBtnText : styles.accessBtnText}>Log in to join</Text>
+                  <View style={isClassicGuest || isConfettiGuest ? styles.classicGuestSection : isPortraitGuest ? styles.portraitGuestSection : styles.guestSection}>
+                    <Text style={isConfettiGuest ? [styles.classicGuestTitle, { fontFamily: confettiFonts.display, color: '#2a2727' }] : isClassicGuest ? [styles.classicGuestTitle, { fontFamily: classicFonts.serif }] : isPortraitGuest ? [styles.portraitGuestTitle, { fontFamily: portraitFonts.serif }] : styles.guestTitle}>Enter the Celebration</Text>
+                    <Text style={isClassicGuest || isConfettiGuest ? styles.classicGuestSub : isPortraitGuest ? styles.portraitGuestSub : styles.guestSub}>Log in to join this gallery, see full-size photos, like and comment</Text>
+                    <TouchableOpacity style={isConfettiGuest ? [styles.classicAccessBtn, { backgroundColor: '#2a2727' }] : isClassicGuest ? styles.classicAccessBtn : isPortraitGuest ? styles.portraitAccessBtn : styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
+                      <Text style={isClassicGuest || isConfettiGuest ? styles.classicAccessBtnText : isPortraitGuest ? styles.portraitAccessBtnText : styles.accessBtnText}>Log in to join</Text>
                     </TouchableOpacity>
                   </View>
                 )}
                   </View>
                 {isRoyalGuest && <RoyalFooter title={event.title} fonts={royalFonts} bottomInset={insets.bottom} />}
                 {isPortraitGuest && <PortraitFooter title={classicParent?.title || event.title} fonts={portraitFonts} bottomInset={insets.bottom} />}
+                {isConfettiGuest && <ConfettiFooter title={classicParent?.title || event.title} fonts={confettiFonts} bottomInset={insets.bottom} />}
             </>
           )}
         </View>
       </RNAnimated.ScrollView>
 
-      {/* Sunlit Portrait: a light clock over the cover photo, a dark one on the pinned tabs' paper bar */}
+      {/* Sunlit Portrait: a light clock over the cover photo, a dark one on the pinned tabs' paper bar. Confetti Circle: dark
+          on its soft-white top bar and tabs */}
       {isPortraitGuest && <StatusBar style={tabsPinned ? 'dark' : 'light'} />}
+      {isConfettiGuest && <StatusBar style="dark" />}
 
       {showsThemedAppBar && (
         <ThemedAppBar colors={{ background: '#FCFCFA', border: '#E6E6E0', active: '#2C352E', inactive: '#8B9A6E' }} />

@@ -2,13 +2,24 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   EMPTY_DRAFT,
   applyGalleryDraft,
+  setDraftBlock,
   setDraftField,
   withoutGallery,
   type DraftField,
   type EventDraft,
   type GalleryDraft,
 } from '../../../../../shared/guestEdit/draft';
-import { getSubEvents, setGalleryVideo, updateEvent, type Event, type GalleryVideo, type Photo } from '@/lib/database';
+import {
+  cleanThemeContentBlock,
+  editableCouple,
+  sameCouple,
+  type CoupleBlock,
+  type CouplePerson,
+  type CoupleSide,
+  type ThemeContent,
+  type ThemeContentBlock,
+} from '../../../../../shared/themes/themeContent';
+import { getSubEvents, saveThemeContentBlock, setGalleryVideo, updateEvent, type Event, type GalleryVideo, type Photo } from '@/lib/database';
 import { removeEventCover, uploadEventCover, RESET_COVER_POSITION } from '@/lib/eventCoverUpload';
 
 // Preview Guest Theme's edit mode in the app (todo #11): the host edits the real guest view and saves once.
@@ -32,8 +43,9 @@ interface GuestEditState {
   /** The chosen highlight video of a gallery (draft or saved this visit), so the screen can play it */
   videos: Readonly<Record<string, GalleryVideo | null>>;
   saving: boolean;
-  /** The edit sheet that is open: a field of the theme's edit list, for one gallery */
-  openPanel: { galleryId: string; key: string } | null;
+  /** The edit sheet that is open: a field of the theme's edit list, for one gallery (and the part of it to show
+   *  first, e.g. the couple's right side) */
+  openPanel: { galleryId: string; key: string; part?: string } | null;
 }
 
 const INITIAL: GuestEditState = {
@@ -79,6 +91,11 @@ function savedValueIn<K extends DraftField>(state: GuestEditState, galleryId: st
   }
 }
 
+/** The event's theme content as saved (this visit's save, else as loaded); kept on the main gallery */
+function savedThemeContentIn(state: GuestEditState, galleryId: string): ThemeContent | undefined {
+  return state.saved[galleryId]?.themeContent ?? state.galleries.find((item) => item.id === galleryId)?.themeContent;
+}
+
 export function useGuestEdit() {
   const [state, setState] = useState<GuestEditState>(INITIAL);
   // Read by callbacks that run after awaits (loading the galleries, Save), so they see the latest state
@@ -115,7 +132,7 @@ export function useGuestEdit() {
   const setViewingAsGuest = useCallback((viewingAsGuest: boolean) => update(() => ({ viewingAsGuest, ...(viewingAsGuest && { openPanel: null }) })), [update]);
 
   /** Opens a field's sheet (from the bar or from a pencil on the page); null closes it */
-  const openPanelFor = useCallback((openPanel: { galleryId: string; key: string } | null) => update(() => ({ openPanel })), [update]);
+  const openPanelFor = useCallback((openPanel: { galleryId: string; key: string; part?: string } | null) => update(() => ({ openPanel })), [update]);
 
   const savedValue = useCallback(<K extends DraftField>(galleryId: string, field: K) => savedValueIn(state, galleryId, field), [state]);
 
@@ -136,6 +153,26 @@ export function useGuestEdit() {
       }
       return next;
     });
+  }, [update]);
+
+  /** Both sides of the couple as the sheet shows them: the draft, else what is saved, else empty with the default
+   *  labels. `galleryId` is the main gallery, which keeps the theme content. */
+  const currentCouple = useCallback((galleryId: string): Record<CoupleSide, CouplePerson> => {
+    const category = state.galleries.find((item) => item.id === galleryId)?.category;
+    return editableCouple(state.draft[galleryId]?.themeContent?.couple ?? savedThemeContentIn(state, galleryId)?.couple, category);
+  }, [state]);
+
+  const setCouple = useCallback((galleryId: string, couple: CoupleBlock) => {
+    update((current) => {
+      const category = current.galleries.find((item) => item.id === galleryId)?.category;
+      const unchanged = sameCouple(couple, editableCouple(savedThemeContentIn(current, galleryId)?.couple, category));
+      return { draft: setDraftBlock(current.draft, galleryId, 'couple', couple, unchanged) };
+    });
+  }, [update]);
+
+  /** Takes one theme content block out of the draft (the sheet's Undo) */
+  const undoBlock = useCallback((galleryId: string, block: ThemeContentBlock) => {
+    update((current) => ({ draft: setDraftBlock(current.draft, galleryId, block, undefined, true) }));
   }, [update]);
 
   /** A new phone cover picture from the phone: shown at once, uploaded on Save */
@@ -181,13 +218,14 @@ export function useGuestEdit() {
   }, [update]);
 
   /** Saves the draft gallery by gallery with the same calls the event screen uses. A gallery that fails keeps its
-   *  unsaved part, so Save can be pressed again. Returns the names of the galleries that failed. */
-  const save = useCallback(async (userId: string): Promise<{ failed: string[] }> => {
+   *  unsaved part, so Save can be pressed again. Returns the names of the galleries that failed, and why when known. */
+  const save = useCallback(async (userId: string): Promise<{ failed: string[]; reasons: string[] }> => {
     const startState = stateRef.current;
-    if (startState.saving || !startState.rootId) return { failed: [] };
+    if (startState.saving || !startState.rootId) return { failed: [], reasons: [] };
     const rootId = startState.rootId;
     update(() => ({ saving: true }));
     const failed: string[] = [];
+    const reasons = new Set<string>();
 
     for (const [galleryId, changes] of Object.entries(startState.draft)) {
       const done = (fields: GalleryDraft) => update((current) => {
@@ -260,6 +298,20 @@ export function useGuestEdit() {
           if (!result.success) throw new Error(result.error || 'setGalleryVideo failed');
           done({ galleryVideoId: changes.galleryVideoId });
         }
+
+        // 4. The theme's own content (Confetti Circle's couple...): each changed block, cleaned, on the main event
+        for (const [block, value] of Object.entries(changes.themeContent || {}) as [ThemeContentBlock, unknown][]) {
+          const result = await saveThemeContentBlock(galleryId, block, cleanThemeContentBlock(block, value));
+          if (!result.success) {
+            if (result.error) reasons.add(result.error);
+            throw new Error(result.error || 'saveThemeContentBlock failed');
+          }
+          update((current) => ({
+            draft: setDraftBlock(current.draft, galleryId, block, undefined, true),
+            // The block is named even when the save removed it, so the page stops showing the loaded copy
+            saved: { ...current.saved, [galleryId]: { ...current.saved[galleryId], themeContent: { ...result.content, [block]: result.content?.[block] } } },
+          }));
+        }
       } catch (error) {
         console.error(`[GuestEdit] Saving ${galleryId} failed:`, error);
         const gallery = startState.galleries.find((item) => item.id === galleryId);
@@ -268,7 +320,7 @@ export function useGuestEdit() {
     }
 
     update(() => ({ saving: false }));
-    return { failed };
+    return { failed, reasons: [...reasons] };
   }, [update]);
 
   /** A gallery as guests will see it once saved: the saved values of this visit, then the draft */
@@ -289,7 +341,9 @@ export function useGuestEdit() {
     hasChanges: Object.keys(state.draft).length > 0,
     savedSomething: Object.keys(state.saved).length > 0,
     start, stop, setViewingAsGuest, openPanelFor, savedValue, currentValue, setField, setCoverUri, setVideo, undo, discard, save, apply, videoFor,
-  }), [state, start, stop, setViewingAsGuest, openPanelFor, savedValue, currentValue, setField, setCoverUri, setVideo, undo, discard, save, apply, videoFor]);
+    currentCouple, setCouple, undoBlock,
+  }), [state, start, stop, setViewingAsGuest, openPanelFor, savedValue, currentValue, setField, setCoverUri, setVideo, undo, discard, save, apply, videoFor,
+    currentCouple, setCouple, undoBlock]);
 }
 
 export type GuestEdit = ReturnType<typeof useGuestEdit>;
