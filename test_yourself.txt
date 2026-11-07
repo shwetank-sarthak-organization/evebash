@@ -5605,7 +5605,7 @@ Status:    TODO
 Priority:  Medium
 Platform:  App + Website
 Brief:     Changing an event's theme in the app (Design > Change Template) now saves it on the main gallery and on every album, like the website's host page does. Before, the albums kept their old theme on the website.
-Detail:    Issue #254, commit <commit>. Needs a new EAS staging build. Not checked on a phone yet.
+Detail:    Issue #254, commit 9dbddbed. Needs a new EAS staging build. Not checked on a phone yet.
 How to test:
   1. In the app, open Host > an event that has at least two albums. Note the theme of an album on the website (open the album's page on staging.evebash.com).
   2. In the app, go to Design > Change Template and pick a different theme. Expect: the app shows the new theme.

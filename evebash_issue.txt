@@ -7,7 +7,7 @@ How to use this file (people and Claude sessions alike):
 - Numbers are never reused. If #1 is fixed and removed, the next new issue still takes the next number.
 - Starting work on an issue: set Status to "In progress" and Owner to your name.
 - Fixed (merged to staging): move the whole entry to RECENTLY FIXED, set Status to "Fixed", and add
-  "Fixed in: <commit> (YYYY-MM-DD)". Delete entries from RECENTLY FIXED once they are older than 7 days.
+  "Fixed in: 9dbddbed (YYYY-MM-DD)". Delete entries from RECENTLY FIXED once they are older than 7 days.
 - Dates are YYYY-MM-DD.
 
 Field values:
@@ -1513,7 +1513,7 @@ Blocked by: -
 Found in: Testing the guest-page edit mode, todo #11 (chat 2026-11-07)
 Issue: Changing an event's theme in the app saves it on the main gallery only; the website's host page also saves it on every album. After a change in the app, the albums keep their old theme on the website (the app shows them in the new theme because it uses the main gallery's theme). Fix: handleUpdateTemplate in apps/mobile/app/events/[id].tsx now also saves the theme on every album of a main gallery, like src/app/(main)/host/page.tsx.
 How to reproduce: In the app, Host > a main gallery with albums > Design > Change Template > pick another theme. Open an album of it on the website: it still shows the old theme.
-Fixed in: <commit> (2026-11-07). Device test #196.
+Fixed in: 9dbddbed (2026-11-07). Device test #196.
 
 #248
 Listed: 2026-11-05
