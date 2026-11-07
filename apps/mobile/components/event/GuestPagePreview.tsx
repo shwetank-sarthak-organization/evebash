@@ -1,0 +1,182 @@
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { WebView } from 'react-native-webview';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { supabase } from '@/lib/supabase';
+import { getGalleryWebUrl, getWebBaseUrl } from '@/lib/webLinks';
+import { Fonts, MidnightColors } from '../../constants/theme';
+
+// The screen size the guest page is drawn at before it is shrunk: a laptop's (the website's Guest Home Preview uses
+// the same)
+const PAGE = { width: 1280, height: 800 };
+
+// The website shows phones and tablets its "Get the EveBash app" screen (src/lib/appGate.ts), so the page is asked
+// for as a computer's browser would
+const COMPUTER_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+
+// Where supabase-js keeps the website's sign-in: sb-<project ref>-auth-token (the app and website share one project)
+const projectRef = /^https?:\/\/([^./]+)\./.exec(process.env.EXPO_PUBLIC_SUPABASE_URL ?? '')?.[1];
+const WEBSITE_SESSION_KEY = projectRef ? `sb-${projectRef}-auth-token` : null;
+
+type WebSession = Record<string, unknown> | null;
+
+// Runs before the page's own code. It signs the page in with the app's access token so private galleries open, but
+// never with the refresh token: the page can't renew or replace the app's sign-in, and it goes stale after an hour
+// (the preview reloads when the app renews it). Calls to sign out are dropped, since signing out would end the
+// app's session too.
+function signInScript(session: WebSession): string {
+  const save = WEBSITE_SESSION_KEY && session
+    ? `try { localStorage.setItem(${JSON.stringify(WEBSITE_SESSION_KEY)}, ${JSON.stringify(JSON.stringify(session))}); } catch (e) {}`
+    : '';
+  return `(function () {
+  ${save}
+  var pageFetch = window.fetch;
+  window.fetch = function (input, init) {
+    var url = String((input && input.url) || input || '');
+    if (url.indexOf('/auth/v1/logout') !== -1) return Promise.resolve(new Response(null, { status: 204 }));
+    return pageFetch.apply(this, arguments);
+  };
+})();
+true;`;
+}
+
+interface GuestPagePreviewProps {
+  eventId: string;
+  /** Changes after the host saves a design change, so the page loads again with it */
+  refreshKey?: number;
+  /** The host view's colours (useAppTheme), for the card around the preview */
+  colors: typeof MidnightColors;
+}
+
+// The website guest page itself (not a sketch), drawn at a computer's size and shrunk to fit: the theme's own layout,
+// fonts, covers and photos, as guests who open the gallery link on a computer see it. Guests on phones see the
+// gallery in the app, which is Preview Guest Theme. The page opens with ?preview=1 (no edit mode, no "Open in app"
+// banner) and takes no touches.
+export function GuestPagePreview({ eventId, refreshKey = 0, colors }: GuestPagePreviewProps) {
+  const [reloads, setReloads] = useState(0);
+  const [session, setSession] = useState<WebSession | undefined>(undefined);
+  const [sessionVersion, setSessionVersion] = useState(0);
+  const [width, setWidth] = useState(0);
+
+  // A new access token (the app renews it about once an hour) loads the page again with it
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'TOKEN_REFRESHED') setSessionVersion((version) => version + 1);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        const current = data.session;
+        if (!active) return;
+        setSession(current ? {
+          access_token: current.access_token,
+          token_type: current.token_type,
+          expires_in: current.expires_in,
+          expires_at: current.expires_at,
+          refresh_token: '',
+          user: current.user,
+        } : null);
+      })
+      .catch(() => { if (active) setSession(null); });
+    return () => { active = false; };
+  }, [sessionVersion]);
+
+  return (
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+      <View style={styles.header}>
+        <View style={styles.headerText}>
+          <Text style={[styles.title, { color: colors.white }]}>Guest Home Preview</Text>
+          <Text style={[styles.subtitle, { color: colors.slate400 }]}>
+            Your real guest page, as the gallery link opens on a computer. Guests on phones see it in this app: use Preview Guest Theme.
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => setReloads((count) => count + 1)}
+          style={[styles.reload, { borderColor: colors.cardBorder }]}
+          accessibilityRole="button"
+          accessibilityLabel="Reload preview"
+          hitSlop={8}
+        >
+          <IconSymbol name="arrow.clockwise" size={16} color={colors.gold} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.browser}>
+        <View style={styles.browserBar}>
+          <View style={styles.browserDots}>
+            <View style={[styles.browserDot, { backgroundColor: '#ff5f57' }]} />
+            <View style={[styles.browserDot, { backgroundColor: '#febc2e' }]} />
+            <View style={[styles.browserDot, { backgroundColor: '#28c840' }]} />
+          </View>
+          <Text style={styles.browserAddress} numberOfLines={1}>
+            {getWebBaseUrl().replace(/^https?:\/\/(www\.)?/, '')}/events/{eventId}
+          </Text>
+        </View>
+        <View onLayout={(event) => setWidth(Math.floor(event.nativeEvent.layout.width))}>
+          {width > 0 && session !== undefined && (
+            <PageFrame key={`${eventId}:${refreshKey}:${reloads}:${sessionVersion}`} eventId={eventId} script={signInScript(session)} width={width} />
+          )}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// The page in a web view at its real size, scaled down to `width`
+function PageFrame({ eventId, script, width }: { eventId: string; script: string; width: number }) {
+  const [loaded, setLoaded] = useState(false);
+  const scale = width / PAGE.width;
+  const siteBase = getWebBaseUrl();
+
+  // Only the guest page itself loads here; links elsewhere don't open (the page takes no touches anyway)
+  const stayOnSite = (request: { url: string; isTopFrame?: boolean }) =>
+    request.isTopFrame === false || request.url.startsWith(siteBase);
+
+  return (
+    <View style={[styles.frame, { height: Math.round(PAGE.height * scale) }]} pointerEvents="none">
+      <View style={{ width: PAGE.width, height: PAGE.height, transform: [{ scale }], transformOrigin: 'top left' }}>
+        <WebView
+          source={{ uri: `${getGalleryWebUrl(eventId)}?preview=1` }}
+          userAgent={COMPUTER_USER_AGENT}
+          injectedJavaScriptBeforeContentLoaded={script}
+          originWhitelist={['*']}
+          onShouldStartLoadWithRequest={stayOnSite}
+          onLoadEnd={() => setLoaded(true)}
+          scrollEnabled={false}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          setSupportMultipleWindows={false}
+          mediaPlaybackRequiresUserAction
+          style={styles.webView}
+        />
+      </View>
+      {!loaded && (
+        <View style={styles.loading}>
+          <ActivityIndicator color="#8a8a8f" />
+        </View>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: { marginTop: 12, padding: 16, borderRadius: 14, borderWidth: 1, gap: 16 },
+  header: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  headerText: { flex: 1 },
+  title: { fontSize: 15, fontFamily: Fonts.outfit.bold },
+  subtitle: { fontSize: 12, fontFamily: Fonts.inter.regular, marginTop: 2, lineHeight: 17 },
+  reload: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  browser: { borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', backgroundColor: '#1c1c1f' },
+  browserBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.05)' },
+  browserDots: { flexDirection: 'row', gap: 5 },
+  browserDot: { width: 8, height: 8, borderRadius: 4 },
+  browserAddress: { flex: 1, marginRight: 34, color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, textAlign: 'center', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: 6, overflow: 'hidden', paddingVertical: 3, paddingHorizontal: 8 },
+  frame: { overflow: 'hidden', backgroundColor: '#0b0b0c' },
+  webView: { flex: 1, backgroundColor: '#0b0b0c' },
+  loading: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+});

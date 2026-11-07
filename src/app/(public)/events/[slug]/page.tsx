@@ -105,6 +105,8 @@ function EventPageContent() {
     const searchParams = useSearchParams();
     const slug = params.slug as string;
     const isShared = searchParams.get("shared") === "true";
+    // The Design tab's small preview of this page (GuestPagePreview): never starts edit mode
+    const isPagePreview = searchParams.get("preview") === "1";
     const { user, loading: authLoading } = useAuth();
 
     const [loadedEvent, setEvent] = useState<Event | any | null>(null);
@@ -163,9 +165,9 @@ function EventPageContent() {
 
     // Opened with ?edit=1 (Design tab > Preview Guest Theme), or reloaded while editing
     useEffect(() => {
-        if (!GUEST_EDIT_ENABLED || access !== "manage" || !editRootId) return;
+        if (!GUEST_EDIT_ENABLED || isPagePreview || access !== "manage" || !editRootId) return;
         if (searchParams.get("edit") === "1" || wasEditing(editRootId)) startGuestEdit(editRootId);
-    }, [access, editRootId, searchParams]);
+    }, [access, editRootId, isPagePreview, searchParams]);
 
     // Parallax logic
     const containerRef = useRef(null);

@@ -37,6 +37,8 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
     const searchParams = useSearchParams();
     const isShared = searchParams.get("shared") === "true";
     const sharedQuery = isShared ? "?shared=true" : "";
+    // The Design tab's small preview of this page (GuestPagePreview) leaves out the "Open in app" banner
+    const isPagePreview = searchParams.get("preview") === "1";
     const { user, loading: authLoading } = useAuth();
     const [isPublicView, setIsPublicView] = useState(false);
     const [event, setEvent] = useState<Event | null>(null);
@@ -249,7 +251,7 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
             {/* Confetti Circle and Sunlit Portrait have their own footer on every page (the shared event footer hides itself then) */}
             {navTemplateId === "confetti" && mainEvent && <ConfettiFooter title={mainEvent.title} />}
             {navTemplateId === "portrait" && mainEvent && <PortraitFooter event={mainEvent} />}
-            <OpenInAppBanner />
+            {!isPagePreview && <OpenInAppBanner />}
         </div>
     );
 }

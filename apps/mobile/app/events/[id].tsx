@@ -85,6 +85,7 @@ import { haptic } from '@/lib/haptics';
 import { appAlert, showToast } from '@/lib/feedback';
 import { FolderPicker } from '@/components/vault/VaultModals';
 import { getGalleryWebUrl } from '@/lib/webLinks';
+import { GuestPagePreview } from '@/components/event/GuestPagePreview';
 import { useReloadOnReturn } from '@/hooks/use-reload-on-return';
 import { DarkThemeScope, useAppTheme, useStatusBarOverride } from '@/context/ThemeContext';
 import { useIsFocused } from '@react-navigation/native';
@@ -1343,6 +1344,8 @@ function EventDetailScreen() {
   const [showSubDatePicker, setShowSubDatePicker] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  // Goes up after a template or event type is saved, so the Design tab's Guest Home Preview loads the page again
+  const [designPreviewVersion, setDesignPreviewVersion] = useState(0);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editTitleAlign, setEditTitleAlign] = useState<'left' | 'center' | 'right'>('left');
@@ -3063,6 +3066,7 @@ function EventDetailScreen() {
         const results = await Promise.all(albums.map((album) => updateEvent(album.id, { templateId })));
         if (results.some((ok) => !ok)) throw new Error('updateEvent returned false for an album');
       }
+      setDesignPreviewVersion((version) => version + 1);
       setShowTemplateModal(false);
     } catch (err) {
       setEvent(event);
@@ -3085,6 +3089,7 @@ function EventDetailScreen() {
       setEvent({ ...event, ...updates });
       const saved = await updateEvent(event.id, updates);
       if (!saved) throw new Error('updateEvent returned false');
+      setDesignPreviewVersion((version) => version + 1);
     } catch (err) {
       setEvent(event);
       appAlert("Error", "Failed to update event type.");
@@ -6583,6 +6588,8 @@ function EventDetailScreen() {
                       </View>
                       <IconSymbol name="eye.fill" size={16} color={hp.gold} />
                     </TouchableOpacity>
+
+                    <GuestPagePreview eventId={event.id} refreshKey={designPreviewVersion} colors={hp} />
                 </View>
               )}
 

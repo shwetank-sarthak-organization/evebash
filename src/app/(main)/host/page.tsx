@@ -10,7 +10,7 @@ import { PermissionsIcon } from "@/components/PermissionsIcon";
 import { DesignIcon } from "@/components/DesignIcon";
 import { AlbumProofsPanel } from "@/components/album/AlbumProofsPanel";
 import { albumApi } from "@/lib/albumApi";
-import { EventDesignPreview } from "@/components/EventDesignPreview";
+import { GuestPagePreview } from "@/components/GuestPagePreview";
 import { PartnersIcon } from "@/components/PartnersIcon";
 import { GalleryTypesInfo } from "@/components/GalleryTypesInfo";
 import { TransferOwnershipCard } from "@/components/transfer/TransferOwnershipCard";
@@ -1143,6 +1143,8 @@ function DashboardContent() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isCreateSubGalleryModalOpen, setIsCreateSubGalleryModalOpen] = useState(false);
     const [showCategoryModal, setShowCategoryModal] = useState(false);
+    // Goes up after a template or event type is saved, so the Design tab's Guest Home Preview loads the page again
+    const [designPreviewVersion, setDesignPreviewVersion] = useState(0);
     const [showCreateSuccessModal, setShowCreateSuccessModal] = useState(false);
     const [eventType, setEventType] = useState("Wedding");
     const [coverPositionEvent, setCoverPositionEvent] = useState<Event | null>(null);
@@ -2905,6 +2907,7 @@ function DashboardContent() {
         setStatus("uploading");
         setMessage("Updating event type...");
         const success = await updateEvent(targetEvent.id, { category });
+        if (success) setDesignPreviewVersion((version) => version + 1);
         setStatus(success ? "success" : "error");
         setMessage(success ? "Event type updated." : "Failed to update event type.");
         setTimeout(() => {
@@ -3298,6 +3301,7 @@ function DashboardContent() {
 
             setShowTemplateModal(false);
             setTemplateTargetEvent(null);
+            setDesignPreviewVersion((version) => version + 1);
             setMessage("Theme updated successfully! ✨");
             setStatus("success");
             setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
@@ -4796,19 +4800,7 @@ function DashboardContent() {
                                                 </div>
 
                                                 <div className="rounded-[1.5rem] border border-[var(--site-border)] bg-[var(--site-bg)]/80 p-5 sm:p-6">
-                                                    <div className="mb-5">
-                                                        <h5 className="text-lg font-black text-[var(--site-text)]">Guest Home Preview</h5>
-                                                        <p className="text-xs font-bold text-[var(--site-muted)]">A quick sketch of the app and website in your template&apos;s colours. Use Preview Guest Theme for the real page.</p>
-                                                    </div>
-                                                    <EventDesignPreview
-                                                        eventId={selectedMainEvent.id}
-                                                        title={selectedMainEvent.title}
-                                                        eventType={selectedMainEvent.category}
-                                                        dateLabel={formatEventDate(selectedMainEvent.date)}
-                                                        cover={selectedMainEvent}
-                                                        galleryNames={eventDetailGalleries.filter(gallery => gallery.id !== selectedMainEvent.id).map(gallery => gallery.title || gallery.id)}
-                                                        templateId={selectedMainEvent.templateId}
-                                                    />
+                                                    <GuestPagePreview eventId={selectedMainEvent.id} refreshKey={designPreviewVersion} />
                                                 </div>
                                             </div>
                                         )}
