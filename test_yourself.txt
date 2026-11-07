@@ -4030,7 +4030,7 @@ Feedback:         2026-10-26 Claude, built-in browser (computer size) on staging
 
 --------------------------------------------------------------------------------
 #151 New wedding theme Confetti Circle (website, computer and phone)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Brief:     A new wedding theme, "Confetti Circle": the cover photo fills the first screen with a big
@@ -4083,10 +4083,10 @@ How to test:
   9. Under the couple section: press "Video gallery" and "Photo gallery". Expect: the chosen word turns
      pink and the grid shows those items; open a tile: the viewer opens as before. The big word between
      them is the gallery's name; open an album: it changes to the album's name.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
+Done by:          Sarthak
+Device / browser: website (browser not noted)
+Build / version:  staging.evebash.com, staging as of 6c12e9f or later
+Date tested:      2026-11-07
 Account used:
 Screenshot / recording:
 Fix ref:
@@ -4094,6 +4094,8 @@ Feedback:         2026-10-26 Claude, built-in browser before commit (local dev s
                   page with a sample couple, since deleted): at ~800px wide and 375x812 (phone size
                   emulated) steps 2 and 6 look as described; no console errors after fixes. Not done:
                   steps 1, 3, 4, 5 and a real person on staging.
+                  2026-11-07 Sarthak: checked on the website, passed. Bride / groom columns hide on the
+                  test gallery ("mehandi night" isn't two names), as designed.
 
 --------------------------------------------------------------------------------
 #152 New wedding theme Periwinkle Script (website, computer and phone)
