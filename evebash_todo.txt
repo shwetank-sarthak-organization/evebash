@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 28
+Next todo number: 29
 
 Last updated: 2026-11-07
 
@@ -678,6 +678,41 @@ Done in:      -
 =====================================================================
 DONE / DROPPED (delete after 14 days)
 =====================================================================
+
+#28 Design tab: show the real guest page in Guest Home Preview (website and app)
+Listed:       2026-11-07
+Platform:     Both
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       S
+Suggested by: Sarthak (2026-11-07: the preview only changes colours, not how the theme really looks)
+Discussed:    Yes
+Decision:     2026-11-07 Sarthak (with Claude): replace the colour sketch with the real guest page. The
+              app shows the website page too (a web view), because the app's own guest view is built
+              into the 9,300-line event screen and can't be drawn small without pulling theme code apart;
+              the app's own look stays on Preview Guest Theme.
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        The website's Guest Home Preview (src/components/EventDesignPreview.tsx) drew one fixed
+              sketch for every theme and only swapped the template's colours: not the theme's layout,
+              fonts or photos. The app had no preview at all.
+              Now: the website's Design tab loads the real guest page in two frames, at a phone's size
+              (390 x 844, phone cover) and a computer's (1280 x 800, computer cover), shrunk to fit
+              (src/components/GuestPagePreview.tsx). The app's
+              Design tab shows the computer page in a web view (apps/mobile/components/event/
+              GuestPagePreview.tsx); phone guests see the gallery in the app, which is Preview Guest Theme.
+              The page opens with ?preview=1: no edit mode, no "Open in app" banner. The frames take no
+              clicks or touches. They reload after the template or event type is saved, and with a
+              Reload button.
+              Sign-in: on the website the frames use the host's own sign-in (same site). In the app the
+              web view gets the app's access token only (never the refresh token), so private galleries
+              open; calls to sign out are dropped there so the app session can't be ended; the page
+              reloads when the app renews its token (about hourly). The app's web view asks as a
+              computer browser, because the website shows phones and tablets its "Get the EveBash app"
+              screen (src/lib/appGate.ts), also on gallery pages.
+Done in:      a454736d (2026-11-07), on staging. App part needs a new EAS staging build. Checked on
+              the iPhone 16e simulator (dev build) and in the built-in browser; device test #205.
 
 #10 Confetti Circle: bride and groom details in the theme editor
 Listed:       2026-10-27

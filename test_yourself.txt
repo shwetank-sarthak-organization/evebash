@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 205
+Next test number: 206
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5856,3 +5856,33 @@ Feedback:         2026-11-07 Claude, iPhone 17 Pro simulator, dev build on a loc
                   steps 1, 2, 3, 5 and 6 as described; the save from Home and the restore from the album
                   were checked in the database (albums keep {}); the couple was put back to Jyoti /
                   Samarth. Not done: 4 (website after an app save), 7, Android, a real phone.
+
+--------------------------------------------------------------------------------
+#205 Design tab: Guest Home Preview shows the real guest page
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     The Design tab's Guest Home Preview was a colour sketch that looked the same for every theme. It now shows the real guest page, shrunk: on the website a phone-size and a computer-size frame, in the app a computer-size frame (phone guests see the gallery in the app, which is Preview Guest Theme). It updates after you change the template or event type, and has a Reload button.
+Detail:    Todo #28, commit a454736d. The app part needs a new EAS staging build, and loads the staging website, so the website part must be on staging first. The app passes its sign-in to the preview so private galleries show; the app must stay signed in afterwards.
+How to test:
+  1. Website, on a computer: Host > a private event > Design. Expect: under Preview Guest Theme, the phone frame and the browser frame show the event's real guest home in its theme (its own layout, fonts and cover), not "This gallery is private". No edit bar and no "Open in app" bar in either frame.
+  2. Change Template to a very different theme (e.g. Royal Emerald to Confetti Circle). Expect: after "Theme updated", both frames load again in the new theme.
+  3. If the event has a separate phone cover: expect the phone frame to show the phone cover and the browser frame the computer cover.
+  4. Click and scroll on the frames. Expect: nothing happens (no likes, no gallery opens). Press Reload (round arrow). Expect: the frames load again.
+  5. App, as host: open the same event > Design and scroll down. Expect: a "Guest Home Preview" card with the browser frame showing the same page as the website's browser frame (the private gallery opens, not "This gallery is private" or "Get the EveBash app").
+  6. In the app change the template. Expect: the frame loads again in the new theme.
+  7. Leave the app on the Design tab for over an hour (or come back to it later), then check the frame and use the app normally. Expect: the frame still shows the gallery, and the app is still signed in.
+  8. Light and dark look (Settings > Appearance) on both: expect the card to match the page around it.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:         2026-11-07 Claude, before staging: step 5 on the iPhone 16e simulator (dev build, local
+                  bundler, staging data, host signed in, samarth weds Jyoti): the browser frame showed the
+                  real Confetti Circle page and Reload worked; the app was still signed in afterwards. Website
+                  frames checked in the built-in browser on localhost while signed out (both frames load the
+                  page at 390 and 1280 wide, no app screen; the private gallery showed its sign-in gate, as
+                  expected signed out). Not done: 1-4 signed in, 6-8, Android, a real phone.
