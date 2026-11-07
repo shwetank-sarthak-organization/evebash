@@ -4805,7 +4805,7 @@ function DashboardContent() {
                                                         title={selectedMainEvent.title}
                                                         eventType={selectedMainEvent.category}
                                                         dateLabel={formatEventDate(selectedMainEvent.date)}
-                                                        coverUrl={resolveEventCoverImage(selectedMainEvent.coverImage, 'preview', selectedMainEvent.category)}
+                                                        cover={selectedMainEvent}
                                                         galleryNames={eventDetailGalleries.filter(gallery => gallery.id !== selectedMainEvent.id).map(gallery => gallery.title || gallery.id)}
                                                         templateId={selectedMainEvent.templateId}
                                                     />

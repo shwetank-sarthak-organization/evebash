@@ -183,6 +183,10 @@ assert.deepEqual(draftSummary(setDraftField(withCouple, 'root', 'title', 'New', 
 assert.deepEqual(setDraftBlock(withCouple, 'root', 'couple', undefined, true), EMPTY_DRAFT);
 const shownRoot = applyGalleryDraft({ title: 'Asha and Raj', themeContent: { couple: { right: { label: '', name: 'Raj', about: '', links: {} } } } }, withCouple.root);
 assert.equal(shownRoot.themeContent?.couple, typed);
+// After a save that removed the block, the saved layer says so and the page stops showing the old couple
+const afterRemoval = applyGalleryDraft({ title: 'x', themeContent: { couple: cleanCouple(typed)! } }, { themeContent: { couple: undefined } });
+assert.equal(afterRemoval.themeContent?.couple, undefined);
+assert.deepEqual(shownCouple(afterRemoval.themeContent?.couple), {});
 
 // Confetti Circle lists the couple on the website only (the app shows the section from todo #12), on every gallery
 assert.ok(editableFieldsFor('confetti', 'web', false).some(field => field.key === 'couple' && field.block === 'couple'));

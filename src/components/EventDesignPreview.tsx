@@ -1,31 +1,41 @@
 import { ChevronDown } from "lucide-react";
 import { getWebTemplateChrome } from "@/lib/webTemplateTheme";
+import type { Event } from "@/lib/database";
+import { coverImageStyle } from "@/lib/coverStyle";
+import { resolveEventCoverImage } from "@/lib/eventCovers";
+import { withScreenCover } from "@/lib/screenCover";
+import type { CoverTarget } from "../../shared/themes/phoneCover";
 
 interface EventDesignPreviewProps {
     eventId: string;
     title: string;
     eventType?: string;
     dateLabel?: string;
-    coverUrl: string;
+    /** The main gallery: its computer cover, phone cover and their framing */
+    cover: Pick<Event, "coverImage" | "coverMode" | "coverOffset" | "coverOffsetX" | "coverScale" | "phoneCoverImage" | "phoneCoverMode" | "phoneCoverOffset" | "phoneCoverOffsetX" | "phoneCoverScale" | "category">;
     galleryNames: string[];
     templateId?: string;
 }
 
 // Sketch of the guest home page on a phone and a computer, drawn with the template's own colours
-// (the same palette the guest page uses). Plain markup only: no iframe, and the cover is the
-// image the host page has already loaded.
-export function EventDesignPreview({ eventId, title, eventType, dateLabel, coverUrl, galleryNames, templateId }: EventDesignPreviewProps) {
+// (the same palette the guest page uses). Plain markup only: no iframe. Each frame shows the cover that screen
+// gets, framed as the host set it: the phone cover on the phone, the computer cover in the browser (issue #64).
+export function EventDesignPreview({ eventId, title, eventType, dateLabel, cover, galleryNames, templateId }: EventDesignPreviewProps) {
     const chrome = getWebTemplateChrome(templateId);
     const kicker = eventType ? `${eventType} gallery` : "Event gallery";
     const shownTitle = title || "Your event";
     const phoneTabs = ["Home", ...galleryNames.slice(0, 2), "Find You"];
 
-    const coverLayer = (
-        <>
-            <img src={coverUrl} alt="" draggable={false} loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-50" />
-            <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, transparent 35%, ${chrome.background})` }} />
-        </>
-    );
+    const coverLayer = (target: CoverTarget) => {
+        const resolved = { ...cover, coverImage: resolveEventCoverImage(cover.coverImage, "preview", cover.category) };
+        const shown = withScreenCover(resolved, target);
+        return (
+            <>
+                <img src={shown.coverImage} alt="" draggable={false} loading="lazy" className="absolute inset-0 h-full w-full opacity-50" style={coverImageStyle(shown)} />
+                <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, transparent 35%, ${chrome.background})` }} />
+            </>
+        );
+    };
 
     return (
         <div aria-hidden="true" className="pointer-events-none grid select-none items-center gap-6 md:grid-cols-12">
@@ -36,7 +46,7 @@ export function EventDesignPreview({ eventId, title, eventType, dateLabel, cover
                         <div className="absolute left-1/2 top-2 z-20 h-[18px] w-[68px] -translate-x-1/2 rounded-full bg-black" />
 
                         <div className="relative h-[230px] overflow-hidden">
-                            {coverLayer}
+                            {coverLayer("phone")}
                             <div className="absolute inset-x-0 bottom-0 z-10 px-4 pb-3 text-center">
                                 <p className="truncate text-[8px] font-black uppercase tracking-[0.28em]" style={{ color: chrome.accent }}>{kicker}</p>
                                 <p className="mt-1.5 line-clamp-2 break-words font-serif text-[19px] font-bold leading-[1.15]">{shownTitle}</p>
@@ -99,7 +109,7 @@ export function EventDesignPreview({ eventId, title, eventType, dateLabel, cover
                         </div>
 
                         <div className="relative flex h-[230px] items-end justify-center overflow-hidden sm:h-[260px]">
-                            {coverLayer}
+                            {coverLayer("computer")}
                             <div className="relative z-10 max-w-[80%] px-4 pb-6 text-center">
                                 <p className="truncate text-[9px] font-black uppercase tracking-[0.3em]" style={{ color: chrome.accent }}>{kicker}</p>
                                 <p className="mt-2 line-clamp-2 break-words font-serif text-2xl font-bold leading-[1.15] sm:text-3xl">{shownTitle}</p>

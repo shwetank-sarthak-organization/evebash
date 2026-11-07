@@ -387,9 +387,12 @@ export async function saveGuestEdits(userId: string): Promise<{ failed: string[]
                     if (result.error) reasons.add(result.error);
                     throw new Error(result.error || "saveThemeContentBlock failed");
                 }
+                // The page lays this over the content it loaded, so a block that is now gone must say so
+                const content: ThemeContent = { ...result.content };
+                if (!(block in content)) content[block] = undefined;
                 update({
                     draft: setDraftBlock(state.draft, galleryId, block, undefined, true),
-                    saved: { ...state.saved, [galleryId]: { ...state.saved[galleryId], themeContent: result.content } },
+                    saved: { ...state.saved, [galleryId]: { ...state.saved[galleryId], themeContent: content } },
                 });
             }
         } catch (error) {
