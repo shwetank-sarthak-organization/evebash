@@ -5774,8 +5774,8 @@ Brief:     The wedding theme Confetti Circle (#151 on the website) now has an ap
            capitals, a dark tag with a red heart and the gallery's message, "We're getting married!"
            with the highlight video in a soft-edged frame, the bride and the groom, the gallery
            header, whole-photo rows and the torn-paper footer, as on the website.
-Detail:    Todo #12: 4b97ef14 (app design) and c39ba50c (website edit-mode fix, step 9), on staging
-           2026-11-07. apps/mobile/components/confetti/, the event
+Detail:    Todo #12: 4b97ef14 (app design), d805e71c (cover like the design's phone layout) and
+           c39ba50c (website edit-mode fix, step 9), on staging 2026-11-07. apps/mobile/components/confetti/, the event
            screen (apps/mobile/app/events/[id].tsx), ThemeHeader.tsx, constants/templates.ts; shared
            logic in shared/themes/confettiCircle.ts. Needs the new app code on a staging build or the
            dev app with Metro (the Bebas Neue font package is new; it loads like the other theme
@@ -5784,15 +5784,16 @@ Detail:    Todo #12: 4b97ef14 (app design) and c39ba50c (website edit-mode fix, 
            shows placeholder words and icons, as on the website. Pick Confetti Circle for a wedding
            gallery first (website host page, or the app's theme picker, where it now shows).
 How to test:
-  1. Open a Confetti Circle gallery titled "A and B" in the app. Expect: the cover photo fills the
-     screen; a big see-through white circle with A, "- AND -", B in tall pink-to-orange capitals and
-     the date as "July | 17 | 2026"; on the circle's top edge a dark tag with a red heart and the
-     gallery's message in italics and quotes ("HAPPILY MARRIED" when there is none); pink and orange
-     specks round the circle; round Back and Share buttons at the top, a round dark arrow at the
-     bottom, a torn-paper edge. No white fade over the photo.
-  2. Tap the arrow. Expect: the page scrolls to the gallery; a soft-white bar pins at the top with
-     HOME, COLLECTIONS, FIND YOU in tall capitals, the chosen one pink with a pink line under it; the
-     strip under the clock is solid, nothing shows through it.
+  1. Open a Confetti Circle gallery titled "A and B" in the app. Expect: a soft-white top bar with
+     Back, the initials "A ♥ B" (pink heart) and Share, and a dark clock; under it a band of the cover
+     photo with a big see-through white circle (about 80% of the screen's width): A, "- AND -", B in
+     tall pink-to-orange capitals and the date as "July | 17 | 2026"; a dark tag hanging from the bar
+     onto the circle with a red heart and the gallery's message in italics and quotes ("HAPPILY
+     MARRIED" when there is none); pink and orange specks round the circle; a torn-paper edge just
+     under it. No white fade over the photo, no arrow button.
+  2. Right under the torn edge: HOME, COLLECTIONS, FIND YOU in tall capitals, the chosen one pink with
+     a pink line under it. Scroll: the bar pins at the top and the strip under the clock is solid,
+     nothing shows through it.
   3. Under the bar: "WE'RE GETTING MARRIED!", the highlight video's picture in a widescreen frame that
      fades into the page, a pink play button, specks round it and a white "A ♥ B" ribbon (the heart
      drawn, not a box); THE BRIDE / A and THE GROOM / B side by side with a few words and Facebook,
@@ -5824,5 +5825,6 @@ Feedback:         2026-11-07 Claude, iPhone 17 Pro simulator, dev build on a loc
                   worktree (staging data, gallery "samarth weds Jyoti", host account already signed
                   in): steps 1-4 and 6 look as described after fixes (white fade over the cover, the
                   ribbon's heart, FIND YOU's font, the strip under the clock, the footer edge's
-                  width); play works. Step 9 checked on staging in the built-in browser by applying the
+                  width); play works. The phone-layout cover (d805e71c) checked the same way.
+                  Step 9 checked on staging in the built-in browser by applying the
                   two style changes in the page. Not done: 5, 7, 8, Android, a real phone.
