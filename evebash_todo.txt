@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 29
+Next todo number: 30
 
 Last updated: 2026-11-07
 
@@ -678,6 +678,33 @@ Done in:      -
 =====================================================================
 DONE / DROPPED (delete after 14 days)
 =====================================================================
+
+#29 App: Guest Home Preview shows a picture of the app's own guest screen
+Listed:       2026-11-07
+Platform:     App
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       S
+Suggested by: Sarthak (2026-11-07: the app's preview showed the website, not the app screen)
+Discussed:    Yes
+Decision:     2026-11-07 Sarthak (with Claude): show a picture (snapshot) of the app's guest home, taken
+              while the host has it open with Preview Guest Theme, instead of a live small copy (the
+              guest view is built into the event screen; drawing it small means pulling theme code
+              apart). The picture stays on the phone only: not in the database, not uploaded.
+Owner:        Sarthak (with Claude)
+Depends on:   #28
+Brief:        Follows #28, where the app's Design tab card showed only the website on a computer. Now
+              the card also has an App phone frame with a picture of the app's guest home. It is taken 3
+              seconds after the guest home opens for a host (Preview Guest Theme), if it is still at the
+              top and not being edited (pencils and unsaved changes would show), and kept in the app's
+              cache with its time and template (apps/mobile/lib/guestPreviewSnapshot.ts, AsyncStorage
+              key guestPreviewSnapshot:<event id>). The card shows "Open Preview Guest Theme once to see
+              the app here" when there is none, and says the picture is out of date when the template
+              changed since. Uses the new native library react-native-view-shot 4.0.3, so it needs a new
+              app build; on older builds the library is not loaded and no picture is taken (no crash).
+Done in:      ddc95b35 (2026-11-07), on staging. Needs a new EAS staging build (native library).
+              Checked on the iPhone 16e simulator (local dev build); device test #206.
 
 #28 Design tab: show the real guest page in Guest Home Preview (website and app)
 Listed:       2026-11-07

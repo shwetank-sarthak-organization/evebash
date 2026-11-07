@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 206
+Next test number: 207
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5889,3 +5889,31 @@ Feedback:         2026-11-07 Claude, before staging: step 5 on the iPhone 16e si
                   frames checked in the built-in browser on localhost while signed out (both frames load the
                   page at 390 and 1280 wide, no app screen; the private gallery showed its sign-in gate, as
                   expected signed out). Not done: 1-4 signed in, 6-8, Android, a real phone.
+
+--------------------------------------------------------------------------------
+#206 App: Guest Home Preview shows a picture of the app's own guest screen
+Status:    TODO
+Priority:  Medium
+Platform:  App
+Brief:     The app's Design tab card now also has an "App" phone frame with a picture of the app's real guest home (the screen phone guests see). The picture is taken a few seconds after you open Preview Guest Theme and is kept on this phone only (not uploaded, not in the database).
+Detail:    Todo #29, commit ddc95b35. Uses the new library react-native-view-shot, so it needs a new EAS staging build (an older build simply never takes a picture). Builds on #205.
+How to test:
+  1. On a phone that has never previewed the event: Host > an event > Design, scroll to Guest Home Preview. Expect: an "App" phone frame saying "Open Preview Guest Theme once to see the app here", and the website frame under it.
+  2. Tap Preview Guest Theme and stay on the guest home, without scrolling, for about 5 seconds. Go back to the host view > Design. Expect: the App frame shows the guest home as you just saw it (cover, title, tabs), with "Picture from <date and time>" under it.
+  3. Preview Guest Theme again, scroll down within the first 3 seconds, wait, go back. Expect: the picture did not change to a scrolled one (still the earlier one and its time).
+  4. Change Template to another theme. Expect: the App picture is dimmed with "The theme changed since this picture. Open Preview Guest Theme to update it." Preview Guest Theme, wait, go back. Expect: a picture in the new theme, no longer dimmed.
+  5. With the guest edit mode switch on (EXPO_PUBLIC_GUEST_EDIT_MODE): Preview Guest Theme opens in edit mode. Expect: no picture is taken while the pencils show; tap "View as guest" with no unsaved changes, wait 5 seconds, go back. Expect: a picture without pencils or the edit bar.
+  6. Close and reopen the app, open the event's Design tab. Expect: the same picture is still there.
+  7. Android: steps 1, 2 and 4.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:         2026-11-07 Claude, before staging: steps 1 and 2 on the iPhone 16e simulator (local dev build with
+                  the library, staging data, host signed in, samarth weds Jyoti in Confetti Circle): the empty
+                  frame showed the message; after Preview Guest Theme the picture (1170 x 2532 JPEG, ~400 KB,
+                  in the app's cache folder) showed the real Confetti Circle guest home with its time. Not done:
+                  3-7, a real phone.
