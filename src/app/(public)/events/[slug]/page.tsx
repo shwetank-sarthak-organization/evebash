@@ -1046,7 +1046,9 @@ function EventPageContent() {
             </GuestEditSpots.Provider>
             {isEditing && user && (
                 <>
-                    {!guestEdit.viewingAsGuest && <div aria-hidden="true" className="h-44 lg:h-28" />}
+                    {/* Room for the edit bar, in the theme's page colour (without one the site's dark background showed
+                        here, e.g. as a navy band above Confetti Circle's light footer) */}
+                    {!guestEdit.viewingAsGuest && <div aria-hidden="true" className="h-44 bg-[var(--event-template-primary)] lg:h-28" />}
                     <GuestEditBar
                         galleryId={(activeGallery || event).id}
                         templateId={displayEvent.templateId}

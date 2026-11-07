@@ -428,7 +428,8 @@
   position: relative;
   /* No top margin: the page wrapper behind it has no background, so a gap would show the site's dark body colour.
      The gallery above already ends with its own bottom padding. */
-  padding: clamp(56px, 7vw, 88px) clamp(16px, 4vw, 56px) clamp(36px, 5vw, 56px);
+  /* In edit mode the bottom also leaves room for the edit bar (GuestEditBar sets --guest-edit-bar to its height) */
+  padding: clamp(56px, 7vw, 88px) clamp(16px, 4vw, 56px) calc(clamp(36px, 5vw, 56px) + var(--guest-edit-bar, 0px));
   background: linear-gradient(180deg, #e4e0de 0%, #ebe7e4 55%, #f3f0ed 100%);
   color: var(--cc-ink);
 }
