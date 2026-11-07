@@ -34,7 +34,7 @@ Field values:
 
 Next todo number: 27
 
-Last updated: 2026-11-06
+Last updated: 2026-11-07
 
 =====================================================================
 ACTIVE TODOS
@@ -172,6 +172,9 @@ Decision:     2026-10-27 Sarthak: ship the couple section with placeholder text 
               (blocks: couple now; later milestones, how we met...), written per block by
               set_theme_content_block so a save only replaces the changed block. Behind
               NEXT_PUBLIC_GUEST_EDIT_MODE: while it is off the section stays as it is today.
+              2026-11-07: on staging in 610b2c0a; migration 20261107120000_theme_content applied by
+              Sarthak and Save checked on localhost. Left: device test #201 once the switch is on.
+              The app shows it with #12.
 Owner:        Sarthak (with Claude)
 Depends on:   -
 Brief:        The Confetti Circle theme (id "confetti") has a section under the cover: "We're getting
@@ -190,7 +193,7 @@ Listed:       2026-10-27
 Platform:     Both
 Priority:     Medium
 Phase:        TBD (1 or 2, decide after discussion)
-Status:       Agreed
+Status:       In progress
 Effort:       L
 Suggested by: Sarthak (2026-10-27: hosts can't see how an edit looks in their theme until they
               open it)
@@ -201,8 +204,17 @@ Decision:     2026-10-27 Sarthak (with Claude): build it as an edit mode on the 
               only). The highlight video sheet picks from the gallery's own videos or uploads a new
               one. Each theme lists its own editable fields when it is created. Cover move/zoom in
               the preview waits for #64.
-Owner:        Unassigned
-Depends on:   #64 (only for moving/zooming the cover in the preview)
+              2026-11-06 Sarthak: a gallery gets two covers, one for phones (the app and phone
+              browsers) and one for computers (migration 20261106120000_phone_cover, applied).
+              Pencils on each theme's own content. Every event type picks the same five themes
+              (shared/themes/activeThemes.ts), the rest show as "Coming soon".
+              2026-11-07: built for the website (all five themes) and the app (all but Confetti
+              Circle, which comes with #12); on staging in 610b2c0a behind the two switches, which
+              stay off. Plan and test notes: reports/Edit from guest preview plan.md. Left: turn the
+              switches on for staging (Vercel evebash-staging env, EAS staging build) and run device
+              tests #199 / #200; a real phone.
+Owner:        Sarthak (with Claude)
+Depends on:   -
 Brief:        Today hosts edit a gallery's title, date, message, cover and highlight video in the
               host section and only see the result by opening Preview Guest Theme. The website's
               "Guest Home Preview" on the Design tab is only a colour sketch, and the app has no
@@ -239,7 +251,7 @@ Decision:     2026-10-27 Sarthak: the website version is done; build the app ver
               every event type can pick (shared/themes/activeThemes.ts); until it's built the app's
               pickers show the other four.
 Owner:        Unassigned
-Depends on:   - (#10 for real bride / groom details; until then the same placeholders as the website)
+Depends on:   -
 Brief:        The website has the wedding theme "Confetti Circle" (id "confetti", device test #151),
               but the app has no "confetti" entry in apps/mobile/constants/templates.ts, so the app's
               theme picker doesn't offer it and a gallery set to it on the website isn't drawn in that
@@ -256,7 +268,12 @@ Brief:        The website has the wedding theme "Confetti Circle" (id "confetti"
                 "&", links in Bebas Neue capitals; solid white once scrolled.
               - Under the cover: "We're getting married!", the highlight video (or the cover photo)
                 in a soft-edged widescreen frame with specks and a white "Name ♥ Name" ribbon, the
-                bride and the groom with a few words and social icons (placeholders until #10).
+                bride and the groom with a few words and social icons. Since #10 (2026-11-07) these
+                come from the main event's theme_content: read it in apps/mobile/lib/database.ts
+                (readThemeContent), show only the named sides and filled links (shownCouple in
+                shared/themes/themeContent.ts, never names from the title), and drop platforms
+                ["web"] from COUPLE_FIELD in shared/themes/editableFields.ts so the app's edit bar
+                gets the Couple sheet (save with set_theme_content_block).
               - Gallery: Back / Share, "PHOTO GALLERY | <gallery name> | VIDEO GALLERY" (the pink
                 words switch photos / videos), the full message in italics when the tag cut it,
                 full-width rows of whole photos (never cropped).

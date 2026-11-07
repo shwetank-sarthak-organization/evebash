@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 197
+Next test number: 202
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5610,6 +5610,123 @@ How to test:
   1. In the app, open Host > an event that has at least two albums. Note the theme of an album on the website (open the album's page on staging.evebash.com).
   2. In the app, go to Design > Change Template and pick a different theme. Expect: the app shows the new theme.
   3. On the website, open each album of that event (reload the page). Expect: every album shows the new theme.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#197 Theme pickers: the same five themes for every event type, the rest "Coming soon"
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Every event type now offers the same themes: Royal Emerald, Classic White, Sunlit Portrait, Midnight Hero and Confetti Circle on the website, the first four in the app (Confetti Circle comes with todo #12). The event type's other themes show below, greyed out, as "Coming soon" and can't be picked. An event already on another theme still shows it first as its current theme.
+Detail:    Todo #11, commit 610b2c0a (shared/themes/activeThemes.ts). The app part needs a new EAS staging build.
+How to test:
+  1. Website: Host > a Wedding event > Design > change the theme. Expect: the five themes can be picked; under "Coming soon" the other wedding themes are greyed out and do nothing when clicked.
+  2. Change the event type to Birthday and open the theme list again. Expect: the same five themes; Coming soon now lists birthday themes.
+  3. Start creating a new event and look at its theme choice. Expect: the same five themes.
+  4. App: Host > an event > Design > Change Template, in light and in dark look. Expect: four themes (no Confetti Circle) and Coming soon below, easy to read in both looks.
+  5. App: Create event > choose a theme. Expect: the same list.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#198 The guest page follows the cover's Position on every screen
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     The cover's Position (move and zoom) is now saved as the part of the photo to keep in view plus a zoom, so the same part shows on a computer, a phone and in the app. The website's guest themes now follow it; before, they ignored it (issue #64).
+Detail:    Issue #64, commit 610b2c0a (shared/themes/coverFocus.ts). 3 events already had a moved cover; they may now sit slightly differently. The app part needs a new EAS staging build.
+How to test:
+  1. Website: Host > an event in Royal Emerald > Change Cover to a tall photo, Fill, then Position: move it so a face is near the top edge and zoom in a little; save.
+  2. Open the guest page on a computer and on a phone. Expect: the same face is in view on both, zoomed the same.
+  3. Change the theme to Classic White, Sunlit Portrait, Midnight Hero and Confetti Circle in turn. Expect: each cover keeps that face in view.
+  4. App: open the same event as host. Expect: the cover shows the same part. Move it with the app's Position, then reload the website guest page. Expect: the website follows.
+  5. Change Fit / Fill. Expect: the position resets to the middle.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#199 Website: edit the guest page from Preview Guest Theme
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     Hosts can edit their guest page right where guests see it: cover (one for computers, one for phones), title, date, message and highlight video, from a bar at the bottom or gold pencils on the page. Changes are a draft until Save; guests see nothing of the bar or pencils.
+Detail:    Todo #11, commit 610b2c0a. Off on staging until NEXT_PUBLIC_GUEST_EDIT_MODE=true is set on the Vercel project evebash-staging and it is redeployed; test after that. Use an event you own (or are admin of) with at least one album.
+How to test:
+  1. Host > an event > Design > Preview Guest Theme. Expect: the guest page with an edit bar at the bottom and pencils on the cover, title, date, message and video.
+  2. Click the title pencil and change the title. Expect: the page shows it at once; the bar says "1 change".
+  3. Cover: in the Computer tab pick a gallery photo, drag the dot and zoom; in the Phone tab pick another photo. Expect: the page follows; at phone width the phone cover shows.
+  4. Change the date, the message and the video (or None). Expect: the page follows each.
+  5. Pick an album in the "Editing" menu and change its title. Expect: "N changes in 2 galleries".
+  6. Discard. Expect: everything goes back. Make a change again and Save. Expect: "Saved"; after a reload the change is kept; in a private window (as a guest) it shows, with no bar or pencils.
+  7. Click the eye (View as guest). Expect: the bar folds away; "Back to editing" brings it back.
+  8. Repeat steps 1-2 in Royal Emerald, Classic White, Sunlit Portrait, Midnight Hero and Confetti Circle. On a phone, the names and date of Sunlit Portrait and Midnight Hero, and Confetti Circle's circle, sit above the bar.
+  9. Click Done. Expect: back to the normal page.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#200 App: edit the guest page from Preview Guest Theme
+Status:    TODO
+Priority:  Medium
+Platform:  App
+Brief:     The same edit mode in the app: Preview Guest Theme opens the guest view with an edit bar and pencils; sheets change the cover (the phone cover), title, date, message and video; Save or Discard.
+Detail:    Todo #11, commit 610b2c0a. Needs an EAS staging build made with EXPO_PUBLIC_GUEST_EDIT_MODE=true. Themes: Royal Emerald, Classic White, Sunlit Portrait, Midnight Hero (Confetti Circle isn't in the app yet, todo #12).
+How to test:
+  1. Host > an event > Design > Preview Guest Theme. Expect: the guest view with an edit bar at the bottom and pencils on the cover, title, date, message and video.
+  2. Change the title, the date (the wheel starts on the saved date) and the message. Expect: the guest view shows each at once.
+  3. Cover: pick a photo, move and zoom it. Save. Expect: the app shows it; the website on a computer keeps its own cover, on a phone browser it shows the new one.
+  4. Video: pick one of the gallery's videos. Expect: it plays at the top.
+  5. Make a change and Discard. Expect: it goes back. Save another change, leave and open the event again. Expect: kept.
+  6. Repeat in each of the four themes; in Sunlit Portrait and Midnight Hero the text at the bottom of the first screen sits above the bar.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#201 Website: Confetti Circle bride and groom details
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     Confetti Circle's section under the cover now shows the bride and groom only as the host fills them in (label, name, a few words, Instagram / Facebook / X). Nothing is taken from the event title; a side shows only with a name, and only the links that were added.
+Detail:    Todo #10, commit 610b2c0a (database change applied 2026-11-07). Needs NEXT_PUBLIC_GUEST_EDIT_MODE=true on staging, like #199. With it off the section looks as before (names from the title, placeholder words).
+How to test:
+  1. A Wedding event in Confetti Circle > Design > Preview Guest Theme. Scroll to "We're getting married!". Expect: the video frame with "Add bride" and "Add groom" pencils; no names or placeholder words.
+  2. Add bride: a name, a few words and an Instagram @username. Expect: she shows on the left with only the Instagram icon; the ribbon still shows the event title.
+  3. In Facebook type instagram.com/someone. Expect: a red "Not a Facebook profile link" note and no Facebook icon.
+  4. Add groom: a name only. Expect: the ribbon says "Bride ♥ Groom" with their names; the two names line up.
+  5. Save. Open the main gallery and an album in a private window. Expect: the same details; the Instagram icon opens the profile in a new tab.
+  6. At phone width. Expect: both sides under the video, side by side; with only one side filled it takes the full width.
+  7. Clear this side for both and Save. Expect: only the video frame, with the event title in the ribbon.
 Done by:
 Device / browser:
 Build / version:
