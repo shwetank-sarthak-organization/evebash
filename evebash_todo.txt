@@ -245,7 +245,7 @@ Listed:       2026-10-27
 Platform:     App
 Priority:     High
 Phase:        1 (v1 launch)
-Status:       Agreed
+Status:       In progress
 Effort:       M
 Suggested by: Sarthak (2026-10-27: "website looks done, next is mobile app for this theme")
 Discussed:    Yes
@@ -253,7 +253,11 @@ Decision:     2026-10-27 Sarthak: the website version is done; build the app ver
               2026-11-06 Sarthak: High priority, build it before launch. It is one of the five themes
               every event type can pick (shared/themes/activeThemes.ts); until it's built the app's
               pickers show the other four.
-Owner:        Unassigned
+              2026-11-07 Sarthak (with Claude): build the guest design first, then the Couple editor;
+              another chat builds the app's Couple sheet (EditChip, useGuestEdit, GuestEditBar) on top
+              of the design. Design built and checked in the iOS simulator; on staging in 4b97ef14
+              (device test #203). The Couple sheet (step 2) is still to come.
+Owner:        Sarthak (with Claude)
 Depends on:   -
 Brief:        The website has the wedding theme "Confetti Circle" (id "confetti", device test #151),
               but the app has no "confetti" entry in apps/mobile/constants/templates.ts, so the app's
