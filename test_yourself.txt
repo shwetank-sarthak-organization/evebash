@@ -5671,7 +5671,7 @@ Status:    TODO
 Priority:  Medium
 Platform:  Website
 Brief:     Hosts can edit their guest page right where guests see it: cover (one for computers, one for phones), title, date, message and highlight video, from a bar at the bottom or gold pencils on the page. Changes are a draft until Save; guests see nothing of the bar or pencils.
-Detail:    Todo #11, commit 610b2c0a. Off on staging until NEXT_PUBLIC_GUEST_EDIT_MODE=true is set on the Vercel project evebash-staging and it is redeployed; test after that. Use an event you own (or are admin of) with at least one album.
+Detail:    Todo #11, commit 610b2c0a. On for staging.evebash.com since 2026-11-07 (NEXT_PUBLIC_GUEST_EDIT_MODE=true on Vercel evebash-staging). Use an event you own (or are admin of) with at least one album.
 How to test:
   1. Host > an event > Design > Preview Guest Theme. Expect: the guest page with an edit bar at the bottom and pencils on the cover, title, date, message and video.
   2. Click the title pencil and change the title. Expect: the page shows it at once; the bar says "1 change".
@@ -5720,7 +5720,7 @@ Status:    TODO
 Priority:  Medium
 Platform:  Website
 Brief:     Confetti Circle's section under the cover now shows the bride and groom only as the host fills them in (label, name, a few words, Instagram / Facebook / X). Nothing is taken from the event title; a side shows only with a name, and only the links that were added.
-Detail:    Todo #10, commit 610b2c0a (database change applied 2026-11-07). Needs NEXT_PUBLIC_GUEST_EDIT_MODE=true on staging, like #199. With it off the section looks as before (names from the title, placeholder words).
+Detail:    Todo #10, commit 610b2c0a (database change applied 2026-11-07). On for staging.evebash.com since 2026-11-07 (NEXT_PUBLIC_GUEST_EDIT_MODE=true, like #199). With it off the section looks as before (names from the title, placeholder words).
 How to test:
   1. A Wedding event in Confetti Circle > Design > Preview Guest Theme. Scroll to "We're getting married!". Expect: the video frame with "Add bride" and "Add groom" pencils; no names or placeholder words.
   2. Add bride: a name, a few words and an Instagram @username. Expect: she shows on the left with only the Instagram icon; the ribbon still shows the event title.
