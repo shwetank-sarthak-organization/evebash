@@ -7,7 +7,7 @@ import { type ClassicHeroProps } from '@/components/classic/ClassicHero';
 import { coverContentPosition, coverZoomStyle } from '@/lib/coverStyle';
 import { Fonts } from '@/constants/theme';
 import { EditChip, useGuestEditSpots } from '@/components/event/guestEdit/EditChip';
-import { displayCoupleTitle, splitCoupleNames } from '../../../../shared/text/coupleNames';
+import { coupleInitials, displayCoupleTitle, splitCoupleNames } from '../../../../shared/text/coupleNames';
 import {
   CONFETTI_COLORS,
   CONFETTI_COVER_SPECKS,
@@ -20,12 +20,12 @@ import {
 import { ConfettiGradientLine, ConfettiSpecks, ConfettiTear } from './ConfettiBits';
 import { type ConfettiFontSet } from './confettiFonts';
 
-// Confetti Circle cover for phones, from the website (src/components/TemplateConfetti.tsx, confetti-circle.css): the
-// cover photo fills the screen with a big see-through white circle holding the couple's names in pink-to-orange
-// capitals, "- and -" between them, the date as "March | 28 | 2025" and the place. A dark tag on the circle's top edge
-// holds a red heart and the gallery's message (italic, in quotes), paint specks fall round the circle, and a torn-paper
-// edge leads into the gallery. Back and Share sit at the top, where the website has its navbar; the round dark arrow at
-// the bottom opens the gallery.
+// Confetti Circle cover for phones, from the design's phone layout (website: src/components/TemplateConfetti.tsx,
+// confetti-circle.css): a soft-white top bar with Back, the couple's initials "S ♥ R" and Share; under it a band of the
+// cover photo with a big see-through white circle holding the couple's names in pink-to-orange capitals, "- and -"
+// between them, the date as "March | 28 | 2025" and the place. A dark tag hangs from the top bar onto the circle's top
+// edge with a red heart and the gallery's message (italic, in quotes); paint specks fall round the circle and a
+// torn-paper edge leads straight into the gallery tabs.
 
 export interface ConfettiHeroProps {
   /** The gallery being shown: its date, place, message and cover */
@@ -40,21 +40,30 @@ export interface ConfettiHeroProps {
   width: number;
   height: number;
   insetTop: number;
-  insetBottom: number;
   fonts: ConfettiFontSet;
-  onOpenGallery: () => void;
   onBack: () => void;
   onShare: () => void;
 }
 
 const NAME_SIZES = { '': 0.19, long: 0.14, xlong: 0.1 } as const;
+// The top bar under the clock, and the circle's size: about 80% of the screen's width, as in the design's phone layout
+const BAR_HEIGHT = 52;
+const confettiCircleSize = (width: number) => Math.round(width * 0.8);
+
+/** The cover's height for this screen: the top bar, the part of the tag above the circle, the circle, room for the
+ *  specks and the torn edge. The event screen sizes the cover with it. */
+export function confettiHeroHeight(width: number, insetTop: number): number {
+  const circle = confettiCircleSize(width);
+  return insetTop + BAR_HEIGHT + Math.round(circle * 0.09) + circle + 30;
+}
 const TAG_WIDTHS = { '': 0.27, long: 0.34, xlong: 0.4 } as const;
 
-export function ConfettiHero({ gallery, mainTitle, mainCategory, isAlbum = false, coverSource, width, height, insetTop, insetBottom, fonts, onOpenGallery, onBack, onShare }: ConfettiHeroProps) {
+export function ConfettiHero({ gallery, mainTitle, mainCategory, isAlbum = false, coverSource, width, height, insetTop, fonts, onBack, onShare }: ConfettiHeroProps) {
   // The cover image's size, to zoom it around the focus point (lib/coverStyle.ts)
   const [coverSize, setCoverSize] = React.useState<{ width: number; height: number }>();
   const rawTitle = (mainTitle || gallery.title || '').trim();
   const couple = splitCoupleNames(rawTitle);
+  const initials = coupleInitials(rawTitle);
   const title = displayCoupleTitle(rawTitle);
   const message = confettiMessage(gallery.description);
   const tagText = message || confettiTagLine(mainCategory || gallery.category);
@@ -66,11 +75,10 @@ export function ConfettiHero({ gallery, mainTitle, mainCategory, isAlbum = false
   // Edit mode (todo #11): pencils on the cover, the circle's names and date and the tag's message; nothing for guests
   const editing = useGuestEditSpots();
 
-  // As on the website: the tag starts at the top of the screen (Back / Share sit beside it), the circle as big as the
-  // room down to the arrow and torn edge allows, and never wider than the screen
-  const tagTop = insetTop + 8;
-  const bottomRoom = insetBottom + 92;
-  const circle = Math.round(Math.min(width * 0.92, (height - tagTop - bottomRoom) / 1.09));
+  // The photo starts under the top bar; the tag hangs from the bar, the circle's top edge 9% of its width below it
+  const photoTop = insetTop + BAR_HEIGHT;
+  const tagTop = photoTop;
+  const circle = confettiCircleSize(width);
   const circleTop = tagTop + Math.round(circle * 0.09);
   const pct = (share: number) => Math.round(circle * share * 10) / 10;
   const lineWidth = pct(0.84);
@@ -82,6 +90,7 @@ export function ConfettiHero({ gallery, mainTitle, mainCategory, isAlbum = false
 
   return (
     <View style={[local.screen, { width, height }]}>
+      <View style={[local.photo, { top: photoTop }]}>
       {coverSource ? (
         <>
           {/* "Fit" covers keep the whole photo; a blurred copy fills the sides */}
@@ -99,8 +108,7 @@ export function ConfettiHero({ gallery, mainTitle, mainCategory, isAlbum = false
       ) : (
         <LinearGradient colors={['#efe1d6', '#c9b1a5']} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={StyleSheet.absoluteFill} />
       )}
-      {/* A little darker at the top for Back / Share */}
-      <LinearGradient colors={['rgba(20,16,12,0.35)', 'rgba(20,16,12,0)']} style={[local.shade, { top: 0, height: insetTop + 80 }]} pointerEvents="none" />
+      </View>
 
       {/* The circle, its specks and its tag */}
       <View style={[local.circleBox, { top: circleTop, left: (width - circle) / 2, width: circle, height: circle }]}>
@@ -160,18 +168,25 @@ export function ConfettiHero({ gallery, mainTitle, mainCategory, isAlbum = false
         </Text>
       </View>
 
-      <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" style={[local.roundGlass, { top: insetTop + 8, left: 16 }]} activeOpacity={0.8}>
-        <IconSymbol name="chevron.left" size={20} color="#ffffff" />
-      </TouchableOpacity>
-      <TouchableOpacity onPress={onShare} accessibilityRole="button" accessibilityLabel="Share event" style={[local.roundGlass, { top: insetTop + 8, right: 16 }]} activeOpacity={0.8}>
-        <IconSymbol name="square.and.arrow.up" size={18} color="#ffffff" />
-      </TouchableOpacity>
-      {/* Under Share */}
-      <EditChip field="cover" label={coverSource ? 'Cover' : 'Add cover photo'} adding={!coverSource} at={{ top: insetTop + 62, right: 16 }} />
-
-      <TouchableOpacity onPress={onOpenGallery} accessibilityRole="button" accessibilityLabel="Open gallery" style={[local.open, { bottom: insetBottom + 34, left: width / 2 - 25 }]} activeOpacity={0.85}>
-        <IconSymbol name="arrow.down" size={20} color="#ffffff" />
-      </TouchableOpacity>
+      {/* Top bar: Back, the couple's initials, Share */}
+      <View style={[local.bar, { height: photoTop, paddingTop: insetTop }]}>
+        <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" style={local.barButton} activeOpacity={0.7} hitSlop={6}>
+          <IconSymbol name="chevron.left" size={20} color={CONFETTI_COLORS.ink} />
+        </TouchableOpacity>
+        {initials ? (
+          <View style={local.initials} accessible accessibilityRole="header" accessibilityLabel={`${initials[0]} and ${initials[1]}`}>
+            <Text style={[local.initial, { fontFamily: fonts.display }]}>{initials[0]}</Text>
+            {/* In the system font: Bebas Neue has no heart */}
+            <Text style={local.initialsHeart}>♥</Text>
+            <Text style={[local.initial, { fontFamily: fonts.display }]}>{initials[1]}</Text>
+          </View>
+        ) : <View />}
+        <TouchableOpacity onPress={onShare} accessibilityRole="button" accessibilityLabel="Share event" style={local.barButton} activeOpacity={0.7} hitSlop={6}>
+          <IconSymbol name="square.and.arrow.up" size={18} color={CONFETTI_COLORS.ink} />
+        </TouchableOpacity>
+      </View>
+      {/* On the photo, under Share */}
+      <EditChip field="cover" label={coverSource ? 'Cover' : 'Add cover photo'} adding={!coverSource} at={{ top: photoTop + 10, right: 12 }} />
 
       <ConfettiTear height={22} />
     </View>
@@ -192,8 +207,19 @@ function balancedLines(title: string): string[] {
 }
 
 const local = StyleSheet.create({
-  screen: { backgroundColor: '#d9c7bd', overflow: 'hidden' },
-  shade: { position: 'absolute', left: 0, right: 0 },
+  screen: { backgroundColor: CONFETTI_COLORS.paper, overflow: 'hidden' },
+  photo: { position: 'absolute', left: 0, right: 0, bottom: 0, overflow: 'hidden', backgroundColor: '#d9c7bd' },
+  bar: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    backgroundColor: CONFETTI_COLORS.paper,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(42,39,39,0.12)',
+  },
+  barButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  initials: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  initial: { color: CONFETTI_COLORS.ink, fontSize: 30, lineHeight: 34 },
+  initialsHeart: { color: CONFETTI_COLORS.pink, fontSize: 16, fontFamily: Fonts.inter.bold },
   circleBox: { position: 'absolute' },
   circle: {
     // See-through, so the photo shows behind the names (the website's 70% white)
@@ -215,19 +241,4 @@ const local = StyleSheet.create({
   tagline: { color: '#ffffff', textAlign: 'center', lineHeight: undefined },
   taglineCaps: { fontFamily: Fonts.inter.semiBold, letterSpacing: 0.9 },
   taglineMessage: { fontFamily: Fonts.inter.medium, fontStyle: 'italic', letterSpacing: 0.2 },
-  roundGlass: { position: 'absolute', width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,16,12,0.32)' },
-  open: {
-    position: 'absolute',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: CONFETTI_COLORS.ink,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
-  },
 });

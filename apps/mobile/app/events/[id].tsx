@@ -66,7 +66,7 @@ import { PortraitHero } from '../../components/portrait/PortraitHero';
 import { PortraitGalleryHeader } from '../../components/portrait/PortraitGalleryHeader';
 import { PortraitFooter } from '../../components/portrait/PortraitFooter';
 import { usePortraitFonts } from '../../components/portrait/portraitFonts';
-import { ConfettiHero } from '../../components/confetti/ConfettiHero';
+import { ConfettiHero, confettiHeroHeight } from '../../components/confetti/ConfettiHero';
 import { ConfettiCoupleSection } from '../../components/confetti/ConfettiCoupleSection';
 import { ConfettiGalleryHeader } from '../../components/confetti/ConfettiGalleryHeader';
 import { ConfettiFooter } from '../../components/confetti/ConfettiFooter';
@@ -1095,7 +1095,10 @@ function EventDetailScreen() {
     ? 400
     : isSportsTemplate
       ? 555 + insets.top
-    : event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'portrait' || event?.templateId === 'confetti' || event?.templateId === 'hero'
+    // Confetti Circle: a top bar and a band of the photo round its circle, as in the design's phone layout
+    : event?.templateId === 'confetti'
+      ? confettiHeroHeight(windowWidth, insets.top)
+    : event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'portrait' || event?.templateId === 'hero'
       // The cover fills the screen above the bottom bar when it shows
       ? windowHeight - themedAppBarHeight
       : event?.templateId === 'ethereal'
@@ -3995,11 +3998,7 @@ function EventDetailScreen() {
               width={windowWidth}
               height={heroHeight}
               insetTop={insets.top}
-              // The pinned gallery tabs' top spacer overlaps the cover's bottom edge
-              // In edit mode the arrow sits above the edit bar
-              insetBottom={Math.max(insets.bottom, stickyTabsTopInset, guestEditSpots ? guestEditBarHeight : 0)}
               fonts={confettiFonts}
-              onOpenGallery={() => scrollViewRef.current?.scrollTo({ y: heroHeight - stickyTabsTopInset, animated: true })}
               onBack={handleEventBack}
               onShare={() => setShowShareModal(true)}
             />
@@ -8133,8 +8132,10 @@ function EventDetailScreen() {
         </View>
       </RNAnimated.ScrollView>
 
-      {/* Sunlit Portrait and Confetti Circle: a light clock over the cover photo, a dark one on the pinned tabs' paper bar */}
-      {(isPortraitGuest || isConfettiGuest) && <StatusBar style={tabsPinned ? 'dark' : 'light'} />}
+      {/* Sunlit Portrait: a light clock over the cover photo, a dark one on the pinned tabs' paper bar. Confetti Circle: dark
+          on its soft-white top bar and tabs */}
+      {isPortraitGuest && <StatusBar style={tabsPinned ? 'dark' : 'light'} />}
+      {isConfettiGuest && <StatusBar style="dark" />}
 
       {showsThemedAppBar && (
         <ThemedAppBar colors={{ background: '#FCFCFA', border: '#E6E6E0', active: '#2C352E', inactive: '#8B9A6E' }} />
