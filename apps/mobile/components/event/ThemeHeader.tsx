@@ -560,7 +560,7 @@ export function ThemeHeader({
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Collections menu (Royal Emerald, Classic White): the albums, under the Collections tab */}
+      {/* Collections menu (Royal Emerald, Classic White, Sunlit Portrait, Confetti Circle): the albums, under the Collections tab */}
       {groupsCollections && collectionsOpen && (
         // statusBarTranslucent: the modal then uses the same coordinates as the touch
         <Modal transparent visible statusBarTranslucent animationType="fade" onRequestClose={() => setCollectionsOpen(false)}>
@@ -573,12 +573,12 @@ export function ThemeHeader({
                 width: 240,
                 maxHeight: 360,
                 paddingVertical: 6,
-                borderRadius: isClassic ? 2 : isPortrait ? 12 : 14,
+                borderRadius: isClassic || isConfetti ? 2 : isPortrait ? 12 : 14,
                 borderWidth: 1,
-                borderColor: isClassic ? '#E6E6E0' : isPortrait ? '#E7DFD4' : 'rgba(202,156,105,0.55)',
-                backgroundColor: isClassic ? '#FCFCFA' : isPortrait ? '#FBF8F3' : '#021a15',
-                shadowColor: isClassic ? '#2C352E' : isPortrait ? '#1F1B17' : '#000',
-                shadowOpacity: isClassic || isPortrait ? 0.18 : 0.5,
+                borderColor: isClassic ? '#E6E6E0' : isPortrait ? '#E7DFD4' : isConfetti ? 'rgba(42,39,39,0.12)' : 'rgba(202,156,105,0.55)',
+                backgroundColor: isClassic || isConfetti ? '#FCFCFA' : isPortrait ? '#FBF8F3' : '#021a15',
+                shadowColor: isClassic ? '#2C352E' : isPortrait ? '#1F1B17' : isConfetti ? '#2a2727' : '#000',
+                shadowOpacity: isClassic || isPortrait || isConfetti ? 0.18 : 0.5,
                 shadowRadius: 16,
                 shadowOffset: { width: 0, height: 8 },
                 elevation: 12,
@@ -600,8 +600,8 @@ export function ThemeHeader({
                         marginHorizontal: 6,
                         paddingVertical: 12,
                         paddingHorizontal: 14,
-                        borderRadius: isClassic ? 0 : 10,
-                        backgroundColor: active ? (isClassic ? 'rgba(139,154,110,0.14)' : isPortrait ? 'rgba(162,78,48,0.08)' : 'rgba(202,156,105,0.16)') : 'transparent',
+                        borderRadius: isClassic || isConfetti ? 0 : 10,
+                        backgroundColor: active ? (isClassic ? 'rgba(139,154,110,0.14)' : isPortrait ? 'rgba(162,78,48,0.08)' : isConfetti ? 'rgba(232,23,93,0.08)' : 'rgba(202,156,105,0.16)') : 'transparent',
                       }}
                     >
                       <TabLabel numberOfLines={1} style={[{ fontSize: 13, textTransform: 'uppercase' }, collectionTabText(active), isPortrait && { fontSize: 19 }]}>{sub.title}</TabLabel>
