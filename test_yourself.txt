@@ -5641,7 +5641,7 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Partly checked by Claude 2026-11-07 (not a real device): step 1 on staging.evebash.com (website picker shows the five, Coming soon below) and step 4 on the iPhone 16e simulator in the light look (four themes, Coming soon readable). Steps 2, 3 and 5 not checked.
 
 --------------------------------------------------------------------------------
 #198 The guest page follows the cover's Position on every screen
@@ -5667,7 +5667,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #199 Website: edit the guest page from Preview Guest Theme
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Brief:     Hosts can edit their guest page right where guests see it: cover (one for computers, one for phones), title, date, message and highlight video, from a bar at the bottom or gold pencils on the page. Changes are a draft until Save; guests see nothing of the bar or pencils.
@@ -5682,14 +5682,14 @@ How to test:
   7. Click the eye (View as guest). Expect: the bar folds away; "Back to editing" brings it back.
   8. Repeat steps 1-2 in Royal Emerald, Classic White, Sunlit Portrait, Midnight Hero and Confetti Circle. On a phone, the names and date of Sunlit Portrait and Midnight Hero, and Confetti Circle's circle, sit above the bar.
   9. Click Done. Expect: back to the normal page.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (checked by itself)
+Device / browser: Built-in browser (Chromium) on Mac; computer width and 375 px phone size emulated, not a real phone
+Build / version: staging.evebash.com, staging a2142725 with NEXT_PUBLIC_GUEST_EDIT_MODE=true
+Date tested: 2026-11-07
+Account used: host (owner of test-face-new-155c and bijay-wedding-0d8c)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: All 9 steps pass. Preview Guest Theme opens /events/<id>?edit=1; pencils on cover, title, date, message, video; title draft shows everywhere with "1 change"; Cover: Computer tab photo + dot + zoom follow on the page, Phone tab photo shows at phone width; date, message, video drafts show; album switch gives "10 changes in 2 galleries"; Discard puts all back; album title Save kept after reload and in the database, then put back; View as guest hides bar and pencils; Done drops ?edit=1. Step 8: Confetti Circle, Royal Emerald, Classic White, Sunlit Portrait (test-face-new switched and switched back) and Midnight Hero (bijay-wedding), drafts only; Sunlit Portrait and Midnight Hero text sits above the bar at phone width. Test data put back.
 
 --------------------------------------------------------------------------------
 #200 App: edit the guest page from Preview Guest Theme
@@ -5712,11 +5712,11 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Partly checked by Claude 2026-11-07 on the iPhone 16e simulator with a local build of staging and EXPO_PUBLIC_GUEST_EDIT_MODE=true (not an EAS build, not a real phone): Midnight Hero (bijay-wedding) shows the edit bar and pencils, the card sits above the bar, the Message sheet draft shows on the card with "1 change", Discard asks and puts it back. Cover, date, video and Save not repeated today. Still needs an EAS staging build with the switch on and a real phone.
 
 --------------------------------------------------------------------------------
 #201 Website: Confetti Circle bride and groom details
-Status:    TODO
+Status:    RETEST
 Priority:  Medium
 Platform:  Website
 Brief:     Confetti Circle's section under the cover now shows the bride and groom only as the host fills them in (label, name, a few words, Instagram / Facebook / X). Nothing is taken from the event title; a side shows only with a name, and only the links that were added.
@@ -5729,14 +5729,14 @@ How to test:
   5. Save. Open the main gallery and an album in a private window. Expect: the same details; the Instagram icon opens the profile in a new tab.
   6. At phone width. Expect: both sides under the video, side by side; with only one side filled it takes the full width.
   7. Clear this side for both and Save. Expect: only the video frame, with the event title in the ribbon.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (checked by itself)
+Device / browser: Built-in browser (Chromium) on Mac; computer width and 375 px phone size emulated, not a real phone
+Build / version: staging.evebash.com, staging a2142725 with NEXT_PUBLIC_GUEST_EDIT_MODE=true
+Date tested: 2026-11-07
+Account used: host (owner of test-face-new-155c)
 Screenshot / recording:
-Fix ref:
-Feedback:
+Fix ref: 65238da8 (2026-11-07): after saving a couple with both sides cleared, the page kept the old names until a reload
+Feedback: Steps 1-6 pass (empty frame with Add bride / Add groom and no placeholder words; bride with words and Instagram only; wrong Facebook link refused with the red note and hidden; groom name only gives the ribbon "Jyoti ♥ Samarth" with names level; saved and shown on the album as a guest, Instagram opens in a new tab; side by side at phone width). Step 7 FAIL: after clearing both sides and Save the database was empty but the page still showed the old couple until reloaded. Fixed in 65238da8; retest step 7 once it is on staging. Sarthak's own Jyoti / Samarth put back.
 
 --------------------------------------------------------------------------------
 #202 Plan event limit is also checked by the database
