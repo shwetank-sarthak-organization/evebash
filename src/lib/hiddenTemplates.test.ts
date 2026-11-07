@@ -11,13 +11,13 @@ import {
 import { ACTIVE_THEME_IDS, comingSoonThemes, pickableThemes } from '../../shared/themes/activeThemes';
 
 // Hidden themes stay defined; they only leave the pickers.
-assert.equal(MOBILE_TEMPLATE_THEMES.length, 33);
+assert.equal(MOBILE_TEMPLATE_THEMES.length, 34);
 assert.equal(HIDDEN_TEMPLATE_IDS.length, 19);
 for (const id of HIDDEN_TEMPLATE_IDS) assert.ok(MOBILE_TEMPLATE_THEMES.some(t => t.id === id), `${id} still defined`);
 
-// Every event type picks from the active themes (shared/themes/activeThemes.ts, 2026-11-06); the app has no
-// Confetti Circle yet, so it shows the other four. The event type's own other themes are "Coming soon".
-const appActive = ['royal', 'classic', 'portrait', 'hero'];
+// Every event type picks from the active themes (shared/themes/activeThemes.ts, 2026-11-06), the same five as the
+// website since the app has Confetti Circle (todo #12). The event type's own other themes are "Coming soon".
+const appActive = ['royal', 'classic', 'portrait', 'hero', 'confetti'];
 const comingSoon: Record<string, string[]> = {
   Wedding: [],
   Anniversary: [],

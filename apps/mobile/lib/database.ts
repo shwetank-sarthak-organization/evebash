@@ -5,6 +5,7 @@ import { sendPushNotificationDirectly } from "./notifications";
 import { DEFAULT_EVENT_COVER_IMAGE } from "./eventCovers";
 import { appAlert } from "./feedback";
 import { isMissingUploadedFile } from "../../../shared/media/missingUpload";
+import { readThemeContent, type ThemeContent } from "../../../shared/themes/themeContent";
 
 const COVER_USAGE_TAG = "__cover_usage__";
 const BUSINESS_PORTFOLIO_EVENTS_KEY = "__portfolio_events__";
@@ -91,6 +92,8 @@ export interface Event {
     isHidden?: boolean;
     /** Cinematic highlight video (photos.id) shown under the welcome message; null = none, undefined = column not there yet */
     galleryVideoId?: string | null;
+    /** The theme's own content (Confetti Circle's couple...), main events only; undefined = not read (no column yet) */
+    themeContent?: ThemeContent;
 }
 
 export interface Photo {
@@ -348,7 +351,8 @@ function mapSqlToEvent(e: any): Event {
         isSampleGallery: !!e.is_sample_gallery,
         isHidden: !!e.is_hidden,
         sampleGalleryOrder: e.sample_gallery_order,
-        galleryVideoId: e.gallery_video_id === undefined ? undefined : e.gallery_video_id
+        galleryVideoId: e.gallery_video_id === undefined ? undefined : e.gallery_video_id,
+        themeContent: e.theme_content === undefined ? undefined : readThemeContent(e.theme_content)
     };
 }
 

@@ -1,7 +1,7 @@
 // Website and app (one copy): the themes hosts can pick right now. Decided 2026-11-06 (Sarthak): these five for
 // every event type, in this order. In the picker, the event type's own other themes show greyed out as "Coming soon";
 // themes hidden for good (HIDDEN_TEMPLATE_IDS) don't show at all. An event already on another theme keeps it.
-// A platform that doesn't have one of these yet (the app has no Confetti Circle) just leaves it out.
+// A platform that doesn't have one of these yet just leaves it out (the app has all five since todo #12).
 
 export const ACTIVE_THEME_IDS: readonly string[] = ['royal', 'classic', 'portrait', 'hero', 'confetti'];
 

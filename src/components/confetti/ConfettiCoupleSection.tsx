@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Play } from "lucide-react";
 import { HLSVideoPlayer } from "@/components/ui/HLSVideoPlayer";
 import type { ClassicGalleryVideo } from "@/components/classic/ClassicGalleryHeader";
-import { makeSpecks } from "@/components/confetti/confettiSpecks";
+import { CONFETTI_FRAME_SPECKS, confettiCoupleHeading } from "../../../shared/themes/confettiCircle";
 import { SOCIAL_ICONS } from "@/components/icons/SocialIcons";
 import { splitCoupleNames } from "../../../shared/text/coupleNames";
 import {
@@ -33,16 +33,6 @@ import { GUEST_EDIT_ENABLED } from "@/components/guestEdit/guestEditStore";
 // names in a "Name and Name" title, with placeholder words and icons.
 const PLACEHOLDER_BIO = "A few words about them will show here once the couple adds them in the theme editor.";
 const PLACEHOLDER_NETWORKS = ["facebook", "instagram", "x"] as const;
-
-// Heavier at the top left, lighter at the bottom right, like the reference
-const SPECKS = makeSpecks({ seed: 11, count: 60, heavyAngle: -Math.PI * 0.72, lightAngle: Math.PI * 0.25 });
-
-/** The heading above the section, by the main event's category */
-function confettiCoupleHeading(category?: string) {
-    if (category === "Wedding") return "We're getting married!";
-    if (category === "Anniversary") return "Still choosing each other";
-    return "Our story";
-}
 
 /** The section as it was before todo #10 (edit mode off): placeholder words and icons that link nowhere */
 function PlaceholderPerson({ role, name }: { role: string; name: string }) {
@@ -157,7 +147,7 @@ export function ConfettiCoupleSection({ title, category, couple, video, coverIma
 
                 <figure className={playing ? "confetti-couple__frame confetti-couple__frame--playing" : "confetti-couple__frame"}>
                     <div className="confetti-couple__specks" aria-hidden="true">
-                        {SPECKS.map((speck, index) => (
+                        {CONFETTI_FRAME_SPECKS.map((speck, index) => (
                             <span
                                 key={index}
                                 className={speck.pink ? "confetti-hero__speck" : "confetti-hero__speck confetti-hero__speck--orange"}

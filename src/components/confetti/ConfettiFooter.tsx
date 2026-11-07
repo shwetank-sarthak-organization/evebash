@@ -4,6 +4,7 @@ import Link from "next/link";
 import { confettiDisplay } from "@/components/confetti/confettiFonts";
 import { THEME_FOOTER_LEFT_LINKS as LEFT_LINKS, THEME_FOOTER_RIGHT_LINKS as RIGHT_LINKS } from "@/components/themeFooterLinks";
 import { coupleInitials, displayCoupleTitle } from "../../../shared/text/coupleNames";
+import { CONFETTI_FOOTER_TEAR_PAPER_PATH, CONFETTI_FOOTER_TEAR_SHADOW_PATH } from "../../../shared/themes/confettiCircle";
 
 // Footer of every Confetti Circle guest page (gallery, albums, Find You), drawn by EventRouteShell in place of the
 // shared one-line event footer (styles in src/app/confetti-circle.css). A torn-paper edge, then: links to EveBash on
@@ -17,8 +18,8 @@ export function ConfettiFooter({ title }: { title: string }) {
         <footer className={`confetti-footer ${confettiDisplay.variable}`}>
             <svg className="confetti-footer__tear" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true">
                 {/* A grey shadow under the torn edge, then the footer's paper */}
-                <path className="confetti-footer__tear-shadow" d="M0 18 L60 14 L110 22 L170 16 L230 24 L290 18 L350 27 L410 20 L470 26 L540 17 L600 25 L660 19 L720 28 L790 21 L850 26 L910 18 L980 25 L1040 20 L1110 27 L1170 19 L1230 24 L1300 17 L1360 23 L1440 18 L1440 60 L0 60 Z" />
-                <path className="confetti-footer__tear-paper" d="M0 26 L50 22 L100 30 L160 24 L220 32 L280 26 L340 34 L400 28 L460 33 L530 25 L590 32 L650 27 L710 35 L780 29 L840 33 L900 26 L970 32 L1030 28 L1100 34 L1160 27 L1220 31 L1290 25 L1350 30 L1440 26 L1440 60 L0 60 Z" />
+                <path className="confetti-footer__tear-shadow" d={CONFETTI_FOOTER_TEAR_SHADOW_PATH} />
+                <path className="confetti-footer__tear-paper" d={CONFETTI_FOOTER_TEAR_PAPER_PATH} />
             </svg>
 
             <div className="confetti-footer__inner">
