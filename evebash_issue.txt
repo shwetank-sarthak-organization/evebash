@@ -1527,21 +1527,21 @@ Issue: The analytics dashboard's storage numbers are smaller than what the websi
 How to reproduce: Compare Analytics Hub > User Accounts > Total GB for shwetank.chauhan3@gmail.com with staging.evebash.com/profile > Storage Usage on that account.
 Note 2026-11-10: fixed on staging in 7854c4b3: the dashboard counts size + overhead_size everywhere it shows storage (storedBytes in apps/analytics-dashboard/src/lib/analytics.ts): User Accounts Photos/Videos/Total GB and Cost, Galleries, Infra Cost storage, and the deleted-event archive. Video GPU checks still use the original file size. Album Proofs bytes are still not counted (none on this account).
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #259
 Listed: 2026-11-10
 Platform: Analytics dashboard
 Priority: Medium
-Status: In progress
+Status: Fixed
 Owner: Shwetank (with Claude)
-Blocked by: Check on the deployed dashboard (newone@email.com Vault GB 0.12); move to RECENTLY FIXED once it shows
 Found in: Chat 2026-11-10 (does User Accounts show EB Vault storage?)
 Issue: The analytics dashboard doesn't show EB Vault storage anywhere. User Accounts' Photos/Videos/Total GB and Cost count only event media, and the user detail page has no EB Vault figure, but events and EB Vault share one storage pool: the Profile total and the upload limits add EB Vault (vault_accounts.used_bytes + reserved_bytes). So the dashboard shows less than the Profile for anyone using EB Vault (today only newone@email.com, 0.12 GB). The dashboard can't read vault_accounts itself (each user may read only their own row), so it needs a backend admin action. Fix: a read-only admin action that returns each user's EB Vault bytes; a Vault GB column in User Accounts; Total GB and Cost include it; the user detail page shows it.
 How to reproduce: Analytics Hub > User Accounts > newone@email.com: no Vault column, and Total GB is 0.12 GB less than staging.evebash.com/profile > Storage Usage on that account.
 Note 2026-11-10: fixed on staging in ceb0cdbb. Backend: read-only admin action vaultUsage on /api/admin/control (listVaultUsage in apps/backend/src/routes/admin.ts, platform admins only, test tests/vaultUsage.test.ts). Dashboard: User Accounts has a Vault GB column (sortable); Total GB and Cost include EB Vault; the user detail page has an EB Vault Storage card and its used/quota meter and Backblaze cost include it. Until the backend is deployed the column shows 0.00 GB.
-
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+Fixed in: ceb0cdbb (2026-11-10). Checked on the deployed dashboard 2026-11-10: the Vault GB column shows.
 
 #257
 Listed: 2026-11-07
