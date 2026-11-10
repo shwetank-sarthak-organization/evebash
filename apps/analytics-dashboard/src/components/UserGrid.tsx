@@ -5,6 +5,7 @@ import {
   fetchAllModalCostLogs,
   fetchDeletedEvents,
   computeUserEveBashCost,
+  storedBytes,
   type Event,
   type Photo,
   type UserProfile,
@@ -597,7 +598,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
 
     photos.forEach(photo => {
       if (!photo.eventId) return;
-      eventMediaBytes.set(photo.eventId, (eventMediaBytes.get(photo.eventId) || 0) + (Number(photo.size) || 0));
+      eventMediaBytes.set(photo.eventId, (eventMediaBytes.get(photo.eventId) || 0) + storedBytes(photo));
     });
 
     users.forEach(user => {
@@ -757,7 +758,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
       const current = metrics.get(userId);
       if (!current) return;
 
-      const size = Number(photo.size) || 0;
+      const size = storedBytes(photo);
       const mediaType = String(photo.mediaType || '').toLowerCase();
       const resourceType = String(photo.resourceType || '').toLowerCase();
       const isVideo = mediaType === 'video' || resourceType === 'video';

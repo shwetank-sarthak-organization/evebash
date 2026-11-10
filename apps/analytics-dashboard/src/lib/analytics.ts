@@ -229,6 +229,15 @@ export interface Photo {
   createdAt?: string;
 }
 
+/**
+ * Bytes a photo or video takes up in storage: the original plus its processed copies (video streaming versions,
+ * previews, thumbnails). The same sum the website and app storage cards and the upload limits use
+ * (vault_event_storage_bytes).
+ */
+export function storedBytes(photo: { size?: number | null; overheadSize?: number | null }) {
+  return (Number(photo.size) || 0) + (Number(photo.overheadSize) || 0);
+}
+
 let cachedWorkingPhotosSelect: string | null = null;
 
 export async function fetchPhotos(): Promise<Photo[]> {
@@ -627,7 +636,7 @@ export async function directDeleteEvent(eventId: string) {
   // Delete related photos, faces, likes, comments
   const { data: photos } = await supabase
     .from('photos')
-    .select('id, size, media_type, resource_type, user_id')
+    .select('id, size, overhead_size, media_type, resource_type, user_id')
     .eq('event_id', eventId);
 
   const photoRows = photos || [];
@@ -635,7 +644,7 @@ export async function directDeleteEvent(eventId: string) {
 
   const imageCount = photoRows.filter(p => (p.media_type || p.resource_type) !== 'video').length;
   const videoCount = photoRows.filter(p => (p.media_type || p.resource_type) === 'video').length;
-  const totalBytes = photoRows.reduce((sum, p) => sum + (Number(p.size) || 0), 0);
+  const totalBytes = photoRows.reduce((sum, p) => sum + storedBytes({ size: p.size, overheadSize: p.overhead_size }), 0);
   const userId = eventData?.created_by || photoRows[0]?.user_id || 'unknown';
 
   // Fetch actual per-second compute cost logged in modal_cost_logs
@@ -1022,7 +1031,7 @@ export function computeDashboardStats(
     .slice(0, 5)
     .map(({ name, emailOrPhone, type, time }) => ({ name, emailOrPhone, type, time }));
 
-  const totalStorage = photos.reduce((sum, p) => sum + (Number(p.size) || 0) + (Number(p.overheadSize) || 0), 0);
+  const totalStorage = photos.reduce((sum, p) => sum + storedBytes(p), 0);
 
   return {
     totalUsers,

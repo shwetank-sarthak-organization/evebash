@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 258
+Next issue number: 259
 
 =====================================================================
 ACTIVE ISSUES
@@ -1514,6 +1514,17 @@ How to reproduce: On the website host page, open an event, Change Cover to a tal
 Note 2026-11-07: parts 1-3 on staging in 610b2c0a (todo #11): the position is now a focus point in % plus a zoom everywhere (shared/themes/coverFocus.ts), the website's active themes and the app follow it, and a gallery can have a separate phone cover (set in edit mode, behind the switches). 3 of 74 events had a moved cover, none past 50, so none snaps to an edge. Device test #198. Left: (4) EventDesignPreview.tsx still draws the cover centred, and website themes outside the five active ones plus Periwinkle Script (e.g. Cinematic) still ignore the position.
 Note 2026-11-06: Being fixed with todo #11 on local branch feat/guest-edit-mode (not on staging yet), no database change. The position fields now mean the same everywhere (shared/themes/coverFocus.ts): coverOffsetX / coverOffset are the focus point's distance from the middle in percent of the photo (-50..50), coverScale the zoom (1-2.5), and zoom grows around the focus point. Website guest themes, dashboard cards and the host page's Position editor use it (src/lib/coverStyle.ts); the app's Royal Emerald, Classic White and Sunlit Portrait covers too (apps/mobile/lib/coverStyle.ts); the app's own cover (Midnight Hero, host view) maps it onto its pixel shift. Preview Guest Theme's cover panel has Move and zoom (drag a dot on the photo, zoom slider) on both platforms. One focus point serves the phone and the computer frame. The 2 test galleries already moved in pixels (up to 50) now read as percent and shift a little.
 Note 2026-11-07: all four parts fixed on staging in 610b2c0a and 65238da8. The cover position is a focus point in % plus a zoom everywhere; the five active website themes, the app and the host page's Guest Home Preview (phone frame = phone cover, browser frame = computer cover) follow it; a gallery can have a separate phone cover. Themes outside the five (now "Coming soon") keep their old cover look. Checked on staging.evebash.com and in the browser on localhost. Device test #198.
+
+#258
+Listed: 2026-11-10
+Platform: Analytics dashboard
+Priority: Medium
+Status: In progress
+Owner: Shwetank (with Claude)
+Found in: Chat 2026-11-10 (shwetank.chauhan3@gmail.com: Profile shows 3.72 GB, dashboard Total GB shows 2.06 GB)
+Issue: The analytics dashboard's storage numbers are smaller than what the website, app and backend count. The dashboard (userUsageMetrics in apps/analytics-dashboard/src/components/UserGrid.tsx, photos loaded in src/lib/analytics.ts) adds up only photos.size, the original files. The Profile storage card, the upload limits and the EB Vault pool use vault_event_storage_bytes, which also counts photos.overhead_size (the processed copies: video streaming versions in 1080p/720p/480p and audio, previews, thumbnails) and Album Proofs pages and voice notes. For shwetank.chauhan3: originals 0.257 GB photos + 1.800 GB videos = 2.06 GB (dashboard); processed copies 1.66 GB more, almost all from 9 videos = 3.72 GB (Profile). The extra space is real storage on Backblaze, so the dashboard under-reports what each user uses, and the gap grows with video. Fix idea: show the same total as the Profile (call vault_event_storage_bytes / vault_event_storage_by_event), and optionally keep "originals" as a second column. Check whether the dashboard's Cost column uses the same smaller number.
+How to reproduce: Compare Analytics Hub > User Accounts > Total GB for shwetank.chauhan3@gmail.com with staging.evebash.com/profile > Storage Usage on that account.
+Note 2026-11-10: fixed locally (not pushed yet): the dashboard counts size + overhead_size everywhere it shows storage (storedBytes in apps/analytics-dashboard/src/lib/analytics.ts): User Accounts Photos/Videos/Total GB and Cost, Galleries, Infra Cost storage, and the deleted-event archive. Video GPU checks still use the original file size. Album Proofs bytes are still not counted (none on this account).
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
