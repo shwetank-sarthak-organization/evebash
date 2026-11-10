@@ -1370,6 +1370,26 @@ async function updatePricingPlans(
   return { count: rows.length };
 }
 
+/** Each user's EB Vault bytes (used + reserved for uploads in progress), the same figure the storage meter adds. */
+export async function listVaultUsage(supabaseAdmin: ReturnType<typeof getAdminClient>) {
+  const vaultBytes: Record<string, number> = {};
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabaseAdmin
+      .from("vault_accounts")
+      .select("owner_id, used_bytes, reserved_bytes")
+      .order("owner_id")
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    for (const row of data || []) {
+      const bytes = (Number(row.used_bytes) || 0) + (Number(row.reserved_bytes) || 0);
+      if (row.owner_id && bytes > 0) vaultBytes[row.owner_id] = bytes;
+    }
+    if (!data || data.length < pageSize) break;
+  }
+  return { vaultBytes };
+}
+
 adminRouter.options("/", (_request, response) => response.status(204).end());
 
 adminRouter.post("/", async (request: Request, response: ExpressResponse) => {
@@ -1495,6 +1515,10 @@ adminRouter.post("/", async (request: Request, response: ExpressResponse) => {
           throw new Error("Deletion confirmation is required");
         }
         const result = await deleteBackblazeOrphans(supabaseAdmin);
+        return jsonResponse(response, { success: true, ...result });
+      }
+      case "vaultUsage": {
+        const result = await listVaultUsage(supabaseAdmin);
         return jsonResponse(response, { success: true, ...result });
       }
       case "updatePricingPlans": {

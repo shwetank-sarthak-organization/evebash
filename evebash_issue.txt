@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 259
+Next issue number: 260
 
 =====================================================================
 ACTIVE ISSUES
@@ -1526,6 +1526,17 @@ Found in: Chat 2026-11-10 (shwetank.chauhan3@gmail.com: Profile shows 3.72 GB, d
 Issue: The analytics dashboard's storage numbers are smaller than what the website, app and backend count. The dashboard (userUsageMetrics in apps/analytics-dashboard/src/components/UserGrid.tsx, photos loaded in src/lib/analytics.ts) adds up only photos.size, the original files. The Profile storage card, the upload limits and the EB Vault pool use vault_event_storage_bytes, which also counts photos.overhead_size (the processed copies: video streaming versions in 1080p/720p/480p and audio, previews, thumbnails) and Album Proofs pages and voice notes. For shwetank.chauhan3: originals 0.257 GB photos + 1.800 GB videos = 2.06 GB (dashboard); processed copies 1.66 GB more, almost all from 9 videos = 3.72 GB (Profile). The extra space is real storage on Backblaze, so the dashboard under-reports what each user uses, and the gap grows with video. Fix idea: show the same total as the Profile (call vault_event_storage_bytes / vault_event_storage_by_event), and optionally keep "originals" as a second column. Check whether the dashboard's Cost column uses the same smaller number.
 How to reproduce: Compare Analytics Hub > User Accounts > Total GB for shwetank.chauhan3@gmail.com with staging.evebash.com/profile > Storage Usage on that account.
 Note 2026-11-10: fixed on staging in 7854c4b3: the dashboard counts size + overhead_size everywhere it shows storage (storedBytes in apps/analytics-dashboard/src/lib/analytics.ts): User Accounts Photos/Videos/Total GB and Cost, Galleries, Infra Cost storage, and the deleted-event archive. Video GPU checks still use the original file size. Album Proofs bytes are still not counted (none on this account).
+
+#259
+Listed: 2026-11-10
+Platform: Analytics dashboard
+Priority: Medium
+Status: In progress
+Owner: Shwetank (with Claude)
+Found in: Chat 2026-11-10 (does User Accounts show EB Vault storage?)
+Issue: The analytics dashboard doesn't show EB Vault storage anywhere. User Accounts' Photos/Videos/Total GB and Cost count only event media, and the user detail page has no EB Vault figure, but events and EB Vault share one storage pool: the Profile total and the upload limits add EB Vault (vault_accounts.used_bytes + reserved_bytes). So the dashboard shows less than the Profile for anyone using EB Vault (today only newone@email.com, 0.12 GB). The dashboard can't read vault_accounts itself (each user may read only their own row), so it needs a backend admin action. Fix: a read-only admin action that returns each user's EB Vault bytes; a Vault GB column in User Accounts; Total GB and Cost include it; the user detail page shows it.
+How to reproduce: Analytics Hub > User Accounts > newone@email.com: no Vault column, and Total GB is 0.12 GB less than staging.evebash.com/profile > Storage Usage on that account.
+Note 2026-11-10: fixed locally (not pushed yet). Backend: read-only admin action vaultUsage on /api/admin/control (listVaultUsage in apps/backend/src/routes/admin.ts, platform admins only, test tests/vaultUsage.test.ts). Dashboard: User Accounts has a Vault GB column (sortable); Total GB and Cost include EB Vault; the user detail page has an EB Vault Storage card and its used/quota meter and Backblaze cost include it. Until the backend is deployed the column shows 0.00 GB.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
