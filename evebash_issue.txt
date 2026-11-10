@@ -1521,10 +1521,11 @@ Platform: Analytics dashboard
 Priority: Medium
 Status: In progress
 Owner: Shwetank (with Claude)
+Blocked by: Check on the deployed dashboard; move to RECENTLY FIXED once the numbers match the Profile
 Found in: Chat 2026-11-10 (shwetank.chauhan3@gmail.com: Profile shows 3.72 GB, dashboard Total GB shows 2.06 GB)
 Issue: The analytics dashboard's storage numbers are smaller than what the website, app and backend count. The dashboard (userUsageMetrics in apps/analytics-dashboard/src/components/UserGrid.tsx, photos loaded in src/lib/analytics.ts) adds up only photos.size, the original files. The Profile storage card, the upload limits and the EB Vault pool use vault_event_storage_bytes, which also counts photos.overhead_size (the processed copies: video streaming versions in 1080p/720p/480p and audio, previews, thumbnails) and Album Proofs pages and voice notes. For shwetank.chauhan3: originals 0.257 GB photos + 1.800 GB videos = 2.06 GB (dashboard); processed copies 1.66 GB more, almost all from 9 videos = 3.72 GB (Profile). The extra space is real storage on Backblaze, so the dashboard under-reports what each user uses, and the gap grows with video. Fix idea: show the same total as the Profile (call vault_event_storage_bytes / vault_event_storage_by_event), and optionally keep "originals" as a second column. Check whether the dashboard's Cost column uses the same smaller number.
 How to reproduce: Compare Analytics Hub > User Accounts > Total GB for shwetank.chauhan3@gmail.com with staging.evebash.com/profile > Storage Usage on that account.
-Note 2026-11-10: fixed locally (not pushed yet): the dashboard counts size + overhead_size everywhere it shows storage (storedBytes in apps/analytics-dashboard/src/lib/analytics.ts): User Accounts Photos/Videos/Total GB and Cost, Galleries, Infra Cost storage, and the deleted-event archive. Video GPU checks still use the original file size. Album Proofs bytes are still not counted (none on this account).
+Note 2026-11-10: fixed on staging in 7854c4b3: the dashboard counts size + overhead_size everywhere it shows storage (storedBytes in apps/analytics-dashboard/src/lib/analytics.ts): User Accounts Photos/Videos/Total GB and Cost, Galleries, Infra Cost storage, and the deleted-event archive. Video GPU checks still use the original file size. Album Proofs bytes are still not counted (none on this account).
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
