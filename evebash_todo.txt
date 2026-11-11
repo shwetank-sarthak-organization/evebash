@@ -686,7 +686,7 @@ Suggested by: Shwetank
 Discussed:    Yes
 Decision:     2026-11-11 Shwetank: one Modal account with a separate "staging" environment; RunPod
               stays one account with the same endpoints.
-Owner:        Unassigned
+Owner:        Shwetank
 Depends on:   Finish device tests #40 and #202 first (they use accounts in the current database).
               Helps issue #21 (RLS part 2 needs a copy of the database to test on).
 Brief:        Staging and production share one Supabase project, so every migration tested for
