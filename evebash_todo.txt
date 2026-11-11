@@ -683,8 +683,9 @@ Phase:        1
 Status:       Idea
 Effort:       L
 Suggested by: Shwetank
-Discussed:    No
-Decision:     -
+Discussed:    Yes
+Decision:     2026-11-11 Shwetank: one Modal account with a separate "staging" environment; RunPod
+              stays one account with the same endpoints.
 Owner:        Unassigned
 Depends on:   Finish device tests #40 and #202 first (they use accounts in the current database).
               Helps issue #21 (RLS part 2 needs a copy of the database to test on).
@@ -701,12 +702,43 @@ Brief:        Staging and production share one Supabase project, so every migrat
               5. Point staging at the new project: Railway staging, Vercel staging, EAS staging
                  build, local .env files, analytics dashboard.
               6. New routine: apply migrations to staging first, then production.
-              Check before switching (not looked at yet):
-              - Backblaze B2: staging must not delete or clean up production media. It needs its
-                own bucket or a separate folder.
-              - Modal: workers must write results to the right database. Any modal deploy must
-                keep MODAL_COST_TUNING=true.
-              - Razorpay: staging should use test keys and its own webhook.
+              Findings from reading the code (2026-11-11). Nothing is set up yet:
+              - No Supabase address is written into the code; every service reads it from its
+                settings, so moving Supabase is a settings change: NEXT_PUBLIC_SUPABASE_URL and
+                _ANON_KEY (website), SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY
+                (backend), EXPO_PUBLIC_SUPABASE_URL and _ANON_KEY (app), plus the dashboard's.
+              - Modal: keep one Modal account and give staging its own "staging" environment there:
+                the same code deployed twice with different settings, not one app serving both.
+                One shared app would need every job, and the 5-minute maintenance job, to switch
+                database and bucket, so a mistake could write to production. modal_engine/main.py
+                (app "wedding-media-engine") takes its database and bucket from the root .env at
+                deploy time, so if only Supabase moved, staging uploads would be processed by a
+                worker writing to the production database and it would find no matching photo row.
+                Small code change: the .env path, written in 9 places, becomes one setting. Railway
+                staging needs new MODAL_CPU_WEBHOOK_URL, MODAL_GPU_WEBHOOK_URL,
+                MODAL_FACE_INGRESS_URL, MODAL_FIND_YOU_URL, MODAL_MEDIA_BATCH_URL and
+                MODAL_PREVIEW_URL. Any modal deploy must keep MODAL_COST_TUNING=true. No always-on
+                containers in main.py, so staging costs only what it processes plus the 5-minute job.
+              - RunPod (videos only, todo #18, switch VIDEO_RUNPOD, off by default): keep one account
+                and the same endpoints, no separate copy. The worker holds no database or storage
+                key; it uses one-time links from the backend and reports back to it (confirm the
+                report-back address when wiring this up). Keep VIDEO_RUNPOD off on staging unless
+                testing RunPod; Modal is its backup, so the staging Modal environment is needed
+                either way. If it is on for both: they share RunPod's 10-worker account quota, and
+                the worker image is built from staging pushes (tag :staging), so production would
+                need its own tag.
+              - Backblaze B2: staging needs TWO buckets with their own keys, one for events (B2_*)
+                and one for EB Vault (VAULT_B2_*). The backend and Modal both delete files.
+              - Cloudflare: the media worker serves media.evebash.com from the "EveBash" bucket, and
+                the EAS staging profile uses that domain. Staging needs its own worker and domain,
+                and EXPO_PUBLIC_MEDIA_DOMAIN changed in eas.json.
+              - Razorpay: staging needs test keys (RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET,
+                NEXT_PUBLIC_RAZORPAY_KEY_ID). No webhook found in the payments route; check none
+                is set up in Razorpay.
+              - QStash: sends jobs to the Modal URLs. Check whether staging needs its own
+                QSTASH_QUEUE_NAME so its jobs stay apart from production's.
+              - Migrations contain no cron jobs or storage bucket setup. Still check the live
+                database for triggers on sign-up and enabled extensions, which a plain copy can miss.
               Device tests waiting at the switch need their accounts recreated.
 
 =====================================================================
