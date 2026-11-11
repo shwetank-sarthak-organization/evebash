@@ -32,9 +32,9 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 30
+Next todo number: 31
 
-Last updated: 2026-11-07
+Last updated: 2026-11-11
 
 =====================================================================
 ACTIVE TODOS
@@ -674,6 +674,40 @@ Brief:        Each time an event or sub-gallery is changed (title, date, cover, 
               keep old and new values for long text, how long to keep logs, whether hosts also see the
               log on their event, and whether photo, album and permission changes join later.
 Done in:      -
+
+#30 Separate Supabase database for staging and production
+Listed:       2026-11-11
+Platform:     Both
+Priority:     High
+Phase:        1
+Status:       Idea
+Effort:       L
+Suggested by: Shwetank
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   Finish device tests #40 and #202 first (they use accounts in the current database).
+              Helps issue #21 (RLS part 2 needs a copy of the database to test on).
+Brief:        Staging and production share one Supabase project, so every migration tested for
+              staging changes production straight away, and staging tests run against real data.
+              Give staging its own Supabase project.
+              Steps:
+              1. Create the staging project and check what it costs (a free project may pause).
+              2. Copy the structure from the live database (tables, RLS, functions, triggers),
+                 not by replaying the migration files, as some changes may have been made by hand.
+                 Don't copy real customers' data.
+              3. Set up Auth: redirect URLs, Google sign-in, email settings.
+              4. Create test accounts and events, including the cases device tests need.
+              5. Point staging at the new project: Railway staging, Vercel staging, EAS staging
+                 build, local .env files, analytics dashboard.
+              6. New routine: apply migrations to staging first, then production.
+              Check before switching (not looked at yet):
+              - Backblaze B2: staging must not delete or clean up production media. It needs its
+                own bucket or a separate folder.
+              - Modal: workers must write results to the right database. Any modal deploy must
+                keep MODAL_COST_TUNING=true.
+              - Razorpay: staging should use test keys and its own webhook.
+              Device tests waiting at the switch need their accounts recreated.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
