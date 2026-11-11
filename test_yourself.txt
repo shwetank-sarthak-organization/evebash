@@ -810,7 +810,7 @@ Feedback: Same numbers on website /profile and the app Profile: 44.77 GB of 50 G
 
 --------------------------------------------------------------------------------
 #40 Uploads stop at the gallery owner's storage limit (website and app)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website + App (new build from staging with 8acf63a)
 Brief:     The server now refuses gallery uploads that don't fit the OWNER's plan (issue #6).
@@ -826,14 +826,22 @@ How to test (use a FREE test account = 1 GB, with a gallery holding ~0.9 GB):
   4. A small photo that fits still uploads fine.
   5. Paid host with an expired plan (more than 0 days past end): uploads refused with
      "Uploads are paused because your plan has expired...".
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Shwetank (with Claude)
+Device / browser: Android phone I2012 (Android 14), app; website on desktop browser
+Build / version: local dev build com.evebash.app from staging ebe9eadd, backend api-staging
+Date tested: 2026-11-11
+Account used: newone@email.com (owner, Free, ~42.5 GB used); shwetank.chauhan3@gmail.com (event admin);
+              newone1@email.com (Free, under its limit)
 Screenshot / recording:
 Fix ref:   8acf63a (2026-10-10)
-Feedback:
+Feedback:  2026-11-11 partial (Shwetank): step 1 pass with a note: the website's own check blocks first
+           ("You've reached your 1 GB storage limit"), so the server message isn't reached there. Step 2 first
+           FAIL: the app uploaded because EVENT_UPLOAD_LIMITS was only staged on Railway (Redeploy doesn't apply
+           staged variables); after Apply + Deploy at 13:58, PASS: one "Upload paused" pop-up, upload stopped.
+           Step 3 pass: event admin shwetank.chauhan3 got "This gallery is out of storage. Ask the host to free up
+           space or upgrade their plan."; its own storage stayed 3.72 GB. Step 4 pass: newone1 (Free, nearly
+           empty) uploaded a small photo in the app and another on the website, both saved. Step 5 pass: shwetank.chauhan3 set to an expired Starter plan
+           (ended 2026-10-11) for the test: "plan has expired" message, upload stopped. All steps pass.
 
 --------------------------------------------------------------------------------
 #41 A guest with upload permission can still upload photos (before and after RLS part 2)
@@ -5740,7 +5748,7 @@ Feedback: Steps 1-6 pass (empty frame with Add bride / Add groom and no placehol
 
 --------------------------------------------------------------------------------
 #202 Plan event limit is also checked by the database
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website + App
 Detail:    Issue #6. Needs migration 20261107000000_event_count_limit.sql. Use a free account that already has 1 event
@@ -5755,14 +5763,22 @@ How to test:
   7. App, any account: create an event and a sub-gallery as normal. Expect: both work, and a failed create still shows
      an error pop-up. (If the database refuses an event, the app now shows its message, e.g. "Your plan allows 1
      event, and you have 1..." under "Couldn't create event". The app's own check usually catches this first.)
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Shwetank (with Claude)
+Device / browser: Android phone I2012 (Android 14), app; website on desktop browser
+Build / version: local dev build com.evebash.app from staging ebe9eadd, backend api-staging
+Date tested: 2026-11-11
+Account used: newone1@email.com (Free, 1 event); newone2@email.com (set to Starter until 2026-12-31 for the test)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  2026-11-11 partial (Shwetank): steps 1 and 2 pass (newone1, Free with 1 event, refused a second
+           event on the website and in the app). Step 3 pass (sub-gallery added, title and date edited; the app
+           first froze with every Supabase request timing out after an account switch, fixed by restarting the app,
+           not related to this test). Step 4 pass: newone2 on Starter created 3 events (Web 1, App 1, App 2).
+           Step 5 pass: admin shwetank.chauhan17 created several events on the website and 2 in the app, no
+           limit. Step 6 pass: newone1 transferred Sample Event (with 2 sub-galleries, 2 photos) to newone2 on
+           Starter, accepted; checked in the database: whole family owned by newone2, storage moved to newone2,
+           newone1 kept as approved admin. Step 7 pass: newone2 in the app created "Step 7 test" and the
+           sub-gallery "Step 7 gallery", no error. All steps pass.
 
 --------------------------------------------------------------------------------
 #203 Confetti Circle theme in the app (iPhone and Android)

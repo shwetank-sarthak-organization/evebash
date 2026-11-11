@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 260
+Next issue number: 261
 
 =====================================================================
 ACTIVE ISSUES
@@ -30,13 +30,14 @@ Platform: Both
 Priority: High
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: Turning on EVENT_UPLOAD_LIMITS=true on Railway after testing (test_yourself #40)
+Blocked by: Turning on EVENT_UPLOAD_LIMITS=true on the production backend (Railway)
 Found in: Website vs app consistency audit (2026-10-05)
 Issue: Storage and plan limits only apply on the website. The app and backend don't block uploads over the plan's storage, and the app's storage totals ignore overhead_size. Ideally enforced in the backend so both platforms follow it.
 How to reproduce: With a free account near its 1 GB limit, upload past the limit from the website (blocked) and from the app (allowed). Compare the storage used shown on each.
 Update 2026-10-10: events and EB Vault now share one plan storage pool. Website/app totals include Vault usage, and Vault uploads are checked on the backend. Event uploads are still only checked on the website and app, so this stays open.
 Update 2026-10-10 (8acf63a): the gallery OWNER pays (decided by Sarthak): vault_event_storage_bytes counts media in galleries the owner owns, whoever uploaded it (migration 20261010030000 applied). The server checks the owner's plan (events + Vault, videos x1.35, paused while a paid plan is expired) before handing out upload links, behind EVENT_UPLOAD_LIMITS (off by default). Website and app read storage from GET /api/v1/media/storage-usage. Move to fixed once the switch is on and test #40 passes.
 Update 2026-11-07: the plan's event limit was also only checked on the website and app. Migration 20261107000000_event_count_limit.sql adds the same check in the database (trigger on new top-level events from website/app sessions; admins, delegated accounts and the backend aren't limited; existing events untouched; applied 2026-11-07). The app now shows the database's refusal message too, like the website. Device test #202. Still open until EVENT_UPLOAD_LIMITS=true is set on Railway and device test #40 passes.
+Update 2026-11-11: device tests #40 (upload limits) and #202 (event limit in the database) PASS on staging (Android phone dev build + website). #40 first failed only because EVENT_UPLOAD_LIMITS was staged on Railway but not deployed: Redeploy does not apply staged variables, use Deploy next to "Apply changes". Left: set EVENT_UPLOAD_LIMITS=true on the production backend and Deploy, then move this issue to RECENTLY FIXED.
 
 #9
 Listed: 2026-10-09
@@ -1514,6 +1515,17 @@ How to reproduce: On the website host page, open an event, Change Cover to a tal
 Note 2026-11-07: parts 1-3 on staging in 610b2c0a (todo #11): the position is now a focus point in % plus a zoom everywhere (shared/themes/coverFocus.ts), the website's active themes and the app follow it, and a gallery can have a separate phone cover (set in edit mode, behind the switches). 3 of 74 events had a moved cover, none past 50, so none snaps to an edge. Device test #198. Left: (4) EventDesignPreview.tsx still draws the cover centred, and website themes outside the five active ones plus Periwinkle Script (e.g. Cinematic) still ignore the position.
 Note 2026-11-06: Being fixed with todo #11 on local branch feat/guest-edit-mode (not on staging yet), no database change. The position fields now mean the same everywhere (shared/themes/coverFocus.ts): coverOffsetX / coverOffset are the focus point's distance from the middle in percent of the photo (-50..50), coverScale the zoom (1-2.5), and zoom grows around the focus point. Website guest themes, dashboard cards and the host page's Position editor use it (src/lib/coverStyle.ts); the app's Royal Emerald, Classic White and Sunlit Portrait covers too (apps/mobile/lib/coverStyle.ts); the app's own cover (Midnight Hero, host view) maps it onto its pixel shift. Preview Guest Theme's cover panel has Move and zoom (drag a dot on the photo, zoom slider) on both platforms. One focus point serves the phone and the computer frame. The 2 test galleries already moved in pixels (up to 50) now read as percent and shift a little.
 Note 2026-11-07: all four parts fixed on staging in 610b2c0a and 65238da8. The cover position is a focus point in % plus a zoom everywhere; the five active website themes, the app and the host page's Guest Home Preview (phone frame = phone cover, browser frame = computer cover) follow it; a gallery can have a separate phone cover. Themes outside the five (now "Coming soon") keep their old cover look. Checked on staging.evebash.com and in the browser on localhost. Device test #198.
+
+#260
+Listed: 2026-11-11
+Platform: App
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Device tests #40 and #202 on an Android phone (2026-11-11)
+Issue: The app sometimes stops loading anything: every Supabase request times out (lib/supabase.ts gives up after 20 s with "Supabase request timed out") until the app is closed and reopened. Screens stay empty or half-loaded and uploads don't start, with no message to the user. At the same time the website, the backend and Supabase were fast, and the phone's Wi-Fi worked (ping to the Supabase host fine), so it is inside the app. Seen twice on 2026-11-11 (13:16 and 16:28, local dev build com.evebash.app on an Android 14 phone over USB; the second time about 30 s after logging out and into another account and opening an event). Cause not confirmed; a guess is a stalled HTTP connection to Supabase that keeps being reused (requests failed in groups of 3 to 5). Check whether it also happens in a release/staging build and without the USB/Metro connection.
+How to reproduce: Not reliable yet. In the app, log out, log in as another account and open an event; or leave the app open for a while and come back. If screens stop loading, the device log (adb logcat, ReactNativeJS) shows repeated "[Supabase] Network request failed: Supabase request timed out" while the website works.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
