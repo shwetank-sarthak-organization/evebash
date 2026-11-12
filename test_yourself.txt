@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 212
+Next test number: 213
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6045,6 +6045,28 @@ How to test:
   4. Once it has finished processing, close and open it again. Expect: no "Optimizing" note, plays and seeks as before.
   5. iPhone Safari: open the link from step 1. It is media.evebash.com, not the website, so no "download the app" screen. Expect: plays with sound, and dragging the progress bar jumps there.
   6. Mac Safari, staging.evebash.com, host of a test gallery: upload a video and open it straight away. Expect: plays and seeks. Older videos and the gallery's photos load as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+--------------------------------------------------------------------------------
+#212 Website + App: Guest Home Preview shows a sample of the app after a theme change
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     After a theme change, the App frame in the Design tab's Guest Home Preview used to keep the old theme, dimmed. Now it shows a sample of the app in the new theme with a small "Sample" tag, until a host opens Preview Guest Theme in the app again (issue #265). Deleting a gallery now also deletes the app's picture of it (issue #266).
+Detail:    Commit 520cc156. Website: staging.evebash.com after its Vercel deploy. Backend: the staging Railway deploy of this commit. App: needs a build or update with this change. Use a test gallery, not a customer's.
+How to test:
+  1. Website on a computer: open a test gallery's Design tab where the App frame shows the app's picture. Change the theme (for example to Royal Emerald). Expect: the Website frame shows the new theme and the App frame shows a sample of the app in that theme with a "Sample" tag, not the old theme dimmed.
+  2. Pick each theme in turn (Royal Emerald, Classic White, Sunlit Portrait, Midnight Hero, Confetti Circle). Expect: a sample in that theme each time.
+  3. In the app, open the same gallery > Design > Preview Guest Theme, stay at the top for 5 seconds, go back. Reload the website's Design tab. Expect: the App frame shows your gallery's own picture in the new theme, with no "Sample" tag.
+  4. App: open the Design tab of a gallery whose theme was changed on the website. Expect: the same sample with "Sample" in the App frame.
+  5. A gallery that was never opened in the app: Design tab on the website. Expect: a sample of its theme (before: "Open Preview Guest Theme in the EveBash app once to see the app here.").
+  6. Delete a test gallery that has an app picture (website or app). Ask Claude to check that its events/<id>/guest-preview/ file is gone.
 Done by:
 Device / browser:
 Build / version:

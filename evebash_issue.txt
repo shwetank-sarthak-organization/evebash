@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 265
+Next issue number: 267
 
 =====================================================================
 ACTIVE ISSUES
@@ -1548,7 +1548,7 @@ Found in: iOS simulator check of #97 / device test #109 (2026-11-12, iPhone 16e,
 Issue: Small differences are left in the app's Royal Emerald guest page after #97. (1) In the HOME / COLLECTIONS / FIND YOU bar, the selected tab's label sits about 6 pt higher than the others, because its underline and diamond sit under the text and push it up (renderUnderline in apps/mobile/components/event/ThemeHeader.tsx). On the website the labels line up. (2) The bar is a sideways-scrolling row a little wider than a 390 pt phone: FIND YOU ends about 4 pt from the right edge while HOME starts about 37 pt from the left, and the row can be pushed sideways. On a smaller phone FIND YOU will be cut off. (3) Two blocks use the app's plain Inter font and grey card style instead of the theme's gold serif: "Explore the galleries" (on Home when Home has no photos but its sub-galleries do; apps/mobile/app/events/[id].tsx) and the "Favourites only" card above an album's photos. For an empty Home the website shows "No photos yet." in the theme's serif. (4) The gallery title on Home says "Highlights" in the app (apps/mobile/app/events/[id].tsx, RoyalGalleryHeader title) and "Home Gallery" on the website. Fix: give every Royal tab the same space for the underline (or place it absolutely) so the labels line up, make the three tabs fit on phones from 360 pt wide, style the two blocks for Royal like the rest of the page, and use one title on both. Other themes stay as they are.
 How to reproduce: In the app, open the public Royal Emerald gallery "29 sep" (29-sep-bqu5k) as a guest and scroll down. Compare the HOME label's height with COLLECTIONS, and FIND YOU with the right edge; see "Explore the galleries" and the "Highlights" title. Open COLLECTIONS > check_photo_13 for the "Favourites only" card. Compare with staging.evebash.com/events/29-sep-bqu5k on a computer.
 
-================================================================#264
+#264
 Listed: 2026-11-12
 Platform: Both
 Priority: Low
@@ -1559,8 +1559,31 @@ Found in: Sarthak's chat while fixing #92 (2026-11-12)
 Issue: Long couple names on the Royal Emerald hero card were on one line (app, small) or wrapped as "Name &" / "Name" (website phones). Wanted: first name / & / second name, each on its own line, for couples with a name over 8 letters; short couples ("Asha & Raj") stay on one line.
 How to reproduce: Rename a Royal Emerald gallery "Rajyalakshmi & Venkatanarayanaswamy" and open it on a phone (app, or website at phone width).
 Update 2026-11-12: website phones and the app now stack long couples (shared rule shouldStackCoupleNames in shared/text/coupleNames.ts; src/components/TemplateRoyal.tsx, src/app/royal-emerald.css, apps/mobile/components/royal/RoyalHero.tsx). Website checked at 390 px in the built-in browser; the app code type-checks but was not run on a device. The app needs a new build or update.
+#265
+Listed: 2026-11-12
+Platform: Both
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #212); move to RECENTLY FIXED once it passes
+Found in: Sarthak's chat (2026-11-12, screenshot of the website Design tab)
+Issue: After a gallery's theme was changed, the Design tab's Guest Home Preview showed the new theme in the Website frame but the old theme (dimmed) in the App frame. The App frame is a picture the phone app takes when a host opens Preview Guest Theme (todo #31, events.guest_preview_picture), so a theme change on the website can't retake it.
+How to reproduce: On the website, open the Design tab of a gallery whose Preview Guest Theme was opened in the app once, change the theme, and look at the App frame.
+Update 2026-11-12: fixed in 520cc156 (Sarthak chose a sample over a note). When the app's picture is from another theme, or there is none yet, the App frame shows a sample of the app in the current theme with a "Sample" tag (public/theme-previews/app/<theme>.jpg, one per active theme; guestPreviewSamplePath in shared/themes/guestPreviewPicture.ts), on the website and in the app's Design tab. The real picture replaces it the next time a host opens Preview Guest Theme in the app. The samples were taken on the iPhone 16e simulator from the test gallery "mehandi night" (test-face-new-155c) with unsaved edit-mode changes (names Maya & Arjun, the homepage stock photo public/home/couple.jpg); nothing was saved to that gallery. Not checked in a browser yet (needs the staging deploy); the app part needs a new build.
 
-=====
+#266
+Listed: 2026-11-12
+Platform: Both
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #212); move to RECENTLY FIXED once it passes
+Found in: #265 fix (chat 2026-11-12)
+Issue: The app's guest home pictures (events/<id>/guest-preview/app-<uuid>.jpg on media.evebash.com, todo #31) were not cleaned up properly. (1) The admin orphan cleanup (deleteBackblazeOrphans in apps/backend/src/routes/admin.ts, run from the analytics dashboard) only counted photos and profile pictures as in use, so it listed every gallery's current picture as an orphan and would have deleted it. (2) Deleting a gallery (website, app or admin) left its picture in storage until an orphan cleanup ran.
+How to reproduce: Read getReferencedB2Keys in apps/backend/src/routes/admin.ts before 520cc156: it reads only events.id, photos.storage_key and profiles.profile_image.
+Update 2026-11-12: fixed in 520cc156. The orphan scan counts events.guest_preview_picture as in use. New POST /api/media/guest-preview-picture/delete (gallery managers only; empties the column, then deletes the file, only inside events/<id>/guest-preview/) is called by deleteEvent on the website (src/lib/database.ts) and in the app (apps/mobile/lib/database.ts, which also drops the phone's own copy); admin gallery deletes and account resets remove the events/<id>/guest-preview/ folder. Backend tests added (apps/backend/tests/guestPreviewPicture.test.ts). No switch: it only adds cleanup and stops a wrong delete. Needs the staging Railway deploy; the app part needs a new build.
+
+=====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
 
