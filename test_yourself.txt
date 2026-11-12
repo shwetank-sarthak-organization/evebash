@@ -57,6 +57,10 @@ Feedback:  2026-10-10 Sarthak, website: "Failed to search: 401". Every logged-in
            (selfie detected, 41 matches each; same numbers, so likely the same gallery as owner and as guest).
            PASS. Left: set FIND_YOU_REQUIRE_ACCESS=true on the production backend (Apply, then Deploy) and
            check one search on www.evebash.com.
+           2026-11-12 production: FIND_YOU_REQUIRE_ACCESS=true set and deployed; a search without login gets
+           401. The first search on www.evebash.com (wedding-fdd8) failed: Modal refused the production
+           backend's INTERNAL_JOB_SECRET (issue #267, not caused by this switch). After setting it to staging's
+           value and deploying, Find You finds photos on production. Done.
 
 --------------------------------------------------------------------------------
 #2  Find You asks logged-out visitors to log in

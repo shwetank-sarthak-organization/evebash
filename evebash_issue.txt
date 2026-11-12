@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 267
+Next issue number: 268
 
 =====================================================================
 ACTIVE ISSUES
@@ -1570,6 +1570,18 @@ Update 2026-11-12: fixed in 520cc156. The orphan scan counts events.guest_previe
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#267
+Listed: 2026-11-12
+Platform: Both
+Priority: Critical
+Status: Fixed
+Owner: Shwetank (with Claude)
+Found in: Device test #1, production check on www.evebash.com (2026-11-12)
+Issue: Find You failed on production for everyone with "Something went wrong during matching." The backend's search returned 500 "Modal search request failed: 401 - Unauthorized": the production backend sends INTERNAL_JOB_SECRET to Modal (header X-EveBash-Secret, apps/backend/src/routes/findYou.ts), and Modal's find_matching_photos (modal_engine/main.py, _find_you_secret_ok) refuses it unless it equals the INTERNAL_JOB_SECRET Modal was deployed with (root .env). Production's Railway value differed; staging's matched, so staging worked. Not caused by FIND_YOU_REQUIRE_ACCESS (the login and gallery-access check passed). Production Find You had likely been failing since Modal started checking the secret.
+How to reproduce: Before the fix: www.evebash.com/events/wedding-fdd8/find-you, upload a selfie; DevTools > Network > find-you > Response shows the 401 from Modal.
+Note 2026-11-12: both backends share one Modal app, so both need Modal's INTERNAL_JOB_SECRET. CRON_SECRET and QSTASH_TOKEN don't need to match. When todo #30 gives staging its own Modal environment, each backend must match its own Modal environment's secret.
+Fixed in: Railway production setting (2026-11-12): INTERNAL_JOB_SECRET set to staging's value, with FIND_YOU_REQUIRE_ACCESS=true, then Deploy. No code change. Checked: Find You finds photos on www.evebash.com (wedding-fdd8); a search without login gets 401.
 
 #97
 Listed: 2026-10-22
