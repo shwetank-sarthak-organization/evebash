@@ -1362,7 +1362,7 @@ function EventDetailScreen() {
 
   // The Design tab's Guest Home Preview shows a picture of this guest home (todo #29), taken while a host has it open
   // (Preview Guest Theme): 3 seconds in, if it's still at the top. Not while editing, which shows pencils and unsaved
-  // changes. The picture stays on this phone (lib/guestPreviewSnapshot.ts).
+  // changes. This phone keeps the picture and sends a copy for the website's preview (lib/guestPreviewSnapshot.ts).
   const snapshotEventId = event?.id;
   const snapshotTemplateId = event?.templateId ?? null;
   const showsGuestHomeToHost = !!snapshotEventId && !loading && canManageEvent && !showAdminView && !loadedActiveSubEvent && isFocused

@@ -1,11 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { TurboModuleRegistry } from 'react-native';
+import { fetchWithEndpointFallback, getEndpointsForPath } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
+import { readGuestPreviewPicture, type GuestPreviewPicture } from '../../../shared/themes/guestPreviewPicture';
 
 /**
  * A picture of the app's guest home (todo #29), shown on the Design tab's Guest Home Preview. The app's guest view is
  * part of the event screen and can't be drawn small, so a picture is taken while the host has it open (Preview Guest
- * Theme). It stays on this phone only (app cache + AsyncStorage): nothing is uploaded.
+ * Theme). This phone keeps it (app cache + AsyncStorage), and a smaller copy goes to the backend for the event (todo
+ * #31), so the website's preview and the host's other phones show the app too.
  */
 export type GuestPreviewSnapshot = {
   uri: string;
@@ -61,9 +66,54 @@ export async function saveGuestPreviewSnapshot(eventId: string, templateId: stri
     const snapshot: GuestPreviewSnapshot = { uri, templateId, takenAt: Date.now() };
     await AsyncStorage.setItem(storageKey(eventId), JSON.stringify(snapshot));
     if (previous) await FileSystem.deleteAsync(previous.uri, { idempotent: true });
+    void sendGuestPreviewPicture(eventId, templateId, uri);
     return true;
   } catch (err) {
     console.warn('[GuestPreviewSnapshot] Could not take the picture:', err);
     return false;
+  }
+}
+
+// About half the phone's screen pixels: sharp enough for the preview's phone frame, around 100 KB
+const SENT_WIDTH = 585;
+
+/** Sends a smaller copy of the picture to the backend, which keeps it on the event (POST /api/media/guest-preview-picture) */
+async function sendGuestPreviewPicture(eventId: string, templateId: string | null, uri: string) {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data.session?.access_token;
+    if (!accessToken) return;
+    const small = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: SENT_WIDTH } }], {
+      compress: 0.7,
+      format: ImageManipulator.SaveFormat.JPEG,
+      base64: true,
+    });
+    if (!small.base64) return;
+    const response = await fetchWithEndpointFallback(
+      getEndpointsForPath('/api/media/guest-preview-picture'),
+      (endpoint) => fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ eventId, templateId, image: `data:image/jpeg;base64,${small.base64}` }),
+      }),
+      'guest preview picture'
+    );
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      console.warn('[GuestPreviewSnapshot] The backend did not keep the picture:', response.status, result.error);
+    }
+  } catch (err) {
+    console.warn('[GuestPreviewSnapshot] Could not send the picture:', err);
+  }
+}
+
+/** The picture the backend keeps for the event (from any of the host's phones), or null for none */
+export async function loadSavedGuestPreviewPicture(eventId: string): Promise<GuestPreviewPicture | null> {
+  try {
+    const { data, error } = await supabase.from('events').select('guest_preview_picture').eq('id', eventId).maybeSingle();
+    if (error || !data) return null;
+    return readGuestPreviewPicture((data as { guest_preview_picture?: unknown }).guest_preview_picture);
+  } catch {
+    return null;
   }
 }

@@ -1,5 +1,6 @@
 import { canPostEventPhoto, canPostEventVideo, isPhotoUploadPermissionRequired, isVideoUpload } from "../services/eventVideoPermission.js";
 import { saveVideoThumbnail, ThumbnailError } from "../services/videoThumbnail.js";
+import { saveGuestPreviewPicture, GuestPreviewPictureError } from "../services/guestPreviewPicture.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
@@ -1728,6 +1729,42 @@ mediaRouter.post("/video-thumbnail", asyncRoute(async (request, response) => {
     response.json(result);
   } catch (error) {
     if (error instanceof ThumbnailError) return jsonError(response, error.status, error.message);
+    throw error;
+  }
+}));
+
+// The app's picture of a gallery's guest home, for the Design tab's Guest Home Preview on the website (todo #31)
+mediaRouter.post("/guest-preview-picture", asyncRoute(async (request, response) => {
+  const verified = await verifyRequestUser(request);
+  if (!verified) return jsonError(response, 401, "Authorization required");
+  const db = getSupabaseAdminClient();
+  try {
+    const result = await saveGuestPreviewPicture(request.body || {}, {
+      canManage: (eventId) => canPostEventVideo(db, verified.user, eventId),
+      load: async (eventId) => {
+        const { data, error } = await db.from("events").select("guest_preview_picture").eq("id", eventId).maybeSingle();
+        if (error) throw error;
+        return data ? { picture: data.guest_preview_picture } : null;
+      },
+      upload: async (key, bytes) => {
+        await uploadBufferToB2(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), bytes, key, "image/jpeg");
+        return `https://${getMediaDomain()}/${key.split("/").map(encodeURIComponent).join("/")}`;
+      },
+      commit: async (eventId, previous, picture) => {
+        // Only over the picture this save replaces, so two phones saving at once can't lose track of a file
+        let query = db.from("events").update({ guest_preview_picture: picture }).eq("id", eventId);
+        const previousUrl = previous && typeof previous === "object" ? (previous as { url?: unknown }).url : undefined;
+        if (previous === null) query = query.is("guest_preview_picture", null);
+        else if (typeof previousUrl === "string") query = query.eq("guest_preview_picture->>url", previousUrl);
+        const { data, error } = await query.select("id").maybeSingle();
+        if (error) throw error;
+        return Boolean(data);
+      },
+      remove: async (key) => deleteB2File(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), key),
+    });
+    response.json(result);
+  } catch (error) {
+    if (error instanceof GuestPreviewPictureError) return jsonError(response, error.status, error.message);
     throw error;
   }
 }));

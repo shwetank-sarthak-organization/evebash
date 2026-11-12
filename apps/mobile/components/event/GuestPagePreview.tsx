@@ -3,12 +3,17 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View, useWindowD
 import { Image } from 'expo-image';
 import { WebView } from 'react-native-webview';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { loadGuestPreviewSnapshot, type GuestPreviewSnapshot } from '@/lib/guestPreviewSnapshot';
+import { loadGuestPreviewSnapshot, loadSavedGuestPreviewPicture, type GuestPreviewSnapshot } from '@/lib/guestPreviewSnapshot';
 import { supabase } from '@/lib/supabase';
 import { getGalleryWebUrl, getWebBaseUrl } from '@/lib/webLinks';
+import { isGuestPreviewPictureOutOfDate, type GuestPreviewPicture } from '../../../../shared/themes/guestPreviewPicture';
 import { Fonts, MidnightColors } from '../../constants/theme';
 
 const PHONE_SCREEN_WIDTH = 160;
+
+// The event's saved picture is shown instead of this phone's own only when it is clearly newer (taken on another of
+// the host's phones): a picture this phone sends is saved a few seconds after it was taken here
+const SAVED_PICTURE_NEWER_BY_MS = 2 * 60 * 1000;
 
 // The screen size the guest page is drawn at before it is shrunk: a laptop's (the website's Guest Home Preview uses
 // the same)
@@ -54,9 +59,9 @@ interface GuestPagePreviewProps {
   colors: typeof MidnightColors;
 }
 
-// What guests see, small: the app (guests who use it) as a picture of its guest home, taken when the host last had
-// it open with Preview Guest Theme (lib/guestPreviewSnapshot.ts; the app's guest view is part of the event screen and
-// can't be drawn small), and the website guest page itself on a computer, drawn at a computer's size and shrunk to
+// What guests see, small: the app (guests who use it) as a picture of its guest home, taken when a host last had it
+// open with Preview Guest Theme, on this phone or another (lib/guestPreviewSnapshot.ts; the app's guest view is part
+// of the event screen and can't be drawn small), and the website guest page itself on a computer, drawn at a computer's size and shrunk to
 // fit. The page opens with ?preview=1 (no edit mode, no "Open in app" banner) and takes no touches.
 export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }: GuestPagePreviewProps) {
   const [reloads, setReloads] = useState(0);
@@ -64,9 +69,14 @@ export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }
   const [sessionVersion, setSessionVersion] = useState(0);
   const [width, setWidth] = useState(0);
   const [snapshot, setSnapshot] = useState<GuestPreviewSnapshot | null | undefined>(undefined);
+  const [savedPicture, setSavedPicture] = useState<GuestPreviewPicture | null | undefined>(undefined);
   const screen = useWindowDimensions();
   const phoneScreenHeight = Math.round(PHONE_SCREEN_WIDTH * (screen.height / screen.width));
-  const snapshotOutOfDate = !!snapshot && (snapshot.templateId ?? null) !== templateId;
+  const savedAt = savedPicture ? Date.parse(savedPicture.takenAt) : 0;
+  const picture = savedPicture && (!snapshot || savedAt - snapshot.takenAt > SAVED_PICTURE_NEWER_BY_MS)
+    ? { uri: savedPicture.url, templateId: savedPicture.templateId, takenAt: savedAt }
+    : snapshot;
+  const pictureOutOfDate = !!picture && isGuestPreviewPictureOutOfDate(picture, templateId);
 
   // The picture is taken while this card isn't shown (the guest view replaces it), so it's read each time the card opens
   useEffect(() => {
@@ -74,6 +84,12 @@ export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }
     loadGuestPreviewSnapshot(eventId).then((saved) => { if (active) setSnapshot(saved); });
     return () => { active = false; };
   }, [eventId]);
+
+  useEffect(() => {
+    let active = true;
+    loadSavedGuestPreviewPicture(eventId).then((saved) => { if (active) setSavedPicture(saved); });
+    return () => { active = false; };
+  }, [eventId, refreshKey, reloads]);
 
   // A new access token (the app renews it about once an hour) loads the page again with it
   useEffect(() => {
@@ -125,25 +141,25 @@ export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }
       <View style={styles.column}>
         <View style={styles.phoneBezel}>
           <View style={[styles.phoneScreen, { width: PHONE_SCREEN_WIDTH, height: phoneScreenHeight }]}>
-            {snapshot ? (
+            {picture ? (
               <Image
-                source={{ uri: snapshot.uri }}
-                style={[StyleSheet.absoluteFill, snapshotOutOfDate && styles.outOfDate]}
+                source={{ uri: picture.uri }}
+                style={[StyleSheet.absoluteFill, pictureOutOfDate && styles.outOfDate]}
                 contentFit="cover"
                 contentPosition="top"
                 accessibilityLabel="Picture of the app's guest home"
               />
-            ) : snapshot === null ? (
+            ) : snapshot === null && savedPicture === null ? (
               <Text style={styles.phoneEmpty}>Open Preview Guest Theme once to see the app here.</Text>
             ) : null}
           </View>
         </View>
         <Text style={[styles.caption, { color: colors.slate400 }]}>App</Text>
-        {snapshot && (
-          <Text style={[styles.note, { color: snapshotOutOfDate ? colors.gold : colors.slate400 }]}>
-            {snapshotOutOfDate
+        {picture && (
+          <Text style={[styles.note, { color: pictureOutOfDate ? colors.gold : colors.slate400 }]}>
+            {pictureOutOfDate
               ? 'The theme changed since this picture. Open Preview Guest Theme to update it.'
-              : `Picture from ${new Date(snapshot.takenAt).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}. Preview Guest Theme updates it.`}
+              : `Picture from ${new Date(picture.takenAt).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}. Preview Guest Theme updates it.`}
           </Text>
         )}
       </View>
