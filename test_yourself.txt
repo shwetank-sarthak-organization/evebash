@@ -5966,7 +5966,7 @@ Platform:  Website + App
 Brief:     Host > event > Permissions. Transfer ownership used to be a full-width card that opened in place. Now it is a box the same size as Event visibility (beside it on a computer, under it on a phone and in the app). Tapping it opens the transfer form in the usual modal (website) or bottom sheet (app).
 Detail:    Commit c23fc841. Checked 2026-11-12 by Claude on the website (1440 px and 375 px, dark) and the iPhone 16e simulator (dev build, this branch's code without the light theme). Sending a real transfer was not tried.
 How to test:
-  1. Website on a computer: Host > a main event you own > Permissions. Expect: Event visibility and Transfer ownership boxes side by side on the right, same height.
+  1. Website on a computer: Host > a main event you own > Permissions. Expect: the Permissions heading on its own line, and under it Event visibility (left) and Transfer ownership (right) side by side, same height.
   2. Website at phone width: the two boxes stack, full width.
   3. Click Transfer ownership. Expect: a modal like the other site modals (title, X, email field, "Keep the current owner on as an admin", Cancel and Send request). Escape, X and clicking outside close it.
   4. Send a request to a test account. Expect: the modal shows "Transfer pending" with Cancel transfer, and the box turns gold and says "Transfer pending". Cancel transfer puts it back.

@@ -4649,14 +4649,14 @@ function DashboardContent() {
 
                                         {activeEventDetailTab === "permissions" && (
                                             <div className="space-y-5">
-                                                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                                                <div className="space-y-4">
                                                     <div>
                                                         <h4 className="text-xl font-black text-[var(--site-text)]">Permissions</h4>
                                                         <p className="text-sm font-bold text-[var(--site-muted)]">Approve, deny, or remove guest access requests for this event.</p>
                                                     </div>
-                                                    <div className="grid w-full shrink-0 gap-3 sm:grid-cols-2 xl:flex xl:w-auto">
+                                                    <div className="grid gap-3 sm:grid-cols-2">
                                                     {canChangeSelectedEventVisibility && selectedMainEvent && (
-                                                        <div className="flex w-full flex-col xl:w-[22rem]">
+                                                        <div className="flex w-full flex-col">
                                                             <button
                                                                 type="button"
                                                                 role="switch"
@@ -4688,7 +4688,7 @@ function DashboardContent() {
                                                             {visibilityError && <p role="alert" className="mt-2 text-xs text-rose-300 light:text-rose-700">{visibilityError}</p>}
                                                         </div>
                                                     )}
-                                                    {selectedMainEvent && !selectedMainEvent.parentId && <TransferOwnershipCard key={selectedMainEvent.id} eventId={selectedMainEvent.id} className="w-full xl:w-[22rem]" />}
+                                                    {selectedMainEvent && !selectedMainEvent.parentId && <TransferOwnershipCard key={selectedMainEvent.id} eventId={selectedMainEvent.id} className="w-full" />}
                                                     </div>
                                                 </div>
 
