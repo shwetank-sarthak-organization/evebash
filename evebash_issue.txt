@@ -297,6 +297,7 @@ Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: The Royal Emerald guest page shows a typo when the gallery has no date: the line above the title falls back to "NITES • LUXURY WEDDING & CELEBRATION" (src/components/TemplateRoyal.tsx). When there is a date, it shows twice: in that line and again in the date pill below.
 How to reproduce: Open a Royal Emerald gallery with no date: the line above the title reads "NITES • LUXURY WEDDING & CELEBRATION". Add a date: it appears both above the title and in the pill.
 Update 2026-10-22: fixed in the new hero (src/components/TemplateRoyal.tsx (ornaments in src/components/royal/, styles in src/app/royal-emerald.css)). The card shows the date once and nothing when there is no date; the "NITES" fallback is gone.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): the date shows once ("29 SEPTEMBER 2026" on 29 sep) and there is no "NITES" text. A gallery with no date wasn't available to check. Device test #101 is FAIL only for step 7 (#92); this part passes.
 
 #82
 Listed: 2026-10-22
@@ -309,6 +310,7 @@ Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: Royal Emerald shows made-up text to guests when the host leaves fields empty: title "An Elegant & Timeless Wedding" and a description about "a monumental union of love, heritage, and royal celebrations" (src/components/TemplateRoyal.tsx). It should show nothing (or the gallery name) instead.
 How to reproduce: Open a Royal Emerald gallery with no description: the made-up paragraph appears under the title.
 Update 2026-10-22: fixed in the new hero. No made-up title or description: the card shows the gallery title, and the description stays in the gallery section below (where it was already shown).
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): no made-up title or description; the card shows the gallery's own title and the plaque its own description. Device test #101 is FAIL only for step 7 (#92); this part passes.
 
 #83
 Listed: 2026-10-22
@@ -321,6 +323,7 @@ Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: Royal Emerald has wedding-only text fixed in the design: "The Wedding Collection", "Imperial Album" and the footer "Elegantly Captured • Royal Emerald Edition" (src/components/TemplateRoyal.tsx). Anniversary events pre-select this theme, so they also say "Wedding", and the footer shows the theme's name to guests.
 How to reproduce: Create an Anniversary event with Royal Emerald and open it as a guest: it says "The Wedding Collection".
 Update 2026-10-22: fixed in the new hero. "The Wedding Collection" and "Imperial Album" are gone; the line above the names follows the category (The Wedding of / The Anniversary of / The Engagement of / Celebrating) and only shows for "Name & Name" titles on the main gallery; the footer shows the gallery title instead of "Royal Emerald Edition".
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): no "The Wedding Collection", "Imperial Album" or "Royal Emerald Edition"; the footer shows the gallery title. The Anniversary wording wasn't checked. Device test #101 is FAIL only for step 7 (#92); this part passes.
 
 #84
 Listed: 2026-10-22
@@ -333,6 +336,7 @@ Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: Royal Emerald stacks two section headings: "Treasured Moments / The Wedding Collection" (src/components/TemplateRoyal.tsx) sits right above the shared "Home Gallery · N Photos" heading (src/app/(public)/events/[slug]/page.tsx), with two gold dividers in a row.
 How to reproduce: Open any Royal Emerald gallery and scroll past the hero: two headings in a row.
 Update 2026-10-22: fixed. The theme's own "Treasured Moments / The Wedding Collection" heading was removed; only the shared gallery heading remains.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): no "Treasured Moments" heading; only the crest and "Home Gallery" between gold lines. Device test #101 is FAIL only for step 7 (#92); this part passes.
 
 #85
 Listed: 2026-10-22
@@ -346,6 +350,7 @@ Issue: Royal Emerald uses three different golds: #cca43b (yellow) in the hero (s
 How to reproduce: Open a Royal Emerald gallery: compare the Explore Gallery button and frame gold with the gold of the gallery controls and liked hearts.
 Update 2026-10-22: hero now uses the bronze gold family (#ca9c69 / #e6c574 gradients) everywhere, no #cca43b left in TemplateRoyal. Still open: the shared SectionHeader keeps gold-400/500/600.
 Update 2026-10-22 (later): no longer applies. Royal Emerald galleries now use their own header (src/components/royal/RoyalGalleryHeader.tsx) instead of SectionHeader, all in the bronze gold family. Waiting only on device test #101/#102.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): hero, crest, plaque, Back / Share and the Photos / Videos switch are all in the bronze gold family. Device test #101 is FAIL only for step 7 (#92); this part passes.
 
 #86
 Listed: 2026-10-22
@@ -358,6 +363,7 @@ Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: In Royal Emerald, "Load More Media" and the guest "Add photos" button stay near-black (bg-slate-900) on the dark green page (src/app/(public)/events/[slug]/page.tsx). The theme recolours shared controls with CSS overrides in src/app/royal-emerald.css and these two were missed.
 How to reproduce: Open a Royal Emerald gallery with more than one page of photos (Load More appears), or as a guest with Allow Photo Uploads on (Add photos appears).
 Update 2026-10-22: fixed in 3b40188 (on staging). In Royal Emerald both are gold buttons (royal-button in src/app/royal-emerald.css, set by the event page). Device test #113.
+Note 2026-11-12: not seen yet when Claude checked staging in the built-in browser: no gallery has a second page for a signed-in host (all 66 photos of the biggest album load at once), and Add photos shows only for guests who may upload. The code gives Royal Emerald the gold royal-button. Device test #113 steps 2-3.
 
 #87
 Listed: 2026-10-22
@@ -370,6 +376,7 @@ Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: In Royal Emerald, the Favourites switch on the gallery page keeps a light grey icon box and track when off, and turns dark slate when on (src/app/(public)/events/[slug]/page.tsx, role="switch"; src/app/royal-emerald.css only recolours its border and knob). It looks like a control from a light theme.
 How to reproduce: Open a Royal Emerald gallery and toggle Favourites on and off.
 Update 2026-10-22: fixed in 3b40188 (on staging). Royal Emerald gives the switch its own classes (royal-switch): emerald box with a gold star, count and track when off; gold star box and gold track when on. Device test #113.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): off is emerald with a gold thumb, on has a gold star box and a gold track (device test #113 step 4 PASS).
 
 #88
 Listed: 2026-10-22
@@ -383,6 +390,7 @@ Issue: In Royal Emerald some text is hard to read on the dark green: "Link Copie
 How to reproduce: Open a Royal Emerald gallery, press Share Event (green text), and open an empty Royal Emerald gallery (faint message).
 Update 2026-10-22: "Link copied" is now gold in Royal Emerald (new gallery header, test_yourself #102). The guest upload error and the empty-gallery message are still hard to read.
 Update 2026-10-22: fixed in 3b40188 (on staging). The guest upload error is a light rose (royal-error) and the empty-gallery message is ivory and sage at full strength (royal-empty, no opacity-50). Device test #113.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): "Link copied" is pale gold and the empty-gallery text is ivory and sage at full opacity (device test #113 step 5 PASS). The guest upload error is not checked yet (needs a guest who can upload).
 
 #89
 Listed: 2026-10-22
@@ -395,6 +403,7 @@ Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: Guests can see a developer message on the empty gallery state: "Owner: Check Supabase database rules to enable shared access." (src/app/(public)/events/[slug]/page.tsx). Affects every theme, not only Royal Emerald.
 How to reproduce: Open a gallery the visitor can't load photos for (restricted state): the Supabase message shows under "Moments restricted...".
 Update 2026-10-22: fixed in 3b40188 (on staging), every theme: guests now read "You don't have access to these photos yet. Ask the host to share the gallery with you." Device test #113.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): the empty gallery has no developer message, and a private gallery shows "This gallery is private / Request access" with no Supabase mention (device test #113 step 6).
 
 #90
 Listed: 2026-10-22
@@ -409,6 +418,7 @@ How to reproduce: Open a Royal Emerald gallery on a phone (or 375 px wide): coun
 Update 2026-10-22: the new hero (card, then framed photo, then button) is still about 1,200 px tall on a 390 px phone before the first photo, so this stays open.
 Update 2026-10-22 (later): fixed in 3b40188 (on staging). Phones now use the app's layout: framed photo first, a narrower card under it with the names on one line, smaller seal, no Explore Gallery button. About 807 px tall at 390x844, so the hero fits one screen. Desktop unchanged. Device test #113.
 Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): at 390x844 the frame comes first, the card under it, no Explore Gallery, and the hero ends at 828 px (device test #113 step 1 PASS). On staging real phones get the "Get the EveBash app" screen, so this was seen with that screen turned off in the page.
 
 #91
 Listed: 2026-10-22
@@ -421,6 +431,7 @@ Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: The Royal Emerald hero crops images badly. The default palace image (public/royal_emerald_palace_hero.jpg) is landscape 1376x768 and 1 MB, shown in a portrait 4:5 frame, so most of it is cut off. Host cover photos are always cropped from the centre with no way to pick the focus point (src/components/TemplateRoyal.tsx). Related: #64.
 How to reproduce: Open a Royal Emerald gallery with no cover photo: the palace image is cut down to a narrow middle strip.
 Update 2026-10-22: the hero now applies the host's cover focus point, zoom and fit (Host page cover position), so the host picks which part shows. Decision (Sarthak, 2026-10-22): the gold frame stays portrait (4:5) for every cover, so landscape covers are cropped to portrait around that focus point; the default palace image crops to its centred doorway. next/image already serves it resized. Move to fixed with #101.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): the portrait frame follows the cover's focus point and zoom. Device test #101 is FAIL only for step 7 (#92); this part passes.
 
 #92
 Listed: 2026-10-22
@@ -428,12 +439,13 @@ Platform: Website
 Priority: Low
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
+Blocked by: -
 Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: Long Royal Emerald titles have nothing guarding them: the gold gradient title (src/components/TemplateRoyal.tsx) has no line limit or word break, so long couple names can overflow on phones. Its drop-shadow doesn't show on gradient (clipped) text.
 How to reproduce: Give a Royal Emerald gallery a long title with a long single word (e.g. a long hyphenated couple name) and open it at 375 px wide.
 Update 2026-10-22: fixed. Names in gold script get smaller for long names (two steps) and break only between words; checked with "Maharajkumari Rajyalakshmi & Venkatanarayanaswamy" at 390 px and 1376 px.
 Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
+Note 2026-11-12: device test #101 step 7 FAILS at phone width (checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone)). "Rajyalakshmi & Venkatanarayanaswamy" is fine on a computer (royal-card__names--xlong, 34 px, three lines), but at 390 px the card shows the names on one line at 26 px and splits the word: "Rajyalakshmi & Venkatan / arayanaswamy" (the h1 has overflow-wrap: anywhere). The 2026-10-22 fix was checked before the phone hero changed to names on one line (device test #113), so that change probably brought it back. Fix idea: on phones put the long name on its own line or step the size down further, and break only between words. Screenshot: reports/device-tests/test-101-step7-390px.jpg (local).
 
 #93
 Listed: 2026-10-22
@@ -447,6 +459,7 @@ Issue: The Royal Emerald double gold frame is fixed at z-40 (src/components/Temp
 How to reproduce: Open a Royal Emerald gallery and scroll: the gold frame lines cross photos and the navbar.
 Update 2026-10-22: fixed. The fixed double frame is gone; the new gold corners sit inside the hero only and scroll away with it.
 Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): no fixed gold frame; the corners stay in the hero and nothing gold covers the photos after scrolling. Device test #101 is FAIL only for step 7 (#92); this part passes.
 
 #94
 Listed: 2026-10-22
@@ -459,6 +472,7 @@ Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
 Issue: The Royal Emerald gallery area is always at least one screen tall (min-h-screen in src/components/TemplateRoyal.tsx), so a gallery with few photos has a big empty green block before the footer.
 How to reproduce: Open a Royal Emerald gallery with 1-3 photos: large empty space before the footer.
 Update 2026-10-22: fixed in 3b40188 (on staging). The gallery area no longer has min-h-screen (src/components/TemplateRoyal.tsx), so a small gallery goes straight to the footer. Device test #113.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): on an empty gallery the footer sits 160 px under the empty message (device test #113 step 7).
 
 #95
 Listed: 2026-10-22
@@ -472,6 +486,7 @@ Issue: Royal Emerald hover effects (hero image zoom, button grow) only work with
 How to reproduce: Open a Royal Emerald gallery on a phone and tap the hero image and Explore Gallery: no visual response before scrolling.
 Update 2026-10-22: fixed. The hover-only image zoom and button grow are gone; the button has a pressed state that works on touch.
 Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
+Note 2026-11-12: not checked; the built-in browser has no touch screen. Needs a real phone (device test #101).
 
 #96
 Listed: 2026-10-22
@@ -485,6 +500,7 @@ Issue: Royal Emerald mixes serif and sans fonts within small groups (the line ab
 How to reproduce: Open a Royal Emerald gallery and compare the fonts of the hero's small text and headings.
 Update 2026-10-22: hero fonts are now one set (Great Vibes for names, Cinzel for date and button, Cormorant Garamond for "&" and place), loaded only on this page (src/components/royal/royalFonts.ts); the fixed blur-3xl glows were replaced by a plain gradient. Still open: the [class*="text-stone-"] overrides in royal-emerald.css (cause of #86-#88).
 Update 2026-10-22 (later): fixed in 3b40188 (on staging). Royal Emerald no longer recolours shared controls by matching class names: its [class*="text-stone-"] and [role="switch"] overrides are gone, and the event page gives the Royal controls named classes (royal-button, royal-switch, royal-error, royal-muted, royal-empty). Shared text colours still come from the theme colours in gallery-refinements.css, like every theme. Device test #113.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): the date and the Explore Gallery button are both Cinzel; only the names are in script, by design. Device test #101 is FAIL only for step 7 (#92); this part passes.
 
 #99
 Listed: 2026-10-22
@@ -643,6 +659,7 @@ Issue: Cloudflare caches no photos or videos. media.evebash.com/* runs the worke
 Fix: cloudflare-worker/evebash-media-worker/ (the deployed script, then a Cache API layer behind the MEDIA_EDGE_CACHE var): whole-file GETs are kept at the edge for 30 days (previews/thumbnails are rewritten at the same path when reprocessed); Range, HEAD and errors go to B2 as before; X-Media-Cache: HIT/MISS header. Tested locally with wrangler dev against real B2.
 2026-10-24: deployed (wrangler, version 5e26fca4; MEDIA_EDGE_CACHE on; B2 secrets kept). Live check: 4 thumbnails and an HLS playlist + segment go MISS then HIT with identical bytes; 404s not cached (no-store); Range/HEAD/OPTIONS as before. Cached thumbnails 0.42-0.65 s to first byte (was 0.55-1.6 s); the rest is the Marseille routing. Left: device check (test_yourself #129), commit the worker folder. Rollback: set MEDIA_EDGE_CACHE to off in the dashboard. Deleted/reprocessed files stay cached up to 30 days: #122.
 How to reproduce: curl -sI the same media.evebash.com thumbnail URL 3 times: cf-cache-status BYPASS and no speed-up.
+Note 2026-11-12: checked again with curl: thumbnail, preview, grid image, poster, HLS playlist and a video segment go MISS then HIT with identical bytes; 404s are no-store. The worker still drops the Range header (issue #181). Device test #129 still needs the app.
 
 #121
 Listed: 2026-10-24
@@ -661,6 +678,7 @@ Step 2 built (branch feat/grid-variant-modal, NOT deployed to Modal): PhotoProce
 2026-10-24: step 3 skipped (Sarthak): data is wiped before launch, so existing photos keep thumbnails in the grid; after the wipe every upload gets a grid image once the switch is "grid all".
 Step 4 built (branch feat/sharp-grid, not pushed): with NEXT_PUBLIC_GRID_HIRES=true, the Classic White justified grid on screens 1024 px and wider offers the thumbnail (480w) and the grid image (1000w, derived from the thumbnail link, keeping ?v=) with sizes="auto"; smaller screens keep thumbnails; a missing grid image falls back to the thumbnail. Tested locally at 1440 px retina: newcheck-4483 (15 photos with grid images, theme set to Classic White for the test, then back to Hero): 15/15 tiles load the grid image, stretch median 1.37x (max 1.9x) vs 2.86x (max 3.96x) for thumbnails; wedding-fdd8 (old photos, no grid image): 24/24 fall back to thumbnails, none broken. Speed, same 15 photos, 5 alternating rounds: thumbnails 0.70 s / 0.31 MB, grid 0.91 s / 1.12 MB, previews 1.08 s / 2.26 MB, Samaro 1100 px 1.11 s / 3.63 MB.
 2026-10-24 rollout: website code on staging (47ac686, live ~3 min later); NEXT_PUBLIC_GRID_HIRES=true in Vercel Preview AND Production (Production takes effect when staging reaches main); Modal switch "grid" = all (every new upload gets a grid image). Checked on staging (1440 px): wedding-fdd8 tries 24/24 grid images and falls back to 24/24 thumbnails, none broken. Rollback: NEXT_PUBLIC_GRID_HIRES=false + redeploy, and/or photo_pipeline_switch.py grid off.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone), device test #135 partly: Classic White album newcheck at 1366 px (2x) loads the grid image on 15/15 tiles, at 900 px 15/15 thumbnails, none broken. Safari, Firefox, an older gallery, rotate and other themes are not checked yet.
 
 #122
 Listed: 2026-10-24
@@ -1065,6 +1083,7 @@ Blocked by: -
 Found in: Porting the video pipeline to another project (chat 2026-10-29)
 Issue: The media worker on media.evebash.com (cloudflare-worker/evebash-media-worker/worker.js) never passes the viewer's Range header on to B2: it sends only Authorization and Accept. So a request for part of a file gets the whole file (200, not 206), while the reply still says "Accept-Ranges: bytes". HLS streams are not affected (players fetch whole segments). Plain MP4 playback is: the raw-video fallback in src/components/ui/HLSVideoPlayer.tsx (used when an HLS stream fails), the Vault video preview (src/components/vault/VideoPreview.tsx, if its link goes through media.evebash.com), and resuming a big download. Safari and iPhones need partial replies to play or seek an MP4, so those probably fail there (not checked on a device). B2 itself answers Range correctly (206, checked directly on B2 on 2026-10-29). Fix idea: pass the Range header to B2 behind a worker var (e.g. MEDIA_FORWARD_RANGE), keep Range requests out of the edge cache as today, add Range to Access-Control-Allow-Headers and Content-Range to Access-Control-Expose-Headers, then play a raw MP4 in iPhone Safari.
 How to reproduce: curl -A "Mozilla/5.0" -H "Range: bytes=0-99" -o /dev/null -w "%{http_code} %{size_download}\n" https://media.evebash.com/<a video's storage_key> prints "200 10961412" (the whole file) instead of "206 100".
+Note 2026-11-12: still happens (Claude, curl): a 0-99 range request for a 10.6 MB photo original returns 200 and all 10.6 MB. Found again while checking #120 / device test #129.
 
 #182
 Listed: 2026-10-29
@@ -1478,6 +1497,7 @@ How to reproduce: On the website host page, open an event, Change Cover to a tal
 Note 2026-11-07: parts 1-3 on staging in 610b2c0a (todo #11): the position is now a focus point in % plus a zoom everywhere (shared/themes/coverFocus.ts), the website's active themes and the app follow it, and a gallery can have a separate phone cover (set in edit mode, behind the switches). 3 of 74 events had a moved cover, none past 50, so none snaps to an edge. Device test #198. Left: (4) EventDesignPreview.tsx still draws the cover centred, and website themes outside the five active ones plus Periwinkle Script (e.g. Cinematic) still ignore the position.
 Note 2026-11-06: Being fixed with todo #11 on local branch feat/guest-edit-mode (not on staging yet), no database change. The position fields now mean the same everywhere (shared/themes/coverFocus.ts): coverOffsetX / coverOffset are the focus point's distance from the middle in percent of the photo (-50..50), coverScale the zoom (1-2.5), and zoom grows around the focus point. Website guest themes, dashboard cards and the host page's Position editor use it (src/lib/coverStyle.ts); the app's Royal Emerald, Classic White and Sunlit Portrait covers too (apps/mobile/lib/coverStyle.ts); the app's own cover (Midnight Hero, host view) maps it onto its pixel shift. Preview Guest Theme's cover panel has Move and zoom (drag a dot on the photo, zoom slider) on both platforms. One focus point serves the phone and the computer frame. The 2 test galleries already moved in pixels (up to 50) now read as percent and shift a little.
 Note 2026-11-07: all four parts fixed on staging in 610b2c0a and 65238da8. The cover position is a focus point in % plus a zoom everywhere; the five active website themes, the app and the host page's Guest Home Preview (phone frame = phone cover, browser frame = computer cover) follow it; a gallery can have a separate phone cover. Themes outside the five (now "Coming soon") keep their old cover look. Checked on staging.evebash.com and in the browser on localhost. Device test #198.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone), device test #198 partly: the Royal Emerald frame and the Confetti Circle cover of mehandi night both follow its moved cover (52% 2.1%, 1.8x zoom). Classic White, Sunlit Portrait, Midnight Hero, moving the Position and the app are not checked yet.
 
 #260
 Listed: 2026-11-11
