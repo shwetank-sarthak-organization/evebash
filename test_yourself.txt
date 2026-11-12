@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 208
+Next test number: 209
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5949,6 +5949,30 @@ How to test:
   5. A second phone (or the same phone after deleting and reinstalling the app), signed in as a host of the event: Host > the event > Design. Expect: the App frame shows the picture from step 4, not "Open Preview Guest Theme once".
   6. Website on a narrow laptop window and at phone width: the Website frame moves under the App frame and nothing overlaps.
   7. Website light and dark look (Settings > Appearance): the notes under the App frame are readable.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#208 Website + App: Transfer ownership is a box that opens a modal
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Host > event > Permissions. Transfer ownership used to be a full-width card that opened in place. Now it is a box the same size as Event visibility (beside it on a computer, under it on a phone and in the app). Tapping it opens the transfer form in the usual modal (website) or bottom sheet (app).
+Detail:    Commit c23fc841. Checked 2026-11-12 by Claude on the website (1440 px and 375 px, dark) and the iPhone 16e simulator (dev build, this branch's code without the light theme). Sending a real transfer was not tried.
+How to test:
+  1. Website on a computer: Host > a main event you own > Permissions. Expect: Event visibility and Transfer ownership boxes side by side on the right, same height.
+  2. Website at phone width: the two boxes stack, full width.
+  3. Click Transfer ownership. Expect: a modal like the other site modals (title, X, email field, "Keep the current owner on as an admin", Cancel and Send request). Escape, X and clicking outside close it.
+  4. Send a request to a test account. Expect: the modal shows "Transfer pending" with Cancel transfer, and the box turns gold and says "Transfer pending". Cancel transfer puts it back.
+  5. App (phone): same event > Permissions. Expect: the box under Event visibility; tapping it opens the bottom sheet with the same form; steps 4 again in the app.
+  6. App and website in light look (Settings > Appearance): text and the gold pending box are readable.
+  7. A sub-gallery's Permissions: no Transfer ownership box.
 Done by:
 Device / browser:
 Build / version:
