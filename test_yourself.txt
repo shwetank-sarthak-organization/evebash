@@ -2415,7 +2415,7 @@ Feedback:         Website: selfie search compared all 1,459 faces in the gallery
                   matches in 1.15 s. App not repeated (same backend and Modal function).
 
 #101 Royal Emerald guest page: new invitation-card hero
-Status:    FAIL
+Status:    RETEST
 Priority:  Medium
 Platform:  Website
 Brief:     The Royal Emerald (Wedding) guest page has a new top section: an ivory torn-edge card with the gallery
@@ -2453,7 +2453,7 @@ Build / version: staging.evebash.com as of 2026-11-12 (staging ad123bdb)
 Date tested: 2026-11-12
 Account used: host newone@email.com
 Screenshot / recording: reports/device-tests/test-101-step7-390px.jpg (local, not in git)
-Fix ref:
+Fix ref:  6109d44b (2026-11-12, staging): phone names size from the longest word and wrap at the spaces; retest step 7 at 375 and 390 px
 Feedback: 2026-11-12 Claude: step 7 FAILS at phone width, the rest pass. Phone layout seen by turning off the "Get the EveBash app" screen in the page (on staging real phones get that screen, so step 5 can't be done on a real phone). Test gallery: mehandi night (test-face-new-155c) switched to Royal Emerald and renamed for the test, then put back (Confetti Circle, "mehandi night"). Steps 1-3 PASS: "The Wedding of / Asha / & / Raj", date once, A&R seal, no made-up text, no "Treasured Moments", footer shows the title, nothing gold over the photos. Step 4 PASS: Explore Gallery scrolls to the photos, the top bar doesn't cover the first row. Step 5 PASS at 390 px: frame, then card, page 390 px wide. Step 6 PASS: album newcheck shows only "newcheck", its date and a fleur-de-lis seal. Step 7 FAIL: "Rajyalakshmi & Venkatanarayanaswamy" is fine on a computer (34 px, 3 lines), but at 390 px the card shows "Rajyalakshmi & Venkatan / arayanaswamy" (26 px, names on one line, the word is split). Issue #92. Step 8 partly: the frame follows the cover's focus point and zoom; changing the focus point not tried. Steps 9-10 PASS at 1366x768 (no profile button). Step 11: "Asha weds Raj" gives ASHA & RAJ, "The Wedding of Asha & Raj" and an A&R seal; and / AND / + use the same rule (shared/text/coupleNames.ts), not run one by one. Step 12 PASS: the navbar title is 17 px, ends in "..." and shows the full title on hover.
 
 #102 Royal Emerald gallery section: crest, welcome plaque, Back / Share, Photos / Videos
