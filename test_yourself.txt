@@ -2291,7 +2291,7 @@ Fix ref:
 Feedback: Computer: while 3 photos were processing I clicked Dashboard; the panel stayed and finished there ("100% complete - 3 files ready"). Other steps not checked.
 
 #95 Host gallery: one Filter button holds Source gallery, Uploaded by and Select
-Status:    FAIL
+Status:    RETEST
 Priority:  Medium
 Platform:  Website (desktop browser and phone browser)
 Brief:     Above the photos, the Source gallery (or Favourites only) and Uploaded by filters and the Select
@@ -2318,7 +2318,7 @@ Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
 Date tested: 2026-10-28
 Account used: host newone@email.com
 Screenshot / recording:
-Fix ref:
+Fix ref:   913ef3ec (2026-11-12), issue #176: opening Source gallery on Home loads the whole gallery first, so every sub-gallery is listed with the right count
 Feedback: Steps 1, 7 PASS: only a Filter button left of the grid/list toggle; panel has Source gallery, Uploaded by and Select; Escape closes it. Step 2 FAILS: Source gallery only offers "All galleries (17)" and "Home (Primary Gallery) (17)" while the tab says Photos (42); sub-galleries are missing because counts use only the photos loaded so far. Issue #176.
 
 #96 Host gallery: delete several photos and videos at once
