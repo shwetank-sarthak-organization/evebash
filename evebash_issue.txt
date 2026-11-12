@@ -1078,13 +1078,14 @@ Fix idea: look for shared state or timing in albums.test.ts (environment variabl
 Listed: 2026-10-29
 Platform: Both
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Porting the video pipeline to another project (chat 2026-10-29)
 Issue: The media worker on media.evebash.com (cloudflare-worker/evebash-media-worker/worker.js) never passes the viewer's Range header on to B2: it sends only Authorization and Accept. So a request for part of a file gets the whole file (200, not 206), while the reply still says "Accept-Ranges: bytes". HLS streams are not affected (players fetch whole segments). Plain MP4 playback is: the raw-video fallback in src/components/ui/HLSVideoPlayer.tsx (used when an HLS stream fails), the Vault video preview (src/components/vault/VideoPreview.tsx, if its link goes through media.evebash.com), and resuming a big download. Safari and iPhones need partial replies to play or seek an MP4, so those probably fail there (not checked on a device). B2 itself answers Range correctly (206, checked directly on B2 on 2026-10-29). Fix idea: pass the Range header to B2 behind a worker var (e.g. MEDIA_FORWARD_RANGE), keep Range requests out of the edge cache as today, add Range to Access-Control-Allow-Headers and Content-Range to Access-Control-Expose-Headers, then play a raw MP4 in iPhone Safari.
 How to reproduce: curl -A "Mozilla/5.0" -H "Range: bytes=0-99" -o /dev/null -w "%{http_code} %{size_download}\n" https://media.evebash.com/<a video's storage_key> prints "200 10961412" (the whole file) instead of "206 100".
 Note 2026-11-12: still happens (Claude, curl): a 0-99 range request for a 10.6 MB photo original returns 200 and all 10.6 MB. Found again while checking #120 / device test #129.
+Note 2026-11-12: code done in d005f8b6, not deployed. worker.js passes Range to B2 only when the worker var MEDIA_FORWARD_RANGE is "on"; wrangler.toml sets "off", so a deploy alone changes nothing. With it on, preflights allow Range, replies expose Content-Range, Accept-Ranges and Content-Length, and Range requests still skip the edge cache. Checked locally with wrangler dev against B2, on test-face-new's 10.96 MB test video (the one above): off = 200 and the whole file for every Range request, as today; on = 206 with 100 bytes and the right Content-Range for bytes=0-99 and bytes=-100 (the bytes match the whole file), 416 with no-store past the end, and whole-file GETs and edge cache hits unchanged. Left: deploy the worker (switch off), set MEDIA_FORWARD_RANGE to "on" and deploy, rerun the curl above (expect "206 100"), then device test #211 on an iPhone.
 
 #182
 Listed: 2026-10-29
