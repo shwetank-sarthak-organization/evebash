@@ -53,6 +53,8 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
     const couple = hasParent ? null : splitCoupleNames(title);
     const sealInitials = couple ? coupleInitials(title) : null;
     const longestName = couple ? Math.max(couple[0].length, couple[1].length) : title.length;
+    // Longest unbroken word: phones size the names from it so no word is ever split (#92)
+    const longestWord = Math.max(1, ...(couple ?? title.split(/\s+/)).flatMap((part) => part.split(/\s+/)).map((word) => word.length));
     // Edit mode (todo #11): pencils on the cover, title and date; the host's view only, guests see none of it
     const editing = useGuestEditSpots();
 
@@ -84,11 +86,14 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
                             <EditChip field="title" label="Title" style={{ top: 10, right: 10 }} />
                             {couple && <p className="royal-card__lead royal-foil">{coupleLead(event.category)}</p>}
                             {title && (
-                                <h1 className={cn("royal-card__names royal-foil", nameSizeClass(longestName, !!couple))}>
+                                <h1
+                                    className={cn("royal-card__names royal-foil", nameSizeClass(longestName, !!couple))}
+                                    style={{ "--royal-word": longestWord } as React.CSSProperties}
+                                >
                                     {couple ? (
                                         <>
-                                            {couple[0]}
-                                            <span className="royal-card__amp">&amp;</span>
+                                            {couple[0]}{" "}
+                                            <span className="royal-card__amp">&amp;</span>{" "}
                                             {couple[1]}
                                         </>
                                     ) : title}

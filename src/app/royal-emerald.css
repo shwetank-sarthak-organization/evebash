@@ -376,10 +376,15 @@ body:has(.royal-footer) .event-footer { display: none; }
   .royal-hero__frame-col { order: -1; }
   .royal-hero__divider { display: none; }
   .royal-frame { width: min(100%, 80vw, 340px); padding: 24px; }
-  .royal-card { width: min(100%, 70vw, 280px); min-height: 0; padding: 40px 20px 50px; }
+  .royal-card { width: min(100%, 70vw, 280px); min-height: 0; padding: 40px 20px 50px; container-type: inline-size; }
   .royal-card__lead { font-size: 19px; margin-bottom: 2px; }
   .royal-card__names, .royal-card__names--long { font-size: 34px; line-height: 1.2; }
   .royal-card__names--xlong { font-size: 26px; }
+  /* Shrink until the longest word fits the card (--royal-word = its letter count), so words are never split (#92) */
+  .royal-card__names, .royal-card__names--long, .royal-card__names--xlong {
+    font-size: min(34px, calc(100cqw / (var(--royal-word, 1) * 0.5 + 0.3)));
+    overflow-wrap: break-word;
+  }
   .royal-card__amp { display: inline; margin: 0 .12em; font-size: 22px; }
   .royal-card__flourish { width: 90px; margin: 10px 0; }
   .royal-card__seal { width: 76px; height: 76px; bottom: -38px; }
