@@ -25,8 +25,9 @@ interface GuestPagePreviewProps {
 // layout, fonts and photos, with the phone cover in the phone frame and the computer cover in the browser (issue #64).
 // It opens with ?preview=1 (no edit mode, no "Open in app" banner) and takes no clicks, so nothing can be liked or
 // uploaded from here. The iframes keep the host's sign-in (same site), so private galleries open.
-// Phone visitors to the website get the "Get the EveBash app" screen instead (src/lib/appGate.ts); the frames load
-// with the host's computer browser, so they show the page itself.
+// When the website's phone app screen is switched on (NEXT_PUBLIC_MOBILE_APP_GATE, src/lib/appGate.ts), phone
+// visitors get "Get the EveBash app" instead of the page; while it is off they see the page as in the phone frame.
+// The frames load with the host's computer browser, so they always show the page itself.
 export function GuestPagePreview({ eventId, refreshKey = 0 }: GuestPagePreviewProps) {
     const [reloads, setReloads] = useState(0);
     const [computerWidth, setComputerWidth] = useState(0);

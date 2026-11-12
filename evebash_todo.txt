@@ -800,7 +800,7 @@ Brief:        The website's Guest Home Preview (src/components/EventDesignPrevie
               (390 x 844, phone cover) and a computer's (1280 x 800, computer cover), shrunk to fit
               (src/components/GuestPagePreview.tsx). The app's
               Design tab shows the computer page in a web view (apps/mobile/components/event/
-              GuestPagePreview.tsx); phone guests see the gallery in the app, which is Preview Guest Theme.
+              GuestPagePreview.tsx); guests who use the app see its own look with Preview Guest Theme.
               The page opens with ?preview=1: no edit mode, no "Open in app" banner. The frames take no
               clicks or touches. They reload after the template or event type is saved, and with a
               Reload button.
@@ -808,8 +808,10 @@ Brief:        The website's Guest Home Preview (src/components/EventDesignPrevie
               web view gets the app's access token only (never the refresh token), so private galleries
               open; calls to sign out are dropped there so the app session can't be ended; the page
               reloads when the app renews its token (about hourly). The app's web view asks as a
-              computer browser, because the website shows phones and tablets its "Get the EveBash app"
-              screen (src/lib/appGate.ts), also on gallery pages.
+              computer browser, because when the website's phone app screen is switched on
+              (NEXT_PUBLIC_MOBILE_APP_GATE, src/lib/appGate.ts) phones and tablets get "Get the EveBash
+              app" instead of the page, also on gallery pages. As of 2026-11-12 it is on for staging only;
+              on the live site phone guests see the website's phone layout.
 Done in:      a454736d (2026-11-07), on staging. App part needs a new EAS staging build. Checked on
               the iPhone 16e simulator (dev build) and in the built-in browser; device test #205.
 

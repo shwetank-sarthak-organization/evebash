@@ -5881,7 +5881,7 @@ Feedback:         2026-11-07 Claude, iPhone 17 Pro simulator, dev build on a loc
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
-Brief:     The Design tab's Guest Home Preview was a colour sketch that looked the same for every theme. It now shows the real guest page, shrunk: on the website a phone-size and a computer-size frame, in the app a computer-size frame (phone guests see the gallery in the app, which is Preview Guest Theme). It updates after you change the template or event type, and has a Reload button.
+Brief:     The Design tab's Guest Home Preview was a colour sketch that looked the same for every theme. It now shows the real guest page, shrunk: on the website a phone-size and a computer-size frame, in the app a computer-size frame (guests who use the app see its own look with Preview Guest Theme). It updates after you change the template or event type, and has a Reload button.
 Detail:    Todo #28, commit a454736d. The app part needs a new EAS staging build, and loads the staging website, so the website part must be on staging first. The app passes its sign-in to the preview so private galleries show; the app must stay signed in afterwards.
 How to test:
   1. Website, on a computer: Host > a private event > Design. Expect: under Preview Guest Theme, the phone frame and the browser frame show the event's real guest home in its theme (its own layout, fonts and cover), not "This gallery is private". No edit bar and no "Open in app" bar in either frame.
@@ -5911,7 +5911,7 @@ Feedback:         2026-11-07 Claude, before staging: step 5 on the iPhone 16e si
 Status:    TODO
 Priority:  Medium
 Platform:  App
-Brief:     The app's Design tab card now also has an "App" phone frame with a picture of the app's real guest home (the screen phone guests see). The picture is taken a few seconds after you open Preview Guest Theme and is kept on this phone only (not uploaded, not in the database).
+Brief:     The app's Design tab card now also has an "App" phone frame with a picture of the app's real guest home (the screen guests see in the app). The picture is taken a few seconds after you open Preview Guest Theme and is kept on this phone only (not uploaded, not in the database).
 Detail:    Todo #29, commit ddc95b35. Uses the new library react-native-view-shot, so it needs a new EAS staging build (an older build simply never takes a picture). Builds on #205.
 How to test:
   1. On a phone that has never previewed the event: Host > an event > Design, scroll to Guest Home Preview. Expect: an "App" phone frame saying "Open Preview Guest Theme once to see the app here", and the website frame under it.

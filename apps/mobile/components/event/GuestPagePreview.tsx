@@ -14,8 +14,8 @@ const PHONE_SCREEN_WIDTH = 160;
 // the same)
 const PAGE = { width: 1280, height: 800 };
 
-// The website shows phones and tablets its "Get the EveBash app" screen (src/lib/appGate.ts), so the page is asked
-// for as a computer's browser would
+// When the website's phone app screen is switched on (NEXT_PUBLIC_MOBILE_APP_GATE, src/lib/appGate.ts), phones and
+// tablets get "Get the EveBash app" instead of the page, so the page is asked for as a computer's browser would
 const COMPUTER_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
 // Where supabase-js keeps the website's sign-in: sb-<project ref>-auth-token (the app and website share one project)
@@ -54,10 +54,10 @@ interface GuestPagePreviewProps {
   colors: typeof MidnightColors;
 }
 
-// What guests see, small: the app (phone guests) as a picture of its guest home, taken when the host last had it open
-// with Preview Guest Theme (lib/guestPreviewSnapshot.ts; the app's guest view is part of the event screen and can't be
-// drawn small), and the website guest page itself on a computer, drawn at a computer's size and shrunk to fit. The
-// page opens with ?preview=1 (no edit mode, no "Open in app" banner) and takes no touches.
+// What guests see, small: the app (guests who use it) as a picture of its guest home, taken when the host last had
+// it open with Preview Guest Theme (lib/guestPreviewSnapshot.ts; the app's guest view is part of the event screen and
+// can't be drawn small), and the website guest page itself on a computer, drawn at a computer's size and shrunk to
+// fit. The page opens with ?preview=1 (no edit mode, no "Open in app" banner) and takes no touches.
 export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }: GuestPagePreviewProps) {
   const [reloads, setReloads] = useState(0);
   const [session, setSession] = useState<WebSession | undefined>(undefined);
@@ -108,7 +108,7 @@ export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }
         <View style={styles.headerText}>
           <Text style={[styles.title, { color: colors.white }]}>Guest Home Preview</Text>
           <Text style={[styles.subtitle, { color: colors.slate400 }]}>
-            What guests see: this app on phones, and the website on a computer.
+            What guests see: this app, and the website on a computer.
           </Text>
         </View>
         <TouchableOpacity
