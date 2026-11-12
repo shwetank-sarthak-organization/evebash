@@ -372,7 +372,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #18 Move photos between galleries
-Status:    RETEST
+Status:    PASS
 Priority:  Medium
 Platform:  Website + App
 Brief:     Move photos/videos to another gallery of the same event. Website: Galleries > Select > Move to...
@@ -381,14 +381,21 @@ How to test:
   1. Move 2 photos from one gallery to a sub-gallery (website), then 1 video (app).
   2. Expect: they move, show in the new place, gone from the old one.
   3. Expect: likes and comments are still on the moved photo; Find You still finds it.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Shwetank (with Claude)
+Device / browser: Desktop browser (website); Android phone I2012 (Android 14), app
+Build / version: website staging; local dev build com.evebash.app from staging, backend api-staging
+Date tested: 2026-11-12
+Account used: shwetank.chauhan3@gmail.com (event Wedding 2, sub-galleries Event 1 and Event 2)
 Screenshot / recording:
 Fix ref:   0cd1faf; migration 20261010000000 applied 2026-10-10 (issue #22)
-Feedback:
+Feedback:  2026-11-12 Shwetank (with Claude): PASS.
+           Website: liked and commented ("test 18") 2 photos (VIS_5981.JPG, VIS_6017.JPG), moved them from Event 1
+           to a new sub-gallery Event 2: gone from Event 1, shown in Event 2; database confirms both likes and
+           both comments still on them and faces still indexed; Find You on Wedding 2 still found them.
+           App: moved videos from the main gallery: t163_iphone_hdr.mov to Event 2 and t163_fallback_25s.mp4 to
+           Event 1 (two moved, one possibly from a first try that looked stuck); both play in their new gallery,
+           processing state unchanged. During the first try the app hit issue #260 (all Supabase requests timed
+           out) and lost its USB link to Metro; after reconnecting, the move worked.
 
 --------------------------------------------------------------------------------
 #19 Profile storage card shows events and EB Vault
