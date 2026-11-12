@@ -5975,16 +5975,16 @@ How to test:
   7. A sub-gallery's Permissions: no Transfer ownership box.
 Done by:          Sarthak (website); Claude (app, simulator)
 Device / browser: Website: Sarthak's browser. App: iPhone 16e simulator (dev build)
-Build / version:  staging cc979be4 + 06e9e43d (website and app JS)
+Build / version:  staging cc979be4 + f00cc56e (website and app JS)
 Date tested:      2026-11-12
 Account used:     host (owner of Bijay Wedding)
 Screenshot / recording:
-Fix ref:          06e9e43d (light theme: "Transfer pending" text too pale on the website)
+Fix ref:          f00cc56e (light theme: "Transfer pending" text too pale on the website)
 Feedback:         2026-11-12 Sarthak: website good (steps 1-3). Claude: app box and sheet readable in light
                   and dark (iPhone 16e simulator). Step 4: sent a request to test account newone1@email.com from
                   the website; modal switched to "Transfer pending", box turned gold on website and app; cancelled
                   from the app sheet; event_transfers row status = cancelled. Step 6: website light look showed
-                  the pending title too pale (#CFA461 on near-white); fixed in 06e9e43d (#8A6224), rechecked. Step 7:
+                  the pending title too pale (#CFA461 on near-white); fixed in f00cc56e (#8A6224), rechecked. Step 7:
                   sub-gallery Rec 7 has no visibility or transfer box on website and app. Simulator used instead
                   of a real phone (front-end only change, Sarthak OK 2026-11-12).
 --------------------------------------------------------------------------------
