@@ -2291,7 +2291,7 @@ Fix ref:
 Feedback: Computer: while 3 photos were processing I clicked Dashboard; the panel stayed and finished there ("100% complete - 3 files ready"). Other steps not checked.
 
 #95 Host gallery: one Filter button holds Source gallery, Uploaded by and Select
-Status:    RETEST
+Status:    PASS
 Priority:  Medium
 Platform:  Website (desktop browser and phone browser)
 Brief:     Above the photos, the Source gallery (or Favourites only) and Uploaded by filters and the Select
@@ -2312,14 +2312,14 @@ How to test:
      right-aligned, a tick on the current choice. Escape closes just the open list; a second Escape closes
      the panel.
   9. Phone browser: the panel fits the screen (no sideways scroll) and the lists open normally.
-Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
-Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
-Date tested: 2026-10-28
-Account used: host newone@email.com
+Done by: Claude (for Sarthak); retest Shwetank (with Claude)
+Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device. Retest: desktop browser and phone browser
+Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b); retest staging.evebash.com 2026-11-12 (after 913ef3ec)
+Date tested: 2026-10-28; retest 2026-11-12
+Account used: host newone@email.com (retest: gallery Asha and Raj)
 Screenshot / recording:
 Fix ref:   913ef3ec (2026-11-12), issue #176: opening Source gallery on Home loads the whole gallery first, so every sub-gallery is listed with the right count
-Feedback: Steps 1, 7 PASS: only a Filter button left of the grid/list toggle; panel has Source gallery, Uploaded by and Select; Escape closes it. Step 2 FAILS: Source gallery only offers "All galleries (17)" and "Home (Primary Gallery) (17)" while the tab says Photos (42); sub-galleries are missing because counts use only the photos loaded so far. Issue #176.
+Feedback: Steps 1, 7 PASS: only a Filter button left of the grid/list toggle; panel has Source gallery, Uploaded by and Select; Escape closes it. Step 2 FAILS: Source gallery only offers "All galleries (17)" and "Home (Primary Gallery) (17)" while the tab says Photos (42); sub-galleries are missing because counts use only the photos loaded so far. Issue #176. PASS 2026-11-12 (Shwetank with Claude, retest after 913ef3ec): gallery Asha and Raj, Home, Photos tab (24 items, more than one page of 20), before scrolling: Source gallery lists All galleries (24), Home (14), Rec 1 (5), Reception 5 (3), REc 10 (2), matching the database; picking Rec 1 shows its 5 photos with a "1" badge. Steps 3-9 pass on desktop and phone browser. Note: on Home the Source gallery counts cover what Home shows (its own uploads plus favourites from sub-galleries), not each sub-gallery's full size.
 
 #96 Host gallery: delete several photos and videos at once
 Status:    FAIL
