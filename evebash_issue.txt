@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 263
+Next issue number: 264
 
 =====================================================================
 ACTIVE ISSUES
@@ -485,18 +485,6 @@ Issue: Royal Emerald mixes serif and sans fonts within small groups (the line ab
 How to reproduce: Open a Royal Emerald gallery and compare the fonts of the hero's small text and headings.
 Update 2026-10-22: hero fonts are now one set (Great Vibes for names, Cinzel for date and button, Cormorant Garamond for "&" and place), loaded only on this page (src/components/royal/royalFonts.ts); the fixed blur-3xl glows were replaced by a plain gradient. Still open: the [class*="text-stone-"] overrides in royal-emerald.css (cause of #86-#88).
 Update 2026-10-22 (later): fixed in 3b40188 (on staging). Royal Emerald no longer recolours shared controls by matching class names: its [class*="text-stone-"] and [role="switch"] overrides are gone, and the event page gives the Royal controls named classes (royal-button, royal-switch, royal-error, royal-muted, royal-empty). Shared text colours still come from the theme colours in gallery-refinements.css, like every theme. Device test #113.
-
-#97
-Listed: 2026-10-22
-Platform: Both
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: The website and app Royal Emerald are two different designs. The website is a split hero (text left, framed image right, Explore Gallery) in src/components/TemplateRoyal.tsx; the app is a full-screen cover photo with the title in the middle, MY PHOTOS and "Delivered by EveBash" (apps/mobile/app/events/[id].tsx, royalHeroOverlay). A guest sees a different page on each.
-How to reproduce: Open the same Royal Emerald gallery on the website and in the app.
-Note (2026-10-22): the app now uses the website design, adapted for phones (apps/mobile/components/royal): gold corners, the cover in the gold filigree frame (portrait 4:5) with the ivory title card and wax seal under it, a top bar with Back, the title and Share, then the crest / title / highlight video / plaque / Back and Share / Photos-Videos header and the crown footer. Not committed yet; waiting for the user's app mockup. Device test #109.
 
 #99
 Listed: 2026-10-22
@@ -1524,9 +1512,33 @@ Found in: #176 fix (chat 2026-11-12)
 Issue: Plain gallery logic is copied in the website and the app, so the two can drift apart. (1) src/lib/uploaders.ts and apps/mobile/lib/uploaders.ts both define UploaderRole, the role labels and order, buildUploaderOptions and uploaderOf ("Keep in sync" comments); only fetchUploaderDetails really differs (how each finds the API). (2) mergeHomeMedia is in both src/lib/database.ts and apps/mobile/lib/database.ts. Fix: move the plain parts to shared/ (for example shared/media/uploaders.ts and shared/media/homeMedia.ts, next to shared/media/sourceGalleries.ts) and import them from both; leave fetchUploaderDetails where it is. Behaviour should not change.
 How to reproduce: Read the files: diff src/lib/uploaders.ts apps/mobile/lib/uploaders.ts.
 
+#263
+Listed: 2026-11-12
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: iOS simulator check of #97 / device test #109 (2026-11-12, iPhone 16e, staging ad123bdb)
+Issue: Small differences are left in the app's Royal Emerald guest page after #97. (1) In the HOME / COLLECTIONS / FIND YOU bar, the selected tab's label sits about 6 pt higher than the others, because its underline and diamond sit under the text and push it up (renderUnderline in apps/mobile/components/event/ThemeHeader.tsx). On the website the labels line up. (2) The bar is a sideways-scrolling row a little wider than a 390 pt phone: FIND YOU ends about 4 pt from the right edge while HOME starts about 37 pt from the left, and the row can be pushed sideways. On a smaller phone FIND YOU will be cut off. (3) Two blocks use the app's plain Inter font and grey card style instead of the theme's gold serif: "Explore the galleries" (on Home when Home has no photos but its sub-galleries do; apps/mobile/app/events/[id].tsx) and the "Favourites only" card above an album's photos. For an empty Home the website shows "No photos yet." in the theme's serif. (4) The gallery title on Home says "Highlights" in the app (apps/mobile/app/events/[id].tsx, RoyalGalleryHeader title) and "Home Gallery" on the website. Fix: give every Royal tab the same space for the underline (or place it absolutely) so the labels line up, make the three tabs fit on phones from 360 pt wide, style the two blocks for Royal like the rest of the page, and use one title on both. Other themes stay as they are.
+How to reproduce: In the app, open the public Royal Emerald gallery "29 sep" (29-sep-bqu5k) as a guest and scroll down. Compare the HOME label's height with COLLECTIONS, and FIND YOU with the right edge; see "Explore the galleries" and the "Highlights" title. Open COLLECTIONS > check_photo_13 for the "Favourites only" card. Compare with staging.evebash.com/events/29-sep-bqu5k on a computer.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#97
+Listed: 2026-10-22
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: The website and app Royal Emerald are two different designs. The website is a split hero (text left, framed image right, Explore Gallery) in src/components/TemplateRoyal.tsx; the app is a full-screen cover photo with the title in the middle, MY PHOTOS and "Delivered by EveBash" (apps/mobile/app/events/[id].tsx, royalHeroOverlay). A guest sees a different page on each.
+How to reproduce: Open the same Royal Emerald gallery on the website and in the app.
+Note (2026-10-22): the app now uses the website design, adapted for phones (apps/mobile/components/royal): gold corners, the cover in the gold filigree frame (portrait 4:5) with the ivory title card and wax seal under it, a top bar with Back, the title and Share, then the crest / title / highlight video / plaque / Back and Share / Photos-Videos header and the crown footer. Not committed yet; waiting for the user's app mockup. Device test #109.
+Fixed in: ba250ae9 (2026-10-23), closed 2026-11-12 after an iOS simulator check. The app's Royal Emerald guest page (apps/mobile/components/royal: RoyalHero, RoyalGalleryHeader, RoyalFooter) is the website's design arranged for a phone; the old full-screen cover, MY PHOTOS and "Delivered by EveBash" are gone. It is in the Android staging build 663facd1 (staging b4118bd). Checked 2026-11-12 on the iPhone 16e simulator with staging ad123bdb, gallery "29 sep" (29-sep-bqu5k) as a guest: gold corners, filigree frame, ivory card and wax seal; the pinned HOME / COLLECTIONS / FIND YOU bar; crest, plaque, Back / Share and the gold Photos / Videos switch; the Collections menu opens an album with its own hero card; crown footer with "Made with EveBash". Compared with the staging website on a computer: same design. Not checked: the couple-name card (no viewable Royal gallery with a couple's name), Android. Small leftovers are #263. Device test #109.
 
 #176
 Listed: 2026-10-28

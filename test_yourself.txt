@@ -2699,14 +2699,14 @@ How to test:
   9. Do steps 1, 3 and 5 on an iPhone and on a small Android phone (about 5.5 inch). Only checked on an
      Android emulator so far: look for wrong fonts, cut-off script letters, the seal initials off centre,
      the hero not fitting one screen, or the Collections menu opening in the wrong place.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Claude (for Sarthak)
+Device / browser: iOS Simulator, iPhone 16e (dev client, staging code from Metro); not a real iPhone
+Build / version: staging ad123bdb (2026-11-12)
+Date tested: 2026-11-12
+Account used: e8848fc1 ("New"), as a guest of the public gallery "29 sep" (29-sep-bqu5k)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: iOS simulator: steps 2 (title that isn't two names: no "The Wedding of", fleur-de-lis seal), 3, 4 and 5 PASS. Small leftovers logged as issue #263: the selected tab's label sits higher than the others, FIND YOU touches the right edge, "Explore the galleries" and "Favourites only" use the plain app font, and the Home title says "Highlights" (website: "Home Gallery"). Not checked: step 1 with a couple's name (the only one, "Samarth and Jyoti", is private to this account), the highlight video, steps 6-8, Android and a small phone.
 
 --------------------------------------------------------------------------------
 #110 Comments on photos (website and app)
