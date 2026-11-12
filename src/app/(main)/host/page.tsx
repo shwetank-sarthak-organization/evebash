@@ -15,6 +15,7 @@ import { PartnersIcon } from "@/components/PartnersIcon";
 import { GalleryTypesInfo } from "@/components/GalleryTypesInfo";
 import { TransferOwnershipCard } from "@/components/transfer/TransferOwnershipCard";
 import { memberLabel, type MemberDetails } from "../../../../shared/permissions/memberDetails";
+import { buildSourceGalleryOptions, formatSourceCount, isFromSourceGallery } from "../../../../shared/media/sourceGalleries";
 import { HostIcon } from "@/components/HostIcon";
 import { HostConsoleIcon } from "@/components/HostConsoleIcon";
 import { DashboardEventCard, SERIF, formatShortEventDate } from "@/components/dashboard/DashboardEvents";
@@ -1022,7 +1023,7 @@ function DashboardContent() {
             let media = all.filter(p => galleryMediaTab === "videos" ? isVideo(p) && p.status === "processed" : !isVideo(p) && p.status !== "uploading");
             if (isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all") {
                 const source = sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter);
-                media = media.filter(p => p.eventId === source?.id || (!!source?.legacyId && p.eventId === source.legacyId));
+                media = media.filter(p => isFromSourceGallery(p, source));
             }
             if (isFavouriteFilterActive) media = media.filter(p => eventFavouritePhotoIds.has(p.id));
             if (isUploaderFilterActive) media = media.filter(p => uploaderOf(p) === effectiveUploaderFilter);
@@ -1646,8 +1647,8 @@ function DashboardContent() {
         }
     };
 
-    // The "Uploaded by" filter needs the whole gallery, not just the pages loaded so far. Only the media rows are
-    // loaded here; images still load lazily as they scroll into view.
+    // The "Uploaded by" and "Source gallery" filters need the whole gallery, not just the pages loaded so far. Only
+    // the media rows are loaded here; images still load lazily as they scroll into view.
     /** Every media row of a gallery, page by page (media rows only, no images). */
     const fetchAllEventMedia = async (eventId: string): Promise<Photo[]> => {
         let currentEvent = userEvents.find(e => e.id === eventId) || eventDetailGalleries.find(e => e.id === eventId);
@@ -3563,24 +3564,14 @@ function DashboardContent() {
     const videoItems = currentEventPhotos.filter(photo => (photo.mediaType === "video" || photo.resourceType === "video") && photo.status === "processed");
     const selectedMediaItems = galleryMediaTab === "videos" ? videoItems : photoItems;
     const isPrimaryGalleryView = !!selectedMainEvent && selectedEventId === selectedMainEvent.id;
-    const sourceGalleryOptions = [selectedMainEvent, ...eventDetailGalleries]
-        .filter((gallery): gallery is Event => !!gallery)
-        .map(gallery => ({
-            id: gallery.id,
-            label: gallery.id === selectedMainEvent?.id ? "Home (Primary Gallery)" : gallery.title,
-            legacyId: gallery.legacyId,
-            count: selectedMediaItems.filter(photo => photo.eventId === gallery.id || (!!gallery.legacyId && photo.eventId === gallery.legacyId)).length,
-        }))
-        .filter(option => option.count > 0);
+    // Home's own uploads load in pages: its count shows "N+" until the list is opened, which loads the whole gallery
+    const sourceGalleryOptions = buildSourceGalleryOptions(selectedMainEvent, eventDetailGalleries, selectedMediaItems, hasMorePhotos);
     const effectiveSourceGalleryFilter = sourceGalleryOptions.some(option => option.id === sourceGalleryFilter)
         ? sourceGalleryFilter
         : "all";
     const isFavouriteFilterActive = !isPrimaryGalleryView && showOnlyFavourites;
     const sourceFilteredMediaItems = isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all"
-        ? selectedMediaItems.filter(photo => {
-            const source = sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter);
-            return photo.eventId === source?.id || (!!source?.legacyId && photo.eventId === source.legacyId);
-        })
+        ? selectedMediaItems.filter(photo => isFromSourceGallery(photo, sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter)))
         : selectedMediaItems;
     const favouriteFilteredItems = isFavouriteFilterActive
         ? sourceFilteredMediaItems.filter(photo => eventFavouritePhotoIds.has(photo.id))
@@ -5455,15 +5446,18 @@ function DashboardContent() {
                                         <div role="dialog" aria-label="Gallery filters" className="absolute left-0 top-full z-30 mt-2 flex w-[min(21rem,calc(100vw-2rem))] flex-col gap-3 rounded-2xl border border-[var(--site-border)] bg-[var(--site-bg)] p-3 shadow-2xl shadow-black/50 light:shadow-(color:--home-shadow-strong)">
                                         {isPrimaryGalleryView ? (
                                         <div className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-[var(--site-border)] bg-[var(--site-surface)]/45 pl-3 pr-1.5" title="Filter Primary Gallery media by origin">
-                                            <Layers3 className="h-4 w-4 shrink-0 text-[var(--site-gold-text)]" />
+                                            {loadingAllMedia
+                                                ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--site-gold-text)]" />
+                                                : <Layers3 className="h-4 w-4 shrink-0 text-[var(--site-gold-text)]" />}
                                             <span className="flex-1 whitespace-nowrap text-sm font-semibold text-[var(--site-text)]">Source gallery</span>
                                             <FilterDropdown
                                                 value={effectiveSourceGalleryFilter}
+                                                onOpen={() => void loadAllEventPhotos()}
                                                 onChange={setSourceGalleryFilter}
                                                 ariaLabel="Filter by source gallery"
                                                 options={[
-                                                    { value: "all", label: `All galleries (${selectedMediaItems.length})` },
-                                                    ...sourceGalleryOptions.map(option => ({ value: option.id, label: `${option.label} (${option.count})` })),
+                                                    { value: "all", label: loadingAllMedia ? "Loading galleries…" : `All galleries (${formatSourceCount(selectedMediaItems.length, hasMorePhotos)})` },
+                                                    ...sourceGalleryOptions.map(option => ({ value: option.id, label: `${option.label} (${formatSourceCount(option.count, option.more)})` })),
                                                 ]}
                                             />
                                         </div>

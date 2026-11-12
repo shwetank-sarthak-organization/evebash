@@ -73,6 +73,7 @@ import { ConfettiFooter } from '../../components/confetti/ConfettiFooter';
 import { useConfettiFonts } from '../../components/confetti/confettiFonts';
 import { ThemedAppBar } from '../../components/navigation/ThemedAppBar';
 import { isMissingUploadedFile } from '../../../../shared/media/missingUpload';
+import { buildSourceGalleryOptions, formatSourceCount, isFromSourceGallery } from '../../../../shared/media/sourceGalleries';
 import { appTabBarMetrics } from '../../components/navigation/appTabs';
 import { useRoyalFonts } from '../../components/royal/royalFonts';
 import GalleriesIcon from '../../components/icons/GalleriesIcon';
@@ -1442,26 +1443,20 @@ function EventDetailScreen() {
   const videoItems = React.useMemo(() => viewerPhotos.filter(item => isVideoMedia(item) && item?.status === 'processed'), [viewerPhotos]);
   const selectedMediaItems = galleryMediaTab === 'photos' ? photoItems : videoItems;
   const isPrimaryGalleryView = showAdminView ? selectedAdminGallery === null : !activeSubEvent;
-  const sourceGalleryOptions = React.useMemo(() => {
-    return [event, ...(showAdminView ? subEvents : guestSubEvents)]
-      .filter((gallery): gallery is DatabaseEvent => !!gallery)
-      .map(gallery => ({
-        id: gallery.id,
-        label: gallery.id === event?.id ? 'Home (Primary Gallery)' : gallery.title,
-        legacyId: gallery.legacyId,
-        count: selectedMediaItems.filter(item => item.eventId === gallery.id || (!!gallery.legacyId && item.eventId === gallery.legacyId)).length,
-      }))
-      .filter(option => option.count > 0);
-  }, [event, guestSubEvents, selectedMediaItems, showAdminView, subEvents]);
+  // Home's own uploads load in pages: its count shows "N+" until the list is opened, which loads the whole gallery
+  const sourceGalleryOptions = React.useMemo(
+    () => buildSourceGalleryOptions(event, showAdminView ? subEvents : guestSubEvents, selectedMediaItems, hasMorePhotos),
+    [event, guestSubEvents, hasMorePhotos, selectedMediaItems, showAdminView, subEvents],
+  );
   const effectiveSourceGalleryFilter = sourceGalleryOptions.some(option => option.id === sourceGalleryFilter)
     ? sourceGalleryFilter
     : 'all';
+  const selectedSourceGallery = sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter);
   const isFavouriteFilterActive = !isPrimaryGalleryView && !isPublicView && showOnlyFavourites;
   const sourceFilteredMediaItems = React.useMemo(() => {
     if (!isPrimaryGalleryView || effectiveSourceGalleryFilter === 'all') return selectedMediaItems;
-    const source = sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter);
-    return selectedMediaItems.filter(item => item.eventId === source?.id || (!!source?.legacyId && item.eventId === source.legacyId));
-  }, [effectiveSourceGalleryFilter, isPrimaryGalleryView, selectedMediaItems, sourceGalleryOptions]);
+    return selectedMediaItems.filter(item => isFromSourceGallery(item, selectedSourceGallery));
+  }, [effectiveSourceGalleryFilter, isPrimaryGalleryView, selectedMediaItems, selectedSourceGallery]);
   const favouriteFilteredPhotoItems = React.useMemo(
     () => galleryMediaTab === 'photos' && isFavouriteFilterActive
       ? sourceFilteredMediaItems.filter(item => eventFavouritePhotoIds.has(item.id))
@@ -1951,8 +1946,8 @@ function EventDetailScreen() {
     }
   };
 
-  // The "Uploaded by" filter needs the whole gallery, not just the pages loaded so far (media rows only; images
-  // still load as they scroll into view)
+  // The "Uploaded by" and "Source gallery" filters need the whole gallery, not just the pages loaded so far (media
+  // rows only; images still load as they scroll into view)
   const loadAllAdminMedia = async () => {
     if (!event || !showAdminView || !hasMorePhotos || loadingAllMedia || loadingMorePhotosRef.current) return;
     const galleryId = adminGalleryId;
@@ -5880,7 +5875,10 @@ function EventDetailScreen() {
                         {isPrimaryGalleryView ? (
                         <TouchableOpacity
                           accessibilityRole="button"
-                          onPress={() => setSourceGalleryMenuVisible(true)}
+                          onPress={() => {
+                            setSourceGalleryMenuVisible(true);
+                            void loadAllAdminMedia();
+                          }}
                           style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: hp.tint(0.12), backgroundColor: (hostLight ? hp.card : 'rgba(27,33,31,0.72)'), paddingHorizontal: 12, paddingVertical: 10 }}
                         >
                           <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(202, 156, 104,0.14)' }}>
@@ -5890,8 +5888,8 @@ function EventDetailScreen() {
                             <Text style={{ color: hp.white, fontSize: 13, fontFamily: Fonts.inter.bold }}>Source gallery</Text>
                             <Text style={{ color: hp.slate400, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
                               {effectiveSourceGalleryFilter === 'all'
-                                ? `All galleries · ${selectedMediaItems.length}`
-                                : `${sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter)?.label || 'All galleries'} · ${activeGalleryItems.length}`}
+                                ? `All galleries · ${formatSourceCount(selectedMediaItems.length, hasMorePhotos)}`
+                                : `${selectedSourceGallery?.label || 'All galleries'} · ${formatSourceCount(activeGalleryItems.length, !!selectedSourceGallery?.more)}`}
                             </Text>
                           </View>
                           <IconSymbol name="chevron.down" size={16} color={hp.slate400} />
@@ -8262,13 +8260,17 @@ function EventDetailScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <View>
                 <Text style={styles.modalTitle}>Source gallery</Text>
-                <Text style={{ color: hp.slate400, fontSize: 12, marginTop: 4 }}>Show media selected from</Text>
+                <Text style={{ color: hp.slate400, fontSize: 12, marginTop: 4 }}>
+                  {loadingAllMedia ? 'Loading the whole gallery…' : 'Show media selected from'}
+                </Text>
               </View>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setSourceGalleryMenuVisible(false)} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: hp.tint(0.06) }}>
                 <IconSymbol name="xmark" size={17} color={hostLight ? hp.white : '#fff'} />
               </TouchableOpacity>
             </View>
-            {[{ id: 'all', label: 'All galleries', count: selectedMediaItems.length }, ...sourceGalleryOptions].map(option => {
+            {loadingAllMedia ? (
+              <ActivityIndicator color={hp.gold} style={{ paddingVertical: 24 }} />
+            ) : [{ id: 'all', label: 'All galleries', count: selectedMediaItems.length, more: hasMorePhotos }, ...sourceGalleryOptions].map(option => {
               const selected = effectiveSourceGalleryFilter === option.id;
               return (
                 <TouchableOpacity
@@ -8281,7 +8283,7 @@ function EventDetailScreen() {
                 >
                   <IconSymbol name={option.id === 'all' ? 'square.grid.2x2.fill' : 'folder'} size={17} color={selected ? hp.gold : hp.slate400} />
                   <Text style={{ flex: 1, color: selected ? hp.gold : hostLight ? hp.white : '#f8fafc', fontSize: 14, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>{option.label}</Text>
-                  <Text style={{ color: selected ? hp.gold : hp.slate400, fontSize: 12 }}>{option.count}</Text>
+                  <Text style={{ color: selected ? hp.gold : hp.slate400, fontSize: 12 }}>{formatSourceCount(option.count, option.more)}</Text>
                   {selected && <IconSymbol name="checkmark" size={15} color={hp.gold} />}
                 </TouchableOpacity>
               );
