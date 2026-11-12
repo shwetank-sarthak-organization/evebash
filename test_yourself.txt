@@ -6032,19 +6032,19 @@ Screenshot / recording:
 Fix ref:
 Feedback:
 --------------------------------------------------------------------------------
-#211 iPhone Safari: a plain MP4 from media.evebash.com plays and seeks
+#211 iPhone app and Mac Safari: a video that is still processing plays and seeks
 Status:    TODO
 Priority:  Medium
-Platform:  Website (iPhone Safari)
-Brief:     media.evebash.com used to send the whole video when the player asked for one part of it. iPhones need parts to play or seek a plain MP4 (the website's fallback when a video stream fails, EB Vault video previews, resumed downloads). The media worker can now send just the part asked for (issue #181).
-Detail:    Commit 18b33116. Live on media.evebash.com since 2026-11-12 (worker version 50650e04, MEDIA_FORWARD_RANGE "on"), so this can be tested now. Video streams (HLS) and photos are not meant to change. Checked by Claude with curl on media.evebash.com and in desktop Chrome on staging.evebash.com (206 replies, the clip loads and seeks), not on an iPhone. For the link, use the 30 s test clip in test-face-new (its file name ends in t157_watchdog_30s.mp4): https://media.evebash.com/ followed by that video's storage_key (ask Claude or look it up in Supabase, photos.storage_key).
+Platform:  App (iPhone) + Website (Mac Safari)
+Brief:     Right after a video is uploaded, until it is processed, the app and the website play the original MP4 file from media.evebash.com (the app shows "Optimizing video quality..." on it). iPhones and Safari need the server to send one part of the file at a time to play or seek it, and media.evebash.com used to send the whole file every time (issue #181). Processed videos (streams) and photos were never affected. The website shows "download the app" on phones, so the website part is checked on a Mac.
+Detail:    Commit 18b33116. Live on media.evebash.com since 2026-11-12 (worker version 50650e04, MEDIA_FORWARD_RANGE "on"). Server change only: any app build works, no new build needed. Checked by Claude with curl and in desktop Chrome (206 replies, the clip loads and seeks), not on an iPhone or in Safari. Processing lasts only a minute or a few, so upload a fresh video of 1-2 minutes for each try and open it straight away. For step 1 and step 5, use the 30 s test clip in test-face-new (its file name ends in t157_watchdog_30s.mp4): https://media.evebash.com/ followed by that video's storage_key (ask Claude or look it up in Supabase, photos.storage_key).
 How to test:
   1. On a computer: curl -A "Mozilla/5.0" -H "Range: bytes=0-99" -o /dev/null -w "%{http_code} %{size_download}\n" <the link>. Expect: "206 100" (before the fix: "200 10961412").
-  2. iPhone Safari: open the link. Expect: the video plays with sound.
+  2. iPhone app (staging), as host of a test gallery: upload a 1-2 minute video from the phone and open it as soon as it shows in the gallery. Expect: "Optimizing video quality..." shows and the video plays with sound.
   3. Drag the progress bar to the middle, then near the end. Expect: it jumps there and keeps playing, without starting again from 0:00.
-  4. iPhone Safari: open a gallery video on staging.evebash.com as usual. Expect: plays and seeks as before.
-  5. A gallery on staging with many photos: scroll, open a photo. Expect: thumbnails and photos load as before.
-  6. If you use EB Vault: play a video preview there on the iPhone and seek. Expect: plays and seeks.
+  4. Once it has finished processing, close and open it again. Expect: no "Optimizing" note, plays and seeks as before.
+  5. iPhone Safari: open the link from step 1. It is media.evebash.com, not the website, so no "download the app" screen. Expect: plays with sound, and dragging the progress bar jumps there.
+  6. Mac Safari, staging.evebash.com, host of a test gallery: upload a video and open it straight away. Expect: plays and seeks. Older videos and the gallery's photos load as before.
 Done by:
 Device / browser:
 Build / version:
