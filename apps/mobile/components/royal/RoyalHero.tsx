@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, type ImageSourcePropType } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { coupleInitials, splitCoupleNames } from '../../../../shared/text/coupleNames';
+import { coupleInitials, shouldStackCoupleNames, splitCoupleNames } from '../../../../shared/text/coupleNames';
 import { RoyalFiligreeFrame, RoyalFlourish, RoyalPaperCard, RoyalScreenCorner, RoyalWaxSeal } from './RoyalOrnaments';
 import type { RoyalFontSet } from './royalFonts';
 import { EditChip } from '@/components/event/guestEdit/EditChip';
@@ -28,12 +28,13 @@ const SEAL = 64;
 // Same space above and below the card's text, so it sits in the middle; the bottom space clears the seal
 const CARD_PAD = SEAL / 2 + 10;
 const NAME_LINE = 46;
+const AMP_LINE = 28;
 // Frame and card share the stack's height 70 / 30
 const FRAME_SHARE = 0.7;
 
 /** About how tall the card is, so the frame can be sized against it */
-function cardHeight(isCouple: boolean, hasDate: boolean) {
-  const names = isCouple ? 26 + NAME_LINE : NAME_LINE * 1.6;
+function cardHeight(isCouple: boolean, hasDate: boolean, stacked: boolean) {
+  const names = isCouple ? 26 + (stacked ? NAME_LINE * 2 + AMP_LINE : NAME_LINE) : NAME_LINE * 1.6;
   return CARD_PAD + names + 32 + (hasDate ? 16 : 0) + CARD_PAD;
 }
 
@@ -60,7 +61,8 @@ export function RoyalHero({ gallery, isAlbum, coverSource, width, height, insetT
   const cornerTop = insetTop + 12;
   // The frame takes what's left of the screen between the corners, at most 300 wide
   // Below the frame: the gap, the card and the half of the seal under it
-  const card = cardHeight(!!couple, !!gallery.date);
+  const stacked = shouldStackCoupleNames(couple);
+  const card = cardHeight(!!couple, !!gallery.date, stacked);
   const belowFrame = CARD_GAP + card + SEAL / 2;
   // The frame starts below the top corners (its own corner pieces reach a little above it)
   const stackTop = cornerTop + CORNER - 2;
@@ -110,7 +112,14 @@ export function RoyalHero({ gallery, isAlbum, coverSource, width, height, insetT
             <EditChip field="title" label="Title" at={{ top: 6, right: 6 }} />
             {/* Script swashes reach past the letters, so each line has side padding (Android clips them otherwise) */}
             {couple && <Text style={[local.lead, { fontFamily: fonts.script }]}>{coupleLead(gallery.category)} </Text>}
-            {couple ? (
+            {couple && stacked ? (
+              // Long names: first name, &, second name, each shrunk to fit its own line (the website does the same on phones)
+              <View style={{ alignSelf: 'stretch' }} accessible accessibilityRole="header" accessibilityLabel={`${couple[0]} and ${couple[1]}`}>
+                <Text style={[local.names, { fontFamily: fonts.script }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.45}>{couple[0]}{' '}</Text>
+                <Text style={[local.amp, { fontFamily: fonts.serifItalic, lineHeight: AMP_LINE }]}>&amp;</Text>
+                <Text style={[local.names, { fontFamily: fonts.script }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.45}>{couple[1]}{' '}</Text>
+              </View>
+            ) : couple ? (
               // One line keeps the card short, so the frame gets 70% of the height
               <Text
                 style={[local.names, { fontFamily: fonts.script }]}

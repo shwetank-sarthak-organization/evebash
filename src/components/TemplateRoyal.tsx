@@ -8,7 +8,7 @@ import { coverImageStyle } from "@/lib/coverStyle";
 import { cn } from "@/lib/utils";
 import { Crown } from "lucide-react";
 import { royalDisplay, royalScript, royalSerif } from "@/components/royal/royalFonts";
-import { coupleInitials, displayCoupleTitle, splitCoupleNames } from "../../shared/text/coupleNames";
+import { coupleInitials, displayCoupleTitle, shouldStackCoupleNames, splitCoupleNames } from "../../shared/text/coupleNames";
 import { EditChip, useGuestEditSpots } from "@/components/guestEdit/EditChip";
 import {
     RoyalDivider,
@@ -87,7 +87,12 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
                             {couple && <p className="royal-card__lead royal-foil">{coupleLead(event.category)}</p>}
                             {title && (
                                 <h1
-                                    className={cn("royal-card__names royal-foil", nameSizeClass(longestName, !!couple))}
+                                    className={cn(
+                                        "royal-card__names royal-foil",
+                                        nameSizeClass(longestName, !!couple),
+                                        // Long couples stack on phones: first name, &, second name (short ones stay on one line)
+                                        shouldStackCoupleNames(couple) && "royal-card__names--stack"
+                                    )}
                                     style={{ "--royal-word": longestWord } as React.CSSProperties}
                                 >
                                     {couple ? (

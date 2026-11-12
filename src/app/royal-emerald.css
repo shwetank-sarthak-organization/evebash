@@ -386,6 +386,7 @@ body:has(.royal-footer) .event-footer { display: none; }
     overflow-wrap: break-word;
   }
   .royal-card__amp { display: inline; margin: 0 .12em; font-size: 22px; }
+  .royal-card__names--stack .royal-card__amp { display: block; margin: 2px 0; }
   .royal-card__flourish { width: 90px; margin: 10px 0; }
   .royal-card__seal { width: 76px; height: 76px; bottom: -38px; }
   .royal-cta { display: none; }

@@ -37,3 +37,10 @@ export function displayCoupleTitle(title: string): string {
     const couple = splitCoupleNames(title);
     return couple ? `${couple[0]} & ${couple[1]}` : title;
 }
+
+/** Royal Emerald stacks a couple on phones (first name / & / second name) when a name is longer than this; shorter couples stay on one line */
+export const STACK_COUPLE_NAMES_OVER = 8;
+
+export function shouldStackCoupleNames(couple: [string, string] | null): boolean {
+    return !!couple && Math.max(couple[0].length, couple[1].length) > STACK_COUPLE_NAMES_OVER;
+}

@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 210
+Next test number: 211
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6002,6 +6002,27 @@ How to test:
   5. App: Host > test-face-new > Galleries > Home (Primary Gallery). Don't scroll. Expect: the Source gallery row says "All galleries · 16+" (a count ending in "+").
   6. Tap Source gallery. Expect: "Loading the whole gallery…" with a spinner, then All galleries 46 and Home (Primary Gallery) 46, matching Photos (46). Close it: the row now says "All galleries · 46".
   7. App: repeat step 3 in samarth weds Jyoti. Expect: the same galleries and counts as the website.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#210 Website + App: Royal Emerald long couple names stack on the card
+Status:    TODO
+Priority:  Low
+Platform:  Website + App
+Brief:     On the Royal Emerald hero card, a couple with a name over 8 letters now shows first name, "&", second name on three lines (phones on the website, and the app); short couples stay on one line (issue #264, related #92). App: needs a build or update with this change.
+How to test:
+  1. Rename a Royal Emerald test gallery "Rajyalakshmi & Venkatanarayanaswamy". Website at 375 and 390 px wide (or app): expect Rajyalakshmi, &, Venkatanarayanaswamy on three lines, no word split, nothing cut off at the sides.
+  2. App: the cover frame still sits above the card and the card, seal and bottom corners are not cut off (also on a small phone).
+  3. Rename it "Asha & Raj": one line "Asha & Raj" on website phone width and in the app.
+  4. Rename it "Priyanka & Siddharth" (9 letters): stacks on three lines.
+  5. Open an album inside it: only the album name and the seal, as before.
+  6. Laptop (1366 px): unchanged, names stacked as before.
 Done by:
 Device / browser:
 Build / version:
