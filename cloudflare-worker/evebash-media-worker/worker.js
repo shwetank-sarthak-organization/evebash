@@ -4,12 +4,23 @@ const ONE_HOUR = 60 * 60 * 1000;
 const BROWSER_CACHE_CONTROL = "public, max-age=31536000, immutable";
 const EDGE_CACHE_CONTROL = "public, max-age=2592000";
 
-function corsHeaders() {
-  return {
+// "on": a Range request (video seeking, a resumed download) is passed on to B2, which sends just that part (206).
+// Anything else: B2 gets no Range and sends the whole file, as before (issue #181).
+function forwardsRange(env) {
+  return env.MEDIA_FORWARD_RANGE === "on";
+}
+
+function corsHeaders(env) {
+  const headers = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
     "Access-Control-Allow-Headers": "Accept, Content-Type",
   };
+  if (forwardsRange(env)) {
+    headers["Access-Control-Allow-Headers"] = "Accept, Content-Type, Range";
+    headers["Access-Control-Expose-Headers"] = "Content-Range, Accept-Ranges, Content-Length";
+  }
+  return headers;
 }
 
 function sanitizePath(pathname) {
@@ -45,18 +56,18 @@ async function getBackblazeAuth(env) {
 export default {
   async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders() });
+      return new Response(null, { status: 204, headers: corsHeaders(env) });
     }
 
     if (request.method !== "GET" && request.method !== "HEAD") {
-      return new Response("Method not allowed", { status: 405, headers: corsHeaders() });
+      return new Response("Method not allowed", { status: 405, headers: corsHeaders(env) });
     }
 
     const url = new URL(request.url);
     const cleanPath = sanitizePath(url.pathname);
 
     if (!cleanPath) {
-      return new Response("Missing file path", { status: 404, headers: corsHeaders() });
+      return new Response("Missing file path", { status: 404, headers: corsHeaders(env) });
     }
 
     // Edge cache: plain GETs only. Range requests (video seeking) and HEAD go to B2 as before.
@@ -66,6 +77,10 @@ export default {
       const cached = await caches.default.match(cacheKey);
       if (cached) {
         const headers = new Headers(cached.headers);
+        // A copy kept before MEDIA_FORWARD_RANGE changed carries the CORS headers of that time
+        for (const [key, value] of Object.entries(corsHeaders(env))) {
+          headers.set(key, value);
+        }
         headers.set("Cache-Control", BROWSER_CACHE_CONTROL);
         headers.set("X-Media-Cache", "HIT");
         return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers });
@@ -78,16 +93,22 @@ export default {
       const bucketName = encodeURIComponent(env.B2_BUCKET_NAME);
       const targetUrl = auth.downloadUrl + "/file/" + bucketName + "/" + encodedPath + url.search;
 
+      const originHeaders = {
+        Authorization: auth.authorizationToken,
+        Accept: request.headers.get("Accept") || "*/*",
+      };
+      const range = forwardsRange(env) ? request.headers.get("Range") : null;
+      if (range) {
+        originHeaders.Range = range;
+      }
+
       const originResponse = await fetch(targetUrl, {
         method: request.method,
-        headers: {
-          Authorization: auth.authorizationToken,
-          Accept: request.headers.get("Accept") || "*/*",
-        },
+        headers: originHeaders,
       });
 
       const headers = new Headers(originResponse.headers);
-      for (const [key, value] of Object.entries(corsHeaders())) {
+      for (const [key, value] of Object.entries(corsHeaders(env))) {
         headers.set(key, value);
       }
 
@@ -123,7 +144,7 @@ export default {
       return new Response("Media worker error: " + error.message, {
         status: 502,
         headers: {
-          ...corsHeaders(),
+          ...corsHeaders(env),
           "Cache-Control": "no-store",
           "Content-Type": "text/plain; charset=utf-8",
         },
