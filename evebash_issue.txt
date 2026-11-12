@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 268
+Next issue number: 269
 
 =====================================================================
 ACTIVE ISSUES
@@ -1567,6 +1567,18 @@ Found in: #265 fix (chat 2026-11-12)
 Issue: The app's guest home pictures (events/<id>/guest-preview/app-<uuid>.jpg on media.evebash.com, todo #31) were not cleaned up properly. (1) The admin orphan cleanup (deleteBackblazeOrphans in apps/backend/src/routes/admin.ts, run from the analytics dashboard) only counted photos and profile pictures as in use, so it listed every gallery's current picture as an orphan and would have deleted it. (2) Deleting a gallery (website, app or admin) left its picture in storage until an orphan cleanup ran.
 How to reproduce: Read getReferencedB2Keys in apps/backend/src/routes/admin.ts before 520cc156: it reads only events.id, photos.storage_key and profiles.profile_image.
 Update 2026-11-12: fixed in 520cc156. The orphan scan counts events.guest_preview_picture as in use. New POST /api/media/guest-preview-picture/delete (gallery managers only; empties the column, then deletes the file, only inside events/<id>/guest-preview/) is called by deleteEvent on the website (src/lib/database.ts) and in the app (apps/mobile/lib/database.ts, which also drops the phone's own copy); admin gallery deletes and account resets remove the events/<id>/guest-preview/ folder. Backend tests added (apps/backend/tests/guestPreviewPicture.test.ts). No switch: it only adds cleanup and stops a wrong delete. Needs the staging Railway deploy; the app part needs a new build.
+
+#268
+Listed: 2026-11-12
+Platform: App
+Priority: Low
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: Device check (test_yourself #111, step 8, app); move to RECENTLY FIXED once it passes
+Found in: Device test #111, step 8 (2026-11-12)
+Issue: In the app, deleting a comment that has replies gave no warning that the replies go too. The app always asked "Are you sure you want to delete this comment?" (handleDeleteComment in apps/mobile/components/PhotoViewer.tsx), while the website adds "Its replies will be deleted too." (src/components/page-flip/PageFlipSocialBar.tsx). The delete itself works the same on both: the database removes the replies with the comment.
+How to reproduce: App, as the host, open a photo whose comment has a reply and delete that comment: the confirm box doesn't mention the replies.
+Update 2026-11-12: fixed in the app: PhotoViewer checks whether the comment has replies and then uses the website's wording. JS only, so Metro shows it after a reload; installed builds need the next EAS build.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
