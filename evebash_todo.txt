@@ -701,6 +701,9 @@ Decision:     2026-11-12 Sarthak (with Claude): send the app's picture (todo #29
               show it on the website, rather than building the app's guest screen for the web
               (always current, but days of work: the guest view is part of the 9,300-line event
               screen).
+              2026-11-12 Sarthak, after seeing it on staging: no website-at-phone-size frame, no
+              note under the App frame (website and app cards), and "Website" instead of "Website
+              on a computer". Done in 2e1b8453.
 Owner:        Sarthak (with Claude)
 Depends on:   Database change supabase/migrations/20261112120000_guest_preview_picture.sql (applied
               by Sarthak); an app build with react-native-view-shot (as todo #29).
@@ -714,13 +717,13 @@ Brief:        The website's Guest Home Preview (src/components/GuestPagePreview.
               apps/backend/src/services/guestPreviewPicture.ts). The backend checks the caller manages
               the event, saves the JPEG under events/<id>/guest-preview/ in the media bucket, keeps
               {url, templateId, takenAt, width, height} in the new column events.guest_preview_picture
-              and deletes the picture it replaces. The website card shows three frames: App (the
-              picture and its time, dimmed after a template change), Website on a phone, Website on a
-              computer. The app's card shows the saved picture when it is newer than this phone's own
+              and deletes the picture it replaces. The website card shows two frames: App (the
+              picture, dimmed after a template change) and Website (the page at a computer's size).
+              The app's card shows the saved picture when it is newer than this phone's own
               (taken on another phone). Shared reader: shared/themes/guestPreviewPicture.ts. Older app
               builds never send a picture; until the database change is applied the App frame says
               to open Preview Guest Theme in the app.
-Done in:      8c0d7799 (2026-11-12), on staging; device test #207. Real phones need a new EAS
+Done in:      8c0d7799 + 2e1b8453 (2026-11-12), on staging; device test #207. Real phones need a new EAS
               staging build (as #29).
 
 #12 Confetti Circle theme in the app

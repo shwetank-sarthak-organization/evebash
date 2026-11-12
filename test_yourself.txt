@@ -5914,10 +5914,10 @@ Platform:  App
 Brief:     The app's Design tab card now also has an "App" phone frame with a picture of the app's real guest home (the screen guests see in the app). The picture is taken a few seconds after you open Preview Guest Theme and is kept on this phone. (Since todo #31 a smaller copy is also saved on the event for the website's preview; that part is test #207.)
 Detail:    Todo #29, commit ddc95b35. Uses the new library react-native-view-shot, so it needs a new EAS staging build (an older build simply never takes a picture). Builds on #205.
 How to test:
-  1. On a phone that has never previewed the event: Host > an event > Design, scroll to Guest Home Preview. Expect: an "App" phone frame saying "Open Preview Guest Theme once to see the app here", and the website frame under it.
-  2. Tap Preview Guest Theme and stay on the guest home, without scrolling, for about 5 seconds. Go back to the host view > Design. Expect: the App frame shows the guest home as you just saw it (cover, title, tabs), with "Picture from <date and time>" under it.
-  3. Preview Guest Theme again, scroll down within the first 3 seconds, wait, go back. Expect: the picture did not change to a scrolled one (still the earlier one and its time).
-  4. Change Template to another theme. Expect: the App picture is dimmed with "The theme changed since this picture. Open Preview Guest Theme to update it." Preview Guest Theme, wait, go back. Expect: a picture in the new theme, no longer dimmed.
+  1. On a phone that has never previewed the event: Host > an event > Design, scroll to Guest Home Preview. Expect: an "App" phone frame saying "Open Preview Guest Theme once to see the app here", and the "Website" frame under it.
+  2. Tap Preview Guest Theme and stay on the guest home, without scrolling, for about 5 seconds. Go back to the host view > Design. Expect: the App frame shows the guest home as you just saw it (cover, title, tabs).
+  3. Preview Guest Theme again, scroll down within the first 3 seconds, wait, go back. Expect: the picture did not change to a scrolled one.
+  4. Change Template to another theme. Expect: the App picture is dimmed (no note under it since 2026-11-12). Preview Guest Theme, wait, go back. Expect: a picture in the new theme, no longer dimmed.
   5. With the guest edit mode switch on (EXPO_PUBLIC_GUEST_EDIT_MODE): Preview Guest Theme opens in edit mode. Expect: no picture is taken while the pencils show; tap "View as guest" with no unsaved changes, wait 5 seconds, go back. Expect: a picture without pencils or the edit bar.
   6. Close and reopen the app, open the event's Design tab. Expect: the same picture is still there.
   7. Android: steps 1, 2 and 4.
@@ -5939,15 +5939,15 @@ Feedback:         2026-11-07 Claude, before staging: steps 1 and 2 on the iPhone
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
-Brief:     The website's Guest Home Preview showed the website drawn at phone size and called it "Phone", but the theme looks different in the app. Now the website card has three frames: "App" (a picture of the app's guest home, sent by the app when you open Preview Guest Theme there), "Website on a phone" and "Website on a computer". The app's own card also shows the picture when it was taken on another phone.
-Detail:    Todo #31, commit 8c0d7799. Needs the database change supabase/migrations/20261112120000_guest_preview_picture.sql (applied 2026-11-12), the backend and website on staging, and an app build with react-native-view-shot (a new EAS staging build, as for #206). Builds on #205 and #206.
+Brief:     The website's Guest Home Preview showed the website drawn at phone size and called it "Phone", but the theme looks different in the app. Now the website card has two frames: "App" (a picture of the app's guest home, sent by the app when you open Preview Guest Theme there) and "Website" (the page at a computer's size). Sarthak 2026-11-12: no website-at-phone-size frame and no note under the App frame. The app's own card also shows the picture when it was taken on another phone.
+Detail:    Todo #31, commits 8c0d7799 and 2e1b8453. Needs the database change supabase/migrations/20261112120000_guest_preview_picture.sql (applied 2026-11-12), the backend and website on staging, and an app build with react-native-view-shot (a new EAS staging build, as for #206). Builds on #205 and #206.
 How to test:
-  1. Website, on a computer: Host > an event you have never opened with Preview Guest Theme in the app > Design > Guest Home Preview. Expect: three frames, App ("Open Preview Guest Theme in the EveBash app once to see the app here"), Website on a phone and Website on a computer.
+  1. Website, on a computer: Host > an event you have never opened with Preview Guest Theme in the app > Design > Guest Home Preview. Expect: two frames, App ("Open Preview Guest Theme in the EveBash app once to see the app here") and Website, with nothing written under the App frame.
   2. On a phone with the new app build, signed in as the same host: open the same event > Preview Guest Theme, stay at the top without scrolling for about 5 seconds, then go back.
-  3. Website: press Reload (round arrow) on Guest Home Preview. Expect: the App frame shows the same guest home you saw on the phone, with "Picture from <date and time>" under it.
-  4. Website: change Template to another theme. Expect: after "Theme updated", the App picture is dimmed with "The theme changed since this picture. Open Preview Guest Theme in the app to update it." Do step 2 again, then Reload. Expect: the new theme, not dimmed.
+  3. Website: press Reload (round arrow) on Guest Home Preview. Expect: the App frame shows the same guest home you saw on the phone.
+  4. Website: change Template to another theme. Expect: after "Theme updated", the App picture is dimmed. Do step 2 again, then Reload. Expect: the new theme, not dimmed.
   5. A second phone (or the same phone after deleting and reinstalling the app), signed in as a host of the event: Host > the event > Design. Expect: the App frame shows the picture from step 4, not "Open Preview Guest Theme once".
-  6. Website on a narrow laptop window and at phone width: the three frames wrap onto new rows and nothing overlaps.
+  6. Website on a narrow laptop window and at phone width: the Website frame moves under the App frame and nothing overlaps.
   7. Website light and dark look (Settings > Appearance): the notes under the App frame are readable.
 Done by:
 Device / browser:
