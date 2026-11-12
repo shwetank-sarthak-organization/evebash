@@ -1,0 +1,5 @@
+# RunPod video worker (runpod_worker/handler.py). modal is only imported so handler.py can use the command
+# builders in modal_engine/main.py (copied in as main.py); the worker never talks to Modal.
+runpod==1.12.0
+requests==2.34.2
+modal==1.5.2

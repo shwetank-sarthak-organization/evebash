@@ -1,98 +1,105 @@
 "use client";
 
-import Link from "next/link";
-import Image from "next/image";
-import { motion } from "framer-motion";
 import { Event } from "@/lib/database";
+import { coverImageStyle } from "@/lib/coverStyle";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
+import { ClassicCoverPrint } from "@/components/classic/ClassicCoverPrint";
+import { displayCoupleTitle } from "../../shared/text/coupleNames";
+import { classicCoverLine } from "../../shared/themes/classicCoverLine";
+import { EditChip, useGuestEditSpots } from "@/components/guestEdit/EditChip";
 
 interface TemplateClassicProps {
     event: Event;
+    /** The main event's title, shown on the cover on the main gallery and in every album (default: event.title) */
+    mainTitle?: string;
+    /** The main event's category, which picks the cover card's line (default: event.category) */
+    mainCategory?: string;
+    /** An album: the cover's title is then its main event's, so edit mode puts the album's title pencil in the
+     *  gallery header instead */
+    hasParent?: boolean;
     children?: React.ReactNode;
 }
 
-export function TemplateClassic({ event, children }: TemplateClassicProps) {
+/** Sage line, dot, line (the same divider as the app's Classic White) */
+function ClassicDivider({ className }: { className?: string }) {
+    return (
+        <div className={`flex items-center justify-center gap-3 ${className || ""}`} aria-hidden="true">
+            <span className="h-px w-12 bg-[#8B9A6E]/50 md:w-16" />
+            <span className="h-1.5 w-1.5 rotate-45 bg-[#8B9A6E]" />
+            <span className="h-px w-12 bg-[#8B9A6E]/50 md:w-16" />
+        </div>
+    );
+}
+
+// Colours come from the Classic White palette (src/lib/webTemplateTheme.ts): soft white #FCFCFA, white mount,
+// dark green text #2C352E, muted #596653, sage #8B9A6E (lines only: too light for text).
+export function TemplateClassic({ event, mainTitle, mainCategory, hasParent = false, children }: TemplateClassicProps) {
+    const location = "location" in event && typeof event.location === "string" ? event.location.trim() : "";
+    const details = [event.date?.trim(), location].filter(Boolean).join(" · ");
+    const title = displayCoupleTitle(mainTitle || event.title);
+    // Capitals run wide, so longer titles get a smaller size and keep the cover's room
+    const titleSize = title.length > 32 ? " classic-hero__title--xlong" : title.length > 18 ? " classic-hero__title--long" : "";
+    // Edit mode (todo #11): pencils on the title, date and cover; the host's view only, guests see none of it
+    const editing = useGuestEditSpots();
+
     const scrollToContent = () => {
-        const contentElement = document.getElementById('event-content');
-        if (contentElement) {
-            contentElement.scrollIntoView({ behavior: 'smooth' });
-        }
+        document.getElementById("event-content")?.scrollIntoView({ behavior: "smooth" });
     };
 
     return (
-        <div className="min-h-screen bg-[#F7F2EB] text-slate-800 font-sans selection:bg-rose-200">
-            {/* Main Content */}
-            <main className="pt-28 pb-14 md:pt-32 md:pb-20 px-4 max-w-4xl mx-auto text-center min-h-screen flex flex-col justify-center">
-
-                {/* Title Section */}
-                <ScrollReveal>
-                    <h1 className="text-5xl sm:text-6xl md:text-8xl font-serif text-slate-900 mb-8 tracking-tighter leading-none">
-                        {event.title}
+        <div className="classic-template min-h-screen bg-[#FCFCFA] text-[#2C352E] font-sans selection:bg-[#8B9A6E]/30">
+            {/* The first screen is exactly the window height (at least 640px) on every computer: navbar space, title,
+                message card and cover print, "Open Gallery", with the gallery header starting right below. The print
+                takes whatever height is left (ClassicCoverPrint). */}
+            <main className="flex h-[max(100svh,640px)] flex-col px-4 pt-[90px] pb-[clamp(12px,2svh,24px)] sm:px-6 lg:px-8">
+                {/* The title shows straight away (it's the page's largest text), the rest fades in */}
+                <div className="mx-auto w-full max-w-6xl shrink-0 text-center">
+                    {details && (
+                        <p className="classic-hero__details mb-[clamp(4px,1svh,10px)]">
+                            {details}
+                        </p>
+                    )}
+                    {/* Always capitals; "X and Y" / "X weds Y" / "X + Y" read as "X & Y" (same rule as Royal Emerald) */}
+                    <h1 className={`classic-hero__title${titleSize}`}>
+                        {title}
                     </h1>
-                </ScrollReveal>
-
-                <ScrollReveal delay={0.2}>
-                    <div className="w-24 h-1 bg-[#64764c] mx-auto mb-12" />
-                </ScrollReveal>
-
-                <ScrollReveal delay={0.3}>
-                    <p className="text-xl md:text-2xl font-light text-slate-600 mb-16 max-w-2xl mx-auto italic leading-relaxed">
-                        &quot;{event.description || "Join us in celebrating our special day."}&quot;
-                    </p>
-                </ScrollReveal>
-
-                {/* Hero Image - Centered and framed */}
-                <ScrollReveal delay={0.4} direction="up">
-                    <div className="relative aspect-[3/4] md:aspect-[16/9] w-full max-w-3xl mx-auto mb-16 p-4 bg-white shadow-xl rotate-1 hover:rotate-0 transition-transform duration-700 ease-out">
-                        <div className="relative w-full h-full overflow-hidden border border-slate-100">
-                            {event.coverImage ? (
-                                <Image
-                                    src={event.coverImage}
-                                    alt={event.title}
-                                    fill
-                                    className="object-contain bg-slate-50 hover:scale-105 transition-transform duration-[2s]"
-                                    priority
-                                />
-                            ) : (
-                                <div className="w-full h-full bg-slate-200 flex items-center justify-center text-slate-600">
-                                    No Cover Image
-                                </div>
-                            )}
+                    {editing && (
+                        <div className="mt-3 flex flex-wrap justify-center gap-2">
+                            {!hasParent && <EditChip field="title" label="Title" />}
+                            <EditChip field="date" label={event.date?.trim() ? "Date" : "Add date"} adding={!event.date?.trim()} />
                         </div>
+                    )}
+
+                    <ScrollReveal delay={0.1}>
+                        <ClassicDivider className="mt-[clamp(8px,1.6svh,18px)]" />
+                    </ScrollReveal>
+                </div>
+
+                {/* Cover as a print in a white mount with the theme's card on its top edge; fills the space left */}
+                <ClassicCoverPrint coverImage={event.coverImage} alt={event.title} cardText={classicCoverLine(mainCategory || event.category)} imageStyle={coverImageStyle(event)} />
+
+                {children && (
+                    <div className="mt-[clamp(14px,3svh,32px)] shrink-0 text-center">
+                        {/* Same outlined button as "Back to Gallery" in the gallery header */}
+                        <button
+                            type="button"
+                            onClick={scrollToContent}
+                            className="classic-gh__action focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2C352E]"
+                        >
+                            Open Gallery
+                        </button>
                     </div>
-                </ScrollReveal>
-
-                {/* Action Button */}
-                <ScrollReveal delay={0.6}>
-                    <button
-                        onClick={scrollToContent}
-                        className="group inline-flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-full hover:bg-[#64764c] transition-colors duration-300 shadow-lg"
-                    >
-                        <span className="uppercase tracking-widest text-sm font-medium">Open Guest Gallery</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 group-hover:translate-x-1 transition-transform">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                        </svg>
-                    </button>
-                </ScrollReveal>
-
+                )}
             </main>
 
+            {/* Full width with the page's side padding, like the navbar. The gallery's header comes from the event page */}
             {children && (
-                <section id="event-content" className="bg-white py-20 min-h-screen">
-                    <div className="max-w-7xl mx-auto px-4">
-                        <div className="text-center mb-16">
-                            <h2 className="text-3xl font-serif italic text-slate-800">The Gallery</h2>
-                            <div className="w-12 h-0.5 bg-[#64764c] mx-auto mt-4" />
-                        </div>
+                <section id="event-content" className="classic-gallery-content border-t border-[#E6E6E0] pb-16 md:pb-20">
+                    <div className="w-full px-4 sm:px-6 lg:px-8">
                         {children}
                     </div>
                 </section>
             )}
-
-            {/* Footer */}
-            <footer className="py-12 text-center text-slate-600 text-sm uppercase tracking-widest bg-[#F7F2EB]">
-                {event.title} — {new Date().getFullYear()}
-            </footer>
         </div>
     );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Event, UserProfile, GuestLog, Photo } from '../lib/analytics';
+import { storedBytes, type Event, type UserProfile, type GuestLog, type Photo } from '../lib/analytics';
 import { GalleryViewer } from './GalleryViewer';
 import {
   Search,
@@ -181,10 +181,10 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) =>
       const totalVideos = eventPhotos.filter(p => p.mediaType === 'video').length;
       const photoBytes = eventPhotos
         .filter(p => p.mediaType !== 'video')
-        .reduce((sum, p) => sum + (Number(p.size) || 0), 0);
+        .reduce((sum, p) => sum + storedBytes(p), 0);
       const videoBytes = eventPhotos
         .filter(p => p.mediaType === 'video')
-        .reduce((sum, p) => sum + (Number(p.size) || 0), 0);
+        .reduce((sum, p) => sum + storedBytes(p), 0);
       const dataUsed = photoBytes + videoBytes;
 
       const eventGuests = guests.filter(g => g.eventId === event.id);
@@ -346,10 +346,10 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) =>
       const totalVideos = eventPhotos.filter(p => p.mediaType === 'video').length;
       const photoBytes = eventPhotos
         .filter(p => p.mediaType !== 'video')
-        .reduce((sum, p) => sum + (Number(p.size) || 0), 0);
+        .reduce((sum, p) => sum + storedBytes(p), 0);
       const videoBytes = eventPhotos
         .filter(p => p.mediaType === 'video')
-        .reduce((sum, p) => sum + (Number(p.size) || 0), 0);
+        .reduce((sum, p) => sum + storedBytes(p), 0);
       const dataUsed = photoBytes + videoBytes;
 
       const firstPhoto = eventPhotos.find(p => p.userId);
@@ -411,7 +411,7 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) =>
 
     const totalPhotos = photos.filter(p => p.mediaType !== 'video').length;
     const totalVideos = photos.filter(p => p.mediaType === 'video').length;
-    const totalData = photos.reduce((sum, p) => sum + (Number(p.size) || 0) + (Number(p.overheadSize) || 0), 0);
+    const totalData = photos.reduce((sum, p) => sum + storedBytes(p), 0);
     const totalVendors = events.reduce((sum, e) => sum + (e.vendors ? e.vendors.length : 0), 0);
 
     return {

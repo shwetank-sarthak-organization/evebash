@@ -8,8 +8,10 @@ import {
   useColorScheme
 } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { MidnightColors, Fonts } from '../../../constants/theme';
-import { getPickerTemplatesForEventCategory } from '../../../constants/templates';
+import { Fonts } from '../../../constants/theme';
+import { useAppTheme } from '../../../context/ThemeContext';
+import { getComingSoonTemplatesForEventCategory, getPickerTemplatesForEventCategory } from '../../../constants/templates';
+import { ComingSoonTemplates } from '../ComingSoonTemplates';
 
 interface TemplateSelectionModalProps {
   visible: boolean;
@@ -28,9 +30,11 @@ export function TemplateSelectionModal({
 }: TemplateSelectionModalProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { colors, isDark: appIsDark } = useAppTheme();
 
   const category = event?.category || 'Wedding';
   const templates = getPickerTemplatesForEventCategory(category, event?.templateId);
+  const comingSoon = getComingSoonTemplatesForEventCategory(category, event?.templateId);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -43,8 +47,8 @@ export function TemplateSelectionModal({
         <View style={[styles.modalContent, { maxHeight: '85%' }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, width: '100%' }}>
             <View style={{ flex: 1, marginRight: 16 }}>
-              <Text style={{ fontSize: 22, color: '#fff', fontFamily: Fonts.outfit.bold }}>Choose Style</Text>
-              <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
+              <Text style={{ fontSize: 22, color: appIsDark ? '#fff' : colors.white, fontFamily: Fonts.outfit.bold }}>Choose Style</Text>
+              <Text style={{ color: colors.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
                 Select a design template for this {category} event.
               </Text>
             </View>
@@ -52,7 +56,7 @@ export function TemplateSelectionModal({
               style={[styles.closeModalCircle, { marginTop: 2 }]}
               onPress={onClose}
             >
-              <IconSymbol name="xmark" size={20} color={MidnightColors.gold} />
+              <IconSymbol name="xmark" size={20} color={colors.gold} />
             </TouchableOpacity>
           </View>
 
@@ -68,7 +72,7 @@ export function TemplateSelectionModal({
                   style={[
                     styles.templateRowCard,
                     isActive && styles.activeTemplateRowCard,
-                    { borderColor: isActive ? template.accent : 'rgba(255,255,255,0.06)' }
+                    { borderColor: isActive ? template.accent : appIsDark ? 'rgba(255,255,255,0.06)' : colors.tint(0.08) }
                   ]}
                   onPress={() => handleUpdateTemplate(template.id)}
                 >
@@ -78,7 +82,7 @@ export function TemplateSelectionModal({
                     </View>
                     
                     <View style={styles.templateRowText}>
-                      <Text style={[styles.templateRowName, isActive && { color: template.accent }]}>
+                      <Text style={[styles.templateRowName, isActive && { color: appIsDark ? template.accent : colors.gold }]}>
                         {template.label}
                       </Text>
                       <Text style={styles.templateRowDesc} numberOfLines={1}>
@@ -96,8 +100,9 @@ export function TemplateSelectionModal({
               );
             })}
             {templates.length === 0 && (
-              <Text style={{ color: '#fff', textAlign: 'center', marginTop: 20 }}>No templates available.</Text>
+              <Text style={{ color: appIsDark ? '#fff' : colors.white, textAlign: 'center', marginTop: 20 }}>No templates available.</Text>
             )}
+            <ComingSoonTemplates templates={comingSoon} isDark={isDark} styles={styles} />
           </ScrollView>
         </View>
       </View>

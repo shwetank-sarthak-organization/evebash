@@ -30,6 +30,13 @@ export function getPlanStorageBytes(role: string): number | null {
   return plan.storageGb * GB;
 }
 
+/** How many top-level events a plan allows; null = unlimited (admin). */
+export function getPlanEventLimit(role: string): number | null {
+  if (role === "admin") return null;
+  const plan = defaultPricingPlans.find((candidate) => candidate.id === role) ?? defaultPricingPlans[0];
+  return plan.events;
+}
+
 /** Plan end dates are calendar dates in India; a plan stays active through the end of that day (IST). */
 function endOfPlanDay(value: string | null | undefined): Date | null {
   if (!value) return null;

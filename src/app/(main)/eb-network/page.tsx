@@ -172,24 +172,24 @@ function LegacyMarketplacePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] pb-20 text-white">
-      <header className="bg-gradient-to-br from-[#101010] to-[#050505] px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[var(--site-bg)] pb-20 text-[var(--site-text)]">
+      <header className="bg-gradient-to-br from-[var(--site-surface)] to-[var(--site-bg)] px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <button
             type="button"
-            className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-400/20 bg-indigo-400/10 text-indigo-300"
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-400/20 bg-indigo-400/10 text-indigo-300 light:text-indigo-700"
             aria-label="Shortlist"
           >
             <Heart className="h-5 w-5" />
           </button>
           <div className="text-center">
             <h1 className="text-3xl font-black tracking-tight">EB Network</h1>
-            <p className="mt-1 text-sm font-bold text-slate-400">Elite Deals. Every Event.</p>
+            <p className="mt-1 text-sm font-bold text-[var(--site-muted)]">Elite Deals. Every Event.</p>
           </div>
           <button
             type="button"
             onClick={() => setShowFilterModal(true)}
-            className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-400/20 bg-indigo-400/10 text-indigo-300"
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-400/20 bg-indigo-400/10 text-indigo-300 light:text-indigo-700"
             aria-label="Filters"
           >
             <Filter className="h-5 w-5" />
@@ -198,14 +198,14 @@ function LegacyMarketplacePage() {
       </header>
 
       <main className="mx-auto max-w-7xl space-y-8 px-4 sm:px-6 lg:px-8">
-        <section className="rounded-[1.5rem] border border-[#1f2937] bg-[#101010] p-3">
-          <div className="flex items-center gap-3 rounded-[1.25rem] border border-[#1f2937] bg-[#050505] px-4 py-4">
-            <Search className="h-5 w-5 text-slate-500" />
+        <section className="rounded-[1.5rem] border border-[var(--site-border)] bg-[var(--site-surface)] p-3">
+          <div className="flex items-center gap-3 rounded-[1.25rem] border border-[var(--site-border)] bg-[var(--site-bg)] px-4 py-4">
+            <Search className="h-5 w-5 text-[var(--site-muted)]" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search photographers, venues..."
-              className="min-w-0 flex-1 bg-transparent text-base font-semibold text-white outline-none placeholder:text-slate-500"
+              className="min-w-0 flex-1 bg-transparent text-base font-semibold text-[var(--site-text)] outline-none placeholder:text-[var(--site-muted)]"
             />
           </div>
         </section>
@@ -220,8 +220,8 @@ function LegacyMarketplacePage() {
                 onClick={() => setSelectedCategory(category.name)}
                 className={`shrink-0 rounded-2xl border px-4 py-3 text-sm font-black transition-colors ${
                   active
-                    ? "border-indigo-300 bg-indigo-300 text-slate-950"
-                    : "border-[#1f2937] bg-[#101010] text-slate-400 hover:border-indigo-400/50"
+                    ? "border-indigo-300 bg-indigo-300 text-[var(--site-on-gold)]"
+                    : "border-[var(--site-border)] bg-[var(--site-surface)] text-[var(--site-muted)] hover:border-indigo-400/50"
                 }`}
               >
                 {category.name}
@@ -234,7 +234,7 @@ function LegacyMarketplacePage() {
           onClick={() => router.push("/eb-business")}
           className="group relative cursor-pointer overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-600 to-indigo-900 p-8 shadow-2xl shadow-indigo-950/20"
         >
-          <div className="absolute right-6 top-1/2 hidden -translate-y-1/2 text-white/15 sm:block">
+          <div className="absolute right-6 top-1/2 hidden -translate-y-1/2 text-[var(--site-text)]/15 sm:block">
             <Briefcase className="h-24 w-24" />
           </div>
           <div className="relative z-10 max-w-2xl">
@@ -245,7 +245,7 @@ function LegacyMarketplacePage() {
             <p className="mt-2 max-w-lg font-semibold leading-7 text-indigo-100">
               Reach thousands of event organizers and grow your brand today.
             </p>
-            <div className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-[#1e1b4b] px-5 py-3 text-sm font-black text-white">
+            <div className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-[#1e1b4b] px-5 py-3 text-sm font-black text-[var(--site-text)] light:text-[#F7F2E8]">
               <span>Get Started</span>
               <ArrowRight className="h-4 w-4" />
             </div>
@@ -254,15 +254,15 @@ function LegacyMarketplacePage() {
 
         {loading ? (
           <div className="flex justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-300" />
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-300 light:text-indigo-700" />
           </div>
         ) : (
           <>
             {featuredVendors.length > 0 && (
               <section className="space-y-5">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-black text-white">Featured Vendors</h2>
-                  <button type="button" onClick={() => setSelectedCategory("All")} className="text-sm font-black text-indigo-300">
+                  <h2 className="text-2xl font-black text-[var(--site-text)]">Featured Vendors</h2>
+                  <button type="button" onClick={() => setSelectedCategory("All")} className="text-sm font-black text-indigo-300 light:text-indigo-700">
                     View All
                   </button>
                 </div>
@@ -282,12 +282,12 @@ function LegacyMarketplacePage() {
             )}
 
             <section className="space-y-5">
-              <h2 className="text-2xl font-black text-white">{selectedCategory === "All" ? "Explore All" : `Best ${selectedCategory}`}</h2>
+              <h2 className="text-2xl font-black text-[var(--site-text)]">{selectedCategory === "All" ? "Explore All" : `Best ${selectedCategory}`}</h2>
               {filteredVendors.length === 0 ? (
-                <div className="rounded-[2rem] border border-dashed border-[#1f2937] p-12 text-center">
-                  <Search className="mx-auto mb-4 h-10 w-10 text-slate-600" />
+                <div className="rounded-[2rem] border border-dashed border-[var(--site-border)] p-12 text-center">
+                  <Search className="mx-auto mb-4 h-10 w-10 text-[var(--site-muted)]" />
                   <p className="text-lg font-black">No vendors found</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-400">Try changing the category, location, or search text.</p>
+                  <p className="mt-2 text-sm font-semibold text-[var(--site-muted)]">Try changing the category, location, or search text.</p>
                 </div>
               ) : (
                 <div className="grid gap-4 lg:grid-cols-2">
@@ -309,11 +309,11 @@ function LegacyMarketplacePage() {
 
       <AnimatePresence>
         {showFilterModal && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-2xl rounded-[2rem] border border-[#1f2937] bg-[#101010] p-6 shadow-2xl">
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm light:bg-black/45">
+            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-2xl rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)] p-6 shadow-2xl">
               <div className="mb-6 flex items-center justify-between">
-                <h3 className="text-2xl font-black text-white">Sort & Filter</h3>
-                <button type="button" onClick={() => setShowFilterModal(false)} className="rounded-full bg-[#050505] p-2 text-slate-400">
+                <h3 className="text-2xl font-black text-[var(--site-text)]">Sort & Filter</h3>
+                <button type="button" onClick={() => setShowFilterModal(false)} className="rounded-full bg-[var(--site-bg)] p-2 text-[var(--site-muted)]">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -321,8 +321,8 @@ function LegacyMarketplacePage() {
               <div className="space-y-6">
                 <div>
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="text-xs font-black uppercase tracking-widest text-indigo-300">Select City</p>
-                    <button type="button" onClick={detectLocation} className="flex items-center gap-2 rounded-full bg-indigo-400/10 px-3 py-2 text-xs font-black text-indigo-300">
+                    <p className="text-xs font-black uppercase tracking-widest text-indigo-300 light:text-indigo-700">Select City</p>
+                    <button type="button" onClick={detectLocation} className="flex items-center gap-2 rounded-full bg-indigo-400/10 px-3 py-2 text-xs font-black text-indigo-300 light:text-indigo-700">
                       {detecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />}
                       <span>{detecting ? "Detecting..." : "Near Me"}</span>
                     </button>
@@ -332,17 +332,17 @@ function LegacyMarketplacePage() {
 
                 {selectedLocation === "Near Me" && (
                   <div>
-                    <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-300">Distance Radius</p>
+                    <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-300 light:text-indigo-700">Distance Radius</p>
                     <ChipGroup options={DISTANCE_OPTIONS.map(item => `${item}km`)} value={`${maxDistance}km`} onChange={(value) => setMaxDistance(Number(value.replace("km", "")))} />
                   </div>
                 )}
 
                 <div>
-                  <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-300">Sort By</p>
+                  <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-300 light:text-indigo-700">Sort By</p>
                   <ChipGroup options={SORT_OPTIONS} value={sortBy} onChange={setSortBy} />
                 </div>
 
-                <button type="button" onClick={() => setShowFilterModal(false)} className="w-full rounded-2xl bg-indigo-400 px-5 py-4 text-sm font-black text-slate-950">
+                <button type="button" onClick={() => setShowFilterModal(false)} className="w-full rounded-2xl bg-indigo-400 px-5 py-4 text-sm font-black text-[var(--site-on-gold)]">
                   Apply Filters
                 </button>
               </div>
@@ -365,8 +365,8 @@ function ChipGroup({ options, value, onChange }: { options: string[]; value: str
           onClick={() => onChange(option)}
           className={`rounded-full border px-4 py-2 text-sm font-black ${
             value === option
-              ? "border-indigo-300 bg-indigo-300 text-slate-950"
-              : "border-[#1f2937] bg-[#050505] text-slate-300"
+              ? "border-indigo-300 bg-indigo-300 text-[var(--site-on-gold)]"
+              : "border-[var(--site-border)] bg-[var(--site-bg)] text-[var(--site-subtle)]"
           }`}
         >
           {option}
@@ -386,35 +386,35 @@ function VendorCard({ vendor, shortlisted, onShortlist, onOpen, featured = false
   const typeColors = getBusinessTypeColor(vendor.type);
   const image = vendor.coverImage || DEFAULT_BUSINESS_COVER;
   return (
-    <article onClick={onOpen} className="cursor-pointer overflow-hidden rounded-[1.75rem] border border-[#1f2937] bg-[#101010] shadow-xl shadow-black/10">
-      <div className={`${featured ? "h-56" : "h-44"} relative bg-[#050505]`}>
+    <article onClick={onOpen} className="cursor-pointer overflow-hidden rounded-[1.75rem] border border-[var(--site-border)] bg-[var(--site-surface)] shadow-xl shadow-black/10 light:shadow-(color:--home-shadow)">
+      <div className={`${featured ? "h-56" : "h-44"} relative bg-[var(--site-bg)]`}>
         <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35 blur-xl" />
         <img src={image} alt={vendor.name} className="relative h-full w-full object-contain" />
-        <button type="button" onClick={(event) => { event.stopPropagation(); onShortlist(); }} className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-slate-950/70 text-white backdrop-blur">
+        <button type="button" onClick={(event) => { event.stopPropagation(); onShortlist(); }} className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-[var(--site-bg)]/70 text-[var(--site-text)] backdrop-blur">
           <Heart className={`h-5 w-5 ${shortlisted ? "fill-rose-500 text-rose-500" : ""}`} />
         </button>
-        <div className="absolute right-4 top-4 flex items-center gap-1 rounded-full border border-white/15 bg-slate-950/70 px-3 py-1 text-sm font-black backdrop-blur">
-          <Star className="h-3.5 w-3.5 fill-amber-300 text-amber-300" />
+        <div className="absolute right-4 top-4 flex items-center gap-1 rounded-full border border-white/15 bg-[var(--site-bg)]/70 px-3 py-1 text-sm font-black backdrop-blur">
+          <Star className="h-3.5 w-3.5 fill-amber-300 text-amber-300 light:fill-amber-500 light:text-amber-600" />
           <span>{vendor.rating || 0}</span>
         </div>
       </div>
       <div className="space-y-3 p-5">
         <div className="flex min-w-0 items-center gap-2">
-          <h3 className="truncate text-lg font-black text-white">{vendor.name}</h3>
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-400" />
+          <h3 className="truncate text-lg font-black text-[var(--site-text)]">{vendor.name}</h3>
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-400 light:text-blue-600" />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full border px-3 py-1 text-xs font-black uppercase" style={{ backgroundColor: typeColors.bg, borderColor: typeColors.border, color: typeColors.text }}>
             {vendor.type}
           </span>
-          <span className="flex min-w-0 items-center gap-1 text-xs font-bold text-slate-400">
+          <span className="flex min-w-0 items-center gap-1 text-xs font-bold text-[var(--site-muted)]">
             <MapPin className="h-3.5 w-3.5" />
             <span className="truncate">{getVendorLocation(vendor)}</span>
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="rounded-full bg-[#1f2937] px-3 py-1 text-xs font-black text-slate-300">{getExperienceLabel(vendor.experience)}</span>
-          <button type="button" onClick={(event) => { event.stopPropagation(); onOpen(); }} className="rounded-full bg-indigo-400 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-950">
+          <span className="rounded-full bg-[var(--site-surface-2)] px-3 py-1 text-xs font-black text-[var(--site-subtle)]">{getExperienceLabel(vendor.experience)}</span>
+          <button type="button" onClick={(event) => { event.stopPropagation(); onOpen(); }} className="rounded-full bg-indigo-400 px-4 py-2 text-xs font-black uppercase tracking-widest text-[var(--site-on-gold)]">
             Details
           </button>
         </div>
@@ -433,8 +433,8 @@ function VendorListCard(props: {
   const typeColors = getBusinessTypeColor(vendor.type);
   const image = vendor.coverImage || DEFAULT_BUSINESS_COVER;
   return (
-    <article onClick={onOpen} className="flex cursor-pointer flex-col overflow-hidden rounded-[1.75rem] border border-[#1f2937] bg-[#101010] sm:flex-row">
-      <div className="relative h-48 bg-[#050505] sm:h-auto sm:w-44">
+    <article onClick={onOpen} className="flex cursor-pointer flex-col overflow-hidden rounded-[1.75rem] border border-[var(--site-border)] bg-[var(--site-surface)] sm:flex-row">
+      <div className="relative h-48 bg-[var(--site-bg)] sm:h-auto sm:w-44">
         <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35 blur-xl" />
         <img src={image} alt={vendor.name} className="relative h-full w-full object-contain" />
       </div>
@@ -442,25 +442,25 @@ function VendorListCard(props: {
         <div>
           <div className="mb-2 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="truncate text-xl font-black text-white">{vendor.name}</h3>
+              <h3 className="truncate text-xl font-black text-[var(--site-text)]">{vendor.name}</h3>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="rounded-full border px-3 py-1 text-xs font-black uppercase" style={{ backgroundColor: typeColors.bg, borderColor: typeColors.border, color: typeColors.text }}>
                   {vendor.type}
                 </span>
-                <CheckCircle2 className="h-4 w-4 text-blue-400" />
+                <CheckCircle2 className="h-4 w-4 text-blue-400 light:text-blue-600" />
               </div>
             </div>
-            <button type="button" onClick={(event) => { event.stopPropagation(); onShortlist(); }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#1f2937] bg-[#050505] text-white">
+            <button type="button" onClick={(event) => { event.stopPropagation(); onShortlist(); }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--site-border)] bg-[var(--site-bg)] text-[var(--site-text)]">
               <Heart className={`h-5 w-5 ${shortlisted ? "fill-rose-500 text-rose-500" : ""}`} />
             </button>
           </div>
-          <div className="flex flex-wrap gap-3 text-sm font-bold text-slate-400">
+          <div className="flex flex-wrap gap-3 text-sm font-bold text-[var(--site-muted)]">
             <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{getVendorLocation(vendor)}</span>
-            <span className="flex items-center gap-1"><Calendar className="h-4 w-4 text-amber-300" />{getExperienceLabel(vendor.experience)}</span>
-            <span className="flex items-center gap-1"><Star className="h-4 w-4 fill-amber-300 text-amber-300" />{vendor.rating || 0}</span>
+            <span className="flex items-center gap-1"><Calendar className="h-4 w-4 text-amber-300 light:text-amber-600" />{getExperienceLabel(vendor.experience)}</span>
+            <span className="flex items-center gap-1"><Star className="h-4 w-4 fill-amber-300 text-amber-300 light:fill-amber-500 light:text-amber-600" />{vendor.rating || 0}</span>
           </div>
         </div>
-        <button type="button" onClick={(event) => { event.stopPropagation(); onOpen(); }} className="flex w-fit items-center gap-2 rounded-full border border-indigo-400/30 px-4 py-2 text-xs font-black uppercase tracking-widest text-indigo-300">
+        <button type="button" onClick={(event) => { event.stopPropagation(); onOpen(); }} className="flex w-fit items-center gap-2 rounded-full border border-indigo-400/30 px-4 py-2 text-xs font-black uppercase tracking-widest text-indigo-300 light:text-indigo-700">
           <span>View Details</span>
           <ArrowRight className="h-4 w-4" />
         </button>
@@ -490,20 +490,20 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
   };
 
   return (
-    <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 p-4 backdrop-blur-sm">
-      <motion.div initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }} className="mx-auto max-w-4xl overflow-hidden rounded-[2rem] border border-[#1f2937] bg-[#101010] shadow-2xl">
-        <div className="relative h-80 bg-[#050505]">
+    <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 p-4 backdrop-blur-sm light:bg-black/45">
+      <motion.div initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }} className="mx-auto max-w-4xl overflow-hidden rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)] shadow-2xl">
+        <div className="relative h-80 bg-[var(--site-bg)]">
           <img src={galleryImages[0]} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35 blur-xl" />
           <img src={galleryImages[0]} alt={vendor.name} className="relative h-full w-full object-contain" />
           <div className="absolute left-5 right-5 top-5 flex justify-between">
-            <button type="button" onClick={onClose} className="rounded-full bg-slate-950/70 p-3 text-white backdrop-blur">
+            <button type="button" onClick={onClose} className="rounded-full bg-[var(--site-bg)]/70 p-3 text-[var(--site-text)] backdrop-blur">
               <X className="h-5 w-5" />
             </button>
             <div className="flex gap-2">
-              <button type="button" onClick={handleShare} className="rounded-full bg-slate-950/70 p-3 text-white backdrop-blur">
+              <button type="button" onClick={handleShare} className="rounded-full bg-[var(--site-bg)]/70 p-3 text-[var(--site-text)] backdrop-blur">
                 <Share2 className="h-5 w-5" />
               </button>
-              <button type="button" onClick={onShortlist} className="rounded-full bg-slate-950/70 p-3 text-white backdrop-blur">
+              <button type="button" onClick={onShortlist} className="rounded-full bg-[var(--site-bg)]/70 p-3 text-[var(--site-text)] backdrop-blur">
                 <Heart className={`h-5 w-5 ${shortlisted ? "fill-rose-500 text-rose-500" : ""}`} />
               </button>
             </div>
@@ -512,22 +512,22 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
 
         <div className="space-y-6 p-6">
           <div>
-            <h2 className="text-3xl font-black text-white">{vendor.name}</h2>
+            <h2 className="text-3xl font-black text-[var(--site-text)]">{vendor.name}</h2>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="rounded-full border px-3 py-1 text-xs font-black uppercase" style={{ backgroundColor: typeColors.bg, borderColor: typeColors.border, color: typeColors.text }}>
                 {vendor.type}
               </span>
               {vendor.vendorCode && (
-                <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-black text-sky-300">
+                <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-black text-sky-300 light:text-sky-700">
                   Code: {vendor.vendorCode}
                 </span>
               )}
-              <span className="flex items-center gap-1 rounded-full bg-slate-800 px-3 py-1 text-xs font-black text-amber-300">
+              <span className="flex items-center gap-1 rounded-full bg-[var(--site-surface-2)] px-3 py-1 text-xs font-black text-amber-300 light:text-amber-700">
                 <Star className="h-3.5 w-3.5 fill-amber-300" />
                 {vendor.rating || 0}
               </span>
             </div>
-            <p className="mt-3 flex items-center gap-2 text-sm font-bold text-slate-400">
+            <p className="mt-3 flex items-center gap-2 text-sm font-bold text-[var(--site-muted)]">
               <MapPin className="h-4 w-4" />
               {getVendorLocation(vendor)}
             </p>
@@ -539,9 +539,9 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
             <Highlight title="Shortlists" value={`${vendor.shortlistCount || 0}`} />
           </div>
 
-          <div className="flex overflow-x-auto rounded-2xl border border-[#1f2937] bg-[#050505] p-1">
+          <div className="flex overflow-x-auto rounded-2xl border border-[var(--site-border)] bg-[var(--site-bg)] p-1">
             {["About", "Portfolio", "Announcements", "Reviews"].map((tab) => (
-              <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={`min-w-0 flex-1 rounded-xl px-4 py-3 text-sm font-black ${activeTab === tab ? "bg-indigo-400 text-slate-950" : "text-slate-400"}`}>
+              <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={`min-w-0 flex-1 rounded-xl px-4 py-3 text-sm font-black ${activeTab === tab ? "bg-indigo-400 text-[var(--site-on-gold)]" : "text-[var(--site-muted)]"}`}>
                 {tab}
               </button>
             ))}
@@ -550,17 +550,17 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
           {activeTab === "About" && (
             <div className="space-y-5">
               <section>
-                <h3 className="mb-2 text-xl font-black text-white">About</h3>
-                <p className="leading-7 text-slate-300">
+                <h3 className="mb-2 text-xl font-black text-[var(--site-text)]">About</h3>
+                <p className="leading-7 text-[var(--site-subtle)]">
                   {vendor.description || `Experience the exceptional services of ${vendor.name}. With a focus on quality and client satisfaction, they bring your vision to life with professional expertise in ${vendor.type.toLowerCase()}.`}
                 </p>
               </section>
               {vendor.services && vendor.services.length > 0 && (
                 <section>
-                  <h3 className="mb-3 text-xl font-black text-white">Services Offered</h3>
+                  <h3 className="mb-3 text-xl font-black text-[var(--site-text)]">Services Offered</h3>
                   <div className="flex flex-wrap gap-2">
                     {vendor.services.map((service) => (
-                      <span key={service} className="rounded-full bg-indigo-400/10 px-3 py-1 text-sm font-bold text-indigo-200">{service}</span>
+                      <span key={service} className="rounded-full bg-indigo-400/10 px-3 py-1 text-sm font-bold text-indigo-200 light:text-indigo-700">{service}</span>
                     ))}
                   </div>
                 </section>
@@ -571,8 +571,8 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
           {activeTab === "Portfolio" && (
             <section>
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-xl font-black text-white">Portfolio</h3>
-                <span className="text-sm font-black text-indigo-300">{vendor.portfolioEvents?.length || 0} Events</span>
+                <h3 className="text-xl font-black text-[var(--site-text)]">Portfolio</h3>
+                <span className="text-sm font-black text-indigo-300 light:text-indigo-700">{vendor.portfolioEvents?.length || 0} Events</span>
               </div>
               {vendor.portfolioEvents && vendor.portfolioEvents.length > 0 ? (
                 <div className="space-y-5">
@@ -581,7 +581,7 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
                       key={portfolio.id}
                       type="button"
                       onClick={() => router.push(`/eb-network/${vendor.id}/portfolio/${portfolio.id}?returnTo=${encodeURIComponent("/eb-network")}`)}
-                      className="block w-full overflow-hidden rounded-[1.5rem] border border-[#1f2937] bg-[#050505] text-left"
+                      className="block w-full overflow-hidden rounded-[1.5rem] border border-[var(--site-border)] bg-[var(--site-bg)] text-left"
                     >
                       <div className="relative h-56 bg-black">
                         <img src={portfolio.coverImage || DEFAULT_BUSINESS_COVER} alt={portfolio.name} className="h-full w-full object-cover" />
@@ -596,9 +596,9 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between px-4 py-3 text-sm font-bold text-slate-400">
+                      <div className="flex items-center justify-between px-4 py-3 text-sm font-bold text-[var(--site-muted)]">
                         <span>{portfolio.media?.length || 0} images</span>
-                        <span className="text-indigo-300">Open gallery</span>
+                        <span className="text-indigo-300 light:text-indigo-700">Open gallery</span>
                       </div>
                     </button>
                   ))}
@@ -611,12 +611,12 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
 
           {activeTab === "Announcements" && (
             <section>
-                <h3 className="mb-4 text-xl font-black text-white">Announcements ({vendor.announcements?.length || 0})</h3>
+                <h3 className="mb-4 text-xl font-black text-[var(--site-text)]">Announcements ({vendor.announcements?.length || 0})</h3>
               {vendor.announcements && vendor.announcements.length > 0 ? (
                 <div className="space-y-3">
                   {vendor.announcements.map((announcement, index) => (
-                    <div key={`${announcement}-${index}`} className="rounded-2xl border border-[#1f2937] bg-[#050505] p-4">
-                      <p className="text-sm font-bold text-slate-300">{announcement}</p>
+                    <div key={`${announcement}-${index}`} className="rounded-2xl border border-[var(--site-border)] bg-[var(--site-bg)] p-4">
+                      <p className="text-sm font-bold text-[var(--site-subtle)]">{announcement}</p>
                     </div>
                   ))}
                 </div>
@@ -628,17 +628,17 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
 
           {activeTab === "Reviews" && (
             <section>
-              <h3 className="mb-4 text-xl font-black text-white">What Clients Say</h3>
+              <h3 className="mb-4 text-xl font-black text-[var(--site-text)]">What Clients Say</h3>
               <EmptyDetail title="Reviews are not available on web yet" />
             </section>
           )}
 
-          <div className="sticky bottom-0 -mx-6 -mb-6 grid gap-3 border-t border-[#1f2937] bg-[#101010]/95 p-6 sm:grid-cols-2">
-            <a href={`tel:${vendor.ownerPhone}`} className="flex items-center justify-center gap-2 rounded-2xl border border-[#1f2937] px-5 py-4 font-black text-white">
+          <div className="sticky bottom-0 -mx-6 -mb-6 grid gap-3 border-t border-[var(--site-border)] bg-[var(--site-surface)]/95 p-6 sm:grid-cols-2">
+            <a href={`tel:${vendor.ownerPhone}`} className="flex items-center justify-center gap-2 rounded-2xl border border-[var(--site-border)] px-5 py-4 font-black text-[var(--site-text)]">
               <Phone className="h-5 w-5" />
               <span>Call Directly</span>
             </a>
-            <a href={`mailto:${vendor.ownerEmail}`} className="flex items-center justify-center gap-2 rounded-2xl bg-indigo-400 px-5 py-4 font-black text-slate-950">
+            <a href={`mailto:${vendor.ownerEmail}`} className="flex items-center justify-center gap-2 rounded-2xl bg-indigo-400 px-5 py-4 font-black text-[var(--site-on-gold)]">
               <Store className="h-5 w-5" />
               <span>Contact Now</span>
             </a>
@@ -651,8 +651,8 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
 
 function Highlight({ title, value }: { title: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[#1f2937] bg-[#050505] p-4">
-      <p className="text-xs font-black uppercase tracking-widest text-slate-500">{title}</p>
+    <div className="rounded-2xl border border-[var(--site-border)] bg-[var(--site-bg)] p-4">
+      <p className="text-xs font-black uppercase tracking-widest text-[var(--site-muted)]">{title}</p>
       <p className="mt-1 text-lg font-black">{value}</p>
     </div>
   );
@@ -660,8 +660,8 @@ function Highlight({ title, value }: { title: string; value: string }) {
 
 function EmptyDetail({ title }: { title: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-[#1f2937] p-8 text-center text-slate-400">
-      <p className="font-black text-white">{title}</p>
+    <div className="rounded-2xl border border-dashed border-[var(--site-border)] p-8 text-center text-[var(--site-muted)]">
+      <p className="font-black text-[var(--site-text)]">{title}</p>
     </div>
   );
 }

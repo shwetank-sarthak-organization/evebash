@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
   StyleSheet,
+  Text,
+  TouchableOpacity,
   View,
   useWindowDimensions,
   type StyleProp,
@@ -21,8 +22,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MidnightColors } from '@/constants/theme';
+import { Fonts, MidnightColors } from '@/constants/theme';
+import { useAppTheme } from '@/context/ThemeContext';
 import { Radius, Spacing } from '@/constants/layout';
+import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
+import { useAndroidKeyboardHeight } from '@/hooks/use-android-keyboard-height';
 
 type BottomSheetProps = {
   visible: boolean;
@@ -42,28 +46,13 @@ const CLOSE_VELOCITY = 900;
  */
 export function BottomSheet({ visible, onClose, children, style }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
+  const styles = useSheetStyles();
   const { height } = useWindowDimensions();
   const [mounted, setMounted] = useState(visible);
   const translateY = useSharedValue(height);
   const backdrop = useSharedValue(0);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  // Android: lift the sheet by the keyboard height from the IME insets. KeyboardAvoidingView's
-  // 'height' mode re-measures its own frame and, with a floating keyboard (e.g. Gboard's toolbar
-  // when a hardware keyboard is attached), flips between two sizes forever, so the sheet flickers.
-  // A floating keyboard reports a height of 0 or less, so the sheet stays put.
-  useEffect(() => {
-    if (Platform.OS !== 'android' || !mounted) return;
-    const show = Keyboard.addListener('keyboardDidShow', (e) => {
-      setKeyboardHeight(Math.max(0, e.endCoordinates.height));
-    });
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
-    return () => {
-      show.remove();
-      hide.remove();
-      setKeyboardHeight(0);
-    };
-  }, [mounted]);
+  // Android: lift the sheet by the keyboard height (see the hook for why not KeyboardAvoidingView)
+  const keyboardHeight = useAndroidKeyboardHeight(mounted);
 
   useEffect(() => {
     if (visible) {
@@ -128,7 +117,56 @@ export function BottomSheet({ visible, onClose, children, style }: BottomSheetPr
   );
 }
 
-const styles = StyleSheet.create({
+type BottomSheetHeaderProps = {
+  title: string;
+  /** Gold icon before the title */
+  icon?: IconSymbolName;
+  onClose: () => void;
+};
+
+/** Title row for a sheet, so every sheet has the same title and close button. */
+export function BottomSheetHeader({ title, icon, onClose }: BottomSheetHeaderProps) {
+  const { colors } = useAppTheme();
+  const styles = useSheetStyles();
+  return (
+    <View style={styles.header}>
+      <View style={styles.headerTitleRow}>
+        {icon && <IconSymbol name={icon} size={22} color={colors.gold} />}
+        <Text style={styles.headerTitle} accessibilityRole="header" numberOfLines={1}>{title}</Text>
+      </View>
+      <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" hitSlop={10}>
+        <IconSymbol name="xmark.circle.fill" size={24} color={colors.slate400} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function useSheetStyles() {
+  const { colors, isDark } = useAppTheme();
+  return React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+}
+
+const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 24,
+  },
+  headerTitleRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerTitle: {
+    flexShrink: 1,
+    fontSize: 24,
+    color: colors.white,
+    fontFamily: Fonts.outfit.extraBold,
+    letterSpacing: -0.5,
+  },
   flex: {
     flex: 1,
   },
@@ -137,15 +175,15 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: isDark ? 'rgba(0, 0, 0, 0.6)' : colors.modalBackdrop,
   },
   sheet: {
-    backgroundColor: MidnightColors.slate900,
+    backgroundColor: colors.slate900,
     borderTopLeftRadius: Radius.sheet,
     borderTopRightRadius: Radius.sheet,
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderColor: MidnightColors.border,
+    borderColor: colors.border,
     paddingHorizontal: Spacing.page,
   },
   handleArea: {
@@ -157,6 +195,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 5,
     borderRadius: 3,
-    backgroundColor: 'rgba(255, 247, 235, 0.25)',
+    backgroundColor: isDark ? 'rgba(255, 247, 235, 0.25)' : colors.tint(0.2),
   },
 });

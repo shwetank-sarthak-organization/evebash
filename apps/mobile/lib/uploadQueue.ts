@@ -6,9 +6,60 @@ import { getEndpointsForPath, fetchWithEndpointFallback } from './storage';
 import { toDurationSeconds } from './mediaDuration';
 import { appAlert } from './feedback';
 
-// The server refused an upload because of the gallery owner's plan (storage full or plan expired).
+// Issue #144: an upload that failed because the phone lost its connection doesn't use up an attempt. The item waits
+// until the backend answers again and then carries on; other errors still get MAX_UPLOAD_RETRIES attempts.
+const NETWORK_ERROR = /Network request failed|network connection was lost|connection abort|Failed to connect to any|Unable to resolve host|offline|timed out/i;
+const CONNECTION_CHECK_MS = 4000;
+let connectionWait: Promise<void> | null = null;
+
+function isNetworkError(err: any) {
+  return err?.nonRetryable !== true && NETWORK_ERROR.test(String(err?.message || err || ''));
+}
+
+/** Resolves once the backend answers again (any HTTP reply counts); every waiting upload shares one check. */
+function waitForConnection(): Promise<void> {
+  if (connectionWait) return connectionWait;
+  const healthUrl = getEndpointsForPath('/health')[0];
+  connectionWait = (async () => {
+    for (;;) {
+      await new Promise(res => setTimeout(res, CONNECTION_CHECK_MS));
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), CONNECTION_CHECK_MS);
+      try {
+        await fetch(healthUrl, { method: 'GET', signal: controller.signal });
+        return;
+      } catch {
+        // Still offline
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+  })().finally(() => {
+    connectionWait = null;
+  });
+  return connectionWait;
+}
+
+/** Set as an item's error while it waits for the phone to get a connection back (#144) */
+export const WAITING_FOR_CONNECTION = 'Waiting for connection';
+
+/**
+ * What to tell people about a failed upload. item.error keeps the technical reason for logs and the startup
+ * clean-up; this turns it into plain words. Plan-limit messages come from the server already written for people.
+ */
+export function uploadErrorMessage(error?: string): string {
+  const text = error || '';
+  if (/no longer on the device|deleted from device/i.test(text)) return 'This file is no longer on your phone. Pick it again to upload it.';
+  if (/does not exist|foreign key/i.test(text)) return 'This gallery no longer exists, so the file was not uploaded.';
+  if (/could not be processed/i.test(text)) return text;
+  if (/storage|plan/i.test(text) && !/B2|server/i.test(text)) return text;
+  if (NETWORK_ERROR.test(text)) return 'The connection dropped. Tap Retry to try again.';
+  return "This file didn't upload. Tap Retry to try again.";
+}
+
+// The server refused an upload because of the gallery owner's plan (storage full or plan expired), or the event is being transferred.
 // Retrying can't help, so the item fails at once; the reason is shown once per minute, not once per file.
-const PLAN_LIMIT_CODES = new Set(['storage_full', 'plan_expired']);
+const PLAN_LIMIT_CODES = new Set(['storage_full', 'plan_expired', 'transfer_pending']);
 let lastPlanLimitAlertAt = 0;
 
 function planLimitError(result: any): (Error & { nonRetryable: true; code: string }) | null {
@@ -42,6 +93,10 @@ try {
   console.warn('[UploadQueue] expo-notifications is not supported in this environment. System notifications will be disabled.');
 }
 
+// The queue is saved as a JSON file. It used to be one AsyncStorage value, which a big queue (about 3,500 photos on
+// Android) outgrew, so it was lost after a restart (issue #190); those keys are only read once to move the queue over
+const QUEUE_FILE = `${FileSystem.documentDirectory}evebash_upload_queue.json`;
+const QUEUE_FILE_TMP = `${QUEUE_FILE}.tmp`;
 const STORAGE_KEY = '@evebash_upload_queue_v2';
 const LEGACY_STORAGE_KEY = '@evebash_upload_queue';
 const PROGRESS_NOTIFICATION_ID = 'media-upload-progress';
@@ -89,21 +144,27 @@ type QueueListener = (items: UploadQueueItem[]) => void;
 let queue: UploadQueueItem[] = [];
 let activeSlots = 0;
 const listeners = new Set<QueueListener>();
+// Names of copies in the uploads folder whose queue items haven't been added yet, so the startup clean-up keeps them
+const copiesBeingAdded = new Set<string>();
 
 // ── 1. Non-Poisoning Queue Mutation Mutex ────────────────────────────────────
 let queueWriteChain: Promise<void> = Promise.resolve();
 
-export function mutateQueue(mutator: (currentQueue: UploadQueueItem[]) => void): Promise<void> {
+function runExclusive(task: () => Promise<void>): Promise<void> {
   const operation = queueWriteChain
     .catch(() => undefined)
-    .then(async () => {
-      mutator(queue);
-      await saveQueueToStorage();
-      notifyListeners();
-    });
+    .then(task);
 
   queueWriteChain = operation.catch(() => undefined);
   return operation;
+}
+
+export function mutateQueue(mutator: (currentQueue: UploadQueueItem[]) => void): Promise<void> {
+  return runExclusive(async () => {
+    mutator(queue);
+    await saveQueueToStorage();
+    notifyListeners();
+  });
 }
 
 function notifyListeners() {
@@ -121,10 +182,59 @@ async function saveQueueToStorage() {
   try {
     // Progress % is ephemeral — strip or keep state for persistence
     const serialized = JSON.stringify(queue);
-    await AsyncStorage.setItem(STORAGE_KEY, serialized);
+    // Written to a temporary file first and then moved into place, so stopping mid-write never leaves half a queue
+    await FileSystem.writeAsStringAsync(QUEUE_FILE_TMP, serialized);
+    await FileSystem.deleteAsync(QUEUE_FILE, { idempotent: true });
+    await FileSystem.moveAsync({ from: QUEUE_FILE_TMP, to: QUEUE_FILE });
   } catch (err) {
     console.error('[UploadQueue] Failed to save queue to storage:', err);
   }
+}
+
+/** The saved queue, or null when there is none. The temporary file is only used when the app stopped just before moving it into place */
+async function readQueueFile(): Promise<UploadQueueItem[] | null> {
+  for (const uri of [QUEUE_FILE, QUEUE_FILE_TMP]) {
+    try {
+      if (!(await FileSystem.getInfoAsync(uri)).exists) continue;
+      const parsed = JSON.parse(await FileSystem.readAsStringAsync(uri));
+      if (Array.isArray(parsed)) return parsed;
+    } catch (err) {
+      console.warn('[UploadQueue] Could not read the saved queue:', err);
+    }
+  }
+  return null;
+}
+
+/** File name of a copy in the uploads folder, or null for anything else (matched by name: the app's folder path can change after an iOS update) */
+function uploadCopyName(fileUri: string): string | null {
+  const at = fileUri ? fileUri.lastIndexOf(UPLOAD_DIR_NAME) : -1;
+  return at === -1 ? null : fileUri.slice(at + UPLOAD_DIR_NAME.length);
+}
+
+/** The item with its copy's path in this app's current documents folder, which on iPhone can move after an app update (issue #245) */
+function withCurrentCopyPath(item: UploadQueueItem): UploadQueueItem {
+  const name = uploadCopyName(item.fileUri);
+  const currentUri = name ? `${FileSystem.documentDirectory}${UPLOAD_DIR_NAME}${name}` : item.fileUri;
+  return currentUri === item.fileUri ? item : { ...item, fileUri: currentUri };
+}
+
+/** Deletes copies in the uploads folder that no queue item points at: left behind by a queue that was lost, they only use space */
+function deleteLeftoverCopies(): Promise<void> {
+  // Runs in turn with queue changes, so a copy is either still being added or already in the queue
+  return runExclusive(async () => {
+    try {
+      const uploadDir = `${FileSystem.documentDirectory}${UPLOAD_DIR_NAME}`;
+      if (!(await FileSystem.getInfoAsync(uploadDir)).exists) return;
+      const inUse = new Set(queue.map(item => uploadCopyName(item.fileUri)).filter((name): name is string => !!name));
+      const leftovers = (await FileSystem.readDirectoryAsync(uploadDir)).filter(name => !inUse.has(name) && !copiesBeingAdded.has(name));
+      for (const name of leftovers) {
+        await FileSystem.deleteAsync(`${uploadDir}${name}`, { idempotent: true }).catch(() => {});
+      }
+      if (leftovers.length > 0) console.log(`[UploadQueue] Deleted ${leftovers.length} leftover upload copies`);
+    } catch (err) {
+      console.warn('[UploadQueue] Could not clean up leftover upload copies:', err);
+    }
+  });
 }
 
 // ── 2. Notification Channels & Permissions ──────────────────────────────────
@@ -169,11 +279,12 @@ export async function initUploadQueue() {
   await ensureNotificationChannels();
 
   try {
-    // 1. Check for legacy migration
-    const legacyRaw = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
-    let initialQueue: UploadQueueItem[] = [];
+    // 1. Load the saved queue; a queue saved in AsyncStorage by an older version is moved to the file
+    const savedQueue = await readQueueFile();
+    let initialQueue: UploadQueueItem[] = savedQueue ?? [];
+    const legacyRaw = savedQueue ? null : await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
+    const storedRaw = savedQueue ? null : await AsyncStorage.getItem(STORAGE_KEY);
 
-    const storedRaw = await AsyncStorage.getItem(STORAGE_KEY);
     if (storedRaw) {
       initialQueue = JSON.parse(storedRaw);
     } else if (legacyRaw) {
@@ -203,6 +314,11 @@ export async function initUploadQueue() {
       }
     }
 
+    // Saved paths of copies may point at the documents folder from before an app update
+    const repointed = initialQueue.map(withCurrentCopyPath);
+    const copyPathsMoved = repointed.some((item, idx) => item !== initialQueue[idx]);
+    initialQueue = repointed;
+
     // 2. Filter out stale failed items hitting foreign key or invalid event constraints
     const validInitial = initialQueue.filter(item => {
       if (item.status === 'failed' && (item.error?.includes('foreign key constraint') || item.error?.includes('does not exist'))) {
@@ -220,7 +336,14 @@ export async function initUploadQueue() {
       return item;
     });
 
+    if (storedRaw || legacyRaw || copyPathsMoved) {
+      // Saves the moved or repointed queue to the file; an old AsyncStorage value goes only once the file is there
+      await mutateQueue(() => {});
+      if ((await FileSystem.getInfoAsync(QUEUE_FILE)).exists) await AsyncStorage.removeItem(STORAGE_KEY);
+    }
+
     notifyListeners();
+    void deleteLeftoverCopies();
 
     // 3. Reconcile interrupted uploads with remote server
     const needsReconciliation = queue.filter(i => i.status === 'upload_needs_reconciliation');
@@ -404,11 +527,14 @@ export async function addToUploadQueue(
   const batchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const batchTotal = fileDetails.length;
 
+  const addingNames: string[] = [];
   for (let idx = 0; idx < fileDetails.length; idx++) {
     const detail = fileDetails[idx];
     const clientUploadId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const sanitizedFileName = detail.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const durableUri = `${uploadDir}${clientUploadId}_${sanitizedFileName}`;
+    addingNames.push(`${clientUploadId}_${sanitizedFileName}`);
+    copiesBeingAdded.add(`${clientUploadId}_${sanitizedFileName}`);
 
     try {
       await FileSystem.copyAsync({ from: detail.originalUri, to: durableUri });
@@ -451,6 +577,7 @@ export async function addToUploadQueue(
     q.length = 0;
     q.push(...activeRemaining, ...newItems);
   });
+  addingNames.forEach(name => copiesBeingAdded.delete(name));
 
   void updateProgressNotification(true);
   processQueue();
@@ -661,7 +788,20 @@ async function uploadWorker(item: UploadQueueItem) {
     // Set by chunkUpload for 4xx responses — repeating the identical request cannot succeed.
     const nonRetryable = err?.nonRetryable === true;
 
-    if (!nonRetryable && retries < MAX_UPLOAD_RETRIES) {
+    if (isNetworkError(err)) {
+      console.warn(`[UploadQueue] No connection while uploading ${item.fileName} (${err?.message || err}). Waiting for the network...`);
+      await mutateQueue(q => {
+        const target = q.find(i => i.id === item.id);
+        if (target) {
+          target.status = 'pending';
+          target.progress = 0;
+          target.storageKey = undefined; // Fresh upload URL once back online
+          target.error = WAITING_FOR_CONNECTION;
+        }
+      });
+      await waitForConnection();
+      console.log(`[UploadQueue] Connection back; resuming ${item.fileName}`);
+    } else if (!nonRetryable && retries < MAX_UPLOAD_RETRIES) {
       console.warn(`[UploadQueue] Transient upload issue on ${item.fileName} (${err?.message || err}). Retrying attempt ${retries}/${MAX_UPLOAD_RETRIES}...`);
       await mutateQueue(q => {
         const target = q.find(i => i.id === item.id);
@@ -743,11 +883,19 @@ async function flushMetadataBatchesInternal(): Promise<void> {
       // 1. Resolve rawEventId to true database primary key id
       let targetEventId = rawEventId;
       try {
-        const { data: eventRow } = await supabase
+        const { data: eventRow, error: lookupError } = await supabase
           .from('events')
           .select('id')
           .or(`id.eq.${rawEventId},legacy_id.eq.${rawEventId}`)
           .maybeSingle();
+
+        // Issue #144: a lookup that failed (offline) says nothing about the gallery; keep the items and try once
+        // the connection is back, instead of failing photos whose file is already uploaded
+        if (lookupError) {
+          console.warn(`[UploadQueue] Couldn't check event ${rawEventId} (${lookupError.message}). Saving when the connection is back.`);
+          void waitForConnection().then(() => flushMetadataBatches());
+          continue;
+        }
 
         if (eventRow?.id) {
           targetEventId = eventRow.id;
@@ -890,6 +1038,11 @@ async function flushMetadataBatchesInternal(): Promise<void> {
       const errorMsg = batchErr?.message || String(batchErr || 'Metadata sync failed');
       console.warn(`[UploadQueue] Error flushing metadata batch for event ${rawEventId}:`, errorMsg);
       const isFatalFkError = errorMsg.includes('foreign key constraint') || errorMsg.includes('does not exist');
+      // Issue #144: offline, the files are already uploaded; save them once the connection is back without using attempts
+      if (!isFatalFkError && isNetworkError(batchErr)) {
+        void waitForConnection().then(() => flushMetadataBatches());
+        continue;
+      }
       let shouldRetry = false;
       await mutateQueue(q => {
         for (const item of items) {
@@ -1353,14 +1506,18 @@ async function performNotificationUpdate() {
     const displayName = fileName.length > 20 ? `${fileName.substring(0, 17)}...` : fileName;
     const filePercent = Math.round(currentItem?.progress || 0);
 
-    if (batchTotal > 1) {
+    if (currentItem?.error === WAITING_FOR_CONNECTION) {
+      bodyText = batchTotal > 1
+        ? `Waiting for connection • ${uploadedCount} of ${batchTotal} uploaded`
+        : 'Waiting for connection';
+    } else if (batchTotal > 1) {
       bodyText = `Uploading ${currentIndex} of ${batchTotal} • ${displayName} (${filePercent}%)`;
     } else {
       bodyText = `${displayName} (${filePercent}%)`;
     }
   } else {
     // ── PROCESSING & AI INDEXING PHASE (Google Drive style) ──
-    title = batchTotal > 1 ? `Processing ${batchTotal} files` : 'Processing 1 file';
+    title = batchTotal > 1 ? `Preparing ${batchTotal} files` : 'Preparing 1 file';
     const indexingData = lastIndexingStatus.get(currentEventId);
     const processingItems = currentBatchItems.filter(i => i.status === 'processing');
 
@@ -1371,10 +1528,10 @@ async function performNotificationUpdate() {
         : 'Preparing video for playback...';
     } else if (indexingData && indexingData.total > 0) {
       subtitle = `${indexingData.percentComplete}%`;
-      bodyText = `AI Face Indexing: ${indexingData.indexed} of ${indexingData.total} (${indexingData.percentComplete}%)`;
+      bodyText = `Getting photos ready: ${indexingData.indexed} of ${indexingData.total}`;
     } else {
       subtitle = 'Processing';
-      bodyText = `Processing photos and indexing faces... (${overallPercentage}%)`;
+      bodyText = `Getting your photos ready... (${overallPercentage}%)`;
     }
   }
 
@@ -1386,7 +1543,7 @@ async function performNotificationUpdate() {
         subtitle,
         body: bodyText,
         sound: false,
-        color: '#CCA43B',
+        color: '#CA9C68',
         sticky: true,
         autoDismiss: false,
         android: {
@@ -1422,8 +1579,8 @@ async function notifyQueueDrained() {
         await Notifications.scheduleNotificationAsync({
           identifier: PROGRESS_NOTIFICATION_ID,
           content: {
-            title: 'Upload finished with issues',
-            body: `${succeeded.length} uploaded, ${failed.length} failed. Tap to retry.`,
+            title: "Some files didn't upload",
+            body: `${succeeded.length} uploaded, ${failed.length} didn't. Open the gallery to retry.`,
             sound: true,
             sticky: false,
             autoDismiss: true,

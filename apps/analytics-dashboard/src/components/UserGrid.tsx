@@ -5,6 +5,7 @@ import {
   fetchAllModalCostLogs,
   fetchDeletedEvents,
   computeUserEveBashCost,
+  storedBytes,
   type Event,
   type Photo,
   type UserProfile,
@@ -12,6 +13,7 @@ import {
   type ModalCostLogRow,
   type UserEveBashCostMetrics
 } from '../lib/analytics';
+import { runAdminAction } from '../lib/adminApi';
 import { Search, Calendar, Clock, Filter, Users, CreditCard, Activity, X, Check, HardDrive, IndianRupee, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 const RefreshCcwIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -265,6 +267,7 @@ export type SortColumn =
   | 'storage'
   | 'images'
   | 'videos'
+  | 'vault'
   | 'totalGb'
   | 'cost'
   | 'paid'
@@ -326,6 +329,7 @@ const sortColumnLabelMap: Record<SortColumn, string> = {
   storage: 'Storage Plan',
   images: 'Images GB',
   videos: 'Videos GB',
+  vault: 'Vault GB',
   totalGb: 'Total GB',
   cost: 'Cost',
   paid: 'Paid',
@@ -353,6 +357,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
         'storage',
         'images',
         'videos',
+        'vault',
         'totalGb',
         'cost',
         'paid',
@@ -414,6 +419,20 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
     }
   }, [resetTrigger]);
   const [modalLogs, setModalLogs] = useState<ModalCostLogRow[]>([]);
+  // EB Vault bytes per user id. Read through the backend: each user may only read their own vault_accounts row.
+  const [vaultBytesByUser, setVaultBytesByUser] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let active = true;
+    runAdminAction('vaultUsage')
+      .then((result) => {
+        if (!active) return;
+        if (result.success) setVaultBytesByUser(result.vaultBytes || {});
+        else console.warn('[UserGrid] EB Vault usage not loaded:', result.error);
+      })
+      .catch((err) => console.warn('[UserGrid] EB Vault usage not loaded:', err));
+    return () => { active = false; };
+  }, [resetTrigger]);
 
   useEffect(() => {
     let isMounted = true;
@@ -586,6 +605,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
       subGalleryCount: number;
       imageBytes: number;
       videoBytes: number;
+      vaultBytes: number;
       imageCount: number;
       videoCount: number;
       totalBytes: number;
@@ -597,7 +617,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
 
     photos.forEach(photo => {
       if (!photo.eventId) return;
-      eventMediaBytes.set(photo.eventId, (eventMediaBytes.get(photo.eventId) || 0) + (Number(photo.size) || 0));
+      eventMediaBytes.set(photo.eventId, (eventMediaBytes.get(photo.eventId) || 0) + storedBytes(photo));
     });
 
     users.forEach(user => {
@@ -606,9 +626,10 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
         subGalleryCount: 0,
         imageBytes: 0,
         videoBytes: 0,
+        vaultBytes: vaultBytesByUser[user.id] || 0,
         imageCount: 0,
         videoCount: 0,
-        totalBytes: 0,
+        totalBytes: vaultBytesByUser[user.id] || 0,
         allEventIds: new Set<string>(),
         mainEvents: []
       });
@@ -757,7 +778,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
       const current = metrics.get(userId);
       if (!current) return;
 
-      const size = Number(photo.size) || 0;
+      const size = storedBytes(photo);
       const mediaType = String(photo.mediaType || '').toLowerCase();
       const resourceType = String(photo.resourceType || '').toLowerCase();
       const isVideo = mediaType === 'video' || resourceType === 'video';
@@ -773,7 +794,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
     });
 
     return metrics;
-  }, [users, events, photos]);
+  }, [users, events, photos, vaultBytesByUser]);
 
   const userCostMetrics = useMemo(() => {
     const costMap = new Map<string, UserEveBashCostMetrics>();
@@ -939,12 +960,13 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
           break;
         }
 
+        case 'vault': {
+          cmp = (userUsageMetrics.get(a.id)?.vaultBytes || 0) - (userUsageMetrics.get(b.id)?.vaultBytes || 0);
+          break;
+        }
+
         case 'totalGb': {
-          const aUsage = userUsageMetrics.get(a.id);
-          const aTotal = (aUsage?.imageBytes || 0) + (aUsage?.videoBytes || 0);
-          const bUsage = userUsageMetrics.get(b.id);
-          const bTotal = (bUsage?.imageBytes || 0) + (bUsage?.videoBytes || 0);
-          cmp = aTotal - bTotal;
+          cmp = (userUsageMetrics.get(a.id)?.totalBytes || 0) - (userUsageMetrics.get(b.id)?.totalBytes || 0);
           break;
         }
 
@@ -1045,6 +1067,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
         user={detailUser}
         events={events}
         photos={photos}
+        vaultBytes={vaultBytesByUser[detailUser.id] || 0}
         initialTab={detailInitialTab}
         onBack={() => setSelectedDetailUserId(null)}
         onPlanChange={onPlanChange}
@@ -1314,6 +1337,9 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
               {/* 7. Videos GB (Sortable) */}
               {renderSortableHeader('videos', 'Videos GB', 'min-w-[85px]')}
 
+              {/* EB Vault GB (Sortable) */}
+              {renderSortableHeader('vault', 'Vault GB', 'min-w-[85px]')}
+
               {/* 8. Total GB (Sortable) */}
               {renderSortableHeader('totalGb', 'Total GB', 'min-w-[85px]')}
 
@@ -1358,8 +1384,8 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
               const paidPlan = isPaidPlan(user.role);
               const planStartDate = formatDateInputValue(user.planStartDate);
               const planEndDate = formatDateInputValue(user.planEndDate);
-              const usage = userUsageMetrics.get(user.id) || { mainEventCount: 0, subGalleryCount: 0, imageBytes: 0, videoBytes: 0, mainEvents: [] };
-              const totalBytes = usage.imageBytes + usage.videoBytes;
+              const usage = userUsageMetrics.get(user.id) || { mainEventCount: 0, subGalleryCount: 0, imageBytes: 0, videoBytes: 0, vaultBytes: 0, mainEvents: [] };
+              const totalBytes = usage.imageBytes + usage.videoBytes + usage.vaultBytes;
               const userCost = userCostMetrics.get(user.id) || { totalLifetimeCostInr: 0, totalMonthlyCostInr: 0 };
 
               return (
@@ -1499,6 +1525,11 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
                       {formatGb(usage.videoBytes)} GB
                     </td>
 
+                    {/* EB Vault Storage */}
+                    <td className="py-2 px-2.5 min-w-[85px] whitespace-nowrap text-xs font-semibold text-amber-300 border-b border-slate-700">
+                      {formatGb(usage.vaultBytes)} GB
+                    </td>
+
                     {/* Total Storage */}
                     <td className="py-2 px-2.5 min-w-[85px] whitespace-nowrap text-xs font-bold text-white border-b border-slate-700">
                       {formatGb(totalBytes)} GB
@@ -1629,7 +1660,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
             
             {filteredUsers.length === 0 && (
               <tr>
-                <td colSpan={19} className="py-12 text-center text-slate-500 bg-slate-900/10 border-b border-slate-700">
+                <td colSpan={20} className="py-12 text-center text-slate-500 bg-slate-900/10 border-b border-slate-700">
                   <p className="text-base font-semibold">No accounts found</p>
                   <p className="text-xs text-slate-600 mt-1">Try adjusting your filters or search query.</p>
                 </td>

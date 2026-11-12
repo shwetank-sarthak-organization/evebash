@@ -10,22 +10,32 @@ import { createVendorLeadsRouter } from "./routes/vendorLeads.js";
 import { findYouRouter } from "./routes/findYou.js";
 import { infrastructureRouter } from "./routes/infrastructure.js";
 import { mediaRouter } from "./routes/media.js";
+import { videoWorkerRouter } from "./routes/videoWorker.js";
 import { pricingPlansRouter } from "./routes/pricingPlans.js";
 import { applyDuePlanChanges, subscriptionRouter } from "./routes/subscription.js";
 import { paymentsRouter } from "./routes/payments.js";
 import { permissionsRouter } from "./routes/permissions.js";
+import { eventTransfersRouter } from "./routes/eventTransfers.js";
 import { runMediaWatchdog } from "./services/watchdog.js";
 import { startWatchdogScheduler } from "./services/watchdogScheduler.js";
 import { createSignupRouter } from "./routes/signup.js";
 import { accountRouter } from "./routes/account.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { createVaultRouter } from "./routes/vault.js";
+import { createAlbumRouter, startAlbumFileCleanup } from "./routes/albums.js";
+import { isAlbumProofingEnabled } from "./albums/config.js";
+import { createB2AlbumFiles } from "./albums/files.js";
+import { createSupabaseAlbumRepository } from "./albums/repository.js";
 import { getVaultBucketSettings, getVaultCopySettings, isVaultEnabled } from "./vault/config.js";
 import { createS3EventToVaultCopier } from "./vault/eventCopier.js";
 import { createSupabaseVaultRepository } from "./vault/repository.js";
 import { createS3VaultStorage } from "./vault/storage.js";
 import { runVaultMaintenance, startVaultMaintenanceScheduler } from "./services/vaultMaintenance.js";
 import { startPlanChangeScheduler } from "./services/planChangeScheduler.js";
+import { initSentry, reportError } from "./sentry.js";
+
+// Crash and error reporting: off unless SENTRY_DSN is set
+await initSentry();
 
 // ── Process-Level Crash Protection ──────────────────────────────────────────
 // Prevent unhandled promise rejections from crashing the process (Node 16+)
@@ -34,6 +44,7 @@ process.on("unhandledRejection", (reason, promise) => {
     reason: reason instanceof Error ? reason.stack || reason.message : reason,
     promise,
   });
+  reportError(reason, { origin: "unhandledRejection" });
 });
 
 // Catch synchronous exceptions that escape error handlers to prevent abrupt process termination
@@ -42,6 +53,7 @@ process.on("uncaughtException", (error, origin) => {
     error: error instanceof Error ? error.stack || error.message : error,
     origin,
   });
+  reportError(error, { origin });
 });
 
 process.on("warning", (warning) => {
@@ -67,6 +79,17 @@ app.use(
   }),
 );
 app.use(express.json({ limit: "10mb" }));
+
+// Starting a transfer says whether an email has an account, so it can't be used to test long lists of emails.
+// Reads aren't counted: the Dashboard and Permissions tab load them often, and a venue may share one IP address.
+const eventTransfersLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  skip: (request) => request.method !== "POST",
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: "Too many requests. Please try again later." },
+});
 
 const contactMessagesLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -102,6 +125,8 @@ app.use("/api/v1/vendor-leads", vendorLeadsLimiter, createVendorLeadsRouter());
 app.use("/api/find-you", findYouRouter);
 app.use("/api/media", mediaRouter);
 app.use("/api/v1/media", mediaRouter);
+// Todo #18: RunPod video workers and their QStash checks (idle unless VIDEO_RUNPOD sends videos there)
+app.use("/api/v1/video-worker", videoWorkerRouter);
 app.use("/api/pricing-plans", pricingPlansRouter);
 app.use("/api/v1/pricing-plans", pricingPlansRouter);
 app.use("/api/subscription", subscriptionRouter);
@@ -111,6 +136,7 @@ app.use("/api/payments", paymentsRouter);
 app.use("/api/create-order", paymentsRouter);
 app.use("/api/verify-payment", paymentsRouter);
 app.use("/api/v1/permissions", permissionsRouter);
+app.use("/api/v1/event-transfers", eventTransfersLimiter, eventTransfersRouter);
 app.use("/api/v1/signup", createSignupRouter());
 app.use("/api/v1/account", accountRouter);
 app.use("/api/v1/notifications", notificationsRouter);
@@ -130,6 +156,19 @@ const vaultLimiter = rateLimit({
   message: { success: false, code: "rate_limited", error: "Too many requests. Please slow down and try again." },
 });
 app.use("/api/v1/vault", vaultLimiter, createVaultRouter({ repo: vaultRepository, storage: vaultStorage, copier: vaultCopier }));
+
+// Album proofing: off until ALBUM_PROOFING=true (the router answers 503 "disabled" until then)
+const albumRepository = createSupabaseAlbumRepository();
+const albumFiles = createB2AlbumFiles();
+const albumLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 3000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, code: "rate_limited", error: "Too many requests. Please slow down and try again." },
+});
+app.use("/api/v1/albums", albumLimiter, createAlbumRouter({ repo: albumRepository, files: albumFiles }));
+if (isAlbumProofingEnabled()) startAlbumFileCleanup(albumRepository, albumFiles);
 
 app.use((_request, response) => {
   response.status(404).json({ success: false, error: "Route not found." });
@@ -158,6 +197,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     status,
     message: err?.message || "Internal server error",
   });
+  if (status >= 500) reportError(err, { method: req.method, url: req.originalUrl, status });
 
   res.status(status).json({
     success: false,

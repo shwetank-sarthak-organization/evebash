@@ -42,7 +42,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-logo.png",
+          "image": "./assets/images/splash-blank.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#13191F",
@@ -66,15 +66,22 @@
         {
           "photosPermission": "EveBash uses your photo library so you can add photos and videos to event galleries and choose a profile picture.",
           "cameraPermission": "EveBash uses your camera to scan event QR codes and to take a selfie for Find You.",
-          "microphonePermission": false
+          "microphonePermission": "EveBash uses your microphone to record voice notes on album pages."
         }
       ],
       [
         "expo-camera",
         {
           "cameraPermission": "EveBash uses your camera to scan event QR codes and to take a selfie for Find You.",
-          "microphonePermission": false,
+          "microphonePermission": "EveBash uses your microphone to record voice notes on album pages.",
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "EveBash uses your microphone to record voice notes on album pages.",
+          "enableBackgroundPlayback": false
         }
       ],
       [
@@ -105,6 +112,14 @@
       ],
       "expo-sharing",
       [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "organization": "evebash",
+          "project": "evebash-app"
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "ios": {
@@ -128,7 +143,7 @@
     },
     "owner": "elnino_009",
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "fingerprint"
     },
     "updates": {
       "url": "https://u.expo.dev/c56e7efd-1e46-4243-a77c-bff834914615"

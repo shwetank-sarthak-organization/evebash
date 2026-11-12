@@ -6,6 +6,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MidnightColors, Fonts } from '../constants/theme';
 import { useAppTheme } from '@/context/ThemeContext';
 import { Event, getSampleGalleryEvents } from '@/lib/database';
+import { withPhoneCover } from '@/lib/eventCovers';
 
 export default function SampleGalleriesScreen() {
   const router = useRouter();
@@ -77,7 +78,7 @@ export default function SampleGalleriesScreen() {
               activeOpacity={0.85}
               onPress={() => router.push(`/events/${album.id}`)}
             >
-              <Image source={{ uri: album.coverImage }} style={styles.cardImage} />
+              <Image source={{ uri: withPhoneCover(album).coverImage || album.coverImage }} style={styles.cardImage} />
               <LinearGradient
                 colors={['transparent', 'rgba(19, 25, 31, 0.9)']}
                 style={styles.cardGradient}
@@ -109,7 +110,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: MidnightColors.border,
+    borderBottomColor: colors.border,
   },
   backBtn: {
     width: 44,
@@ -137,9 +138,10 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   cardGradient: { ...StyleSheet.absoluteFillObject },
   cardContent: { position: 'absolute', bottom: 20, left: 20, right: 20 },
   categoryBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, backgroundColor: 'rgba(202, 156, 104,0.2)', borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(202, 156, 104,0.3)' },
-  categoryText: { fontSize: 10, color: colors.gold, fontFamily: Fonts.inter.bold, textTransform: 'uppercase' },
+  // Card text sits on the cover photo, so it keeps the dark look's colours
+  categoryText: { fontSize: 10, color: MidnightColors.gold, fontFamily: Fonts.inter.bold, textTransform: 'uppercase' },
   cardTitle: { fontSize: 20, color: '#fff', fontFamily: Fonts.outfit.bold },
-  cardYear: { fontSize: 12, color: colors.slate400, fontFamily: Fonts.inter.medium, marginTop: 2 },
+  cardYear: { fontSize: 12, color: MidnightColors.slate400, fontFamily: Fonts.inter.medium, marginTop: 2 },
   emptyState: {
     minHeight: 180,
     borderRadius: 24,

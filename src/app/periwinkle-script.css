@@ -1,0 +1,134 @@
+/* ---------- Periwinkle Script guest page (src/components/TemplatePeriwinkle.tsx) ----------
+   Cream page, the cover photo in a frame with rounded top corners, the couple's names across it in Bonheur Royale and
+   a cream card with cut corners (Fraunces italic) straddling the photo and a periwinkle band
+   (src/components/periwinkle/periwinkleFonts.ts). Below the band the page is Classic White (classic-white.css). */
+.periwinkle-template, .periwinkle-nav {
+  --pw-script: var(--font-periwinkle-script), "Brush Script MT", cursive;
+  --pw-serif: var(--font-periwinkle-serif), Georgia, serif;
+  --pw-cream: #F4F1EA;
+  --pw-blue: #C9DBFB;
+  --pw-ink: #2B2A26;
+}
+
+.periwinkle-frame {
+  padding: 72px clamp(8px, 1.4vw, 16px) 0;
+}
+.periwinkle-hero {
+  position: relative;
+  height: calc(100vh - 190px);
+  height: calc(100svh - 190px);
+  min-height: 420px;
+  overflow: hidden;
+  border-radius: clamp(16px, 2vw, 28px) clamp(16px, 2vw, 28px) 0 0;
+  background: #3b4a3c;
+  isolation: isolate;
+}
+.periwinkle-hero__photo { z-index: -2; }
+.periwinkle-hero__fill { z-index: -3; object-fit: cover; filter: blur(36px) saturate(1.1) brightness(.8); transform: scale(1.15); }
+.periwinkle-hero__empty {
+  position: absolute; inset: 0; z-index: -2;
+  background: radial-gradient(60% 55% at 30% 30%, #6f8a5e 0%, transparent 70%), linear-gradient(160deg, #4f6550, #2f3b30);
+}
+/* A little darker behind the names, so cream script stays readable on light photos */
+.periwinkle-hero__shade {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(60% 40% at 50% 62%, rgba(20, 18, 14, .32) 0%, rgba(20, 18, 14, 0) 70%);
+}
+
+.periwinkle-hero__title {
+  position: absolute;
+  inset: auto clamp(16px, 5vw, 64px) clamp(96px, 17svh, 150px);
+  display: flex; flex-direction: column; align-items: center;
+  color: var(--pw-cream);
+  font-family: var(--pw-script);
+  font-weight: 400;
+  font-size: clamp(3.4rem, min(9vw, 15svh), 8.5rem);
+  line-height: .92;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, .28);
+}
+.periwinkle-hero__title--long { font-size: clamp(3rem, min(7vw, 12svh), 6.5rem); }
+.periwinkle-hero__title--xlong { font-size: clamp(2.5rem, min(5vw, 9svh), 4.75rem); }
+
+/* Periwinkle band under the photo; the card sits half on the photo, half on the band */
+.periwinkle-band {
+  display: flex; justify-content: center;
+  padding: 0 16px clamp(28px, 4vw, 48px);
+  background: var(--pw-blue);
+}
+.periwinkle-band--empty { padding-bottom: clamp(20px, 3vw, 36px); }
+.periwinkle-card {
+  position: relative; z-index: 1;
+  width: min(100%, 420px);
+  margin-top: clamp(-96px, -11svh, -64px);
+  padding: clamp(24px, 3vw, 36px) clamp(24px, 3.5vw, 44px);
+  display: flex; flex-direction: column; gap: 14px;
+  background: var(--pw-cream);
+  color: var(--pw-ink);
+  font-family: var(--pw-serif);
+  font-style: italic;
+  font-size: clamp(16px, 1.35vw, 19px);
+  line-height: 1.45;
+  text-align: center;
+  /* Cut corners, like the card in the reference */
+  clip-path: polygon(34px 0, calc(100% - 34px) 0, 100% 34px, 100% calc(100% - 34px), calc(100% - 34px) 100%, 34px 100%, 0 calc(100% - 34px), 0 34px);
+}
+.periwinkle-card p { overflow-wrap: anywhere; }
+.periwinkle-card__message { white-space: pre-line; }
+
+/* The band ends the first screen, so no sage line above the gallery */
+.periwinkle-template .classic-gallery-content { padding-top: clamp(40px, 5vw, 72px); }
+.periwinkle-template #event-content { scroll-margin-top: 72px; }
+
+/* ---------- Event navbar in the Periwinkle Script design (EventNavbar variant="periwinkle") ----------
+   Classic White's links, either side of the couple's names in the middle, in Fraunces on a solid cream bar.
+   Phones: names on the left, menu on the right. */
+.periwinkle-nav {
+  position: fixed; inset: 0 0 auto; z-index: 50;
+  padding: 8px clamp(16px, 4vw, 56px);
+  background: var(--pw-cream);
+  color: var(--pw-ink);
+  transition: box-shadow .3s ease;
+}
+.periwinkle-nav--solid { box-shadow: 0 8px 24px -18px rgba(43, 42, 38, .45); }
+.periwinkle-nav__bar { width: 100%; min-height: 48px; }
+.periwinkle-nav .classic-nav__title {
+  font-family: var(--pw-script);
+  font-size: clamp(1.7rem, 2.4vw, 2.2rem);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.1;
+  text-transform: none;
+  color: var(--pw-ink);
+}
+@media (min-width: 768px) {
+  .periwinkle-nav .periwinkle-nav__bar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: clamp(20px, 3.5vw, 56px); }
+  .periwinkle-nav .classic-nav__links { display: contents !important; }
+  .periwinkle-nav .classic-nav__title { grid-column: 2; grid-row: 1; max-width: 36vw; text-align: center; }
+  .periwinkle-nav__group { display: flex; align-items: center; gap: clamp(18px, 2.6vw, 40px); grid-row: 1; min-width: 0; }
+  .periwinkle-nav__group--left { grid-column: 1; justify-content: flex-end; }
+  .periwinkle-nav__group--right { grid-column: 3; justify-content: flex-start; }
+}
+.periwinkle-nav .classic-nav__link {
+  gap: 6px;
+  color: var(--pw-ink);
+  font-family: var(--pw-serif);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.2;
+}
+.periwinkle-nav .classic-nav__link svg { width: 14px; height: 14px; }
+.periwinkle-nav .classic-nav__link::after { background: var(--pw-ink); }
+.periwinkle-nav .classic-nav__link:focus-visible { outline-color: var(--pw-ink); }
+/* "Download All": a periwinkle pill */
+.periwinkle-nav .periwinkle-nav__cta { padding: 7px 14px; border-radius: 999px; background: var(--pw-blue); }
+.periwinkle-nav .periwinkle-nav__cta::after { display: none; }
+.periwinkle-nav .periwinkle-nav__cta:hover:not(:disabled) { background: #B5CCF7; }
+
+@media (prefers-reduced-motion: reduce) {
+  .periwinkle-nav { transition: none; }
+}

@@ -2,6 +2,10 @@ import { supabase } from "./supabase";
 import { formatEventDate } from "./utils";
 import { sendPushNotification } from "./pushNotifications";
 import { getApiUrl } from "./apiBase";
+import { isMissingUploadedFile } from "../../shared/media/missingUpload";
+import { readEventSizes, type EventStorageSize } from "../../shared/storage/eventSizes";
+import { fetchMemberDetails, fetchMemberDirectory } from "../../shared/permissions/memberDetails";
+import { readThemeContent, type ThemeContent, type ThemeContentBlock } from "../../shared/themes/themeContent";
 
 // Memory caches to optimize lookups
 const eventCache: Record<string, Event> = {};
@@ -34,6 +38,12 @@ export interface Event {
     coverOffsetX?: number;
     coverScale?: number;
     coverMode?: 'fit' | 'fill';
+    // The phone cover (app and phone browsers); empty = the cover fields above (shared/themes/phoneCover.ts)
+    phoneCoverImage?: string | null;
+    phoneCoverMode?: 'fit' | 'fill' | null;
+    phoneCoverOffset?: number | null;
+    phoneCoverOffsetX?: number | null;
+    phoneCoverScale?: number | null;
     order?: number;
     isSampleGallery?: boolean;
     sampleGalleryOrder?: number;
@@ -41,6 +51,8 @@ export interface Event {
     isHidden?: boolean;
     /** The gallery's own video the host shows at the top of its guest page (photos.id); null = none */
     galleryVideoId?: string | null;
+    /** The theme's own content (Confetti Circle's couple...), main events only; undefined = not read (no column yet) */
+    themeContent?: ThemeContent;
     createdAt?: any;
 }
 
@@ -281,6 +293,11 @@ function mapSqlToEvent(e: any): Event {
         coverOffset: e.cover_offset,
         coverOffsetX: e.cover_offset_x,
         coverScale: e.cover_scale,
+        phoneCoverImage: e.phone_cover_image ?? null,
+        phoneCoverMode: e.phone_cover_mode ?? null,
+        phoneCoverOffset: e.phone_cover_offset ?? null,
+        phoneCoverOffsetX: e.phone_cover_offset_x ?? null,
+        phoneCoverScale: e.phone_cover_scale ?? null,
         coverMode: e.cover_mode,
         order: e.order,
         isPublic: !!e.is_public,
@@ -288,6 +305,7 @@ function mapSqlToEvent(e: any): Event {
         isHidden: !!e.is_hidden,
         // undefined when the row didn't include the column (e.g. open_gallery's read-only view): not known
         galleryVideoId: e.gallery_video_id === undefined ? undefined : e.gallery_video_id,
+        themeContent: e.theme_content === undefined ? undefined : readThemeContent(e.theme_content),
         sampleGalleryOrder: e.sample_gallery_order,
         createdAt: e.created_at
     };
@@ -708,24 +726,6 @@ export function safeParseDateToISO(dateInput?: string | Date): string | null {
 // --- Database Functions ---
 
 /**
- * Fetches all events from the events table.
- */
-export async function getEvents(): Promise<Event[]> {
-    try {
-        const { data, error } = await supabase
-            .from('events')
-            .select('*')
-            .order('title', { ascending: true });
-
-        if (error) throw error;
-        return (data || []).map(mapSqlToEvent);
-    } catch (error) {
-        console.error("Error fetching events:", error);
-        return [];
-    }
-}
-
-/**
  * Fetches public sample galleries selected by the admin.
  */
 export async function getSampleGalleryEvents(): Promise<Event[]> {
@@ -810,7 +810,8 @@ export async function getEventPhotosPaginated(
     options: MediaQueryOptions = {}
 ): Promise<{ photos: Photo[], hasMore: boolean, totalPhotos: number, totalVideos: number, retainedMediaIds: string[] }> {
     // Hidden media is filtered here rather than in the query, so this also works before the is_hidden column exists
-    const isShown = (photo: Photo) => options.includeHidden || !photo.isHidden;
+    // Guests don't get media the host hid, nor photos whose file never reached storage; the host (includeHidden) sees both
+    const isShown = (photo: Photo) => options.includeHidden || (!photo.isHidden && !isMissingUploadedFile(photo));
     if (!eventId) {
         console.warn("[Supabase] getEventPhotosPaginated: eventId is missing.");
         return { photos: [], hasMore: false, totalPhotos: 0, totalVideos: 0, retainedMediaIds: [] };
@@ -967,14 +968,16 @@ export async function getFavouritePhotosForEvents(eventIds: string[], options: M
     }
 }
 
-export async function getEventFavouritePhotos(eventId: string): Promise<EventFavouritePhoto[]> {
-    if (!eventId) return [];
+/** Stars saved under these galleries (an album reads its own and the main event's: stars are saved under the main event) */
+export async function getEventFavouritePhotos(eventId: string | string[]): Promise<EventFavouritePhoto[]> {
+    const eventIds = Array.from(new Set((Array.isArray(eventId) ? eventId : [eventId]).filter(Boolean)));
+    if (eventIds.length === 0) return [];
 
     try {
         const { data, error } = await supabase
             .from('event_favourite_photos')
             .select('*')
-            .eq('event_id', eventId)
+            .in('event_id', eventIds)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -993,24 +996,29 @@ export async function getEventFavouritePhotos(eventId: string): Promise<EventFav
     }
 }
 
-export async function toggleEventFavouritePhoto(eventId: string, photoId: string, markedBy?: string) {
+/**
+ * Stars a photo for the event's Primary Gallery, or removes the star. New stars are saved under `eventId` (the main
+ * event); `alsoEventIds` (the event's albums) are checked too, so a star saved under an album by an older app version
+ * is removed instead of a second one being added.
+ */
+export async function toggleEventFavouritePhoto(eventId: string, photoId: string, markedBy?: string, alsoEventIds: string[] = []) {
     if (!eventId || !photoId) return { favourited: false, error: "Missing event or photo." };
 
     try {
+        const eventIds = Array.from(new Set([eventId, ...alsoEventIds].filter(Boolean)));
         const { data: existing, error: selectError } = await supabase
             .from('event_favourite_photos')
             .select('id')
-            .eq('event_id', eventId)
-            .eq('photo_id', photoId)
-            .maybeSingle();
+            .in('event_id', eventIds)
+            .eq('photo_id', photoId);
 
         if (selectError) throw selectError;
 
-        if (existing) {
+        if (existing && existing.length > 0) {
             const { error: deleteError } = await supabase
                 .from('event_favourite_photos')
                 .delete()
-                .eq('id', existing.id);
+                .in('id', existing.map((row: { id: string }) => row.id));
             if (deleteError) throw deleteError;
             return { favourited: false };
         }
@@ -1745,6 +1753,20 @@ export async function updateUserProfileImage(uid: string, imageUrl: string) {
     }
 }
 
+/** Username and email for people who manage this guest row's event; the backend decides who that is. */
+async function getMemberDetails(logId?: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!logId || !session?.access_token) return {};
+    return fetchMemberDetails(getApiUrl("/api/v1/permissions/member-details"), session.access_token, logId);
+}
+
+/** Username and email of everyone on an event's Permissions list, by guest row id. */
+export async function getMemberDirectory(eventId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return {};
+    return fetchMemberDirectory(getApiUrl("/api/v1/permissions/member-directory"), session.access_token, eventId);
+}
+
 export interface GuestProfile {
     id?: string;
     name?: string;
@@ -1756,15 +1778,18 @@ export interface GuestProfile {
 
 /**
  * Profile details of a guest row, for the gallery host's guest panel. Rows made by request_gallery_access carry the
- * account (user_id): name and photo come from profile_cards, which hosts can still read once RLS is on (username and
- * email are private then). Older phone/email rows keep the direct profile lookup, which works until the lockdown;
- * after it the panel shows the guest row's own name and phone.
+ * account (user_id): name and photo come from profile_cards, which hosts can still read once RLS is on, and username
+ * and email from the backend, for people who manage the event. Older phone/email rows keep the direct profile lookup,
+ * which works until the lockdown; after it the panel shows the guest row's own name and phone.
  */
-export async function getGuestProfile(log: { userId?: string; email?: string; phone?: string }): Promise<GuestProfile | null> {
+export async function getGuestProfile(log: { id?: string; userId?: string; email?: string; phone?: string }): Promise<GuestProfile | null> {
     if (log.userId) {
-        const { data, error } = await supabase.from('profile_cards').select('id, name, profile_image').eq('id', log.userId).maybeSingle();
+        const [{ data, error }, details] = await Promise.all([
+            supabase.from('profile_cards').select('id, name, profile_image').eq('id', log.userId).maybeSingle(),
+            getMemberDetails(log.id),
+        ]);
         if (error) throw error;
-        return data ? { id: data.id, name: data.name, profileImage: data.profile_image } : null;
+        return data ? { id: data.id, name: data.name, profileImage: data.profile_image, ...details } : null;
     }
 
     // Older rows: the newest profile with the row's email (its phone when it has no email), ignoring case and
@@ -2227,6 +2252,22 @@ export async function rotatePhoto(
 /**
  * Deletes an event and recursively deletes sub-events.
  */
+/** Removes the app's picture of a gallery's guest home (todo #31) and its stored file; a failure never stops a delete */
+async function deleteGuestPreviewPicture(eventId: string) {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+        const response = await fetch(getApiUrl("/api/media/guest-preview-picture/delete"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ eventId }),
+        });
+        if (!response.ok) console.warn("[deleteEvent] Could not remove the guest preview picture:", response.status);
+    } catch (error) {
+        console.warn("[deleteEvent] Could not remove the guest preview picture:", error);
+    }
+}
+
 export async function deleteEvent(eventId: string): Promise<boolean> {
     try {
         // 1. Delete sub-events recursively
@@ -2278,7 +2319,10 @@ export async function deleteEvent(eventId: string): Promise<boolean> {
         // 4. Explicitly delete facial indexes associated with this event (for guest privacy)
         await supabase.from('faces').delete().eq('event_id', eventId);
 
-        // 5. Delete the parent event (Cascading foreign key triggers automatically delete associated photos, likes, & comments!)
+        // 5. The app's picture of the guest home (todo #31): its file can only be removed while the gallery exists
+        await deleteGuestPreviewPicture(eventId);
+
+        // 6. Delete the parent event (Cascading foreign key triggers automatically delete associated photos, likes, & comments!)
         const { error } = await supabase.from('events').delete().eq('id', eventId);
         if (error) throw error;
 
@@ -2325,6 +2369,29 @@ export async function setGalleryVideo(galleryId: string, videoId: string | null)
         error: error.code === 'PGRST204'
             ? "Cinematic highlight videos aren't available yet (database update pending)."
             : "Couldn't update the cinematic highlight video. Please try again.",
+    };
+}
+
+/**
+ * Saves one block of the event's theme content (shared/themes/themeContent.ts) on its main event, keeping the other
+ * blocks; null removes it. Any gallery id of the event works. Returns the event's theme content as now saved.
+ */
+export async function saveThemeContentBlock<B extends ThemeContentBlock>(
+    galleryId: string,
+    block: B,
+    value: ThemeContent[B] | null,
+): Promise<{ success: boolean; content?: ThemeContent; error?: string }> {
+    const { data, error } = await supabase.rpc('set_theme_content_block', { p_event_id: galleryId, p_block: block, p_value: value });
+    if (!error) {
+        Object.keys(eventCache).forEach((id) => delete eventCache[id]);
+        return { success: true, content: readThemeContent(data) };
+    }
+    console.error("Error saving the theme content:", formatSupabaseError(error));
+    return {
+        success: false,
+        error: error.code === 'PGRST202'
+            ? "The couple details can't be saved until the database update is applied."
+            : "Couldn't save the couple details. Please try again.",
     };
 }
 
@@ -2424,6 +2491,11 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
         if (data.coverOffset !== undefined) updateData.cover_offset = data.coverOffset;
         if (data.coverOffsetX !== undefined) updateData.cover_offset_x = data.coverOffsetX;
         if (data.coverScale !== undefined) updateData.cover_scale = data.coverScale;
+        if (data.phoneCoverImage !== undefined) updateData.phone_cover_image = data.phoneCoverImage;
+        if (data.phoneCoverMode !== undefined) updateData.phone_cover_mode = data.phoneCoverMode;
+        if (data.phoneCoverOffset !== undefined) updateData.phone_cover_offset = data.phoneCoverOffset;
+        if (data.phoneCoverOffsetX !== undefined) updateData.phone_cover_offset_x = data.phoneCoverOffsetX;
+        if (data.phoneCoverScale !== undefined) updateData.phone_cover_scale = data.phoneCoverScale;
         if (data.coverMode !== undefined) updateData.cover_mode = data.coverMode;
         if (data.order !== undefined) updateData.order = data.order;
         if (data.isSampleGallery !== undefined) updateData.is_sample_gallery = data.isSampleGallery;
@@ -2454,6 +2526,11 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
                     cover_offset: 'coverOffset',
                     cover_offset_x: 'coverOffsetX',
                     cover_scale: 'coverScale',
+                    phone_cover_image: 'phoneCoverImage',
+                    phone_cover_mode: 'phoneCoverMode',
+                    phone_cover_offset: 'phoneCoverOffset',
+                    phone_cover_offset_x: 'phoneCoverOffsetX',
+                    phone_cover_scale: 'phoneCoverScale',
                     cover_mode: 'coverMode',
                     order: 'order',
                     is_sample_gallery: 'isSampleGallery',
@@ -2526,7 +2603,10 @@ export async function updateSubEventsOrder(orderedIds: string[]): Promise<boolea
  */
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export type StorageBreakdown = { events: number; vault: number; total: number };
+/** Event storage by kind; the four parts add up to `events`. */
+export type EventStorageParts = { photos: number; videos: number; albumDesigns: number; voiceNotes: number };
+
+export type StorageBreakdown = { events: number; vault: number; total: number; eventParts?: EventStorageParts | null; eventSizes?: EventStorageSize[] };
 
 /** Bytes used by event media (originals plus streaming/preview assets). */
 export async function getUserEventStorage(identifiers: string | string[]): Promise<number> {
@@ -2566,6 +2646,17 @@ export async function getUserVaultStorage(identifiers: string | string[]): Promi
     }
 }
 
+/** The server's event storage split; null from older backends or before its migration, so the card doesn't expand. */
+function readEventParts(parts: any): EventStorageParts | null {
+    if (!parts || typeof parts !== "object") return null;
+    return {
+        photos: Number(parts.photos) || 0,
+        videos: Number(parts.videos) || 0,
+        albumDesigns: Number(parts.albumDesigns) || 0,
+        voiceNotes: Number(parts.voiceNotes) || 0,
+    };
+}
+
 /**
  * The signed-in user's storage as the server counts it for upload limits: everything in galleries they own (whoever
  * uploaded it, previews and streaming copies included) plus EB Vault. Null when it isn't about the signed-in user or
@@ -2582,7 +2673,7 @@ async function getOwnStorageFromServer(identifiers: string | string[]): Promise<
         if (!response.ok) return null;
         const data = await response.json();
         if (typeof data?.total !== "number") return null;
-        return { events: Number(data.events) || 0, vault: Number(data.vault) || 0, total: data.total };
+        return { events: Number(data.events) || 0, vault: Number(data.vault) || 0, total: data.total, eventParts: readEventParts(data.eventParts), eventSizes: readEventSizes(data.eventSizes) };
     } catch {
         return null;
     }
@@ -2714,6 +2805,7 @@ export async function toggleLike(photoId: string, userId: string, userName: stri
                 .delete()
                 .eq('id', existing.id);
             if (deleteError) throw deleteError;
+            refreshPhotoInteractions(photoId);
             return { liked: false };
         } else {
             const { error: insertError } = await supabase.from('likes').insert({
@@ -2721,6 +2813,7 @@ export async function toggleLike(photoId: string, userId: string, userName: stri
                 user_id: userId
             });
             if (insertError) throw insertError;
+            refreshPhotoInteractions(photoId);
             return { liked: true };
         }
     } catch (error) {
@@ -2741,11 +2834,20 @@ export async function addComment(photoId: string, userId: string, userName: stri
             parent_id: parentId || null
         });
         if (error) throw error;
+        refreshPhotoInteractions(photoId);
         return true;
     } catch (error) {
         console.error("Error adding comment:", error);
         return false;
     }
+}
+
+// Realtime is off (#49), so after this browser's own like or comment change every open listener for that photo
+// (grid tile and viewer) reads it again (#177)
+const photoInteractionListeners = new Map<string, Set<() => Promise<void>>>();
+
+function refreshPhotoInteractions(photoId: string) {
+    photoInteractionListeners.get(photoId)?.forEach((refresh) => { void refresh(); });
 }
 
 /**
@@ -2754,8 +2856,11 @@ export async function addComment(photoId: string, userId: string, userName: stri
 export function onPhotoInteractions(photoId: string, callback: (data: { likes: any[], comments: any[] }) => void) {
     let currentLikes: any[] = [];
     let currentComments: any[] = [];
+    let closed = false;
+    let latestFetch = 0;
 
     const fetchAndTrigger = async () => {
+        const fetchId = ++latestFetch;
         // Fetch profiles alongside likes/comments using Postgres joins
         // Signed in: names come from profile_cards (name and photo only), since other people's profiles aren't
         // readable once RLS is on. Signed out keeps the old embed; likes and comments are members-only after the lockdown.
@@ -2765,6 +2870,9 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
             supabase.from('likes').select(`id, created_at, user_id, ${people}`).eq('photo_id', photoId),
             supabase.from('comments').select(`id, text, created_at, user_id, parent_id, ${people}`).eq('photo_id', photoId)
         ]);
+
+        // Only the newest read counts, and none after the caller has stopped listening
+        if (closed || fetchId !== latestFetch) return;
 
         if (!likesRes.error && likesRes.data) {
             currentLikes = likesRes.data.map((l: any) => ({
@@ -2816,18 +2924,26 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
         )
         .subscribe();
 
+    const listeners = photoInteractionListeners.get(photoId) ?? new Set();
+    listeners.add(fetchAndTrigger);
+    photoInteractionListeners.set(photoId, listeners);
+
     return () => {
+        closed = true;
+        listeners.delete(fetchAndTrigger);
+        if (listeners.size === 0 && photoInteractionListeners.get(photoId) === listeners) photoInteractionListeners.delete(photoId);
         supabase.removeChannel(interactionsChannel);
     };
 }
 
 /**
- * Deletes a comment.
+ * Deletes a comment (its replies go with it). Pass the photo id so open views of the photo update.
  */
-export async function deletePhotoComment(commentId: string) {
+export async function deletePhotoComment(commentId: string, photoId?: string) {
     try {
         const { error } = await supabase.from('comments').delete().eq('id', commentId);
         if (error) throw error;
+        if (photoId) refreshPhotoInteractions(photoId);
         return true;
     } catch (error) {
         console.error("Error deleting comment:", error);
@@ -2997,58 +3113,6 @@ export async function getApprovedSharedEventsForUser(identifiers: string | strin
             .sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
     } catch (error) {
         console.error("Error fetching approved shared events:", error);
-        return [];
-    }
-}
-
-export async function getUserPendingVisits(identifier: string): Promise<any[]> {
-    try {
-        const { data, error } = await supabase
-            .from('guests')
-            .select('*')
-            .eq('status', 'pending')
-            .order('login_at', { ascending: false });
-
-        if (error) throw error;
-        return (data || [])
-            .filter(row => guestLogMatchesIdentifier(row, identifier))
-            .map(mapSqlToGuestLog);
-    } catch (error) {
-        console.error("Error fetching user pending visits:", error);
-        return [];
-    }
-}
-
-export async function getPendingSharedEventsForUser(identifiers: string | string[]): Promise<Event[]> {
-    try {
-        const ids = Array.isArray(identifiers) ? identifiers.filter(Boolean) : [identifiers].filter(Boolean);
-        if (ids.length === 0) return [];
-
-        const visitsByIdentifier = await Promise.all(ids.map((identifier) => getUserPendingVisits(identifier)));
-        const visits = visitsByIdentifier.flat();
-
-        const eventVisits: { [eventId: string]: any[] } = {};
-        visits.forEach(v => {
-            const eid = v.eventId;
-            if (eid) {
-                if (!eventVisits[eid]) eventVisits[eid] = [];
-                eventVisits[eid].push(v);
-            }
-        });
-
-        const eventIds = Object.keys(eventVisits).filter(eid => {
-            const vList = eventVisits[eid];
-            return vList.some(v => v.status === "pending");
-        });
-
-        const uniqueEventIds = [...new Set(eventIds)];
-        const events = await Promise.all(uniqueEventIds.map((eventId) => getEventById(eventId)));
-
-        return events
-            .filter((event): event is Event => event !== null)
-            .sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
-    } catch (error) {
-        console.error("Error fetching pending shared events:", error);
         return [];
     }
 }

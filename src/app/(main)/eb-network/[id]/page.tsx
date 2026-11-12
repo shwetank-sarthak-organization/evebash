@@ -66,15 +66,15 @@ export default function MarketplaceBusinessDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#050505] text-white">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-300" />
+      <div className="flex min-h-screen items-center justify-center bg-[#050505] light:bg-[var(--site-bg)] text-white light:text-[var(--site-text)]">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-300 light:text-indigo-700" />
       </div>
     );
   }
 
   if (!business) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] px-4 text-center text-white">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] light:bg-[var(--site-bg)] px-4 text-center text-white light:text-[var(--site-text)]">
         <h1 className="text-2xl font-black">Business not found.</h1>
         <button onClick={() => router.push("/eb-network")} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">
           Back to EB Network
@@ -92,23 +92,24 @@ export default function MarketplaceBusinessDetailPage() {
     : [business.coverImage || DEFAULT_BUSINESS_COVER];
 
   return (
-    <div className="min-h-screen bg-[#050505] px-4 py-6 text-white sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#050505] light:bg-[var(--site-bg)] px-4 py-6 text-white light:text-[var(--site-text)] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
         <header className="flex items-center justify-between gap-4">
-          <button onClick={() => router.push("/eb-network")} className="flex h-11 w-11 items-center justify-center rounded-full bg-[#101010] text-slate-200">
+          <button onClick={() => router.push("/eb-network")} className="flex h-11 w-11 items-center justify-center rounded-full bg-[#101010] light:bg-[var(--site-card)] text-slate-200 light:text-[var(--site-subtle)]">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1 text-center">
-            <h1 className="truncate text-2xl font-black text-white">{business.name}</h1>
-            <p className="mt-1 text-sm font-bold text-slate-400">EB Network Business</p>
+            <h1 className="truncate text-2xl font-black text-white light:text-[var(--site-text)]">{business.name}</h1>
+            <p className="mt-1 text-sm font-bold text-slate-400 light:text-[var(--site-muted)]">EB Network Business</p>
           </div>
-          <button onClick={handleShare} className="flex h-11 w-11 items-center justify-center rounded-full bg-[#101010] text-slate-200">
+          <button onClick={handleShare} className="flex h-11 w-11 items-center justify-center rounded-full bg-[#101010] light:bg-[var(--site-card)] text-slate-200 light:text-[var(--site-subtle)]">
             <Share2 className="h-5 w-5" />
           </button>
         </header>
 
-        <section className="overflow-hidden rounded-[2rem] border border-[#1f2937] bg-[#101010]">
-          <div className="relative h-[24rem] bg-[#050505]">
+        <section className="overflow-hidden rounded-[2rem] border border-[#1f2937] light:border-[var(--site-line)] bg-[#101010] light:bg-[var(--site-card)]">
+          {/* Photo header: keeps the dark look on the light site, like the photo viewer */}
+          <div className="site-noir relative h-[24rem] bg-[#050505]">
             <img src={galleryImages[0]} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35 blur-xl" />
             <img src={galleryImages[0]} alt={business.name} className="relative h-full w-full object-contain" />
             <div className="absolute bottom-0 left-0 right-0 bg-black p-6">
@@ -118,16 +119,16 @@ export default function MarketplaceBusinessDetailPage() {
                   {business.type}
                 </span>
                 {business.vendorCode && (
-                  <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-black text-sky-300">
+                  <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-black text-sky-300 light:text-sky-700">
                     Code: {business.vendorCode}
                   </span>
                 )}
-                <span className="flex items-center gap-1 rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-amber-300">
-                  <Star className="h-3.5 w-3.5 fill-amber-300" />
+                <span className="flex items-center gap-1 rounded-full bg-slate-900 light:bg-[var(--site-surface)] px-3 py-1 text-xs font-black text-amber-300 light:text-amber-700">
+                  <Star className="h-3.5 w-3.5 fill-amber-300 light:fill-amber-500" />
                   {business.rating || 0}
                 </span>
               </div>
-              <p className="mt-3 flex items-center gap-2 text-sm font-bold text-slate-400">
+              <p className="mt-3 flex items-center gap-2 text-sm font-bold text-slate-400 light:text-[var(--site-muted)]">
                 <MapPin className="h-4 w-4" />
                 {getVendorLocation(business)}
               </p>
@@ -141,19 +142,19 @@ export default function MarketplaceBusinessDetailPage() {
           <Highlight title="Shortlists" value={`${business.shortlistCount || 0}`} />
         </div>
 
-        <section className="rounded-[1.5rem] border border-[#1f2937] bg-[#101010] p-4">
+        <section className="rounded-[1.5rem] border border-[#1f2937] light:border-[var(--site-line)] bg-[#101010] light:bg-[var(--site-card)] p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-indigo-400/20 bg-indigo-400/10 text-indigo-300">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-indigo-400/20 bg-indigo-400/10 text-indigo-300 light:text-indigo-700">
               <UserRound className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Created by</p>
-              <p className="mt-1 truncate text-base font-black text-white">{creatorName}</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 light:text-[var(--site-muted)]">Created by</p>
+              <p className="mt-1 truncate text-base font-black text-white light:text-[var(--site-text)]">{creatorName}</p>
               <button
                 type="button"
                 disabled={!creatorProfileId || !creatorProfile?.username}
                 onClick={() => creatorProfileId && router.push(`/profile/${encodeURIComponent(creatorProfileId)}`)}
-                className="mt-0.5 max-w-full truncate text-left text-sm font-bold text-indigo-300 transition hover:text-indigo-200 disabled:cursor-default disabled:text-indigo-300"
+                className="mt-0.5 max-w-full truncate text-left text-sm font-bold text-indigo-300 light:text-indigo-700 transition hover:text-indigo-200 light:hover:text-indigo-800 disabled:cursor-default disabled:text-indigo-300 light:disabled:text-indigo-700"
               >
                 {creatorUsername}
               </button>
@@ -161,34 +162,34 @@ export default function MarketplaceBusinessDetailPage() {
           </div>
         </section>
 
-        <div className="flex overflow-x-auto rounded-2xl border border-[#1f2937] bg-[#101010] p-1">
+        <div className="flex overflow-x-auto rounded-2xl border border-[#1f2937] light:border-[var(--site-line)] bg-[#101010] light:bg-[var(--site-card)] p-1">
           {["About", "Portfolio", "Announcements", "Reviews"].map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={`min-w-0 flex-1 rounded-xl px-4 py-3 text-sm font-black ${activeTab === tab ? "bg-indigo-400 text-slate-950" : "text-slate-400"}`}
+              className={`min-w-0 flex-1 rounded-xl px-4 py-3 text-sm font-black ${activeTab === tab ? "bg-indigo-400 text-slate-950" : "text-slate-400 light:text-[var(--site-muted)]"}`}
             >
               {tab}
             </button>
           ))}
         </div>
 
-        <main className="rounded-[2rem] border border-[#1f2937] bg-[#101010] p-6">
+        <main className="rounded-[2rem] border border-[#1f2937] light:border-[var(--site-line)] bg-[#101010] light:bg-[var(--site-card)] p-6">
           {activeTab === "About" && (
             <div className="space-y-5">
               <section>
-                <h3 className="mb-2 text-xl font-black text-white">About</h3>
-                <p className="leading-7 text-slate-300">
+                <h3 className="mb-2 text-xl font-black text-white light:text-[var(--site-text)]">About</h3>
+                <p className="leading-7 text-slate-300 light:text-[var(--site-subtle)]">
                   {business.description || `Experience the exceptional services of ${business.name}. With a focus on quality and client satisfaction, they bring your vision to life with professional expertise in ${business.type.toLowerCase()}.`}
                 </p>
               </section>
               {business.services && business.services.length > 0 && (
                 <section>
-                  <h3 className="mb-3 text-xl font-black text-white">Services Offered</h3>
+                  <h3 className="mb-3 text-xl font-black text-white light:text-[var(--site-text)]">Services Offered</h3>
                   <div className="flex flex-wrap gap-2">
                     {business.services.map((service) => (
-                      <span key={service} className="rounded-full bg-indigo-400/10 px-3 py-1 text-sm font-bold text-indigo-200">{service}</span>
+                      <span key={service} className="rounded-full bg-indigo-400/10 px-3 py-1 text-sm font-bold text-indigo-200 light:text-indigo-800">{service}</span>
                     ))}
                   </div>
                 </section>
@@ -199,8 +200,8 @@ export default function MarketplaceBusinessDetailPage() {
           {activeTab === "Portfolio" && (
             <section>
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-xl font-black text-white">Portfolio</h3>
-                <span className="text-sm font-black text-indigo-300">{business.portfolioEvents?.length || 0} Events</span>
+                <h3 className="text-xl font-black text-white light:text-[var(--site-text)]">Portfolio</h3>
+                <span className="text-sm font-black text-indigo-300 light:text-indigo-700">{business.portfolioEvents?.length || 0} Events</span>
               </div>
               {business.portfolioEvents && business.portfolioEvents.length > 0 ? (
                 <div className="grid gap-5 md:grid-cols-2">
@@ -209,7 +210,7 @@ export default function MarketplaceBusinessDetailPage() {
                       key={portfolio.id}
                       type="button"
                       onClick={() => router.push(`/eb-network/${business.id}/portfolio/${portfolio.id}?returnTo=${encodeURIComponent(`/eb-network/${business.id}`)}`)}
-                      className="block w-full overflow-hidden rounded-[1.5rem] border border-[#1f2937] bg-[#050505] text-left"
+                      className="block w-full overflow-hidden rounded-[1.5rem] border border-[#1f2937] light:border-[var(--site-line)] bg-[#050505] light:bg-[var(--site-bg)] text-left"
                     >
                       <div className="relative h-56 bg-black">
                         <img src={portfolio.coverImage || DEFAULT_BUSINESS_COVER} alt={portfolio.name} className="h-full w-full object-cover" />
@@ -218,15 +219,15 @@ export default function MarketplaceBusinessDetailPage() {
                         </div>
                         <div className="absolute bottom-0 left-0 right-0 bg-black p-4">
                           <h4 className="truncate text-lg font-bold text-white">{portfolio.name}</h4>
-                          <p className="mt-2 flex items-center gap-2 text-xs font-bold text-[#94a3b8]">
-                            <Calendar className="h-3.5 w-3.5 text-[#facc15]" />
+                          <p className="mt-2 flex items-center gap-2 text-xs font-bold text-[#94a3b8] light:text-[var(--site-muted)]">
+                            <Calendar className="h-3.5 w-3.5 text-[#facc15] light:text-amber-600" />
                             {new Date(portfolio.date).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between px-4 py-3 text-sm font-bold text-slate-400">
+                      <div className="flex items-center justify-between px-4 py-3 text-sm font-bold text-slate-400 light:text-[var(--site-muted)]">
                         <span>{portfolio.media?.length || 0} images</span>
-                        <span className="inline-flex items-center gap-1 text-indigo-300">
+                        <span className="inline-flex items-center gap-1 text-indigo-300 light:text-indigo-700">
                           Open gallery <ArrowRight className="h-4 w-4" />
                         </span>
                       </div>
@@ -241,12 +242,12 @@ export default function MarketplaceBusinessDetailPage() {
 
           {activeTab === "Announcements" && (
             <section>
-              <h3 className="mb-4 text-xl font-black text-white">Announcements ({business.announcements?.length || 0})</h3>
+              <h3 className="mb-4 text-xl font-black text-white light:text-[var(--site-text)]">Announcements ({business.announcements?.length || 0})</h3>
               {business.announcements && business.announcements.length > 0 ? (
                 <div className="space-y-3">
                   {business.announcements.map((announcement, index) => (
-                    <div key={`${announcement}-${index}`} className="rounded-2xl border border-[#1f2937] bg-[#050505] p-4">
-                      <p className="text-sm font-bold text-slate-300">{announcement}</p>
+                    <div key={`${announcement}-${index}`} className="rounded-2xl border border-[#1f2937] light:border-[var(--site-line)] bg-[#050505] light:bg-[var(--site-bg)] p-4">
+                      <p className="text-sm font-bold text-slate-300 light:text-[var(--site-subtle)]">{announcement}</p>
                     </div>
                   ))}
                 </div>
@@ -258,15 +259,15 @@ export default function MarketplaceBusinessDetailPage() {
 
           {activeTab === "Reviews" && (
             <section>
-              <h3 className="mb-4 text-xl font-black text-white">What Clients Say</h3>
+              <h3 className="mb-4 text-xl font-black text-white light:text-[var(--site-text)]">What Clients Say</h3>
               <EmptyDetail title="Reviews are not available on web yet" />
             </section>
           )}
         </main>
 
-        <div className="sticky bottom-4 grid gap-3 rounded-[1.5rem] border border-[#1f2937] bg-[#101010]/95 p-3 backdrop-blur sm:grid-cols-2">
+        <div className="sticky bottom-4 grid gap-3 rounded-[1.5rem] border border-[#1f2937] light:border-[var(--site-line)] bg-[#101010]/95 light:bg-[var(--site-card)]/95 p-3 backdrop-blur sm:grid-cols-2">
           {business.ownerPhone && (
-            <a href={`tel:${business.ownerPhone}`} className="flex items-center justify-center gap-2 rounded-2xl border border-[#1f2937] px-5 py-4 font-black text-white">
+            <a href={`tel:${business.ownerPhone}`} className="flex items-center justify-center gap-2 rounded-2xl border border-[#1f2937] light:border-[var(--site-line)] px-5 py-4 font-black text-white light:text-[var(--site-text)]">
               <Phone className="h-5 w-5" />
               <span>Call Directly</span>
             </a>
@@ -285,18 +286,18 @@ export default function MarketplaceBusinessDetailPage() {
 
 function Highlight({ title, value }: { title: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[#1f2937] bg-[#101010] p-4">
-      <p className="text-xs font-black uppercase tracking-widest text-slate-500">{title}</p>
-      <p className="mt-1 text-lg font-black text-white">{value}</p>
+    <div className="rounded-2xl border border-[#1f2937] light:border-[var(--site-line)] bg-[#101010] light:bg-[var(--site-card)] p-4">
+      <p className="text-xs font-black uppercase tracking-widest text-slate-500 light:text-[var(--site-muted)]">{title}</p>
+      <p className="mt-1 text-lg font-black text-white light:text-[var(--site-text)]">{value}</p>
     </div>
   );
 }
 
 function EmptyDetail({ title }: { title: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-[#1f2937] p-8 text-center text-slate-400">
-      <Store className="mx-auto mb-3 h-8 w-8 text-slate-600" />
-      <p className="font-black text-white">{title}</p>
+    <div className="rounded-2xl border border-dashed border-[#1f2937] light:border-[var(--site-line)] p-8 text-center text-slate-400 light:text-[var(--site-muted)]">
+      <Store className="mx-auto mb-3 h-8 w-8 text-slate-600 light:text-[var(--site-muted)]" />
+      <p className="font-black text-white light:text-[var(--site-text)]">{title}</p>
     </div>
   );
 }

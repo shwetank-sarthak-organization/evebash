@@ -1,4 +1,4 @@
-import { useAppTheme } from '@/context/ThemeContext';
+import { useAppTheme, DarkThemeScope } from '@/context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useMemo, useState, useEffect } from 'react';
 import {
@@ -61,7 +61,7 @@ const PORTFOLIO_SORT_OPTIONS = [
 ] as const;
 type PortfolioSortValue = typeof PORTFOLIO_SORT_OPTIONS[number]['value'];
 
-export default function ManageBusinessScreen() {
+function ManageBusinessScreen() {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = getStyles(colors, isDark, insets);
@@ -787,17 +787,17 @@ export default function ManageBusinessScreen() {
     const rangeEnquiries = getEnquiriesForRange();
     if (rangeEnquiries.length === 0) return [];
 
-    // 1. Group and count by city
+    // 1. Group and count by city. Enquiries without a real city are left out, never guessed.
     const cityCounts: Record<string, number> = {};
     rangeEnquiries.forEach(e => {
-      // Normalize city names: trim, Capitalize, fallback to 'Mumbai' for demo consistency
-      let city = e.city?.trim() || 'Mumbai';
-      if (city === 'Unknown') city = 'Mumbai';
+      let city = e.city?.trim() || '';
+      if (!city || city === 'Unknown') return;
       city = city.charAt(0).toUpperCase() + city.slice(1).toLowerCase();
       cityCounts[city] = (cityCounts[city] || 0) + 1;
     });
 
-    const total = rangeEnquiries.length;
+    const total = Object.values(cityCounts).reduce((sum, count) => sum + count, 0);
+    if (total === 0) return [];
 
     // 2. Map counts to percentages and sort descending
     const list = Object.entries(cityCounts).map(([city, count]) => {
@@ -4128,3 +4128,12 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     fontFamily: 'Inter_500Medium',
   },
 });
+
+// Phase 2 business pages keep the dark look whatever the Appearance choice (todo #1)
+export default function ManageBusinessScreenRoute() {
+  return (
+    <DarkThemeScope>
+      <ManageBusinessScreen />
+    </DarkThemeScope>
+  );
+}

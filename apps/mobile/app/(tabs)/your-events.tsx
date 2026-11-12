@@ -24,6 +24,8 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { MidnightColors, Fonts } from '@/constants/theme';
 import { EventGrid, getEventGridCardWidth } from '@/constants/layout';
 import { getUserEvents, getApprovedSharedEventsForUser, Event as DatabaseEvent } from '@/lib/database';
+import { eventDateValue } from '../../../../shared/text/eventDate';
+import { withPhoneCover } from '@/lib/eventCovers';
 
 const { width } = Dimensions.get('window');
 
@@ -37,21 +39,6 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 ];
 
 const ALL_TYPES = 'All';
-
-const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-
-/** Event dates are stored as display text ("26 September 2026"); returns a timestamp, or null if unreadable. */
-function eventDateValue(date?: string): number | null {
-  const text = date?.trim();
-  if (!text) return null;
-  const verbal = text.match(/^(\d{1,2})\s+([A-Za-z]+)\.?,?\s+(\d{4})$/);
-  if (verbal) {
-    const month = MONTH_NAMES.findIndex((m) => verbal[2].toLowerCase().startsWith(m));
-    if (month !== -1) return new Date(Number(verbal[3]), month, Number(verbal[1])).getTime();
-  }
-  const parsed = Date.parse(text);
-  return Number.isNaN(parsed) ? null : parsed;
-}
 
 function sortEvents(list: DatabaseEvent[], sortKey: SortKey): DatabaseEvent[] {
   const sorted = [...list];
@@ -237,7 +224,7 @@ export default function YourEventsScreen() {
             title={event.title}
             date={event.date}
             category={event.category}
-            coverImage={event.coverImage}
+            coverImage={withPhoneCover(event).coverImage}
             onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
           />
         ))}
@@ -249,6 +236,20 @@ export default function YourEventsScreen() {
     <View style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
 
+      <TabScreenHeader
+        title="Gallery"
+        right={events.length > 0 ? (
+          <HeaderAction
+            onPress={() => setShowFilters(true)}
+            accessibilityLabel={filtersActive ? 'Sort and filter events, filters on' : 'Sort and filter events'}
+            showBadge={filtersActive}
+          >
+            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+              <Path d="M10 5H3" /><Path d="M12 19H3" /><Path d="M14 3v4" /><Path d="M16 17v4" /><Path d="M21 12h-9" /><Path d="M21 19h-5" /><Path d="M21 5h-7" /><Path d="M8 10v4" /><Path d="M8 12H3" />
+            </Svg>
+          </HeaderAction>
+        ) : undefined}
+      />
       <ScrollView
         style={styles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
@@ -256,21 +257,6 @@ export default function YourEventsScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <TabScreenHeader
-          title="Gallery"
-          right={events.length > 0 ? (
-            <HeaderAction
-              onPress={() => setShowFilters(true)}
-              accessibilityLabel={filtersActive ? 'Sort and filter events, filters on' : 'Sort and filter events'}
-              showBadge={filtersActive}
-            >
-              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                <Path d="M10 5H3" /><Path d="M12 19H3" /><Path d="M14 3v4" /><Path d="M16 17v4" /><Path d="M21 12h-9" /><Path d="M21 19h-5" /><Path d="M21 5h-7" /><Path d="M8 10v4" /><Path d="M8 12H3" />
-              </Svg>
-            </HeaderAction>
-          ) : undefined}
-        />
-
         {events.length > 0 && (
           <View style={styles.searchSection}>
             <View style={styles.searchBox}>
@@ -445,7 +431,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104, 0.25)',
   },
-  chipSelected: { backgroundColor: colors.gold, borderColor: colors.gold },
+  chipSelected: { backgroundColor: colors.goldFill, borderColor: colors.goldFill },
   chipText: { fontSize: 13, color: colors.white, fontFamily: Fonts.inter.medium },
   chipTextSelected: { color: colors.onAccent, fontFamily: Fonts.inter.bold },
 

@@ -38,6 +38,27 @@ export async function findHiddenMediaIds(photoIds: string[], getAdmin = getSupab
   }
 }
 
+/**
+ * The uploaded file of each matched photo, for Download and Share: the face records only keep the preview
+ * (issue #218). Best effort: if the lookup fails, matches keep the preview link. Streaming playlists are skipped.
+ */
+export async function findOriginalUrls(photoIds: string[], getAdmin = getSupabaseAdminClient): Promise<Map<string, string>> {
+  const ids = [...new Set(photoIds.filter(Boolean))];
+  if (ids.length === 0) return new Map();
+  try {
+    const { data, error } = await getAdmin().from("photos").select("id, url").in("id", ids);
+    if (error) throw error;
+    return new Map(
+      (data || [])
+        .filter((row: { id: string; url: string | null }) => row.url && !/\.m3u8(\?|$)/i.test(row.url))
+        .map((row: { id: string; url: string }) => [row.id, row.url] as [string, string]),
+    );
+  } catch (error) {
+    console.warn("[BackendFindYou] Could not look up original files:", error);
+    return new Map();
+  }
+}
+
 function isFindYouAccessRequired() {
   return process.env.FIND_YOU_REQUIRE_ACCESS?.trim().toLowerCase() === "true";
 }
@@ -45,6 +66,11 @@ function isFindYouAccessRequired() {
 // Off until app builds with the consent screen are out: older builds can't ask for consent
 function isFindYouConsentRequired() {
   return process.env.FIND_YOU_REQUIRE_CONSENT?.trim().toLowerCase() === "true";
+}
+
+// Off until checked on staging: matches' url stays the preview (issue #218)
+function isFindYouOriginalUrlEnabled() {
+  return process.env.FIND_YOU_ORIGINAL_URL?.trim().toLowerCase() === "true";
 }
 
 // get_find_you_consent's answer for the signed-in user; anything but a clear "consented" blocks the search
@@ -270,13 +296,18 @@ findYouRouter.post("/", async (request, response) => {
     }
 
     const hiddenIds = await findHiddenMediaIds((result.matches || []).map((match) => match.imageId || match.id || ""));
-    const matches = (result.matches || []).filter((match) => !hiddenIds.has(match.imageId || match.id || "")).map((match) => {
+    const visibleMatches = (result.matches || []).filter((match) => !hiddenIds.has(match.imageId || match.id || ""));
+    const originalUrls = isFindYouOriginalUrlEnabled()
+      ? await findOriginalUrls(visibleMatches.map((match) => match.imageId || match.id || ""))
+      : new Map<string, string>();
+    const matches = visibleMatches.map((match) => {
       const imageId = match.imageId || match.id || "";
       const imageUrl = match.imageUrl || match.url || "";
       return {
         id: imageId,
         imageId,
-        url: imageUrl,
+        // Download and Share use url; the preview fields below are what the apps show
+        url: originalUrls.get(imageId) || imageUrl,
         imageUrl,
         storageKey: match.storageKey,
         thumbnailUrl: getResizedImageUrl(imageUrl, 400),

@@ -135,13 +135,12 @@ export default function EbNetworkScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.mainContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <TabScreenHeader title="EB Network" />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{ paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
       >
-        <TabScreenHeader title="EB Network" />
-
         <View style={styles.header}>
           <View style={styles.badge}>
             <IconSymbol name="sparkles" size={14} color={colors.gold} />
@@ -326,7 +325,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     marginBottom: 24,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -345,7 +344,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     marginBottom: 8,
   },
   previewBadge: {
-    backgroundColor: colors.gold,
+    backgroundColor: colors.goldFill,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -354,7 +353,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     fontSize: 10,
     fontWeight: 'bold',
     letterSpacing: 1,
-    color: isDark ? colors.slate900 : colors.background,
+    color: isDark ? colors.slate900 : colors.onAccent,
   },
   previewSearch: {
     flexDirection: 'row',

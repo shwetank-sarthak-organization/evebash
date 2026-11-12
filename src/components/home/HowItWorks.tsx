@@ -1,53 +1,87 @@
-import { CalendarPlus, FolderUp, QrCode, ScanFace } from "lucide-react";
-import { ScrollReveal } from "@/components/ui/ScrollReveal";
-import { SectionHeader } from "./HomeUI";
+"use client";
+
+import { useLayoutEffect, useRef, useState } from "react";
+import { m, useMotionValue, useReducedMotion, useScroll, useTransform, type MotionValue } from "framer-motion";
+import { displayFont, Reveal, SectionHeader } from "./HomeUI";
+import { cn } from "@/lib/utils";
 
 const steps = [
     {
-        icon: CalendarPlus,
         title: "Create your event",
         text: "Sign up free, name your event and pick a gallery design.",
     },
     {
-        icon: FolderUp,
         title: "Upload and organize",
-        text: "Add photos and videos, and sort them into albums like Haldi, Mehendi and Reception.",
+        text: "Add photos and videos, and sort them into albums like Day 1, Stage or Awards night.",
     },
     {
-        icon: QrCode,
         title: "Share by link or QR code",
-        text: "Send the link on WhatsApp, or print the QR code for tables and the entrance.",
+        text: "Send the link on WhatsApp, or print the QR code for the venue.",
     },
     {
-        icon: ScanFace,
         title: "Guests view and download",
         text: "Clients and guests browse the gallery, find their own photos with a selfie, and save them.",
     },
 ];
 
-export default function HowItWorks() {
+// The line runs from the first dot's centre to the last one's; each dot lights up as the fill reaches it.
+// Large screens centre each dot above its step.
+function StepDot({ index, progress }: { index: number; progress: MotionValue<number> }) {
+    const at = Math.min(Math.max(index / (steps.length - 1), 0.02), 0.98);
+    const lit = useTransform(progress, [at - 0.03, at], [0, 1]);
     return (
-        <section className="bg-[var(--site-surface)] py-16 md:py-24">
-            <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-                <ScrollReveal>
-                    <SectionHeader eyebrow="How it works" title="From upload to every guest, in four steps" />
-                </ScrollReveal>
+        <div className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-full lg:left-1/2 lg:-translate-x-1/2 border border-[var(--site-border)] bg-[var(--site-surface)] text-sm font-semibold text-[var(--site-muted)]">
+            {index + 1}
+            <m.span style={{ opacity: lit }} className="absolute inset-0 flex items-center justify-center rounded-full bg-[image:var(--home-gold)] text-[#13191F]">
+                {index + 1}
+            </m.span>
+        </div>
+    );
+}
 
-                <ol className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                    {steps.map(({ icon: Icon, title, text }, index) => (
-                        <li key={title}>
-                            <ScrollReveal delay={index * 0.1} className="h-full">
-                                <div className="h-full rounded-2xl border border-[var(--site-border)] bg-[var(--site-bg)] p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-royal-gold/15 text-royal-gold">
-                                            <Icon className="h-5 w-5" aria-hidden />
-                                        </div>
-                                        <span className="text-sm font-semibold text-[var(--site-muted)]">Step {index + 1}</span>
-                                    </div>
-                                    <h3 className="mt-5 text-lg font-semibold text-[var(--site-text)]">{title}</h3>
-                                    <p className="mt-2 leading-relaxed text-[var(--site-subtle)]">{text}</p>
-                                </div>
-                            </ScrollReveal>
+export default function HowItWorks() {
+    const ref = useRef<HTMLOListElement>(null);
+    const reducedMotion = useReducedMotion();
+    const { scrollYProgress } = useScroll({ target: ref, offset: ["start 85%", "end 55%"] });
+    const done = useMotionValue(1);
+    // Reduced motion: the whole line is filled and every step lit from the start.
+    const progress = reducedMotion ? done : scrollYProgress;
+    // Small screens: the vertical line stops at the last dot, so measure where that step starts.
+    const [lastStepTop, setLastStepTop] = useState(0);
+
+    useLayoutEffect(() => {
+        const list = ref.current;
+        if (!list) return;
+        const measure = () => setLastStepTop((list.lastElementChild as HTMLElement | null)?.offsetTop ?? 0);
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(list);
+        return () => observer.disconnect();
+    }, []);
+
+    // Large screens: dots are centred in four columns with 2rem gaps, so the line starts and ends half a column in.
+    const across = { left: "calc((100% - 6rem) / 8)", right: "calc((100% - 6rem) / 8)" };
+    const down = { top: "1.25rem", height: lastStepTop };
+
+    return (
+        <section className="relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[linear-gradient(90deg,transparent,rgba(220,181,121,0.45),transparent)] bg-[var(--site-surface)] py-16 md:py-20">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <Reveal>
+                    <SectionHeader title="Live in four steps" />
+                </Reveal>
+
+                <ol ref={ref} className="relative mt-14 grid gap-12 lg:grid-cols-4 lg:gap-8">
+                    {/* The line: down the left on small screens, across the top on large ones, dot 1 to dot 4. */}
+                    <div aria-hidden style={down} className="absolute left-5 w-px bg-[var(--site-border)] lg:hidden" />
+                    <m.div aria-hidden style={{ ...down, scaleY: progress }} className="absolute left-5 w-0.5 origin-top -translate-x-px bg-[image:var(--home-gold)] lg:hidden" />
+                    <div aria-hidden style={across} className="absolute top-5 hidden h-px bg-[var(--site-border)] lg:block" />
+                    <m.div aria-hidden style={{ ...across, scaleX: progress }} className="absolute top-5 hidden h-0.5 origin-left -translate-y-px bg-[image:var(--home-gold)] lg:block" />
+
+                    {steps.map(({ title, text }, index) => (
+                        <li key={title} className="relative pl-16 lg:pl-0 lg:pt-16 lg:text-center">
+                            <StepDot index={index} progress={progress} />
+                            <h3 className={cn(displayFont.className, "text-[1.375rem] font-semibold leading-snug text-[var(--site-text)]")}>{title}</h3>
+                            <p className="mt-3 max-w-xs leading-relaxed text-[var(--site-subtle)] lg:mx-auto">{text}</p>
                         </li>
                     ))}
                 </ol>

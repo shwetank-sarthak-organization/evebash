@@ -10,7 +10,11 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { ProfileIcon } from "@/components/ProfileIcon";
 import { royalDisplay } from "@/components/royal/royalFonts";
-import { displayCoupleTitle } from "@/components/royal/coupleNames";
+import { midnightScript } from "@/components/midnight/midnightFonts";
+import { portraitDisplay } from "@/components/portrait/portraitFonts";
+import { confettiDisplay } from "@/components/confetti/confettiFonts";
+import { periwinkleScript, periwinkleSerif } from "@/components/periwinkle/periwinkleFonts";
+import { displayCoupleTitle } from "../../shared/text/coupleNames";
 
 interface EventNavbarProps {
     mainEventTitle: string;
@@ -29,8 +33,16 @@ interface EventNavbarProps {
     chromeTextColor?: string;
     chromeAccentColor?: string;
     chromeBorderColor?: string;
-    /** "royal": floating gold-edged bar for the Royal Emerald design (styles in src/app/royal-emerald.css) */
-    variant?: "royal";
+    /** "royal": floating gold-edged bar for the Royal Emerald design (styles in src/app/royal-emerald.css).
+     *  "classic": Classic White, full width between two thin sage lines (styles in src/app/classic-white.css)
+     *  "midnight": Midnight Hero, script title on the photo and the links in a glass pill (styles in src/app/midnight-hero.css)
+     *  "portrait": Sunlit Portrait, Classic White's links in white on the cover photo, then a soft white bar once the guest
+     *  scrolls (styles in src/app/sunlit-portrait.css)
+     *  "confetti": Confetti Circle, Classic White's links on a frosted white bar over the cover photo, solid once the guest
+     *  scrolls (styles in src/app/confetti-circle.css)
+     *  "periwinkle": Periwinkle Script, Classic White's links either side of the centred names on a cream bar
+     *  (styles in src/app/periwinkle-script.css) */
+    variant?: "royal" | "classic" | "midnight" | "portrait" | "confetti" | "periwinkle";
 }
 
 type EventNavLink = {
@@ -80,9 +92,11 @@ export function EventNavbar({
         }
     }, []);
 
-    // Royal Emerald: the bar sits between the hero's top corners until the guest scrolls
+    // Royal Emerald: the bar sits between the hero's top corners until the guest scrolls.
+    // Midnight Hero and Sunlit Portrait: the bar has no background over the cover photo until the guest scrolls.
     useEffect(() => {
-        if (variant !== "royal") return;
+        // Confetti Circle: the bar is frosted over the cover photo until the guest scrolls.
+        if (variant !== "royal" && variant !== "midnight" && variant !== "portrait" && variant !== "confetti" && variant !== "periwinkle") return;
         const update = () => setScrolledPastTop(window.scrollY > 40);
         const frame = window.requestAnimationFrame(update);
         window.addEventListener("scroll", update, { passive: true });
@@ -118,9 +132,18 @@ export function EventNavbar({
     const sharedQuery = isShared ? "?shared=true" : "";
     const hasTemplateChrome = Boolean(chromeBackgroundColor);
     const isRoyal = variant === "royal";
-    // Royal Emerald writes a couple's joiner ("and", "AND", "weds", "+") as "&", like the title card
-    const navTitle = isRoyal ? displayCoupleTitle(mainEventTitle) : mainEventTitle;
+    const isPortrait = variant === "portrait";
+    const isConfetti = variant === "confetti";
+    const isPeriwinkle = variant === "periwinkle";
+    // Sunlit Portrait, Confetti Circle and Periwinkle Script have Classic White's links and menu; only the bar itself differs (their CSS files)
+    const isClassic = variant === "classic" || isPortrait || isConfetti || isPeriwinkle;
+    const isMidnight = variant === "midnight";
+    // Royal Emerald, Classic White and Midnight Hero draw their own colours from CSS classes instead of the inline theme colours
+    const useInlineChrome = !isRoyal && !isClassic && !isMidnight && hasTemplateChrome;
+    // These three write a couple's joiner ("and", "AND", "weds", "+") as "&", like their titles
+    const navTitle = isRoyal || isClassic || isMidnight ? displayCoupleTitle(mainEventTitle) : mainEventTitle;
     const royalLinkClass = (isActive: boolean) => cn("royal-nav__link", isActive && "royal-nav__link--active");
+    const midnightLinkClass = (isActive: boolean) => cn("midnight-nav__link", isActive && "midnight-nav__link--active");
     const navTextColor = chromeTextColor || "#0f172a";
     const navAccentColor = chromeAccentColor || "#0f172a";
     const navBorderColor = chromeBorderColor || "rgba(255,255,255,0.16)";
@@ -171,7 +194,7 @@ export function EventNavbar({
         const isActive = link.isGallery && onSelectGallery
                 ? isGalleryActive(link.gallery)
                 : isLinkActive(link.href, link.isFindYou);
-        const className = isRoyal ? royalLinkClass(isActive) : cn(
+        const className = isRoyal ? royalLinkClass(isActive) : isMidnight ? midnightLinkClass(isActive) : isClassic ? cn("classic-nav__link", isActive && "classic-nav__link--active") : cn(
             "px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5",
             isActive
                 ? "bg-slate-900 text-white shadow-md"
@@ -179,7 +202,7 @@ export function EventNavbar({
                     ? "hover:bg-white/10"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
         );
-        const style = !isRoyal && hasTemplateChrome ? {
+        const style = useInlineChrome ? {
             backgroundColor: isActive ? activeBgColor : "transparent",
             color: isActive ? activeTextColor : navTextColor,
         } : undefined;
@@ -230,17 +253,25 @@ export function EventNavbar({
             <motion.nav
                 initial={{ y: -100 }}
                 animate={{ y: 0 }}
-                className={isRoyal ? cn("royal-nav", scrolledPastTop && "royal-nav--scrolled", royalDisplay.variable) : cn(
+                className={isRoyal ? cn("royal-nav", scrolledPastTop && "royal-nav--scrolled", royalDisplay.variable)
+                    // Sunlit Portrait is see-through only over the gallery's cover photo; Find You and Event Partners have no
+                    // cover, so their bar is solid from the top (white links would vanish on the paper)
+                    : isPortrait ? cn("portrait-nav", (scrolledPastTop || mobileMenuOpen || activePage !== "gallery") && "portrait-nav--solid", portraitDisplay.variable)
+                    : isConfetti ? cn("confetti-nav", (scrolledPastTop || mobileMenuOpen) && "confetti-nav--solid", confettiDisplay.variable)
+                    : isPeriwinkle ? cn("periwinkle-nav", scrolledPastTop && "periwinkle-nav--solid", periwinkleScript.variable, periwinkleSerif.variable)
+                    : isClassic ? cn("classic-nav", scrolledPastTop && "classic-nav--scrolled")
+                    : isMidnight ? cn("midnight-nav", scrolledPastTop && "midnight-nav--scrolled", midnightScript.variable)
+                    : cn(
                     "fixed top-0 inset-x-0 z-50 transition-all duration-300 px-6 py-3 backdrop-blur-md shadow-sm border-b",
                     hasTemplateChrome ? "bg-transparent" : "bg-white/95 border-stone-100"
                 )}
-                style={!isRoyal && hasTemplateChrome ? {
+                style={useInlineChrome ? {
                     backgroundColor: `${chromeBackgroundColor}f2`,
                     borderColor: navBorderColor,
                     color: navTextColor,
                 } : undefined}
             >
-                <div className={cn("flex items-center justify-between gap-4", isRoyal ? "w-full" : "max-w-7xl mx-auto")}>
+                <div className={cn("flex items-center justify-between gap-4", isPortrait ? "portrait-nav__bar" : isConfetti ? "confetti-nav__bar" : isPeriwinkle ? "periwinkle-nav__bar" : isClassic ? "classic-nav__bar" : isRoyal || isMidnight ? "w-full" : "max-w-7xl mx-auto")}>
                     {/* Left: Main Event Title */}
                     <Link
                         href={`${basePath}${sharedQuery}`}
@@ -250,22 +281,32 @@ export function EventNavbar({
                                 onSelectGallery(null);
                             }
                         }}
-                        title={isRoyal ? navTitle : undefined}
+                        title={isRoyal || isMidnight ? navTitle : undefined}
                         className={isRoyal ? cn(
                             "royal-nav__title",
                             // Smaller capitals for long titles; anything still too long ends in "…" with the full title on hover
                             navTitle.length > 36 ? "royal-nav__title--xlong" : navTitle.length > 24 && "royal-nav__title--long"
-                        ) : cn(
+                        ) : isClassic ? "classic-nav__title" : isMidnight ? cn("midnight-nav__title", navTitle.length > 24 && "midnight-nav__title--long") : cn(
                             "text-2xl font-serif font-bold italic tracking-tight transition-colors z-50 relative",
                             hasTemplateChrome ? "" : "text-slate-900"
                         )}
-                        style={!isRoyal && hasTemplateChrome ? { color: navTextColor } : undefined}
+                        style={useInlineChrome ? { color: navTextColor } : undefined}
                     >
-                        {navTitle}
+                        {/* Confetti Circle writes the couple's "&" as a pink heart */}
+                        {isConfetti && navTitle.includes(" & ") ? (
+                            <>
+                                {navTitle.split(" & ")[0]}
+                                <span className="confetti-nav__heart" aria-label="and">♥</span>
+                                {navTitle.split(" & ").slice(1).join(" & ")}
+                            </>
+                        ) : navTitle}
                     </Link>
 
                     {/* Right: Desktop Navigation */}
-                    <div className={cn("hidden md:flex items-center", isRoyal ? "gap-1" : "space-x-2")}>
+                    <div className={cn("hidden md:flex items-center", isRoyal ? "gap-1" : isClassic ? "classic-nav__links" : isMidnight ? "midnight-nav__links" : "gap-2")}>
+                        {/* Midnight Hero, Confetti Circle and Periwinkle Script put these two groups either side of the centred title
+                            (midnight-hero.css, confetti-circle.css, periwinkle-script.css); elsewhere they don't affect the layout */}
+                        <div className={isMidnight ? "midnight-nav__group midnight-nav__group--left" : isConfetti ? "confetti-nav__group confetti-nav__group--left" : isPeriwinkle ? "periwinkle-nav__group periwinkle-nav__group--left" : "contents"}>
                         {primaryDesktopLinks.map(renderDesktopNavItem)}
 
                         {collectionLinks.length > 0 && (
@@ -276,7 +317,7 @@ export function EventNavbar({
                                         event.stopPropagation();
                                         setCollectionsOpen((open) => !open);
                                     }}
-                                    className={isRoyal ? royalLinkClass(isCollectionsActive) : cn(
+                                    className={isRoyal ? royalLinkClass(isCollectionsActive) : isMidnight ? midnightLinkClass(isCollectionsActive) : isClassic ? cn("classic-nav__link", isCollectionsActive && "classic-nav__link--active") : cn(
                                         "px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5",
                                         isCollectionsActive
                                             ? "bg-slate-900 text-white shadow-md"
@@ -284,7 +325,7 @@ export function EventNavbar({
                                                 ? "hover:bg-white/10"
                                                 : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                                     )}
-                                    style={!isRoyal && hasTemplateChrome ? {
+                                    style={useInlineChrome ? {
                                         backgroundColor: isCollectionsActive ? activeBgColor : "transparent",
                                         color: isCollectionsActive ? activeTextColor : navTextColor,
                                     } : undefined}
@@ -313,7 +354,7 @@ export function EventNavbar({
                                         >
                                             {collectionLinks.map((link) => {
                                                 const isActive = isGalleryActive(link.gallery);
-                                                const className = isRoyal ? cn(royalLinkClass(isActive), "royal-nav__menu-item") : cn(
+                                                const className = isRoyal ? cn(royalLinkClass(isActive), "royal-nav__menu-item") : isMidnight ? cn(midnightLinkClass(isActive), "midnight-nav__menu-item") : isPortrait ? cn("portrait-nav__menu-item", isActive && "portrait-nav__menu-item--active") : cn(
                                                     "block w-full rounded-xl px-4 py-3 text-left text-xs font-bold uppercase tracking-widest transition-all",
                                                     isActive
                                                         ? "bg-slate-900 text-white"
@@ -321,7 +362,7 @@ export function EventNavbar({
                                                             ? "hover:bg-white/10"
                                                             : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                                                 );
-                                                const style = !isRoyal && hasTemplateChrome ? {
+                                                const style = !isRoyal && !isMidnight && !isPortrait && hasTemplateChrome ? {
                                                     backgroundColor: isActive ? activeBgColor : "transparent",
                                                     color: isActive ? activeTextColor : navTextColor,
                                                 } : undefined;
@@ -361,6 +402,8 @@ export function EventNavbar({
                             </div>
                         )}
 
+                        </div>
+                        <div className={isMidnight ? "midnight-nav__group midnight-nav__group--right" : isConfetti ? "confetti-nav__group confetti-nav__group--right" : isPeriwinkle ? "periwinkle-nav__group periwinkle-nav__group--right" : "contents"}>
                         {utilityDesktopLinks.map(renderDesktopNavItem)}
 
                         {onDownloadZip && (
@@ -368,13 +411,13 @@ export function EventNavbar({
                                 type="button"
                                 onClick={onDownloadZip}
                                 disabled={isZipping}
-                                className={isRoyal ? "royal-nav__link" : cn(
+                                className={isRoyal ? "royal-nav__link" : isMidnight ? "midnight-nav__link midnight-nav__link--outline" : isPortrait ? "classic-nav__link portrait-nav__cta" : isConfetti ? "classic-nav__link confetti-nav__cta" : isPeriwinkle ? "classic-nav__link periwinkle-nav__cta" : isClassic ? "classic-nav__link" : cn(
                                     "px-3.5 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 border disabled:opacity-50",
                                     hasTemplateChrome
                                         ? "hover:opacity-85 hover:shadow-sm"
                                         : "border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-900 hover:text-white"
                                 )}
-                                style={!isRoyal && hasTemplateChrome ? {
+                                style={useInlineChrome ? {
                                     borderColor: `${navAccentColor}80`,
                                     backgroundColor: `${navAccentColor}18`,
                                     color: navTextColor,
@@ -396,31 +439,17 @@ export function EventNavbar({
 
                         {user?.role === "admin" && renderDesktopNavItem({ name: "Admin", href: `/host?view=manage&level=event-details&eventId=${mainEventId}`, gallery: null, isGallery: false })}
 
-                        {activeName && !(isRoyal && user) && (
-                            user ? (
-                                <Link
-                                    href="/profile"
-                                    aria-label="Profile"
-                                    title="Profile"
-                                    className={isRoyal ? "royal-nav__avatar" : "ml-4 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white text-slate-700 transition-all hover:bg-slate-50"}
-                                >
-                                    {user.profileImage ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={user.profileImage} alt="" className="h-full w-full object-cover" />
-                                    ) : (
-                                        <ProfileIcon className="h-6 w-6" />
-                                    )}
-                                </Link>
-                            ) : (
-                                <button
-                                    onClick={handleLogout}
-                                    className={isRoyal ? "royal-nav__avatar" : "ml-4 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-all hover:bg-slate-50"}
-                                    aria-label="Logout"
-                                >
-                                    <LogOut className="h-5 w-5" />
-                                </button>
-                            )
+                        {/* No profile button for signed-in visitors (the small-screen menu still has My Profile); guests keep logout */}
+                        {activeName && !user && (
+                            <button
+                                onClick={handleLogout}
+                                className={isRoyal ? "royal-nav__avatar" : isMidnight ? "midnight-nav__avatar" : "ml-4 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-all hover:bg-slate-50"}
+                                aria-label="Logout"
+                            >
+                                <LogOut className="h-5 w-5" />
+                            </button>
                         )}
+                        </div>
                     </div>
 
                     {/* Mobile Menu Toggle */}
@@ -428,7 +457,8 @@ export function EventNavbar({
                         <button
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                             className="p-2 rounded-full active:scale-95 transition-transform"
-                            style={hasTemplateChrome ? { color: navTextColor } : undefined}
+                            // Sunlit Portrait: white on the photo, dark on the solid bar (sunlit-portrait.css)
+                            style={hasTemplateChrome && !isPortrait ? { color: navTextColor } : undefined}
                             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
                             aria-expanded={mobileMenuOpen}
                         >
@@ -452,7 +482,10 @@ export function EventNavbar({
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         className={cn(
                             "fixed inset-0 z-40 backdrop-blur-xl md:hidden flex flex-col pt-24 px-8",
-                            hasTemplateChrome ? "" : "bg-white/95"
+                            hasTemplateChrome ? "" : "bg-white/95",
+                            isClassic && "classic-nav__menu",
+                            // Sunlit Portrait: the menu's titles and items in the cover's serif (sunlit-portrait.css)
+                            isPortrait && cn("portrait-nav__menu", portraitDisplay.variable)
                         )}
                         style={hasTemplateChrome ? {
                             backgroundColor: `${chromeBackgroundColor}f7`,

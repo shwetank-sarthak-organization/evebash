@@ -51,6 +51,25 @@ test('Find You leaves out photos the host hid from guests; a failed lookup filte
   assert.equal((await findHiddenMediaIds(['p1'], admin(null, { code: '42703' }))).size, 0);
 });
 
+test('Find You looks up each match\'s uploaded file; playlists and a failed lookup keep the preview', async () => {
+  const { findOriginalUrls } = await import('../src/routes/findYou.js');
+  const asked: string[][] = [];
+  const admin = (rows: { id: string; url: string | null }[] | null, error: unknown = null) => () => ({
+    from: () => ({ select: () => ({ in: async (_c: string, ids: string[]) => { asked.push(ids); return { data: rows, error }; } }) }),
+  }) as never;
+
+  const found = await findOriginalUrls(['p1', 'p2', 'p1', '', 'p3', 'p4'], admin([
+    { id: 'p1', url: 'https://media.evebash.com/events/e/photos/p1.jpg' },
+    { id: 'p2', url: null },
+    { id: 'p3', url: 'https://media.evebash.com/hls/events/e/videos/v.mp4/master.m3u8' },
+  ]));
+  assert.deepEqual([...found], [['p1', 'https://media.evebash.com/events/e/photos/p1.jpg']]);
+  assert.deepEqual(asked[0], ['p1', 'p2', 'p3', 'p4']);
+  assert.equal((await findOriginalUrls([], admin([{ id: 'x', url: 'u' }]))).size, 0);
+  assert.equal(asked.length, 1, 'no lookup without ids');
+  assert.equal((await findOriginalUrls(['p1'], admin(null, { code: '42P01' }))).size, 0);
+});
+
 test('Find You consent counts only a clear yes from the database', async () => {
   assert.equal(await hasFindYouConsent(async () => ({ version: '2026-10-11.1', consented: true })), true);
   for (const answer of [{ consented: false }, { consented: 'true' }, {}, null, undefined]) {

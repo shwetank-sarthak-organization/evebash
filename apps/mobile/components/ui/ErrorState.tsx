@@ -1,8 +1,9 @@
 import React from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
 import { Button } from '@/components/ui/Button';
 import { MidnightColors } from '@/constants/theme';
+import { useAppTheme } from '@/context/ThemeContext';
 import { FontFamily, FontSize } from '@/constants/typography';
 
 type ErrorStateProps = {
@@ -10,6 +11,13 @@ type ErrorStateProps = {
   message?: string;
   onRetry: () => void;
   retrying?: boolean;
+  /** Main button text and icon, for screens where "Try again" doesn't fit */
+  retryLabel?: string;
+  retryIcon?: IconSymbolName;
+  icon?: IconSymbolName;
+  /** Optional second button under Try again */
+  secondaryLabel?: string;
+  onSecondary?: () => void;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -19,30 +27,40 @@ export function ErrorState({
   message = 'Check your internet connection and try again.',
   onRetry,
   retrying = false,
+  retryLabel = 'Try again',
+  retryIcon = 'arrow.clockwise',
+  icon = 'cloud.fill',
+  secondaryLabel,
+  onSecondary,
   style,
 }: ErrorStateProps) {
+  const { colors } = useAppTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={[styles.container, style]} accessibilityRole="alert">
       <View style={styles.iconRing}>
-        <IconSymbol name="cloud.fill" size={26} color={MidnightColors.gold} />
+        <IconSymbol name={icon} size={26} color={colors.gold} />
       </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
       <Button
-        title="Try again"
+        title={retryLabel}
         variant="secondary"
         size="md"
-        icon="arrow.clockwise"
+        icon={retryIcon}
         fullWidth={false}
         loading={retrying}
         onPress={onRetry}
         style={styles.button}
       />
+      {!!secondaryLabel && !!onSecondary && (
+        <Button title={secondaryLabel} variant="ghost" size="md" fullWidth={false} onPress={onSecondary} style={styles.secondaryButton} />
+      )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: typeof MidnightColors) => StyleSheet.create({
   container: {
     alignItems: 'center',
     paddingVertical: 32,
@@ -58,14 +76,14 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   title: {
-    color: MidnightColors.white,
+    color: colors.white,
     fontFamily: FontFamily.bold,
     fontSize: FontSize.headline,
     textAlign: 'center',
     marginBottom: 6,
   },
   message: {
-    color: MidnightColors.slate400,
+    color: colors.slate400,
     fontFamily: FontFamily.regular,
     fontSize: FontSize.body2,
     lineHeight: 20,
@@ -74,5 +92,8 @@ const styles = StyleSheet.create({
   },
   button: {
     minWidth: 160,
+  },
+  secondaryButton: {
+    marginTop: 8,
   },
 });

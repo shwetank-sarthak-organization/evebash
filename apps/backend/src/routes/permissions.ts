@@ -1,4 +1,4 @@
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { Router } from "express";
 import { getAdminClient } from "../adminAuth.js";
 import { verifySupabaseUser } from "../auth.js";
@@ -23,6 +23,13 @@ const SUPER_ADMIN_EMAILS = [
 ];
 
 // Old check, used only when the kill switch is off
+/** The database refuses (SQLSTATE EBA01) to take Admin Access from someone who has an album role; its message says why. */
+function albumRoleBlocked(response: Response, error: any) {
+  if (error?.code !== "EBA01") return false;
+  response.status(409).json({ success: false, code: "album_role_assigned", error: error.message });
+  return true;
+}
+
 async function canManageGuestLog(logId: string, requester: { uid?: string; email?: string }) {
   if (!requester.uid && !requester.email) return false;
   const requesterEmail = (requester.email || "").toLowerCase().trim();
@@ -146,6 +153,7 @@ export function createPermissionsRouter(
       if (error) throw error;
       return response.json({ success: true });
     } catch (error: any) {
+      if (albumRoleBlocked(response, error)) return;
       console.error("[BackendPermissions] Error in update-guest-status:", error);
       return response.status(500).json({ success: false, error: error.message });
     }
@@ -173,6 +181,7 @@ export function createPermissionsRouter(
       if (error) throw error;
       return response.json({ success: true });
     } catch (error: any) {
+      if (albumRoleBlocked(response, error)) return;
       console.error("[BackendPermissions] Error in delete-guest:", error);
       return response.status(500).json({ success: false, error: error.message });
     }
@@ -259,6 +268,80 @@ export function createPermissionsRouter(
     }
   });
 
+  /**
+   * A member's username and email, for the Permissions popup: for the people who manage that member's event, and only
+   * while the member is on its guest list or asking to join. Never their phone. Always needs a real login: the old
+   * body-based check isn't enough for this.
+   */
+  permissionsRouter.post("/member-details", async (request, response) => {
+    try {
+      const { logId } = request.body || {};
+      if (typeof logId !== "string" || !logId) {
+        return response.status(400).json({ success: false, error: "Missing logId" });
+      }
+
+      const access = await checkAccess(request, logId);
+      if (access !== "allowed") {
+        const { status: code, body } = denied(access);
+        return response.status(code).json(body);
+      }
+
+      const supabaseAdmin = getAdmin();
+      const { data: guest } = await supabaseAdmin.from("guests").select("user_id, status").eq("id", logId).maybeSingle();
+      const onTheList = !!guest?.user_id && (guest.status === "approved" || guest.status === "pending");
+      const { data: profile } = onTheList
+        ? await supabaseAdmin.from("profiles").select("username, email").eq("id", guest.user_id).maybeSingle()
+        : { data: null };
+      return response.json({ success: true, username: profile?.username ?? null, email: profile?.email ?? null });
+    } catch (error: any) {
+      console.error("[BackendPermissions] Error in member-details:", error);
+      return response.status(500).json({ success: false, error: "Could not load this member's details." });
+    }
+  });
+
+  /**
+   * Username and email of everyone on an event's Permissions list (its sub-galleries' guests too), by guest row id, so
+   * members with the same name can be told apart. The same rules as /member-details, for the people who manage the event.
+   */
+  permissionsRouter.post("/member-directory", async (request, response) => {
+    try {
+      const { eventId } = request.body || {};
+      if (typeof eventId !== "string" || !eventId) {
+        return response.status(400).json({ success: false, error: "Missing eventId" });
+      }
+
+      const access = await checkGalleryAccess(request, eventId);
+      if (access !== "allowed") {
+        const { status: code, body } = denied(access);
+        return response.status(code).json(body);
+      }
+
+      const supabaseAdmin = getAdmin();
+      const rows = await Promise.all(["event_id", "parent_event_id"].map((column) => supabaseAdmin
+        .from("guests").select("id, user_id").eq(column, eventId).in("status", ["approved", "pending"])));
+      const failed = rows.find((result) => result.error);
+      if (failed) throw failed.error;
+      const guests = rows.flatMap((result) => result.data || []).filter((guest) => guest.user_id);
+
+      const accountIds = Array.from(new Set(guests.map((guest) => guest.user_id as string)));
+      const { data: profiles, error } = accountIds.length > 0
+        ? await supabaseAdmin.from("profiles").select("id, username, email").in("id", accountIds)
+        : { data: [], error: null };
+      if (error) throw error;
+
+      const profileById = new Map((profiles || []).map((profile) => [profile.id, profile]));
+      const members: Record<string, { username: string | null; email: string | null }> = {};
+      for (const guest of guests) {
+        const profile = profileById.get(guest.user_id as string);
+        if (profile) members[guest.id] = { username: profile.username ?? null, email: profile.email ?? null };
+      }
+      return response.json({ success: true, members });
+    } catch (error: any) {
+      console.error("[BackendPermissions] Error in member-directory:", error);
+      return response.status(500).json({ success: false, error: "Could not load this event's members." });
+    }
+  });
+
   permissionsRouter.post("/update-guest-permissions", async (request, response) => {
     try {
       const { logId, permissions, requester } = request.body || {};
@@ -286,6 +369,7 @@ export function createPermissionsRouter(
       if (error) throw error;
       return response.json({ success: true });
     } catch (error: any) {
+      if (albumRoleBlocked(response, error)) return;
       console.error("[BackendPermissions] Error in update-guest-permissions:", error);
       return response.status(500).json({ success: false, error: error.message });
     }

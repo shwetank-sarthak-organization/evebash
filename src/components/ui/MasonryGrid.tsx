@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { onPhotoInteractions, toggleLike } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
 import { Heart, MessageCircle, Download, Play } from "lucide-react";
 import type { LightboxTheme } from "./Lightbox";
-import { getGridThumbnail, getImageUrl } from "@/lib/imageUrl";
+import { getGridSrcSet, getGridThumbnail, getImageUrl, GRID_HIRES_ENABLED } from "@/lib/imageUrl";
 import { PageFlipViewer, type GalleryMediaItem, type PageFlipTheme, type ViewerLayout } from "@/components/page-flip/PageFlipViewer";
 import { getPageFlipThemeForTemplateId } from "@/components/page-flip/pageFlipThemes";
 import { getOriginalMediaUrl } from "@/lib/zipDownload";
@@ -22,6 +22,8 @@ interface Photo {
     height?: number;
     width?: number;
     filename?: string;
+    /** What Download saves when src is only a preview (Find You results, issue #218) */
+    downloadUrl?: string;
     mediaType?: "photo" | "video";
     resourceType?: "image" | "video" | string;
 }
@@ -41,6 +43,8 @@ interface MasonryGridProps {
     viewerLayout?: ViewerLayout;
     commentsMode?: "overlay" | "side-panel";
     templateId?: string;
+    /** "justified": rows of equal height edge to edge, each photo keeps its shape (Classic White). Default: columns */
+    layout?: "columns" | "justified";
     showPageFlipThumbnails?: boolean;
     onLikeChange?: () => void;
     /** Read-only visitors who could join by logging in: like, comment and download show and call this instead */
@@ -57,6 +61,7 @@ interface PhotoCardProps {
     onViewPhoto: (photo: Photo) => void;
     onLikeChange?: () => void;
     onRequireLogin?: () => void;
+    justified?: boolean;
 }
 
 type PhotoLike = {
@@ -72,7 +77,8 @@ function PhotoCard({
     itemClassName,
     onViewPhoto,
     onLikeChange,
-    onRequireLogin
+    onRequireLogin,
+    justified = false
 }: PhotoCardProps) {
     const { user } = useAuth();
     const [likes, setLikes] = useState<PhotoLike[]>([]);
@@ -101,9 +107,19 @@ function PhotoCard({
     const isLiked = likes.some(l => l.userId === identity.id);
     const isVideo = photo.mediaType === "video" || photo.resourceType === "video";
     const [imageSrc, setImageSrc] = useState(photo.thumbnailUrl || (photo.src ? getGridThumbnail(photo.src) : ""));
+    const [measuredRatio, setMeasuredRatio] = useState<number | null>(null);
+    const aspectRatio = photo.width && photo.height ? photo.width / photo.height : measuredRatio || (isVideo ? 16 / 9 : 3 / 2);
+
+    // Big screens may pick the 1000 px grid image instead of the thumbnail (issue #121); dropped again if it fails to
+    // load (photos uploaded before grid images existed have none)
+    const [hiResFailed, setHiResFailed] = useState(false);
+    const hiResSrcSet = GRID_HIRES_ENABLED && justified && !isVideo && !hiResFailed && imageSrc
+        ? getGridSrcSet(imageSrc, photo.width, photo.height)
+        : "";
 
     useEffect(() => {
         setImageSrc(photo.thumbnailUrl || (photo.src ? getGridThumbnail(photo.src) : ""));
+        setHiResFailed(false);
     }, [photo.src, photo.thumbnailUrl]);
 
     useEffect(() => {
@@ -119,11 +135,15 @@ function PhotoCard({
         e.stopPropagation();
         if (isLiking) return;
         setIsLiking(true);
+        // Shown at once; toggleLike then re-reads the photo's likes (#177)
+        const previousLikes = likes;
+        setLikes(current => isLiked ? current.filter(l => l.userId !== identity.id) : [{ userId: identity.id }, ...current]);
         try {
             await toggleLike(photo.id, identity.id, identity.name);
             onLikeChange?.();
         } catch (err) {
             console.error("Like failed", err);
+            setLikes(previousLikes);
         } finally {
             setIsLiking(false);
         }
@@ -135,7 +155,7 @@ function PhotoCard({
         setIsDownloading(true);
         try {
             // Videos: the uploaded file, not the streaming playlist
-            const downloadUrl = getOriginalMediaUrl(photo.src);
+            const downloadUrl = getOriginalMediaUrl(photo.downloadUrl || photo.src);
 
             const link = document.createElement('a');
             link.href = downloadUrl;
@@ -159,12 +179,15 @@ function PhotoCard({
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : Math.min(index, 5) * 0.04, ease: "easeOut" }}
             onClick={() => onViewPhoto(photo)}
+            // Justified rows size each card by its shape (--ar, styles in gallery-refinements.css); unknown sizes are read on load
+            style={justified ? { "--ar": aspectRatio } as React.CSSProperties : undefined}
             className={cn(
                 "gallery-media-card break-inside-avoid overflow-hidden group relative mb-4 shadow-md hover:shadow-xl transition-all duration-500 bg-white border border-stone-150 rounded-2xl cursor-pointer flex flex-col",
                 itemClassName
             )}
         >
-            <button type="button" aria-label={`Open ${isVideo ? "video" : "photo"}: ${photo.alt || photo.filename || "Event memory"}`} className="relative block w-full overflow-hidden text-left">
+            {/* Tinted until the image arrives, so an empty card still reads as a photo slot */}
+            <button type="button" aria-label={`Open ${isVideo ? "video" : "photo"}: ${photo.alt || photo.filename || "Event memory"}`} className="relative block w-full overflow-hidden bg-[rgba(127,127,127,0.12)] text-left">
                 {isVideo ? (
                     <div className="relative aspect-[4/5] w-full bg-slate-950 overflow-hidden" style={{ aspectRatio: photo.width && photo.height ? `${photo.width} / ${photo.height}` : "16 / 9" }}>
                         {photo.thumbnailUrl ? (
@@ -189,17 +212,33 @@ function PhotoCard({
                             </div>
                         </div>
                     </div>
-                ) : imageSrc ? (
-                    <img
-                        src={imageSrc}
-                        alt={photo.alt || "Event Photo"}
-                        onError={() => {
-                            setImageSrc("");
-                        }}
-                        className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
-                        loading="lazy"
-                    />
-                ) : (
+                ) : imageSrc ? (() => {
+                    const image = (
+                        <img
+                            src={imageSrc}
+                            alt={photo.alt || "Event Photo"}
+                            onError={() => {
+                                if (hiResSrcSet) setHiResFailed(true);
+                                else setImageSrc("");
+                            }}
+                            onLoad={justified && !(photo.width && photo.height) ? (e) => {
+                                const { naturalWidth, naturalHeight } = e.currentTarget;
+                                if (naturalWidth && naturalHeight) setMeasuredRatio(naturalWidth / naturalHeight);
+                            } : undefined}
+                            className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
+                            // Holds the photo's shape before it loads, so the columns don't jump as images arrive
+                            style={photo.width && photo.height ? { aspectRatio: `${photo.width} / ${photo.height}` } : undefined}
+                            loading="lazy"
+                        />
+                    );
+                    // From 1024 px wide the browser chooses thumbnail or preview by the tile's real size; smaller screens keep the thumbnail
+                    return hiResSrcSet ? (
+                        <picture>
+                            <source media="(min-width: 1024px)" srcSet={hiResSrcSet} sizes="auto, 50vw" />
+                            {image}
+                        </picture>
+                    ) : image;
+                })() : (
                     <div className="flex aspect-[4/5] w-full items-center justify-center bg-stone-100 text-xs font-bold uppercase tracking-widest text-stone-400">
                         Image unavailable
                     </div>
@@ -255,7 +294,7 @@ function PhotoCard({
                         {/* Comment Option (opens the viewer, where comments are) */}
                         <button type="button"
                             className="flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full px-2 transition-colors hover:bg-white/15 group/comment"
-                            aria-label={commentsCount > 0 ? `${commentsCount} comments` : "Comments"}
+                            aria-label={commentsCount > 0 ? `${commentsCount} ${commentsCount === 1 ? "comment" : "comments"}` : "Comments"}
                         >
                             <MessageCircle
                                 size={20}
@@ -327,6 +366,39 @@ function PhotoCard({
     );
 }
 
+/**
+ * How many columns the theme's CSS gives the grid (CSS columns, which differ by theme and screen width) and the gap
+ * between them; null until measured. Re-read when the grid's size or photo count changes (some themes cap the
+ * column count by the number of photos).
+ */
+function useCssColumns(ref: React.RefObject<HTMLDivElement | null>, enabled: boolean, photoCount: number) {
+    const [columns, setColumns] = useState<{ count: number; gap: number } | null>(null);
+    useLayoutEffect(() => {
+        const el = ref.current;
+        if (!enabled || !el) return;
+        const read = () => {
+            const style = getComputedStyle(el);
+            const count = parseInt(style.columnCount, 10);
+            const gap = parseFloat(style.columnGap);
+            const next = { count: Number.isFinite(count) && count > 0 ? count : 1, gap: Number.isFinite(gap) ? gap : 16 };
+            setColumns((prev) => (prev && prev.count === next.count && prev.gap === next.gap ? prev : next));
+        };
+        read();
+        if (typeof ResizeObserver === "undefined") return;
+        const observer = new ResizeObserver(read);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [ref, enabled, photoCount]);
+    return columns;
+}
+
+/** Height / width of a card's media, for placing it in the shortest column; unknown sizes count as square */
+function mediaHeightRatio(photo: Photo) {
+    if (photo.width && photo.height) return photo.height / photo.width;
+    const isVideo = photo.mediaType === "video" || photo.resourceType === "video";
+    return isVideo ? 9 / 16 : 1;
+}
+
 export function MasonryGrid({
     photos,
     className,
@@ -340,6 +412,7 @@ export function MasonryGrid({
     viewerLayout,
     commentsMode = "side-panel",
     templateId,
+    layout = "columns",
     showPageFlipThumbnails = true,
     onLikeChange,
     onRequireLogin
@@ -357,7 +430,7 @@ export function MasonryGrid({
             id: photo.id,
             type: isVideo ? "video" : "image",
             previewUrl,
-            originalUrl: photo.src,
+            originalUrl: photo.downloadUrl || photo.src,
             thumbnailUrl: photo.thumbnailUrl || (isVideo ? undefined : getGridThumbnail(photo.src)),
             alt: photo.alt,
             filename: photo.filename,
@@ -367,23 +440,55 @@ export function MasonryGrid({
     });
     const resolvedPageFlipTheme = pageFlipTheme || getPageFlipThemeForTemplateId(templateId);
 
+    // Columns layout: each photo goes into the shortest column in order, so photos added by the next page only extend
+    // the columns at the bottom. (Plain CSS columns re-balance the whole grid, moving photos the guest is looking at.)
+    const gridRef = useRef<HTMLDivElement | null>(null);
+    const cssColumns = useCssColumns(gridRef, layout !== "justified", photos.length);
+    const columnItems = useMemo(() => {
+        if (!cssColumns) return null;
+        const columns: { photo: Photo; index: number }[][] = Array.from({ length: cssColumns.count }, () => []);
+        const heights = new Array(cssColumns.count).fill(0);
+        photos.forEach((photo, index) => {
+            const shortest = heights.indexOf(Math.min(...heights));
+            columns[shortest].push({ photo, index });
+            heights[shortest] += mediaHeightRatio(photo);
+        });
+        return columns;
+    }, [cssColumns, photos]);
+
+    const renderCard = (photo: Photo, index: number) => (
+        <PhotoCard
+            key={photo.id}
+            photo={photo}
+            index={index}
+            eventSlug={eventSlug}
+            disableDownload={disableDownload}
+            readOnly={readOnly}
+            itemClassName={itemClassName}
+            onViewPhoto={setViewingPhoto}
+            onLikeChange={onLikeChange}
+            onRequireLogin={onRequireLogin}
+            justified={layout === "justified"}
+        />
+    );
+
     return (
         <div className={cn("gallery-masonry container mx-auto px-4 py-8", templateId === "royal" && "royal-masonry", className)} style={{ "--gallery-count": Math.max(1, photos.length), "--royal-count": Math.max(1, photos.length <= 3 ? photos.length : Math.ceil(photos.length / 2)) } as React.CSSProperties}>
-            <div className={cn("columns-1 sm:columns-2 md:columns-3 gap-4", gridClassName)}>
-                {photos.map((photo, index) => (
-                    <PhotoCard
-                        key={photo.id}
-                        photo={photo}
-                        index={index}
-                        eventSlug={eventSlug}
-                        disableDownload={disableDownload}
-                        readOnly={readOnly}
-                        itemClassName={itemClassName}
-                        onViewPhoto={setViewingPhoto}
-                        onLikeChange={onLikeChange}
-                        onRequireLogin={onRequireLogin}
-                    />
-                ))}
+            <div ref={gridRef} className={cn(layout === "justified" ? "gallery-justified" : "columns-1 sm:columns-2 md:columns-3 gap-4", gridClassName)}>
+                {columnItems ? (
+                    // The grid keeps its CSS columns (read above); this row spans them and holds the placed columns
+                    <div className="flex items-start" style={{ columnSpan: "all", gap: cssColumns?.gap }}>
+                        {columnItems.map((items, column) => (
+                            <div key={column} className="min-w-0 flex-1">
+                                {items.map(({ photo, index }) => renderCard(photo, index))}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    photos.map((photo, index) => renderCard(photo, index))
+                )}
+                {/* Keeps the last justified row at its natural height instead of stretching it across */}
+                {layout === "justified" && <div aria-hidden="true" className="gallery-justified__end" />}
             </div>
 
             {viewingPhoto && viewingIndex >= 0 && (

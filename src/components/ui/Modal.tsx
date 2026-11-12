@@ -5,24 +5,24 @@ import { createRoot } from "react-dom/client";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// One look for every website modal: dark surface, gold accents, X at the top right.
+// One look for every website modal: site surface (dark, or light on the light site), gold accents, X at the top right.
 export const modalStyles = {
-    overlay: "fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm",
-    panel: "relative w-full max-w-md rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)] p-6 text-[var(--site-text)] shadow-2xl shadow-black/50 sm:p-7",
+    overlay: "fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm light:bg-black/45",
+    panel: "relative w-full max-w-md rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)] p-6 text-[var(--site-text)] shadow-2xl shadow-black/50 light:shadow-(color:--home-shadow-strong) sm:p-7",
     // For native <dialog> elements, which centre themselves.
-    dialog: "m-auto w-[calc(100%-2rem)] max-w-md rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)] p-6 text-[var(--site-text)] shadow-2xl shadow-black/50 backdrop:bg-black/70 backdrop:backdrop-blur-sm sm:p-7",
+    dialog: "m-auto w-[calc(100%-2rem)] max-w-md rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)] p-6 text-[var(--site-text)] shadow-2xl shadow-black/50 backdrop:bg-black/70 backdrop:backdrop-blur-sm light:shadow-(color:--home-shadow-strong) light:backdrop:bg-black/45 sm:p-7",
     title: "text-2xl font-black tracking-tight text-[var(--site-text)]",
     subtitle: "mt-1 text-sm font-semibold leading-6 text-[var(--site-muted)]",
-    eyebrow: "mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#CA9C68]",
+    eyebrow: "mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-gold-text)]",
     body: "text-sm font-semibold leading-6 text-[var(--site-subtle)]",
     label: "mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]",
-    input: "w-full rounded-2xl border border-[var(--site-border)] bg-[#13191F] px-5 py-4 text-base text-[var(--site-text)] outline-none transition-colors placeholder:text-[var(--site-muted)]/60 focus:border-[#CA9C68] focus:ring-1 focus:ring-[#CA9C68]",
+    input: "w-full rounded-2xl border border-[var(--site-border)] bg-[var(--site-bg)] px-5 py-4 text-base text-[var(--site-text)] outline-none transition-colors placeholder:text-[var(--site-muted)]/60 focus:border-[var(--site-gold)] focus:ring-1 focus:ring-[var(--site-gold)]",
     actions: "mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end",
-    primary: "inline-flex items-center justify-center gap-2 rounded-2xl bg-[#CA9C68] px-5 py-3.5 text-sm font-black uppercase tracking-widest text-[#13191F] transition-colors hover:bg-[#D7AE7D] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
-    secondary: "inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--site-border)] px-5 py-3.5 text-sm font-black uppercase tracking-widest text-[var(--site-subtle)] transition-colors hover:bg-white/5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
+    primary: "modal-btn-primary inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--site-gold)] px-5 py-3.5 text-sm font-black uppercase tracking-widest text-[var(--site-on-gold)] transition-colors hover:bg-[var(--site-gold-light)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
+    secondary: "modal-btn-secondary inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--site-border)] px-5 py-3.5 text-sm font-black uppercase tracking-widest text-[var(--site-subtle)] transition-colors hover:bg-white/5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
     danger: "inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-500 px-5 py-3.5 text-sm font-black uppercase tracking-widest text-white transition-colors hover:bg-rose-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
-    error: "rounded-2xl border border-rose-400/25 bg-rose-400/10 p-4 text-center text-sm font-bold text-rose-200",
-    success: "rounded-2xl border border-[#CA9C68]/30 bg-[#CA9C68]/10 p-4 text-center text-sm font-bold text-[#F5E7D4]",
+    error: "rounded-2xl border border-rose-400/25 bg-rose-400/10 p-4 text-center text-sm font-bold text-rose-200 light:text-rose-700",
+    success: "rounded-2xl border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 p-4 text-center text-sm font-bold text-[#F5E7D4] light:text-[var(--site-text)]",
 };
 
 export function ModalCloseButton({ onClick, disabled, label = "Close", className }: {
@@ -39,7 +39,7 @@ export function ModalCloseButton({ onClick, disabled, label = "Close", className
             aria-label={label}
             title={label}
             className={cn(
-                "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--site-border)] bg-[#13191F]/70 text-[var(--site-muted)] transition-colors hover:border-[#CA9C68]/60 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-40",
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--site-border)] bg-[var(--site-bg)]/70 text-[var(--site-muted)] transition-colors hover:border-[var(--site-gold)]/60 hover:text-[var(--site-text)] disabled:cursor-not-allowed disabled:opacity-40",
                 className
             )}
         >
@@ -100,6 +100,13 @@ function MessageDialog({ title, message, confirmLabel = "OK", cancelLabel, tone 
     );
 }
 
+let openDialogs = 0;
+
+/** True while a confirmDialog, alertDialog or choiceDialog is open, so a viewer's own key handling can leave its keys (Esc) to it. */
+export function isDialogOpen() {
+    return openDialogs > 0;
+}
+
 function openMessageDialog(options: MessageDialogOptions): Promise<boolean> {
     if (typeof document === "undefined") return Promise.resolve(false);
     return new Promise((resolve) => {
@@ -107,9 +114,11 @@ function openMessageDialog(options: MessageDialogOptions): Promise<boolean> {
         document.body.appendChild(host);
         const root = createRoot(host);
         let settled = false;
+        openDialogs++;
         const onDone = (confirmed: boolean) => {
             if (settled) return;
             settled = true;
+            openDialogs--;
             resolve(confirmed);
             // Unmount after the click finishes so React isn't torn down mid-event.
             setTimeout(() => { root.unmount(); host.remove(); }, 0);
@@ -155,7 +164,7 @@ function ChoiceDialog<T extends string>({ title, message, choices, onDone }: {
                             ref={index === 0 ? firstRef : undefined}
                             type="button"
                             onClick={() => onDone(choice.id)}
-                            className="w-full rounded-2xl border border-[var(--site-border)] bg-[#13191F]/60 px-5 py-4 text-left transition-colors hover:border-[#CA9C68] hover:bg-[#CA9C68]/10 focus-visible:border-[#CA9C68] focus-visible:outline-none"
+                            className="w-full rounded-2xl border border-[var(--site-border)] bg-[var(--site-bg)]/60 px-5 py-4 text-left transition-colors hover:border-[var(--site-gold)] hover:bg-[var(--site-gold)]/10 focus-visible:border-[var(--site-gold)] focus-visible:outline-none"
                         >
                             <span className="block text-sm font-black text-[var(--site-text)]">{choice.label}</span>
                             {choice.description && <span className="mt-1 block text-xs font-semibold leading-5 text-[var(--site-muted)]">{choice.description}</span>}
@@ -175,9 +184,11 @@ export function choiceDialog<T extends string>(options: { title: string; message
         document.body.appendChild(host);
         const root = createRoot(host);
         let settled = false;
+        openDialogs++;
         const onDone = (choice: T | null) => {
             if (settled) return;
             settled = true;
+            openDialogs--;
             resolve(choice);
             setTimeout(() => { root.unmount(); host.remove(); }, 0);
         };

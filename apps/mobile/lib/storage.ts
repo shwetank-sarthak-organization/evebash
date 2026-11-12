@@ -31,9 +31,9 @@ export function getEndpointsForPath(path: string) {
         endpoints.push(joinUrl(normalized, path));
     }
 
-    // Always include active production/staging Railway domains as fallback
-    endpoints.push(joinUrl("https://api-staging.evebash.com", path));
-    endpoints.push(joinUrl("https://evebash-production-0ae3.up.railway.app", path));
+    // Without a configured backend, staging (as before). Issue #144: no fallback to the production backend, so a
+    // staging build never sends requests to production (and a production build never to staging) when its own is down.
+    if (!apiBaseUrl) endpoints.push(joinUrl("https://api-staging.evebash.com", path));
 
     // In development mode, allow local dev machine fallbacks
     if (__DEV__) {

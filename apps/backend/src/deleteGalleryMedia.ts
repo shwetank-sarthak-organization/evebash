@@ -1,5 +1,6 @@
 import { getCachedBackblazeAuth, invalidateBackblazeAuth } from './backblaze.js';
 import { getAdminClient } from './adminAuth.js';
+import { gridKey } from './services/gridVariant.js';
 
 // Resolve storage keys from the database only; callers cannot supply file paths.
 export async function deleteGalleryMedia(db: ReturnType<typeof getAdminClient>, photoId: string, eventId: string) {
@@ -15,6 +16,7 @@ export async function deleteGalleryMedia(db: ReturnType<typeof getAdminClient>, 
     { prefix: key, exact: true },
     { prefix: `${key}-thumbnail.webp`, exact: true },
     { prefix: `${key}-preview.webp`, exact: true },
+    { prefix: gridKey(key), exact: true },
     { prefix: `hls/${key}/`, exact: false },
     { prefix: `${key}-hls/`, exact: false },
   ];

@@ -1,31 +1,31 @@
-import { ArrowRight } from "lucide-react";
-import { ScrollReveal } from "@/components/ui/ScrollReveal";
-import { displayFont, PrimaryButton, SecondaryButton } from "./HomeUI";
+import { LazyFinalCtaDemo } from "./LazyDemos";
+import { displayFont, PrimaryButton, Reveal, SecondaryButton } from "./HomeUI";
 import { cn } from "@/lib/utils";
 
 export default function FinalCta() {
     return (
-        <section className="bg-[var(--site-bg)] px-4 pb-20 sm:px-6 md:pb-28 lg:px-8">
-            <ScrollReveal>
-                <div className="relative mx-auto max-w-5xl overflow-hidden rounded-3xl border border-royal-gold/30 bg-[var(--site-surface)] px-6 py-14 text-center md:px-12 md:py-16">
-                    <div aria-hidden className="pointer-events-none absolute -bottom-24 left-1/2 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-royal-gold/15 blur-3xl" />
-                    <div className="relative">
-                        <h2 className={cn(displayFont.className, "text-3xl font-semibold leading-tight text-[var(--site-text)] md:text-4xl")}>
-                            Ready to deliver your next event?
+        <section className="relative overflow-hidden bg-[var(--site-surface)] py-16 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[linear-gradient(90deg,transparent,rgba(220,181,121,0.45),transparent)] md:py-20">
+            <div aria-hidden className="pointer-events-none absolute left-[-10%] top-1/2 h-[480px] w-[480px] -translate-y-1/2 rounded-full bg-[#DCB579]/10 blur-3xl" />
+            <Reveal>
+                <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:gap-14 lg:px-8">
+                    <div>
+                        <h2 className={cn(displayFont.className, "home-gold-text pb-1 text-[2rem] font-semibold leading-[1.05] tracking-[-0.015em] md:text-[3.25rem]")}>
+                            Your next event deserves better than a Drive link or a WhatsApp group.
                         </h2>
-                        <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-[var(--site-subtle)] md:text-lg">
-                            Set up your event, upload your photos and videos, and share them with your clients and guests.
+                        <p className="mt-5 max-w-xl text-lg leading-relaxed text-[var(--site-subtle)]">
+                            No more chasing links, access requests or blurry forwards. One gallery link for every guest, in full quality.
                         </p>
-                        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-                            <PrimaryButton href="/login?mode=signup">
-                                Create your event free
-                                <ArrowRight className="h-4 w-4" aria-hidden />
+                        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                            <PrimaryButton href="/login?mode=signup" className="px-7 py-3.5 text-base">
+                                Create event for free
                             </PrimaryButton>
-                            <SecondaryButton href="/contact-us">Talk to us</SecondaryButton>
+                            <SecondaryButton href="/contact-us" className="px-7 py-3.5 text-base">Talk to us</SecondaryButton>
                         </div>
                     </div>
+
+                    <LazyFinalCtaDemo />
                 </div>
-            </ScrollReveal>
+            </Reveal>
         </section>
     );
 }

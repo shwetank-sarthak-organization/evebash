@@ -1,3 +1,4 @@
+import { comingSoonThemes, pickableThemes } from '../../../shared/themes/activeThemes';
 
 export interface TemplateTheme {
   id: string;
@@ -38,8 +39,8 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     id: 'classic',
     category: 'Wedding',
     label: 'Classic White',
-    desc: 'Timeless vintage sage & warm ivory elegance',
-    background: { light: '#F7F2EB', dark: '#F7F2EB' }, // Warm silk ivory background
+    desc: 'Soft white & vintage sage elegance',
+    background: { light: '#FCFCFA', dark: '#FCFCFA' }, // Soft white background
     panel: { light: '#ffffff', dark: '#ffffff' }, // Pure silk white card matting
     text: { light: '#2C352E', dark: '#2C352E' }, // Deep warm sage charcoal
     muted: { light: '#596653', dark: '#596653' }, // Muted sage gray
@@ -47,8 +48,44 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     accentBg: { light: 'rgba(139,154,110,0.08)', dark: 'rgba(139,154,110,0.08)' },
     tileBg: { light: '#ffffff', dark: '#ffffff' },
     radius: 0,
-    overlay: { light: ['rgba(247,242,235,0.1)', 'rgba(247,242,235,1)'], dark: ['rgba(247,242,235,0.1)', 'rgba(247,242,235,1)'] },
+    overlay: { light: ['rgba(252,252,250,0.1)', 'rgba(252,252,250,1)'], dark: ['rgba(252,252,250,0.1)', 'rgba(252,252,250,1)'] },
     useSerif: true
+  },
+  {
+    // Sunlit Portrait: full-screen cover photo, the names in Instrument Serif; warm paper, ink and clay below it
+    // (website: src/components/TemplatePortrait.tsx, src/app/sunlit-portrait.css)
+    id: 'portrait',
+    category: 'Wedding',
+    label: 'Sunlit Portrait',
+    desc: 'Full-screen couple photo & big serif names',
+    background: { light: '#FBF8F3', dark: '#FBF8F3' },
+    panel: { light: '#ffffff', dark: '#ffffff' },
+    text: { light: '#1F1B17', dark: '#1F1B17' },
+    muted: { light: '#6B6158', dark: '#6B6158' },
+    accent: '#A24E30',
+    accentBg: { light: 'rgba(162,78,48,0.1)', dark: 'rgba(162,78,48,0.1)' },
+    tileBg: { light: '#ffffff', dark: '#ffffff' },
+    radius: 6,
+    overlay: { light: ['rgba(251,248,243,0.1)', 'rgba(251,248,243,1)'], dark: ['rgba(251,248,243,0.1)', 'rgba(251,248,243,1)'] },
+    useSerif: true
+  },
+  {
+    // Confetti Circle: the cover photo with a big see-through white circle and the names in pink-to-orange Bebas Neue
+    // capitals; Classic White's soft white below it (website: src/components/TemplateConfetti.tsx,
+    // src/app/confetti-circle.css; app: components/confetti)
+    id: 'confetti',
+    category: 'Wedding',
+    label: 'Confetti Circle',
+    desc: 'Couple photo, white circle & pink-orange names',
+    background: { light: '#FCFCFA', dark: '#FCFCFA' },
+    panel: { light: '#ffffff', dark: '#ffffff' },
+    text: { light: '#2a2727', dark: '#2a2727' },
+    muted: { light: '#6b5f5f', dark: '#6b5f5f' },
+    accent: '#e8175d',
+    accentBg: { light: 'rgba(232,23,93,0.08)', dark: 'rgba(232,23,93,0.08)' },
+    tileBg: { light: '#ffffff', dark: '#ffffff' },
+    radius: 0,
+    overlay: { light: ['rgba(252,252,250,0.1)', 'rgba(252,252,250,1)'], dark: ['rgba(252,252,250,0.1)', 'rgba(252,252,250,1)'] },
   },
   {
     id: 'hero',
@@ -548,16 +585,15 @@ const getPickerTemplateCategoryForEventCategory = (category?: string) => {
 };
 
 /**
- * Themes a host can pick for an event of this category (hidden themes left out).
- * Pass the event's current theme so a hidden one still shows (first) as the current choice.
+ * Themes a host can pick for an event: the active ones (shared/themes/activeThemes.ts), the same for every event type.
+ * Pass the event's current theme so one that isn't active still shows (first) as the current choice.
  */
-export const getPickerTemplatesForEventCategory = (category?: string, currentTemplateId?: string) => {
-  const templateCategory = getPickerTemplateCategoryForEventCategory(category);
-  const templates = MOBILE_TEMPLATE_THEMES.filter((theme) => theme.category === templateCategory && !isTemplateHidden(theme.id));
-  const current = isTemplateHidden(currentTemplateId) ? MOBILE_TEMPLATE_THEMES.find((theme) => theme.id === currentTemplateId) : undefined;
-  if (current) return [current, ...templates];
-  return templates;
-};
+export const getPickerTemplatesForEventCategory = (_category?: string, currentTemplateId?: string) =>
+  pickableThemes(MOBILE_TEMPLATE_THEMES, currentTemplateId);
+
+/** The event type's own themes that can't be picked yet: the pickers show them greyed out as "Coming soon" */
+export const getComingSoonTemplatesForEventCategory = (category?: string, currentTemplateId?: string) =>
+  comingSoonThemes(MOBILE_TEMPLATE_THEMES, getPickerTemplateCategoryForEventCategory(category), isTemplateHidden, currentTemplateId);
 
 export const getDefaultTemplateForEventCategory = (category?: string) => {
   const templates = getPickerTemplatesForEventCategory(category);

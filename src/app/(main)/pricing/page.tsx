@@ -152,70 +152,67 @@ const planVisuals: Record<string, {
         badge: null,
         badgeColor: "",
         description: "Get started and explore the platform at no cost.",
-        accentClass: "border border-slate-100",
-        btnClass: "bg-slate-800 text-white hover:bg-slate-900",
-        checkClass: "bg-slate-100 text-slate-600",
+        accentClass: "border border-slate-100 light:border-[var(--site-border)]",
+        btnClass: "home-btn-glass py-[11px]",
+        checkClass: "bg-[var(--site-muted)]/12 text-[var(--site-muted)]",
     },
     starter: {
         badge: null,
         badgeColor: "",
         description: "For small personal galleries.",
-        accentClass: "border border-teal-100",
-        btnClass: "bg-teal-600 text-white hover:bg-teal-700",
-        checkClass: "bg-teal-50 text-teal-500",
+        accentClass: "border border-teal-100 light:border-teal-200",
+        btnClass: "home-btn-glass py-[11px]",
+        checkClass: "bg-teal-500/12 text-teal-500 light:text-teal-700",
     },
     basic: {
         badge: null,
         badgeColor: "",
         description: "For individuals and small events.",
-        accentClass: "border border-teal-100",
-        btnClass: "bg-teal-600 text-white hover:bg-teal-700",
-        checkClass: "bg-teal-50 text-teal-500",
+        accentClass: "border border-teal-100 light:border-teal-200",
+        btnClass: "home-btn-glass py-[11px]",
+        checkClass: "bg-teal-500/12 text-teal-500 light:text-teal-700",
     },
     standard: {
         badge: null,
         badgeColor: "",
         description: "Best for frequent users and families.",
-        accentClass: "border border-sky-100",
-        btnClass: "bg-sky-600 text-white hover:bg-sky-700",
-        checkClass: "bg-sky-50 text-sky-500",
+        accentClass: "border border-sky-100 light:border-sky-200",
+        btnClass: "home-btn-glass py-[11px]",
+        checkClass: "bg-sky-500/12 text-sky-500 light:text-sky-700",
     },
     premium: {
         badge: "Most Popular",
-        badgeColor: "bg-sky-600",
+        badgeColor: "bg-[var(--site-gold)] text-[var(--site-on-gold)]",
         description: "For professional photographers.",
-        accentClass: "ring-2 ring-sky-500",
-        btnClass: "bg-sky-600 text-white hover:bg-sky-700 shadow-lg shadow-sky-200",
-        checkClass: "bg-sky-100 text-sky-600",
+        accentClass: "ring-2 ring-[var(--site-gold)]",
+        btnClass: "home-btn-gold py-3",
+        checkClass: "bg-[var(--site-gold)]/12 text-[var(--site-gold-text)]",
     },
     pro: {
         badge: null,
         badgeColor: "",
         description: "For growing professional teams.",
-        accentClass: "border border-purple-100",
-        btnClass: "bg-purple-600 text-white hover:bg-purple-700",
-        checkClass: "bg-purple-50 text-purple-500",
+        accentClass: "border border-violet-100 light:border-violet-200",
+        btnClass: "home-btn-glass py-[11px]",
+        checkClass: "bg-violet-500/12 text-violet-500 light:text-violet-700",
     },
     elite: {
         badge: null,
-        badgeColor: "bg-purple-600",
+        badgeColor: "bg-pink-600 text-[var(--site-text)] light:text-white",
         description: "For studios and heavy users.",
-        accentClass: "ring-2 ring-purple-400",
-        btnClass: "bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-200",
-        checkClass: "bg-purple-100 text-purple-600",
+        accentClass: "ring-2 ring-pink-400",
+        btnClass: "home-btn-glass py-[11px]",
+        checkClass: "bg-pink-500/12 text-pink-500 light:text-pink-700",
     },
     ultimate: {
         badge: "Best Value",
-        badgeColor: "bg-orange-600",
+        badgeColor: "bg-[var(--site-gold)]/15 text-[var(--site-gold-text)]",
         description: "For large studios and high-volume workflows.",
-        accentClass: "ring-2 ring-orange-400",
-        btnClass: "bg-orange-600 text-white hover:bg-orange-700 shadow-lg shadow-orange-200",
-        checkClass: "bg-orange-100 text-orange-600",
+        accentClass: "ring-1 ring-[var(--site-gold)]/50",
+        btnClass: "home-btn-glass py-[11px]",
+        checkClass: "bg-[var(--site-gold)]/12 text-[var(--site-gold-text)]",
     },
 };
-
-// Shown first so visitors compare a few clear options; the rest sit behind "See all plans".
-const featuredPlanIds = ["free", "starter", "premium", "ultimate"];
 
 const includedInEveryPlan = [
     "Find You: guests find their photos with a selfie",
@@ -271,15 +268,11 @@ function loadRazorpayScript() {
 export default function Pricing() {
     const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
     const [plans, setPlans] = useState<PricingPlan[]>([]);
-    const [showAllPlans, setShowAllPlans] = useState(false);
     const [pricingStatus, setPricingStatus] = useState<"loading" | "ready" | "unavailable">("loading");
     const [checkoutPlanId, setCheckoutPlanId] = useState<string | null>(null);
     const [checkoutMessage, setCheckoutMessage] = useState<CheckoutMessage | null>(null);
     const [currentSubscription, setCurrentSubscription] = useState<CurrentSubscription | null>(null);
     const [confirmPlan, setConfirmPlan] = useState<PricingPlan | null>(null);
-    const featuredPlans = plans.filter((plan) => featuredPlanIds.includes(plan.id));
-    const visiblePlans = showAllPlans || featuredPlans.length < 2 ? plans : featuredPlans;
-    const hiddenPlanCount = plans.length - visiblePlans.length;
     const selectedCycle = billingCycles.find((cycle) => cycle.key === billingCycle) || billingCycles[0];
     const newPlanStartDate = new Date();
     const newPlanEndDate = addMonths(newPlanStartDate, cycleDurationsInMonths[billingCycle]);
@@ -558,7 +551,7 @@ export default function Pricing() {
 
                 {/* Header */}
                 <div className="text-center mb-16 space-y-4">
-                    <h1 className="font-serif text-4xl text-[var(--site-text)] md:text-5xl">Simple, transparent pricing</h1>
+                    <h1 className="home-gold-text mb-2 pb-2 font-serif text-4xl md:text-5xl">Simple, transparent pricing</h1>
                     <p className="mx-auto max-w-2xl text-lg font-light text-[var(--site-subtle)]">
                         Start free with one event. Every plan includes the full guest gallery; paid plans add events and storage.
                     </p>
@@ -575,7 +568,7 @@ export default function Pricing() {
                                     onClick={() => setBillingCycle(cycle.key)}
                                     className={`rounded-xl px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all ${
                                         isActive
-                                            ? "bg-[#CA9C68] text-[#13191F] shadow-lg shadow-[#CA9C68]/20"
+                                            ? "bg-[var(--site-gold)] text-[var(--site-on-gold)] shadow-lg shadow-[var(--site-gold)]/20"
                                             : "text-[var(--site-muted)] hover:bg-[var(--site-card-muted)] hover:text-[var(--site-text)]"
                                     }`}
                                 >
@@ -590,10 +583,10 @@ export default function Pricing() {
                     <div
                         className={`mx-auto mb-8 max-w-2xl rounded-2xl border px-5 py-4 text-center text-sm font-medium ${
                             checkoutMessage.type === "success"
-                                ? "border-emerald-500/30 bg-emerald-900/30 text-emerald-300"
+                                ? "border-emerald-500/30 bg-emerald-900/30 text-emerald-300 light:bg-emerald-50 light:text-emerald-800"
                                 : checkoutMessage.type === "info"
-                                    ? "border-[#CA9C68]/30 bg-[#CA9C68]/10 text-[var(--site-subtle)]"
-                                    : "border-rose-500/30 bg-rose-900/30 text-rose-300"
+                                    ? "border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 text-[var(--site-subtle)]"
+                                    : "border-rose-500/30 bg-rose-900/30 text-rose-300 light:bg-rose-50 light:text-rose-800"
                         }`}
                     >
                         {checkoutMessage.text}
@@ -608,13 +601,13 @@ export default function Pricing() {
                 )}
 
                 {pricingStatus === "unavailable" && (
-                    <div className="mx-auto max-w-2xl rounded-2xl border border-amber-500/30 bg-amber-900/20 p-10 text-center shadow-sm">
-                        <p className="text-sm font-bold uppercase tracking-widest text-amber-300">Pricing Unavailable</p>
+                    <div className="mx-auto max-w-2xl rounded-2xl border border-amber-500/30 bg-amber-900/20 p-10 text-center shadow-sm light:bg-amber-50">
+                        <p className="text-sm font-bold uppercase tracking-widest text-amber-300 light:text-amber-800">Pricing Unavailable</p>
                         <h2 className="mt-3 font-serif text-2xl text-[var(--site-text)]">Pricing is temporarily unavailable.</h2>
                         <p className="mt-3 text-sm leading-6 text-[var(--site-subtle)]">
                             We could not load the latest pricing plans right now. Please try again shortly or contact support.
                         </p>
-                        <Link href="/contact-us" className="mt-6 inline-block rounded-xl bg-[#CA9C68] px-5 py-3 text-xs font-bold uppercase tracking-widest text-[#13191F] transition-colors hover:bg-[#D9AE7E]">
+                        <Link href="/contact-us" className="mt-6 inline-block rounded-full home-btn-gold px-5 py-3 text-xs font-bold">
                             Contact Support
                         </Link>
                     </div>
@@ -624,7 +617,7 @@ export default function Pricing() {
                 {pricingStatus === "ready" && (
                 <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
-                    {visiblePlans.map((plan) => {
+                    {plans.map((plan) => {
                         const visual = planVisuals[plan.id] || planVisuals.starter;
                         const price = getPlanPrice(plan, billingCycle);
                         const actualPrice = getPlanActualPrice(plan, billingCycle);
@@ -640,7 +633,7 @@ export default function Pricing() {
                         >
                             {/* Badge */}
                             {visual.badge && (
-                                <div className={`${visual.badgeColor} text-white text-xs font-bold py-1.5 text-center uppercase tracking-widest`}>
+                                <div className={`${visual.badgeColor} text-xs font-bold py-1.5 text-center uppercase tracking-widest`}>
                                     {visual.badge}
                                 </div>
                             )}
@@ -680,7 +673,7 @@ export default function Pricing() {
 
                                 {plan.id === "free" ? (
                                     <Link href={ctaHref} className="block w-full mt-auto">
-                                        <div className={`w-full py-3 text-center rounded-xl uppercase tracking-widest text-xs font-bold transition-all duration-300 active:scale-95 ${visual.btnClass}`}>
+                                        <div className={`w-full text-center rounded-full text-xs font-bold transition-all duration-300 active:scale-95 ${visual.btnClass}`}>
                                             {cta}
                                         </div>
                                     </Link>
@@ -689,7 +682,7 @@ export default function Pricing() {
                                         type="button"
                                         onClick={() => openCheckoutConfirmation(plan)}
                                         disabled={isCheckingOut}
-                                        className={`w-full py-3 text-center rounded-xl uppercase tracking-widest text-xs font-bold transition-all duration-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70 ${visual.btnClass}`}
+                                        className={`w-full text-center rounded-full text-xs font-bold transition-all duration-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70 ${visual.btnClass}`}
                                     >
                                         {isCheckingOut ? "Starting Checkout..." : cta}
                                     </button>
@@ -699,24 +692,13 @@ export default function Pricing() {
                         );
                     })}
                 </div>
-                {hiddenPlanCount > 0 && (
-                    <div className="mt-8 flex justify-center">
-                        <button
-                            type="button"
-                            onClick={() => setShowAllPlans(true)}
-                            className="rounded-full border border-[var(--site-border)] px-6 py-3 text-sm font-semibold text-[var(--site-text)] transition-colors hover:border-[#CA9C68]/60 hover:bg-[#CA9C68]/10"
-                        >
-                            See all {plans.length} plans
-                        </button>
-                    </div>
-                )}
 
                 <div className="mx-auto mt-12 max-w-4xl rounded-2xl border border-[var(--site-border)] bg-[var(--site-card)] p-6 md:p-8">
                     <h2 className="text-center font-serif text-xl text-[var(--site-text)]">Included in every plan</h2>
                     <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {includedInEveryPlan.map((feature) => (
                             <li key={feature} className="flex items-start gap-2 text-sm text-[var(--site-subtle)]">
-                                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#CA9C68]" />
+                                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--site-gold-text)]" />
                                 {feature}
                             </li>
                         ))}
@@ -760,11 +742,11 @@ export default function Pricing() {
 
                                 <div className={`rounded-xl border p-4 ${
                                     confirmPlanIsDowngrade
-                                        ? "border-amber-500/30 bg-amber-900/20"
-                                        : "border-emerald-500/30 bg-emerald-900/20"
+                                        ? "border-amber-500/30 bg-amber-900/20 light:bg-amber-50"
+                                        : "border-emerald-500/30 bg-emerald-900/20 light:bg-emerald-50"
                                 }`}>
                                     <p className={`text-[11px] font-black uppercase tracking-widest ${
-                                        confirmPlanIsDowngrade ? "text-amber-300" : "text-emerald-300"
+                                        confirmPlanIsDowngrade ? "text-amber-300 light:text-amber-800" : "text-emerald-300 light:text-emerald-800"
                                     }`}>
                                         {confirmPlanIsDowngrade ? "Scheduled Plan" : "New Plan After Payment"}
                                     </p>
@@ -775,7 +757,7 @@ export default function Pricing() {
                                 </div>
                             </div>
 
-                            <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-900/20 p-4 text-sm leading-6 text-amber-200">
+                            <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-900/20 p-4 text-sm leading-6 text-amber-200 light:bg-amber-50 light:text-amber-900">
                                 {confirmPlanIsDowngrade
                                     ? "Downgrades are scheduled for the next billing cycle so your current paid storage is not reduced early."
                                     : "Your current plan period will be replaced by this new plan period. The upgraded storage and limits will apply immediately after payment verification."}
@@ -812,7 +794,7 @@ export default function Pricing() {
                         Running a large studio or enterprise operation? Let&apos;s build a plan tailored to your exact needs.
                     </p>
                     <Link href="/contact-us" className="inline-block">
-                        <span className="text-[#CA9C68] font-semibold border-b-2 border-transparent hover:border-[#CA9C68] transition-all duration-300">
+                        <span className="text-[var(--site-gold-text)] font-semibold border-b-2 border-transparent hover:border-[var(--site-gold)] transition-all duration-300">
                             Contact Us for Custom Quote &rarr;
                         </span>
                     </Link>

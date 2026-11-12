@@ -1,0 +1,55 @@
+"use client";
+
+import Link from "next/link";
+import { confettiDisplay } from "@/components/confetti/confettiFonts";
+import { THEME_FOOTER_LEFT_LINKS as LEFT_LINKS, THEME_FOOTER_RIGHT_LINKS as RIGHT_LINKS } from "@/components/themeFooterLinks";
+import { coupleInitials, displayCoupleTitle } from "../../../shared/text/coupleNames";
+import { CONFETTI_FOOTER_TEAR_PAPER_PATH, CONFETTI_FOOTER_TEAR_SHADOW_PATH } from "../../../shared/themes/confettiCircle";
+
+// Footer of every Confetti Circle guest page (gallery, albums, Find You), drawn by EventRouteShell in place of the
+// shared one-line event footer (styles in src/app/confetti-circle.css). A torn-paper edge, then: links to EveBash on
+// the left, the couple's initials "S ♥ R" with "Made with EveBash" under them in the middle, and the legal pages and
+// Contact us on the right. Titles that aren't two names show the title instead of initials.
+
+export function ConfettiFooter({ title }: { title: string }) {
+    const initials = coupleInitials(title);
+
+    return (
+        <footer className={`confetti-footer ${confettiDisplay.variable}`}>
+            <svg className="confetti-footer__tear" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true">
+                {/* A grey shadow under the torn edge, then the footer's paper */}
+                <path className="confetti-footer__tear-shadow" d={CONFETTI_FOOTER_TEAR_SHADOW_PATH} />
+                <path className="confetti-footer__tear-paper" d={CONFETTI_FOOTER_TEAR_PAPER_PATH} />
+            </svg>
+
+            <div className="confetti-footer__inner">
+                <nav className="confetti-footer__links confetti-footer__links--left" aria-label="EveBash">
+                    {LEFT_LINKS.map((link) => (
+                        <Link key={link.href} href={link.href} className="confetti-footer__link">{link.label}</Link>
+                    ))}
+                </nav>
+
+                <div className="confetti-footer__middle">
+                    <p className={initials ? "confetti-footer__couple" : "confetti-footer__couple confetti-footer__couple--title"}>
+                        {initials ? (
+                            <>
+                                {initials[0]}
+                                <span className="confetti-footer__heart" aria-label="and">♥</span>
+                                {initials[1]}
+                            </>
+                        ) : displayCoupleTitle(title)}
+                    </p>
+                    <p className="confetti-footer__made">
+                        Made with <Link href="/" className="confetti-footer__brand">EveBash</Link>
+                    </p>
+                </div>
+
+                <nav className="confetti-footer__links confetti-footer__links--right" aria-label="Legal and contact">
+                    {RIGHT_LINKS.map((link) => (
+                        <Link key={link.href} href={link.href} className="confetti-footer__link">{link.label}</Link>
+                    ))}
+                </nav>
+            </div>
+        </footer>
+    );
+}

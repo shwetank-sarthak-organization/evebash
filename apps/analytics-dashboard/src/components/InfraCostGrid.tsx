@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { DashboardStats, UserProfile, Event, GuestLog, Photo } from '../lib/analytics';
+import { storedBytes, type DashboardStats, type UserProfile, type Event, type GuestLog, type Photo } from '../lib/analytics';
 import {
   DollarSign,
   HardDrive,
@@ -916,7 +916,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   
   // Storage Footprint calculations
   const totalStorage = useMemo(() => {
-    return photos.reduce((sum, p) => sum + (Number(p.size) || 0), 0);
+    return photos.reduce((sum, p) => sum + storedBytes(p), 0);
   }, [photos]);
   const totalStorageGB = totalStorage / (1024 * 1024 * 1024);
   const liveB2Bytes = typeof liveB2Usage?.totalBytes === 'number' ? liveB2Usage.totalBytes : null;
@@ -1634,10 +1634,10 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     photos.forEach(p => {
       if (p.mediaType === 'video') {
         videoCount++;
-        videoSize += p.size;
+        videoSize += storedBytes(p);
       } else {
         photoCount++;
-        photoSize += p.size;
+        photoSize += storedBytes(p);
       }
     });
 

@@ -1,17 +1,23 @@
-import { CalendarDays, HardDrive, Lock } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { BookOpen, CalendarDays, ChevronDown, HardDrive, Image as ImageIcon, Lock, Mic, Video } from "lucide-react";
 import { formatStorageSize, getUsagePercent } from "@/lib/planLimits";
 import type { StorageBreakdown } from "@/lib/database";
 import { cn } from "@/lib/utils";
+import { EVENT_SIZES_SHOWN } from "../../shared/storage/eventSizes";
 
 interface StorageBreakdownCardProps {
     usage: StorageBreakdown;
     planBytes: number;
     planLabel: string;
     loading?: boolean;
+    /** The plan's end date has passed: its storage no longer applies, so no meter or free space is shown. */
+    planExpired?: boolean;
 }
 
 // Events and EB Vault draw from the same plan storage, so both are shown against one limit.
-export function StorageBreakdownCard({ usage, planBytes, planLabel, loading }: StorageBreakdownCardProps) {
+export function StorageBreakdownCard({ usage, planBytes, planLabel, loading, planExpired }: StorageBreakdownCardProps) {
     const unlimited = planBytes === Infinity;
     const percent = getUsagePercent(usage.total, planBytes);
     const overLimit = !unlimited && usage.total > planBytes;
@@ -19,60 +25,135 @@ export function StorageBreakdownCard({ usage, planBytes, planLabel, loading }: S
     const eventShare = usage.total > 0 ? (usage.events / usage.total) * percent : 0;
     const vaultShare = usage.total > 0 ? (usage.vault / usage.total) * percent : 0;
 
-    const rows = [
-        { icon: CalendarDays, label: "Event Storage", bytes: usage.events, swatch: "bg-[#CA9C68]" },
-        { icon: Lock, label: "Vault Storage", bytes: usage.vault, swatch: "bg-[#7FA38C]" },
-    ];
+    const [eventsOpen, setEventsOpen] = useState(false);
+    const [allEventsShown, setAllEventsShown] = useState(false);
+    const eventSizes = usage.eventSizes ?? [];
+    const parts = usage.eventParts;
+    // Album designs only exist with album proofing, so that line shows up only once there are some.
+    const eventParts = parts ? [
+        { icon: ImageIcon, label: "Photos", bytes: parts.photos },
+        { icon: Video, label: "Videos", bytes: parts.videos },
+        { icon: Mic, label: "Voice notes", bytes: parts.voiceNotes },
+        ...(parts.albumDesigns > 0 ? [{ icon: BookOpen, label: "Album designs", bytes: parts.albumDesigns }] : []),
+    ] : [];
+    const canExpand = eventParts.length > 0 || eventSizes.length > 0;
 
     return (
-        <div className="rounded-2xl bg-slate-900 p-4">
+        <div className="rounded-2xl bg-[var(--site-surface)] p-4">
             <div className="flex items-center justify-between gap-3">
-                <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+                <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]">
                     <HardDrive className="h-3.5 w-3.5" aria-hidden />
                     Storage
                 </p>
-                <p className="text-[11px] font-bold text-slate-500">{planLabel} plan</p>
+                <p className={cn("text-[11px] font-bold", planExpired ? "text-rose-300 light:text-rose-700" : "text-[var(--site-muted)]")}>{planLabel} plan{planExpired && " · expired"}</p>
             </div>
 
-            <p className="mt-2 text-xl font-black text-white">
+            <p className="mt-2 text-xl font-black text-[var(--site-text)]">
                 {loading ? "…" : formatStorageSize(usage.total)}
-                <span className="text-sm font-bold text-slate-400"> of {unlimited ? "Unlimited" : planLabel} used</span>
+                <span className="text-sm font-bold text-[var(--site-muted)]">{planExpired ? " used" : ` of ${unlimited ? "Unlimited" : planLabel} used`}</span>
             </p>
 
-            {!unlimited && (
+            {!unlimited && !planExpired && (
                 <div
-                    className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-slate-800"
+                    className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-[var(--site-surface-2)]"
                     role="progressbar"
                     aria-label="Storage used"
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={Math.round(percent)}
                 >
-                    <div className="h-full bg-[#CA9C68]" style={{ width: `${eventShare}%` }} />
+                    <div className="h-full bg-[var(--site-gold)]" style={{ width: `${eventShare}%` }} />
                     <div className="h-full bg-[#7FA38C]" style={{ width: `${vaultShare}%` }} />
                 </div>
             )}
 
             <ul className="mt-4 space-y-2.5">
-                {rows.map(({ icon: Icon, label, bytes, swatch }) => (
-                    <li key={label} className="flex items-center justify-between gap-3 text-sm">
-                        <span className="flex items-center gap-2 font-semibold text-slate-300">
-                            <span className={cn("h-2.5 w-2.5 rounded-full", swatch)} aria-hidden />
-                            <Icon className="h-4 w-4 text-slate-500" aria-hidden />
-                            {label}
-                        </span>
-                        <span className="font-black text-white">{loading ? "…" : formatStorageSize(bytes)}</span>
-                    </li>
-                ))}
+                <li>
+                    {canExpand ? (
+                        <button
+                            type="button"
+                            onClick={() => setEventsOpen((open) => !open)}
+                            aria-expanded={eventsOpen}
+                            className="flex w-full items-center justify-between gap-3 text-left text-sm"
+                        >
+                            <EventStorageLabel />
+                            <span className="flex items-center gap-1.5 font-black text-[var(--site-text)]">
+                                {loading ? "…" : formatStorageSize(usage.events)}
+                                <ChevronDown className={cn("h-4 w-4 text-[var(--site-muted)] transition-transform", eventsOpen && "rotate-180")} aria-hidden />
+                            </span>
+                        </button>
+                    ) : (
+                        <div className="flex items-center justify-between gap-3 text-sm">
+                            <EventStorageLabel />
+                            <span className="font-black text-[var(--site-text)]">{loading ? "…" : formatStorageSize(usage.events)}</span>
+                        </div>
+                    )}
+                    {eventsOpen && eventSizes.length > 0 && (
+                        <div className="mt-2 ml-1 border-l border-[var(--site-line)] pl-4">
+                            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[var(--site-muted)]">By event</p>
+                            <ul className="mt-2 space-y-2">
+                                {(allEventsShown ? eventSizes : eventSizes.slice(0, EVENT_SIZES_SHOWN)).map((event) => (
+                                    <li key={event.eventId} className="flex items-center justify-between gap-3 text-xs">
+                                        <span className="min-w-0 truncate font-semibold text-[var(--site-muted)]" title={event.title}>{event.title}</span>
+                                        <span className="shrink-0 font-bold text-[var(--site-text)]">{formatStorageSize(event.bytes)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                            {eventSizes.length > EVENT_SIZES_SHOWN && (
+                                <button
+                                    type="button"
+                                    onClick={() => setAllEventsShown((shown) => !shown)}
+                                    className="mt-2 text-xs font-bold text-[var(--site-gold-text)]"
+                                >
+                                    {allEventsShown ? "Show fewer" : `Show all ${eventSizes.length} events`}
+                                </button>
+                            )}
+                            {eventParts.length > 0 && <p className="mt-3 text-[11px] font-black uppercase tracking-[0.12em] text-[var(--site-muted)]">By type</p>}
+                        </div>
+                    )}
+                    {eventsOpen && eventParts.length > 0 && (
+                        <ul className="mt-2 space-y-2 border-l border-[var(--site-line)] pl-4 ml-1">
+                            {eventParts.map(({ icon: Icon, label, bytes }) => (
+                                <li key={label} className="flex items-center justify-between gap-3 text-xs">
+                                    <span className="flex items-center gap-2 font-semibold text-[var(--site-muted)]">
+                                        <Icon className="h-3.5 w-3.5 text-[var(--site-muted)]" aria-hidden />
+                                        {label}
+                                    </span>
+                                    <span className="font-bold text-[var(--site-text)]">{formatStorageSize(bytes)}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </li>
+                <li className="flex items-center justify-between gap-3 text-sm">
+                    <span className="flex items-center gap-2 font-semibold text-[var(--site-subtle)]">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#7FA38C]" aria-hidden />
+                        <Lock className="h-4 w-4 text-[var(--site-muted)]" aria-hidden />
+                        Vault Storage
+                    </span>
+                    <span className="font-black text-[var(--site-text)]">{loading ? "…" : formatStorageSize(usage.vault)}</span>
+                </li>
             </ul>
 
-            <p className={cn("mt-3 text-[11px] font-medium", overLimit ? "text-rose-300" : "text-slate-500")}>
-                {overLimit
+            <p className={cn("mt-3 text-[11px] font-medium", overLimit || planExpired ? "text-rose-300 light:text-rose-700" : "text-[var(--site-muted)]")}>
+                {planExpired
+                    ? "Your plan has expired. Uploads are paused until you renew."
+                    : overLimit
                     ? "You're over your plan's storage. Existing files are safe, but new uploads are paused until you free up space or upgrade."
                     : unlimited
                         ? "Events and EB Vault share your plan storage."
                         : `${formatStorageSize(remaining)} free · Events and EB Vault share your plan storage.`}
             </p>
         </div>
+    );
+}
+
+function EventStorageLabel() {
+    return (
+        <span className="flex items-center gap-2 font-semibold text-[var(--site-subtle)]">
+            <span className="h-2.5 w-2.5 rounded-full bg-[var(--site-gold)]" aria-hidden />
+            <CalendarDays className="h-4 w-4 text-[var(--site-muted)]" aria-hidden />
+            Event Storage
+        </span>
     );
 }

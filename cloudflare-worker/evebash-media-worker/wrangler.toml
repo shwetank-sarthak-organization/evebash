@@ -1,0 +1,19 @@
+# The worker live on media.evebash.com/* (photos, previews, thumbnails, videos from B2).
+# Made in the Cloudflare dashboard; added to the repo 2026-10-24 from the deployed script.
+# The older ../src/index.ts (media-proxy) is NOT on media.evebash.com.
+# Secrets (set in Cloudflare, kept across deploys): B2_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET_NAME
+name = "evebash-media-worker"
+main = "worker.js"
+compatibility_date = "2026-06-02"
+workers_dev = true
+
+routes = [
+  { pattern = "media.evebash.com/*", zone_name = "evebash.com" }
+]
+
+[vars]
+# "on" = keep files in Cloudflare's edge cache (X-Media-Cache: HIT/MISS). Anything else = straight to B2, as before.
+MEDIA_EDGE_CACHE = "on"
+# "on" = pass the viewer's Range header to B2, so video seeking and resumed downloads get just the part asked for
+# (206), with Range allowed and Content-Range exposed for other sites. Anything else = the whole file, as before (#181).
+MEDIA_FORWARD_RANGE = "on"

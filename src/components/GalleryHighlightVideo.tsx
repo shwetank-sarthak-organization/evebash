@@ -7,14 +7,16 @@ import { HLSVideoPlayer } from "@/components/ui/HLSVideoPlayer";
 // The gallery's cinematic highlight video in every theme except Royal Emerald (which draws its own gold frame in
 // RoyalGalleryHeader). Colours come from the theme's --event-template-* variables; styles in gallery-refinements.css.
 
-export function GalleryHighlightVideo({ video, title }: {
+export function GalleryHighlightVideo({ video, title, className }: {
     video: { src: string; mediaId?: string; poster?: string };
     title: string;
+    /** Extra class on the outer box, for a theme's own frame (e.g. "midnight-film" in midnight-hero.css) */
+    className?: string;
 }) {
     const [playing, setPlaying] = useState(false);
 
     return (
-        <div className="gallery-highlight">
+        <div className={className ? `gallery-highlight ${className}` : "gallery-highlight"}>
             <div className="gallery-highlight__frame">
                 {playing ? (
                     <HLSVideoPlayer

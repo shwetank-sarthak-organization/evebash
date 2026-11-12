@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { motion, useInView, useReducedMotion } from "framer-motion";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { domAnimation, LazyMotion, m, useInView, useReducedMotion, type Easing } from "framer-motion";
 
 interface ScrollRevealProps {
     children: React.ReactNode;
@@ -10,6 +10,24 @@ interface ScrollRevealProps {
     delay?: number;
     direction?: "up" | "down" | "left" | "right" | "none";
     duration?: number;
+    distance?: number;
+    ease?: Easing;
+}
+
+// Content renders visible (server HTML, no JavaScript, background tabs). Only elements still below the
+// screen in a visible tab are hidden after load (armed), so they can animate in when scrolled to.
+export function useRevealArmed(ref: RefObject<HTMLElement | null>) {
+    const reducedMotion = useReducedMotion();
+    const inView = useInView(ref, { once: true, margin: "-10%" });
+    const [armed, setArmed] = useState(false);
+
+    useEffect(() => {
+        if (reducedMotion || document.visibilityState !== "visible" || !ref.current) return;
+        if (ref.current.getBoundingClientRect().top < window.innerHeight) return;
+        setArmed(true);
+    }, [reducedMotion, ref]);
+
+    return { armed, inView, show: !armed || inView };
 }
 
 export const ScrollReveal = ({
@@ -18,23 +36,14 @@ export const ScrollReveal = ({
     className = "",
     delay = 0,
     direction = "up",
-    duration = 0.8
+    duration = 0.8,
+    distance = 50,
+    ease
 }: ScrollRevealProps) => {
-    const ref = useRef(null);
-    const reducedMotion = useReducedMotion();
-    const isInView = useInView(ref, { once: true, margin: "-10%" });
-    // Content renders visible (server HTML, no JavaScript, background tabs). Only sections still below the
-    // screen in a visible tab are hidden after load, so they can animate in when scrolled to.
-    const [armed, setArmed] = useState(false);
-
-    useEffect(() => {
-        if (reducedMotion || document.visibilityState !== "visible" || !ref.current) return;
-        if ((ref.current as HTMLElement).getBoundingClientRect().top < window.innerHeight) return;
-        setArmed(true);
-    }, [reducedMotion]);
+    const ref = useRef<HTMLDivElement>(null);
+    const { show } = useRevealArmed(ref);
 
     const getVariants = () => {
-        const distance = 50;
         let initial = {};
 
         switch (direction) {
@@ -53,7 +62,7 @@ export const ScrollReveal = ({
                 opacity: 1,
                 transition: {
                     duration: duration,
-                    // ease: "easeOut", // Removed to fix build error
+                    ...(ease ? { ease } : {}),
                     delay: delay
                 }
             }
@@ -62,13 +71,17 @@ export const ScrollReveal = ({
 
     return (
         <div ref={ref} style={{ width, overflow: "hidden" }} className={className}>
-            <motion.div
-                variants={getVariants()}
-                initial={false}
-                animate={!armed || isInView ? "visible" : "hidden"}
-            >
-                {children}
-            </motion.div>
+            {/* Slim framer-motion: loads only the animation features this needs, on any page. */}
+            <LazyMotion features={domAnimation}>
+                <m.div
+                    className="h-full"
+                    variants={getVariants()}
+                    initial={false}
+                    animate={show ? "visible" : "hidden"}
+                >
+                    {children}
+                </m.div>
+            </LazyMotion>
         </div>
     );
 };

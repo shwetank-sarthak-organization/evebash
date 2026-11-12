@@ -1803,7 +1803,8 @@ export const visitorImmersiveStyles = {
   emptyGuestbook: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 44,
+    // 44 pushed "Write the first beautiful word." under the comment box (#237); the list already pads 22 / 26
+    paddingVertical: 4,
     opacity: 0.55,
   },
   emptyGuestbookIcon: {

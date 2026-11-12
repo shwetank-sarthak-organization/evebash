@@ -105,7 +105,7 @@ export default function SampleGalleryView({ client, initial }: { client: string;
             <div className="relative z-10 mx-auto -mt-20 max-w-7xl rounded-t-[3rem] bg-[var(--site-bg)] px-4 py-24 shadow-2xl shadow-black/20 sm:px-6 lg:px-8">
                 {/* Breadcrumb / Back Link */}
                 <div className="mb-16 flex items-center justify-between">
-                    <Link href="/sample-galleries" className="group inline-flex items-center space-x-2 text-royal-gold hover:text-royal-gold/80 transition-all text-sm font-bold uppercase tracking-widest">
+                    <Link href="/sample-galleries" className="group inline-flex items-center space-x-2 text-royal-gold hover:text-royal-gold/80 light:text-[var(--site-gold-text)] light:hover:text-[var(--site-gold-text)]/80 transition-all text-sm font-bold uppercase tracking-widest">
                         <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                         <span>Back to Albums</span>
                     </Link>

@@ -5,10 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, canCommentOnPhoto } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
 import { getImageUrl } from "@/lib/imageUrl";
+import { getOriginalMediaUrl } from "@/lib/zipDownload";
 import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2, Loader2, Image as ImageIcon, RotateCcw, RotateCw, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HLSVideoPlayer } from "@/components/ui/HLSVideoPlayer";
-import { confirmDialog } from "@/components/ui/Modal";
+import { confirmDialog, isDialogOpen } from "@/components/ui/Modal";
+import { formatCommentTime } from "../../../shared/text/commentTime";
 
 export interface LightboxTheme {
     background?: string;
@@ -55,14 +57,12 @@ interface LightboxProps {
     compactMedia?: boolean;
 }
 
-type InteractionTimestamp = string | { seconds: number } | null;
-
 interface PhotoInteractionLike {
     id: string;
     userId: string;
     userName: string;
     profileImage?: string | null;
-    createdAt?: InteractionTimestamp;
+    createdAt?: string | null;
 }
 
 interface PhotoInteractionComment {
@@ -72,21 +72,12 @@ interface PhotoInteractionComment {
     profileImage?: string | null;
     text: string;
     parentId?: string | null;
-    createdAt?: InteractionTimestamp;
+    createdAt?: string | null;
 }
 
 function addAlpha(color: string, alpha: string) {
     if (/^#[0-9a-fA-F]{6}$/.test(color)) return `${color}${alpha}`;
     return color;
-}
-
-function formatInteractionTime(createdAt?: InteractionTimestamp) {
-    if (!createdAt) return "Now";
-
-    const date = typeof createdAt === "string" ? new Date(createdAt) : new Date(createdAt.seconds * 1000);
-    if (Number.isNaN(date.getTime())) return "Now";
-
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 export function Lightbox({
@@ -239,7 +230,7 @@ export function Lightbox({
     const handleDeleteComment = async (commentId: string) => {
         if (!(await confirmDialog({ title: "Delete comment?", message: "Are you sure you want to delete this comment?", confirmLabel: "Delete", tone: "danger" }))) return;
         try {
-            await deletePhotoComment(commentId);
+            await deletePhotoComment(commentId, photo?.id);
         } catch (err) {
             console.error("Delete failed", err);
         }
@@ -249,7 +240,8 @@ export function Lightbox({
         e.stopPropagation();
         if (!photo || disableDownload) return;
         try {
-            const downloadUrl = photo.src;
+            // Videos: the uploaded file, not the streaming playlist
+            const downloadUrl = getOriginalMediaUrl(photo.src);
             const link = document.createElement('a');
             link.href = downloadUrl;
             link.setAttribute('download', photo.filename || 'wedding-photo');
@@ -321,6 +313,8 @@ export function Lightbox({
     // Handle Keyboard events
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // A confirm on top (e.g. Delete comment) handles its own keys: Esc closes it, not the viewer
+            if (isDialogOpen()) return;
             if (e.key === "Escape") onClose();
             
             // Don't navigate if user is typing in a comment or reply
@@ -653,7 +647,7 @@ export function Lightbox({
                                             <h3 className={cn("text-2xl font-bold italic", viewerTheme.useSerif && "font-serif")} style={{ color: viewerTheme.text }}>Guestbook</h3>
                                             <div className="text-[10px] font-bold uppercase tracking-[0.2em] mt-1.5 flex items-center" style={{ color: viewerTheme.muted }}>
                                                 <div className="w-1 h-1 rounded-full mr-2 animate-pulse" style={{ backgroundColor: viewerTheme.accent }} />
-                                                {comments.length} Shared Thoughts
+                                                {comments.length} {comments.length === 1 ? "Shared Thought" : "Shared Thoughts"}
                                             </div>
                                         </div>
                                         <button
@@ -695,7 +689,7 @@ export function Lightbox({
                                                                 <div className="flex items-center justify-between">
                                                                     <span className="text-xs font-bold truncate pr-2" style={{ color: viewerTheme.text }}>{comment.userName}</span>
                                                                     <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: viewerTheme.muted }}>
-                                                                        {formatInteractionTime(comment.createdAt)}
+                                                                        {formatCommentTime(comment.createdAt)}
                                                                     </span>
                                                                 </div>
                                                                 <div className="p-4 rounded-2xl rounded-tl-none border shadow-sm group" style={{ backgroundColor: viewerTheme.tile, borderColor: viewerTheme.border }}>
@@ -743,7 +737,7 @@ export function Lightbox({
                                                                     <div className="flex items-center justify-between">
                                                                         <span className="text-[11px] font-bold truncate pr-2" style={{ color: viewerTheme.text }}>{reply.userName}</span>
                                                                         <span className="text-[9px] font-medium whitespace-nowrap" style={{ color: viewerTheme.muted }}>
-                                                                            {formatInteractionTime(reply.createdAt)}
+                                                                            {formatCommentTime(reply.createdAt)}
                                                                         </span>
                                                                     </div>
                                                                     <div className="p-3 rounded-xl rounded-tl-none border shadow-sm group" style={{ backgroundColor: viewerTheme.tile, borderColor: viewerTheme.border }}>

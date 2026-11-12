@@ -17,13 +17,26 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
 import { getWebTemplateComponent } from "@/components/templateRegistry";
 import { RoyalGalleryHeader } from "@/components/royal/RoyalGalleryHeader";
+import { MidnightGalleryHeader } from "@/components/midnight/MidnightGalleryHeader";
 import { GalleryHighlightVideo } from "@/components/GalleryHighlightVideo";
 import { getWebLightboxTheme, getWebTemplateChrome } from "@/lib/webTemplateTheme";
+import { ClassicGalleryHeader } from "@/components/classic/ClassicGalleryHeader";
+import { ConfettiCoupleSection } from "@/components/confetti/ConfettiCoupleSection";
+import type { ThemeContent } from "../../../../../shared/themes/themeContent";
+import { ConfettiGalleryHeader } from "@/components/confetti/ConfettiGalleryHeader";
+import { coverImageStyle } from "@/lib/coverStyle";
+import { PortraitGalleryHeader } from "@/components/portrait/PortraitGalleryHeader";
 import { supabase } from "@/lib/supabase";
 import { uploadEventImage } from "@/lib/storage";
 import { alertDialog } from "@/components/ui/Modal";
+import { GuestEditBar } from "@/components/guestEdit/GuestEditBar";
+import { GuestEditSpots } from "@/components/guestEdit/EditChip";
+import { useCoverTarget, withScreenCover } from "@/lib/screenCover";
+import { GUEST_EDIT_ENABLED, editedVideoFor, getGuestEditState, startGuestEdit, useGuestEditState, wasEditing, withGuestEdits } from "@/components/guestEdit/guestEditStore";
 
 const PUBLIC_PAGE_SIZE = 60;
+
+const isVideoMedia = (item: { mediaType?: string; resourceType?: string }) => item.mediaType === "video" || item.resourceType === "video";
 
 type GateState = "login_required" | "none" | "pending" | "rejected" | "error";
 
@@ -92,13 +105,18 @@ function EventPageContent() {
     const searchParams = useSearchParams();
     const slug = params.slug as string;
     const isShared = searchParams.get("shared") === "true";
+    // The Design tab's small preview of this page (GuestPagePreview): never starts edit mode
+    const isPagePreview = searchParams.get("preview") === "1";
     const { user, loading: authLoading } = useAuth();
 
-    const [event, setEvent] = useState<Event | any | null>(null);
+    const [loadedEvent, setEvent] = useState<Event | any | null>(null);
+    // The main event's title and category when this page is an album opened by its own link (Classic White's cover
+    // shows them)
+    const [loadedParentInfo, setParentInfo] = useState<{ title?: string; category?: string; date?: string; themeContent?: ThemeContent }>({});
     const [subEvents, setSubEvents] = useState<Event[]>([]);
     const [photos, setPhotos] = useState<any[]>([]);
     const [mediaTotals, setMediaTotals] = useState({ photos: 0, videos: 0 });
-    const [activeGallery, setActiveGallery] = useState<Event | null>(null);
+    const [loadedActiveGallery, setActiveGallery] = useState<Event | null>(null);
     const [galleryMediaTab, setGalleryMediaTab] = useState<"photos" | "videos">("photos");
     const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
     const [favouriteMediaIds, setFavouriteMediaIds] = useState<Set<string>>(new Set());
@@ -110,6 +128,11 @@ function EventPageContent() {
     const [photoPage, setPhotoPage] = useState(0);
     const [hasMorePhotos, setHasMorePhotos] = useState(false);
     const [loadingMorePhotos, setLoadingMorePhotos] = useState(false);
+    // The next page loads on its own near the end of the grid; the button only shows if that fails
+    // (or the browser can't watch the scroll position)
+    const [loadMoreFailed, setLoadMoreFailed] = useState(false);
+    const [canAutoLoad, setCanAutoLoad] = useState(true);
+    const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
     // What this viewer may do with the link (open_gallery)
     const [access, setAccess] = useState<GalleryAccess | null>(null);
@@ -123,6 +146,28 @@ function EventPageContent() {
     const [guestUploadError, setGuestUploadError] = useState("");
     const guestFileInputRef = useRef<HTMLInputElement | null>(null);
 
+    // Preview Guest Theme's edit mode (todo #11): the event's managers see their unsaved changes on the real page.
+    // Everyone else, and everyone while NEXT_PUBLIC_GUEST_EDIT_MODE is off, gets the loaded gallery unchanged.
+    const guestEdit = useGuestEditState();
+    const editRootId: string | null = loadedEvent ? loadedEvent.parentId || loadedEvent.id : null;
+    const isEditing = GUEST_EDIT_ENABLED && access === "manage" && !!editRootId && guestEdit.rootId === editRootId;
+    // Phones get the gallery's phone cover, wider screens its computer cover (shared/themes/phoneCover.ts)
+    const coverTarget = useCoverTarget();
+    const event = withScreenCover(isEditing ? withGuestEdits(loadedEvent, guestEdit) : loadedEvent, coverTarget);
+    const activeGallery = withScreenCover(isEditing ? withGuestEdits(loadedActiveGallery, guestEdit) : loadedActiveGallery, coverTarget);
+    // An album's cover also shows its main event's title and date
+    const editedParent = isEditing && loadedEvent?.parentId
+        ? withGuestEdits({ ...loadedParentInfo, id: loadedEvent.parentId } as Event, guestEdit)
+        : null;
+    const parentInfo = editedParent
+        ? { title: editedParent.title, category: editedParent.category, date: editedParent.date, themeContent: editedParent.themeContent }
+        : loadedParentInfo;
+
+    // Opened with ?edit=1 (Design tab > Preview Guest Theme), or reloaded while editing
+    useEffect(() => {
+        if (!GUEST_EDIT_ENABLED || isPagePreview || access !== "manage" || !editRootId) return;
+        if (searchParams.get("edit") === "1" || wasEditing(editRootId)) startGuestEdit(editRootId);
+    }, [access, editRootId, isPagePreview, searchParams]);
 
     // Parallax logic
     const containerRef = useRef(null);
@@ -202,7 +247,24 @@ function EventPageContent() {
         });
         return () => { cancelled = true; };
     }, [wantsGalleryVideo, shownGalleryId, shownGallery?.galleryVideoId]);
-    const galleryVideo = wantsGalleryVideo && loadedGalleryVideo?.galleryId === shownGalleryId ? loadedGalleryVideo.video : null;
+    const savedGalleryVideo = wantsGalleryVideo && loadedGalleryVideo?.galleryId === shownGalleryId ? loadedGalleryVideo.video : null;
+    const editedGalleryVideo = isEditing && shownGalleryId ? editedVideoFor(guestEdit, shownGalleryId) : undefined;
+    const galleryVideo = editedGalleryVideo !== undefined ? editedGalleryVideo : savedGalleryVideo;
+
+    // A gallery with videos but no photos opens on Videos. Decided once per gallery, after its media has loaded,
+    // so a guest who then picks Photos keeps their choice.
+    const mediaTabChosenFor = useRef<string | null>(null);
+    useEffect(() => {
+        if (loading || !shownGalleryId || mediaTabChosenFor.current === shownGalleryId) return;
+        const loadedVideos = photos.filter(isVideoMedia).length;
+        const photoTotal = mediaTotals.photos || photos.length - loadedVideos;
+        const videoTotal = mediaTotals.videos || loadedVideos;
+        // Public galleries have no totals; wait until every page has loaded if the first one is only videos
+        const countsKnown = mediaTotals.photos + mediaTotals.videos > 0 || !hasMorePhotos;
+        if (photoTotal + videoTotal === 0 || !countsKnown) return;
+        mediaTabChosenFor.current = shownGalleryId;
+        if (photoTotal === 0 && videoTotal > 0) setGalleryMediaTab("videos");
+    }, [loading, shownGalleryId, photos, mediaTotals, hasMorePhotos]);
 
     const transformPhotos = (databasePhotos: DatabasePhoto[]) => databasePhotos.map(p => ({
         id: p.id,
@@ -219,7 +281,8 @@ function EventPageContent() {
 
     const loadGalleryPhotos = async (gallery: Event, page = 0, append = false, overrideSubEvents?: Event[]) => {
         if (!append) {
-            const favouriteRows = await getEventFavouritePhotos(gallery.id);
+            // Stars are saved under the main event (older app versions saved them under the album)
+            const favouriteRows = await getEventFavouritePhotos([gallery.id, gallery.parentId || "", event?.id || ""]);
             setFavouriteMediaIds(new Set(favouriteRows.map(row => row.photoId)));
         }
         const currentMainEvent = gallery.type === 'main' ? gallery : event;
@@ -246,10 +309,9 @@ function EventPageContent() {
                 setPhotos(mergeHomeMedia(favPhotos, ownPhotos));
                 // Home uploads that are also favourites are counted once
                 const extraFavourites = favPhotos.filter(photo => !homeIds.has(photo.eventId || ""));
-                const isVideoItem = (p: { mediaType?: string; resourceType?: string }) => p.mediaType === "video" || p.resourceType === "video";
                 setMediaTotals({
-                    photos: own.totalPhotos + extraFavourites.filter(p => !isVideoItem(p)).length,
-                    videos: own.totalVideos + extraFavourites.filter(isVideoItem).length,
+                    photos: own.totalPhotos + extraFavourites.filter(p => !isVideoMedia(p)).length,
+                    videos: own.totalVideos + extraFavourites.filter(isVideoMedia).length,
                 });
             } else {
                 setPhotos(prev => mergeHomeMedia(prev, ownPhotos));
@@ -290,6 +352,18 @@ function EventPageContent() {
         setActiveGallery(eventData.parentId ? eventData : null);
         setGalleryMediaTab("photos");
         setFavouriteMediaIds(new Set());
+        // An album's cover shows its main event's title (and Sunlit Portrait's date line uses its category and date).
+        // Read through open_gallery like the album itself, so it keeps working once anonymous table reads are locked down.
+        let parent: Event | undefined;
+        if (eventData.parentId) {
+            try {
+                const openedParent = await openGallery(eventData.parentId);
+                parent = openedParent.access === "public_view" ? openedParent.event : undefined;
+            } catch (e) {
+                console.error("[EventPage] Could not read the main event of this album:", e);
+            }
+        }
+        setParentInfo({ title: parent?.title, category: parent?.category, date: parent?.date, themeContent: parent?.themeContent });
         await loadPublicPhotos(eventData, 0, false);
     };
 
@@ -356,7 +430,9 @@ function EventPageContent() {
 
             // A sub-gallery hidden from guests opens only in the Host section, for everyone (the database also
             // refuses it to anyone but the event's managers)
-            if (eventData && eventData.parentId && eventData.isHidden) {
+            const editingHiddenAlbum = !!eventData?.parentId && GUEST_EDIT_ENABLED && opened.access === "manage"
+                && (searchParams.get("edit") === "1" || getGuestEditState().rootId === eventData.parentId || wasEditing(eventData.parentId));
+            if (eventData && eventData.parentId && eventData.isHidden && !editingHiddenAlbum) {
                 eventData = null;
             }
 
@@ -368,11 +444,18 @@ function EventPageContent() {
 
             // Sub-gallery links inherit the parent event's current visibility.
             let parentCategory: string | undefined;
+            let mainTitle: string | undefined;
+            let parentDate: string | undefined;
+            let parentThemeContent: ThemeContent | undefined;
             if (eventData.parentId) {
                 const parentEvent = await getEventById(eventData.parentId, true);
                 eventData.isPublic = !!parentEvent?.isPublic;
                 parentCategory = parentEvent?.category;
+                mainTitle = parentEvent?.title;
+                parentDate = parentEvent?.date;
+                parentThemeContent = parentEvent?.themeContent;
             }
+            setParentInfo({ title: mainTitle, category: parentCategory, date: parentDate, themeContent: parentThemeContent });
 
             // Resolve event cover image to preview format
             const eventCategory = eventData.category || parentCategory;
@@ -478,12 +561,33 @@ function EventPageContent() {
             } else {
                 await loadGalleryPhotos(currentGallery, nextPage, true);
             }
+            setLoadMoreFailed(false);
         } catch (error) {
             console.error("Error loading more photos:", error);
+            setLoadMoreFailed(true);
         } finally {
             setLoadingMorePhotos(false);
         }
     };
+
+    // Load the next page about two screens before the guest reaches the end, so it's usually there in time.
+    // Re-armed after every page (photos.length), so a short page that leaves the end in view loads the next one too.
+    const loadMorePhotosRef = useRef(loadMorePhotos);
+    loadMorePhotosRef.current = loadMorePhotos;
+    useEffect(() => {
+        if (typeof IntersectionObserver === "undefined") {
+            setCanAutoLoad(false);
+            return;
+        }
+        const sentinel = loadMoreSentinelRef.current;
+        if (!sentinel || !hasMorePhotos || loadMoreFailed) return;
+        const observer = new IntersectionObserver(
+            (entries) => { if (entries.some((entry) => entry.isIntersecting)) void loadMorePhotosRef.current(); },
+            { rootMargin: "0px 0px 1600px 0px" }
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [hasMorePhotos, loadMoreFailed, photos.length]);
 
     const handleShare = () => {
         const shareUrl = `${window.location.origin}/events/${slug}?shared=true`;
@@ -519,7 +623,7 @@ function EventPageContent() {
     }
 
     const photoItems = photos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video" && !!(photo.thumbnailUrl || photo.src));
-    const videoItems = photos.filter(photo => photo.mediaType === "video" || photo.resourceType === "video");
+    const videoItems = photos.filter(isVideoMedia);
     const selectedMediaItems = galleryMediaTab === "videos" ? videoItems : photoItems;
     const isPrimaryGalleryView = !activeGallery;
     const isFavouriteFilterActive = !isPrimaryGalleryView && !isPublicView && showOnlyFavourites;
@@ -546,13 +650,31 @@ function EventPageContent() {
 
     // Royal Emerald draws its own gallery header (crest, title, welcome plaque, Back / Share, Photos / Videos)
     const isRoyalGallery = displayEvent.templateId === "royal";
+    // Classic White shows the gallery message in its own gallery header and styles the shared buttons itself (classic-white.css).
+    // Sunlit Portrait, Confetti Circle and Periwinkle Script use the same gallery section below their cover.
+    const isClassicGallery = displayEvent.templateId === "classic" || displayEvent.templateId === "portrait" || displayEvent.templateId === "confetti" || displayEvent.templateId === "periwinkle";
+    // Confetti Circle: Classic White's gallery with its own header (ConfettiGalleryHeader)
+    const isConfettiGallery = displayEvent.templateId === "confetti";
+    // Midnight Hero (the default theme) draws its own gallery header (event name, star, title, count, film, Photos / Videos)
+    const isMidnightGallery = (displayEvent.templateId || "hero") === "hero";
+    // A new main gallery gets "Main Event: <title>" as its description; that isn't a message for guests
+    const midnightMessage = activeGalleryMessage?.trim() === `Main Event: ${event.title}` ? "" : activeGalleryMessage;
+    const ownHeader = isRoyalGallery || isClassicGallery || isMidnightGallery;
+    // An album goes back to its main gallery. On the main gallery, signed-in viewers go to their events; a guest who
+    // isn't signed in would land on the login page, so they go back up to the cover instead (#165)
     const goBack = () => {
-        router.push(event?.parentId ? `/events/${event.parentId}${isShared ? "?shared=true" : ""}` : "/dashboard");
+        if (event?.parentId) {
+            router.push(`/events/${event.parentId}${isShared ? "?shared=true" : ""}`);
+        } else if (user) {
+            router.push("/dashboard");
+        } else {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
     };
 
     const renderContent = () => (
         <div className={cn("contents themed-gallery-content", isRoyalGallery && "royal-gallery-content")}>
-            {!isRoyalGallery && (
+            {!ownHeader && (
             <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <button
                     onClick={goBack}
@@ -598,7 +720,7 @@ function EventPageContent() {
             </div>
             )}
 
-            <div className={cn(!isRoyalGallery && "mt-12")}>
+            <div className={cn(!ownHeader && "mt-12")}>
                 {isRoyalGallery ? (
                     <RoyalGalleryHeader
                         title={activeGallery ? activeGalleryTitle : "Home Gallery"}
@@ -614,6 +736,89 @@ function EventPageContent() {
                         onTabChange={setGalleryMediaTab}
                         video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
                     />
+                ) : isMidnightGallery ? (
+                    <MidnightGalleryHeader
+                        title={activeGallery ? activeGalleryTitle : "Home Gallery"}
+                        eventTitle={event.parentId ? parentInfo.title || undefined : event.title}
+                        message={midnightMessage}
+                        backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
+                        onBack={goBack}
+                        onShare={handleShare}
+                        copied={copied}
+                        photoCountLabel={displayedPhotoCount}
+                        videoCountLabel={displayedVideoCount}
+                        activeTab={galleryMediaTab}
+                        onTabChange={setGalleryMediaTab}
+                        video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
+                        editableTitle={!!activeGallery || !!event.parentId}
+                    />
+                ) : displayEvent.templateId === "portrait" ? (
+                    <PortraitGalleryHeader
+                        // The gallery's own name; the event's title is on the cover
+                        title={activeGallery ? activeGalleryTitle : event.parentId ? event.title || "Home" : "Home"}
+                        details={[displayEvent.date?.trim(), typeof displayEvent.location === "string" ? displayEvent.location.trim() : ""].filter(Boolean).join(" · ")}
+                        message={activeGalleryMessage}
+                        backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
+                        onBack={goBack}
+                        onShare={handleShare}
+                        copied={copied}
+                        photoCountLabel={displayedPhotoCount}
+                        videoCountLabel={displayedVideoCount}
+                        activeTab={galleryMediaTab}
+                        onTabChange={setGalleryMediaTab}
+                        video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl, width: galleryVideo.width, height: galleryVideo.height } : null}
+                        editableTitle={!!activeGallery || !!event.parentId}
+                    />
+                ) : isClassicGallery ? (
+                    <>
+                        {/* Confetti Circle: "We're getting married!", the bride, the highlight video (or cover photo) and the groom,
+                            above its own gallery header (which has no video) */}
+                        {isConfettiGallery && (
+                            <ConfettiCoupleSection
+                                title={event.parentId ? parentInfo.title || event.title : event.title}
+                                category={event.parentId ? parentInfo.category || event.category : event.category}
+                                // The couple belongs to the whole event: kept on the main gallery
+                                couple={(event.parentId ? parentInfo.themeContent : event.themeContent)?.couple}
+                                video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
+                                coverImage={displayEvent.coverImage}
+                                coverImageStyle={coverImageStyle(displayEvent)}
+                            />
+                        )}
+                        {isConfettiGallery ? (
+                            <ConfettiGalleryHeader
+                                // The gallery's own name (the album's, or the main gallery's)
+                                title={activeGalleryTitle}
+                                message={activeGalleryMessage}
+                                backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
+                                onBack={goBack}
+                                onShare={handleShare}
+                                copied={copied}
+                                photoCountLabel={displayedPhotoCount}
+                                videoCountLabel={displayedVideoCount}
+                                activeTab={galleryMediaTab}
+                                onTabChange={setGalleryMediaTab}
+                            />
+                        ) : (
+                            <ClassicGalleryHeader
+                                // The gallery's own name; the event's title is on the cover
+                                title={activeGallery ? activeGalleryTitle : event.parentId ? event.title || "Home" : "Home"}
+                                details={[displayEvent.date?.trim(), typeof displayEvent.location === "string" ? displayEvent.location.trim() : ""].filter(Boolean).join(" · ")}
+                                // Periwinkle Script shows the message in the card on its cover
+                                message={displayEvent.templateId === "periwinkle" ? "" : activeGalleryMessage}
+                                backLabel={event?.parentId ? "Back to Event" : "Back to Gallery"}
+                                onBack={goBack}
+                                onShare={handleShare}
+                                copied={copied}
+                                photoCountLabel={displayedPhotoCount}
+                                videoCountLabel={displayedVideoCount}
+                                activeTab={galleryMediaTab}
+                                onTabChange={setGalleryMediaTab}
+                                video={galleryVideo ? { src: galleryVideo.streamUrl, mediaId: galleryVideo.id, poster: galleryVideo.posterUrl } : null}
+                                editableTitle={!!activeGallery || !!event.parentId}
+                                messageElsewhere={displayEvent.templateId === "periwinkle"}
+                            />
+                        )}
+                    </>
                 ) : (
                     <>
                         <SectionHeader
@@ -621,7 +826,7 @@ function EventPageContent() {
                             subtitle={`${displayedPhotoCount} Photos · ${displayedVideoCount} Videos`}
                         />
 
-                        {activeGalleryMessage && (
+                        {activeGalleryMessage && !isClassicGallery && (
                             <p className="mx-auto mt-5 max-w-3xl text-center font-sans text-sm font-semibold leading-7 text-stone-600 md:text-base">
                                 {activeGalleryMessage}
                             </p>
@@ -637,7 +842,7 @@ function EventPageContent() {
                 )}
 
                 {canGuestUpload && (activeGallery || subEvents.length === 0 ? (
-                    <div className="mt-6 flex flex-col items-center gap-2">
+                    <div className={cn("flex flex-col gap-2", isClassicGallery ? "mt-10 items-start" : "mt-6 items-center")}>
                         <input
                             ref={guestFileInputRef}
                             type="file"
@@ -650,20 +855,26 @@ function EventPageContent() {
                             type="button"
                             disabled={!!guestUpload}
                             onClick={() => guestFileInputRef.current?.click()}
-                            className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800 disabled:opacity-60"
+                            className={isRoyalGallery
+                                ? "royal-button"
+                                : isMidnightGallery
+                                ? "midnight-gh-button"
+                                : isClassicGallery
+                                ? "classic-button"
+                                : "inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800 disabled:opacity-60"}
                         >
                             {guestUpload ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                             {guestUpload ? `Uploading ${guestUpload.done}/${guestUpload.total}` : "Add photos"}
                         </button>
-                        {guestUploadError && <p className="max-w-md text-center text-xs font-semibold text-rose-600">{guestUploadError}</p>}
+                        {guestUploadError && <p className={cn("max-w-md text-center text-xs font-semibold", isRoyalGallery ? "royal-error" : "text-rose-600")}>{guestUploadError}</p>}
                     </div>
                 ) : (
-                    <p className="mt-6 text-center text-xs font-semibold text-stone-500">Open an album to add your photos.</p>
+                    <p className={cn("mt-6 text-xs font-semibold", isClassicGallery ? "text-left" : "text-center", isRoyalGallery ? "royal-muted" : "text-stone-500")}>Open an album to add your photos.</p>
                 ))}
 
                 {/* Photos / Videos on the left; Favourites only (in albums, for logged-in guests) on the right, below on phones */}
-                <div className={cn("mt-10 flex flex-wrap items-center gap-4", isRoyalGallery ? "justify-end" : "justify-between")}>
-                {!isRoyalGallery && (
+                <div className={cn("mt-10 flex flex-wrap items-center gap-4", ownHeader ? "justify-end" : "justify-between")}>
+                {!ownHeader && (
                 <div data-royal-control="segments" className="inline-flex rounded-2xl border border-stone-200 bg-white p-1 shadow-sm">
                     {([
                         { id: "photos", label: `Photos (${displayedPhotoCount})` },
@@ -695,25 +906,28 @@ function EventPageContent() {
                         onClick={() => setShowOnlyFavourites(current => !current)}
                         className={cn(
                             "flex h-[50px] w-full items-center gap-2.5 rounded-2xl border pl-1.5 pr-3 text-left shadow-sm transition-colors sm:w-auto",
-                            showOnlyFavourites
-                                ? "border-slate-900 bg-slate-900"
-                                : "border-stone-200 bg-white hover:border-stone-400"
+                            isRoyalGallery
+                                ? "royal-switch"
+                                : showOnlyFavourites
+                                    ? "border-slate-900 bg-slate-900"
+                                    : "border-stone-200 bg-white hover:border-stone-400"
                         )}
                     >
-                        <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl", showOnlyFavourites ? "bg-white text-slate-900" : "bg-stone-100 text-stone-600")}>
+                        {/* Royal Emerald styles the parts itself (royal-switch in royal-emerald.css), by aria-checked */}
+                        <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl", isRoyalGallery ? "royal-switch__icon" : showOnlyFavourites ? "bg-white text-slate-900" : "bg-stone-100 text-stone-600")}>
                             <Star className={cn("h-4 w-4", showOnlyFavourites && "fill-current")} aria-hidden="true" />
                         </span>
-                        <span className={cn("min-w-0 flex-1 whitespace-nowrap text-xs font-black uppercase tracking-widest", showOnlyFavourites ? "text-white" : "text-stone-800")}>
+                        <span className={cn("min-w-0 flex-1 whitespace-nowrap text-xs font-black uppercase tracking-widest", isRoyalGallery ? "royal-switch__label" : showOnlyFavourites ? "text-white" : "text-stone-800")}>
                             Favourites only
                         </span>
                         <span
                             title={`${activeFavouriteCount} in ${galleryMediaTab === "videos" ? "Videos" : "Photos"}`}
-                            className={cn("min-w-7 rounded-lg px-2 py-0.5 text-center text-xs font-bold", showOnlyFavourites ? "bg-white/20 text-white" : "bg-stone-100 text-stone-600")}
+                            className={cn("min-w-7 rounded-lg px-2 py-0.5 text-center text-xs font-bold", isRoyalGallery ? "royal-switch__count" : showOnlyFavourites ? "bg-white/20 text-white" : "bg-stone-100 text-stone-600")}
                         >
                             {activeFavouriteCount}
                         </span>
-                        <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", showOnlyFavourites ? "bg-white/35" : "bg-stone-200")}>
-                            <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", showOnlyFavourites ? "translate-x-5" : "translate-x-0.5")} />
+                        <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", isRoyalGallery ? "royal-switch__track" : showOnlyFavourites ? "bg-white/35" : "bg-stone-200")}>
+                            <span className={cn("absolute top-0.5 h-5 w-5 rounded-full shadow-sm transition-transform", isRoyalGallery ? "royal-switch__knob" : "bg-white", showOnlyFavourites ? "translate-x-5" : "translate-x-0.5")} />
                         </span>
                     </button>
                     )}
@@ -730,46 +944,60 @@ function EventPageContent() {
                             onRequireLogin={isPublicView && !user ? promptLogin : undefined}
                             lightboxTheme={getWebLightboxTheme((activeGallery || event).templateId || event.templateId)}
                             templateId={(activeGallery || event).templateId || event.templateId}
+                            layout={isClassicGallery || isMidnightGallery ? "justified" : undefined}
                         />
                     </div>
                 ) : (
-                    <div className="text-center py-32 opacity-50">
-                        <ImageIcon className="w-16 h-16 mx-auto mb-6 text-stone-600" />
+                    <div className={cn("text-center py-32", isRoyalGallery ? "royal-empty" : isClassicGallery ? "classic-empty" : "opacity-50")}>
+                        <ImageIcon className={cn("w-16 h-16 mx-auto mb-6", !isRoyalGallery && "text-stone-600")} />
                         {error === "permissions" ? (
                             <>
-                                <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Moments restricted...</h2>
-                                <p className="font-sans text-stone-600 text-sm">Owner: Check Supabase database rules to enable shared access.</p>
+                                <h2 className={cn("text-2xl font-serif italic mb-2", !isRoyalGallery && "text-stone-600")}>Moments restricted...</h2>
+                                <p className={cn("font-sans text-sm", !isRoyalGallery && "text-stone-600")}>You don&apos;t have access to these photos yet. Ask the host to share the gallery with you.</p>
                             </>
                         ) : (
                             <>
-                                <h2 className="text-2xl font-serif italic text-stone-600 mb-2">
+                                <h2 className={cn("text-2xl font-serif italic mb-2", !isRoyalGallery && "text-stone-600")}>
                                     {isFavouriteFilterActive
                                         ? `No favourite ${galleryMediaTab === "videos" ? "videos" : "photos"} in this gallery yet.`
                                         : galleryMediaTab === "videos" ? "No videos yet." : "No photos yet."}
                                 </h2>
-                                <p className="font-sans text-stone-600 text-sm">Check back soon to see the captured memories.</p>
+                                <p className={cn("font-sans text-sm", !isRoyalGallery && "text-stone-600")}>Check back soon to see the captured memories.</p>
                             </>
                         )}
                     </div>
                 )}
 
-                {/* LOAD MORE BUTTON */}
+                {/* More photos load on their own as the guest nears this point; the button is the fallback */}
                 {hasMorePhotos && photos.length > 0 && (
-                    <div className="flex justify-center mt-16 mb-8 w-full">
+                    <div ref={loadMoreSentinelRef} className="flex justify-center mt-16 mb-8 w-full min-h-14" aria-live="polite">
+                        {canAutoLoad && !loadMoreFailed ? (
+                            loadingMorePhotos && (
+                                <span className={cn("inline-flex items-center gap-2 text-sm", !isRoyalGallery && "text-stone-500")}>
+                                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                                    Loading more…
+                                </span>
+                            )
+                        ) : (
                         <button
                             onClick={loadMorePhotos}
                             disabled={loadingMorePhotos}
-                            className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-full font-bold shadow-xl flex items-center space-x-3 transition-all hover:scale-105 active:scale-95"
+                            className={isRoyalGallery
+                                ? "royal-button royal-button--large"
+                                : isClassicGallery
+                                ? "classic-button classic-button--large"
+                                : "px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-full font-bold shadow-xl flex items-center space-x-3 transition-all hover:scale-105 active:scale-95"}
                         >
                             {loadingMorePhotos ? (
-                                <Loader2 className="w-5 h-5 animate-spin text-white/70" />
+                                <Loader2 className={cn("w-5 h-5 animate-spin", !isRoyalGallery && !isClassicGallery && "text-white/70")} />
                             ) : (
-                                <ChevronDown className="w-5 h-5 text-white/70" />
+                                <ChevronDown className={cn("w-5 h-5", !isRoyalGallery && !isClassicGallery && "text-white/70")} />
                             )}
                             <span className="tracking-widest uppercase text-sm">
                                 {loadingMorePhotos ? "Loading..." : "Load More Media"}
                             </span>
                         </button>
+                        )}
                     </div>
                 )}
             </div>
@@ -793,15 +1021,22 @@ function EventPageContent() {
                 "--event-template-border": templateChrome.border,
             } as React.CSSProperties}
         >
+            {/* Edit mode: the theme's pencils (EditChip) show only inside this */}
+            <GuestEditSpots.Provider value={isEditing ? { galleryId: (activeGallery || event).id } : null}>
             <TemplateComponent
                 event={displayEvent}
+                // Classic White keeps the main event's title (and its theme line) on the cover in every album
+                // On an album's own page (logged in, or a public link where the album is also the active gallery) these
+                // come from its main event
+                mainTitle={event.parentId ? parentInfo.title || event.title : event.title}
+                mainCategory={event.parentId ? parentInfo.category || event.category : event.category}
+                // Sunlit Portrait: the main event's date decides "We're getting married" or "Happily married since"
+                mainDate={event.parentId ? parentInfo.date || event.date : event.date}
                 subEvents={[]}
                 photos={[]}
                 isShared={isShared}
                 user={user}
-                onBack={() => {
-                    router.push(event?.parentId ? `/events/${event.parentId}${isShared ? "?shared=true" : ""}` : "/dashboard");
-                }}
+                onBack={goBack}
                 onShare={handleShare}
                 canManage={false}
                 hasParent={!!event?.parentId}
@@ -810,6 +1045,20 @@ function EventPageContent() {
             >
                 {renderContent()}
             </TemplateComponent>
+            </GuestEditSpots.Provider>
+            {isEditing && user && (
+                <>
+                    {/* Room for the edit bar, in the theme's page colour (without one the site's dark background showed
+                        here, e.g. as a navy band above Confetti Circle's light footer) */}
+                    {!guestEdit.viewingAsGuest && <div aria-hidden="true" className="h-44 bg-[var(--event-template-primary)] lg:h-28" />}
+                    <GuestEditBar
+                        galleryId={(activeGallery || event).id}
+                        templateId={displayEvent.templateId}
+                        userId={user.uid}
+                        photos={photoItems}
+                    />
+                </>
+            )}
         </main>
     );
 }

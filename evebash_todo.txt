@@ -1,0 +1,1097 @@
+EVEBASH - TODO (NEW FEATURES)
+=============================
+New things we want to build (features and improvements), for the website and/or phone app.
+Share this file in chats and keep it in the repo so everyone knows what is planned.
+
+Which file to use:
+- Bugs (something is broken)              -> evebash_issue.txt
+- Checks by hand on a real device         -> test_yourself.txt
+- New features and improvements (planned) -> this file
+
+HOW TO USE
+- New todo: add it at the end of ACTIVE TODOS with the "Next todo number" below, then increase
+  that number by 1. Never reuse a number. Pull staging first so two chats don't take the same number.
+- Starting work: set Status to "In progress" and Owner to your name.
+- After discussing it: set Discussed to Yes and write what was agreed in Decision.
+- Shipped (merged to staging): set Status to "Done" and add "Done in: <commit> (YYYY-MM-DD)".
+  If it needs a check on a device, add a test in test_yourself.txt and note its number in Done in.
+- Dropped: set Status to "Dropped" and say why in Decision.
+- Delete Done and Dropped entries once they are older than 14 days.
+- Dates are YYYY-MM-DD.
+
+Field values:
+- Platform:     App | Website | Both | Analytics dashboard | Backend only
+- Priority:     High | Medium | Low
+- Phase:        1 (v1 launch) | 2 (after launch, incl. business features) | 3 (later / nice to have)
+                | TBD (not decided yet, e.g. "TBD (1 or 2, decide after discussion)")
+- Status:       Idea | Agreed | In progress | Done | Dropped
+- Effort:       S (a few hours) | M (1-3 days) | L (a week or more)
+- Suggested by: a name, or where it came from (a user, an audit, a competitor)
+- Discussed:    Yes | No
+- Decision:     what was agreed when discussed, or "-"
+- Owner:        a name, or Unassigned
+- Depends on:   another todo, an issue number, a decision, or "-"
+
+Next todo number: 32
+
+Last updated: 2026-11-12
+
+=====================================================================
+ACTIVE TODOS
+=====================================================================
+
+#2  One-time event payment plan
+Listed:       2026-10-26
+Platform:     Both
+Priority:     Medium
+Phase:        1
+Status:       Idea
+Effort:       M
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        A plan you pay for once for a single event, instead of a subscription.
+              Today plans are billed monthly / 3 months / 6 months / yearly through Razorpay
+              (src/lib/razorpayPricing.ts). To decide: price, storage and photo limits per
+              event, how long the event stays active, and whether it can be upgraded later.
+              Storage/plan limits are web-only today (issue #6); this plan should be enforced
+              on the app and backend too.
+Done in:      -
+
+#3  Warn users before their plan expires or their storage is full
+Listed:       2026-10-26
+Platform:     Both
+Priority:     Medium
+Phase:        1
+Status:       Idea
+Effort:       M
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   issue #104 (pushes can reach the wrong phone)
+Brief:        Send the user a notification when their plan is close to its end date
+              (profiles.plan_end_date) or their storage is close to the plan's limit. Today
+              they only find out when an upload is refused with "plan_expired" or "storage_full"
+              (apps/backend/src/services/eventUploadLimits.ts). To decide: when to warn (e.g.
+              7 days and 1 day before expiry; 80% and 95% of storage), push and/or email and/or
+              an in-app banner, a daily backend job to check, and not repeating the same warning.
+              Related: issue #6 (storage limits are web-only) and issue #58 (push settings).
+Done in:      -
+
+#4  Camera-to-cloud: photographers' cameras upload straight to a gallery
+Listed:       2026-10-26
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (1 or 2, decide after discussion)
+Status:       Idea
+Effort:       L
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Let a photographer's camera send photos into an event gallery while they shoot,
+              with no card reader or manual upload, so guests see photos live. Options: an FTP
+              (or SFTP) upload address per event, which most pro Canon, Nikon and Sony cameras
+              support over Wi-Fi; a phone app that receives photos from the camera and uploads
+              them; or a partner service such as Frame.io Camera to Cloud. Nothing like this
+              exists today. To decide: which cameras to support first, how a camera is linked
+              to one event safely (per-event login or key), whether RAW files are accepted or
+              JPEG only, and how these uploads count against storage limits (issue #6).
+Done in:      -
+
+#5  Sync an event gallery with Google Drive, iCloud, Dropbox and others
+Listed:       2026-10-26
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (1 or 2, decide after discussion)
+Status:       Idea
+Effort:       L
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Connect an event gallery to a cloud folder (Google Drive, iCloud, Dropbox,
+              OneDrive) so photos come in from it and/or a copy goes out to it. Nothing like
+              this exists today. To decide: import only, export only, or two-way sync; which
+              services first (Google Drive and Dropbox have public APIs; iCloud Photos has no
+              public API for servers, so iCloud may only work from the phone's photo picker);
+              one-time import or keep watching the folder; what happens to deletions; and how
+              synced files count against storage limits (issue #6).
+Done in:      -
+
+#6  Crash and error reporting with Sentry (app, website, backend)
+Listed:       2026-10-26
+Platform:     Both
+Priority:     High
+Phase:        1
+Status:       In progress
+Effort:       M
+Suggested by: Sarthak (with Claude)
+Discussed:    Yes
+Decision:     2026-10-26 Sarthak: build it with @sentry/react-native, @sentry/nextjs and @sentry/node, off
+              unless the DSN env var is set, staging first. No Sentry wizards. Device test #145.
+Owner:        Sarthak (with Claude)
+Depends on:   a Sentry account (free plan: 5,000 errors a month)
+Brief:        There is no crash or error reporting anywhere today (no Sentry, Crashlytics or
+              Bugsnag in any package.json), so crashes real users hit are invisible unless they
+              complain. Add Sentry to the Expo app (@sentry/react-native, with source maps
+              uploaded from EAS builds), the Next.js website (@sentry/nextjs) and the Railway
+              backend. Off by default behind a flag (no DSN = nothing sent), turned on for
+              staging first. Strip personal data (emails, photo URLs, auth tokens) before
+              sending. Then connect the Sentry connector so Claude can read real errors.
+              Should be live before the Play Store / App Store launch.
+              Left after the first version (branch feat/sentry-crash-reporting): source maps are
+              not uploaded yet, so stack traces show minified code. Needs a SENTRY_AUTH_TOKEN
+              (EAS secret + Vercel) and the @sentry/react-native Expo plugin / withSentryConfig.
+              2026-11-02: app side on staging (dee60da, issue #186): Expo plugin, debug ids, DSN. It
+              still needs SENTRY_AUTH_TOKEN as an EAS secret and a new EAS staging build.
+Done in:      -
+
+#11 Edit the guest page from Preview Guest Theme (title, date, message, cover, video)
+Listed:       2026-10-27
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (1 or 2, decide after discussion)
+Status:       In progress
+Effort:       L
+Suggested by: Sarthak (2026-10-27: hosts can't see how an edit looks in their theme until they
+              open it)
+Discussed:    Yes
+Decision:     2026-10-27 Sarthak (with Claude): build it as an edit mode on the real guest page,
+              frontend only (no backend or database change). Every gallery can be edited. Changes
+              are a draft until Save. Photos and videos can't be deleted or moved there (host page
+              only). The highlight video sheet picks from the gallery's own videos or uploads a new
+              one. Each theme lists its own editable fields when it is created. Cover move/zoom in
+              the preview waits for #64.
+              2026-11-06 Sarthak: a gallery gets two covers, one for phones (the app and phone
+              browsers) and one for computers (migration 20261106120000_phone_cover, applied).
+              Pencils on each theme's own content. Every event type picks the same five themes
+              (shared/themes/activeThemes.ts), the rest show as "Coming soon".
+              2026-11-07: built for the website (all five themes) and the app (all but Confetti
+              Circle, which comes with #12); on staging in 610b2c0a behind the two switches, which
+              stay off. Plan and test notes: reports/Edit from guest preview plan.md. Left: turn the
+              switches on for staging (Vercel evebash-staging env, EAS staging build) and run device
+              tests #199 / #200; a real phone.
+              2026-11-07 Sarthak: website switch ON for staging (NEXT_PUBLIC_GUEST_EDIT_MODE=true on
+              Vercel evebash-staging, production and preview; remove it and redeploy to turn off).
+              Production site and the app switch stay off.
+              2026-11-07: device test #199 PASS on staging.evebash.com (website, all five themes; checked
+              by Claude in the built-in browser). Left: #200 on a real phone (needs an EAS staging build
+              with EXPO_PUBLIC_GUEST_EDIT_MODE=true); the app's Confetti Circle is #12.
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        Today hosts edit a gallery's title, date, message, cover and highlight video in the
+              host section and only see the result by opening Preview Guest Theme. The website's
+              "Guest Home Preview" on the Design tab is only a colour sketch, and the app has no
+              preview at all. Plan: reports/Edit from guest preview plan.md (Sarthak's copy).
+              - Preview Guest Theme opens the guest page in edit mode (website: /events/<id>?edit=1,
+                app: the guest view of apps/mobile/app/events/[id].tsx). Only the event's owner and
+                admins get it (website: openGallery access "manage"; app: canManageEvent).
+              - An edit bar: "Editing: <gallery>" with a gallery switcher (hidden galleries too,
+                marked "Hidden from guests"), the theme's edit buttons, "View as guest", "Manage
+                photos" (to the host page), and "N changes in M galleries - Discard / Save".
+              - Themes aren't changed: the draft is merged into the event data the page already
+                gives the theme, so all themes show it. Save uses the existing updateEvent and
+                setGalleryVideo, sends only changed fields and checks each result (see #155).
+              - Each theme declares its editable fields in shared/themes/editableFields.ts (name,
+                type, Home only or every gallery, column). No entry = title, date, message, cover,
+                video. A field with no column yet (e.g. #10's bride/groom details) needs one new
+                events field (theme_content, JSON) first: a database change, decide when needed.
+              - A new cover is uploaded only on Save; the video sheet reuses GalleryVideoPanel.
+              - Behind NEXT_PUBLIC_GUEST_EDIT_MODE / EXPO_PUBLIC_GUEST_EDIT_MODE, off by default.
+              Phases: website text fields; website cover + video; app; cover move/zoom after #64.
+Done in:      -
+
+#13 Videos: add a 4K stream when the upload is 4K (never above the upload's own size)
+Listed:       2026-10-27
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (decide after discussion)
+Status:       Idea
+Effort:       M
+Suggested by: Sarthak (2026-10-27: "4k transcoding of video if 4k is sent for processing along with
+              480, 720 and 1080")
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   - (fits with the long-video GPU worker, Modal v132)
+Brief:        Today every video gets at most three streams: 1080p, 720p and 480p (_HLS_TIERS and the
+              CPU command in modal_engine/main.py). A 4K upload is shrunk to 1080p, so guests never see
+              it in 4K. Wanted:
+              - A 4K upload also gets a 2160p stream next to 1080p, 720p and 480p.
+              - Never make a stream bigger than the upload: a 1080p upload tops out at 1080p, a 720p
+                upload at 720p, and so on. This already works today for 1080/720/480
+                (out_dirs in modal_engine/main.py: 1080p only if the source is at least 1080, 720p
+                only if at least 720, 480p always); the new 4K stream must follow the same rule, and
+                portrait / rotated videos must use the short side (probe_v2).
+              To decide: bitrate for 4K (e.g. ~15-20 Mbit/s), whether it is for paid plans only (it
+              adds storage and B2 egress), whether the player should pick 4K by itself or only when
+              the guest asks, and the extra GPU cost (4K encodes are decoder-bound, see
+              reports/GPU long-video transcode research 2026-10.md). Put it
+              behind a video-gpu-switch key, off by default, and add a device test (4K phone video on
+              iPhone Safari and Android Chrome) before turning it on.
+Done in:      -
+
+#14 Video upload: ask whether to keep the original, showing how much extra space it takes
+Listed:       2026-10-27
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (decide after discussion)
+Status:       Idea
+Effort:       M
+Suggested by: Sarthak (2026-10-27: "if user uploads video ask him to keep original or not, telling him
+              how much extra size will be occupied if he keeps original")
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   #13 (the size estimate depends on which streams are made)
+Brief:        When a host uploads videos (website and app), ask once per upload: keep the original
+              files or keep only the streaming copies? Show the extra space in plain numbers, e.g.
+              "Keeping originals uses 3.2 GB more of your 50 GB plan". The original size is known
+              before upload; the streaming copies' size can be estimated from length x the streams'
+              bitrates. Without the original, "Download" gives the best stream (1080p or 4K), not the
+              camera file. To decide / check first: what happens to video originals today (kept in
+              B2 and counted in storage?), whether the choice can be changed later (deleting the
+              original afterwards is easy, getting it back is not), and how this fits paid plans:
+              paid customers expect us to keep all their data, so "keep" should be the default and
+              maybe the only option on paid plans. Storage and plan limits must count the choice the
+              same way on web, app and backend (issue #6). Add a device test when it ships.
+Done in:      -
+
+#15 Long videos: NVENC preset p3 on the 1080p/720p tiers and a 6 s GOP (switch, off)
+Listed:       2026-10-27
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (decide after discussion)
+Status:       In progress
+Effort:       S
+Suggested by: GPU transcode research 2026-10-27 (reports/GPU long-video transcode research 2026-10.md)
+Discussed:    No
+Decision:     -
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        Measured on the production command and card (L4, 3 runs): -preset:v p3 for the 1080p and
+              720p tiers (p4 stays on 480p) plus -g = 6 s of frames (150 at 25 fps, 360 at 60) instead
+              of -g 48 makes 1080p long videos 22-26% faster (test_5 48.7 min: 190 -> 143 s; 1080p60
+              HEVC: 91 -> 71 s), leaves 4K sources as they are (they are decoder-bound) and raises VMAF
+              on every tier (+0.1 to +1.6): today's -g 48 forces two extra keyframes per 6 s segment.
+              Same files, segments and keyframes, size within 2%. Plays on iOS Safari and hls.js.
+              Ship in _nvenc_tier_args behind a video-gpu-switch key (e.g. nvenc_p3g6), off by default;
+              per-stream -preset:v:N is required (an unqualified -preset applies to every stream).
+              Then device test #153 before turning it on.
+Update:      2026-10-27 measured end to end (reports/Final video pipeline recommendation 2026-10-27.md): RTX 4000 Ada 1080p60 HEVC 119 -> 100 s,
+              test_5 209 -> 154 s; Blackwell slice -16 to -21%; Modal L4 test_5 ffmpeg 191 -> 146-150 s.
+Update:      2026-10-27 (quality check, reports/Video output quality check 2026-10-27.md): p3 is DROPPED. Keep
+              preset p4 on every tier and change only the keyframe spacing to 6 s: every tier of every test video
+              scores above today (VMAF +0.1 to +1.5, HDR +4 to +9; PSNR and SSIM also up). p3 was faster but 0.01-0.09 dB
+              lower PSNR and lower SSIM at 1080p/720p, and 4 VMAF lower than p4 on 60 fps HDR. Apply the same 6 s
+              keyframe change to the CPU (libx264) workers too. Final pipeline: reports/Final video pipeline recommendation 2026-10-27.md.
+Done in:      -
+Update:      2026-10-27 (on staging in 16a78cf; live on Modal v133 since 2026-10-27, key off): modal_engine/main.py. Switch key gop_6s (off | test | on, default off): the keyframe interval is 6 s of
+              the video's own frame rate (from ffprobe avg_frame_rate, else r_frame_rate, else 48 as before) on
+              the CPU workers (-g and -keyint_min), the full-GPU worker and both steps of the all-formats GPU
+              worker (-g). Keyframes stay forced at every 6 s mark. p3 is NOT part of it (dropped after the
+              quality check); p4 stays on every tier. With the key off every command is byte-for-byte as before
+              (checked against staging for every GPU builder and the CPU command). Tested on the production
+              ffmpeg builds (7.0.2, Jellyfin 7.1.4) on CPU and an L4: every segment starts on a keyframe, no
+              extra keyframes inside segments, same segment count and length. Device test #159 before turning
+              it on for everyone.
+
+#16 Long videos: read the original from B2 and upload segments while ffmpeg encodes (switch, off)
+Listed:       2026-10-27
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (decide after discussion)
+Status:       In progress
+Effort:       M
+Suggested by: GPU transcode research 2026-10-27 (reports/GPU long-video transcode research 2026-10.md)
+Discussed:    No
+Decision:     -
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        Measured on an L4: ffmpeg reading a presigned B2 URL as its input costs nothing extra
+              (191 vs 190 s) and removes the download step; uploading seg_N as soon as seg_N+1 exists
+              hides the upload behind the encode (192 s total instead of 190 + 33). On Modal, where the
+              download took 10-16 s and the upload 14-29 s per test_5, that is 10-18% less wall time per
+              long video (compute cost down the same; egress unchanged); on RunPod 21%. The output does
+              not change. Keep the atomic order (all segments, then variant playlists, then master.m3u8
+              last) and fall back to the download when the URL input fails. Stream-in was measured on an
+              MP4 only; try a MOV/HDR original before turning it on.
+Update:      2026-10-27: do NOT stream the original into ffmpeg. Without -reconnect B2 drops long
+              HTTP reads and ffmpeg ends early with exit 0 (every streamed 2-chunk test_5 run was ~430 s
+              short; the full-length check caught them); with -reconnect it is complete but on a 4.2 GB MOV
+              far from B2 it was 2x slower (178 vs 85 s). Final recipe: download first (as today), upload
+              segments while encoding, master last. Measured as part of the new recipe (reports/Final video pipeline recommendation 2026-10-27.md).
+Done in:      -
+Update:      2026-10-27 (on staging in 16a78cf; live on Modal v133 since 2026-10-27, key off): only the upload half. The original is still
+              downloaded first (streaming it from B2 can end ffmpeg early with exit 0). Switch key upload_early
+              (off | test | on, default off): while ffmpeg runs, each segment is uploaded once the next segment
+              file exists (ffmpeg writes a VOD playlist only at the end, so the playlist can't be used for this);
+              the remaining segments, the variant playlists and master.m3u8 still go up after the run passed its
+              checks, master last. A failed attempt's early uploads are removed after a later attempt succeeds;
+              after a failed or handed-over run they are removed unless the video is already playable. Tested
+              locally with the real worker code (fake B2/DB) and on the production ffmpeg builds: on a 90 s
+              clip 40-48 segments went up during encoding and none changed afterwards.
+
+#17 Long videos: chunk-parallel decode for 4K sources on one GPU (switch, off)
+Listed:       2026-10-27
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (decide after discussion)
+Status:       Idea
+Effort:       M
+Suggested by: GPU transcode research 2026-10-27 (reports/GPU long-video transcode research 2026-10.md)
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   #15 and #16 are independent of it; player check of a chunked output first (see Brief)
+Brief:        A single NVDEC session is the limit for 4K input (one decoder engine saturated, encoder
+              36-38% busy). Encoding K time chunks with K ffmpeg processes on the same GPU, audio in a
+              separate process, then joining the playlists, measured on the L4: 4K24 -46% (2 chunks) /
+              -57% (4), iPhone 4K60 HDR -39% / -47%, 1080p -14% (2). Output content identical to today's
+              (VMAF vs today 92-97, PSNR 47-57 dB), continuous timestamps, audio in sync. Recipe that
+              works (two earlier versions did not): per chunk -ss S (+ -t as a bound), a trim=end=len
+              filter before the split (not -t alone: it overshoots by the B-frame delay and leaves a
+              stray boundary segment), -output_ts_offset S+1.0 and -start_number for every chunk, audio
+              with -output_ts_offset 1.0 (without the constant, ffmpeg shifts chunk 0 by the B-frame
+              delay and not the others); join playlists, drop a boundary segment listed twice, master
+              from a single-process layout, then today's full-length check. The joined output has only
+              been checked with ffprobe and VMAF, never in a player: play one on iOS, Android, Safari and
+              hls.js, seeking across a chunk boundary, before the switch goes on.
+Update:      2026-10-27: chunks = number of video decoders on the card (RTX 4000 Ada 2, L4 4,
+              Blackwell slice 1 = no chunking). Measured with p3 + 6 s GOP + upload while encoding, 3 runs:
+              RTX 4000 Ada test_5 136 s / ₹2.44 (today 209 s / ₹3.63), HDR 94 s / ₹1.74 (132 s / ₹2.36);
+              Modal L4 4K24 69 s (125 s), test_5 161 s (224 s). Player check still missing (reports/Final video pipeline recommendation 2026-10-27.md).
+Update:      2026-10-27: cut chunks at the exact time of the first frame after each 6 s mark, not at round
+              6 s: round cuts repeat one frame per cut on 23.976 fps footage (1,201 vs 1,200 frames, video then 42 ms late).
+              Frame-exact cuts verified frame-for-frame on 23.976 fps, 60 fps and variable-frame-rate iPhone clips. Chunk
+              only long videos (4 chunks on 5 s pieces cost up to 0.3 VMAF GPU / 1.3 CPU). RTX 4000 Ada strict recipe:
+              test_5 163 s / ₹2.68 (today 207 s / ₹3.38), HDR 95 s / ₹1.56 (134 s / ₹2.19). CPU 32 vCPU with 4 chunks:
+              test_5 200 s / ₹1.95 (today 275 s / ₹2.67), HDR 143 s / ₹1.39 (223 s / ₹2.16).
+Done in:      -
+
+#18 Videos: QStash hands video jobs to RunPod serverless, Modal stays the backup (switch, off)
+Listed:       2026-10-27
+Platform:     Backend only
+Priority:     High
+Phase:        TBD (decide after discussion)
+Status:       In progress
+Effort:       L
+Suggested by: Burst-load review of the video pipeline (chat 2026-10-27); final pipeline in
+              reports/Final video pipeline recommendation 2026-10-27.md
+Discussed:    Yes
+Decision:     2026-10-28: build it (user). Image on GitHub's container registry, private, built by GitHub
+              Actions; RunPod pulls it with the read-only credential ghcr-evebash.
+Owner:        Sarthak (with Claude)
+Depends on:   #133 (RunPod serverless), issue #157 (watchdog), worker image in a real registry
+Brief:        Today QStash delivers each video job to a Modal endpoint. Modal answers "got it" at once and
+              keeps the job in its own queue, which nothing outside Modal can see. New flow:
+              1. QStash delivers the job to a new backend route on Railway (not to Modal).
+              2. The route picks the path with the routing rule (non-HDR up to 10 min: CPU; longer or HDR
+                 from 1 min: GPU), calls RunPod /run on that endpoint with a webhook URL and a per-job
+                 execution timeout, and saves the RunPod job id, endpoint and dispatched_at on the video row.
+              3. A backend check every minute reads RunPod /status for open jobs. IN_QUEUE past the wait
+                 limit (start at 3 min per RunPod pool, 5 min for Modal L4 as today): cancel, and only if
+                 RunPod confirms the cancel, send it to the next worker. IN_PROGRESS: leave it. FAILED or
+                 TIMED_OUT: next worker. GPU chain for 4K, 50/60 fps or HDR: RTX 4000 Ada, Blackwell
+                 24 GB slice, CPU 32 vCPU (4 chunks), Modal L4, Modal 16-core. GPU chain for plain 1080p (short
+                 side up to 1080 px, up to 30 fps, SDR): RTX 4000 Ada, CPU 32 vCPU (4 chunks), Blackwell slice,
+                 Modal L4, Modal 16-core (2026-10-27: on 48.7-min 1080p25 the CPU beat the Blackwell slice,
+                 200 s ₹1.95 vs 267 s ₹5.18). CPU chain: RunPod CPU 32 vCPU, Modal 4-core.
+              4. The worker never gets the Supabase service key or the main B2 key: B2 key limited to the
+                 needed prefixes; it reports the result to /internal/video-processed with a one-job signed
+                 token, and the backend does the DB update, cost log and push as today.
+              5. The worker skips a job whose row is already processed or whose master.m3u8 exists.
+              6. The watchdog (issue #157) reads this job status instead of the video's age.
+              RunPod limits to plan for: the account quota is 10 workers across all endpoints (ask RunPod
+              to raise it before launch); default execution timeout is too short for long videos; set a
+              queue TTL. Behind a new video-gpu-switch key "runpod" with its own test-gallery list, off
+              by default; with it off, today's Modal path is unchanged.
+Update:      2026-10-28 (on staging in 8bfc220; switch off; image built and published by GitHub Actions run #1:
+              ghcr.io/shwetank-sarthak-organization/evebash-video-worker:staging, all smoke tests passed. The
+              repository is public, so the image is public too (no secrets in it). RunPod endpoints not created yet,
+              Railway variables not set). Pieces:
+              - runpod_worker/handler.py + Dockerfile: one RunPod job = one video; the command builders are
+                imported from modal_engine/main.py (6 s keyframes, upload while encoding, master last).
+                Downloads the original and uploads each output file through links the backend signs for
+                that one file; holds no storage or database key.
+              - backend: services/runpodVideo.ts (switch, job tokens, chain), routes/videoWorker.ts
+                (/api/v1/video-worker: /dispatch and /check via QStash; /start, /upload-urls, /complete for
+                the worker), services/eventBucketS3.ts. Checks are delayed QStash messages (no table):
+                waiting past RUNPOD_QUEUE_WAIT_S (180) -> cancel -> next worker; failed -> next worker.
+                Chain: long videos Ada -> Blackwell -> CPU 32 vCPU -> Modal; others CPU 32 vCPU -> Modal.
+              - .github/workflows/runpod-video-worker.yml: builds, smoke-tests and publishes
+                ghcr.io/shwetank-sarthak-organization/evebash-video-worker (:<commit> and :staging).
+              - scripts/runpod_video_endpoints.py: creates the template + 3 endpoints (0 idle workers).
+              To turn on for the test gallery: push to staging (builds the image), run
+              `python3 scripts/runpod_video_endpoints.py create`, then on Railway set RUNPOD_API_KEY,
+              RUNPOD_ENDPOINT_ADA / _BLACKWELL / _CPU32 (printed by the script), B2_BUCKET_NAME if missing,
+              VIDEO_RUNPOD=test and VIDEO_RUNPOD_TEST_EVENTS=wedding-2-77d4. Rollback: VIDEO_RUNPOD=off.
+              Not done yet: a real RunPod run (GPU path in this image), the plain-1080p order (Ada -> CPU ->
+              Blackwell needs the probe), HDR >= 1 min to the GPU path (routing is by length only, as
+              today), chunked encoding (todo #17), heartbeat columns for the #157 watchdog (duplicates are
+              stopped by the worker's /start check instead). Device test #163.
+Update:      2026-10-28: RunPod endpoints created with scripts/runpod_video_endpoints.py (template
+              evebash-video-worker ylw1kolbh6, image :staging, credential ghcr-evebash, 0-3 workers each):
+              RUNPOD_ENDPOINT_ADA=edmhlavj9brf9f, RUNPOD_ENDPOINT_BLACKWELL=aamn0ziocgowue,
+              RUNPOD_ENDPOINT_CPU32=aisjrpy8ekvuqt. The CPU endpoint pulled the image and had a worker ready
+              within a minute. Dispatch fix: anything that stops a worker from starting (signing the
+              download link, RunPod unreachable) now moves the video to the next worker instead of retrying,
+              so it always ends at Modal. Still off: Railway needs RUNPOD_API_KEY (Sarthak), the three ids,
+              VIDEO_RUNPOD=test and VIDEO_RUNPOD_TEST_EVENTS=wedding-2-77d4.
+Update:      2026-10-28: ON for the test gallery wedding-2-77d4 (Railway: RUNPOD_API_KEY, the 3 endpoint ids,
+              VIDEO_RUNPOD=test, VIDEO_RUNPOD_TEST_EVENTS=wedding-2-77d4). First real run: 2-min 1080p and 22 s
+              iPhone HDR on RunPod CPU 32 vCPU (16.6 s, 31 s), 11.7-min 1080p on RTX 4000 Ada (67.4 s, GPU decode);
+              all processed, pushed, complete and playable; fallback to Modal verified with a wrong endpoint id.
+              Cost log fixed in 9aeb90e (cpu_cores/memory_gb are NOT NULL). Device test #163 (phones still to do).
+
+#19 Research where Cloudflare (CF) could help EveBash (cost, speed, safety)
+Listed:       2026-10-28
+Platform:     Both
+Priority:     Medium
+Phase:        TBD (decide after the research)
+Status:       Idea
+Effort:       M
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Today Cloudflare runs the evebash.com DNS and the worker evebash-media-worker
+              (cloudflare-worker/evebash-media-worker/), which serves every photo and video on
+              media.evebash.com from the private B2 bucket, with the edge cache from issue #120.
+              Open Cloudflare issues: #122 (clear the cached copy when a photo is deleted or
+              reprocessed), #132 (free Workers plan: ~100,000 requests a day, one big wedding can use
+              it up), #139 (visitors in India are served from Marseille).
+              Research what else Cloudflare could do for us and whether it beats what we use now,
+              with real prices at launch traffic. Ideas to check: R2 storage next to or instead of
+              B2; Cloudflare image resizing instead of making thumbnails on Modal; Cloudflare Stream
+              vs our own video pipeline (Modal/RunPod); Workers Paid or Pro plan (#132, #139);
+              Turnstile against bots on sign-up and forms; WAF and rate limits in front of the
+              Railway API; Queues vs QStash; Pages vs Vercel for the website.
+              Result: a short report in reports/ with a yes/no and cost for each idea, then new
+              todos for the ones we pick.
+Done in:      -
+
+#21 Wire up "Book a demo" and the footer social links (website)
+Listed:       2026-11-02
+Platform:     Website
+Priority:     Low
+Phase:        1 (v1 launch)
+Status:       Idea
+Effort:       S (a few hours)
+Suggested by: Sarthak (homepage redesign, 2026-11-02)
+Discussed:    Yes
+Decision:     2026-11-02 Sarthak asked for both as placeholders for now ("we'll integrate later").
+Owner:        Unassigned
+Depends on:   The account URLs and where "Book a demo" should go (Sarthak)
+Brief:        The homepage "Made for everyone at the event" tabs have a "Book a demo" button that does nothing
+              yet (src/components/home/Audiences.tsx, title "Coming soon"). The footer shows Instagram,
+              YouTube, Facebook and LinkedIn icons that aren't links yet (src/components/Footer.tsx, the
+              socials list: add each href and it becomes a link that opens in a new tab). Decide the demo
+              destination (booking page, form, WhatsApp or calendar link) and send the four account URLs.
+Done in:      -
+
+#23 WhatsApp integration
+Listed:       2026-11-03
+Platform:     Both
+Priority:     Medium
+Phase:        2
+Status:       Idea
+Effort:       L
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Use WhatsApp, which most hosts and guests in India already use, alongside the app's
+              pushes and the website. Today it only appears as "message on WhatsApp" links (wa.me)
+              on the Phase 2 business pages (apps/mobile/app/(tabs)/business/[id].tsx,
+              business-enquiries.tsx). Possible parts: (1) share a gallery or Find You link straight
+              to WhatsApp with a ready message and a link preview; (2) WhatsApp messages to hosts and
+              guests, e.g. "your photos are ready", new access requests, Find You results, plan
+              expiry warnings (todo #3), via the WhatsApp Business Platform (Cloud API); (3) sign-in
+              codes over WhatsApp. To decide: which parts first; (2) and (3) need a verified Meta
+              business account, a WhatsApp number for EveBash, pre-approved message templates, the
+              user's opt-in, and a per-message charge, so pick which messages are worth paying for
+              and whether they replace or back up pushes (issue #104: pushes can reach the wrong phone).
+Done in:      -
+
+#24 Event ownership transfer
+Listed:       2026-11-04
+Platform:     Both
+Priority:     Medium
+Phase:        1
+Status:       Done
+Effort:       L
+Suggested by: Shwetank
+Discussed:    Yes
+Decision:     2026-11-04 Shwetank: the receiver must accept, requests expire after 7 days, uploads pause
+              while one is waiting, only the owner (or a platform admin helping) can start one, the old
+              owner stays on as an admin unless they untick it, the receiver must already have an
+              account, no fee. Space is checked when the request is made and again on accepting.
+Owner:        Shwetank (with Claude)
+Depends on:   Migration 20261104000000_event_ownership_transfer.sql (applied 2026-11-04)
+Brief:        Hand a whole event (all sub-galleries, previews, streams, album data) to another user.
+              The receiver sees how much space it needs and has an Upgrade button; they can only accept
+              once they have the space, an active plan and a free event slot. On accepting, the space
+              leaves the old owner's plan and counts on the new owner's. Host > event > Permissions >
+              Transfer ownership (website and app); requests show on the Dashboard, with a push in the app.
+              Not in this version: emails; the "plan moves with the event" rule for one-time plans
+              (added with those plans).
+Done in:      b6631ea (2026-11-04), on staging. Device test #183.
+
+#25 Storage by event
+Listed:       2026-11-05
+Platform:     Both
+Priority:     Medium
+Phase:        1
+Status:       Done
+Effort:       S
+Suggested by: Shwetank
+Discussed:    Yes
+Decision:     2026-11-05 Shwetank: list each event's size inside the Storage card on Profile.
+Owner:        Shwetank (with Claude)
+Depends on:   Migration 20261105000000_event_storage_by_event.sql (applied 2026-11-05)
+Brief:        Profile > Storage > Event Storage opens a list of the user's events, largest first, each
+              with its size (sub-galleries, previews, streams, album designs and voice notes included).
+              The rows add up to the Event Storage total. First 5, then Show all.
+Done in:      993a25b (2026-11-05), on staging. Device test #187.
+
+#26 App login screen fits on one screen, no scrolling
+Listed:       2026-11-06
+Platform:     App
+Priority:     Medium
+Phase:        1
+Status:       Idea
+Effort:       S
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Shrink the app's login screen (apps/mobile/app/login.tsx) so everything shows on one
+              phone screen without scrolling: the EveBash name and tagline, the "Welcome Back" card,
+              email and password, Forgot Password, Sign In, and the Google and Apple buttons. Today
+              it is one long ScrollView. Tighten sizes and gaps (brand block, card padding, input
+              heights, divider) rather than removing anything. Check on a small phone (iPhone SE,
+              667 pt tall; a small Android) and a large one, with and without the keyboard open.
+              To decide: whether "Create Account" must fit too (it adds full name, the password
+              checklist, confirm password and the policy checkbox, so it may still need to scroll),
+              and whether the brand block can shrink or move. Leave guest event themes alone. Add a
+              device test when it ships.
+Done in:      -
+
+#27 Event change log: who changed what in an event, and when (seen in the analytics dashboard)
+Listed:       2026-11-07
+Platform:     Analytics dashboard
+Priority:     Medium
+Phase:        TBD (1 or 2, decide after discussion)
+Status:       Idea
+Effort:       M
+Suggested by: Sarthak
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Each time an event or sub-gallery is changed (title, date, cover, message/description,
+              theme, join ID, privacy and the like), save a log row: the event, the field, the old and
+              new value, who did it (owner, admin, couple in guest edit mode #11, or a platform admin),
+              from where (website, app or backend) and when. We, as platform owners, see it in the
+              analytics dashboard (apps/analytics-dashboard): a Change log on each gallery and a list of
+              recent changes across all events, filtered by event or user. Helps support ("who changed
+              our cover?") and settles disputes.
+              Today nothing is logged. The website (src/lib/database.ts updateEvent), the app
+              (apps/mobile/lib/database.ts) and the backend (apps/backend/src/routes) all write to the
+              events table directly, so a database trigger on events is the one place that catches every
+              change. Backend writes use the service key, so there the trigger can't see the user; the
+              backend has to pass who did it. The new log table needs RLS on, readable by platform
+              admins only (see issue #21).
+              To decide: which fields to log (skip noisy ones like order and cover offsets?), whether to
+              keep old and new values for long text, how long to keep logs, whether hosts also see the
+              log on their event, and whether photo, album and permission changes join later.
+Done in:      -
+
+#30 Separate Supabase database for staging and production
+Listed:       2026-11-11
+Platform:     Both
+Priority:     High
+Phase:        1
+Status:       Idea
+Effort:       L
+Suggested by: Shwetank
+Discussed:    Yes
+Decision:     2026-11-11 Shwetank: one Modal account with a separate "staging" environment; RunPod
+              stays one account with the same endpoints.
+Owner:        Shwetank
+Depends on:   Finish device tests #40 and #202 first (they use accounts in the current database).
+              Helps issue #21 (RLS part 2 needs a copy of the database to test on).
+Brief:        Staging and production share one Supabase project, so every migration tested for
+              staging changes production straight away, and staging tests run against real data.
+              Give staging its own Supabase project.
+              Steps:
+              1. Create the staging project and check what it costs (a free project may pause).
+              2. Copy the structure from the live database (tables, RLS, functions, triggers),
+                 not by replaying the migration files, as some changes may have been made by hand.
+                 Don't copy real customers' data.
+              3. Set up Auth: redirect URLs, Google sign-in, email settings.
+              4. Create test accounts and events, including the cases device tests need.
+              5. Point staging at the new project: Railway staging, Vercel staging, EAS staging
+                 build, local .env files, analytics dashboard.
+              6. New routine: apply migrations to staging first, then production.
+              Findings from reading the code (2026-11-11). Nothing is set up yet:
+              - No Supabase address is written into the code; every service reads it from its
+                settings, so moving Supabase is a settings change: NEXT_PUBLIC_SUPABASE_URL and
+                _ANON_KEY (website), SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY
+                (backend), EXPO_PUBLIC_SUPABASE_URL and _ANON_KEY (app), plus the dashboard's.
+              - Modal: keep one Modal account and give staging its own "staging" environment there:
+                the same code deployed twice with different settings, not one app serving both.
+                One shared app would need every job, and the 5-minute maintenance job, to switch
+                database and bucket, so a mistake could write to production. modal_engine/main.py
+                (app "wedding-media-engine") takes its database and bucket from the root .env at
+                deploy time, so if only Supabase moved, staging uploads would be processed by a
+                worker writing to the production database and it would find no matching photo row.
+                Small code change: the .env path, written in 9 places, becomes one setting. Railway
+                staging needs new MODAL_CPU_WEBHOOK_URL, MODAL_GPU_WEBHOOK_URL,
+                MODAL_FACE_INGRESS_URL, MODAL_FIND_YOU_URL, MODAL_MEDIA_BATCH_URL and
+                MODAL_PREVIEW_URL. Any modal deploy must keep MODAL_COST_TUNING=true. No always-on
+                containers in main.py, so staging costs only what it processes plus the 5-minute job.
+              - RunPod (videos only, todo #18, switch VIDEO_RUNPOD, off by default): keep one account
+                and the same endpoints, no separate copy. The worker holds no database or storage
+                key; it uses one-time links from the backend and reports back to it (confirm the
+                report-back address when wiring this up). Keep VIDEO_RUNPOD off on staging unless
+                testing RunPod; Modal is its backup, so the staging Modal environment is needed
+                either way. If it is on for both: they share RunPod's 10-worker account quota, and
+                the worker image is built from staging pushes (tag :staging), so production would
+                need its own tag.
+              - Backblaze B2: staging needs TWO buckets with their own keys, one for events (B2_*)
+                and one for EB Vault (VAULT_B2_*). The backend and Modal both delete files.
+              - Cloudflare: the media worker serves media.evebash.com from the "EveBash" bucket, and
+                the EAS staging profile uses that domain. Staging needs its own worker and domain,
+                and EXPO_PUBLIC_MEDIA_DOMAIN changed in eas.json.
+              - Razorpay: staging needs test keys (RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET,
+                NEXT_PUBLIC_RAZORPAY_KEY_ID). No webhook found in the payments route; check none
+                is set up in Razorpay.
+              - QStash: sends jobs to the Modal URLs. Check whether staging needs its own
+                QSTASH_QUEUE_NAME so its jobs stay apart from production's.
+              - Migrations contain no cron jobs or storage bucket setup. Still check the live
+                database for triggers on sign-up and enabled extensions, which a plain copy can miss.
+              Device tests waiting at the switch need their accounts recreated.
+
+=====================================================================
+DONE / DROPPED (delete after 14 days)
+=====================================================================
+
+#31 Website Guest Home Preview: show the app too (picture of the app's guest home)
+Listed:       2026-11-12
+Platform:     Both
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       M
+Suggested by: Sarthak (2026-11-12: the website's Design tab "Phone" frame looks nothing like the theme
+              in the app)
+Discussed:    Yes
+Decision:     2026-11-12 Sarthak (with Claude): send the app's picture (todo #29) to the backend and
+              show it on the website, rather than building the app's guest screen for the web
+              (always current, but days of work: the guest view is part of the 9,300-line event
+              screen).
+              2026-11-12 Sarthak, after seeing it on staging: no website-at-phone-size frame, no
+              note under the App frame (website and app cards), and "Website" instead of "Website
+              on a computer". Done in 2e1b8453.
+Owner:        Sarthak (with Claude)
+Depends on:   Database change supabase/migrations/20261112120000_guest_preview_picture.sql (applied
+              by Sarthak); an app build with react-native-view-shot (as todo #29).
+Brief:        The website's Guest Home Preview (src/components/GuestPagePreview.tsx) showed the
+              website drawn at phone width and called it "Phone". The app draws each theme with its
+              own code and a different phone layout (top bar, cover height, tabs), so that frame was
+              not what app guests see. The app's picture of its guest home (todo #29) stayed on the
+              phone that took it, so the website could never show it.
+              Now: after the app takes the picture (Preview Guest Theme, 3 s at the top), it sends a
+              585 px copy to the backend (POST /api/media/guest-preview-picture,
+              apps/backend/src/services/guestPreviewPicture.ts). The backend checks the caller manages
+              the event, saves the JPEG under events/<id>/guest-preview/ in the media bucket, keeps
+              {url, templateId, takenAt, width, height} in the new column events.guest_preview_picture
+              and deletes the picture it replaces. The website card shows two frames: App (the
+              picture, dimmed after a template change) and Website (the page at a computer's size).
+              The app's card shows the saved picture when it is newer than this phone's own
+              (taken on another phone). Shared reader: shared/themes/guestPreviewPicture.ts. Older app
+              builds never send a picture; until the database change is applied the App frame says
+              to open Preview Guest Theme in the app.
+Done in:      8c0d7799 + 2e1b8453 (2026-11-12), on staging; device test #207. Real phones need a new EAS
+              staging build (as #29).
+
+#12 Confetti Circle theme in the app
+Listed:       2026-10-27
+Platform:     App
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       M
+Suggested by: Sarthak (2026-10-27: "website looks done, next is mobile app for this theme")
+Discussed:    Yes
+Decision:     2026-10-27 Sarthak: the website version is done; build the app version next.
+              2026-11-06 Sarthak: High priority, build it before launch. It is one of the five themes
+              every event type can pick (shared/themes/activeThemes.ts); until it's built the app's
+              pickers show the other four.
+              2026-11-07 Sarthak (with Claude): build the guest design first, then the Couple editor;
+              another chat builds the app's Couple sheet (EditChip, useGuestEdit, GuestEditBar) on top
+              of the design. Design built and checked in the iOS simulator; on staging in 4b97ef14
+              (device test #203). The Couple sheet (step 2) is still to come.
+              2026-11-07 step 2 built (Claude): the app's Couple sheet in edit mode (EXPO_PUBLIC_GUEST_EDIT_MODE):
+              "Add bride" / "Bride" pencils on each side open the sheet on that side (label, name, a few
+              words, Instagram / Facebook / X; a wrong link is flagged and not saved), saved with
+              set_theme_content_block on the main event from Home or any album. COUPLE_FIELD is no longer
+              web-only. Checked on the iPhone 17 Pro simulator with mehandi night (Home + album newcheck,
+              save checked in the database, then put back to Jyoti / Samarth). Device test #204. On
+              staging in 6d0b2861 (Sarthak's go, 2026-11-07); the app switch stays off.
+              2026-11-07 (Claude): Collections menu and photo viewer drawn in Confetti's light colours
+              (issue #257, 6804a08b, device test #203 step 10).
+              2026-11-12 Sarthak: close it; everything is on staging.
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        The website has the wedding theme "Confetti Circle" (id "confetti", device test #151),
+              but the app has no "confetti" entry in apps/mobile/constants/templates.ts, so the app's
+              theme picker doesn't offer it and a gallery set to it on the website isn't drawn in that
+              design in the app. Copy the website design (staging: src/components/TemplateConfetti.tsx,
+              src/components/confetti/, src/app/confetti-circle.css):
+              - Cover: the photo fills the first screen with a big 70% white circle in the middle:
+                the couple's names in Bebas Neue capitals, pink #e8175d to orange #ff7a1a, "- and -"
+                between them, then "March | 28 | 2025" and the place. On the circle's top edge a dark
+                tag with a red heart and the gallery's message in italics and quotes ("Happily
+                married" in capitals when there is none; long messages get a wider tag, at most 4
+                lines). Pink and orange paint specks round the circle, a torn-paper edge at the
+                bottom, a round dark arrow button.
+              - Top bar: frosted white over the photo, the couple's names with a pink heart for the
+                "&", links in Bebas Neue capitals; solid white once scrolled.
+              - Under the cover: "We're getting married!", the highlight video (or the cover photo)
+                in a soft-edged widescreen frame with specks and a white "Name ♥ Name" ribbon, the
+                bride and the groom with a few words and social icons. Since #10 (2026-11-07) these
+                come from the main event's theme_content: read it in apps/mobile/lib/database.ts
+                (readThemeContent), show only the named sides and filled links (shownCouple in
+                shared/themes/themeContent.ts, never names from the title), and drop platforms
+                ["web"] from COUPLE_FIELD in shared/themes/editableFields.ts so the app's edit bar
+                gets the Couple sheet (save with set_theme_content_block).
+              - Gallery: Back / Share, "PHOTO GALLERY | <gallery name> | VIDEO GALLERY" (the pink
+                words switch photos / videos), the full message in italics when the tag cut it,
+                full-width rows of whole photos (never cropped).
+              - Footer: torn-paper edge, Create your own event / Sample galleries / Pricing at the
+                far left, "S ♥ R" with "Made with EveBash" (EveBash font) in the middle, Privacy /
+                Terms / Contact us at the far right.
+              Once the app has it, the app's pickers offer it on their own (it's in ACTIVE_THEME_IDS):
+              update the app list in src/lib/hiddenTemplates.test.ts. Add a device test when it ships.
+Done in:      4b97ef14 (design) + d805e71c (phone-style cover) + 6d0b2861 (Couple sheet) + 6804a08b
+              (issue #257), all 2026-11-07, on staging. Needs a new EAS staging build. Checked on the
+              iPhone 17 Pro simulator (dev build); device tests #203 and #204. The Couple sheet's app
+              switch (EXPO_PUBLIC_GUEST_EDIT_MODE) stays off.
+
+#29 App: Guest Home Preview shows a picture of the app's own guest screen
+Listed:       2026-11-07
+Platform:     App
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       S
+Suggested by: Sarthak (2026-11-07: the app's preview showed the website, not the app screen)
+Discussed:    Yes
+Decision:     2026-11-07 Sarthak (with Claude): show a picture (snapshot) of the app's guest home, taken
+              while the host has it open with Preview Guest Theme, instead of a live small copy (the
+              guest view is built into the event screen; drawing it small means pulling theme code
+              apart). The picture stays on the phone only: not in the database, not uploaded.
+              2026-11-12 Sarthak: changed by todo #31: a smaller copy now also goes to the backend, so
+              the website's preview shows the app too.
+Owner:        Sarthak (with Claude)
+Depends on:   #28
+Brief:        Follows #28, where the app's Design tab card showed only the website on a computer. Now
+              the card also has an App phone frame with a picture of the app's guest home. It is taken 3
+              seconds after the guest home opens for a host (Preview Guest Theme), if it is still at the
+              top and not being edited (pencils and unsaved changes would show), and kept in the app's
+              cache with its time and template (apps/mobile/lib/guestPreviewSnapshot.ts, AsyncStorage
+              key guestPreviewSnapshot:<event id>). The card shows "Open Preview Guest Theme once to see
+              the app here" when there is none, and says the picture is out of date when the template
+              changed since. Uses the new native library react-native-view-shot 4.0.3, so it needs a new
+              app build; on older builds the library is not loaded and no picture is taken (no crash).
+Done in:      ddc95b35 (2026-11-07), on staging. Needs a new EAS staging build (native library).
+              Checked on the iPhone 16e simulator (local dev build); device test #206.
+
+#28 Design tab: show the real guest page in Guest Home Preview (website and app)
+Listed:       2026-11-07
+Platform:     Both
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       S
+Suggested by: Sarthak (2026-11-07: the preview only changes colours, not how the theme really looks)
+Discussed:    Yes
+Decision:     2026-11-07 Sarthak (with Claude): replace the colour sketch with the real guest page. The
+              app shows the website page too (a web view), because the app's own guest view is built
+              into the 9,300-line event screen and can't be drawn small without pulling theme code apart;
+              the app's own look stays on Preview Guest Theme.
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        The website's Guest Home Preview (src/components/EventDesignPreview.tsx) drew one fixed
+              sketch for every theme and only swapped the template's colours: not the theme's layout,
+              fonts or photos. The app had no preview at all.
+              Now: the website's Design tab loads the real guest page in two frames, at a phone's size
+              (390 x 844, phone cover) and a computer's (1280 x 800, computer cover), shrunk to fit
+              (src/components/GuestPagePreview.tsx). The app's
+              Design tab shows the computer page in a web view (apps/mobile/components/event/
+              GuestPagePreview.tsx); guests who use the app see its own look with Preview Guest Theme.
+              The page opens with ?preview=1: no edit mode, no "Open in app" banner. The frames take no
+              clicks or touches. They reload after the template or event type is saved, and with a
+              Reload button.
+              Sign-in: on the website the frames use the host's own sign-in (same site). In the app the
+              web view gets the app's access token only (never the refresh token), so private galleries
+              open; calls to sign out are dropped there so the app session can't be ended; the page
+              reloads when the app renews its token (about hourly). The app's web view asks as a
+              computer browser, because when the website's phone app screen is switched on
+              (NEXT_PUBLIC_MOBILE_APP_GATE, src/lib/appGate.ts) phones and tablets get "Get the EveBash
+              app" instead of the page, also on gallery pages. As of 2026-11-12 it is on for staging only;
+              on the live site phone guests see the website's phone layout.
+Done in:      a454736d (2026-11-07), on staging. App part needs a new EAS staging build. Checked on
+              the iPhone 16e simulator (dev build) and in the built-in browser; device test #205.
+
+#10 Confetti Circle: bride and groom details in the theme editor
+Listed:       2026-10-27
+Platform:     Website
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       M
+Suggested by: Sarthak (2026-10-27: "use dummy data and add it to todo list")
+Discussed:    Yes
+Decision:     2026-10-27 Sarthak: ship the couple section with placeholder text first; hosts fill the
+              real details later in the theme editor (Preview theme in the host section).
+              2026-11-07 Sarthak (with Claude): edited from Preview Guest Theme's edit mode (#11), as a
+              Couple panel and pencils on each side. Never take names from the title (it can name
+              the wrong people). Each side: a label the host picks (weddings start with "The Bride" /
+              "The Groom"), name, a few words (160), Instagram / Facebook / X links. A side shows only
+              with a name, a link only when filled in; the ribbon says "Name ♥ Name" only when both
+              names are in. Stored in one new JSON column events.theme_content on the main event
+              (blocks: couple now; later milestones, how we met...), written per block by
+              set_theme_content_block so a save only replaces the changed block. Behind
+              NEXT_PUBLIC_GUEST_EDIT_MODE: while it is off the section stays as it is today.
+              2026-11-07: on staging in 610b2c0a; migration 20261107120000_theme_content applied by
+              Sarthak and Save checked on localhost. Left: device test #201 once the switch is on.
+              The app shows it with #12.
+              2026-11-07: device test #201 on staging: steps 1-6 pass; step 7 found that clearing both
+              sides and saving kept the old names on the page until a reload. Fixed in 65238da8; retest
+              step 7 once that is on staging, then this is done.
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        The Confetti Circle theme (id "confetti") has a section under the cover: "We're getting
+              married!", the bride on the left, the highlight video in a faded frame in the middle,
+              the groom on the right (src/components/confetti/ConfettiCoupleSection.tsx). Each person
+              shows a few words and Facebook / Instagram / X icons, but these are placeholders for
+              every gallery (PLACEHOLDER_BIO / PLACEHOLDER_SOCIALS) and the icons don't link anywhere.
+              Add fields for them to the theme editor you reach from Preview theme in the host
+              section: the bride's and groom's name (default: the two names in the gallery title),
+              a short bio each (set a max length and check it fits the column), and up to three
+              social links each. Save them on the main event and show them on every album. Hide an
+              icon with no link, and the bio line when it's empty.
+Done in:      610b2c0a + 65238da8 (2026-11-07), on staging with the website edit-mode switch on.
+              Device test #201 PASS (step 7 retested after 65238da8). The app part shipped with #12
+              (6d0b2861).
+
+#1  Light theme for the app and website
+Listed:       2026-10-26
+Platform:     Both
+Priority:     Medium
+Phase:        2
+Status:       Done
+Effort:       L
+Suggested by: Sarthak
+Discussed:    Yes
+Decision:     Website: device setting + switch (2026-11-04, Sarthak)
+              App: device setting + Settings > Appearance; login, sign-up, forgot password and the terms
+              screen stay dark; of the business screens only the visible EB Network tab gets the light
+              look, the hidden Phase 2 ones stay dark (2026-11-06, Sarthak)
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        Add a light theme to the app and the website, alongside the current look.
+              To decide: follow the phone/browser setting, a switch in settings, or both;
+              and whether gallery themes (e.g. Classic White) stay separate from it.
+              2026-11-04 decided (Sarthak): website follows the device setting, with a navbar sun/moon button
+              and Settings > Appearance to override; login, forgot and reset password stay as they are.
+              Website: on staging in 69c388f (2026-11-06), device test #192. Every site page, EB Business,
+              EB Network, the upload panel, loading and app-download screens; only the login screens stay
+              as they are (Sarthak 2026-11-06).
+              App: on staging in 94def90 (2026-11-06), device test #195. Settings, the main tabs, EB Network and
+              the host's event screen (host view only). Guest themes, Vault, the photo viewer and the login
+              screens keep their own look. Dark compared pixel by pixel with the old app on the simulator.
+Done in:      Website 69c388f (2026-11-06), device test #192. App 94def90 (2026-11-06), device test #195.
+
+#22 App-open animation: camera clicks a photo of the EB logo
+Listed:       2026-11-03
+Platform:     App
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       M (1-3 days)
+Suggested by: Sarthak (2026-11-03)
+Discussed:    Yes
+Decision:     2026-11-03 Sarthak approved the final design: an instant camera springs in, focuses, clicks
+              (iris blades, soft gold flash), pauses, pushes out a photo that develops to show EB, the frame
+              melts away, EB grows to 65 px and "EveBash" (42 px) fades in 10 px below with a gold shine.
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        Today the app opens on a still EB logo (expo-splash-screen) and, on slow loads, the rings
+              LoadingScreen. Build the animation with Reanimated + react-native-svg + expo-haptics (no new
+              package) in apps/mobile/components/intro/AppIntro.tsx, play it on a cold start while the account
+              loads, and change the native splash to a plain #13191F background so EB doesn't show first.
+              Spec and a playable preview: reports/app-open-animation/ (spec.md, preview.html, untracked).
+Done in:      abc6379 (2026-11-03). Checked on the iPhone 16e simulator (dev build); device test #172.
+
+#20 Homepage motion pass (website)
+Listed:       2026-11-02
+Platform:     Website
+Priority:     Low
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       S (step A); M with step B
+Suggested by: Sarthak (homepage rating vs samaro.ai, 2026-11-02)
+Discussed:    Yes
+Decision:     2026-11-02 Sarthak asked for a plan. Use framer-motion (already installed and already
+              loaded on the homepage by ScrollReveal); copy any motion-primitives ideas by hand, no
+              new package. 2026-11-02 Sarthak saw step A in a local preview and said keep it;
+              committed on the local branch preview/home-motion, not pushed yet. Same day he asked for
+              a bolder look: hero is now a self-playing gallery demo (real Wedding design captures with a
+              sample couple, album switching, a Pexels wedding clip that loads only in that scene),
+              photo-led sections, mixed-size feature tiles, tabbed audiences. Then the full redesign
+              agreed in the same session (Noir and gold look, Pexels Indian event photos, event-type
+              tabs, 3-guest Find You loop, 4-scene album proofing demo, closing chat-vs-gallery demo,
+              all-events copy, new footer, original fonts kept). Pushed to staging on Sarthak's go.
+Owner:        Sarthak (with Claude)
+Depends on:   Step B: real photos (#28), real numbers and logos (#33), sample galleries (#32)
+Brief:        The 2026-11-02 rating gave the homepage 4/10 for motion (samaro.ai 9/10): today every
+              section only fades up (src/components/ui/ScrollReveal.tsx, 0.8 s, 50 px).
+              Step A, no new content needed (src/components/home/):
+              1. ScrollReveal: add a distance prop; homepage sections pass 300 ms and 16 px. Other
+                 pages keep today's values.
+              2. Hero phone mockup (GalleryPreview.tsx): tiles fade in one by one after first
+                 paint, then the "Your photos are ready" card slides up, telling the Find You
+                 story. Small pointer tilt on desktop only.
+              3. Find You visual (FindYouFeature.tsx): plays once when scrolled to: selfie ring
+                 sweeps, then the four matches appear one by one.
+              4. How it works (HowItWorks.tsx): a gold line joins the four steps and fills as you
+                 scroll; each step lights up as the line reaches it.
+              5. Feature cards, buttons: CSS hover only (gold border, arrow moves 4 px), 150 ms.
+              Step B, after the content arrives: moving studio-logo strip and counting-up stats
+              (#33), real photo tiles (#28), a gallery-design switcher like Samaro's live demo.
+              Rules: the hero headline never animates (it is the LCP, see the 2026-10-27 speed
+              fix); transform and opacity only; everything off with reduced motion; content stays
+              visible when JavaScript is off or the tab is hidden (ScrollReveal's current rule);
+              Lighthouse phone stays at 79 or better with CLS 0. Add a device test (real Android
+              phone scroll smoothness, iPhone with Reduce Motion on) when it ships.
+Done in:      6bb4817 (2026-11-02). Device test #169. "Book a demo" and the footer social icons are
+              placeholders: todo #21.
+
+#9  Sunlit Portrait theme in the app
+Listed:       2026-10-26
+Platform:     App
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       M
+Suggested by: Sarthak (2026-10-26: "first create for website")
+Discussed:    Yes
+Decision:     2026-10-26 Sarthak: build the website version first (#8), the app after;
+              2026-10-26 Sarthak asked again to have this on the list ("create theme for app too").
+Owner:        Sarthak (with Claude)
+Depends on:   #8
+Brief:        The website has a new wedding theme "Sunlit Portrait" (id "portrait", #8), but the
+              app has no "portrait" entry in apps/mobile/constants/templates.ts, so the app's theme
+              picker doesn't offer it and a gallery set to it on the website isn't drawn in that
+              design in the app. Copy the website design (staging, src/components/TemplatePortrait.tsx,
+              src/components/portrait/, src/app/sunlit-portrait.css):
+              - Cover: full-screen photo (host's focus point / zoom); at the bottom left "We're
+                getting married ♥ <date>" before the main event's date, "Happily married since
+                <date>" after it (Anniversary: "Still choosing each other"), then the names in
+                Instrument Serif; round white arrow button bottom right.
+              - Top bar: same links as Classic White in Instrument Serif, a clay dot under the
+                chosen one, Download All as a rounded pill; white on the photo, warm paper once
+                scrolled.
+              - Gallery: warm paper #FBF8F3, ink #1F1B17, muted #6B6158, clay #A24E30. With a
+                highlight film the opening fills one screen: the film edge to edge, bold Back /
+                Share on its top edge, date + gallery name + message at the bottom left, a "Highlight
+                film" play button bottom right. Without one: Back / Share on a thin line, name and
+                message, then Photos / Videos straight away. Photos / Videos as serif words with
+                raised counts and the clay dot; photos with soft corners.
+              - Footer (every page): ink, Confetti Circle's layout; EveBash links left, legal
+                links right, the couple's names (one line, no date line) + "Made with EveBash"
+                in the middle.
+              Keep the web and app pickers the same (src/lib/hiddenTemplates.test.ts checks the
+              app list).
+              Built 2026-10-27 (device test #158):
+              components/portrait/ (PortraitHero, PortraitGalleryHeader, PortraitFooter,
+              portraitFonts with @expo-google-fonts/instrument-serif, agreed 2026-10-27),
+              gallery tabs in components/event/ThemeHeader.tsx, event screen wiring in
+              app/events/[id].tsx, photo rows from Classic White (ClassicPhotoRows, 8px gaps,
+              rounded). The date line comes from shared/themes/portraitIntro.ts (one copy for
+              website and app). Checked in the iOS simulator on a real gallery with a film.
+              2026-10-27/28: review fixes (viewer colours, solid strip above the tabs, album
+              cover for logged-out guests, film controls), the film plays on white between
+              Back / Share and the name / message, labels drawn bolder (#166).
+Done in:      e4091d4 (2026-10-27), dc91889, 1056d05, c1373c6 (2026-10-28), on staging. Device test #158.
+
+#8  New wedding theme "Sunlit Portrait" (website)
+Listed:       2026-10-26
+Platform:     Website
+Priority:     Medium
+Phase:        1
+Status:       Done
+Effort:       M
+Suggested by: Sarthak (reference design shared in chat, 2026-10-26)
+Discussed:    Yes
+Decision:     2026-10-26 Sarthak: add a new wedding theme like the reference (full-screen couple
+              photo, names in a big serif along the bottom), same navbar links as Classic White,
+              website first. Name "Sunlit Portrait" suggested by Claude (id "portrait").
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        The cover photo fills the first screen (uses the host's focus point and zoom),
+              "We're getting married ♥ date, place" and the names in Instrument Serif along the bottom, a
+              round white button that scrolls to the gallery. Below the photo it reuses Classic
+              White's gallery markup restyled in its own warm paper / ink / clay look (centred
+              header, pill Photos / Videos switch, rounded photos), CSS only. Navbar variant "portrait": Classic White's
+              links in white on the photo with Download All as a white pill, turning into a soft
+              white bar once the guest scrolls. In the website's host theme picker.
+              Files: src/components/TemplatePortrait.tsx, src/components/portrait/portraitFonts.ts,
+              src/app/sunlit-portrait.css, src/components/EventNavbar.tsx, EventRouteShell.tsx,
+              events/[slug]/page.tsx, templateRegistry.tsx, webTemplateTheme.ts, host/page.tsx.
+              App follow-up: #9.
+Done in:      38465e5 (2026-10-26), on staging; font 11f425e, gallery look b9cdf78. Device test #149.
+
+#7  Midnight Hero redesign: photo-led "midnight velvet" guest page (website)
+Listed:       2026-10-26
+Platform:     Website
+Priority:     Medium
+Phase:        1
+Status:       Done
+Effort:       M
+Suggested by: Sarthak (reference design shared in chat, 2026-10-26)
+Discussed:    Yes
+Decision:     2026-10-26 Sarthak: redesign the website's Midnight Hero like the shared reference
+              (full-screen photo, invitation bar at the bottom), keep the navbar links as they are,
+              don't use the reference image, fonts can change.
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        Midnight Hero (the default theme) rated about 5/10 in the 2026-10-26 review. Built:
+              full-screen cover that uses the host's focus point and zoom
+              (#64), a frosted "invitation bar" with the names ("Samarth weds Jyoti"), the date,
+              a gold monogram crest, a gold Enter Gallery button and a round Share button; navy
+              palette (#060a18) with the same bronze gold #ca9c69; Parisienne + Bodoni Moda fonts;
+              navbar variant "midnight" (script title, links in a glass pill, same links).
+              Files: src/components/TemplateHero.tsx, src/components/midnight/,
+              src/app/midnight-hero.css, src/components/EventNavbar.tsx, EventRouteShell.tsx,
+              src/lib/webTemplateTheme.ts, src/lib/coverStyle.ts (shared by Royal and Classic).
+              Also fixes from the review: no Back link to /dashboard, no "Save The Date" or
+              "The Celebration Of" text, description shown once, no theme footer.
+              App follow-up: the app's Midnight Hero is still black with #CCA43B gold (#147)
+              and a different layout, so web and app now differ more.
+Done in:      9abe281 (hero) and 9fed312 (gallery section header) (2026-10-26), on staging.
+              Device test #148.

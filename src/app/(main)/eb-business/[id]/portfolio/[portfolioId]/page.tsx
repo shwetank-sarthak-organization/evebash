@@ -11,7 +11,7 @@ const DEFAULT_PORTFOLIO_COVER_IMAGE = "https://images.unsplash.com/photo-1519741
 const PORTFOLIO_TYPES = ["Wedding", "Birthday", "Corporate", "Sports", "Other"];
 const PORTFOLIO_TEMPLATE_THEMES = [
   { id: "royal", category: "Wedding", label: "Royal Emerald", desc: "Deep imperial emerald & palace gold", background: { dark: "#02231c" }, accent: "#ca9c69" },
-  { id: "classic", category: "Wedding", label: "Classic White", desc: "Vintage sage & warm silk ivory elegance", background: { dark: "#F7F2EB" }, accent: "#8B9A6E" },
+  { id: "classic", category: "Wedding", label: "Classic White", desc: "Soft white & vintage sage elegance", background: { dark: "#FCFCFA" }, accent: "#8B9A6E" },
   { id: "hero", category: "Wedding", label: "Midnight Hero", desc: "Big impact cinematic dark aesthetic", background: { dark: "#000000" }, accent: "#ca9c69" },
   { id: "ethereal", category: "Wedding", label: "Ethereal Mist", desc: "Vintage fine-art album & steel blue", background: { dark: "#F8FAFC" }, accent: "#4A6984" },
   { id: "scrapbook", category: "Birthday", label: "Playful Scrapbook", desc: "Soft modern keepsake aesthetic", background: { dark: "#151c1b" }, accent: "#d9826b" },
@@ -465,12 +465,12 @@ export default function ManagePortfolioEventPage() {
   };
 
   if (loading || authLoading) {
-    return <div className="flex min-h-screen items-center justify-center bg-[#050505] text-white"><Loader2 className="h-8 w-8 animate-spin text-indigo-300" /></div>;
+    return <div className="flex min-h-screen items-center justify-center bg-[#050505] light:bg-[var(--site-bg)] text-white light:text-[var(--site-text)]"><Loader2 className="h-8 w-8 animate-spin text-indigo-300 light:text-indigo-700" /></div>;
   }
 
   if (!business || !portfolio) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] px-4 text-center text-white">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] light:bg-[var(--site-bg)] px-4 text-center text-white light:text-[var(--site-text)]">
         <h1 className="text-2xl font-black">Portfolio event not found.</h1>
         <button onClick={() => goBack()} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">Back to Business</button>
       </div>
@@ -479,7 +479,7 @@ export default function ManagePortfolioEventPage() {
 
   if (!canManage) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] px-4 text-center text-white">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] light:bg-[var(--site-bg)] px-4 text-center text-white light:text-[var(--site-text)]">
         <h1 className="text-2xl font-black">You do not have access to manage this portfolio.</h1>
         <button onClick={() => router.replace("/eb-network")} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">Go to EB Network</button>
       </div>
@@ -487,23 +487,23 @@ export default function ManagePortfolioEventPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] px-4 py-6 text-white sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#050505] light:bg-[var(--site-bg)] px-4 py-6 text-white light:text-[var(--site-text)] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
         <header className="flex items-center justify-between gap-4">
-          <button onClick={() => goBack(`/eb-business/${business.id}?tab=Portfolio`)} className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-slate-200">
+          <button onClick={() => goBack(`/eb-business/${business.id}?tab=Portfolio`)} className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 light:bg-[var(--site-surface)] text-slate-200 light:text-[var(--site-subtle)]">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1 text-center">
             <h1 className="truncate text-2xl font-black">{portfolio.name}</h1>
-            <p className="mt-1 text-sm font-bold text-slate-400">Manage portfolio gallery</p>
+            <p className="mt-1 text-sm font-bold text-slate-400 light:text-[var(--site-muted)]">Manage portfolio gallery</p>
           </div>
           <div className="h-11 w-11" />
         </header>
 
-        <section className="overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950">
+        <section className="overflow-hidden rounded-[2rem] border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)]">
           <div
             ref={coverPreviewRef}
-            className={`relative h-[22rem] bg-black ${isPositioningCover ? "cursor-grab active:cursor-grabbing" : ""}`}
+            className={`site-noir relative h-[22rem] bg-black ${isPositioningCover ? "cursor-grab active:cursor-grabbing" : ""}`}
             onPointerDown={isPositioningCover ? handleCoverPointerDown : undefined}
             onPointerMove={isPositioningCover ? handleCoverPointerMove : undefined}
             onPointerUp={isPositioningCover ? handleCoverPointerEnd : undefined}
@@ -525,12 +525,12 @@ export default function ManagePortfolioEventPage() {
             )}
             {!isPositioningCover && (
               <div className="absolute right-5 top-5 z-10 flex flex-wrap justify-end gap-2">
-                <button onClick={toggleCoverMode} disabled={uploading} className="inline-flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-xs font-black uppercase tracking-widest text-white ring-1 ring-white/15 backdrop-blur disabled:opacity-60">
+                <button onClick={toggleCoverMode} disabled={uploading} className="inline-flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-xs font-black uppercase tracking-widest text-white ring-1 ring-[var(--site-tint)]/15 backdrop-blur disabled:opacity-60">
                   <RefreshCw className="h-4 w-4" />
                   {(portfolio.coverMode || "fill") === "fill" ? "Fit" : "Fill"}
                 </button>
                 {(portfolio.coverMode || "fill") === "fill" && (
-                  <button onClick={openCoverPosition} disabled={uploading} className="inline-flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-xs font-black uppercase tracking-widest text-white ring-1 ring-white/15 backdrop-blur disabled:opacity-60">
+                  <button onClick={openCoverPosition} disabled={uploading} className="inline-flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-xs font-black uppercase tracking-widest text-white ring-1 ring-[var(--site-tint)]/15 backdrop-blur disabled:opacity-60">
                     <Settings className="h-4 w-4" />
                     Position
                   </button>
@@ -539,14 +539,14 @@ export default function ManagePortfolioEventPage() {
                   <Camera className="h-4 w-4" />
                   Cover
                 </button>
-                <button onClick={openDetailsModal} className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 text-white ring-1 ring-white/15 backdrop-blur" aria-label="Edit portfolio details" title="Edit portfolio details">
+                <button onClick={openDetailsModal} className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 text-white ring-1 ring-[var(--site-tint)]/15 backdrop-blur" aria-label="Edit portfolio details" title="Edit portfolio details">
                   <Pencil className="h-4 w-4" />
                 </button>
               </div>
             )}
             <div className="absolute bottom-0 left-0 right-0 bg-black p-6">
               <h2 className="text-3xl font-black" style={{ color: "#ffffff" }}>{portfolio.name}</h2>
-              <p className="mt-2 flex items-center gap-2 text-sm font-bold text-slate-400">
+              <p className="mt-2 flex items-center gap-2 text-sm font-bold text-slate-400 light:text-[var(--site-muted)]">
                 <Calendar className="h-4 w-4" style={{ color: templateAccent }} />
                 {new Date(portfolio.date).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
               </p>
@@ -555,18 +555,18 @@ export default function ManagePortfolioEventPage() {
         </section>
 
         {isPositioningCover && (
-          <div className="fixed left-1/2 top-24 z-50 flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 flex-col gap-3 rounded-[1.5rem] border border-white/15 bg-slate-950/90 p-3 text-white shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
+          <div className="fixed left-1/2 top-24 z-50 flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 flex-col gap-3 rounded-[1.5rem] border border-[var(--site-tint)]/15 bg-slate-950/90 light:bg-[var(--site-card)]/90 p-3 text-white shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-col gap-1 px-2">
-              <span className="text-xs font-black uppercase tracking-[0.2em] text-indigo-300">Drag image</span>
-              <span className="truncate text-sm font-bold text-slate-300">{portfolio.name}</span>
+              <span className="text-xs font-black uppercase tracking-[0.2em] text-indigo-300 light:text-indigo-700">Drag image</span>
+              <span className="truncate text-sm font-bold text-slate-300 light:text-[var(--site-subtle)]">{portfolio.name}</span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 p-1">
-                <button type="button" onClick={() => adjustCoverZoom(-0.1)} className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-white transition hover:bg-slate-700" aria-label="Zoom out">-</button>
-                <span className="min-w-14 text-center text-xs font-black text-white">{Math.round(coverDraft.coverScale * 100)}%</span>
-                <button type="button" onClick={() => adjustCoverZoom(0.1)} className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-white transition hover:bg-slate-700" aria-label="Zoom in">+</button>
+              <div className="flex items-center gap-2 rounded-full border border-[var(--site-tint)]/10 bg-[var(--site-tint)]/5 p-1">
+                <button type="button" onClick={() => adjustCoverZoom(-0.1)} className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 light:bg-[var(--site-surface-2)] text-white light:text-[var(--site-text)] transition hover:bg-slate-700 light:hover:bg-[var(--site-surface-3)]" aria-label="Zoom out">-</button>
+                <span className="min-w-14 text-center text-xs font-black text-white light:text-[var(--site-text)]">{Math.round(coverDraft.coverScale * 100)}%</span>
+                <button type="button" onClick={() => adjustCoverZoom(0.1)} className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 light:bg-[var(--site-surface-2)] text-white light:text-[var(--site-text)] transition hover:bg-slate-700 light:hover:bg-[var(--site-surface-3)]" aria-label="Zoom in">+</button>
               </div>
-              <button type="button" onClick={() => { coverDragStartRef.current = null; setIsPositioningCover(false); }} className="rounded-full border border-white/15 px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-200 transition hover:bg-white/10">Cancel</button>
+              <button type="button" onClick={() => { coverDragStartRef.current = null; setIsPositioningCover(false); }} className="rounded-full border border-[var(--site-tint)]/15 px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-200 light:text-[var(--site-subtle)] transition hover:bg-[var(--site-tint)]/10">Cancel</button>
               <button type="button" onClick={saveCoverPosition} className="rounded-full bg-indigo-400 px-5 py-3 text-xs font-black uppercase tracking-widest text-[#101010] transition hover:bg-indigo-300">Save</button>
             </div>
           </div>
@@ -576,31 +576,31 @@ export default function ManagePortfolioEventPage() {
         <input ref={mediaInputRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleMediaUpload} />
 
         {showDetailsModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
-            <div className="w-full max-w-lg rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-2xl">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 light:bg-black/45 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-[2rem] border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] p-5 shadow-2xl">
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-2xl font-black text-white">Edit Portfolio</h3>
-                  <p className="mt-1 text-sm font-bold text-slate-400">Update the event name, type, and date.</p>
+                  <h3 className="text-2xl font-black text-white light:text-[var(--site-text)]">Edit Portfolio</h3>
+                  <p className="mt-1 text-sm font-bold text-slate-400 light:text-[var(--site-muted)]">Update the event name, type, and date.</p>
                 </div>
-                <button onClick={() => setShowDetailsModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-slate-300" aria-label="Close">
+                <button onClick={() => setShowDetailsModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 light:bg-[var(--site-surface)] text-slate-300 light:text-[var(--site-subtle)]" aria-label="Close">
                   <X className="h-4 w-4" />
                 </button>
               </div>
               <div className="space-y-4">
                 <label className="block">
-                  <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">Event Name</span>
-                  <input value={editName} onChange={(event) => setEditName(event.target.value)} className="w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none focus:border-indigo-400" />
+                  <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500 light:text-[var(--site-muted)]">Event Name</span>
+                  <input value={editName} onChange={(event) => setEditName(event.target.value)} className="w-full rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-900 light:bg-[var(--site-surface)] px-4 py-3 text-white light:text-[var(--site-text)] outline-none focus:border-indigo-400" />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">Event Type</span>
-                  <select value={editType} onChange={(event) => setEditType(event.target.value)} className="w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none focus:border-indigo-400">
+                  <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500 light:text-[var(--site-muted)]">Event Type</span>
+                  <select value={editType} onChange={(event) => setEditType(event.target.value)} className="w-full rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-900 light:bg-[var(--site-surface)] px-4 py-3 text-white light:text-[var(--site-text)] outline-none focus:border-indigo-400">
                     {PORTFOLIO_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">Event Date</span>
-                  <input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} className="w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none focus:border-indigo-400" />
+                  <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500 light:text-[var(--site-muted)]">Event Date</span>
+                  <input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} className="w-full rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-900 light:bg-[var(--site-surface)] px-4 py-3 text-white light:text-[var(--site-text)] outline-none focus:border-indigo-400" />
                 </label>
                 <button onClick={saveDetails} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-400 px-5 py-4 text-sm font-black text-[#101010]">
                   <Save className="h-5 w-5" />
@@ -611,52 +611,52 @@ export default function ManagePortfolioEventPage() {
           </div>
         )}
 
-        <section className="rounded-[2rem] border border-slate-800 bg-slate-950 p-5">
+        <section className="rounded-[2rem] border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] p-5">
             <div className="mb-5 flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-400/10 text-indigo-300">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-400/10 text-indigo-300 light:text-indigo-700">
                 <Palette className="h-5 w-5" />
               </div>
               <div>
                 <h3 className="text-xl font-black">Design</h3>
-                <p className="mt-1 text-sm font-bold text-slate-400">Choose a template for this portfolio.</p>
+                <p className="mt-1 text-sm font-bold text-slate-400 light:text-[var(--site-muted)]">Choose a template for this portfolio.</p>
               </div>
             </div>
             <div className="space-y-3">
               <button
                 type="button"
                 onClick={() => setShowTypeModal(true)}
-                className="flex w-full items-center justify-between rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-4 text-left transition-colors hover:border-amber-400/50"
+                className="flex w-full items-center justify-between rounded-[1.2rem] border border-slate-700 light:border-[var(--site-line)] bg-slate-900/50 light:bg-[var(--site-surface)]/50 p-4 text-left transition-colors hover:border-amber-400/50"
               >
                 <span>
-                  <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Event Type</span>
-                  <span className="text-base font-bold text-white">{portfolio.type || "Select Type"}</span>
+                  <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500 light:text-[var(--site-muted)]">Event Type</span>
+                  <span className="text-base font-bold text-white light:text-[var(--site-text)]">{portfolio.type || "Select Type"}</span>
                 </span>
-                <ChevronRight className="h-4 w-4 text-amber-400" />
+                <ChevronRight className="h-4 w-4 text-amber-400 light:text-amber-700" />
               </button>
 
               <button
                 type="button"
                 onClick={() => setShowTemplateModal(true)}
-                className="flex w-full items-center justify-between rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-4 text-left transition-colors hover:border-amber-400/50"
+                className="flex w-full items-center justify-between rounded-[1.2rem] border border-slate-700 light:border-[var(--site-line)] bg-slate-900/50 light:bg-[var(--site-surface)]/50 p-4 text-left transition-colors hover:border-amber-400/50"
               >
                 <span>
-                  <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Change Template</span>
-                  <span className="text-base font-bold text-white">{currentTemplate?.label || "Hero (Default)"}</span>
+                  <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500 light:text-[var(--site-muted)]">Change Template</span>
+                  <span className="text-base font-bold text-white light:text-[var(--site-text)]">{currentTemplate?.label || "Hero (Default)"}</span>
                 </span>
-                <ChevronRight className="h-4 w-4 text-amber-400" />
+                <ChevronRight className="h-4 w-4 text-amber-400 light:text-amber-700" />
               </button>
             </div>
         </section>
 
         {showTypeModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm" onClick={() => setShowTypeModal(false)}>
-            <div className="w-full max-w-md rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 light:bg-black/45 px-4 backdrop-blur-sm" onClick={() => setShowTypeModal(false)}>
+            <div className="w-full max-w-md rounded-[2rem] border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-2xl font-black text-white">Event Type</h3>
-                  <p className="mt-1 text-sm font-bold text-slate-400">Choose the portfolio event type.</p>
+                  <h3 className="text-2xl font-black text-white light:text-[var(--site-text)]">Event Type</h3>
+                  <p className="mt-1 text-sm font-bold text-slate-400 light:text-[var(--site-muted)]">Choose the portfolio event type.</p>
                 </div>
-                <button onClick={() => setShowTypeModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-slate-300" aria-label="Close">
+                <button onClick={() => setShowTypeModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 light:bg-[var(--site-surface)] text-slate-300 light:text-[var(--site-subtle)]" aria-label="Close">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -668,10 +668,10 @@ export default function ManagePortfolioEventPage() {
                       key={type}
                       type="button"
                       onClick={() => handleUpdateType(type)}
-                      className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition-colors ${active ? "border-amber-400 bg-amber-400/10" : "border-slate-800 bg-slate-900 hover:border-amber-400/50"}`}
+                      className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition-colors ${active ? "border-amber-400 bg-amber-400/10" : "border-slate-800 light:border-[var(--site-line)] bg-slate-900 light:bg-[var(--site-surface)] hover:border-amber-400/50"}`}
                     >
-                      <span className="font-black text-white">{type}</span>
-                      {active && <Check className="h-5 w-5 text-amber-400" />}
+                      <span className="font-black text-white light:text-[var(--site-text)]">{type}</span>
+                      {active && <Check className="h-5 w-5 text-amber-400 light:text-amber-700" />}
                     </button>
                   );
                 })}
@@ -681,14 +681,14 @@ export default function ManagePortfolioEventPage() {
         )}
 
         {showTemplateModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm" onClick={() => setShowTemplateModal(false)}>
-            <div className="w-full max-w-2xl rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 light:bg-black/45 px-4 backdrop-blur-sm" onClick={() => setShowTemplateModal(false)}>
+            <div className="w-full max-w-2xl rounded-[2rem] border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-2xl font-black text-white">Choose Style</h3>
-                  <p className="mt-1 text-sm font-bold text-slate-400">Templates shown for {portfolio.type || "this event type"}.</p>
+                  <h3 className="text-2xl font-black text-white light:text-[var(--site-text)]">Choose Style</h3>
+                  <p className="mt-1 text-sm font-bold text-slate-400 light:text-[var(--site-muted)]">Templates shown for {portfolio.type || "this event type"}.</p>
                 </div>
-                <button onClick={() => setShowTemplateModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-slate-300" aria-label="Close">
+                <button onClick={() => setShowTemplateModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 light:bg-[var(--site-surface)] text-slate-300 light:text-[var(--site-subtle)]" aria-label="Close">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -700,15 +700,15 @@ export default function ManagePortfolioEventPage() {
                       key={template.id}
                       type="button"
                       onClick={() => handleUpdateTemplate(template.id)}
-                      className={`flex w-full items-center gap-3 rounded-2xl border-2 p-3 text-left transition-colors ${active ? "bg-white/5" : "border-white/5 bg-white/5 hover:border-white/20"}`}
+                      className={`flex w-full items-center gap-3 rounded-2xl border-2 p-3 text-left transition-colors ${active ? "bg-[var(--site-tint)]/5" : "border-[var(--site-tint)]/5 bg-[var(--site-tint)]/5 hover:border-[var(--site-tint)]/20"}`}
                       style={{ borderColor: active ? template.accent : undefined }}
                     >
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10" style={{ backgroundColor: template.background.dark }}>
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--site-tint)]/10" style={{ backgroundColor: template.background.dark }}>
                         <span className="h-4 w-4 rounded-full" style={{ backgroundColor: template.accent }} />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-black" style={{ color: active ? template.accent : "#ffffff" }}>{template.label}</span>
-                        <span className="mt-0.5 block truncate text-[11px] font-bold text-slate-400">{template.desc}</span>
+                        <span className="mt-0.5 block truncate text-[11px] font-bold text-slate-400 light:text-[var(--site-muted)]">{template.desc}</span>
                       </span>
                       {active && (
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: template.accent }}>
@@ -724,7 +724,7 @@ export default function ManagePortfolioEventPage() {
         )}
 
         <section
-          className={`relative rounded-[2rem] border p-5 transition-colors ${isDraggingMedia ? "border-indigo-300 bg-indigo-400/10" : "border-slate-800 bg-slate-950"}`}
+          className={`relative rounded-[2rem] border p-5 transition-colors ${isDraggingMedia ? "border-indigo-300 bg-indigo-400/10" : "border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)]"}`}
           onDragEnter={handleMediaDrag}
           onDragOver={handleMediaDrag}
           onDragLeave={handleMediaDragLeave}
@@ -733,16 +733,16 @@ export default function ManagePortfolioEventPage() {
           {isDraggingMedia && (
             <div className="pointer-events-none absolute inset-3 z-10 flex items-center justify-center rounded-[1.6rem] border-2 border-dashed border-indigo-300 bg-black/70 text-center backdrop-blur-sm">
               <div>
-                <Camera className="mx-auto mb-3 h-10 w-10 text-indigo-200" />
-                <p className="text-lg font-black text-white">Drop files to upload</p>
-                <p className="mt-1 text-sm font-bold text-indigo-100/70">Images and videos are supported.</p>
+                <Camera className="mx-auto mb-3 h-10 w-10 text-indigo-200 light:text-indigo-800" />
+                <p className="text-lg font-black text-white light:text-[var(--site-text)]">Drop files to upload</p>
+                <p className="mt-1 text-sm font-bold text-indigo-100/70 light:text-indigo-800/70">Images and videos are supported.</p>
               </div>
             </div>
           )}
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-xl font-black">Images</h3>
-              <p className="mt-1 text-sm font-bold text-slate-400">{portfolio.media?.length || 0} uploaded · Drag files here or use upload</p>
+              <p className="mt-1 text-sm font-bold text-slate-400 light:text-[var(--site-muted)]">{portfolio.media?.length || 0} uploaded · Drag files here or use upload</p>
             </div>
             <button onClick={() => mediaInputRef.current?.click()} disabled={uploading} className="inline-flex items-center gap-2 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010] disabled:opacity-60">
               {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
@@ -753,12 +753,12 @@ export default function ManagePortfolioEventPage() {
           {message && (
             <div className={`mb-4 flex items-center gap-2 rounded-2xl border p-3 text-sm font-bold ${
               uploadStatus === "uploading"
-                ? "border-sky-400/20 bg-sky-400/10 text-sky-200"
+                ? "border-sky-400/20 bg-sky-400/10 text-sky-200 light:text-sky-800"
                 : uploadStatus === "success"
-                  ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                  ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200 light:text-emerald-800"
                   : uploadStatus === "error"
-                    ? "border-rose-400/20 bg-rose-400/10 text-rose-200"
-                    : "border-indigo-400/20 bg-indigo-400/10 text-indigo-200"
+                    ? "border-rose-400/20 bg-rose-400/10 text-rose-200 light:text-rose-800"
+                    : "border-indigo-400/20 bg-indigo-400/10 text-indigo-200 light:text-indigo-800"
             }`}>
               {uploadStatus === "uploading" && <Loader2 className="h-4 w-4 animate-spin" />}
               <span>{message}</span>
@@ -770,7 +770,7 @@ export default function ManagePortfolioEventPage() {
               {mediaItems.map((media: BusinessPortfolioMedia, index) => (
                 <div
                   key={media.id}
-                  className="relative cursor-zoom-in overflow-hidden rounded-2xl border border-slate-800 bg-black"
+                  className="relative cursor-zoom-in overflow-hidden rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-black"
                   onClick={() => openMediaViewer(index)}
                 >
                   {media.type === "video" ? (
@@ -809,7 +809,7 @@ export default function ManagePortfolioEventPage() {
               ))}
             </div>
           ) : (
-            <button onClick={() => mediaInputRef.current?.click()} className="flex min-h-64 w-full flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 text-slate-500">
+            <button onClick={() => mediaInputRef.current?.click()} className="flex min-h-64 w-full flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 light:border-[var(--site-line)] text-slate-500 light:text-[var(--site-muted)]">
               <Camera className="mb-3 h-10 w-10" />
               <span className="font-black">Upload images for this portfolio event</span>
             </button>
@@ -817,7 +817,7 @@ export default function ManagePortfolioEventPage() {
         </section>
 
         {selectedMedia && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 px-4 py-6" onClick={closeMediaViewer}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 light:bg-black/45 px-4 py-6" onClick={closeMediaViewer}>
             <button
               type="button"
               onClick={(event) => {
@@ -861,7 +861,7 @@ export default function ManagePortfolioEventPage() {
               ) : (
                 <img src={selectedMedia.url} alt="" className="max-h-[86vh] max-w-full rounded-2xl object-contain" />
               )}
-              <p className="mt-4 text-center text-sm font-bold text-white/70">
+              <p className="mt-4 text-center text-sm font-bold text-[var(--site-tint)]/70">
                 {(selectedMediaIndex ?? 0) + 1} / {mediaItems.length}
               </p>
             </div>
@@ -871,14 +871,14 @@ export default function ManagePortfolioEventPage() {
         <section className="rounded-[2rem] border border-rose-500/20 bg-rose-500/5 p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-xl font-black text-rose-200">Delete Portfolio Event</h3>
-              <p className="mt-1 text-sm font-bold text-rose-100/60">This removes the portfolio event from your business.</p>
+              <h3 className="text-xl font-black text-rose-200 light:text-rose-800">Delete Portfolio Event</h3>
+              <p className="mt-1 text-sm font-bold text-rose-100/60 light:text-rose-800/60">This removes the portfolio event from your business.</p>
             </div>
             <button
               type="button"
               onClick={handleDeletePortfolio}
               disabled={deleting}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/15 px-5 py-3 text-sm font-black text-rose-200 transition-colors hover:bg-rose-500/25 disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/15 px-5 py-3 text-sm font-black text-rose-200 light:text-rose-800 transition-colors hover:bg-rose-500/25 disabled:opacity-60"
             >
               {deleting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2 className="h-5 w-5" />}
               Delete Portfolio Event

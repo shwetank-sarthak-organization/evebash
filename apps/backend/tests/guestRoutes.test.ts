@@ -157,3 +157,41 @@ test('deny-request tells the person first, then erases the request; members are 
     server.close();
   }
 });
+
+test('taking Admin Access from someone with an album role answers 409 with the database message', async () => {
+  const message = 'This person is the photographer in "Wedding Album". Change the album\'s roles first (Album tab > the album > ... > Change roles), then try again.';
+  const refusingAdmin = {
+    from: () => {
+      const builder: any = {
+        update: () => builder,
+        delete: () => builder,
+        eq: () => Promise.resolve({ error: { code: 'EBA01', message } }),
+      };
+      return builder;
+    },
+  };
+  const app = express();
+  app.use(express.json());
+  app.use('/permissions', createPermissionsRouter(async () => 'allowed', () => refusingAdmin as never));
+  const server = app.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/permissions`;
+  const post = async (path: string, body: object) => {
+    const response = await fetch(`${base}/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return { status: response.status, json: await response.json() as { code?: string; error?: string } };
+  };
+  try {
+    for (const [path, body] of [
+      ['update-guest-permissions', { logId: 'g1', permissions: { canAdmin: false } }],
+      ['update-guest-status', { logId: 'g1', status: 'rejected' }],
+      ['delete-guest', { logId: 'g1' }],
+    ] as const) {
+      const result = await post(path, body);
+      assert.equal(result.status, 409, path);
+      assert.equal(result.json.code, 'album_role_assigned');
+      assert.equal(result.json.error, message);
+    }
+  } finally {
+    server.close();
+  }
+});

@@ -164,7 +164,7 @@ function DatePickerColumn({
                 event.currentTarget.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
               }}
               className={`flex h-14 w-full snap-center items-center justify-center rounded-xl text-center text-xl font-medium transition-colors ${
-                isSelected ? "text-slate-950" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                isSelected ? "text-slate-950" : "text-slate-400 light:text-[var(--site-muted)] hover:bg-slate-100 hover:text-slate-700"
               }`}
             >
               {option.label}
@@ -540,7 +540,7 @@ export default function ManageBusinessPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex min-h-[80vh] items-center justify-center bg-[#050505] text-[#818cf8]">
+      <div className="flex min-h-[80vh] items-center justify-center bg-[#050505] light:bg-[var(--site-bg)] text-[#818cf8] light:text-indigo-700">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
@@ -548,7 +548,7 @@ export default function ManageBusinessPage() {
 
   if (!business) {
     return (
-      <div className="flex min-h-[80vh] flex-col items-center justify-center bg-[#050505] px-4 text-center text-white">
+      <div className="flex min-h-[80vh] flex-col items-center justify-center bg-[#050505] light:bg-[var(--site-bg)] px-4 text-center text-white light:text-[var(--site-text)]">
         <h1 className="text-2xl font-black">Business not found</h1>
         <button type="button" onClick={() => router.replace("/eb-business")} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">
           Back to EB Business
@@ -559,7 +559,7 @@ export default function ManageBusinessPage() {
 
   if (!canManage) {
     return (
-      <div className="flex min-h-[80vh] flex-col items-center justify-center bg-[#050505] px-4 text-center text-white">
+      <div className="flex min-h-[80vh] flex-col items-center justify-center bg-[#050505] light:bg-[var(--site-bg)] px-4 text-center text-white light:text-[var(--site-text)]">
         <h1 className="text-2xl font-black">You do not have access to manage this business.</h1>
         <button type="button" onClick={() => router.replace("/eb-business")} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">
           Back to EB Business
@@ -569,19 +569,19 @@ export default function ManageBusinessPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] px-4 py-6 text-white sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#050505] light:bg-[var(--site-bg)] px-4 py-6 text-white light:text-[var(--site-text)] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl space-y-6">
         <header className="grid grid-cols-[3rem_1fr_3rem] items-center gap-4 py-2">
           <div>
             {isEditing ? (
-              <button type="button" onClick={handleCancel} className="text-sm font-black text-[#cbd5e1]">
+              <button type="button" onClick={handleCancel} className="text-sm font-black text-[#cbd5e1] light:text-[var(--site-subtle)]">
                 Cancel
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => router.push("/eb-business")}
-                className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-400/20 bg-indigo-400/10 text-[#818cf8]"
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-400/20 bg-indigo-400/10 text-[#818cf8] light:text-indigo-700"
                 aria-label="Back"
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -590,21 +590,21 @@ export default function ManageBusinessPage() {
           </div>
 
           <div className="min-w-0 text-center">
-            <h1 className="font-playfair text-3xl font-black tracking-tight text-white sm:text-4xl">Manage Business</h1>
-            <p className="mt-1 truncate text-sm font-bold text-[#94a3b8]">{business.name || "Manage Empire"}</p>
+            <h1 className="font-playfair text-3xl font-black tracking-tight text-white light:text-[var(--site-text)] sm:text-4xl">Manage Business</h1>
+            <p className="mt-1 truncate text-sm font-bold text-[#94a3b8] light:text-[var(--site-muted)]">{business.name || "Manage Empire"}</p>
           </div>
 
           <div />
         </header>
 
-        <nav className="flex gap-3 overflow-x-auto border-b border-white/10 pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <nav className="flex gap-3 overflow-x-auto border-b border-[var(--site-tint)]/10 pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {TABS.map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => selectTab(tab)}
               className={`relative shrink-0 px-1 pb-4 text-sm font-black transition-colors ${
-                activeTab === tab ? "text-[#818cf8]" : "text-[#94a3b8] hover:text-[#cbd5e1]"
+                activeTab === tab ? "text-[#818cf8] light:text-indigo-700" : "text-[#94a3b8] light:text-[var(--site-muted)] hover:text-[#cbd5e1] light:hover:text-[var(--site-subtle)]"
               }`}
             >
               {tab}
@@ -615,7 +615,7 @@ export default function ManageBusinessPage() {
 
         {message && (
           <div className={`rounded-2xl border p-4 text-sm font-bold ${
-            messageType === "error" ? "border-rose-500/30 bg-rose-950/40 text-rose-300" : "border-emerald-500/30 bg-emerald-950/40 text-emerald-300"
+            messageType === "error" ? "border-rose-500/30 bg-rose-950/40 text-rose-300 light:text-rose-700" : "border-emerald-500/30 bg-emerald-950/40 text-emerald-300 light:text-emerald-700"
           }`}>
             {message}
           </div>
@@ -627,7 +627,7 @@ export default function ManageBusinessPage() {
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
               <div className="grid gap-3 sm:grid-cols-3">
                 {coverImages.slice(0, 1).map((image, index) => (
-                  <div key={`${image}-${index}`} className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+                  <div key={`${image}-${index}`} className="relative overflow-hidden rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)]">
                     <div className="relative aspect-[4/3]">
                       <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 blur-xl" />
                       <img src={image} alt="" className="relative h-full w-full object-contain" />
@@ -637,7 +637,7 @@ export default function ManageBusinessPage() {
                         <button
                           type="button"
                           onClick={() => setCoverImages(coverImages.filter((_, imageIndex) => imageIndex !== index))}
-                          className="rounded-full bg-slate-950/85 p-2 text-rose-300"
+                          className="rounded-full bg-slate-950/85 light:bg-[var(--site-card)]/85 p-2 text-rose-300 light:text-rose-700"
                           aria-label="Remove photo"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -650,7 +650,7 @@ export default function ManageBusinessPage() {
                           fileInputRef.current?.click();
                         }}
                         disabled={uploading}
-                        className="rounded-full bg-indigo-400 p-2 text-[#101010] shadow-lg shadow-indigo-950/30 disabled:opacity-60"
+                        className="rounded-full bg-indigo-400 p-2 text-[#101010] shadow-lg shadow-indigo-950/30 light:shadow-(color:--home-shadow) disabled:opacity-60"
                         aria-label="Edit cover photo"
                       >
                         {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
@@ -666,7 +666,7 @@ export default function ManageBusinessPage() {
                       fileInputRef.current?.click();
                     }}
                     disabled={uploading}
-                    className="relative flex aspect-[4/3] items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-950 text-[#475569] disabled:opacity-60"
+                    className="relative flex aspect-[4/3] items-center justify-center rounded-2xl border border-dashed border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] text-[#475569] light:text-[var(--site-muted)] disabled:opacity-60"
                   >
                     <Camera className="h-10 w-10" />
                     <span className="absolute right-3 top-3 rounded-full bg-indigo-400 p-2 text-[#101010]">
@@ -691,18 +691,18 @@ export default function ManageBusinessPage() {
                 <Field label="Category">
                   {isEditing ? (
                     <div className="relative">
-                      <select value={category} onChange={(event) => setCategory(event.target.value)} className="w-full appearance-none rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400">
+                      <select value={category} onChange={(event) => setCategory(event.target.value)} className="w-full appearance-none rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] px-4 py-3 text-white light:text-[var(--site-text)] outline-none focus:border-indigo-400">
                         {BUSINESS_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
                       </select>
-                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#a5b4fc]" />
+                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#a5b4fc] light:text-indigo-700" />
                     </div>
                   ) : <Display value={category} />}
                 </Field>
                 <Field label="Business Started">
-                  {isEditing ? <input type="date" value={startedDate} max={new Date().toISOString().slice(0, 10)} onChange={(event) => setStartedDate(event.target.value)} className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400" /> : (
+                  {isEditing ? <input type="date" value={startedDate} max={new Date().toISOString().slice(0, 10)} onChange={(event) => setStartedDate(event.target.value)} className="w-full rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] px-4 py-3 text-white light:text-[var(--site-text)] outline-none focus:border-indigo-400" /> : (
                     <div>
                       <Display value={`${yearsSince(startedDate)} Years`} />
-                      <p className="mt-1 text-xs font-semibold text-[#94a3b8]">Started {new Date(startedDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</p>
+                      <p className="mt-1 text-xs font-semibold text-[#94a3b8] light:text-[var(--site-muted)]">Started {new Date(startedDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</p>
                     </div>
                   )}
                 </Field>
@@ -712,8 +712,8 @@ export default function ManageBusinessPage() {
               </div>
               <Field label="About Business" className="mt-4">
                 {isEditing ? (
-                  <textarea value={about} onChange={(event) => setAbout(event.target.value)} placeholder="Tell us about your services..." className="min-h-32 w-full resize-none rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400 placeholder:text-[#475569]" />
-                ) : <p className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm font-semibold leading-6 text-[#94a3b8]">{about || "No description provided."}</p>}
+                  <textarea value={about} onChange={(event) => setAbout(event.target.value)} placeholder="Tell us about your services..." className="min-h-32 w-full resize-none rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] px-4 py-3 text-white light:text-[var(--site-text)] outline-none focus:border-indigo-400 placeholder:text-[#475569] light:placeholder:text-[var(--site-muted)]" />
+                ) : <p className="rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] p-4 text-sm font-semibold leading-6 text-[#94a3b8] light:text-[var(--site-muted)]">{about || "No description provided."}</p>}
               </Field>
             </Panel>
 
@@ -747,14 +747,14 @@ export default function ManageBusinessPage() {
                   <button
                     type="button"
                     onClick={() => setShowPortfolioSortMenu(prev => !prev)}
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-[#cbd5e1]"
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-700 light:border-[var(--site-line)] px-3 py-2 text-xs font-black text-[#cbd5e1] light:text-[var(--site-subtle)]"
                   >
                     <Tag className="h-4 w-4" />
                     {PORTFOLIO_SORT_OPTIONS.find(option => option.value === portfolioSort)?.label || "Sort"}
                     <ChevronDown className="h-3.5 w-3.5" />
                   </button>
                   {showPortfolioSortMenu && (
-                    <div className="absolute right-0 z-30 mt-2 w-44 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 p-1 shadow-2xl">
+                    <div className="absolute right-0 z-30 mt-2 w-44 overflow-hidden rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] p-1 shadow-2xl">
                       {PORTFOLIO_SORT_OPTIONS.map((option) => (
                         <button
                           key={option.value}
@@ -764,7 +764,7 @@ export default function ManageBusinessPage() {
                             setShowPortfolioSortMenu(false);
                           }}
                           className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-black transition-colors ${
-                            portfolioSort === option.value ? "bg-indigo-400 text-[#101010]" : "text-slate-300 hover:bg-slate-900"
+                            portfolioSort === option.value ? "bg-indigo-400 text-[#101010]" : "text-slate-300 light:text-[var(--site-subtle)] hover:bg-slate-900 light:hover:bg-[var(--site-surface)]"
                           }`}
                         >
                           {option.label}
@@ -777,7 +777,7 @@ export default function ManageBusinessPage() {
                 <button
                   type="button"
                   onClick={openCreatePortfolioModal}
-                  className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 px-3 py-2 text-xs font-black text-[#a5b4fc]"
+                  className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 px-3 py-2 text-xs font-black text-[#a5b4fc] light:text-indigo-700"
                 >
                   <Plus className="h-4 w-4" />
                   Create Portfolio
@@ -809,15 +809,15 @@ export default function ManageBusinessPage() {
 
                   <div className="absolute bottom-0 left-0 right-0 bg-black p-5">
                     <h3 className="mb-1 truncate text-lg font-bold leading-tight" style={{ color: "#ffffff" }}>{portfolio.name}</h3>
-                    <div className="mt-2 flex items-center text-xs font-bold text-[#94a3b8]">
-                      <Calendar className="mr-1.5 h-3 w-3 text-[#facc15]" />
+                    <div className="mt-2 flex items-center text-xs font-bold text-[#94a3b8] light:text-[var(--site-muted)]">
+                      <Calendar className="mr-1.5 h-3 w-3 text-[#facc15] light:text-amber-600" />
                       <span>{new Date(portfolio.date).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}</span>
                     </div>
                   </div>
                 </button>
               ))}
               {sortedPortfolioEvents.length === 0 && (
-                <p className="text-sm font-semibold text-[#94a3b8]">No portfolio events created yet.</p>
+                <p className="text-sm font-semibold text-[#94a3b8] light:text-[var(--site-muted)]">No portfolio events created yet.</p>
               )}
             </div>
           </Panel>
@@ -836,46 +836,46 @@ export default function ManageBusinessPage() {
               )}
               <div className="space-y-3">
                 {announcements.map((item, index) => (
-                  <div key={`${item}-${index}`} className="flex items-start justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+                  <div key={`${item}-${index}`} className="flex items-start justify-between gap-4 rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] p-4">
                     <div className="flex gap-3">
                       <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-indigo-300" />
-                      <p className="text-sm font-semibold leading-6 text-[#cbd5e1]">{item}</p>
+                      <p className="text-sm font-semibold leading-6 text-[#cbd5e1] light:text-[var(--site-subtle)]">{item}</p>
                     </div>
-                    {isEditing && <button type="button" onClick={() => setAnnouncements(announcements.filter((_, itemIndex) => itemIndex !== index))} className="text-rose-300"><Trash2 className="h-4 w-4" /></button>}
+                    {isEditing && <button type="button" onClick={() => setAnnouncements(announcements.filter((_, itemIndex) => itemIndex !== index))} className="text-rose-300 light:text-rose-700"><Trash2 className="h-4 w-4" /></button>}
                   </div>
                 ))}
-                {announcements.length === 0 && <p className="text-sm font-semibold text-[#94a3b8]">No active news or updates.</p>}
+                {announcements.length === 0 && <p className="text-sm font-semibold text-[#94a3b8] light:text-[var(--site-muted)]">No active news or updates.</p>}
               </div>
             </Panel>
 
             <Panel title={`Manage FAQ (${faqs.length}/5)`}>
               {isEditing && (
-                <button type="button" onClick={addFaq} disabled={faqs.length >= 5} className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-400/30 px-3 py-2 text-xs font-black text-[#a5b4fc] disabled:opacity-50">
+                <button type="button" onClick={addFaq} disabled={faqs.length >= 5} className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-400/30 px-3 py-2 text-xs font-black text-[#a5b4fc] light:text-indigo-700 disabled:opacity-50">
                   <Plus className="h-4 w-4" />
                   Add FAQ
                 </button>
               )}
               <div className="space-y-4">
                 {faqs.map((faq, index) => (
-                  <div key={index} className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+                  <div key={index} className="rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] p-4">
                     <div className="mb-3 flex items-center justify-between">
-                      <p className="text-xs font-black uppercase tracking-widest text-[#94a3b8]">FAQ #{index + 1}</p>
-                      {isEditing && <button type="button" onClick={() => setFaqs(faqs.filter((_, faqIndex) => faqIndex !== index))} className="text-rose-300"><Trash2 className="h-4 w-4" /></button>}
+                      <p className="text-xs font-black uppercase tracking-widest text-[#94a3b8] light:text-[var(--site-muted)]">FAQ #{index + 1}</p>
+                      {isEditing && <button type="button" onClick={() => setFaqs(faqs.filter((_, faqIndex) => faqIndex !== index))} className="text-rose-300 light:text-rose-700"><Trash2 className="h-4 w-4" /></button>}
                     </div>
                     {isEditing ? (
                       <div className="space-y-3">
                         <Input value={faq.q} onChange={(value) => updateFaq(index, "q", value)} placeholder="Question" />
-                        <textarea value={faq.a} onChange={(event) => updateFaq(index, "a", event.target.value)} placeholder="Answer" className="min-h-24 w-full resize-none rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none focus:border-indigo-400 placeholder:text-[#475569]" />
+                        <textarea value={faq.a} onChange={(event) => updateFaq(index, "a", event.target.value)} placeholder="Answer" className="min-h-24 w-full resize-none rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-900 light:bg-[var(--site-surface)] px-4 py-3 text-white light:text-[var(--site-text)] outline-none focus:border-indigo-400 placeholder:text-[#475569] light:placeholder:text-[var(--site-muted)]" />
                       </div>
                     ) : (
                       <div>
-                        <h3 className="font-black text-white">{faq.q || "Untitled question"}</h3>
-                        <p className="mt-2 text-sm font-semibold leading-6 text-[#94a3b8]">{faq.a || "No answer added."}</p>
+                        <h3 className="font-black text-white light:text-[var(--site-text)]">{faq.q || "Untitled question"}</h3>
+                        <p className="mt-2 text-sm font-semibold leading-6 text-[#94a3b8] light:text-[var(--site-muted)]">{faq.a || "No answer added."}</p>
                       </div>
                     )}
                   </div>
                 ))}
-                {faqs.length === 0 && <p className="text-sm font-semibold text-[#94a3b8]">No FAQs added.</p>}
+                {faqs.length === 0 && <p className="text-sm font-semibold text-[#94a3b8] light:text-[var(--site-muted)]">No FAQs added.</p>}
               </div>
             </Panel>
           </section>
@@ -892,19 +892,19 @@ export default function ManageBusinessPage() {
       </div>
 
       {showPortfolioModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[2rem] border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/75 light:bg-[var(--site-card)]/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[2rem] border border-slate-800 light:border-[var(--site-line)] bg-slate-900 light:bg-[var(--site-surface)] p-6 shadow-2xl">
             <div className="mb-5 flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-black text-white">{editingPortfolioId ? "Edit Portfolio" : "Create Portfolio"}</h2>
-                <p className="mt-1 text-sm font-semibold text-[#94a3b8]">
+                <h2 className="text-2xl font-black text-white light:text-[var(--site-text)]">{editingPortfolioId ? "Edit Portfolio" : "Create Portfolio"}</h2>
+                <p className="mt-1 text-sm font-semibold text-[#94a3b8] light:text-[var(--site-muted)]">
                   {editingPortfolioId ? "Update this portfolio event." : "Add an event to your business portfolio."}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={closePortfolioModal}
-                className="rounded-full bg-slate-800 p-2 text-[#94a3b8]"
+                className="rounded-full bg-slate-800 light:bg-[var(--site-surface-2)] p-2 text-[#94a3b8] light:text-[var(--site-muted)]"
                 aria-label="Close"
               >
                 <X className="h-5 w-5" />
@@ -914,7 +914,7 @@ export default function ManageBusinessPage() {
             <div className="space-y-4">
               <Field label="Cover Image">
                 <input ref={portfolioCoverInputRef} type="file" accept="image/*" className="hidden" onChange={handlePortfolioCoverUpload} />
-                <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+                <div className="overflow-hidden rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)]">
                   <div className="relative aspect-[16/9]">
                     {portfolioCoverImage ? (
                       <>
@@ -922,7 +922,7 @@ export default function ManageBusinessPage() {
                         <img src={portfolioCoverImage} alt="" className="relative h-full w-full object-cover" />
                       </>
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-slate-600">
+                      <div className="flex h-full w-full items-center justify-center text-slate-600 light:text-[var(--site-muted)]">
                         <Camera className="h-10 w-10" />
                       </div>
                     )}
@@ -945,7 +945,7 @@ export default function ManageBusinessPage() {
                     type="button"
                     onClick={() => portfolioMediaInputRef.current?.click()}
                     disabled={uploading}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-400/30 bg-indigo-400/10 px-4 py-4 text-sm font-black text-indigo-200 disabled:opacity-60"
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-400/30 bg-indigo-400/10 px-4 py-4 text-sm font-black text-indigo-200 light:text-indigo-800 disabled:opacity-60"
                   >
                     {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
                     Upload Images
@@ -953,7 +953,7 @@ export default function ManageBusinessPage() {
                   {portfolioMedia.length > 0 && (
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                       {portfolioMedia.map((item) => (
-                        <div key={item.id} className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+                        <div key={item.id} className="relative overflow-hidden rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)]">
                           <div className="relative aspect-square">
                             {item.type === "video" ? (
                               <video src={item.url} className="h-full w-full object-cover" muted playsInline />
@@ -990,7 +990,7 @@ export default function ManageBusinessPage() {
                         className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-black transition-colors ${
                           isSelected
                             ? "border-amber-400 bg-amber-400 text-slate-950"
-                            : "border-slate-800 bg-slate-950 text-slate-300 hover:border-amber-400/50 hover:text-white"
+                            : "border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] text-slate-300 light:text-[var(--site-subtle)] hover:border-amber-400/50 hover:text-white light:hover:text-[var(--site-text)]"
                         }`}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
@@ -1007,10 +1007,10 @@ export default function ManageBusinessPage() {
                     setPortfolioDatePickerValue(getDatePartsFromInputValue(portfolioDate));
                     setShowPortfolioDatePicker(true);
                   }}
-                  className="flex w-full items-center justify-between rounded-2xl border border-slate-800 bg-slate-950 px-4 py-4 text-left text-white outline-none transition-colors hover:border-amber-400/50"
+                  className="flex w-full items-center justify-between rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] px-4 py-4 text-left text-white light:text-[var(--site-text)] outline-none transition-colors hover:border-amber-400/50"
                 >
                   <span className="font-semibold">{formatFriendlyDatePickerValue(getDatePartsFromInputValue(portfolioDate))}</span>
-                  <Calendar className="h-5 w-5 text-amber-300" />
+                  <Calendar className="h-5 w-5 text-amber-300 light:text-amber-700" />
                 </button>
               </Field>
             </div>
@@ -1025,7 +1025,7 @@ export default function ManageBusinessPage() {
 
       {showPortfolioDatePicker && (
         <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 light:bg-black/45 p-4 backdrop-blur-sm"
         >
           <div className="relative w-full max-w-sm rounded bg-white p-6 text-slate-950 shadow-2xl">
             <div className="grid grid-cols-3 gap-6">
@@ -1067,7 +1067,7 @@ export default function ManageBusinessPage() {
                   setPortfolioDate(formatDatePickerValue(portfolioDatePickerValue));
                   setShowPortfolioDatePicker(false);
                 }}
-                className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black uppercase tracking-widest text-white transition-colors hover:bg-slate-800"
+                className="rounded-full bg-slate-950 light:bg-[var(--site-card)] px-5 py-3 text-sm font-black uppercase tracking-widest text-white light:text-[var(--site-text)] transition-colors hover:bg-slate-800 light:hover:bg-[var(--site-surface-2)]"
               >
                 OK
               </button>
@@ -1081,11 +1081,11 @@ export default function ManageBusinessPage() {
 
 function Panel({ title, children, action, icon }: { title: string; children: React.ReactNode; action?: React.ReactNode; icon?: React.ReactNode }) {
   return (
-    <section className="rounded-[1.5rem] border border-slate-800 bg-slate-900 p-5 shadow-2xl shadow-black/10">
+    <section className="rounded-[1.5rem] border border-slate-800 light:border-[var(--site-line)] bg-slate-900 light:bg-[var(--site-surface)] p-5 shadow-2xl shadow-black/10 light:shadow-(color:--home-shadow)">
       <div className="mb-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          {icon && <span className="text-[#a5b4fc]">{icon}</span>}
-          <h2 className="text-lg font-black text-white">{title}</h2>
+          {icon && <span className="text-[#a5b4fc] light:text-indigo-700">{icon}</span>}
+          <h2 className="text-lg font-black text-white light:text-[var(--site-text)]">{title}</h2>
         </div>
         {action}
       </div>
@@ -1097,7 +1097,7 @@ function Panel({ title, children, action, icon }: { title: string; children: Rea
 function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
   return (
     <label className={`block ${className}`}>
-      <span className="mb-2 block text-xs font-black uppercase tracking-widest text-[#94a3b8]">{label}</span>
+      <span className="mb-2 block text-xs font-black uppercase tracking-widest text-[#94a3b8] light:text-[var(--site-muted)]">{label}</span>
       {children}
     </label>
   );
@@ -1116,27 +1116,27 @@ function Input({ value, onChange, placeholder, type = "text", onEnter }: { value
           onEnter();
         }
       }}
-      className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400 placeholder:text-[#475569]"
+      className="w-full rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] px-4 py-3 text-white light:text-[var(--site-text)] outline-none focus:border-indigo-400 placeholder:text-[#475569] light:placeholder:text-[var(--site-muted)]"
     />
   );
 }
 
 function Display({ value, strong }: { value: string; strong?: boolean }) {
-  return <p className={`rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-[#f1f5f9] ${strong ? "text-lg font-black text-white" : "text-sm font-semibold"}`}>{value || "Not set"}</p>;
+  return <p className={`rounded-2xl border border-slate-800 light:border-[var(--site-line)] bg-slate-950 light:bg-[var(--site-card)] px-4 py-3 text-[#f1f5f9] light:text-[var(--site-text)] ${strong ? "text-lg font-black text-white light:text-[var(--site-text)]" : "text-sm font-semibold"}`}>{value || "Not set"}</p>;
 }
 
 function TagCloud({ items, editable, onRemove }: { items: string[]; editable: boolean; onRemove: (item: string) => void }) {
   if (items.length === 0) {
-    return <p className="text-sm font-semibold text-[#94a3b8]">No services listed.</p>;
+    return <p className="text-sm font-semibold text-[#94a3b8] light:text-[var(--site-muted)]">No services listed.</p>;
   }
 
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item) => (
-        <span key={item} className="inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-400/10 px-3 py-2 text-xs font-black text-[#a5b4fc]">
+        <span key={item} className="inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-400/10 px-3 py-2 text-xs font-black text-[#a5b4fc] light:text-indigo-700">
           {item}
           {editable && (
-            <button type="button" onClick={() => onRemove(item)} className="text-[#94a3b8] hover:text-rose-300" aria-label={`Remove ${item}`}>
+            <button type="button" onClick={() => onRemove(item)} className="text-[#94a3b8] light:text-[var(--site-muted)] hover:text-rose-300 light:hover:text-rose-700" aria-label={`Remove ${item}`}>
               <X className="h-3 w-3" />
             </button>
           )}
@@ -1148,12 +1148,12 @@ function TagCloud({ items, editable, onRemove }: { items: string[]; editable: bo
 
 function Metric({ label, value, icon }: { label: string; value: string | number; icon: React.ReactNode }) {
   return (
-    <article className="rounded-[1.5rem] border border-slate-800 bg-slate-900 p-5">
-      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-400/10 text-[#a5b4fc]">
+    <article className="rounded-[1.5rem] border border-slate-800 light:border-[var(--site-line)] bg-slate-900 light:bg-[var(--site-surface)] p-5">
+      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-400/10 text-[#a5b4fc] light:text-indigo-700">
         {icon}
       </div>
-      <p className="text-xs font-black uppercase tracking-widest text-[#94a3b8]">{label}</p>
-      <p className="mt-2 text-2xl font-black text-white">{value}</p>
+      <p className="text-xs font-black uppercase tracking-widest text-[#94a3b8] light:text-[var(--site-muted)]">{label}</p>
+      <p className="mt-2 text-2xl font-black text-white light:text-[var(--site-text)]">{value}</p>
     </article>
   );
 }

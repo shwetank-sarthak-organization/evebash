@@ -9,7 +9,10 @@ import { VideoView, createVideoPlayer, type VideoPlayer } from 'expo-video';
 import type { FullscreenOptions } from 'expo-video/build/VideoView.types';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useNavigation } from 'expo-router';
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, canCommentOnPhoto, Event as DatabaseEvent } from '@/lib/database';
+import { formatCommentTime } from '../../../shared/text/commentTime';
+import { useAndroidKeyboardHeight } from '@/hooks/use-android-keyboard-height';
 import { getImageUrl, getOriginalMediaUrl } from '@/lib/imageUrl';
 import { SCREEN_ORIENTATION_LOCK, canLockScreenOrientation, lockScreenOrientation } from '@/lib/screenOrientation';
 import { MidnightColors, Fonts } from '../constants/theme';
@@ -59,6 +62,9 @@ type ViewerVideoControls = {
 
 const VIDEO_VOLUME_SLIDER_WIDTH = 54;
 const VIDEO_CONTROLS_HIDE_DELAY_MS = 2500;
+// Space above and below the media in the host viewer (under the top controls / above the bottom bar)
+const HOST_VIEWER_PADDING_TOP = 112;
+const HOST_VIEWER_PADDING_BOTTOM = 28;
 const VIDEO_NATIVE_FULLSCREEN_OPTIONS: FullscreenOptions =
   Platform.OS === 'web'
     ? { enable: true }
@@ -176,6 +182,10 @@ function LucideDownloadIcon({ size = 20, color, strokeWidth = 2 }: LucideIconPro
 }
 
 
+// The video bar and its Quality box always sit on a dark gradient, so their icons and time are white in every
+// theme (light themes' dark text colour made them nearly invisible, issue #142)
+const VIDEO_BAR_TEXT = '#ffffff';
+
 function ViewerVideo({
   uri,
   rawUri,
@@ -186,6 +196,7 @@ function ViewerVideo({
   videoControlsRef,
   onPreviousMedia,
   onNextMedia,
+  onVideoSize,
 }: {
   uri: string;
   rawUri?: string;
@@ -196,8 +207,13 @@ function ViewerVideo({
   videoControlsRef?: React.MutableRefObject<ViewerVideoControls | null>;
   onPreviousMedia?: () => void;
   onNextMedia?: () => void;
+  // Issue #146: the picture's size once the player knows it, so the frame can take the video's shape
+  onVideoSize?: (width: number, height: number) => void;
 }) {
+  const onVideoSizeRef = useRef(onVideoSize);
+  onVideoSizeRef.current = onVideoSize;
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const navigation = useNavigation();
   const [player, setPlayer] = useState<VideoPlayer | null>(null);
   const [currentPlayUri, setCurrentPlayUri] = useState<string>(uri);
   const [hasFallenBack, setHasFallenBack] = useState<boolean>(false);
@@ -217,11 +233,15 @@ function ViewerVideo({
   const [controlsVisible, setControlsVisible] = useState(true);
   const [controlsInteractionKey, setControlsInteractionKey] = useState(0);
   const [isCustomFullscreen, setIsCustomFullscreen] = useState(false);
+  // Issue #135: time under the finger while dragging the progress bar (null when not dragging)
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
+  const progressTrackWidthRef = useRef(0);
   const playerRef = useRef<VideoPlayer | null>(null);
   const videoViewRef = useRef<VideoView | null>(null);
   const sourceRef = useRef<string | null>(null);
   const controlsHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const progressPercent = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
+  const shownTime = scrubTime ?? currentTime;
+  const progressPercent = duration > 0 ? Math.min(100, Math.max(0, (shownTime / duration) * 100)) : 0;
   const shouldUseCustomFullscreen = customControls && Platform.OS !== 'web';
   const canUseOrientationLock = canLockScreenOrientation();
   const shouldUseCustomFullscreenOverlay = shouldUseCustomFullscreen;
@@ -338,9 +358,16 @@ function ViewerVideo({
         setDuration(nextDuration);
       }
     });
-    const sourceSubscription = player.addListener('sourceLoad', ({ duration: nextDuration }) => {
+    const reportVideoSize = (size?: { width: number; height: number } | null) => {
+      if (size && size.width > 0 && size.height > 0) onVideoSizeRef.current?.(size.width, size.height);
+    };
+    const sourceSubscription = player.addListener('sourceLoad', ({ duration: nextDuration, availableVideoTracks }) => {
       setCurrentTime(0);
       setDuration(Number.isFinite(nextDuration) && nextDuration > 0 ? nextDuration : 0);
+      reportVideoSize(availableVideoTracks?.[0]?.size);
+    });
+    const videoTrackSubscription = player.addListener('videoTrackChange', ({ videoTrack }) => {
+      reportVideoSize(videoTrack?.size);
     });
     const endSubscription = player.addListener('playToEnd', () => {
       setIsPlaying(false);
@@ -364,6 +391,7 @@ function ViewerVideo({
       playingSubscription.remove();
       timeSubscription.remove();
       sourceSubscription.remove();
+      videoTrackSubscription.remove();
       endSubscription.remove();
       statusSubscription.remove();
     };
@@ -379,6 +407,26 @@ function ViewerVideo({
       if (Number.isFinite(nextCurrentTime)) {
         setCurrentTime(Math.max(0, nextCurrentTime));
       }
+    } catch (error) {
+      console.error('[PhotoViewer] Video seek failed:', error);
+    }
+  }, []);
+
+  // Issue #135: on iOS a sideways drag anywhere on the screen means "go back", so dragging the progress bar closed
+  // the gallery. Pause the back swipe while a video with these controls is open; photos keep it.
+  useEffect(() => {
+    if (!customControls) return;
+    navigation.setOptions({ gestureEnabled: false });
+    return () => navigation.setOptions({ gestureEnabled: true });
+  }, [customControls, navigation]);
+
+  const seekToTime = useCallback((seconds: number) => {
+    const activePlayer = playerRef.current;
+    if (!activePlayer) return;
+
+    try {
+      activePlayer.currentTime = seconds;
+      setCurrentTime(seconds);
     } catch (error) {
       console.error('[PhotoViewer] Video seek failed:', error);
     }
@@ -451,6 +499,12 @@ function ViewerVideo({
         activePlayer.pause();
         setIsPlaying(false);
       } else {
+        // A finished video doesn't restart by itself (#238): start it again from the beginning
+        const total = Number(activePlayer.duration);
+        if (Number.isFinite(total) && total > 0 && activePlayer.currentTime >= total - 0.25) {
+          activePlayer.currentTime = 0;
+          setCurrentTime(0);
+        }
         activePlayer.play();
         setIsPlaying(true);
       }
@@ -516,7 +570,32 @@ function ViewerVideo({
     }
   }, [revealVideoControls]);
 
+  const timeAtTouch = (event: GestureResponderEvent) => {
+    const trackWidth = progressTrackWidthRef.current;
+    if (trackWidth <= 0 || duration <= 0) return null;
+    return Math.min(duration, Math.max(0, (event.nativeEvent.locationX / trackWidth) * duration));
+  };
+
+  const handleScrubMove = (event: GestureResponderEvent) => {
+    revealVideoControls();
+    const time = timeAtTouch(event);
+    if (time !== null) setScrubTime(time);
+  };
+
+  const handleScrubEnd = (event: GestureResponderEvent) => {
+    const time = timeAtTouch(event) ?? scrubTime;
+    setScrubTime(null);
+    if (time !== null) seekToTime(time);
+  };
+
+  // The viewer's swipe to the next or previous item listens to raw touches on the media frame,
+  // so a drag on the seek bar or volume slider must not reach it (#180)
+  const keepTouchFromViewerSwipe = (event: GestureResponderEvent) => {
+    event.stopPropagation();
+  };
+
   const renderCustomControls = (fullscreen = false) => (
+    <>
     <LinearGradient
       colors={['transparent', 'rgba(0,0,0,0.76)', 'rgba(0,0,0,0.92)']}
       style={[
@@ -525,13 +604,38 @@ function ViewerVideo({
       ]}
       pointerEvents="box-none"
     >
-      <View style={localStyles.dashboardVideoProgressTrack}>
-        <View
-          style={[
-            localStyles.dashboardVideoProgressFill,
-            { width: `${progressPercent}%`, backgroundColor: accent },
-          ]}
-        />
+      <View
+        style={localStyles.dashboardVideoProgressTouch}
+        onLayout={event => { progressTrackWidthRef.current = event.nativeEvent.layout.width; }}
+        onTouchStart={keepTouchFromViewerSwipe}
+        onTouchEnd={keepTouchFromViewerSwipe}
+        onStartShouldSetResponder={() => duration > 0}
+        onMoveShouldSetResponder={() => duration > 0}
+        onResponderTerminationRequest={() => false}
+        onResponderGrant={handleScrubMove}
+        onResponderMove={handleScrubMove}
+        onResponderRelease={handleScrubEnd}
+        onResponderTerminate={() => setScrubTime(null)}
+        accessibilityRole="adjustable"
+        accessibilityLabel="Video position"
+        accessibilityValue={{ min: 0, max: Math.round(duration), now: Math.round(shownTime), text: formatVideoClock(shownTime) }}
+        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        onAccessibilityAction={event => seekBySeconds(event.nativeEvent.actionName === 'increment' ? 10 : -10)}
+      >
+        <View style={localStyles.dashboardVideoProgressTrack} pointerEvents="none">
+          <View
+            style={[
+              localStyles.dashboardVideoProgressFill,
+              { width: `${progressPercent}%`, backgroundColor: accent },
+            ]}
+          />
+        </View>
+        {scrubTime !== null && (
+          <View
+            pointerEvents="none"
+            style={[localStyles.dashboardVideoProgressThumb, { left: `${progressPercent}%`, backgroundColor: accent }]}
+          />
+        )}
       </View>
 
       <View style={localStyles.dashboardVideoControlsRow}>
@@ -545,16 +649,38 @@ function ViewerVideo({
               }}
               accessibilityLabel="Previous media"
             >
-              <IconSymbol name="backward.end.fill" size={18} color={controlText} />
+              <IconSymbol name="backward.end.fill" size={18} color={VIDEO_BAR_TEXT} />
             </TouchableOpacity>
           )}
+
+          <TouchableOpacity
+            style={localStyles.dashboardVideoControlButton}
+            onPress={() => {
+              revealVideoControls();
+              seekBySeconds(-10);
+            }}
+            accessibilityLabel="Back 10 seconds"
+          >
+            <IconSymbol name="gobackward.10" size={20} color={VIDEO_BAR_TEXT} />
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[localStyles.dashboardVideoControlButton, localStyles.dashboardVideoPlayButton]}
             onPress={handleTogglePlayback}
             accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'}
           >
-            <IconSymbol name={isPlaying ? 'pause.fill' : 'play.fill'} size={22} color={controlText} />
+            <IconSymbol name={isPlaying ? 'pause.fill' : 'play.fill'} size={22} color={VIDEO_BAR_TEXT} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={localStyles.dashboardVideoControlButton}
+            onPress={() => {
+              revealVideoControls();
+              seekBySeconds(10);
+            }}
+            accessibilityLabel="Forward 10 seconds"
+          >
+            <IconSymbol name="goforward.10" size={20} color={VIDEO_BAR_TEXT} />
           </TouchableOpacity>
 
           {onNextMedia && (
@@ -566,12 +692,12 @@ function ViewerVideo({
               }}
               accessibilityLabel="Next media"
             >
-              <IconSymbol name="forward.end.fill" size={18} color={controlText} />
+              <IconSymbol name="forward.end.fill" size={18} color={VIDEO_BAR_TEXT} />
             </TouchableOpacity>
           )}
 
-          <Text style={[localStyles.dashboardVideoTime, { color: controlText }]}>
-            {formatVideoClock(currentTime)} / {formatVideoClock(duration)}
+          <Text style={[localStyles.dashboardVideoTime, { color: VIDEO_BAR_TEXT }]}>
+            {formatVideoClock(shownTime)} / {formatVideoClock(duration)}
           </Text>
         </View>
 
@@ -583,13 +709,15 @@ function ViewerVideo({
               accessibilityLabel="Video volume"
               activeOpacity={0.75}
             >
-              <IconSymbol name={isMuted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'} size={19} color={showVolume ? accent : controlText} />
+              <IconSymbol name={isMuted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'} size={19} color={showVolume ? accent : VIDEO_BAR_TEXT} />
             </TouchableOpacity>
 
             {showVolume && (
               <View style={localStyles.dashboardVideoVolumeInline}>
                 <View
                   style={localStyles.dashboardVideoVolumeTouch}
+                  onTouchStart={keepTouchFromViewerSwipe}
+                  onTouchEnd={keepTouchFromViewerSwipe}
                   onStartShouldSetResponder={() => true}
                   onMoveShouldSetResponder={() => true}
                   onResponderGrant={handleVolumeGesture}
@@ -627,7 +755,7 @@ function ViewerVideo({
             accessibilityLabel="Video settings"
             activeOpacity={0.75}
           >
-            <IconSymbol name="gearshape.fill" size={20} color={controlText} />
+            <IconSymbol name="gearshape.fill" size={20} color={VIDEO_BAR_TEXT} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -639,19 +767,27 @@ function ViewerVideo({
             <IconSymbol
               name={isCustomFullscreen ? 'arrow.down.right.and.arrow.up.left' : 'arrow.up.left.and.arrow.down.right'}
               size={20}
-              color={controlText}
+              color={VIDEO_BAR_TEXT}
             />
           </TouchableOpacity>
         </View>
-
-        {showSettings && (
-          <View style={[localStyles.dashboardVideoSettingsPopover, { borderColor: accent }]}>
-            <Text style={[localStyles.dashboardVideoSettingsLabel, { color: controlText }]}>Quality</Text>
-            <Text style={[localStyles.dashboardVideoSettingsValue, { color: accent }]}>Auto</Text>
-          </View>
-        )}
       </View>
     </LinearGradient>
+
+    {/* Outside the gradient so it isn't clipped at the gradient's top edge. */}
+    {showSettings && (
+      <View
+        style={[
+          localStyles.dashboardVideoSettingsPopover,
+          fullscreen && localStyles.mobileVideoFullscreenSettingsPopover,
+          { borderColor: accent },
+        ]}
+      >
+        <Text style={[localStyles.dashboardVideoSettingsLabel, { color: VIDEO_BAR_TEXT }]}>Quality</Text>
+        <Text style={[localStyles.dashboardVideoSettingsValue, { color: accent }]}>Auto</Text>
+      </View>
+    )}
+    </>
   );
 
   const videoSurface = (
@@ -760,7 +896,10 @@ export default function PhotoViewer({
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(initialIndex);
   const [likes, setLikes] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
+  const refreshInteractionsRef = useRef<(() => Promise<void>) | null>(null);
   const [showComments, setShowComments] = useState(false);
+  // Android: the comment panel moves up above the keyboard (#242); iOS uses the panel's KeyboardAvoidingView
+  const keyboardHeight = useAndroidKeyboardHeight(visible && showComments);
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
   // Everyone who can see the photo reads its comments; only managers and guests the host allowed can write
@@ -827,7 +966,13 @@ export default function PhotoViewer({
     const isPortraitMedia = !isVideoMedia && safeAspectRatio < 1;
     const mediaWidth = Math.max(1, safeWidth - horizontalInset * 2);
     const landscapeStageHeight = Math.max(minMediaHeight, Math.min(preferredMediaHeight, maxMediaHeight));
-    const mediaHeight = isPortraitMedia ? mediaWidth / safeAspectRatio : landscapeStageHeight;
+    // Issue #146: a portrait video fills the screen below the top controls (like the website), controls still on screen
+    const portraitVideoStageHeight = Math.max(minMediaHeight, availableHeight - HOST_VIEWER_PADDING_TOP - HOST_VIEWER_PADDING_BOTTOM);
+    const mediaHeight = isPortraitMedia
+      ? mediaWidth / safeAspectRatio
+      : isVideoMedia && safeAspectRatio < 1
+        ? Math.min(mediaWidth / safeAspectRatio, portraitVideoStageHeight)
+        : landscapeStageHeight;
     const guestbookScrollY = Math.max(0, mediaHeight + 104);
 
     return {
@@ -869,9 +1014,11 @@ export default function PhotoViewer({
 
   const handleHostImageLoad = (event: ImageLoadEventData | NativeSyntheticEvent<ImageLoadEventData>) => {
     const payload = 'nativeEvent' in event ? event.nativeEvent : event;
-    const width = Number(payload?.source?.width);
-    const height = Number(payload?.source?.height);
+    handleHostMediaSize(Number(payload?.source?.width), Number(payload?.source?.height));
+  };
 
+  // Photos report their size on load, videos once the player reads the stream (issue #146)
+  const handleHostMediaSize = (width: number, height: number) => {
     if (!(width > 0 && height > 0)) return;
 
     setLoadedImageSizes((prev) => {
@@ -939,7 +1086,7 @@ export default function PhotoViewer({
       ? selectedTemplate.overlay
       : ['rgba(0,0,0,0.05)', background]);
 
-    const lightTemplates = ['classic', 'ethereal', 'pastel', 'pop', 'academic_editorial', 'garden', 'museum'];
+    const lightTemplates = ['classic', 'portrait', 'confetti', 'ethereal', 'pastel', 'pop', 'academic_editorial', 'garden', 'museum'];
     const isLight = lightTemplates.includes(id);
     const controlBg = palette?.controlBg || (isLight ? 'rgba(255,255,255,0.84)' : 'rgba(0,0,0,0.42)');
     const controlText = palette?.controlText || (isLight ? text : '#ffffff');
@@ -989,6 +1136,13 @@ export default function PhotoViewer({
     }, 80);
   };
 
+  // Host viewer: the comment panel is the last thing on its page, so scroll it up above the Android keyboard (#242)
+  useEffect(() => {
+    if (keyboardHeight > 0 && showHostTopControls) {
+      requestAnimationFrame(() => hostScrollRef.current?.scrollToEnd({ animated: true }));
+    }
+  }, [keyboardHeight, showHostTopControls]);
+
   const handleViewerTouchStart = (event: GestureResponderEvent) => {
     swipeStartXRef.current = event.nativeEvent.pageX;
   };
@@ -1014,9 +1168,18 @@ export default function PhotoViewer({
       setLikes(data.likes || []);
       setComments(data.comments || []);
     });
+    refreshInteractionsRef.current = unsubscribe.refresh;
 
-    return () => unsubscribe();
+    return () => {
+      refreshInteractionsRef.current = null;
+      unsubscribe();
+    };
   }, [visible, currentPhoto?.id, readOnly]);
+
+  // Realtime is off, so after our own like or comment change, read the photo's likes and comments again (#235)
+  const refreshInteractions = () => {
+    refreshInteractionsRef.current?.().catch((err) => console.warn('[PhotoViewer] Reloading likes and comments failed:', err));
+  };
 
   useEffect(() => {
     setCanPostComment(false);
@@ -1030,12 +1193,18 @@ export default function PhotoViewer({
     if (!currentPhoto?.id || isLiking) return;
     if (!isLiked) haptic('tap');
     setIsLiking(true);
+    // Show the heart change at once; the reload afterwards puts back the saved state if the call failed
+    const photoId = currentPhoto.id;
+    setLikes((prev) => (isLiked
+      ? prev.filter((like) => like.userId !== viewerIdentity.id)
+      : [{ id: `pending-${photoId}`, photoId, userId: viewerIdentity.id, userName: viewerIdentity.name, profileImage: null, createdAt: new Date().toISOString() }, ...prev]));
     try {
-      await toggleLike(currentPhoto.id, viewerIdentity.id, viewerIdentity.name);
+      await toggleLike(photoId, viewerIdentity.id, viewerIdentity.name);
     } catch (err) {
       console.error('[PhotoViewer] Like failed:', err);
     } finally {
       setIsLiking(false);
+      refreshInteractions();
     }
   };
 
@@ -1047,6 +1216,7 @@ export default function PhotoViewer({
       setNewComment('');
       setReplyingTo(null);
       Keyboard.dismiss();
+      refreshInteractions();
     } catch (err) {
       console.error('[PhotoViewer] Comment failed:', err);
     } finally {
@@ -1063,6 +1233,7 @@ export default function PhotoViewer({
         onPress: async () => {
           try {
             await deletePhotoComment(commentId);
+            refreshInteractions();
           } catch (err) {
             console.error('[PhotoViewer] Delete comment failed:', err);
           }
@@ -1166,6 +1337,11 @@ export default function PhotoViewer({
 
   const renderGuestbookPanel = (hostFlow = false) => {
     const hostGuestbook = showHostTopControls || hostFlow;
+    // The bottom-pinned panels sit just above the Android keyboard and shrink if the space above it is short
+    const panelBottom = (showHostTopControls ? 12 : 10) + keyboardHeight;
+    const keyboardLift = !hostFlow && keyboardHeight > 0
+      ? { bottom: panelBottom, maxHeight: viewportHeight - panelBottom - viewerInsets.top - 16 }
+      : null;
 
     return (
       <KeyboardAvoidingView
@@ -1173,6 +1349,7 @@ export default function PhotoViewer({
         style={[
           hostFlow ? localStyles.hostGuestbookPanelFlow : styles.guestbookPanel,
           !hostFlow && showHostTopControls && localStyles.hostGuestbookPanel,
+          keyboardLift,
           {
             backgroundColor: viewerTheme.panel,
             borderRadius: viewerTheme.radius + 10,
@@ -1254,7 +1431,7 @@ export default function PhotoViewer({
                           { color: viewerTheme.text }
                         ]} numberOfLines={1}>{commentName}</Text>
                         <Text style={[styles.commentTime, { color: viewerTheme.muted }]}>
-                          {comment.createdAt ? new Date(comment.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                          {formatCommentTime(comment.createdAt)}
                         </Text>
                       </View>
                       <View style={[
@@ -1315,7 +1492,7 @@ export default function PhotoViewer({
                                 { color: viewerTheme.text }
                               ]} numberOfLines={1}>{replyName}</Text>
                               <Text style={[styles.commentTime, { color: viewerTheme.muted }]}>
-                                {reply.createdAt ? new Date(reply.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                                {formatCommentTime(reply.createdAt)}
                               </Text>
                             </View>
                             <View style={[
@@ -1482,7 +1659,10 @@ export default function PhotoViewer({
             // Zoomed photos pan instead of scrolling the page
             scrollEnabled={!hostZoomed}
             style={localStyles.hostViewerScroll}
-            contentContainerStyle={localStyles.hostViewerScrollContent}
+            contentContainerStyle={[
+              localStyles.hostViewerScrollContent,
+              keyboardHeight > 0 && { paddingBottom: HOST_VIEWER_PADDING_BOTTOM + keyboardHeight },
+            ]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -1519,6 +1699,7 @@ export default function PhotoViewer({
                       customControls
                       onPreviousMedia={() => navigateViewer('prev')}
                       onNextMedia={() => navigateViewer('next')}
+                      onVideoSize={handleHostMediaSize}
                     />
                   ) : (
                     <ZoomablePhoto
@@ -1659,7 +1840,13 @@ export default function PhotoViewer({
                 </View>
               )}
 
-              <View style={localStyles.dashboardImageDetails}>
+              {/* The comment panel covers this row; hide it (keeping its space) so it doesn't show through (#237) */}
+              <View
+                style={[localStyles.dashboardImageDetails, showComments && { opacity: 0 }]}
+                pointerEvents={showComments ? 'none' : 'auto'}
+                accessibilityElementsHidden={showComments}
+                importantForAccessibility={showComments ? 'no-hide-descendants' : 'auto'}
+              >
                 <View style={localStyles.dashboardImageActionsFlow}>
                   {(!readOnly || asksToLogIn) && (<>
                   <TouchableOpacity style={styles.viewerAction} onPress={guarded(handleToggleLike)} disabled={isLiking} accessibilityRole="button" accessibilityLabel={isLiked ? 'Unlike' : 'Like'} accessibilityState={{ selected: isLiked }}>
@@ -1859,6 +2046,20 @@ const localStyles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 14,
   },
+  dashboardVideoProgressTouch: {
+    // Tall invisible touch area around the 3 px bar, so it is easy to hit with a finger
+    width: '100%',
+    paddingVertical: 10,
+    marginVertical: -10,
+    justifyContent: 'center',
+  },
+  dashboardVideoProgressThumb: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    marginLeft: -7,
+    borderRadius: 7,
+  },
   dashboardVideoProgressTrack: {
     height: 3,
     width: '100%',
@@ -1944,16 +2145,22 @@ const localStyles = StyleSheet.create({
     borderRadius: 5.5,
     transform: [{ translateX: -5.5 }],
   },
+  // Positioned from the player frame: overlay paddingBottom + 30 px controls row + 6 px gap.
   dashboardVideoSettingsPopover: {
     position: 'absolute',
-    right: 0,
-    bottom: 36,
+    right: 12,
+    bottom: 46,
+    zIndex: 3,
     minWidth: 104,
     borderRadius: 12,
     borderWidth: 1,
     backgroundColor: 'rgba(0,0,0,0.82)',
     paddingHorizontal: 12,
     paddingVertical: 9,
+  },
+  mobileVideoFullscreenSettingsPopover: {
+    right: 18,
+    bottom: 50,
   },
   dashboardVideoSettingsLabel: {
     fontSize: 10,
@@ -2046,8 +2253,8 @@ const localStyles = StyleSheet.create({
   },
   hostViewerScrollContent: {
     alignItems: 'center',
-    paddingTop: 112,
-    paddingBottom: 28,
+    paddingTop: HOST_VIEWER_PADDING_TOP,
+    paddingBottom: HOST_VIEWER_PADDING_BOTTOM,
   },
   hostScrollableMedia: {
     alignItems: 'center',

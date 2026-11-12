@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Modal,
   TextInput,
   KeyboardAvoidingView,
@@ -18,23 +17,30 @@ import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
 import { useRouter } from 'expo-router';
 import { updateUserProfile, submitFeedback } from '@/lib/database';
 import { supabase } from '@/lib/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { APP_VERSION } from '@/lib/appVersion';
 import { Button } from '@/components/ui/Button';
 import { appAlert, showToast } from '@/lib/feedback';
 import { haptic } from '@/lib/haptics';
 import * as Clipboard from 'expo-clipboard';
 import { MidnightColors } from '@/constants/theme';
+import type { IconSymbolName } from '@/components/ui/icon-symbol';
+import type { ThemeChoice } from '../../../shared/themes/themeChoice';
+
+/** Business lead alerts are hidden until Phase 2 (they come with EB Business and EB Network). */
+const SHOW_BUSINESS_ALERTS = false;
+
+// Appearance (todo #1): the same three choices as the website's Settings
+const THEME_CHOICES: { value: ThemeChoice; label: string; icon: IconSymbolName }[] = [
+  { value: 'light', label: 'Light', icon: 'sun.max.fill' },
+  { value: 'dark', label: 'Dark', icon: 'moon.fill' },
+  { value: 'system', label: 'Match device', icon: 'iphone' },
+];
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
-  const { colors, isDark } = useAppTheme();
+  const { colors, isDark, choice: themeChoice, setChoice: setThemeChoice } = useAppTheme();
   const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
-
-  // Core Privacy Toggles
-  const [isDiscoverable, setIsDiscoverable] = useState(user?.discoverable ?? true);
-  const [updatingSearch, setUpdatingSearch] = useState(false);
 
   // Notification Preferences
   const [notifPreferences, setNotifPreferences] = useState({
@@ -43,11 +49,6 @@ export default function SettingsScreen() {
     businessMatches: user?.notificationPreferences?.businessMatches ?? true,
     marketing: user?.notificationPreferences?.marketing ?? false,
   });
-
-  // Storage & Resolution
-  const [uploadResolution, setUploadResolution] = useState<'optimized' | 'highres'>('optimized');
-  const [clearingCache, setClearingCache] = useState(false);
-  const [cacheProgress, setCacheProgress] = useState(0);
 
   // Modals Visibility
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
@@ -70,22 +71,8 @@ export default function SettingsScreen() {
   // FAQ Accordion
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
-  // Load local storage preferences
-  useEffect(() => {
-    const loadPreferences = async () => {
-      try {
-        const val = await AsyncStorage.getItem('@high_quality_uploads');
-        if (val) setUploadResolution(val as any);
-      } catch (err) {
-        console.error('Error loading resolution preference:', err);
-      }
-    };
-    loadPreferences();
-  }, []);
-
   // Update State when User Context changes
   useEffect(() => {
-    if (user?.discoverable !== undefined) setIsDiscoverable(user.discoverable);
     if (user?.notificationPreferences) {
       setNotifPreferences({
         likesAndComments: user.notificationPreferences.likesAndComments ?? true,
@@ -95,19 +82,6 @@ export default function SettingsScreen() {
       });
     }
   }, [user]);
-
-  // Discoverability Toggle
-  const toggleDiscoverability = async () => {
-    if (!user?.uid || updatingSearch) return;
-    setUpdatingSearch(true);
-    const newStatus = !isDiscoverable;
-    const success = await updateUserProfile(user.uid, { discoverable: newStatus });
-    if (success) {
-      haptic('select');
-      setIsDiscoverable(newStatus);
-    }
-    setUpdatingSearch(false);
-  };
 
   // Notifications Toggle Helper
   const toggleNotificationSetting = async (key: keyof typeof notifPreferences) => {
@@ -130,36 +104,6 @@ export default function SettingsScreen() {
       setNotifPreferences(notifPreferences);
       appAlert('Error', 'Failed to update preferences. Try again.');
     }
-  };
-
-  // Resolution Preference Toggle
-  const changeResolution = async (value: 'optimized' | 'highres') => {
-    setUploadResolution(value);
-    try {
-      await AsyncStorage.setItem('@high_quality_uploads', value);
-    } catch (err) {
-      console.error('Error saving resolution preference:', err);
-    }
-  };
-
-  // Simulated Clear Cache Workflow
-  const handleClearCache = () => {
-    setClearingCache(true);
-    setCacheProgress(0);
-
-    const interval = setInterval(() => {
-      setCacheProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setClearingCache(false);
-            appAlert('Cache Wiped', 'Successfully cleared 24.2 MB of temporary media logs.');
-          }, 300);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 150);
   };
 
   // Password Change Handler
@@ -201,19 +145,14 @@ export default function SettingsScreen() {
 
     setSubmittingFeedback(true);
     try {
-      const success = await submitFeedback(
-        user.uid,
-        user.name,
-        feedbackText.trim(),
-        feedbackCategory
-      );
+      const result = await submitFeedback(user, feedbackText.trim(), feedbackCategory);
 
-      if (success) {
+      if (result.success) {
         appAlert('Feedback Sent', 'Thank you for your valuable feedback! Our team will review this shortly.');
         setFeedbackModalVisible(false);
         setFeedbackText('');
       } else {
-        appAlert('Error', 'Failed to submit feedback. Please try again.');
+        appAlert('Error', result.error || 'Failed to submit feedback. Please try again.');
       }
     } catch (err) {
       console.error('Error submitting feedback:', err);
@@ -281,16 +220,20 @@ export default function SettingsScreen() {
   // FAQ Accordion Content
   const faqs = [
     {
-      q: 'How many photos can I upload?',
-      a: 'Depending on your active plan, standard hosts can upload up to 250 photos per event. Upgrading to premium unlocks unlimited high-resolution photo and video uploads.',
+      q: 'How much can I upload?',
+      a: 'The free plan includes one event and 1 GB of storage, free forever, with videos up to 200 MB each. Paid plans start at ₹150 a month and add more events and storage.',
     },
     {
       q: 'Can anyone view my private events?',
-      a: 'No. Private events require guests to use a unique 5-character event code or link to join, and hosts can set permissions to manually approve guest login logs.',
+      a: 'No. A private gallery opens only for people the host shares its link or QR code with, and the host can choose who gets access.',
     },
     {
-      q: 'How do I upgrade to a Business account?',
-      a: 'Navigate to the Menu tab, select "Register Business", and choose a category. Business profiles gain access to service listings near you and lead enquiries.',
+      q: 'How does Find You work?',
+      a: 'Upload a selfie and EveBash matches it against the event\'s photos to show the ones you appear in. Only guests with access to the gallery can use it, and you can withdraw your consent above at any time.',
+    },
+    {
+      q: 'Can guests download photos?',
+      a: 'Yes. They can save photos one at a time, or download the whole gallery with Download All.',
     },
   ];
 
@@ -348,7 +291,7 @@ export default function SettingsScreen() {
               onPress={() => setPasswordModalVisible(true)}
             >
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-                <IconSymbol name="lock.fill" size={18} color={MidnightColors.gold} />
+                <IconSymbol name="lock.fill" size={18} color={colors.gold} />
               </View>
               <Text style={styles.actionText}>Change Password</Text>
               <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -356,7 +299,7 @@ export default function SettingsScreen() {
           ) : (
             <View style={[styles.actionItemRow, { opacity: 0.5 }]}>
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.05)' }]}>
-                <IconSymbol name="lock.fill" size={18} color={MidnightColors.slate400} />
+                <IconSymbol name="lock.fill" size={18} color={colors.slate400} />
               </View>
               <Text style={[styles.actionText, { color: colors.slate400 }]}>Change Password (Phone Login)</Text>
             </View>
@@ -370,38 +313,55 @@ export default function SettingsScreen() {
             onPress={() => setDeleteModalVisible(true)}
           >
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
-              <IconSymbol name="trash.fill" size={18} color={MidnightColors.danger} />
+              <IconSymbol name="trash.fill" size={18} color={colors.danger} />
             </View>
-            <Text style={[styles.actionText, { color: MidnightColors.dangerSoft }]}>Delete Account</Text>
-            <IconSymbol name="chevron.right" size={16} color={MidnightColors.dangerSoft} />
+            <Text style={[styles.actionText, { color: colors.dangerSoft }]}>Delete Account</Text>
+            <IconSymbol name="chevron.right" size={16} color={colors.dangerSoft} />
           </TouchableOpacity>
+        </View>
+
+        {/* Light or dark look (todo #1), like the website's Settings > Appearance */}
+        <Text style={styles.sectionLabel}>Appearance</Text>
+        <View style={styles.settingsCard}>
+          <View style={styles.actionItemRow}>
+            <View style={styles.infoIconBox}>
+              <IconSymbol name={isDark ? 'moon.fill' : 'sun.max.fill'} size={18} color={colors.gold} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.actionText}>Theme</Text>
+              <Text style={styles.actionSubtext}>Light, dark, or the same as this device</Text>
+            </View>
+          </View>
+          <View style={styles.themeChoices} accessibilityRole="radiogroup" accessibilityLabel="Theme">
+            {THEME_CHOICES.map(({ value, label, icon }) => {
+              const selected = themeChoice === value;
+              return (
+                <TouchableOpacity
+                  key={value}
+                  style={[styles.themeChoice, value === 'system' && styles.themeChoiceWide, selected && styles.themeChoiceActive]}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    haptic('select');
+                    setThemeChoice(value);
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={label}
+                >
+                  <IconSymbol name={icon} size={14} color={selected ? colors.onAccent : colors.slate400} />
+                  <Text style={[styles.themeChoiceText, selected && styles.themeChoiceTextActive]} numberOfLines={1}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         {/* Privacy Settings */}
         <Text style={styles.sectionLabel}>Privacy</Text>
         <View style={styles.settingsCard}>
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={toggleDiscoverability} disabled={updatingSearch} accessibilityRole="switch" accessibilityLabel="Discoverable profile" accessibilityState={{ checked: isDiscoverable, disabled: updatingSearch }}>
-            <View style={[styles.infoIconBox, { backgroundColor: isDiscoverable ? 'rgba(16, 185, 129, 0.1)' : 'rgba(100, 116, 139, 0.1)' }]}>
-              <IconSymbol name="magnifyingglass" size={18} color={isDiscoverable ? MidnightColors.success : MidnightColors.slate600} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionText}>Discoverable Profile</Text>
-              <Text style={styles.actionSubtext}>Let people find you in Explore feeds</Text>
-            </View>
-            <View style={[styles.toggleBtn, isDiscoverable && styles.toggleBtnActive]}>
-              {updatingSearch ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <View style={[styles.toggleDot, isDiscoverable && styles.toggleDotActive]} />
-              )}
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={withdrawFindYouConsent} accessibilityRole="button" accessibilityLabel="Withdraw Find You consent">
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="person.fill" size={18} color={MidnightColors.gold} />
+              <IconSymbol name="person.fill" size={18} color={colors.gold} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionText}>Withdraw Find You Consent</Text>
@@ -438,17 +398,21 @@ export default function SettingsScreen() {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('businessMatches')} accessibilityRole="switch" accessibilityLabel="Local match enquiry notifications" accessibilityState={{ checked: notifPreferences.businessMatches }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionText}>Local Match Enquiries</Text>
-              <Text style={styles.actionSubtext}>New lead alerts matching your area</Text>
-            </View>
-            <View style={[styles.toggleBtn, notifPreferences.businessMatches && styles.toggleBtnActive]}>
-              <View style={[styles.toggleDot, notifPreferences.businessMatches && styles.toggleDotActive]} />
-            </View>
-          </TouchableOpacity>
+          {SHOW_BUSINESS_ALERTS && (
+            <>
+              <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('businessMatches')} accessibilityRole="switch" accessibilityLabel="Local match enquiry notifications" accessibilityState={{ checked: notifPreferences.businessMatches }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.actionText}>Local Match Enquiries</Text>
+                  <Text style={styles.actionSubtext}>New lead alerts matching your area</Text>
+                </View>
+                <View style={[styles.toggleBtn, notifPreferences.businessMatches && styles.toggleBtnActive]}>
+                  <View style={[styles.toggleDot, notifPreferences.businessMatches && styles.toggleDotActive]} />
+                </View>
+              </TouchableOpacity>
 
-          <View style={styles.divider} />
+              <View style={styles.divider} />
+            </>
+          )}
 
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('marketing')} accessibilityRole="switch" accessibilityLabel="Marketing offer notifications" accessibilityState={{ checked: notifPreferences.marketing }}>
             <View style={{ flex: 1 }}>
@@ -461,52 +425,6 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Media Storage & Cache */}
-        <Text style={styles.sectionLabel}>Storage & Quality</Text>
-        <View style={styles.settingsCard}>
-          <View style={styles.actionItemRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionText}>Upload Quality</Text>
-              <Text style={styles.actionSubtext}>Choose image rendering preference</Text>
-            </View>
-            <View style={styles.pickerSegmentContainer}>
-              <TouchableOpacity
-                style={[styles.segmentPill, uploadResolution === 'optimized' && styles.segmentPillActive]}
-                onPress={() => changeResolution('optimized')}
-              >
-                <Text style={[styles.segmentPillText, uploadResolution === 'optimized' && styles.segmentPillTextActive]}>Speed</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.segmentPill, uploadResolution === 'highres' && styles.segmentPillActive]}
-                onPress={() => changeResolution('highres')}
-              >
-                <Text style={[styles.segmentPillText, uploadResolution === 'highres' && styles.segmentPillTextActive]}>High-Res</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={handleClearCache} disabled={clearingCache}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionText}>Clear Media Cache</Text>
-              {clearingCache ? (
-                <View style={styles.progressContainer}>
-                  <View style={[styles.progressBar, { width: `${cacheProgress}%` }]} />
-                  <Text style={styles.progressText}>Cleaning... {cacheProgress}%</Text>
-                </View>
-              ) : (
-                <Text style={styles.actionSubtext}>Frees up local device storage space</Text>
-              )}
-            </View>
-            {!clearingCache && (
-              <View style={[styles.infoIconBox, { backgroundColor: 'rgba(100, 116, 139, 0.1)' }]}>
-                <IconSymbol name="clock.fill" size={16} color={MidnightColors.slate600} />
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
         {/* Feedback & Support */}
         <Text style={styles.sectionLabel}>Feedback & Support</Text>
         <View style={styles.settingsCard}>
@@ -516,7 +434,7 @@ export default function SettingsScreen() {
             onPress={() => setFeedbackModalVisible(true)}
           >
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="bell.fill" size={18} color={MidnightColors.gold} />
+              <IconSymbol name="bell.fill" size={18} color={colors.gold} />
             </View>
             <Text style={styles.actionText}>Report a Bug / Send Feedback</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -539,7 +457,7 @@ export default function SettingsScreen() {
             ])}
           >
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="envelope.fill" size={16} color={MidnightColors.gold} />
+              <IconSymbol name="envelope.fill" size={16} color={colors.gold} />
             </View>
             <Text style={styles.actionText}>Contact Customer Support</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -562,7 +480,7 @@ export default function SettingsScreen() {
                   <IconSymbol
                     name={isExpanded ? "chevron.down" : "chevron.right"}
                     size={16}
-                    color={MidnightColors.gold}
+                    color={colors.gold}
                   />
                 </TouchableOpacity>
                 {isExpanded && (
@@ -581,7 +499,7 @@ export default function SettingsScreen() {
         <View style={styles.settingsCard}>
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => router.push('/(tabs)' as any)}>
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="house.fill" size={18} color={MidnightColors.gold} />
+              <IconSymbol name="house.fill" size={18} color={colors.gold} />
             </View>
             <Text style={styles.actionText}>About EveBash</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -591,7 +509,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => openLegalModal('terms')}>
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="doc.on.doc.fill" size={18} color={MidnightColors.gold} />
+              <IconSymbol name="doc.on.doc.fill" size={18} color={colors.gold} />
             </View>
             <Text style={styles.actionText}>Terms of Service</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -601,7 +519,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => openLegalModal('privacy')}>
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="shield.fill" size={18} color={MidnightColors.gold} />
+              <IconSymbol name="shield.fill" size={18} color={colors.gold} />
             </View>
             <Text style={styles.actionText}>Privacy Policy</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -630,7 +548,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Change Password</Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setPasswordModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
+                <IconSymbol name="xmark" size={20} color={colors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -643,7 +561,7 @@ export default function SettingsScreen() {
                   onChangeText={setNewPassword}
                   secureTextEntry={true}
                   placeholder="At least 6 characters"
-                  placeholderTextColor={MidnightColors.slate600}
+                  placeholderTextColor={colors.slate600}
                 />
               </View>
 
@@ -655,7 +573,7 @@ export default function SettingsScreen() {
                   onChangeText={setConfirmPassword}
                   secureTextEntry={true}
                   placeholder="Re-enter password"
-                  placeholderTextColor={MidnightColors.slate600}
+                  placeholderTextColor={colors.slate600}
                 />
               </View>
             </View>
@@ -692,11 +610,11 @@ export default function SettingsScreen() {
         onRequestClose={() => setDeleteModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { borderTopColor: MidnightColors.danger, borderTopWidth: 4 }]}>
+          <View style={[styles.modalContent, { borderTopColor: colors.danger, borderTopWidth: 4 }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: MidnightColors.danger }]}>Delete Account Permanently?</Text>
+              <Text style={[styles.modalTitle, { color: colors.danger }]}>Delete Account Permanently?</Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setDeleteModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
+                <IconSymbol name="xmark" size={20} color={colors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -713,7 +631,7 @@ export default function SettingsScreen() {
                 autoCorrect={false}
                 editable={!deletingAccount}
                 placeholder="DELETE"
-                placeholderTextColor={MidnightColors.slate600}
+                placeholderTextColor={colors.slate600}
               />
             </View>
 
@@ -760,7 +678,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Send Feedback</Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setFeedbackModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
+                <IconSymbol name="xmark" size={20} color={colors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -785,7 +703,7 @@ export default function SettingsScreen() {
                   value={feedbackText}
                   onChangeText={setFeedbackText}
                   placeholder="Describe your issue or suggest a premium feature..."
-                  placeholderTextColor={MidnightColors.slate600}
+                  placeholderTextColor={colors.slate600}
                   multiline={true}
                   numberOfLines={5}
                 />
@@ -830,7 +748,7 @@ export default function SettingsScreen() {
                 {legalModalType === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
               </Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setLegalModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
+                <IconSymbol name="xmark" size={20} color={colors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -892,7 +810,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     padding: 20,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 24,
@@ -960,56 +878,45 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   toggleDotActive: {
     alignSelf: 'flex-end',
   },
+  themeChoices: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 16,
+    padding: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.background,
+  },
+  themeChoice: {
+    flex: 1,
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+  },
+  // "Match device" is the longest label
+  themeChoiceWide: {
+    flex: 1.45,
+  },
+  themeChoiceActive: {
+    backgroundColor: colors.goldFill,
+  },
+  themeChoiceText: {
+    fontSize: 13,
+    fontFamily: 'Inter_700Bold',
+    color: colors.slate400,
+  },
+  themeChoiceTextActive: {
+    color: colors.onAccent,
+  },
   divider: {
     height: 1,
     backgroundColor: colors.cardBorder,
     marginVertical: 16,
-  },
-  pickerSegmentContainer: {
-    flexDirection: 'row',
-    backgroundColor: isDark ? 'rgba(0, 0, 0, 0.25)' : 'rgba(0, 0, 0, 0.05)',
-    borderRadius: 12,
-    padding: 2,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  segmentPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  segmentPillActive: {
-    backgroundColor: colors.gold,
-  },
-  segmentPillText: {
-    fontSize: 11,
-    fontFamily: 'Inter_600SemiBold',
-    color: colors.slate400,
-  },
-  segmentPillTextActive: {
-    color: colors.onAccent,
-    fontFamily: 'Inter_700Bold',
-  },
-  progressContainer: {
-    marginTop: 6,
-    height: 14,
-    backgroundColor: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.06)',
-    borderRadius: 7,
-    overflow: 'hidden',
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: colors.gold,
-  },
-  progressText: {
-    position: 'absolute',
-    alignSelf: 'center',
-    fontSize: 10,
-    fontFamily: 'Inter_700Bold',
-    color: colors.white,
   },
   faqHeader: {
     flexDirection: 'row',
@@ -1046,7 +953,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   // MODALS STYLING
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(19, 25, 31, 0.75)',
+    backgroundColor: isDark ? 'rgba(19, 25, 31, 0.75)' : colors.modalBackdrop,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -1058,9 +965,9 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderWidth: 1,
     borderColor: colors.cardBorder,
     padding: 24,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.5,
+    shadowOpacity: isDark ? 0.5 : 0.2,
     shadowRadius: 30,
     elevation: 20,
   },
@@ -1172,7 +1079,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     color: colors.slate400,
   },
   saveBtn: {
-    backgroundColor: colors.gold,
+    backgroundColor: colors.goldFill,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 16,

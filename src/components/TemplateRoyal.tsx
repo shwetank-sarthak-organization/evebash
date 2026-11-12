@@ -4,10 +4,12 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Event } from "@/lib/database";
+import { coverImageStyle } from "@/lib/coverStyle";
 import { cn } from "@/lib/utils";
 import { Crown } from "lucide-react";
 import { royalDisplay, royalScript, royalSerif } from "@/components/royal/royalFonts";
-import { coupleInitials, displayCoupleTitle, splitCoupleNames } from "@/components/royal/coupleNames";
+import { coupleInitials, displayCoupleTitle, shouldStackCoupleNames, splitCoupleNames } from "../../shared/text/coupleNames";
+import { EditChip, useGuestEditSpots } from "@/components/guestEdit/EditChip";
 import {
     RoyalDivider,
     RoyalFiligreeFrame,
@@ -43,15 +45,6 @@ function nameSizeClass(longest: number, isCouple: boolean) {
     return undefined;
 }
 
-/** Applies the host's cover settings (focus point, zoom, fit), as the dashboard cards do.
- *  The frame is always portrait, so the focus point decides which part of a landscape cover shows. */
-function coverImageStyle(event: Event): React.CSSProperties {
-    if (event.coverMode === "fit") return { objectFit: "contain" };
-    const x = Math.max(0, Math.min(100, 50 + (event.coverOffsetX || 0)));
-    const y = Math.max(0, Math.min(100, 50 + (event.coverOffset || 0)));
-    return { objectFit: "cover", objectPosition: `${x}% ${y}%`, transform: `scale(${event.coverScale || 1})` };
-}
-
 export function TemplateRoyal({ event, children, hasParent = false }: TemplateRoyalProps) {
     const location = "location" in event && typeof event.location === "string" ? event.location : "";
     const heroImageSrc = event.coverImage || DEFAULT_HERO_IMAGE;
@@ -60,6 +53,10 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
     const couple = hasParent ? null : splitCoupleNames(title);
     const sealInitials = couple ? coupleInitials(title) : null;
     const longestName = couple ? Math.max(couple[0].length, couple[1].length) : title.length;
+    // Longest unbroken word: phones size the names from it so no word is ever split (#92)
+    const longestWord = Math.max(1, ...(couple ?? title.split(/\s+/)).flatMap((part) => part.split(/\s+/)).map((word) => word.length));
+    // Edit mode (todo #11): pencils on the cover, title and date; the host's view only, guests see none of it
+    const editing = useGuestEditSpots();
 
     const scrollToContent = () => {
         document.getElementById("royal-collection-section")?.scrollIntoView({ behavior: "smooth" });
@@ -86,13 +83,22 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
                         <article className="royal-card">
                             <div className="royal-card__paper" aria-hidden="true" />
                             <div className="royal-card__rules" aria-hidden="true" />
+                            <EditChip field="title" label="Title" style={{ top: 10, right: 10 }} />
                             {couple && <p className="royal-card__lead royal-foil">{coupleLead(event.category)}</p>}
                             {title && (
-                                <h1 className={cn("royal-card__names royal-foil", nameSizeClass(longestName, !!couple))}>
+                                <h1
+                                    className={cn(
+                                        "royal-card__names royal-foil",
+                                        nameSizeClass(longestName, !!couple),
+                                        // Long couples stack on phones: first name, &, second name (short ones stay on one line)
+                                        shouldStackCoupleNames(couple) && "royal-card__names--stack"
+                                    )}
+                                    style={{ "--royal-word": longestWord } as React.CSSProperties}
+                                >
                                     {couple ? (
                                         <>
-                                            {couple[0]}
-                                            <span className="royal-card__amp">&amp;</span>
+                                            {couple[0]}{" "}
+                                            <span className="royal-card__amp">&amp;</span>{" "}
                                             {couple[1]}
                                         </>
                                     ) : title}
@@ -100,6 +106,9 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
                             )}
                             <RoyalFlourish className="royal-card__flourish" />
                             {event.date && <p className="royal-card__date">{event.date}</p>}
+                            {event.date
+                                ? <EditChip field="date" label="Date" style={{ bottom: 10, right: 10 }} />
+                                : editing && <EditChip field="date" label="Add date" adding className="mt-3" />}
                             {location && <p className="royal-card__place">{location}</p>}
                             <RoyalWaxSeal initials={sealInitials} className="royal-card__seal" />
                         </article>
@@ -117,6 +126,7 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
                                 sizes="(max-width: 879px) 88vw, 520px"
                                 style={coverImageStyle(event)}
                             />
+                            <EditChip field="cover" label="Cover" style={{ top: 12, right: 12 }} />
                         </RoyalFiligreeFrame>
                     </div>
                 </div>
@@ -128,7 +138,7 @@ export function TemplateRoyal({ event, children, hasParent = false }: TemplateRo
 
             {/* Content Area for Gallery & Photos */}
             {children && (
-                <main id="royal-collection-section" className="relative z-10 bg-[#021a15]/60 min-h-screen border-t border-[#ca9c69]/15 py-8">
+                <main id="royal-collection-section" className="relative z-10 bg-[#021a15]/60 border-t border-[#ca9c69]/15 py-8">
                     <div className="max-w-[1600px] mx-auto px-6 sm:px-8 lg:px-12">
                         {children}
                     </div>

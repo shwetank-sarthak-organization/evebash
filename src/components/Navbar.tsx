@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, Moon, Sun, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
+import { isSiteNoirPath, SITE_NOIR_PATHS } from "@/lib/siteTheme";
 import { EveBashLogo } from "@/components/EveBashLogo";
 import { ProfileIcon } from "@/components/ProfileIcon";
 
@@ -23,11 +25,31 @@ const authNavLinks = [
     { name: "EB Network", href: "/eb-network" },
 ];
 
+// Switches between the light and dark site look and saves the choice (Settings > Appearance can go back to
+// following the device)
+function ThemeButton() {
+    const { theme, setChoice } = useTheme();
+    const next = theme === "light" ? "dark" : "light";
+    return (
+        <button
+            type="button"
+            onClick={() => setChoice(next)}
+            aria-label={`Switch to ${next} theme`}
+            title={`Switch to ${next} theme`}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-[var(--site-muted)] transition-colors hover:bg-[var(--site-card-muted)] hover:text-[var(--site-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--home-accent)]"
+        >
+            {theme === "light" ? <Moon className="h-5 w-5" aria-hidden /> : <Sun className="h-5 w-5" aria-hidden />}
+        </button>
+    );
+}
+
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
     const { user, logout } = useAuth();
     const isActiveLink = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+    // Pages that always stay dark get no theme button
+    const showThemeButton = !isSiteNoirPath(pathname, SITE_NOIR_PATHS);
 
     const getPlanLabel = (role?: string) => {
         switch (role) {
@@ -51,10 +73,10 @@ export default function Navbar() {
                 <div className="flex items-center justify-between h-20">
                     {/* Logo & Brand */}
                     <Link href="/" className="flex items-center gap-3 group">
-                        <div className="bg-[#CA9C68]/10 border border-[#CA9C68]/35 text-[#CA9C68] p-2.5 rounded-xl group-hover:bg-[#CA9C68]/20 group-hover:border-[#CA9C68]/65 transition-all duration-300">
-                            <EveBashLogo className="h-7 w-7 text-[#CA9C68]" aria-hidden="true" />
+                        <div className="bg-[var(--site-brand-mark)]/10 border border-[var(--site-brand-mark)]/35 text-[var(--site-brand-mark)] p-2.5 rounded-xl group-hover:bg-[var(--site-brand-mark)]/20 group-hover:border-[var(--site-brand-mark)]/65 transition-all duration-300">
+                            <EveBashLogo className="h-7 w-7 text-[var(--site-brand-mark)]" aria-hidden="true" />
                         </div>
-                        <span className="font-brand text-[1.75rem] font-normal leading-none tracking-wide text-[var(--site-text)] group-hover:text-[#CA9C68] transition-colors sm:text-[2rem]">
+                        <span className="font-brand text-[1.75rem] font-normal leading-none tracking-wide text-[var(--site-text)] group-hover:text-[var(--site-brand-mark)] transition-colors sm:text-[2rem]">
                             EveBash
                         </span>
                     </Link>
@@ -68,13 +90,15 @@ export default function Navbar() {
                                 className={cn(
                                     "inline-flex items-center gap-1.5 font-sans text-[15px] font-medium transition-colors hover:text-[var(--site-text)] pb-1 border-b-2 border-transparent",
                                     isActiveLink(link.href)
-                                        ? "text-[var(--site-text)] border-[#CA9C68]"
+                                        ? "text-[var(--site-text)] border-[var(--site-brand-mark)]"
                                         : "text-[var(--site-muted)] hover:border-[#906D4B]"
                                 )}
                             >
                                 {link.name}
                             </Link>
                         ))}
+
+                        {showThemeButton && <ThemeButton />}
 
                         {user ? (
                             <Link
@@ -85,7 +109,7 @@ export default function Navbar() {
                                     "ml-4 flex h-11 w-11 items-center justify-center rounded-full border transition-all",
                                     pathname === "/profile"
                                         ? "border-[#CA9C68] bg-[#CA9C68] text-[#13191F]"
-                                        : "border-slate-700 bg-slate-900 text-slate-300 hover:border-[#CA9C68]/60 hover:bg-slate-800 hover:text-white"
+                                        : "border-slate-700 bg-slate-900 text-slate-300 hover:border-[#CA9C68]/60 hover:bg-slate-800 hover:text-white light:border-[var(--site-border)] light:bg-[var(--site-card)] light:text-[var(--site-muted)] light:hover:bg-[var(--site-surface-2)] light:hover:text-[var(--site-text)]"
                                 )}
                             >
                                 {user.profileImage ? (
@@ -105,9 +129,10 @@ export default function Navbar() {
                                 </Link>
                                 <Link
                                     href="/login?mode=signup"
+                                    data-nav-cta
                                     className="px-6 py-2.5 bg-[#CA9C68] text-[#13191F] text-[15px] font-bold rounded-full hover:bg-[#D7AE7D] transition-colors shadow-sm"
                                 >
-                                    Create event free
+                                    Create event
                                 </Link>
                             </div>
                         )}
@@ -115,6 +140,7 @@ export default function Navbar() {
 
                     {/* Mobile Menu Button */}
                     <div className="lg:hidden flex items-center gap-2">
+                        {showThemeButton && <ThemeButton />}
                         <button
                             onClick={() => setIsOpen(!isOpen)}
                             className="p-2 text-[var(--site-muted)] hover:text-[var(--site-text)] focus:outline-none transition-colors"
@@ -129,8 +155,9 @@ export default function Navbar() {
             {/* Mobile Menu Dropdown */}
             <div
                 className={cn(
-                    "lg:hidden absolute top-20 left-0 w-full bg-[var(--site-surface)] border-b border-[var(--site-border)] shadow-xl transition-all duration-300 ease-in-out origin-top overflow-hidden",
-                    isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+                    "lg:hidden absolute top-20 left-0 w-full bg-[var(--site-surface)] border-b border-[var(--site-border)] shadow-xl transition-all duration-300 ease-in-out origin-top",
+                    // Cap at the screen height below the 5rem nav and scroll, so Profile and Logout stay reachable on short phones.
+                    isOpen ? "max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain opacity-100" : "max-h-0 overflow-hidden opacity-0 pointer-events-none"
                 )}
             >
                 <div className="px-4 pt-4 pb-6 space-y-2 flex flex-col">
@@ -142,7 +169,7 @@ export default function Navbar() {
                             className={cn(
                                 "flex items-center gap-2 px-4 py-3 rounded-lg font-sans text-lg font-medium transition-colors",
                                 isActiveLink(link.href)
-                                    ? "text-[#CA9C68] bg-[#CA9C68]/15"
+                                    ? "text-[var(--site-brand-mark)] bg-[var(--site-brand-mark)]/15 light:text-[var(--site-brand-text)]"
                                     : "text-[var(--site-muted)] hover:bg-[var(--site-card-muted)] hover:text-[var(--site-text)]"
                             )}
                         >
@@ -171,7 +198,7 @@ export default function Navbar() {
                                     onClick={() => setIsOpen(false)}
                                     className={cn(
                                         "block w-full text-center px-4 py-3 rounded-lg text-lg font-medium transition-colors",
-                                        pathname === "/profile" ? "bg-[#CA9C68]/15 text-[#CA9C68]" : "text-[var(--site-muted)] hover:bg-[var(--site-card-muted)] hover:text-[var(--site-text)]"
+                                        pathname === "/profile" ? "bg-[#CA9C68]/15 text-[#CA9C68] light:text-[var(--site-brand-text)]" : "text-[var(--site-muted)] hover:bg-[var(--site-card-muted)] hover:text-[var(--site-text)]"
                                     )}
                                 >
                                     Profile
@@ -191,9 +218,10 @@ export default function Navbar() {
                                 <Link
                                     href="/login?mode=signup"
                                     onClick={() => setIsOpen(false)}
+                                    data-nav-cta
                                     className="block w-full text-center px-4 py-3 bg-[#CA9C68] text-[#13191F] rounded-lg text-lg font-medium hover:bg-[#D7AE7D] transition-colors"
                                 >
-                                    Create event free
+                                    Create event
                                 </Link>
                                 <Link
                                     href="/login"

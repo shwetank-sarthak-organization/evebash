@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { isDialogOpen } from "@/components/ui/Modal";
 import { PageFlipControls } from "./PageFlipControls";
 import { ThumbnailDrawer, VIEWER_LAYOUT_COMPONENTS } from "./PageFlipLayouts";
 import { PageFlipPage } from "./PageFlipPage";
@@ -225,6 +226,8 @@ export function PageFlipViewer({
     }, 0);
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // A confirm on top (e.g. Delete comment) handles its own keys: Esc closes it, not the viewer
+      if (isDialogOpen()) return;
       const isTyping = document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement;
       if (event.key === "Escape") {
         if (thumbnailDrawerOpen) setThumbnailDrawerOpen(false);

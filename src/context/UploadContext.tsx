@@ -1,11 +1,12 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Check, Image as ImageIcon, Loader2, Video, X } from "lucide-react";
+import { AnimatePresence, domAnimation, LazyMotion, m } from "framer-motion";
+import { Check, Image as ImageIcon, Loader2, Trash2, Video, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
+import { deletePhoto } from "@/lib/database";
 
 // Event uploads live here, above the pages, so moving to another page of the website doesn't
 // lose the queue, the panel, the Cancel buttons or the "don't leave" warning (issue #78).
@@ -22,6 +23,8 @@ export interface UploadQueueItem {
     storageKey?: string;
     photoId?: string;
     eventId?: string;
+    /** Cancelled after the file reached storage: it is deleted (original, previews, streaming copy) instead */
+    cancelRequested?: boolean;
 }
 
 export interface IndexingStatus {
@@ -36,6 +39,23 @@ export interface IndexingStatus {
 
 type VideoReadyListener = (rows: any[]) => void;
 
+/** One photo or video being deleted, shown in the delete panel next to the upload panel */
+export interface DeleteQueueItem {
+    id: string;
+    name: string;
+    mediaType: "photo" | "video";
+    status: "deleting" | "deleted" | "error";
+}
+
+/** "1 photo", "3 videos", "2 photos and 1 video" */
+export function describeMediaCount(items: { mediaType: "photo" | "video" }[]) {
+    const photos = items.filter(item => item.mediaType !== "video").length;
+    const videos = items.length - photos;
+    const part = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+    if (photos && videos) return `${part(photos, "photo")} and ${part(videos, "video")}`;
+    return videos ? part(videos, "video") : part(photos, "photo");
+}
+
 interface UploadContextType {
     uploadQueue: UploadQueueItem[];
     setUploadQueue: React.Dispatch<React.SetStateAction<UploadQueueItem[]>>;
@@ -43,6 +63,12 @@ interface UploadContextType {
     showUploadPanel: () => void;
     // Called with the processing records of uploaded videos once they are ready; returns an unsubscribe
     onVideosReady: (listener: VideoReadyListener) => () => void;
+    /** Called with the photo id of an upload that was cancelled after it was saved, once it is deleted */
+    onUploadCancelled: (listener: (photoId: string) => void) => () => void;
+    /** Deletes the items 4 at a time with deleteOne, showing them in the delete panel; resolves with the ids deleted */
+    runDeletes: (items: Omit<DeleteQueueItem, "status">[], deleteOne: (id: string) => Promise<boolean>) => Promise<Set<string>>;
+    /** Ids being deleted right now, so the gallery can show "Deleting..." over them */
+    deletingIds: Set<string>;
 }
 
 const UploadContext = createContext<UploadContextType | undefined>(undefined);
@@ -51,33 +77,119 @@ const isUnfinished = (item: UploadQueueItem) =>
     item.status === "pending" || item.status === "uploading" || item.status === "processing" || item.status === "finalizing" || item.status === "cancelling";
 
 export function UploadProvider({ children }: { children: React.ReactNode }) {
-    const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
+    const [uploadQueue, setUploadQueueRaw] = useState<UploadQueueItem[]>([]);
+    // Once a saved upload is cancelled, nothing else (realtime, polling, the host page) may turn it back into
+    // "processing" or "success"; only the cancel itself moves it on, through setUploadQueueRaw
+    const setUploadQueue = useCallback<React.Dispatch<React.SetStateAction<UploadQueueItem[]>>>(action => {
+        setUploadQueueRaw(previous => {
+            const next = typeof action === "function" ? action(previous) : action;
+            const before = new Map(previous.map(item => [item.id, item]));
+            return next.map(item => {
+                const old = before.get(item.id);
+                return old?.cancelRequested ? { ...item, status: old.status, progress: old.progress, error: old.error, cancelRequested: true } : item;
+            });
+        });
+    }, []);
+    const cancelledListeners = useRef(new Set<(photoId: string) => void>());
+    const cancelDeletesStarted = useRef(new Set<string>());
     const uploadControllers = useRef(new Map<string, AbortController>());
     const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
     const [isUploadPanelMinimized, setIsUploadPanelMinimized] = useState(false);
     const [indexingStatus, setIndexingStatus] = useState<IndexingStatus | null>(null);
     const uploadQueueRef = useRef<UploadQueueItem[]>([]);
     const videoReadyListeners = useRef(new Set<VideoReadyListener>());
+    const [deleteQueue, setDeleteQueue] = useState<DeleteQueueItem[]>([]);
+    const [isDeletePanelMinimized, setIsDeletePanelMinimized] = useState(false);
+    const deleteClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         uploadQueueRef.current = uploadQueue;
     }, [uploadQueue]);
 
-    const cancelUpload = (id: string) => {
+    // Still uploading: stop the transfer (storage.ts removes the unfinished file). Already in storage
+    // (finishing or processing): delete it like any other photo or video, streaming copy included.
+    // "finalizing" (a few seconds) has no cancel: a photo's row may not be saved yet, so a delete then would miss
+    // it. From "processing" on, the row exists and the delete removes everything.
+    const isCancellable = (item: UploadQueueItem) =>
+        item.status === "pending" || item.status === "uploading" || item.status === "processing";
+    const isSaved = (item: UploadQueueItem) => item.status === "processing";
+
+    const cancelUpload = (id: string, confirmed = false) => {
+        const item = uploadQueueRef.current.find(entry => entry.id === id);
         const controller = uploadControllers.current.get(id);
-        if (!controller || controller.signal.aborted) return;
-        controller.abort();
-        // A queued file has nothing in flight, so it is cancelled at once; its worker skips it when it gets there
-        setUploadQueue(previous => previous.map(item => item.id === id ? { ...item, status: item.status === "pending" ? "cancelled" : "cancelling" } : item));
+        if (controller && !controller.signal.aborted) {
+            controller.abort();
+            // A queued file has nothing in flight, so it is cancelled at once; its worker skips it when it gets there
+            setUploadQueueRaw(previous => previous.map(entry => entry.id === id ? { ...entry, status: entry.status === "pending" ? "cancelled" : "cancelling" } : entry));
+            return;
+        }
+        if (!item || !isSaved(item)) return;
+        if (!confirmed && !window.confirm(`Cancel "${item.fileName}"? It has already been uploaded, so it will be deleted.`)) return;
+        setUploadQueueRaw(previous => previous.map(entry => entry.id === id ? { ...entry, status: "cancelling", cancelRequested: true } : entry));
     };
     const cancelAllUploads = () => {
-        for (const id of uploadControllers.current.keys()) cancelUpload(id);
+        const open = uploadQueueRef.current.filter(isCancellable);
+        const saved = open.filter(isSaved).length;
+        if (saved > 0 && !window.confirm(`Cancel ${open.length === 1 ? "this upload" : `all ${open.length} unfinished uploads`}? ${saved === 1 ? "1 file has" : `${saved} files have`} already been uploaded and will be deleted.`)) return;
+        for (const item of open) cancelUpload(item.id, true);
     };
+
+    // Deletes saved uploads that were cancelled
+    useEffect(() => {
+        for (const item of uploadQueue) {
+            if (!item.cancelRequested || item.status !== "cancelling" || !item.photoId || cancelDeletesStarted.current.has(item.id)) continue;
+            cancelDeletesStarted.current.add(item.id);
+            const photoId = item.photoId;
+            void deletePhoto(photoId).then(ok => {
+                setUploadQueueRaw(previous => previous.map(entry => entry.id === item.id
+                    ? { ...entry, status: ok ? "cancelled" : "error", error: ok ? undefined : "Couldn't cancel: the file is still in the gallery. Delete it from there." }
+                    : entry));
+                if (ok) cancelledListeners.current.forEach(listener => listener(photoId));
+            });
+        }
+    }, [uploadQueue]);
+
+    const onUploadCancelled = useCallback((listener: (photoId: string) => void) => {
+        cancelledListeners.current.add(listener);
+        return () => { cancelledListeners.current.delete(listener); };
+    }, []);
 
     const showUploadPanel = useCallback(() => {
         setIsUploadPanelOpen(true);
         setIsUploadPanelMinimized(false);
     }, []);
+
+    const runDeletes = useCallback(async (items: Omit<DeleteQueueItem, "status">[], deleteOne: (id: string) => Promise<boolean>) => {
+        const deleted = new Set<string>();
+        if (items.length === 0) return deleted;
+        if (deleteClearTimer.current) clearTimeout(deleteClearTimer.current);
+        setIsDeletePanelMinimized(false);
+        // A new batch replaces finished rows but keeps any still being deleted
+        setDeleteQueue(previous => [
+            ...previous.filter(item => item.status === "deleting" && !items.some(next => next.id === item.id)),
+            ...items.map(item => ({ ...item, status: "deleting" as const })),
+        ]);
+        const setStatus = (id: string, status: DeleteQueueItem["status"]) =>
+            setDeleteQueue(previous => previous.map(item => item.id === id ? { ...item, status } : item));
+        let next = 0;
+        const worker = async () => {
+            while (next < items.length) {
+                const item = items[next++];
+                let ok = false;
+                try { ok = await deleteOne(item.id); } catch { ok = false; }
+                if (ok) deleted.add(item.id);
+                setStatus(item.id, ok ? "deleted" : "error");
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(4, items.length) }, worker));
+        // A clean batch closes itself after a few seconds; failures stay until the host closes the panel
+        if (deleted.size === items.length) {
+            deleteClearTimer.current = setTimeout(() => setDeleteQueue(previous => previous.filter(item => item.status === "deleting")), 5000);
+        }
+        return deleted;
+    }, []);
+
+    const deletingIds = React.useMemo(() => new Set(deleteQueue.filter(item => item.status === "deleting").map(item => item.id)), [deleteQueue]);
 
     const onVideosReady = useCallback((listener: VideoReadyListener) => {
         videoReadyListeners.current.add(listener);
@@ -87,7 +199,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     // Warn user before closing/refreshing tab during active uploads
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (uploadQueue.some(isUnfinished)) {
+            if (uploadQueue.some(isUnfinished) || deleteQueue.some(item => item.status === "deleting")) {
                 e.preventDefault();
                 e.returnValue = "You have active uploads in progress. If you leave or reload now, these uploads will be cancelled.";
                 return e.returnValue;
@@ -98,7 +210,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         return () => {
             window.removeEventListener("beforeunload", handleBeforeUnload);
         };
-    }, [uploadQueue]);
+    }, [uploadQueue, deleteQueue]);
 
     // Video readiness comes from its processing record, never thumbnail or face-index completion.
     const pendingVideoIds = uploadQueue.filter(item => item.mediaType === "video" && item.status === "processing" && item.photoId).map(item => item.photoId!).join(",");
@@ -207,18 +319,119 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <UploadContext.Provider value={{ uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady }}>
+        <UploadContext.Provider value={{ uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady, onUploadCancelled, runDeletes, deletingIds }}>
             {children}
+
+            {/* Upload and delete panels share the bottom-right corner, the delete panel above */}
+            {/* Slim framer-motion: loads only the animation features the panels need. */}
+            <LazyMotion features={domAnimation}>
+            <div className="pointer-events-none fixed bottom-6 right-6 z-[100] flex w-96 max-w-[calc(100vw-2rem)] flex-col items-stretch gap-3">
+            <AnimatePresence>
+                {deleteQueue.length > 0 && (() => {
+                    const deleting = deleteQueue.filter(item => item.status === "deleting").length;
+                    const failed = deleteQueue.filter(item => item.status === "error").length;
+                    const done = deleteQueue.length - deleting;
+                    const headline = deleting > 0
+                        ? `Deleting ${describeMediaCount(deleteQueue)}... ${done} of ${deleteQueue.length} done`
+                        : failed > 0
+                            ? `${deleteQueue.length - failed} deleted · ${failed} couldn't be deleted`
+                            : `✓ ${describeMediaCount(deleteQueue)} deleted`;
+                    return (
+                        <m.div
+                            key="delete-panel"
+                            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            role="status"
+                            aria-live="polite"
+                            className="pointer-events-auto bg-slate-950/95 light:bg-[var(--site-card)]/95 border border-slate-800 light:border-[var(--site-line)] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden font-sans"
+                        >
+                            <div
+                                role="button"
+                                tabIndex={0}
+                                aria-expanded={!isDeletePanelMinimized}
+                                title={isDeletePanelMinimized ? "Expand" : "Minimize"}
+                                onClick={() => setIsDeletePanelMinimized(!isDeletePanelMinimized)}
+                                onKeyDown={(e) => {
+                                    if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                                        e.preventDefault();
+                                        setIsDeletePanelMinimized(!isDeletePanelMinimized);
+                                    }
+                                }}
+                                className="flex items-center justify-between px-4 py-3 bg-slate-900 light:bg-[var(--site-surface)] border-b border-slate-800 light:border-[var(--site-line)] cursor-pointer select-none hover:bg-slate-800/70 light:hover:bg-[var(--site-surface-2)]/70 transition-colors"
+                            >
+                                <div className="flex items-center gap-2 min-w-0">
+                                    {deleting > 0 ? (
+                                        <Loader2 className="w-4 h-4 animate-spin text-rose-300 light:text-rose-700 shrink-0" />
+                                    ) : failed > 0 ? (
+                                        <X className="w-4 h-4 text-rose-400 light:text-rose-700 shrink-0" />
+                                    ) : (
+                                        <Check className="w-4 h-4 text-emerald-400 light:text-emerald-700 shrink-0" />
+                                    )}
+                                    <span className="text-xs font-bold text-slate-200 light:text-[var(--site-subtle)] truncate">{headline}</span>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                        onClick={() => setDeleteQueue(previous => previous.filter(item => item.status === "deleting"))}
+                                        disabled={deleting > 0}
+                                        className="p-1.5 text-slate-400 light:text-[var(--site-muted)] hover:text-white light:hover:text-[var(--site-text)] rounded hover:bg-slate-800 light:hover:bg-[var(--site-surface-2)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                        title={deleting > 0 ? "Wait for the deletes to finish" : "Close"}
+                                        aria-label="Close"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Overall progress: items finished out of all items */}
+                            <div className="w-full h-1 bg-slate-900 light:bg-[var(--site-surface)] overflow-hidden">
+                                <div
+                                    className={cn("h-full transition-all duration-300", failed > 0 && deleting === 0 ? "bg-rose-400" : deleting === 0 ? "bg-emerald-400" : "bg-rose-300")}
+                                    style={{ width: `${(done / deleteQueue.length) * 100}%` }}
+                                ></div>
+                            </div>
+
+                            <AnimatePresence initial={false}>
+                                {!isDeletePanelMinimized && (
+                                    <m.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
+                                        <div className="max-h-56 overflow-y-auto divide-y divide-slate-900">
+                                            {deleteQueue.map(item => (
+                                                <div key={item.id} className="flex items-center justify-between gap-3 p-3">
+                                                    <div className="w-10 h-10 rounded-lg border border-slate-800 light:border-[var(--site-line)] bg-slate-900 light:bg-[var(--site-surface)] flex items-center justify-center shrink-0">
+                                                        {item.mediaType === "video" ? <Video className="w-5 h-5 text-sky-400 light:text-sky-700" /> : <ImageIcon className="w-5 h-5 text-[#CA9C68] light:text-[var(--site-gold-text)]" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-bold text-slate-300 light:text-[var(--site-subtle)] truncate" title={item.name}>{item.name}</p>
+                                                        <p className={cn("text-[10px] font-bold", item.status === "deleting" ? "text-rose-300 light:text-rose-700 animate-pulse" : item.status === "deleted" ? "text-emerald-400 light:text-emerald-700" : "text-rose-400 light:text-rose-700")}>
+                                                            {item.status === "deleting" ? `Deleting ${item.mediaType}...` : item.status === "deleted" ? "Deleted" : "Couldn't delete. Please try again."}
+                                                        </p>
+                                                    </div>
+                                                    <div className="shrink-0">
+                                                        {item.status === "deleting" && <Trash2 className="w-4 h-4 text-rose-300 light:text-rose-700 animate-pulse" />}
+                                                        {item.status === "deleted" && <Check className="w-4 h-4 text-emerald-400 light:text-emerald-700" />}
+                                                        {item.status === "error" && <X className="w-4 h-4 text-rose-400 light:text-rose-700" />}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </m.div>
+                                )}
+                            </AnimatePresence>
+                        </m.div>
+                    );
+                })()}
+            </AnimatePresence>
 
             {/* Floating Upload Queue Panel (Google Drive style) */}
             <AnimatePresence>
                 {(isUploadPanelOpen || hasUnfinishedUploads) && uploadQueue.length > 0 && (
-                    <motion.div
+                    <m.div
                         initial={{ opacity: 0, y: 50, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 50, scale: 0.95 }}
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        className="fixed bottom-6 right-6 z-[100] w-96 bg-slate-950/95 border border-slate-800 backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden font-sans"
+                        className="pointer-events-auto bg-slate-950/95 light:bg-[var(--site-card)]/95 border border-slate-800 light:border-[var(--site-line)] backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden font-sans"
                     >
                         {/* Header */}
                         <div
@@ -233,27 +446,27 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                                     setIsUploadPanelMinimized(!isUploadPanelMinimized);
                                 }
                             }}
-                            className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 cursor-pointer select-none hover:bg-slate-800/70 transition-colors"
+                            className="flex items-center justify-between px-4 py-3 bg-slate-900 light:bg-[var(--site-surface)] border-b border-slate-800 light:border-[var(--site-line)] cursor-pointer select-none hover:bg-slate-800/70 light:hover:bg-[var(--site-surface-2)]/70 transition-colors"
                         >
                             <div className="flex items-center gap-2 min-w-0">
                                 {(uploadingItems > 0 || processingItems > 0) ? (
-                                    <Loader2 className="w-4 h-4 animate-spin text-[#CA9C68] shrink-0" />
+                                    <Loader2 className="w-4 h-4 animate-spin text-[#CA9C68] light:text-[var(--site-gold-text)] shrink-0" />
                                 ) : (
-                                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                                    <Check className="w-4 h-4 text-emerald-400 light:text-emerald-700 shrink-0" />
                                 )}
-                                <span className="text-xs font-bold text-slate-200 truncate">
+                                <span className="text-xs font-bold text-slate-200 light:text-[var(--site-subtle)] truncate">
                                     {overallStatusText}
                                 </span>
                             </div>
                             {/* Buttons here act on their own and don't minimize the panel */}
                             <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                {uploadQueue.some(item => item.status === "pending" || item.status === "uploading") && (
-                                    <button type="button" onClick={cancelAllUploads} className="px-2 py-1 text-xs text-rose-300 hover:text-white">Cancel all uploads</button>
+                                {uploadQueue.some(isCancellable) && (
+                                    <button type="button" onClick={cancelAllUploads} className="px-2 py-1 text-xs text-rose-300 light:text-rose-700 hover:text-white light:hover:text-[var(--site-text)]">Cancel all</button>
                                 )}
                                 {completedItems === totalItems && (
                                     <button
                                         onClick={() => setUploadQueue([])}
-                                        className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-slate-800 transition-colors"
+                                        className="text-[10px] font-bold uppercase tracking-wider text-slate-400 light:text-[var(--site-muted)] hover:text-white light:hover:text-[var(--site-text)] px-2 py-1 rounded hover:bg-slate-800 light:hover:bg-[var(--site-surface-2)] transition-colors"
                                     >
                                         Clear
                                     </button>
@@ -261,7 +474,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                                 <button
                                     onClick={() => setIsUploadPanelOpen(false)}
                                     disabled={hasUnfinishedUploads}
-                                    className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                    className="p-1.5 text-slate-400 light:text-[var(--site-muted)] hover:text-white light:hover:text-[var(--site-text)] rounded hover:bg-slate-800 light:hover:bg-[var(--site-surface-2)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                     title={hasUnfinishedUploads ? "Video uploads and processing must finish before closing" : "Close"}
                                 >
                                     <X className="w-4 h-4" />
@@ -271,7 +484,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
                         {/* Overall progress bar at the very bottom of minimized header */}
                         {isUploadPanelMinimized && (uploadingItems > 0 || processingItems > 0 || (indexingStatus && indexingStatus.status === "processing")) && (
-                            <div className="w-full h-1 bg-slate-900 overflow-hidden relative">
+                            <div className="w-full h-1 bg-slate-900 light:bg-[var(--site-surface)] overflow-hidden relative">
                                 <div
                                     className="h-full bg-gradient-to-r from-[#CA9C68] to-sky-500 transition-all duration-300"
                                     style={{
@@ -288,7 +501,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                         {/* Body (List of items) */}
                         <AnimatePresence initial={false}>
                             {!isUploadPanelMinimized && (
-                                <motion.div
+                                <m.div
                                     initial={{ height: 0 }}
                                     animate={{ height: "auto" }}
                                     exit={{ height: 0 }}
@@ -298,59 +511,59 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                                         {uploadQueue.map((item) => (
                                             <div
                                                 key={item.id}
-                                                className="flex items-center justify-between gap-3 p-3 hover:bg-slate-900/50 transition-colors"
+                                                className="flex items-center justify-between gap-3 p-3 hover:bg-slate-900/50 light:hover:bg-[var(--site-surface)]/50 transition-colors"
                                             >
                                                 {/* File Preview Icon */}
-                                                <div className="w-10 h-10 rounded-lg border border-slate-800 bg-slate-900 flex items-center justify-center shrink-0">
+                                                <div className="w-10 h-10 rounded-lg border border-slate-800 light:border-[var(--site-line)] bg-slate-900 light:bg-[var(--site-surface)] flex items-center justify-center shrink-0">
                                                     {item.mediaType === "video" ? (
-                                                        <Video className="w-5 h-5 text-sky-400" />
+                                                        <Video className="w-5 h-5 text-sky-400 light:text-sky-700" />
                                                     ) : (
-                                                        <ImageIcon className="w-5 h-5 text-[#CA9C68]" />
+                                                        <ImageIcon className="w-5 h-5 text-[#CA9C68] light:text-[var(--site-gold-text)]" />
                                                     )}
                                                 </div>
 
                                                 {/* File Details & Progress */}
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center justify-between gap-2 mb-1">
-                                                        <p className="text-xs font-bold text-slate-300 truncate" title={item.fileName}>
+                                                        <p className="text-xs font-bold text-slate-300 light:text-[var(--site-subtle)] truncate" title={item.fileName}>
                                                             {item.fileName}
                                                         </p>
                                                         {item.status === "pending" && (
-                                                            <span className="text-[10px] font-bold text-slate-500 shrink-0">
+                                                            <span className="text-[10px] font-bold text-slate-500 light:text-[var(--site-muted)] shrink-0">
                                                                 Queued...
                                                             </span>
                                                         )}
                                                         {item.status === "uploading" && (
-                                                            <span className="text-[10px] font-bold text-[#CA9C68] shrink-0">
+                                                            <span className="text-[10px] font-bold text-[#CA9C68] light:text-[var(--site-gold-text)] shrink-0">
                                                                 {item.progress}%
                                                             </span>
                                                         )}
                                                         {(item.status === "finalizing" || item.status === "cancelling" || item.status === "cancelled") && (
-                                                            <span className="text-[10px] text-slate-300">{item.status === "finalizing" ? "Finalizing..." : item.status === "cancelling" ? "Cancelling..." : "Cancelled"}</span>
+                                                            <span className="text-[10px] text-slate-300 light:text-[var(--site-subtle)]">{item.status === "finalizing" ? "Finalizing..." : item.status === "cancelling" ? (item.cancelRequested ? "Cancelling and deleting..." : "Cancelling...") : item.cancelRequested ? "Cancelled · deleted" : "Cancelled"}</span>
                                                         )}
                                                         {item.status === "processing" && (
-                                                            <span className="text-[10px] font-bold text-sky-400 shrink-0 animate-pulse">
+                                                            <span className="text-[10px] font-bold text-sky-400 light:text-sky-700 shrink-0 animate-pulse">
                                                                 {item.mediaType === "video" ? "Processing video..." : indexingStatus && indexingStatus.status === "processing" ? "Indexing..." : "Resizing..."}
                                                             </span>
                                                         )}
                                                         {item.status === "success" && (
-                                                            <span className="text-[10px] font-bold text-emerald-400 shrink-0">
+                                                            <span className="text-[10px] font-bold text-emerald-400 light:text-emerald-700 shrink-0">
                                                                 {item.mediaType === "video" ? "100% · Ready" : "Done"}
                                                             </span>
                                                         )}
                                                         {item.status === "error" && (
-                                                            <span className="text-[10px] font-bold text-rose-400 shrink-0 truncate max-w-[80px]">
+                                                            <span className="text-[10px] font-bold text-rose-400 light:text-rose-700 shrink-0 truncate max-w-[80px]">
                                                                 Error
                                                             </span>
                                                         )}
                                                     </div>
 
                                                     {/* Progress bar */}
-                                                    <div className="w-full bg-slate-900 h-1 rounded-full overflow-hidden">
+                                                    <div className="w-full bg-slate-900 light:bg-[var(--site-surface)] h-1 rounded-full overflow-hidden">
                                                         <div
                                                             className={cn(
                                                                 "h-full rounded-full transition-all duration-300",
-                                                                item.status === "pending" ? "bg-slate-700" :
+                                                                item.status === "pending" ? "bg-slate-700 light:bg-[var(--site-surface-3)]" :
                                                                 item.status === "uploading" ? "bg-[#CA9C68]" :
                                                                 item.status === "processing" ? "bg-sky-400 animate-pulse" :
                                                                 item.status === "success" ? "bg-emerald-400" : "bg-rose-400"
@@ -362,35 +575,37 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                                                     </div>
                                                 </div>
 
-                                                {(item.status === "pending" || item.status === "uploading") && (
-                                                    <button type="button" onClick={() => cancelUpload(item.id)} title={`Cancel upload: ${item.fileName}`} aria-label={`Cancel upload: ${item.fileName}`} className="rounded p-2 text-rose-300 hover:bg-rose-500/10"><X className="h-4 w-4" /></button>
+                                                {isCancellable(item) && (
+                                                    <button type="button" onClick={() => cancelUpload(item.id)} title={isSaved(item) ? `Cancel and delete: ${item.fileName}` : `Cancel upload: ${item.fileName}`} aria-label={isSaved(item) ? `Cancel and delete: ${item.fileName}` : `Cancel upload: ${item.fileName}`} className="rounded p-2 text-rose-300 light:text-rose-700 hover:bg-rose-500/10"><X className="h-4 w-4" /></button>
                                                 )}
                                                 {/* Status Icon */}
                                                 <div className="shrink-0">
                                                     {item.status === "uploading" && (
-                                                        <Loader2 className="w-4 h-4 animate-spin text-[#CA9C68]" />
+                                                        <Loader2 className="w-4 h-4 animate-spin text-[#CA9C68] light:text-[var(--site-gold-text)]" />
                                                     )}
                                                     {item.status === "processing" && (
-                                                        <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
+                                                        <Loader2 className="w-4 h-4 animate-spin text-sky-400 light:text-sky-700" />
                                                     )}
                                                     {item.status === "success" && (
-                                                        <Check className="w-4 h-4 text-emerald-400" />
+                                                        <Check className="w-4 h-4 text-emerald-400 light:text-emerald-700" />
                                                     )}
                                                     {item.status === "error" && (
                                                         <div title={item.error}>
-                                                            <X className="w-4 h-4 text-rose-400" />
+                                                            <X className="w-4 h-4 text-rose-400 light:text-rose-700" />
                                                         </div>
                                                     )}
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
-                                </motion.div>
+                                </m.div>
                             )}
                         </AnimatePresence>
-                    </motion.div>
+                    </m.div>
                 )}
             </AnimatePresence>
+            </div>
+            </LazyMotion>
         </UploadContext.Provider>
     );
 }

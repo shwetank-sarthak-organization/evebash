@@ -11,8 +11,9 @@ import { policyTextParts, type PolicySection } from '../../../shared/legal/index
 import { appAlert } from '@/lib/feedback';
 
 function PolicyText({ text }: { text: string }) {
+  const { colors } = useAppTheme();
   return <>{policyTextParts(text).map((part, index) => part.href ? (
-    <Text key={index} accessibilityRole="link" style={{ color: MidnightColors.gold, textDecorationLine: 'underline' }}
+    <Text key={index} accessibilityRole="link" style={{ color: colors.gold, textDecorationLine: 'underline' }}
       onPress={() => Linking.openURL(part.href!).catch(() => appAlert('Unable to open link', part.text))}>
       {part.text}
     </Text>
@@ -120,7 +121,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     marginBottom: 22,
   },
   eyebrow: {
-    color: MidnightColors.gold,
+    color: colors.gold,
     fontFamily: Fonts.outfit.extraBold,
     fontSize: 12,
     letterSpacing: 1.8,
@@ -189,7 +190,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     lineHeight: 22,
   },
   supportEmail: {
-    color: MidnightColors.gold,
+    color: colors.gold,
     fontFamily: Fonts.outfit.bold,
   },
 });

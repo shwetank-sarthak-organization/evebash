@@ -265,7 +265,8 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    // Only this device: the default ('global') also signs the account out of the app and website
+    await supabase.auth.signOut({ scope: 'local' });
   };
 
   const loadDashboardData = async () => {

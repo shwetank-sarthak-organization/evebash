@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, useWindowDimensions, type GestureResponderEvent } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Fonts } from '../../constants/theme';
 import { BohemianEqualizer } from './BohemianEqualizer';
+import { PortraitBoldText } from '../portrait/PortraitBoldText';
 
 interface ThemeHeaderProps {
   event: any;
@@ -11,6 +12,12 @@ interface ThemeHeaderProps {
   subEvents: any[];
   handleSubEventChange: (sub: any) => void;
   styles: any;
+  /** Royal Emerald: its Cinzel font, loaded by the event screen (components/royal/royalFonts.ts) */
+  royalFontFamily?: string;
+  /** Sunlit Portrait: its Instrument Serif, loaded by the event screen (components/portrait/portraitFonts.ts) */
+  portraitFontFamily?: string;
+  /** Confetti Circle: its Bebas Neue, loaded by the event screen (components/confetti/confettiFonts.ts) */
+  confettiFontFamily?: string;
 }
 
 /** Event Partners is hidden until Phase 2 (it comes with EB Business and EB Network). */
@@ -46,6 +53,13 @@ const SPORTS_HEADER_THEMES: Record<string, any> = {
   zen: { background: '#f1eee6', text: '#44403c', muted: '#78716c', accent: '#66785f', activeText: '#fffaf2', tabBg: 'rgba(255,252,246,0.82)', border: 'rgba(102,120,95,0.22)' },
 };
 
+// Height of a tab in the Royal Emerald / Classic White bar, so the Collections menu opens below it
+const COLLECTIONS_TAB_HEIGHT = 40;
+// Height of Sunlit Portrait's pinned tab bar; its gallery header's film opening fills the screen under it
+export const PORTRAIT_TABS_HEIGHT = 56;
+// Height of Confetti Circle's tab bar
+const CONFETTI_TABS_HEIGHT = 56;
+
 const getSportsHeaderTheme = (templateId?: string) => SPORTS_HEADER_THEMES[templateId || ''] || SPORTS_HEADER_THEMES.bohemian;
 
 export function ThemeHeader({
@@ -55,10 +69,32 @@ export function ThemeHeader({
   subEvents,
   handleSubEventChange,
   styles,
+  royalFontFamily,
+  portraitFontFamily,
+  confettiFontFamily,
 }: ThemeHeaderProps) {
+  // Website navbar links: Cinzel, gold when chosen
+  const royalTabText = (active: boolean) => isRoyalFont && { fontFamily: royalFontFamily, fontWeight: 'normal' as const, letterSpacing: 1.6, color: active ? '#f3d68f' : '#cdb48a' };
   const templateId = event?.templateId;
   const isRoyal = templateId === 'royal';
+  // Sunlit Portrait (website: its navbar in sunlit-portrait.css): the serif in normal case, ink when chosen with a clay
+  // dot under it, muted brown otherwise, on the warm paper
+  const isPortrait = templateId === 'portrait';
+  // Its labels are drawn a little bolder, as on the website (components/portrait/PortraitBoldText.tsx, #166)
+  const TabLabel = isPortrait ? PortraitBoldText : Text;
+  const portraitTabText = (active: boolean) => isPortrait && !!portraitFontFamily && { fontFamily: portraitFontFamily, fontWeight: 'normal' as const, textTransform: 'none' as const, letterSpacing: 0, fontSize: 20, color: active ? '#1F1B17' : '#6B6158' };
+  // Confetti Circle (website: its navbar in confetti-circle.css): Bebas Neue capitals, ink, pink when chosen with a pink
+  // line under it, on the soft white paper
+  const isConfetti = templateId === 'confetti';
+  const confettiTabText = (active: boolean) => isConfetti && !!confettiFontFamily && { fontFamily: confettiFontFamily, fontWeight: 'normal' as const, textTransform: 'uppercase' as const, letterSpacing: 1, fontSize: 19, color: active ? '#e8175d' : 'rgba(42,39,39,0.75)' };
+  const isRoyalFont = isRoyal && !!royalFontFamily;
+  const { width: windowWidth } = useWindowDimensions();
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
+  const [collectionsAnchor, setCollectionsAnchor] = useState<{ x: number; y: number } | null>(null);
   const isClassic = templateId === 'classic';
+  // Royal Emerald, Classic White, Sunlit Portrait and Confetti Circle group the albums under one Collections tab, like the
+  // website's navbar
+  const groupsCollections = isRoyalFont || isClassic || isPortrait || isConfetti;
   const isHero = templateId === 'hero';
   const isEthereal = templateId === 'ethereal';
   const isScrapbook = templateId === 'scrapbook';
@@ -81,7 +117,7 @@ export function ThemeHeader({
   const isBrutalist = templateId === 'brutalist';
   const isTechSleek = templateId === 'tech_sleek';
   const isExecutive = templateId === 'executive';
-  const isThemeHeader = isRoyal || isClassic || isHero || isEthereal || isGarden;
+  const isThemeHeader = isRoyal || isClassic || isPortrait || isConfetti || isHero || isEthereal || isGarden;
 
   const birthdayTextColor = isSportsTemplate ? sportsHeaderTheme.text : (isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#F2E7D2' : (isRoseGarden ? '#562733' : (isMinimalLove ? '#4a2f1d' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : (isMuseum ? '#9b7a44' : (isBrutalist ? '#111113' : (isTechSleek ? '#7dd3fc' : (isExecutive ? '#e8d8b8' : '#cca43b')))))))))))))));
 
@@ -128,8 +164,15 @@ export function ThemeHeader({
   });
 
   const themeTextColor = (active: boolean) => active
-    ? (isGarden ? '#FFFFFF' : (isHero ? '#cca43b' : (isRoyal ? '#fff' : (isEthereal ? selectedTemplate.accent : '#cca43b'))))
+    ? (isGarden ? '#FFFFFF' : (isHero ? '#cca43b' : (isRoyal ? '#fff' : (isEthereal ? selectedTemplate.accent : (isClassic ? '#2C352E' : (isPortrait ? '#1F1B17' : (isConfetti ? '#e8175d' : '#cca43b')))))))
     : (isGarden ? '#64748b' : (isHero ? '#CDB89E' : selectedTemplate.muted));
+
+  // The Collections tab and its menu items: Royal Emerald's gold Cinzel, Classic White like its other tabs
+  const collectionTabText = (active: boolean) => isRoyalFont
+    ? royalTabText(active)
+    : isPortrait ? [{ color: themeTextColor(active), fontFamily: selectedTemplate.bodyMedium }, portraitTabText(active)]
+    : isConfetti ? [{ color: themeTextColor(active), fontFamily: selectedTemplate.bodyMedium }, confettiTabText(active)]
+    : { color: themeTextColor(active), fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold' as const, textTransform: 'uppercase' as const, letterSpacing: 1.5, fontSize: 13 };
 
   const academicTabStyle = {
     backgroundColor: 'transparent',
@@ -161,7 +204,7 @@ export function ThemeHeader({
     );
 
     return (
-      <Text style={[
+      <TabLabel style={[
         styles.visitorTabText,
         { color: isThemeHeader ? themeTextColor(isActive) : birthdayTextColor },
         isScrapbook && styles.scrapbookVisitorTabText,
@@ -181,6 +224,9 @@ export function ThemeHeader({
         isExecutive && styles.executiveVisitorTabText,
         isSportsTemplate && [styles.sportsVisitorTabText, { color: sportsHeaderTheme.text }],
         !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+        royalTabText(isActive),
+        portraitTabText(isActive),
+        confettiTabText(isActive),
         isAcademicEditorial && {
           fontFamily: selectedTemplate.serifBold,
           fontSize: 13,
@@ -199,7 +245,7 @@ export function ThemeHeader({
         isActive && !isThemeHeader && !isAcademicEditorial && resolvedActiveText
       ]}>
         {displayTitle}
-      </Text>
+      </TabLabel>
     );
   };
 
@@ -207,12 +253,22 @@ export function ThemeHeader({
     if (isRoyal && isActive) return (
       <View style={{ alignItems: 'center', marginTop: 3 }}>
         <View style={{ width: 28, height: 1.5, backgroundColor: selectedTemplate.accent }} />
-        <Text style={{ fontSize: 6, color: selectedTemplate.accent, marginTop: 1 }}>♦</Text>
+        <View style={{ width: 4, height: 4, marginTop: 2, backgroundColor: selectedTemplate.accent, transform: [{ rotate: '45deg' }] }} />
       </View>
+    );
+    // Below the label without taking room, so the chosen tab's label stays level with the others
+    if (isPortrait && isActive) return (
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: -4, alignItems: 'center' }}>
+        <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: '#A24E30' }} />
+      </View>
+    );
+    // A pink line under the label without taking room, like the website's link underline
+    if (isConfetti && isActive) return (
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: -3, height: 1.5, backgroundColor: '#e8175d' }} />
     );
     if (isClassic && isActive) return (
       <View style={{ alignItems: 'center', marginTop: 4 }}>
-        <View style={{ width: 32, height: 1.2, backgroundColor: '#cca43b' }} />
+        <View style={{ width: 32, height: 1.2, backgroundColor: '#596653' }} />
       </View>
     );
     if (isEthereal && isActive) return (
@@ -268,12 +324,24 @@ export function ThemeHeader({
 
   const isPartnersActive = activeSubEvent?.id === 'event-partners';
   const isFindYouActive = activeSubEvent?.id === 'find-you';
+  const isCollectionActive = !!activeSubEvent && subEvents.some((sub) => sub.id === activeSubEvent.id);
+  // The menu opens just under the tapped tab. The touch point is used because the pinned bar is moved by a native
+  // animation, which measuring the tab on Android doesn't include.
+  const openCollections = (event: GestureResponderEvent) => {
+    const { pageX, pageY, locationY } = event.nativeEvent;
+    setCollectionsAnchor({ x: pageX, y: pageY - locationY + COLLECTIONS_TAB_HEIGHT });
+    setCollectionsOpen(true);
+  };
 
   return (
     <View style={[
       styles.visitorHeaderContainer,
-      isRoyal && { height: 70, marginTop: 12, marginBottom: 0 },
-      isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#F7F2EB' },
+      isRoyal && (isRoyalFont
+        ? { height: 60, marginTop: 0, marginBottom: 0, backgroundColor: '#021a15', borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(202,156,105,0.3)' }
+        : { height: 70, marginTop: 12, marginBottom: 0 }),
+      isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#FCFCFA' },
+      isPortrait && { height: PORTRAIT_TABS_HEIGHT, marginTop: 0, marginBottom: 0, borderBottomWidth: 1, borderBottomColor: '#E7DFD4', backgroundColor: '#FBF8F3' },
+      isConfetti && { height: CONFETTI_TABS_HEIGHT, marginTop: 0, marginBottom: 0, borderBottomWidth: 1, borderBottomColor: 'rgba(42,39,39,0.08)', backgroundColor: '#FCFCFA' },
       isHero && { height: 64, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', backgroundColor: '#000000' },
       isEthereal && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.accent + '26', backgroundColor: selectedTemplate.background },
       isAcademicEditorial && { height: 52, marginTop: 12, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.text + '1a', backgroundColor: selectedTemplate.background },
@@ -325,13 +393,28 @@ export function ThemeHeader({
           isAcademicEditorial && { paddingHorizontal: 12 },
           isGarden && { flexGrow: 1, flexDirection: 'row' as const, justifyContent: 'center' as const, alignItems: 'center' as const, paddingHorizontal: 4, gap: 4 },
           isBohemian && { paddingHorizontal: 16, gap: 8, alignItems: 'center' as const },
+          groupsCollections && { flexGrow: 1, justifyContent: 'space-evenly' as const, alignItems: 'center' as const },
         ]}
       >
         {/* Home Tab */}
         {renderTab(null, !activeSubEvent)}
 
-        {/* Sub-event Tabs */}
-        {subEvents.map((sub, idx) =>
+        {/* Sub-event Tabs; Royal Emerald and Classic White group them under Collections, like the website's navbar */}
+        {groupsCollections ? subEvents.length > 0 && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Collections"
+            accessibilityState={{ expanded: collectionsOpen }}
+            style={[styles.visitorTab, themeHeaderTab(isCollectionActive)]}
+            onPress={openCollections}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <TabLabel style={[styles.visitorTabText, collectionTabText(isCollectionActive)]}>{isPortrait ? 'Collections' : 'COLLECTIONS'}</TabLabel>
+              <IconSymbol name="chevron.down" size={12} color={isRoyalFont ? (isCollectionActive ? '#f3d68f' : '#cdb48a') : themeTextColor(isCollectionActive)} />
+            </View>
+            {renderUnderline(isCollectionActive)}
+          </TouchableOpacity>
+        ) : subEvents.map((sub, idx) =>
           renderTab(sub, activeSubEvent?.id === sub.id, idx)
         )}
 
@@ -382,6 +465,8 @@ export function ThemeHeader({
               isExecutive && styles.executiveVisitorTabText,
               isSportsTemplate && [styles.sportsVisitorTabText, { color: sportsHeaderTheme.text }],
               !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+              royalTabText(isPartnersActive),
+        portraitTabText(isPartnersActive),
               isAcademicEditorial && {
                 fontFamily: selectedTemplate.serifBold,
                 fontSize: 13,
@@ -430,7 +515,7 @@ export function ThemeHeader({
               ]}>FIND YOU 📸</Text>
             </View>
           ) : (
-            <Text style={[
+            <TabLabel style={[
               styles.visitorTabText,
               { color: isThemeHeader ? themeTextColor(isFindYouActive) : birthdayTextColor },
               isScrapbook && styles.scrapbookVisitorTabText,
@@ -450,6 +535,9 @@ export function ThemeHeader({
               isExecutive && styles.executiveVisitorTabText,
               isSportsTemplate && [styles.sportsVisitorTabText, { color: sportsHeaderTheme.text }],
               !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+              royalTabText(isFindYouActive),
+              portraitTabText(isFindYouActive),
+              confettiTabText(isFindYouActive),
               isAcademicEditorial && {
                 fontFamily: selectedTemplate.serifBold,
                 fontSize: 13,
@@ -462,15 +550,69 @@ export function ThemeHeader({
               {(isCyberTech || isNeonCarnival) ? (isFindYouActive ? '[ FIND YOU ]' : '  FIND YOU  ') : (
                 isRetroArcade ? 'FIND YOU 📸' : (
                   isAcademicEditorial ? `${String(subEvents.length + 4).padStart(2, '0')} / FIND YOU` : (
-                    (isSportsTemplate || isMuseum || isBrutalist || isTechSleek || isExecutive) ? 'Find You' : <>Find You <Text style={{ fontSize: 10 }}>📸</Text></>
+                    (isSportsTemplate || isMuseum || isBrutalist || isTechSleek || isExecutive || isRoyalFont || isClassic || isPortrait || isConfetti) ? 'Find You' : <>Find You <Text style={{ fontSize: 10 }}>📸</Text></>
                   )
                 )
               )}
-            </Text>
+            </TabLabel>
           )}
           {renderUnderline(isFindYouActive)}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Collections menu (Royal Emerald, Classic White, Sunlit Portrait, Confetti Circle): the albums, under the Collections tab */}
+      {groupsCollections && collectionsOpen && (
+        // statusBarTranslucent: the modal then uses the same coordinates as the touch
+        <Modal transparent visible statusBarTranslucent animationType="fade" onRequestClose={() => setCollectionsOpen(false)}>
+          <Pressable style={{ flex: 1 }} onPress={() => setCollectionsOpen(false)} accessibilityLabel="Close collections">
+            <View
+              style={{
+                position: 'absolute',
+                top: (collectionsAnchor?.y ?? 100) + 6,
+                left: Math.min(Math.max(12, (collectionsAnchor?.x ?? 0) - 120), windowWidth - 252),
+                width: 240,
+                maxHeight: 360,
+                paddingVertical: 6,
+                borderRadius: isClassic || isConfetti ? 2 : isPortrait ? 12 : 14,
+                borderWidth: 1,
+                borderColor: isClassic ? '#E6E6E0' : isPortrait ? '#E7DFD4' : isConfetti ? 'rgba(42,39,39,0.12)' : 'rgba(202,156,105,0.55)',
+                backgroundColor: isClassic || isConfetti ? '#FCFCFA' : isPortrait ? '#FBF8F3' : '#021a15',
+                shadowColor: isClassic ? '#2C352E' : isPortrait ? '#1F1B17' : isConfetti ? '#2a2727' : '#000',
+                shadowOpacity: isClassic || isPortrait || isConfetti ? 0.18 : 0.5,
+                shadowRadius: 16,
+                shadowOffset: { width: 0, height: 8 },
+                elevation: 12,
+              }}
+            >
+              <ScrollView>
+                {subEvents.map((sub) => {
+                  const active = activeSubEvent?.id === sub.id;
+                  return (
+                    <TouchableOpacity
+                      key={sub.id}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      onPress={() => {
+                        setCollectionsOpen(false);
+                        handleSubEventChange(sub);
+                      }}
+                      style={{
+                        marginHorizontal: 6,
+                        paddingVertical: 12,
+                        paddingHorizontal: 14,
+                        borderRadius: isClassic || isConfetti ? 0 : 10,
+                        backgroundColor: active ? (isClassic ? 'rgba(139,154,110,0.14)' : isPortrait ? 'rgba(162,78,48,0.08)' : isConfetti ? 'rgba(232,23,93,0.08)' : 'rgba(202,156,105,0.16)') : 'transparent',
+                      }}
+                    >
+                      <TabLabel numberOfLines={1} style={[{ fontSize: 13, textTransform: 'uppercase' }, collectionTabText(active), isPortrait && { fontSize: 19 }]}>{sub.title}</TabLabel>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Modal>
+      )}
 
       {/* Bohemian Guitar String Divider */}
       {isBohemian && (

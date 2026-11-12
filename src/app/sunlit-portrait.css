@@ -1,0 +1,453 @@
+/* ---------- Sunlit Portrait guest page (src/components/TemplatePortrait.tsx) ----------
+   The cover photo fills the first screen; the couple's names sit along its bottom edge in Instrument Serif
+   (src/components/portrait/portraitFonts.ts). Below the photo it reuses Classic White's gallery markup
+   (classic-white.css) restyled here: warm paper, ink text, a clay accent and a centred header in the same serif.
+   Palette also in src/lib/webTemplateTheme.ts: paper #FBF8F3, ink #1F1B17, muted #6B6158 (5.8:1), clay #A24E30 (5.6:1). */
+.portrait-template, .portrait-nav, .portrait-nav__menu, .portrait-footer {
+  --sp-display: var(--font-portrait-display), var(--font-playfair-src), Georgia, serif;
+  /* The cover's date line ("We're getting married" / "Happily married since"): size and the hairline stroke that makes
+     Instrument Serif (one weight only) read as bold. Navbar links and Back / Share use the same. */
+  --sp-label-size: clamp(20px, 1.9vw, 28px);
+  --sp-label-stroke: .6px;
+  --sp-paper: #FBF8F3;
+  --sp-ink: #1F1B17;
+  --sp-muted: #6B6158;
+  --sp-clay: #A24E30;
+  --sp-line: #E7DFD4;
+}
+
+.portrait-hero {
+  position: relative;
+  height: 100vh;
+  height: 100svh;
+  min-height: 560px;
+  overflow: hidden;
+  background: var(--sp-ink);
+  isolation: isolate;
+}
+.portrait-hero__photo { z-index: -2; }
+.portrait-hero__fill { z-index: -3; object-fit: cover; filter: blur(36px) saturate(1.1) brightness(.7); transform: scale(1.15); }
+.portrait-hero__empty {
+  position: absolute; inset: 0; z-index: -2;
+  background: radial-gradient(70% 60% at 65% 30%, #8b7a5c 0%, transparent 70%), linear-gradient(160deg, #6B6158, #1F1B17);
+}
+/* Darker at the top for the navbar and at the bottom for the names; the middle of the photo stays as shot */
+.portrait-hero__shade {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(20, 16, 12, .45) 0%, rgba(20, 16, 12, 0) 22%),
+    linear-gradient(0deg, rgba(20, 16, 12, .62) 0%, rgba(20, 16, 12, .25) 30%, rgba(20, 16, 12, 0) 55%);
+}
+
+/* --guest-edit-bar: the host's edit bar while it shows (src/components/guestEdit/GuestEditBar.tsx), so the names and the
+   button stay above it; unset for guests */
+.portrait-hero__text {
+  position: absolute;
+  left: clamp(20px, 4vw, 56px);
+  right: clamp(84px, 9vw, 140px);
+  bottom: calc(clamp(28px, 6svh, 64px) + var(--guest-edit-bar, 0px));
+  color: #fff;
+}
+.portrait-hero__details {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
+  margin-bottom: 0;
+  font-family: var(--sp-display);
+  font-size: var(--sp-label-size);
+  line-height: 1.25;
+  /* Instrument Serif has one weight; a hairline stroke makes the line read as bold over busy photos */
+  -webkit-text-stroke: var(--sp-label-stroke) currentColor;
+  paint-order: stroke fill;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 2px 16px rgba(0, 0, 0, .45);
+}
+.portrait-hero__heart { font-size: .6em; -webkit-text-stroke: 0; }
+/* Phones: the intro and the date on their own lines, so the heart never ends a line alone */
+@media (max-width: 639px) {
+  .portrait-hero__details { flex-direction: column; align-items: flex-start; }
+  .portrait-hero__heart { display: none; }
+}
+.portrait-hero__title {
+  font-family: var(--sp-display);
+  font-weight: 400;
+  font-size: clamp(3.5rem, min(15.5vw, 28svh), 15rem);
+  line-height: .95;
+  letter-spacing: -.005em;
+  /* Close under the date line, but with room for tall letters (h, k, l, 1), which rise above the capitals */
+  margin-top: -.03em;
+  /* Always one line; a long title is shrunk to fit by useFitOneLine (src/components/portrait/useFitOneLine.ts) */
+  white-space: nowrap;
+  text-shadow: 0 2px 30px rgba(0, 0, 0, .25);
+}
+
+/* Round "open gallery" button at the bottom right */
+.portrait-hero__open {
+  position: absolute;
+  right: clamp(20px, 4vw, 56px);
+  bottom: calc(clamp(32px, 6svh, 68px) + var(--guest-edit-bar, 0px));
+  display: grid; place-items: center;
+  width: 48px; height: 48px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--sp-ink);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+  transition: transform .2s ease;
+}
+.portrait-hero__open svg { width: 20px; height: 20px; }
+.portrait-hero__open:hover { transform: translateY(2px); }
+.portrait-hero__open:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+
+/* ---------- Gallery section (src/components/portrait/PortraitGalleryHeader.tsx) ----------
+   With a gallery video the opening fills one screen like the cover: the video edge to edge with Back / Share on its top
+   edge and the date, gallery name and message at the bottom left. Without one, Back / Share sit on a thin line on paper
+   with the name and message under it. Then Photos / Videos marked with the navbar's dot. */
+.portrait-template { background: var(--sp-paper); color: var(--sp-ink); }
+.portrait-template ::selection { background: #A24E3033; }
+/* Any other serif text below the cover ("No photos yet." and the like) in the cover's serif, not Classic White's Playfair */
+.event-template-shell .portrait-template .font-serif { font-family: var(--sp-display); font-style: normal; font-weight: 400; }
+.portrait-template .classic-gallery-content { padding-top: 0; }
+
+/* The opening fills one screen below the navbar's bar (68px), as the cover fills the first */
+.portrait-gh { display: flex; flex-direction: column; gap: clamp(36px, 4vw, 56px); color: var(--sp-ink); }
+.portrait-gh__screen { display: flex; flex-direction: column; }
+/* Only with a film: without one, Photos / Videos come straight after the name and message */
+.portrait-gh__screen--film { min-height: calc(100svh - 68px); min-height: max(calc(100svh - 68px), 520px); }
+.portrait-gh__strip {
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  padding: 16px 0 14px;
+  border-bottom: 1px solid var(--sp-line);
+}
+.portrait-gh__link {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 4px 0;
+  background: none;
+  color: var(--sp-ink);
+  font-family: var(--sp-display);
+  font-size: var(--sp-label-size);
+  /* Bold, like the cover's date line (Instrument Serif has one weight) */
+  -webkit-text-stroke: var(--sp-label-stroke) currentColor;
+  paint-order: stroke fill;
+  transition: color .2s ease, opacity .2s ease;
+}
+.portrait-gh__link svg { width: 17px; height: 17px; stroke-width: 2.4; }
+.portrait-gh__link:hover { color: var(--sp-ink); }
+.portrait-gh__link:focus-visible { outline: 2px solid var(--sp-ink); outline-offset: 4px; }
+
+/* Date, gallery name and message at the bottom left, like the cover's date line and names */
+.portrait-gh__intro { display: flex; flex-direction: column; align-items: flex-start; width: 100%; }
+.portrait-gh__details {
+  margin-bottom: clamp(6px, 1svh, 12px);
+  font-family: var(--font-inter-src), ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--sp-clay);
+}
+.portrait-gh__title {
+  margin: 0;
+  font-family: var(--sp-display);
+  font-size: clamp(4rem, min(14vw, 26svh), 13rem);
+  font-weight: 400;
+  line-height: .9;
+  letter-spacing: -.015em;
+  /* Always one line; a long gallery name is shrunk to fit by useFitOneLine */
+  width: 100%;
+  white-space: nowrap;
+}
+.portrait-gh__quote {
+  margin-top: clamp(14px, 2.4svh, 28px);
+  max-width: 38rem;
+  font-family: var(--sp-display);
+  font-size: clamp(1.35rem, 2vw, 1.9rem);
+  line-height: 1.3;
+  color: var(--sp-muted);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* Without a film: the name and message on paper under the strip, then Photos / Videos right away */
+.portrait-gh__paper .portrait-gh__strip { margin-bottom: clamp(32px, 5vw, 64px); }
+/* A playing film (#164): close under Back / Share at its own shape (--ar, width / height), at most what fits on the
+   screen with the strip and the name, soft corners like the photos; the name and message close under it */
+.portrait-gh__paper--playing .portrait-gh__strip { margin-bottom: clamp(14px, 1.6vw, 20px); }
+.portrait-gh__playing-film {
+  position: relative;
+  width: min(100%, calc((100svh - 68px - 300px) * var(--ar)));
+  aspect-ratio: var(--ar);
+  margin-bottom: clamp(16px, 2vw, 24px);
+  overflow: hidden;
+  border-radius: 8px;
+  background: #000;
+}
+
+/* With a film: it runs edge to edge under the strip, like the cover photo; text over it, the play pill bottom right */
+.portrait-gh__film {
+  position: relative; flex: 1;
+  margin: 0 -16px; min-height: 360px;
+  overflow: hidden;
+  background: var(--sp-ink);
+  isolation: isolate;
+}
+@media (min-width: 640px) { .portrait-gh__film { margin-inline: -24px; } }
+@media (min-width: 1024px) { .portrait-gh__film { margin-inline: -32px; } }
+.portrait-gh__player, .portrait-gh__poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.portrait-gh__player { background: #000; }
+.portrait-gh__poster { z-index: -2; }
+.portrait-gh__poster--empty { background: radial-gradient(70% 60% at 65% 30%, #6B6158 0%, transparent 70%), var(--sp-ink); }
+.portrait-gh__film-shade {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(0deg, rgba(20, 16, 12, .7) 0%, rgba(20, 16, 12, .3) 35%, rgba(20, 16, 12, 0) 60%);
+}
+.portrait-gh__film .portrait-gh__intro {
+  position: absolute;
+  left: clamp(16px, 4vw, 56px); right: clamp(84px, 16vw, 260px); bottom: clamp(28px, 6svh, 64px);
+  color: #fff;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, .3);
+}
+.portrait-gh__film .portrait-gh__details { color: #fff; }
+/* Back / Share on the film's top edge in white, over a soft shade (kept while the film plays) */
+.portrait-gh__film::before {
+  content: ""; position: absolute; inset: 0 0 auto; z-index: 1; height: 120px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(20, 16, 12, .5) 0%, rgba(20, 16, 12, 0) 100%);
+}
+.portrait-gh__film .portrait-gh__strip {
+  position: absolute; z-index: 2;
+  top: 0; left: clamp(16px, 4vw, 56px); right: clamp(16px, 4vw, 56px);
+  padding: 18px 0 0;
+  border-bottom: 0;
+}
+.portrait-gh__film .portrait-gh__link { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 2px 14px rgba(0, 0, 0, .35); }
+.portrait-gh__film .portrait-gh__link svg { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .4)); }
+.portrait-gh__film .portrait-gh__link:hover { color: #fff; opacity: .8; }
+.portrait-gh__film .portrait-gh__link:focus-visible { outline-color: #fff; }
+/* Beats the shared ".themed-gallery-content h2" colour (gallery-refinements.css), which would draw the name in ink */
+.themed-gallery-content .portrait-gh__film .portrait-gh__title { color: #fff; }
+.portrait-gh__film .portrait-gh__quote { color: rgba(255, 255, 255, .92); }
+.portrait-gh__play {
+  position: absolute; right: clamp(16px, 4vw, 56px); bottom: clamp(32px, 6svh, 68px);
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 8px 20px 8px 8px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--sp-ink);
+  font-family: var(--sp-display);
+  font-size: 19px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+  transition: transform .2s ease;
+}
+.portrait-gh__play svg {
+  box-sizing: content-box; width: 18px; height: 18px; padding: 11px 10px 11px 12px;
+  border-radius: 999px; background: var(--sp-ink); color: #fff; fill: currentColor;
+}
+.portrait-gh__play:hover { transform: scale(1.04); }
+.portrait-gh__play:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+/* Phones: only the round button, so the text keeps the width */
+@media (max-width: 639px) {
+  .portrait-gh__play { padding: 0; }
+  .portrait-gh__play-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .portrait-gh__play svg { width: 20px; height: 20px; padding: 14px 13px 14px 15px; background: #fff; color: var(--sp-ink); }
+}
+
+/* Photos / Videos: serif words with the count raised, the chosen one marked with the navbar's clay dot */
+.portrait-gh__tabs { display: flex; gap: clamp(28px, 4vw, 48px); }
+.portrait-gh__tab {
+  position: relative;
+  padding: 2px 0 12px;
+  background: none;
+  color: var(--sp-muted);
+  font-family: var(--sp-display);
+  font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+  line-height: 1;
+  transition: color .2s ease;
+}
+.portrait-gh__count {
+  margin-left: 4px;
+  font-family: var(--font-inter-src), ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: super;
+}
+.portrait-gh__tab::after {
+  content: ""; position: absolute; left: 50%; bottom: 0;
+  width: 6px; height: 6px; border-radius: 999px;
+  background: var(--sp-clay);
+  transform: translateX(-50%) scale(0);
+  transition: transform .2s ease;
+}
+.portrait-gh__tab:hover { color: var(--sp-ink); }
+.portrait-gh__tab[aria-pressed="true"] { color: var(--sp-ink); }
+.portrait-gh__tab[aria-pressed="true"]::after { transform: translateX(-50%) scale(1); }
+.portrait-gh__tab:focus-visible { outline: 2px solid var(--sp-ink); outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  .portrait-gh__play, .portrait-gh__tab::after, .portrait-gh__link { transition: none; }
+}
+
+/* Photos: a little space and soft corners */
+.portrait-template .gallery-justified { gap: 8px; }
+.portrait-template .gallery-justified > * { border-radius: 6px; overflow: hidden; }
+/* Shared buttons ("Add photos", "Load More Media") in ink instead of sage */
+.portrait-template .classic-button { background: var(--sp-ink); border-radius: 999px; box-shadow: none; letter-spacing: .12em; }
+.portrait-template .classic-button:hover:not(:disabled) { background: var(--sp-clay); }
+.portrait-template .classic-empty { color: var(--sp-muted); }
+.portrait-template .classic-empty svg { color: var(--sp-clay); }
+.portrait-template .classic-gallery-content [data-royal-control="segments"] [aria-pressed="true"] { background: var(--sp-ink); }
+/* "Open gallery" stops below the navbar's solid bar, not under it */
+.portrait-template #event-content { scroll-margin-top: 68px; }
+/* Less paper between the last photos and the footer than Classic White's pb-16 / pb-20 */
+.portrait-template .classic-gallery-content { padding-bottom: clamp(32px, 4vw, 48px); }
+
+/* ---------- Event navbar in the Sunlit Portrait design (EventNavbar variant="portrait") ----------
+   Same links as Classic White, drawn in the cover's serif: the name on the left, the links in normal case, the
+   chosen one marked with a clay dot, no icons, and Download All as a rounded pill. White on the photo; once the guest
+   scrolls (or opens the small-screen menu) the bar turns warm paper with ink text. */
+.portrait-nav {
+  position: fixed; inset: 0 0 auto; z-index: 50;
+  padding: 16px clamp(20px, 4vw, 56px);
+  color: #fff;
+  transition: background-color .3s ease, color .3s ease, box-shadow .3s ease, padding .3s ease;
+}
+.portrait-nav--solid {
+  padding-block: 8px;
+  background: var(--sp-paper);
+  color: var(--sp-ink);
+  box-shadow: 0 1px 0 var(--sp-line);
+}
+.portrait-nav__bar { width: 100%; min-height: 52px; }
+.portrait-nav .classic-nav__title {
+  font-family: var(--sp-display);
+  font-size: clamp(1.6rem, 2.1vw, 2rem);
+  -webkit-text-stroke: var(--sp-label-stroke) currentColor;
+  paint-order: stroke fill;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -.005em;
+  text-transform: none;
+  color: inherit;
+}
+.portrait-nav .classic-nav__links { gap: clamp(18px, 2.4vw, 40px); }
+.portrait-nav .classic-nav__link {
+  gap: 6px;
+  padding: 6px 0;
+  color: inherit;
+  font-family: var(--sp-display);
+  /* Same size and weight as the cover's date line */
+  font-size: var(--sp-label-size);
+  line-height: 1.2;
+  -webkit-text-stroke: var(--sp-label-stroke) currentColor;
+  paint-order: stroke fill;
+  font-weight: 400;
+  letter-spacing: .005em;
+  text-transform: none;
+}
+/* No icons beside Find You / Download All (the Collections arrow stays) */
+.portrait-nav .classic-nav__link > svg:first-child { display: none; }
+/* The chosen link: a clay dot under it instead of Classic White's underline */
+.portrait-nav .classic-nav__link::after {
+  left: 50%; right: auto; bottom: -4px;
+  width: 5px; height: 5px; border-radius: 999px;
+  background: var(--sp-clay);
+  transform: translateX(-50%) scale(0);
+  transition: transform .2s ease;
+}
+.portrait-nav .classic-nav__link:hover::after, .portrait-nav .classic-nav__link--active::after { transform: translateX(-50%) scale(1); }
+.portrait-nav:not(.portrait-nav--solid) .classic-nav__link::after { background: #fff; }
+.portrait-nav:not(.portrait-nav--solid) .classic-nav__title,
+.portrait-nav:not(.portrait-nav--solid) .classic-nav__link { text-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 2px 14px rgba(0, 0, 0, .35); }
+.portrait-nav:not(.portrait-nav--solid) .classic-nav__link:focus-visible { outline-color: #fff; }
+/* "Download All": a rounded pill, white on the photo and ink on the paper bar */
+.portrait-nav .portrait-nav__cta {
+  margin-left: 4px;
+  padding: 8px 20px 9px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--sp-ink);
+  text-shadow: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .18);
+}
+.portrait-nav:not(.portrait-nav--solid) .portrait-nav__cta { text-shadow: none; }
+.portrait-nav .portrait-nav__cta::after { display: none; }
+.portrait-nav .portrait-nav__cta:hover:not(:disabled) { background: var(--sp-paper); }
+.portrait-nav--solid .portrait-nav__cta { background: var(--sp-ink); color: #fff; box-shadow: none; }
+.portrait-nav--solid .portrait-nav__cta:hover:not(:disabled) { background: var(--sp-clay); }
+/* Collections list */
+.portrait-nav__menu-item {
+  display: block; width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  color: var(--sp-ink);
+  font-family: var(--sp-display);
+  font-size: 19px;
+  text-align: left;
+}
+.portrait-nav__menu-item:hover { background: #A24E3014; }
+.portrait-nav__menu-item--active { color: var(--sp-clay); }
+/* Small-screen menu: the title and items in the serif, normal weight */
+.event-template-shell .portrait-nav__menu .font-serif { font-family: var(--sp-display); font-style: normal; font-weight: 400; }
+.portrait-nav__menu a, .portrait-nav__menu button {
+  font-family: var(--sp-display); font-weight: 400; font-size: 24px;
+  -webkit-text-stroke: var(--sp-label-stroke) currentColor; paint-order: stroke fill;
+}
+.portrait-nav__menu p { font-family: var(--font-inter-src), ui-sans-serif, system-ui, sans-serif; }
+
+@media (prefers-reduced-motion: reduce) {
+  .portrait-nav, .portrait-hero__open { transition: none; }
+}
+
+/* ---------- Footer (src/components/portrait/PortraitFooter.tsx, on every Sunlit Portrait page) ----------
+   Confetti Circle's layout on the cover's ink: EveBash links at the far left, legal links at the far right, and in the
+   middle the couple's names (one line) with "Made with EveBash". Phones: the middle first, the two
+   link lists side by side under it. */
+.portrait-footer {
+  /* No top margin: the page wrapper behind it has no background, so a gap would show the site's body colour */
+  padding: clamp(28px, 3vw, 40px) clamp(16px, 4vw, 56px);
+  background: var(--sp-ink);
+  color: var(--sp-paper);
+}
+.portrait-footer__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(24px, 4vw, 72px);
+}
+.portrait-footer__links { display: flex; flex-direction: column; gap: 2px; }
+.portrait-footer__links--left { align-items: flex-start; text-align: left; }
+.portrait-footer__links--right { align-items: flex-end; text-align: right; }
+/* The navbar's labels: Instrument Serif with the date line's stroke */
+.portrait-footer__link {
+  color: rgba(251, 248, 243, .78);
+  font-family: var(--sp-display);
+  font-size: clamp(18px, 1.5vw, 22px);
+  -webkit-text-stroke: var(--sp-label-stroke) currentColor;
+  paint-order: stroke fill;
+  transition: color .2s ease;
+}
+.portrait-footer__link:hover { color: #fff; }
+.portrait-footer__middle { display: flex; flex-direction: column; align-items: center; min-width: 0; text-align: center; }
+/* The names: one line, shrunk to fit the middle column by useFitOneLine */
+.portrait-footer__couple {
+  width: 100%;
+  font-family: var(--sp-display);
+  font-size: clamp(2.5rem, 4.5vw, 4.5rem);
+  line-height: 1;
+  letter-spacing: -.01em;
+  white-space: nowrap;
+  color: #fff;
+}
+.portrait-footer__made {
+  margin-top: 6px;
+  font-size: 14px;
+  letter-spacing: .02em;
+}
+.portrait-footer__brand { color: #fff; font-family: var(--font-brand); font-size: 1.35em; transition: color .2s ease; }
+.portrait-footer__brand:hover { color: #E0A487; }
+.portrait-footer a:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+@media (max-width: 767px) {
+  .portrait-footer__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; row-gap: 24px; column-gap: 24px; }
+  .portrait-footer__middle { grid-column: 1 / -1; grid-row: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .portrait-footer__link, .portrait-footer__brand { transition: none; } }
+/* globals.css gives every footer on a guest page the theme's colours with !important; this one keeps its own */
+.event-template-shell footer.portrait-footer { background-color: var(--sp-ink) !important; border-color: transparent !important; color: var(--sp-paper) !important; }
+.event-template-shell .portrait-footer p.portrait-footer__made { color: rgba(251, 248, 243, .7) !important; }
+.event-template-shell .portrait-footer p.portrait-footer__couple { color: #fff !important; }
+/* The shared one-line event footer (Footer.tsx) steps aside on Sunlit Portrait pages */
+body:has(.portrait-footer) .event-footer { display: none; }

@@ -6,6 +6,12 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
 import { MidnightColors } from '@/constants/theme';
 
+/** The header's dark fade; the app-open animation (AppIntro) uses it too so the hand-off lines up */
+export const TAB_HEADER_GRADIENT = ['#151C22', '#22302F', MidnightColors.background] as const;
+
+/** Header height below the status bar: 4 top padding + 38 content + 20 bottom padding + 1 border */
+export const TAB_HEADER_HEIGHT = 63;
+
 interface TabScreenHeaderProps {
   title: string;
   /** Replaces the EB logo on the left, e.g. a back button on pushed screens. */
@@ -22,11 +28,11 @@ export function TabScreenHeader({ title, left, right }: TabScreenHeaderProps) {
 
   return (
     <LinearGradient
-      colors={isDark ? ['#151C22', '#22302F', MidnightColors.background] : [colors.deepSlate, colors.background]}
+      colors={isDark ? TAB_HEADER_GRADIENT : [colors.deepSlate, colors.background]}
       style={[styles.header, { paddingTop: insets.top + 4 }]}
     >
       <View style={[styles.side, { justifyContent: 'flex-start' }]}>
-        {left ?? <EveBashLogoBadge />}
+        {left ?? <EveBashLogoBadge color={colors.brandMark} />}
       </View>
       <View style={styles.center}>
         <Text style={styles.title} accessibilityRole="header">{title}</Text>
@@ -63,7 +69,7 @@ export function HeaderAction({ onPress, accessibilityLabel, showBadge, children 
   );
 }
 
-const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -73,13 +79,13 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingBottom: 20,
     backgroundColor: colors.background,
     gap: 14,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 10,
     elevation: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(202, 156, 104, 0.12)',
+    borderBottomColor: isDark ? 'rgba(202, 156, 104, 0.12)' : colors.cardBorder,
   },
   side: { width: 48, flexDirection: 'row', alignItems: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },

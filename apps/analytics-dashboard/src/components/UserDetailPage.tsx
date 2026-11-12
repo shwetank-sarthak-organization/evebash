@@ -45,6 +45,8 @@ interface UserDetailPageProps {
   user: UserProfile;
   events?: Event[];
   photos?: Photo[];
+  /** EB Vault bytes (used + reserved); events and EB Vault share the plan's storage. */
+  vaultBytes?: number;
   onBack: () => void;
   initialTab?: UserDetailTabType;
   onPlanChange?: (userId: string, role: string) => Promise<void> | void;
@@ -113,6 +115,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
   user,
   events = [],
   photos = [],
+  vaultBytes = 0,
   onBack,
   initialTab = 'info',
   onPlanChange,
@@ -1246,9 +1249,11 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     return `${parseFloat((bytes / Math.pow(k, sizeIndex)).toFixed(2))} ${sizes[sizeIndex]}`;
   };
 
-  const usedGb = userEventMetrics.totalBytes / (1024 * 1024 * 1024);
+  // Events and EB Vault share one storage pool, as on the Profile's storage card.
+  const usedBytes = userEventMetrics.totalBytes + vaultBytes;
+  const usedGb = usedBytes / (1024 * 1024 * 1024);
   const quotaBytes = currentPlan.storageBytes;
-  const storagePercentage = quotaBytes === Infinity ? 0 : Math.min(100, Math.round((userEventMetrics.totalBytes / quotaBytes) * 100));
+  const storagePercentage = quotaBytes === Infinity ? 0 : Math.min(100, Math.round((usedBytes / quotaBytes) * 100));
 
   // Compute Days Remaining in Plan
   const planDaysRemaining = useMemo(() => {
@@ -3384,7 +3389,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
             <div className="space-y-2.5 pt-1">
               <div className="flex items-center justify-between text-xs font-semibold">
                 <span className="text-slate-200">
-                  <strong className="text-white font-mono">{formatBytes(userEventMetrics.totalBytes)}</strong> used of <span className="font-mono text-slate-400">{currentPlan.storage}</span>
+                  <strong className="text-white font-mono">{formatBytes(usedBytes)}</strong> used of <span className="font-mono text-slate-400">{currentPlan.storage}</span>
                 </span>
                 <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                   storagePercentage > 90 ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
@@ -3410,7 +3415,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
             </div>
 
             {/* Storage Metric Cards Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 pt-2">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 pt-2">
               <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-colors hover:border-slate-700/80">
                 <div className="flex items-center gap-2 text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1.5">
                   <ImageIcon className="w-3.5 h-3.5 text-sky-400" />
@@ -3427,6 +3432,15 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                 </div>
                 <div className="text-xl font-black text-white font-mono">{formatBytes(userEventMetrics.videoBytes)}</div>
                 <span className="text-xs text-slate-500 mt-0.5 block">{userEventMetrics.videoCount.toLocaleString()} total videos</span>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-colors hover:border-slate-700/80">
+                <div className="flex items-center gap-2 text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                  <HardDrive className="w-3.5 h-3.5 text-amber-400" />
+                  EB Vault Storage
+                </div>
+                <div className="text-xl font-black text-white font-mono">{formatBytes(vaultBytes)}</div>
+                <span className="text-xs text-slate-500 mt-0.5 block">Counts toward the same plan storage</span>
               </div>
 
               <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-colors hover:border-slate-700/80">

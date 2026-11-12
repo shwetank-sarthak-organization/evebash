@@ -1,37 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { getUserEventCount, getUserTotalStorage, getUserBusinesses } from '@/lib/database';
-import { getPlanDetails, getUsagePercent } from '@/lib/planLimits';
+import { getPlanDetails, getUsagePercent, planAccentText } from '@/lib/planLimits';
 import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 import { supabase } from '@/lib/supabase';
-import { EveBashLogoBadge } from '@/components/EveBashLogo';
+import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
 import { APP_VERSION } from '@/lib/appVersion';
+import { useAppTheme } from '@/context/ThemeContext';
+import { MidnightColors } from '@/constants/theme';
 
 const { width } = Dimensions.get('window');
+
+/** Business listings are hidden until Phase 2 (they come with EB Business and EB Network). */
+const SHOW_BUSINESS_USAGE = false;
 
 export default function UsageScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ eventCount: 0, storageUsed: 0, businessCount: 0 });
 
   const plan = getPlanDetails(user?.role);
-  const planColor = plan.accent;
+  const planColor = planAccentText(plan.accent, isDark);
   const subscriptionStatus = getSubscriptionStatus({
     role: user?.role,
     planStartDate: user?.planStartDate,
     planEndDate: user?.planEndDate,
   });
   const statusColor = subscriptionStatus.tone === 'danger'
-    ? '#f87171'
+    ? (isDark ? '#f87171' : colors.danger)
     : subscriptionStatus.tone === 'warning'
-      ? '#fbbf24'
+      ? (isDark ? '#fbbf24' : colors.warning)
       : planColor;
+  // Over-limit red, deeper on the light look
+  const overColor = isDark ? '#f87171' : colors.danger;
   const statusBackground = subscriptionStatus.tone === 'danger'
     ? 'rgba(248, 113, 113, 0.12)'
     : subscriptionStatus.tone === 'warning'
@@ -134,49 +142,42 @@ export default function UsageScreen() {
       value: stats.eventCount.toString(),
       limit: plan.eventLabel,
       progress: eventProgress,
-      icon: 'calendar.fill',
+      icon: 'calendar',
       isOver: isEventsOver
     },
-    {
+    ...(SHOW_BUSINESS_USAGE ? [{
       label: 'Active Businesses',
       value: stats.businessCount.toString(),
       limit: businessLabel,
       progress: businessProgress,
       icon: 'briefcase.fill',
       isOver: isBizOver
-    },
+    }] : []),
   ];
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
-      <LinearGradient
-        colors={['#1B211F', '#13191F']}
-        style={styles.header}
-      >
-        <View style={styles.headerRow}>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
+      <TabScreenHeader
+        title="Plan & Usage"
+        left={
+          <HeaderAction
             onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
-            style={styles.backButton}
+            accessibilityLabel="Back"
           >
-            <IconSymbol name="chevron.left" size={24} color="#CA9C68" />
-          </TouchableOpacity>
-          <View style={styles.headingLogoRow}>
-            <EveBashLogoBadge />
-            <Text style={styles.headerTitle}>Plan & Usage</Text>
-          </View>
-          <View style={{ width: 40 }} />
-        </View>
-      </LinearGradient>
+            <IconSymbol name="chevron.left" size={24} color={colors.gold} />
+          </HeaderAction>
+        }
+      />
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
         {/* Current Plan Card */}
         <View style={styles.planCard}>
           <LinearGradient
-            colors={[plan.accentSoft, 'rgba(27, 33, 31,0.8)']}
+            colors={[plan.accentSoft, isDark ? 'rgba(27, 33, 31,0.8)' : 'rgba(255, 255, 255, 0.8)']}
             style={StyleSheet.absoluteFill}
           />
           <View style={styles.planHeader}>
@@ -199,7 +200,7 @@ export default function UsageScreen() {
             ]}>
               <Text style={[
                 styles.planStatusTitle,
-                { color: subscriptionStatus.tone === 'danger' ? '#fca5a5' : '#fde68a' }
+                { color: subscriptionStatus.tone === 'danger' ? (isDark ? '#fca5a5' : colors.danger) : (isDark ? '#fde68a' : colors.warning) }
               ]}>
                 {subscriptionStatus.label}
               </Text>
@@ -209,7 +210,7 @@ export default function UsageScreen() {
 
           {loading ? (
             <View style={{ height: 200, justifyContent: 'center' }}>
-              <ActivityIndicator color="#CA9C68" />
+              <ActivityIndicator color={colors.gold} />
             </View>
           ) : (
             <View style={styles.usageContainer}>
@@ -217,10 +218,10 @@ export default function UsageScreen() {
                 <View key={idx} style={styles.usageItem}>
                   <View style={styles.usageInfo}>
                     <View style={styles.usageLabelRow}>
-                      <IconSymbol name={item.icon as any} size={14} color={item.isOver ? '#f87171' : '#CDB89E'} />
-                      <Text style={[styles.usageLabel, item.isOver && { color: '#f87171' }]}>{item.label}</Text>
+                      <IconSymbol name={item.icon as any} size={14} color={item.isOver ? overColor : colors.slate400} />
+                      <Text style={[styles.usageLabel, item.isOver && { color: overColor }]}>{item.label}</Text>
                     </View>
-                    <Text style={[styles.usageValue, item.isOver && { color: '#f87171' }]}>
+                    <Text style={[styles.usageValue, item.isOver && { color: overColor }]}>
                       {item.value} <Text style={styles.usageLimit}>/ {item.limit}</Text>
                     </Text>
                   </View>
@@ -249,11 +250,11 @@ export default function UsageScreen() {
             >
               <View style={styles.listItemLeft}>
                 <View style={[styles.listIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-                  <IconSymbol name="sparkles.fill" size={18} color="#CA9C68" />
+                  <IconSymbol name="sparkles" size={18} color={colors.gold} />
                 </View>
                 <Text style={styles.itemText}>Upgrade Plan</Text>
               </View>
-              <IconSymbol name="chevron.right" size={18} color="#475569" />
+              <IconSymbol name="chevron.right" size={18} color={isDark ? '#475569' : colors.slate600} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -263,11 +264,11 @@ export default function UsageScreen() {
             >
               <View style={styles.listItemLeft}>
                 <View style={[styles.listIconBox, { backgroundColor: 'rgba(148, 163, 184, 0.1)' }]}>
-                  <IconSymbol name="creditcard.fill" size={18} color="#CDB89E" />
+                  <IconSymbol name="creditcard.fill" size={18} color={colors.slate400} />
                 </View>
                 <Text style={styles.itemText}>Billing History</Text>
               </View>
-              <IconSymbol name="chevron.right" size={18} color="#475569" />
+              <IconSymbol name="chevron.right" size={18} color={isDark ? '#475569' : colors.slate600} />
             </TouchableOpacity>
           </View>
         </View>
@@ -283,11 +284,11 @@ export default function UsageScreen() {
             >
               <View style={styles.listItemLeft}>
                 <View style={[styles.listIconBox, { backgroundColor: 'rgba(148, 163, 184, 0.1)' }]}>
-                  <IconSymbol name="message.fill" size={18} color="#CDB89E" />
+                  <IconSymbol name="message.fill" size={18} color={colors.slate400} />
                 </View>
                 <Text style={styles.itemText}>Support Chat</Text>
               </View>
-              <IconSymbol name="chevron.right" size={18} color="#475569" />
+              <IconSymbol name="chevron.right" size={18} color={isDark ? '#475569' : colors.slate600} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -297,11 +298,11 @@ export default function UsageScreen() {
             >
               <View style={styles.listItemLeft}>
                 <View style={[styles.listIconBox, { backgroundColor: 'rgba(148, 163, 184, 0.1)' }]}>
-                  <IconSymbol name="questionmark.circle.fill" size={18} color="#CDB89E" />
+                  <IconSymbol name="questionmark.circle.fill" size={18} color={colors.slate400} />
                 </View>
                 <Text style={styles.itemText}>Help Center</Text>
               </View>
-              <IconSymbol name="chevron.right" size={18} color="#475569" />
+              <IconSymbol name="chevron.right" size={18} color={isDark ? '#475569' : colors.slate600} />
             </TouchableOpacity>
           </View>
         </View>
@@ -311,53 +312,21 @@ export default function UsageScreen() {
         </View>
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#13191F' },
+const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 24,
-    alignItems: 'center',
-    borderBottomWidth: 1.5,
-    borderBottomColor: 'rgba(202, 156, 104, 0.2)',
-  },
-  headerTitle: {
-    fontSize: 28,
-    lineHeight: 38,
-    fontFamily: 'Inter_700Bold',
-    color: '#CDB89E',
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    includeFontPadding: false,
-  },
-  headingLogoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 38 },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
   planCard: {
-    backgroundColor: '#1B211F',
+    backgroundColor: colors.deepSlate,
     marginHorizontal: 24,
     marginTop: 24,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(202, 156, 104, 0.25)',
+    borderColor: colors.border,
     overflow: 'hidden',
   },
   planHeader: {
@@ -368,7 +337,7 @@ const styles = StyleSheet.create({
   },
   planLabel: {
     fontSize: 11,
-    color: '#64748b',
+    color: isDark ? '#64748b' : colors.slate600,
     fontFamily: 'Inter_700Bold',
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -376,7 +345,7 @@ const styles = StyleSheet.create({
   },
   planName: {
     fontSize: 24,
-    color: '#FFF7EB',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
   },
   planBadge: {
@@ -405,7 +374,7 @@ const styles = StyleSheet.create({
   planStatusText: {
     fontSize: 13,
     lineHeight: 19,
-    color: '#e2e8f0',
+    color: isDark ? '#e2e8f0' : colors.slate300,
     fontFamily: 'Inter_500Medium',
   },
   usageContainer: {
@@ -426,21 +395,21 @@ const styles = StyleSheet.create({
   },
   usageLabel: {
     fontSize: 13,
-    color: '#CDB89E',
+    color: colors.slate400,
     fontFamily: 'Inter_500Medium',
   },
   usageValue: {
     fontSize: 14,
-    color: '#f1f5f9',
+    color: isDark ? '#f1f5f9' : colors.white,
     fontFamily: 'Outfit_700Bold',
   },
   usageLimit: {
-    color: '#475569',
+    color: isDark ? '#475569' : colors.slate600,
     fontSize: 12,
   },
   progressBarBg: {
     height: 8,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.tint(0.07),
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -454,7 +423,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 13,
-    color: '#64748b',
+    color: isDark ? '#64748b' : colors.slate600,
     fontFamily: 'Inter_700Bold',
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -470,10 +439,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 18,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : colors.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : colors.cardBorder,
   },
   listItemLeft: {
     flexDirection: 'row',
@@ -489,7 +458,7 @@ const styles = StyleSheet.create({
   },
   itemText: {
     fontSize: 16,
-    color: '#f1f5f9',
+    color: isDark ? '#f1f5f9' : colors.white,
     fontFamily: 'Outfit_600SemiBold',
   },
   footer: {
@@ -499,7 +468,7 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    color: '#594C3D',
+    color: isDark ? '#594C3D' : colors.slate600,
     fontFamily: 'Inter_400Regular',
   },
 });

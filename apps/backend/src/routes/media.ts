@@ -1,5 +1,6 @@
 import { canPostEventPhoto, canPostEventVideo, isPhotoUploadPermissionRequired, isVideoUpload } from "../services/eventVideoPermission.js";
 import { saveVideoThumbnail, ThumbnailError } from "../services/videoThumbnail.js";
+import { removeGuestPreviewPicture, saveGuestPreviewPicture, GuestPreviewPictureError } from "../services/guestPreviewPicture.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
@@ -37,8 +38,14 @@ import {
   sendOwnerUploadNotification,
 } from "../uploadNotifications.js";
 import { runMediaWatchdog } from "../services/watchdog.js";
+import { notifyVideoProcessed } from "../services/videoProcessedNotify.js";
 import { checkEventUpload, isEventUploadLimitEnabled } from "../services/eventUploadLimits.js";
-import { getStorageContext } from "../vault/access.js";
+import { isEventTransferPending } from "../services/eventTransfers.js";
+import { buildRotatedLinks, isRotateVersionedLinksEnabled, previousOriginalLinks } from "../services/rotateLinks.js";
+import { isRotateUprightFirstEnabled, rotateImage } from "../services/rotateImage.js";
+import { GRID_LONG_SIDE, GRID_QUALITY, gridKey, isGridVariantEnabled } from "../services/gridVariant.js";
+import { deleteAllB2FileVersions, deleteAllB2Versions, isDeleteAllFileVersionsOn, isDeleteAllVersionsOn } from "../services/b2DeleteAllVersions.js";
+import { getStorageContext, ownerIdentifiers } from "../vault/access.js";
 import { createSupabaseVaultRepository } from "../vault/repository.js";
 
 export const mediaRouter = Router();
@@ -115,7 +122,7 @@ function requireEnv(name: string) {
   return value;
 }
 
-function getMediaDomain() {
+export function getMediaDomain() {
   const value = (
     process.env.MEDIA_DOMAIN ||
     process.env.CLOUDFLARE_DOMAIN ||
@@ -239,6 +246,11 @@ async function refuseOverLimitUpload(
   response: Response,
   params: { eventId: string; uploaderId: string; bytes: number; isVideo: boolean },
 ) {
+  // While an event waits to change hands it can't grow past the space that was checked (always on, not a plan limit)
+  if (await isEventTransferPending(params.eventId)) {
+    response.status(403).json({ success: false, code: "transfer_pending", error: "Uploads are paused while this event is being transferred to a new owner." });
+    return true;
+  }
   if (!isEventUploadLimitEnabled()) return false;
   try {
     const decision = await checkEventUpload(params);
@@ -345,7 +357,14 @@ function background(label: string, task: () => Promise<unknown>) {
   }, 0);
 }
 
-async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) {
+export async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) {
+  if (isDeleteAllFileVersionsOn()) {
+    const result = await deleteAllB2FileVersions(auth, bucketId, key).catch((error) => {
+      console.warn(`[MediaDelete] Could not delete every version of ${key}:`, error);
+      return { ok: false };
+    });
+    return result.ok;
+  }
   const listResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
     method: "POST",
     headers: {
@@ -420,6 +439,13 @@ async function deleteB2FileVersion(auth: BackblazeAuth, file: B2FileVersion) {
 }
 
 async function deleteB2Prefix(auth: BackblazeAuth, bucketId: string, prefix: string) {
+  if (isDeleteAllVersionsOn()) {
+    const result = await deleteAllB2Versions(auth, bucketId, prefix).catch((error) => {
+      console.warn(`[MediaDelete] Could not delete every version under ${prefix}:`, error);
+      return { ok: false };
+    });
+    return result.ok;
+  }
   let startFileName: string | undefined;
   while (true) {
     const listResponse: globalThis.Response = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
@@ -454,11 +480,24 @@ async function deleteB2Prefix(auth: BackblazeAuth, bucketId: string, prefix: str
   }
 }
 
+// Issue #76: deleting a video also deletes its streaming copy under hls/<storage_key>/. Off until switched on.
+function isVideoStreamDeleteOn() {
+  return process.env.DELETE_VIDEO_STREAM_ON_DELETE?.trim().toLowerCase() === "true";
+}
+
+// Issue #140: a photo row was saved although its file never reached B2 (the worker then fails with NoSuchKey and guests
+// saw "Image unavailable"). With this on, the save routes first check the file is in B2 and refuse rows whose file
+// isn't there, and /save-photo no longer deletes the uploaded file when its database save fails (the website retries
+// that save, and the retry used to save a row for the file the first attempt had just deleted). Off until switched on.
+function isUploadVerifyOn() {
+  return process.env.VERIFY_UPLOAD_BEFORE_SAVE?.trim().toLowerCase() === "true";
+}
+
 async function rollbackB2Upload(storageKey: string, resourceType: string) {
   const backblazeAuth = await getCachedBackblazeAuth();
   const bucketId = requireEnv("B2_BUCKET_ID");
   const keys = resourceType === "image"
-    ? [storageKey, `${storageKey}-thumbnail.webp`, `${storageKey}-preview.webp`]
+    ? [storageKey, `${storageKey}-thumbnail.webp`, `${storageKey}-preview.webp`, gridKey(storageKey)]
     : [storageKey];
   await Promise.all(keys.map((key) => deleteB2File(backblazeAuth, bucketId, key).catch(() => false)));
 }
@@ -488,7 +527,7 @@ async function fetchB2WithRetries(url: string, init: RequestInit, label: string,
   throw lastError instanceof Error ? lastError : new Error(`${label} failed`);
 }
 
-async function uploadBufferToB2(auth: BackblazeAuth, bucketId: string, buffer: Buffer, key: string, contentType: string) {
+export async function uploadBufferToB2(auth: BackblazeAuth, bucketId: string, buffer: Buffer, key: string, contentType: string) {
   const maxAttempts = B2_UPLOAD_RETRY_DELAYS_MS.length + 1;
   let lastError: unknown;
 
@@ -602,7 +641,11 @@ mediaRouter.get("/storage-usage", asyncRoute(async (request, response) => {
   const verified = await verifyRequestUser(request);
   if (!verified) return jsonError(response, 401, "Authorization required");
   const { id, email, phone } = verified.user;
-  const context = await getStorageContext(createSupabaseVaultRepository(), { id, email, phone });
+  const [context, eventParts, eventSizes] = await Promise.all([
+    getStorageContext(createSupabaseVaultRepository(), { id, email, phone }),
+    getEventStorageParts(ownerIdentifiers({ id, email, phone })),
+    getEventStorageSizes(ownerIdentifiers({ id, email, phone })),
+  ]);
   response.json({
     success: true,
     events: context.eventBytes,
@@ -611,8 +654,44 @@ mediaRouter.get("/storage-usage", asyncRoute(async (request, response) => {
     limitBytes: context.limitBytes,
     uploadsBlocked: context.uploadsBlocked,
     planState: context.lifecycle.state,
+    eventParts,
+    eventSizes,
   });
 }));
+
+// Event storage split by kind for the profile's Storage card. Null (the card just doesn't expand) if it can't be read,
+// e.g. before the 20261023020000 migration is applied, so it never breaks the totals above.
+async function getEventStorageParts(identifiers: string[]) {
+  try {
+    const { data, error } = await getSupabaseAdminClient().rpc("vault_event_storage_breakdown", { p_identifiers: identifiers });
+    const row = Array.isArray(data) ? data[0] : data;
+    if (error || !row) return null;
+    return {
+      photos: Number(row.photos) || 0,
+      videos: Number(row.videos) || 0,
+      albumDesigns: Number(row.album_designs) || 0,
+      voiceNotes: Number(row.voice_notes) || 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Each event's size, largest first, for the same card. Null (no list) if it can't be read, e.g. before the
+// 20261105000000 migration is applied, so it never breaks the totals above.
+async function getEventStorageSizes(identifiers: string[]) {
+  try {
+    const { data, error } = await getSupabaseAdminClient().rpc("vault_event_storage_by_event", { p_identifiers: identifiers });
+    if (error || !Array.isArray(data)) return null;
+    return data.map((row: { event_id: string; title: string | null; bytes: number | string }) => ({
+      eventId: row.event_id,
+      title: row.title,
+      bytes: Number(row.bytes) || 0,
+    }));
+  } catch {
+    return null;
+  }
+}
 
 mediaRouter.post("/get-upload-url", asyncRoute(async (request, response) => {
   const body = request.body || {};
@@ -912,13 +991,19 @@ mediaRouter.post("/save-photo", asyncRoute(async (request, response) => {
     return jsonError(response, 401, "Invalid event or unauthorized access");
   }
 
+  const verifyUpload = isUploadVerifyOn();
+  if (verifyUpload && await isUploadMissing(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), storageKey)) {
+    return jsonError(response, 409, "The file didn't finish uploading. Please upload it again.");
+  }
+
   const duration = Number(body.duration || 0);
   const { row, url, photoId, isVideo } = toPhotoRow({ storageKey, eventId, fileName, fileSize, userId, resourceType: body.resourceType, duration });
   const supabaseAdmin = getSupabaseAdminClient();
   const { error: dbError } = await safeUpsertPhoto(supabaseAdmin, row);
 
   if (dbError) {
-    background("UploadRollback", () => rollbackB2Upload(storageKey, isVideo ? "video" : "image"));
+    // The website retries this save; deleting the file here left the retry saving a row without one (issue #140)
+    if (!verifyUpload) background("UploadRollback", () => rollbackB2Upload(storageKey, isVideo ? "video" : "image"));
     return jsonError(response, 500, `Failed to save to database: ${dbError.message}`);
   }
 
@@ -980,6 +1065,11 @@ mediaRouter.post("/save-photo-batch", asyncRoute(async (request, response) => {
   const imagePayloads: PhotoPayload[] = [];
   const videoPayloads: Array<PhotoPayload & { fileSize?: number; duration?: number }> = [];
   let firstEventId = "";
+  // Issue #140: files B2 says aren't there are left out and reported back, so the page can mark them failed
+  const verifyUpload = isUploadVerifyOn();
+  const backblazeAuth = verifyUpload ? await getCachedBackblazeAuth() : null;
+  const bucketId = verifyUpload ? requireEnv("B2_BUCKET_ID") : "";
+  const notUploaded: string[] = [];
 
   for (const photo of photos) {
     const storageKey = String(photo.storageKey || "");
@@ -988,6 +1078,10 @@ mediaRouter.post("/save-photo-batch", asyncRoute(async (request, response) => {
     const fileSize = Number(photo.fileSize || 0);
     const duration = Number(photo.duration || 0);
     if (!storageKey || !eventId || !fileName) continue;
+    if (backblazeAuth && await isUploadMissing(backblazeAuth, bucketId, storageKey)) {
+      notUploaded.push(storageKey);
+      continue;
+    }
     if (!firstEventId) firstEventId = eventId;
 
     const { row, url, photoId, isVideo } = toPhotoRow({ storageKey, eventId, fileName, fileSize, userId, resourceType: photo.resourceType, duration });
@@ -999,7 +1093,13 @@ mediaRouter.post("/save-photo-batch", asyncRoute(async (request, response) => {
     }
   }
 
-  if (upsertRows.length === 0) return jsonError(response, 400, "No valid photos in batch");
+  if (upsertRows.length === 0) {
+    if (notUploaded.length > 0) {
+      response.json({ success: true, processed: 0, notUploaded });
+      return;
+    }
+    return jsonError(response, 400, "No valid photos in batch");
+  }
 
   const supabaseAdmin = getSupabaseAdminClient();
   const { error: dbError } = await safeUpsertPhotosBatch(supabaseAdmin, upsertRows);
@@ -1039,13 +1139,14 @@ mediaRouter.post("/save-photo-batch", asyncRoute(async (request, response) => {
     );
   }
 
-  response.json({ success: true, processed: upsertRows.length });
+  response.json({ success: true, processed: upsertRows.length, ...(notUploaded.length > 0 ? { notUploaded } : {}) });
 }));
 
 // ── MOBILE-SPECIFIC SECURE & DEBOUNCED MEDIA PIPELINE ─────────────────────────
 
 // Helper to check B2 file existence and size
-async function checkB2FileExists(auth: BackblazeAuth, bucketId: string, key: string): Promise<{ exists: boolean; contentLength?: number }> {
+/** checked: B2 answered (so exists:false really means the file isn't there); false when the check itself failed */
+async function checkB2FileExists(auth: BackblazeAuth, bucketId: string, key: string): Promise<{ exists: boolean; checked: boolean; contentLength?: number }> {
   try {
     const listResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
       method: "POST",
@@ -1056,15 +1157,21 @@ async function checkB2FileExists(auth: BackblazeAuth, bucketId: string, key: str
       body: JSON.stringify({ bucketId, startFileName: key, maxFileCount: 1, prefix: key }),
     });
 
-    if (!listResponse.ok) return { exists: false };
+    if (!listResponse.ok) return { exists: false, checked: false };
     const listData = await listResponse.json();
     const file = listData.files?.find((item: { fileName: string; contentLength?: number }) => item.fileName === key);
-    if (!file) return { exists: false };
-    return { exists: true, contentLength: file.contentLength };
+    if (!file) return { exists: false, checked: true };
+    return { exists: true, checked: true, contentLength: file.contentLength };
   } catch (err) {
     console.warn(`[MobileB2Check] Failed to check file existence for ${key}:`, err);
-    return { exists: false };
+    return { exists: false, checked: false };
   }
+}
+
+/** Issue #140, with VERIFY_UPLOAD_BEFORE_SAVE: true only when B2 answered that the file isn't there */
+async function isUploadMissing(auth: BackblazeAuth, bucketId: string, key: string) {
+  const check = await checkB2FileExists(auth, bucketId, key);
+  return check.checked && !check.exists;
 }
 
 // Memory debounce timer map for event notifications: eventId -> NodeJS.Timeout
@@ -1303,6 +1410,11 @@ mediaRouter.post("/mobile/save-photo-batch", asyncRoute(async (request, response
       if (b2Check.exists && b2Check.contentLength) {
         effectiveSize = b2Check.contentLength;
       }
+      // Issue #140: the app re-uploads a file reported not_uploaded (lib/uploadQueue.ts)
+      if (isUploadVerifyOn() && b2Check.checked && !b2Check.exists) {
+        results.push({ clientUploadId, status: "not_uploaded", error: "The file didn't finish uploading" });
+        continue;
+      }
     } catch {
       // Non-blocking check
     }
@@ -1449,42 +1561,7 @@ mediaRouter.post("/internal/video-processed", asyncRoute(async (request, respons
   const photoId = String(request.body?.photoId || "").trim();
   if (!photoId) return jsonError(response, 400, "Missing photoId");
 
-  if (!isVideoReadyPushEnabled()) {
-    response.json({ success: true, skipped: "disabled" });
-    return;
-  }
-
-  const supabaseAdmin = getSupabaseAdminClient();
-  const { data: photo, error } = await supabaseAdmin
-    .from("photos")
-    .select("id, event_id, user_id, status, media_type, resource_type")
-    .eq("id", photoId)
-    .maybeSingle();
-  if (error) throw error;
-
-  const isVideo = photo?.media_type === "video" || photo?.resource_type === "video";
-  if (!photo || !isVideo || photo.status !== "processed") {
-    response.json({ success: true, skipped: "not_a_processed_video" });
-    return;
-  }
-
-  // Claim the row first: Modal can report the same video more than once (QStash retries, watchdog recovery)
-  const { data: claimed, error: claimError } = await supabaseAdmin
-    .from("photos")
-    .update({ owner_notified_at: new Date().toISOString() })
-    .eq("id", photoId)
-    .is("owner_notified_at", null)
-    .select("id");
-  if (claimError) throw claimError;
-  if (!claimed || claimed.length === 0) {
-    response.json({ success: true, skipped: "already_notified" });
-    return;
-  }
-
-  background("VideoProcessedNotify", () =>
-    sendOwnerUploadNotification(photo.event_id, photo.user_id, "🎥 New video uploaded", "Someone added a video to your event", { eventId: photo.event_id }),
-  );
-  response.json({ success: true, notified: true });
+  response.json({ success: true, ...(await notifyVideoProcessed(photoId)) });
 }));
 
 mediaRouter.get("/indexing-status", asyncRoute(async (request, response) => {
@@ -1548,11 +1625,15 @@ mediaRouter.post("/delete", asyncRoute(async (request, response) => {
 
   const backblazeAuth = await getCachedBackblazeAuth();
   const bucketId = requireEnv("B2_BUCKET_ID");
+  const deleteStreamingCopy = isVideoStreamDeleteOn() && Boolean(savedPhoto.storage_key) && savedPhoto.media_type === "video";
   await Promise.all([
     deleteB2File(backblazeAuth, bucketId, savedPhoto.storage_key),
     deleteB2File(backblazeAuth, bucketId, `${savedPhoto.storage_key}-thumbnail.webp`),
     deleteB2File(backblazeAuth, bucketId, `${savedPhoto.storage_key}-preview.webp`),
+    deleteB2File(backblazeAuth, bucketId, gridKey(savedPhoto.storage_key)),
     deleteB2Prefix(backblazeAuth, bucketId, `${savedPhoto.storage_key}-hls/`),
+    // The streaming copy Modal makes (playlists, segments, poster), as the admin delete already does
+    ...(deleteStreamingCopy ? [deleteB2Prefix(backblazeAuth, bucketId, `hls/${savedPhoto.storage_key}/`)] : []),
   ]);
 
   await supabaseAdmin.from("photo_faces").delete().eq("photo_id", savedPhoto.id);
@@ -1652,6 +1733,72 @@ mediaRouter.post("/video-thumbnail", asyncRoute(async (request, response) => {
   }
 }));
 
+// The app's picture of a gallery's guest home, for the Design tab's Guest Home Preview on the website (todo #31)
+mediaRouter.post("/guest-preview-picture", asyncRoute(async (request, response) => {
+  const verified = await verifyRequestUser(request);
+  if (!verified) return jsonError(response, 401, "Authorization required");
+  const db = getSupabaseAdminClient();
+  try {
+    const result = await saveGuestPreviewPicture(request.body || {}, {
+      canManage: (eventId) => canPostEventVideo(db, verified.user, eventId),
+      load: async (eventId) => {
+        const { data, error } = await db.from("events").select("guest_preview_picture").eq("id", eventId).maybeSingle();
+        if (error) throw error;
+        return data ? { picture: data.guest_preview_picture } : null;
+      },
+      upload: async (key, bytes) => {
+        await uploadBufferToB2(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), bytes, key, "image/jpeg");
+        return `https://${getMediaDomain()}/${key.split("/").map(encodeURIComponent).join("/")}`;
+      },
+      commit: async (eventId, previous, picture) => {
+        // Only over the picture this save replaces, so two phones saving at once can't lose track of a file
+        let query = db.from("events").update({ guest_preview_picture: picture }).eq("id", eventId);
+        const previousUrl = previous && typeof previous === "object" ? (previous as { url?: unknown }).url : undefined;
+        if (previous === null) query = query.is("guest_preview_picture", null);
+        else if (typeof previousUrl === "string") query = query.eq("guest_preview_picture->>url", previousUrl);
+        const { data, error } = await query.select("id").maybeSingle();
+        if (error) throw error;
+        return Boolean(data);
+      },
+      remove: async (key) => deleteB2File(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), key),
+    });
+    response.json(result);
+  } catch (error) {
+    if (error instanceof GuestPreviewPictureError) return jsonError(response, error.status, error.message);
+    throw error;
+  }
+}));
+
+// Removes that picture and its file; the website and app call it just before they delete a gallery
+mediaRouter.post("/guest-preview-picture/delete", asyncRoute(async (request, response) => {
+  const verified = await verifyRequestUser(request);
+  if (!verified) return jsonError(response, 401, "Authorization required");
+  const db = getSupabaseAdminClient();
+  try {
+    const result = await removeGuestPreviewPicture(request.body || {}, {
+      canManage: (eventId) => canPostEventVideo(db, verified.user, eventId),
+      load: async (eventId) => {
+        const { data, error } = await db.from("events").select("guest_preview_picture").eq("id", eventId).maybeSingle();
+        if (error) throw error;
+        return data ? { picture: data.guest_preview_picture } : null;
+      },
+      clear: async (eventId, previous) => {
+        const previousUrl = previous && typeof previous === "object" ? (previous as { url?: unknown }).url : undefined;
+        if (typeof previousUrl !== "string") return false;
+        const { data, error } = await db.from("events").update({ guest_preview_picture: null })
+          .eq("id", eventId).eq("guest_preview_picture->>url", previousUrl).select("id").maybeSingle();
+        if (error) throw error;
+        return Boolean(data);
+      },
+      remove: async (key) => deleteB2File(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), key),
+    });
+    response.json(result);
+  } catch (error) {
+    if (error instanceof GuestPreviewPictureError) return jsonError(response, error.status, error.message);
+    throw error;
+  }
+}));
+
 mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
   const user = await requireUser(request, response);
   if (!user) return;
@@ -1703,7 +1850,7 @@ mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
   const originalBytes = Buffer.from(await downloadResponse.arrayBuffer());
 
   console.log("[MediaRotate] Processing image", { bytes: originalBytes.length });
-  const rotated = await sharp(originalBytes).rotate(angle).toBuffer({ resolveWithObject: true });
+  const rotated = await rotateImage(originalBytes, angle, isRotateUprightFirstEnabled());
   const rotatedBuffer = rotated.data;
   const rotatedMetadata = rotated.info;
   const thumbnailBuffer = await sharp(rotatedBuffer)
@@ -1714,6 +1861,14 @@ mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
     .resize({ width: 900, fit: "inside", withoutEnlargement: true })
     .webp({ quality: 75 })
     .toBuffer();
+  // Grid image (issue #121): remade only with GRID_VARIANT=true, but an old one is always removed below so the
+  // grid never shows the photo unrotated (without one, the website shows the thumbnail)
+  const gridBuffer = isGridVariantEnabled()
+    ? await sharp(rotatedBuffer)
+      .resize({ width: GRID_LONG_SIDE, height: GRID_LONG_SIDE, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: GRID_QUALITY })
+      .toBuffer()
+    : null;
 
   const backblazeAuth = await getCachedBackblazeAuth();
   const bucketId = requireEnv("B2_BUCKET_ID");
@@ -1721,26 +1876,29 @@ mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
   const storageKey = savedPhoto.storage_key;
   const thumbnailKey = `${storageKey}-thumbnail.webp`;
   const previewKey = `${storageKey}-preview.webp`;
-  const url = `https://${mediaDomain}/${storageKey}`;
-  const thumbnailUrl = `https://${mediaDomain}/${thumbnailKey}`;
-  const previewUrl = `https://${mediaDomain}/${previewKey}`;
+  // Versioned links (issue #123) give the rotated files new addresses, so cached unrotated copies aren't shown
+  const versionedLinks = isRotateVersionedLinksEnabled();
+  const { url, thumbnailUrl, previewUrl } = buildRotatedLinks(mediaDomain, storageKey, versionedLinks ? Date.now() : null);
   const contentType = inferContentType(storageKey);
 
   const oldVersions = await Promise.all([
     listExactFileVersions(backblazeAuth, bucketId, storageKey),
     listExactFileVersions(backblazeAuth, bucketId, thumbnailKey),
     listExactFileVersions(backblazeAuth, bucketId, previewKey),
+    listExactFileVersions(backblazeAuth, bucketId, gridKey(storageKey)),
   ]);
 
   console.log("[MediaRotate] Uploading rotated variants", {
     originalBytes: rotatedBuffer.length,
     thumbnailBytes: thumbnailBuffer.length,
     previewBytes: previewBuffer.length,
+    gridBytes: gridBuffer?.length ?? 0,
   });
   await Promise.all([
     uploadBufferToB2(backblazeAuth, bucketId, rotatedBuffer, storageKey, contentType),
     uploadBufferToB2(backblazeAuth, bucketId, thumbnailBuffer, thumbnailKey, "image/webp"),
     uploadBufferToB2(backblazeAuth, bucketId, previewBuffer, previewKey, "image/webp"),
+    ...(gridBuffer ? [uploadBufferToB2(backblazeAuth, bucketId, gridBuffer, gridKey(storageKey), "image/webp")] : []),
   ]);
 
   console.log("[MediaRotate] Removing old B2 versions", { count: oldVersions.flat().length });
@@ -1752,13 +1910,30 @@ mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
     .update({
       url,
       thumbnail_url: thumbnailUrl,
+      ...(versionedLinks ? { preview_url: previewUrl } : {}),
       width: rotatedMetadata.width || null,
       height: rotatedMetadata.height || null,
       size: rotatedBuffer.length,
-      overhead_size: thumbnailBuffer.length + previewBuffer.length,
+      overhead_size: thumbnailBuffer.length + previewBuffer.length + (gridBuffer?.length ?? 0),
     })
     .eq("id", photoId);
   if (updateError) throw updateError;
+
+  if (versionedLinks) {
+    // A gallery cover chosen from this photo (events.cover_image and its cover copy in photos) is the same file,
+    // so it moves to the new links too. The rotation is already saved: a failure here is only logged.
+    const oldLinks = previousOriginalLinks(savedPhoto.url, buildRotatedLinks(mediaDomain, storageKey, null).url);
+    const [covers, copies] = await Promise.all([
+      supabaseAdmin.from("events").update({ cover_image: url }).in("cover_image", oldLinks).select("id"),
+      supabaseAdmin.from("photos").update({ url, thumbnail_url: thumbnailUrl, preview_url: previewUrl })
+        .in("url", oldLinks).neq("id", photoId).select("id"),
+    ]);
+    if (covers.error || copies.error) {
+      console.error("[MediaRotate] Could not move covers to the new links", { photoId, covers: covers.error, copies: copies.error });
+    } else {
+      console.log("[MediaRotate] Covers moved to the new links", { covers: covers.data?.length || 0, copies: copies.data?.length || 0 });
+    }
+  }
 
   console.log("[MediaRotate] Completed", { photoId, width: rotatedMetadata.width, height: rotatedMetadata.height });
 

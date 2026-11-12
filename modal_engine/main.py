@@ -671,11 +671,60 @@ def _read_photo_pipeline_switch():
         return "v1", []
 
 
+def _read_face_filter():
+    """The junk-face filter for PhotoProcessorV2 (issue #101), from the switch's "face_filter" key:
+    {"min_score": 0.5, "min_px": 24} drops faces the detector is unsure of or whose box is smaller than that
+    on the 1600 px preview. Missing or unreadable = off, so every detected face is saved as before."""
+    try:
+        value = modal.Dict.from_name(PHOTO_PIPELINE_SWITCH, create_if_missing=True).get("face_filter")
+        return value if isinstance(value, dict) else None
+    except Exception as err:
+        print(f"[PhotoV2] Could not read the face filter, saving every face: {err}")
+        return None
+
+
+GRID_SUFFIX = "-grid.webp"  # same name the backend deletes and the website grid loads
+
+
+def _read_grid_setting():
+    """The 1000 px grid image (issue #121), from the switch's "grid" key: "all" for every photo, or a list of
+    gallery ids to test on. Missing or unreadable = off, so no grid image is made, as before."""
+    try:
+        value = modal.Dict.from_name(PHOTO_PIPELINE_SWITCH, create_if_missing=True).get("grid")
+        return value if value == "all" or isinstance(value, list) else None
+    except Exception as err:
+        print(f"[PhotoV2] Could not read the grid switch, no grid image: {err}")
+        return None
+
+
+def _grid_on_for(event_id, setting) -> bool:
+    return setting == "all" or (isinstance(setting, list) and bool(event_id) and event_id in setting)
+
+
+def _make_grid_image(preview_img) -> bytes:
+    """1000 px on the long side, WebP q75 (tested 2026-10-24 on 10 real photos: median 66 KB vs 128 KB for the
+    1600 px preview). Made from the preview, as the thumbnail is."""
+    from PIL import Image
+    grid_img = preview_img.copy()
+    grid_img.thumbnail((1000, 1000), Image.Resampling.LANCZOS)
+    grid_buf = io.BytesIO()
+    grid_img.save(grid_buf, format="WEBP", quality=75, method=4)
+    return grid_buf.getvalue()
+
+
 def _spawn_photo_job(item: dict, mode, v2_events):
     if _pick_photo_pipeline(item.get("event_id"), mode, v2_events) == "v2":
         PhotoProcessorV2().process.spawn(item)
     else:
         process_photo_preview.spawn(item)
+
+
+def _spawn_face_job(item: dict, mode, v2_events):
+    """Faces only (the preview is done): v2's face step for galleries on v2, else the old FaceIndexer."""
+    if _pick_photo_pipeline(item.get("event_id"), mode, v2_events) == "v2":
+        PhotoProcessorV2().index_faces.spawn(item)
+    else:
+        FaceIndexer().process.spawn(item)
 
 
 def _load_two_model_face_app():
@@ -742,7 +791,50 @@ def _db_execute(query):
         return query.execute()
 
 
-def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_name: str, media_domain: str, photos_in_container=lambda: 1):
+class _PhotoProgress:
+    """Remembers which step a v2 photo is on. If the photo is still running after V2_SLOW_WARNING_SECONDS it prints
+    the step, the time spent and where the worker's code is waiting, so a stalled photo shows its cause in the
+    logs before the time limit stops it (2026-10-22: two photos stalled with nothing in the logs)."""
+
+    def __init__(self, photo_id, photos_in_container):
+        import threading
+        import time
+        self.photo_id, self.photos_in_container = photo_id, photos_in_container
+        self.thread_id = threading.get_ident()
+        self.started = self.step_started = time.time()
+        self.current = "start"
+        self.timer = threading.Timer(V2_SLOW_WARNING_SECONDS, self.warn)
+        self.timer.daemon = True
+        self.timer.start()
+
+    def step(self, name):
+        import time
+        self.current, self.step_started = name, time.time()
+
+    def warn(self):
+        import sys
+        import time
+        import traceback
+        frame = sys._current_frames().get(self.thread_id)
+        where = "".join(traceback.format_stack(frame)[-4:]) if frame else "(thread not found)"
+        now = time.time()
+        print(f"[PhotoV2] SLOW [{self.photo_id}] still running after {now - self.started:.0f}s, "
+              f"{now - self.step_started:.0f}s in step '{self.current}', {self.photos_in_container()} photos in this "
+              f"container. Waiting at:\n{where}", flush=True)
+
+    def stop(self):
+        self.timer.cancel()
+
+
+# A v2 photo normally takes 1-6 s. The worker gives up after V2_TIME_LIMIT_SECONDS, and its claim on the photo
+# lasts V2_LEASE_SECONDS, so the maintenance job can retry a stuck photo ~2.5 min after it started instead of 5
+# (it runs every 5 minutes). The lease must stay longer than the time limit, or two workers could hold one photo.
+V2_TIME_LIMIT_SECONDS = 120
+V2_LEASE_SECONDS = 150
+V2_SLOW_WARNING_SECONDS = 60
+
+
+def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_name: str, media_domain: str, photos_in_container=lambda: 1, face_filter=None, on_step=lambda step: None, make_grid=False):
     """
     One photo start to finish, making the same database calls in the same order as process_photo_preview
     followed by FaceIndexer.process: claim_media_job, complete_media_job (the photo shows in the gallery),
@@ -768,20 +860,24 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
 
     # ---- Preview and thumbnail (as process_photo_preview) ----
     media_token = str(uuid.uuid4())
+    on_step("claim_media_job")
     claimed = _db_execute(supabase.rpc("claim_media_job", {
         "p_photo_id": photo_id,
         "p_token": media_token,
-        "p_asset_version": asset_version
+        "p_asset_version": asset_version,
+        "p_lease_duration_seconds": V2_LEASE_SECONDS
     }))
     if not claimed.data:
         print(f"[{photo_id}] Media job already claimed or exceeded max retries. Skipping.")
         return {"status": "skipped", "photo_id": photo_id}
 
     try:
+        on_step("download original")
         resp = b2_client.get_object(Bucket=bucket_name, Key=storage_key)
         raw_bytes = resp['Body'].read()
         original_size = len(raw_bytes)
 
+        on_step("make preview and thumbnail")
         Image.MAX_IMAGE_PIXELS = 100_000_000
         if storage_key.lower().endswith(RAW_EXTENSIONS):
             pil_img = _open_raw_photo(raw_bytes)
@@ -811,16 +907,24 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         thumb_buf = io.BytesIO()
         thumb_img.save(thumb_buf, format="WEBP", quality=68, method=4)
         thumb_bytes = thumb_buf.getvalue()
+
+        # Grid image (issue #121), also from the preview, for the website grid on big screens; only when the
+        # switch's "grid" key covers this gallery
+        grid_bytes = _make_grid_image(preview_img) if make_grid else b""
         del pil_img, preview_img, thumb_img
 
         preview_key = f"{storage_key}-preview.webp"
         thumb_key = f"{storage_key}-thumbnail.webp"
+        on_step("upload preview and thumbnail")
         b2_client.put_object(Bucket=bucket_name, Key=preview_key, Body=preview_bytes, ContentType="image/webp")
         b2_client.put_object(Bucket=bucket_name, Key=thumb_key, Body=thumb_bytes, ContentType="image/webp")
+        if grid_bytes:
+            b2_client.put_object(Bucket=bucket_name, Key=f"{storage_key}{GRID_SUFFIX}", Body=grid_bytes, ContentType="image/webp")
 
         preview_url = f"https://{media_domain}/{preview_key}"
         thumbnail_url = f"https://{media_domain}/{thumb_key}"
 
+        on_step("complete_media_job")
         _db_execute(supabase.rpc("complete_media_job", {
             "p_photo_id": photo_id,
             "p_token": media_token,
@@ -829,7 +933,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
             "p_preview_url": preview_url,
             "p_width": orig_w,
             "p_height": orig_h,
-            "p_overhead_size": len(preview_bytes) + len(thumb_bytes)
+            "p_overhead_size": len(preview_bytes) + len(thumb_bytes) + len(grid_bytes)
         }))
         preview_seconds = time.time() - start_time
         print(f"[{photo_id}] Preview ready in {preview_seconds:.2f}s. Photo is now live in gallery.")
@@ -851,17 +955,62 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         return {"status": "error", "photo_id": photo_id, "error": str(e)}
 
     # ---- Faces (as FaceIndexer.process, on the preview already in memory) ----
+    return _save_faces_v2(photo_id, asset_version, event_id, user_id, preview_url, lambda: preview_bytes, face_app,
+                          supabase, start_time, sharing_at_start, photos_in_container, original_size, face_filter,
+                          on_step)
+
+def _index_faces_v2(photo_data: dict, face_app, supabase, b2_client, bucket_name: str, media_domain: str,
+                    photos_in_container=lambda: 1, face_filter=None, on_step=lambda step: None):
+    """Faces only, for a photo whose preview is already in B2 (the maintenance job's retries of stuck or failed
+    face jobs, which went to the old FaceIndexer before). Same models, filter and database calls as v2's face
+    step; reads the saved preview instead of making one."""
+    import time
+    start_time = time.time()
+    photo_id = photo_data.get("id") or photo_data.get("photo_id")
+    asset_version = int(photo_data.get("asset_version") or 1)
+    storage_key = photo_data.get("storage_key") or photo_data.get("object_key")
+    if not photo_id or not storage_key:
+        print(f"[PhotoV2] Missing required parameters: photo_id={photo_id}, storage_key={storage_key}")
+        return {"status": "error", "error": "Missing photo_id or storage_key"}
+    preview_key = f"{storage_key}-preview.webp"
+    preview_url = photo_data.get("preview_url") or f"https://{media_domain}/{preview_key}"
+
+    def load_preview():
+        on_step("download preview")
+        return b2_client.get_object(Bucket=bucket_name, Key=preview_key)["Body"].read()
+
+    return _save_faces_v2(photo_id, asset_version, photo_data.get("event_id"), photo_data.get("user_id"), preview_url,
+                          load_preview, face_app, supabase, start_time, photos_in_container(), photos_in_container,
+                          None, face_filter, on_step, function_name="index_faces_v2",
+                          finished_label="Photo v2 faces finished: ")
+
+
+def _save_faces_v2(photo_id, asset_version, event_id, user_id, preview_url, load_preview, face_app, supabase,
+                   start_time, sharing_at_start, photos_in_container, original_size, face_filter, on_step,
+                   function_name="process_photo_v2", finished_label="Photo v2 finished: preview + "):
+    """v2's face step (claim_face_job, find faces on the 1600 px preview, replace_photo_faces, one cost-log row).
+    Used right after the preview in _process_photo_v2, and on its own by _index_faces_v2 when the maintenance
+    job retries a photo whose preview is done but whose faces are not."""
+    import time
+    import uuid
+    import numpy as np
+    import cv2
+    from PIL import Image
+
     face_token = str(uuid.uuid4())
+    on_step("claim_face_job")
     claimed = _db_execute(supabase.rpc("claim_face_job", {
         "p_photo_id": photo_id,
         "p_token": face_token,
-        "p_asset_version": asset_version
+        "p_asset_version": asset_version,
+        "p_lease_duration_seconds": V2_LEASE_SECONDS
     }))
     if not claimed.data:
         print(f"[{photo_id}] Face indexing job already claimed or max attempts reached.")
         return {"status": "success", "photo_id": photo_id, "preview_url": preview_url, "faces": None}
 
     try:
+        preview_bytes = load_preview()
         # Decoding the WebP bytes, not using the resized image directly, gives the face model exactly the
         # pixels FaceIndexer gets when it downloads the preview, so faces match today's
         face_img = Image.open(io.BytesIO(preview_bytes))
@@ -870,11 +1019,20 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         img_bgr = cv2.cvtColor(np.array(face_img), cv2.COLOR_RGB2BGR)
         h, w, _ = img_bgr.shape
 
+        on_step("find faces")
         faces = face_app.get(img_bgr)
         face_records = []
+        min_score = (face_filter or {}).get("min_score")
+        min_px = (face_filter or {}).get("min_px")
+        skipped = 0
         for face in faces:
             embedding = face.normed_embedding
-            if embedding is not None:
+            if embedding is not None and (min_score is not None and float(face.det_score) < min_score
+                                          or min_px is not None and min(face.bbox[2] - face.bbox[0], face.bbox[3] - face.bbox[1]) < min_px):
+                # Blurry, hidden or tiny faces: their numbers are unreliable and caused false Find You matches
+                # (measured 2026-10-22 on 796 previews: 22.5% of faces, 0.1% of matches, mostly wrong ones)
+                skipped += 1
+            elif embedding is not None:
                 face_records.append({
                     "event_id": event_id,
                     "image_url": preview_url,
@@ -883,6 +1041,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
                     "descriptor": embedding.tolist()
                 })
 
+        on_step("replace_photo_faces")
         _db_execute(supabase.rpc("replace_photo_faces", {
             "p_photo_id": photo_id,
             "p_token": face_token,
@@ -898,11 +1057,12 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         memory_gb = 2.0
         rate_per_sec = (cpu_cores * 0.0000131) + (memory_gb * 0.00000222)
         cost_inr = duration / sharing * rate_per_sec * 100.0
+        on_step("cost log")
         try:
             log_payload = {
                 "photo_id": photo_id,
                 "event_id": event_id,
-                "function_name": "process_photo_v2",
+                "function_name": function_name,
                 "worker_type": "Modal Photo Worker v2 (1 vCPU • 2GB RAM • up to 4 photos)",
                 "media_type": "photo",
                 "media_size": original_size,
@@ -919,7 +1079,8 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         except Exception as log_err:
             print(f"[{photo_id}] Cost logging failed: {log_err}")
 
-        print(f"[{photo_id}] Photo v2 finished: preview + {len(face_records)} faces in {duration:.2f}s (₹{cost_inr:.5f})")
+        skipped_note = f", {skipped} unclear faces skipped" if skipped else ""
+        print(f"[{photo_id}] {finished_label}{len(face_records)} faces{skipped_note} in {duration:.2f}s (₹{cost_inr:.5f})")
         return {"status": "success", "photo_id": photo_id, "preview_url": preview_url, "faces": len(face_records)}
 
     except Exception as e:
@@ -935,6 +1096,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
         return {"status": "error", "photo_id": photo_id, "preview_url": preview_url, "error": str(e)}
 
 
+
 @app.cls(
     image=photo_v2_image,
     cpu=1.0,
@@ -942,6 +1104,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
     max_containers=12,
     scaledown_window=15,
     retries=0,
+    timeout=V2_TIME_LIMIT_SECONDS,
     secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 )
 @modal.concurrent(max_inputs=4)
@@ -952,15 +1115,43 @@ class PhotoProcessorV2:
         self.face_app = _load_two_model_face_app()
         self._lock = threading.Lock()
         self._in_flight = 0
+        self._face_filter, self._face_filter_read_at = None, 0.0
+        self._grid, self._grid_read_at = None, 0.0
         print("[PhotoV2] AuraFace (detection + recognition) warm and ready.")
+
+    def face_filter(self):
+        """Read from the switch at most once a minute per container, so a change applies within a minute."""
+        import time
+        with self._lock:
+            if time.time() - self._face_filter_read_at > 60:
+                self._face_filter, self._face_filter_read_at = _read_face_filter(), time.time()
+            return self._face_filter
+
+    def grid_setting(self):
+        """The switch's "grid" key, read at most once a minute per container, like the face filter."""
+        import time
+        with self._lock:
+            if time.time() - self._grid_read_at > 60:
+                self._grid, self._grid_read_at = _read_grid_setting(), time.time()
+            return self._grid
 
     @modal.method()
     def process(self, photo_data: dict):
+        return self._run(_process_photo_v2, photo_data,
+                         make_grid=_grid_on_for(photo_data.get("event_id"), self.grid_setting()))
+
+    @modal.method()
+    def index_faces(self, photo_data: dict):
+        """Faces only, for the maintenance job's retries (the preview is already done)."""
+        return self._run(_index_faces_v2, photo_data)
+
+    def _run(self, worker, photo_data: dict, **extra):
         import boto3
         from supabase import create_client, ClientOptions
 
         with self._lock:
             self._in_flight += 1
+        progress = _PhotoProgress(photo_data.get("id") or photo_data.get("photo_id"), lambda: self._in_flight)
         try:
             # 20 s instead of the client's 120 s default, so a hanging database can't keep the container
             # (billed per second) waiting for minutes; the maintenance job retries the photo later
@@ -975,11 +1166,13 @@ class PhotoProcessorV2:
                 aws_access_key_id=os.environ.get('B2_KEY_ID'),
                 aws_secret_access_key=os.environ.get('B2_APPLICATION_KEY')
             )
-            return _process_photo_v2(
+            return worker(
                 photo_data, self.face_app, supabase, b2_client, os.environ.get('B2_BUCKET_NAME'),
-                _media_domain(), photos_in_container=lambda: self._in_flight,
+                _media_domain(), photos_in_container=lambda: self._in_flight, face_filter=self.face_filter(),
+                on_step=progress.step, **extra,
             )
         finally:
+            progress.stop()
             with self._lock:
                 self._in_flight -= 1
 
@@ -1048,6 +1241,8 @@ def sweep_stuck_jobs():
     recovered_media = 0
     recovered_face = 0
     recovered_outbox = 0
+    # Retries go to the same pipeline as new uploads (issue #77): v2 for galleries on v2
+    mode, v2_events = _read_photo_pipeline_switch()
 
     # 1. Sweep stuck media jobs
     try:
@@ -1066,14 +1261,14 @@ def sweep_stuck_jobs():
             is_expired = lease is None or lease < now.isoformat()
             if p.get("media_status") in ["pending", "failed"] or is_expired:
                 print(f"[Reconciler] Recovering stuck media job for photo: {p['id']}")
-                process_photo_preview.spawn({
+                _spawn_photo_job({
                     "id": p["id"],
                     "photo_id": p["id"],
                     "storage_key": p.get("storage_key"),
                     "event_id": p.get("event_id"),
                     "user_id": p.get("user_id"),
                     "asset_version": p.get("asset_version", 1)
-                })
+                }, mode, v2_events)
                 recovered_media += 1
     except Exception as err:
         print(f"[Reconciler] Media sweep error: {err}")
@@ -1095,7 +1290,7 @@ def sweep_stuck_jobs():
             is_expired = lease is None or lease < now.isoformat()
             if p.get("face_status") in ["pending", "failed"] or is_expired:
                 print(f"[Reconciler] Recovering stuck face job for photo: {p['id']}")
-                FaceIndexer().process.spawn({
+                _spawn_face_job({
                     "id": p["id"],
                     "photo_id": p["id"],
                     "storage_key": p.get("storage_key"),
@@ -1103,7 +1298,7 @@ def sweep_stuck_jobs():
                     "user_id": p.get("user_id"),
                     "asset_version": p.get("asset_version", 1),
                     "preview_url": p.get("preview_url")
-                })
+                }, mode, v2_events)
                 recovered_face += 1
     except Exception as err:
         print(f"[Reconciler] Face sweep error: {err}")
@@ -1178,6 +1373,7 @@ def dispatch_outbox_jobs():
 
     dispatched = 0
     two_min_ago = datetime.now(timezone.utc) - timedelta(minutes=2)
+    mode, v2_events = _read_photo_pipeline_switch()
     for row in rows:
         photo_id = row.get("photo_id")
         job_type = row.get("job_type")
@@ -1210,10 +1406,10 @@ def dispatch_outbox_jobs():
         }
 
         if job_type == "media_preview":
-            process_photo_preview.spawn(payload)
+            _spawn_photo_job(payload, mode, v2_events)
             dispatched += 1
         elif job_type == "face_index":
-            FaceIndexer().process.spawn(payload)
+            _spawn_face_job(payload, mode, v2_events)
             dispatched += 1
 
     print(f"[OutboxDispatcher] Dispatched {dispatched} queued jobs.")
@@ -1520,6 +1716,24 @@ transcode_image = (
     .pip_install("boto3", "supabase", "fastapi[standard]")
 )
 
+# Issue #141: the GPU worker that takes every video format needs CUDA filters the image above lacks (scale_cuda
+# with 10-bit input, tonemap_cuda, transpose_cuda). The Jellyfin project's ffmpeg build has them. Official
+# release, pinned and checked against the SHA-256 GitHub publishes for it.
+_JELLYFIN_FFMPEG_URL = ("https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v7.1.4-3/"
+                        "jellyfin-ffmpeg_7.1.4-3_portable_linux64-gpl.tar.xz")
+_JELLYFIN_FFMPEG_SHA256 = "cab9ff40a47e4232d231e4eb7e4e85fabfeec56c6905266bc94291fc0881f83f"
+gpu_all_image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .apt_install("wget", "xz-utils", "ca-certificates")
+    .run_commands(
+        f"wget -q -O /tmp/jellyfin-ffmpeg.tar.xz {_JELLYFIN_FFMPEG_URL}",
+        f"echo '{_JELLYFIN_FFMPEG_SHA256}  /tmp/jellyfin-ffmpeg.tar.xz' | sha256sum -c -",
+        "mkdir -p /opt/jellyfin-ffmpeg && tar -xJf /tmp/jellyfin-ffmpeg.tar.xz -C /opt/jellyfin-ffmpeg && rm /tmp/jellyfin-ffmpeg.tar.xz",
+        "ln -s /opt/jellyfin-ffmpeg/ffmpeg /usr/local/bin/ffmpeg && ln -s /opt/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe",
+    )
+    .pip_install("boto3", "supabase", "fastapi[standard]")
+)
+
 def _notify_video_processed(photo_id: str):
     """Tells the backend the video is playable so it can send the event owner's push. Best effort: never raises."""
     import json
@@ -1543,8 +1757,601 @@ def _notify_video_processed(photo_id: str):
     except Exception as e:
         print(f"[TranscodeVideo] Video-ready callback failed for {photo_id} (non-fatal): {e}")
 
+# ---------------------------------------------------------------------------
+# Full-GPU transcode for long videos (issue #112)
+# ---------------------------------------------------------------------------
+# NVDEC decode -> scale_npp resize -> NVENC encode on an L4, so frames never leave the GPU. Measured
+# 2026-10-24 (real Modal bill, 3 runs each, same quality): 48.7-min 1080p25 ₹19.2 vs ₹23.6 on the 16-core
+# worker and 20% faster; 33-min 1080p60 ₹17.8 vs ₹18.3 but 12% slower (the L4's encoder is the limit at 60 fps);
+# 10-min 4K and HEVC 60 fps 8-11% cheaper; 10-min portrait 4K 8% dearer. Those bills include the upload to B2
+# (network egress, ₹2.4-10.9 per video, the same on both), which is free within the plan's 1 TiB/month. Compute
+# alone: GPU ₹8.3 vs ₹12.7 on test_5. Short videos stay on the 4-core worker (cheapest for them).
+#
+# Behind a runtime switch (a Modal Dict, no deploy needed to flip it); modal_engine/video_gpu_switch.py
+# shows and sets it:
+#   mode        "off" (default: every long video on the 16-core worker, as before) or "on"
+#   gpu_events  gallery ids whose long videos use the GPU while mode is "off", for testing on one gallery
+#   gpu_wait_s  how long a video may wait for an L4 before it goes to the 16-core worker (default 180)
+# Anything the GPU can't take (10-bit, 4:2:2, rotated phone videos, other codecs), any GPU ffmpeg error and any
+# output whose length doesn't match the source go to the 16-core worker, which is unchanged.
+
+VIDEO_GPU_SWITCH = "video-gpu-switch"
+VIDEO_GPU_STARTS = "video-gpu-starts"  # function call id -> "gpu" (started) or "cpu" (gave up waiting)
+_DEFAULT_GPU_WAIT_S = 180
+
+# (name, max width, max height, bitrate, maxrate, bufsize): same ladder as the CPU command
+_HLS_TIERS = [
+    ("1080p", 1920, 1080, "4000k", "4500k", "8000k"),
+    ("720p", 1280, 720, "2500k", "3000k", "5000k"),
+    ("480p", 854, 480, "1000k", "1200k", "2000k"),
+]
+
+
+class _UseCpuWorker(Exception):
+    """The GPU can't (or didn't) transcode this video: hand it to the 16-core worker instead."""
+
+
+def _pick_long_video_worker(event_id, mode, gpu_events) -> str:
+    if mode == "on" or (event_id and event_id in (gpu_events or [])):
+        return "gpu"
+    return "cpu"
+
+
+async def _read_video_gpu_switch():
+    """Returns (mode, gpu_events, gpu_wait_s, all_formats). If the switch can't be read, long videos go to the
+    16-core worker."""
+    try:
+        switch = modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True)
+        mode = await switch.get.aio("mode", "off")
+        gpu_events = await switch.get.aio("gpu_events", [])
+        wait_s = await switch.get.aio("gpu_wait_s", _DEFAULT_GPU_WAIT_S)
+        all_formats = bool(await switch.get.aio("gpu_all_formats", False))
+        return mode, gpu_events, float(wait_s), all_formats
+    except Exception as err:
+        print(f"[VideoGPU] Could not read the switch, using the 16-core worker: {err}")
+        return "off", [], float(_DEFAULT_GPU_WAIT_S), False
+
+
+def _gpu_decode_problem(stream: dict):
+    """Why the full-GPU command can't take this video stream (ffprobe fields), or None if it can. Tested
+    2026-10-24: scale_npp rejects the p010 frames NVDEC makes from 10-bit video, and turning a phone video's
+    rotation flag on the GPU (transpose_npp) leaves a green strip along one edge, so both go to the CPU."""
+    codec = stream.get("codec_name")
+    pix_fmt = stream.get("pix_fmt")
+    if codec not in ("h264", "hevc") or pix_fmt not in ("yuv420p", "yuvj420p"):
+        return f"{codec} {pix_fmt} is not transcoded on the GPU"
+    rotation = next((s["rotation"] for s in stream.get("side_data_list", []) if "rotation" in s), 0)
+    if rotation and float(rotation) % 360:
+        return f"rotated video ({rotation})"
+    return None
+
+
+def _full_gpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, gop="48"):
+    """The full-GPU ffmpeg command: same tiers, bitrates, 6 s keyframes and HLS layout as the CPU command.
+    The production image's ffmpeg has libnpp but no scale_cuda, so resizing uses scale_npp."""
+    tiers = [t for t in _HLS_TIERS if t[0] in out_dirs]
+
+    cmd = ["ffmpeg", "-y", "-hwaccel", "cuda", "-hwaccel_output_format", "cuda", "-i", input_path]
+    filter_str = f"[0:v]split={len(tiers)}" + "".join(f"[v{i}]" for i in range(1, len(tiers) + 1)) + ";"
+    for i, (_name, w, h, *_rates) in enumerate(tiers, start=1):
+        filter_str += (f"[v{i}]scale_npp=w={w}:h={h}:force_original_aspect_ratio=decrease:force_divisible_by=2"
+                       f":format=nv12:interp_algo=super[v{i}out];")
+    cmd += ["-filter_complex", filter_str.rstrip(";")]
+
+    var_stream_parts = []
+    for m, (name, _w, _h, bitrate, maxrate, bufsize) in enumerate(tiers):
+        cmd += ["-map", f"[v{m + 1}out]", f"-c:v:{m}", "h264_nvenc", "-preset", "p4", "-profile:v", "high",
+                "-rc", "vbr", "-g", gop, "-no-scenecut", "1", "-forced-idr", "1",
+                "-force_key_frames", "expr:gte(t,n_forced*6)",
+                f"-b:v:{m}", bitrate, f"-maxrate:{m}", maxrate, f"-bufsize:{m}", bufsize]
+        var_stream_parts.append(f"v:{m},agroup:audio,name:{name}" if has_audio else f"v:{m},name:{name}")
+    if has_audio:
+        cmd += ["-map", "0:a?", "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2"]
+        var_stream_parts.insert(0, "a:0,agroup:audio,default:yes,name:audio")
+
+    cmd += [
+        "-f", "hls", "-hls_time", "6", "-hls_playlist_type", "vod",
+        "-hls_flags", "independent_segments",
+        "-hls_segment_filename", str(tmp_path / "%v/seg_%03d.ts"),
+        "-master_pl_name", "master.m3u8",
+        "-var_stream_map", " ".join(var_stream_parts),
+        str(tmp_path / "%v/playlist.m3u8"),
+    ]
+    return cmd
+
+
+def _hls_length_problem(tmp_path, out_dirs, source_seconds):
+    """Checks every variant playlist covers the whole source (a GPU run that stops early can still exit 0)."""
+    import re
+
+    if not source_seconds:
+        return None
+    for out_dir in out_dirs:
+        playlist = tmp_path / out_dir / "playlist.m3u8"
+        if not playlist.exists():
+            return f"{out_dir} playlist missing"
+        seconds = sum(float(x) for x in re.findall(r"#EXTINF:([0-9.]+)", playlist.read_text()))
+        if abs(seconds - source_seconds) > max(2.0, source_seconds * 0.01):
+            return f"{out_dir} is {seconds:.1f}s long, source is {source_seconds:.1f}s"
+    return None
+
+
+# ---------------------------------------------------------------------------
+# GPU worker for every video format (issue #141)
+# ---------------------------------------------------------------------------
+# With the switch's "gpu_all_formats" key on, long videos go to transcode_video_long_gpu_all (Jellyfin ffmpeg)
+# instead of transcode_video_long_gpu, and it keeps every video on the L4 instead of handing 10-bit, HDR,
+# rotated and other formats to the 16-core worker:
+#   1. GPU path: NVDEC decode when the L4 can (8-bit H.264, 8/10-bit HEVC, VP9, AV1, MPEG-2; else the CPU decodes
+#      and uploads), then on the GPU: turn by the rotation flag (transpose_cuda), HDR to SDR (tonemap_cuda),
+#      10-bit to 8-bit and resize (scale_cuda), NVENC encode.
+#   2. If that fails or comes out short: mixed path in the same container: CPU decode and filters (the same
+#      8-bit/HDR conversion as the CPU workers), NVENC encode.
+#   3. Only if both fail (or no L4 starts in time) does the video go to the 16-core worker, and every such
+#      handoff is logged to modal_cost_logs as process_video_gpu_fallback with the reason (issue #129).
+
+# (codec, pix_fmt) the L4's NVDEC decodes and scale_cuda/tonemap_cuda take as CUDA frames
+_GPU_DECODE = {
+    "h264": ("yuv420p", "yuvj420p"),
+    "hevc": ("yuv420p", "yuvj420p", "yuv420p10le"),
+    "vp9": ("yuv420p", "yuv420p10le"),
+    "av1": ("yuv420p", "yuv420p10le"),
+    "mpeg2video": ("yuv420p",),
+}
+# ffprobe rotation (display matrix, counter-clockwise degrees) -> transpose_cuda direction, the same turn the
+# CPU path's automatic rotation makes (checked 2026-10-24)
+_GPU_TURNS = {90: "cclock", -270: "cclock", -90: "clock", 270: "clock", 180: "reversal", -180: "reversal"}
+_GPU_TONEMAP = "mobius"  # tested 2026-10-25: PQ vs the SDR original SSIM 0.970 (bt2390 0.954, hable 0.887)
+_GPU_SCALER = "lanczos"
+
+
+def _gpu_all_plan(stream: dict) -> dict:
+    """How the GPU path handles this video stream (ffprobe fields)."""
+    codec, pix_fmt = stream.get("codec_name"), stream.get("pix_fmt") or ""
+    hdr = stream.get("color_transfer") in _HDR_TRANSFERS
+    high_bit = any(x in pix_fmt for x in ("10", "12", "16")) or hdr
+    rotation = next((d["rotation"] for d in stream.get("side_data_list", []) if "rotation" in d), 0)
+    return {
+        "gpu_decode": pix_fmt in _GPU_DECODE.get(codec, ()),
+        "upload_format": "p010le" if high_bit else "nv12",
+        "hdr": hdr,
+        "turn": _GPU_TURNS.get(int(round(float(rotation or 0)))),
+        "av1": codec == "av1",
+    }
+
+
+def _nvenc_tier_args(m, bitrate, maxrate, bufsize, gop="48"):
+    """Same bitrates, 6 s keyframes and 8-bit High profile as the other workers' tiers."""
+    return [f"-c:v:{m}", "h264_nvenc", "-preset", "p4", "-profile:v", "high", "-rc", "vbr",
+            "-g", gop, "-no-scenecut", "1", "-forced-idr", "1",
+            "-force_key_frames", "expr:gte(t,n_forced*6)",
+            f"-b:v:{m}", bitrate, f"-maxrate:{m}", maxrate, f"-bufsize:{m}", bufsize]
+
+
+def _hls_output_args(tmp_path, out_dirs, has_audio, tiers):
+    var_stream_parts = [f"v:{m},agroup:audio,name:{name}" if has_audio else f"v:{m},name:{name}"
+                        for m, (name, *_rest) in enumerate(tiers)]
+    args = []
+    if has_audio:
+        args += ["-map", "0:a?", "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2"]
+        var_stream_parts.insert(0, "a:0,agroup:audio,default:yes,name:audio")
+    return args + [
+        "-f", "hls", "-hls_time", "6", "-hls_playlist_type", "vod",
+        "-hls_flags", "independent_segments",
+        "-hls_segment_filename", str(tmp_path / "%v/seg_%03d.ts"),
+        "-master_pl_name", "master.m3u8",
+        "-var_stream_map", " ".join(var_stream_parts),
+        str(tmp_path / "%v/playlist.m3u8"),
+    ]
+
+
+def _gpu_all_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, stream, gop="48"):
+    """Step 1: everything after decoding runs on the L4 (and decoding too when NVDEC can)."""
+    plan = _gpu_all_plan(stream)
+    tiers = [t for t in _HLS_TIERS if t[0] in out_dirs]
+    cmd = ["ffmpeg", "-y", "-noautorotate"]
+    if plan["gpu_decode"]:
+        cmd += ["-hwaccel", "cuda", "-hwaccel_output_format", "cuda"]
+        if plan["av1"]:
+            cmd += ["-c:v", "av1"]  # the native decoder uses NVDEC; libdav1d would decode on the CPU
+        chain = ""
+    else:
+        cmd += ["-init_hw_device", "cuda=gpu", "-filter_hw_device", "gpu"]
+        chain = f"format={plan['upload_format']},hwupload_cuda,"
+    cmd += ["-i", input_path]
+    if plan["turn"]:
+        chain += f"transpose_cuda=dir={plan['turn']},"
+    if plan["hdr"]:
+        # Shrink to the largest tier first so the tone map runs on fewer pixels, then HDR -> 8-bit SDR
+        chain += ("scale_cuda=w=1920:h=1080:force_original_aspect_ratio=decrease:force_divisible_by=2,"
+                  f"tonemap_cuda=tonemap={_GPU_TONEMAP}:format=nv12:desat=0:p=bt709:t=bt709:m=bt709,")
+    filter_str = f"[0:v]{chain}split={len(tiers)}" + "".join(f"[v{i}]" for i in range(1, len(tiers) + 1)) + ";"
+    for i, (_name, w, h, *_rates) in enumerate(tiers, start=1):
+        filter_str += (f"[v{i}]scale_cuda=w={w}:h={h}:force_original_aspect_ratio=decrease:force_divisible_by=2"
+                       f":format=nv12:interp_algo={_GPU_SCALER}[v{i}out];")
+    cmd += ["-filter_complex", filter_str.rstrip(";")]
+    for m, (_name, _w, _h, bitrate, maxrate, bufsize) in enumerate(tiers):
+        cmd += ["-map", f"[v{m + 1}out]"] + _nvenc_tier_args(m, bitrate, maxrate, bufsize, gop)
+    return cmd + _hls_output_args(tmp_path, out_dirs, has_audio, tiers)
+
+
+def _mixed_gpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, stream, gop="48"):
+    """Step 2, still on the L4 container: the CPU decodes, turns and converts to 8-bit SDR (the same filters as
+    the CPU workers), NVENC encodes."""
+    tiers = [t for t in _HLS_TIERS if t[0] in out_dirs]
+    prefix = _sdr_8bit_filter(stream)
+    filter_str = f"[0:v]{prefix}split={len(tiers)}" + "".join(f"[v{i}]" for i in range(1, len(tiers) + 1)) + ";"
+    for i, (_name, w, h, *_rates) in enumerate(tiers, start=1):
+        filter_str += (f"[v{i}]scale=w={w}:h={h}:force_original_aspect_ratio=decrease,"
+                       f"scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p[v{i}out];")
+    cmd = ["ffmpeg", "-y", "-i", input_path, "-filter_complex", filter_str.rstrip(";")]
+    for m, (_name, _w, _h, bitrate, maxrate, bufsize) in enumerate(tiers):
+        cmd += ["-map", f"[v{m + 1}out]"] + _nvenc_tier_args(m, bitrate, maxrate, bufsize, gop)
+    return cmd + _hls_output_args(tmp_path, out_dirs, has_audio, tiers)
+
+
+def _clear_hls_dirs(tmp_path, out_dirs):
+    """Removes a failed attempt's segments and playlists so the next attempt starts clean."""
+    for out_dir in out_dirs:
+        for f in (tmp_path / out_dir).glob("*"):
+            f.unlink()
+    (tmp_path / "master.m3u8").unlink(missing_ok=True)
+
+
+def _log_gpu_fallback(payload: dict, reason: str, gpu_seconds: float):
+    """Issue #129: one modal_cost_logs row per long video the L4 worker hands to the 16-core worker."""
+    try:
+        from supabase import create_client
+        supabase = create_client(os.environ.get("NEXT_PUBLIC_SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_ROLE_KEY"))
+        supabase.table("modal_cost_logs").insert({
+            "photo_id": payload.get("photo_id") or payload.get("id"),
+            "event_id": payload.get("event_id"),
+            "function_name": "process_video_gpu_fallback",
+            "worker_type": f"L4 -> 16-core: {reason}"[:250],
+            "media_type": "video",
+            "cpu_cores": 4.0,
+            "memory_gb": 8.0,
+            "gpu_type": "l4",
+            "execution_time_seconds": gpu_seconds,
+            "estimated_cost_inr": gpu_seconds * (4.0 * 0.00131 + 8.0 * 0.000222 + 0.0222),
+            "faces_detected": 0,
+        }).execute()
+    except Exception as err:
+        print(f"[VideoGPU] Could not log the handoff (non-fatal): {err}")
+
+
+# ---------------------------------------------------------------------------
+# 8-bit SDR output for every video (issue #118)
+# ---------------------------------------------------------------------------
+# libx264 keeps the source's pixel format, so a 10-bit source (iPhone HDR video, many cameras) became H.264
+# High 10 and a 4:2:2 source High 4:2:2, which most phones can't decode. With the "sdr_8bit" key of the video
+# switch on (modal_engine/video_gpu_switch.py sdr-8bit on), the CPU command converts them to 8-bit 4:2:0 before
+# the tier split and tone-maps HDR (PQ / HLG) to normal colours. Sources that are already 8-bit 4:2:0 SDR get
+# exactly the old command. Off (default) = the old command for every video.
+
+_HDR_TRANSFERS = ("smpte2084", "arib-std-b67")
+
+
+# ---------------------------------------------------------------------------
+# Video probe that survives phone rotation flags (issue #119)
+# ---------------------------------------------------------------------------
+# The old probes read `ffprobe -show_entries stream=height -of csv`, which prints "1080," for a video with a
+# rotation flag (most portrait phone videos). int() then failed and the shared fallback set has_audio=True and
+# height 1080, so a rotated video WITHOUT audio failed ("Unable to map stream at a:0") and a small rotated video
+# got an enlarged 1080p stream. With the "probe_v2" key of the video switch on (video_gpu_switch.py probe-v2 on),
+# one JSON probe is used instead. Off (default) = the old probes.
+
+def _read_probe_v2_switch() -> bool:
+    try:
+        return bool(modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True).get("probe_v2", False))
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not read the probe switch, using the old probes: {err}")
+        return False
+
+
+def _video_basics_from_probe(probe: dict):
+    """(has_audio, display height) from `ffprobe -show_entries stream=codec_type,width,height:stream_side_data=rotation
+    -of json`. The height is the one the viewer sees: a video stored sideways with a 90-degree flag shows its stored
+    width as height, the same as a video recorded upright. None when there is no video stream."""
+    streams = probe.get("streams") or []
+    has_audio = any(s.get("codec_type") == "audio" for s in streams)
+    video = next((s for s in streams if s.get("codec_type") == "video"), None)
+    if not video or not video.get("height"):
+        return has_audio, None
+    rotation = next((float(d["rotation"]) for d in video.get("side_data_list", []) if "rotation" in d), 0)
+    sideways = round(rotation) % 180 == 90
+    return has_audio, int(video["width"] if sideways else video["height"])
+
+
+def _read_sdr_8bit_switch() -> bool:
+    try:
+        return bool(modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True).get("sdr_8bit", False))
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not read the 8-bit switch, keeping the source format: {err}")
+        return False
+
+
+def _sdr_8bit_filter(stream: dict) -> str:
+    """Filters to put before the tier split so every tier is 8-bit 4:2:0 SDR ("" when the source already is).
+    Tested 2026-10-24: mobius keeps normal-brightness colours (SSIM 0.99 vs the SDR original; hable 0.96, visibly
+    darker) and still rolls off highlights. Tone mapping runs in float, so a source bigger than 1080p is first
+    shrunk to the largest tier (15.7 s -> 3.4 s on a 15 s 4K clip); smaller sources are never enlarged."""
+    if stream.get("color_transfer") in _HDR_TRANSFERS:
+        shrink = ""
+        if (stream.get("width") or 0) > 1920 or (stream.get("height") or 0) > 1080:
+            shrink = "scale=w=1920:h=1080:force_original_aspect_ratio=decrease,"
+        return (f"{shrink}zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:desat=0,"
+                "zscale=t=bt709:m=bt709:r=tv,format=yuv420p,")
+    if stream.get("pix_fmt") not in ("yuv420p", "yuvj420p"):
+        return "format=yuv420p,"
+    return ""
+
+
+# ---------------------------------------------------------------------------
+# Poster in normal colours and at most 1080p (issue #145)
+# ---------------------------------------------------------------------------
+# The poster was one frame of the original as it is, on every worker: an HDR video (iPhone HDR) gave a pale poster
+# and a 4K video a 4K JPEG (2.6 MB for a portrait iPhone video). With the "poster_sdr" key of the video switch on
+# (video_gpu_switch.py poster-sdr on), HDR is tone-mapped the same way as the streams and a source bigger than 1080p
+# is shrunk. Off (default) = the old command.
+
+def _read_poster_sdr_switch() -> bool:
+    try:
+        return bool(modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True).get("poster_sdr", False))
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not read the poster switch, using the plain frame: {err}")
+        return False
+
+
+def _poster_filter(stream: dict) -> str:
+    """-vf for the poster ("" = the frame as it is)."""
+    if stream.get("color_transfer") in _HDR_TRANSFERS:
+        return _sdr_8bit_filter(stream).rstrip(",")
+    if (stream.get("width") or 0) > 1920 or (stream.get("height") or 0) > 1080:
+        return "scale=w=1920:h=1080:force_original_aspect_ratio=decrease"
+    return ""
+
+
+# ---------------------------------------------------------------------------
+# New video pipeline, step 1 (todos #15 and #16)
+# ---------------------------------------------------------------------------
+# Two keys of the video switch, each "off" (the default: as before), "test" (only galleries listed in the
+# "hls_test_events" key) or "on" (every video). modal_engine/video_gpu_switch.py shows and sets them.
+#   gop_6s        keyframe interval = 6 s of the video's own frames instead of 48 frames, on every worker.
+#                 Keyframes are still forced at every 6 s mark, so the segments and their names don't change; the
+#                 48-frame interval only added 2-4 extra keyframes inside every segment, which cost quality.
+#                 Measured 2026-10-27 over full length on real footage: VMAF +0.1 to +1.5 on 1080p, +4 to +9 on
+#                 iPhone HDR, no tier lower than before, every segment starts on a keyframe, tiers aligned.
+#   upload_early  segments go up to B2 while ffmpeg is still encoding the rest. The variant playlists and
+#                 master.m3u8 still go up only after the whole run passed its checks, master last, so a video
+#                 never plays half-made. Measured: 10-20% less time per video.
+_HLS_STEP1_KEYS = ("gop_6s", "upload_early")
+
+
+def _read_hls_step1_switch(event_id):
+    """Returns (gop_6s, upload_early) for this gallery. If the switch can't be read: (False, False), as before."""
+    try:
+        switch = modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True)
+        in_test = bool(event_id) and event_id in (switch.get("hls_test_events", []) or [])
+        values = [switch.get(key, "off") for key in _HLS_STEP1_KEYS]
+        return tuple(v == "on" or (v == "test" and in_test) for v in values)
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not read the step-1 switch, keeping the old settings: {err}")
+        return False, False
+
+
+def _gop_from_rates(*rates) -> str:
+    """Frames in 6 s from the first readable ffprobe rate ("30000/1001", "60/1"), else "48" (the old value)."""
+    for rate in rates:
+        try:
+            num, _, den = str(rate or "").partition("/")
+            fps = float(num) / float(den or 1)
+        except (ValueError, ZeroDivisionError):
+            continue
+        if 1 <= fps <= 240:
+            return str(int(round(6 * fps)))
+    return "48"
+
+
+def _gop_frames(input_path) -> str:
+    import json
+    import subprocess
+
+    try:
+        probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                                "stream=avg_frame_rate,r_frame_rate", "-of", "json", input_path],
+                               capture_output=True, text=True)
+        stream = (json.loads(probe.stdout or "{}").get("streams") or [{}])[0]
+        return _gop_from_rates(stream.get("avg_frame_rate"), stream.get("r_frame_rate"))
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not read the frame rate, keeping 48-frame keyframes: {err}")
+        return "48"
+
+
+def _finished_segments(out_dir):
+    """Segments of one stream folder that ffmpeg has finished: every one except the highest-numbered, because ffmpeg
+    only creates segment N+1 after it closed segment N (a VOD playlist is written only at the very end, so it can't
+    tell). Sorted by number: seg_1000.ts comes after seg_999.ts."""
+    import re
+
+    numbered = []
+    for path in out_dir.glob("seg_*.ts"):
+        match = re.fullmatch(r"seg_(\d+)\.ts", path.name)
+        if match:
+            numbered.append((int(match.group(1)), path))
+    numbered.sort()
+    return [path for _n, path in numbered[:-1]]
+
+
+class _EarlySegmentUploader:
+    """While one ffmpeg run writes the streams, uploads every segment it has finished (upload_early). finish()
+    returns the B2 keys that went up; a failed upload is simply left for the normal upload after ffmpeg."""
+
+    def __init__(self, upload, tmp_path, out_dirs, hls_prefix, threads=8, every_s=2.0):
+        import concurrent.futures
+        import threading
+
+        self.upload, self.tmp_path, self.out_dirs, self.hls_prefix = upload, tmp_path, out_dirs, hls_prefix
+        self.every_s = every_s
+        self.futures = {}
+        self.executor = concurrent.futures.ThreadPoolExecutor(threads)
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+
+    def _scan(self):
+        for out_dir in self.out_dirs:
+            for path in _finished_segments(self.tmp_path / out_dir):
+                key = f"{self.hls_prefix}/{out_dir}/{path.name}"
+                if key not in self.futures:
+                    self.futures[key] = self.executor.submit(self.upload, (path, key, "video/MP2T"))
+
+    def _loop(self):
+        while not self._stop.wait(self.every_s):
+            try:
+                self._scan()
+            except Exception as err:  # never stop ffmpeg over this; the normal upload catches up
+                print(f"[TranscodeVideo] Early upload scan failed: {err}")
+
+    def start(self):
+        self._thread.start()
+        return self
+
+    def finish(self) -> set:
+        self._stop.set()
+        self._thread.join()
+        uploaded = set()
+        for key, future in self.futures.items():
+            try:
+                future.result()
+                uploaded.add(key)
+            except Exception as err:
+                print(f"[TranscodeVideo] Early upload of {key} failed, it goes up after ffmpeg: {err}")
+        self.executor.shutdown()
+        return uploaded
+
+
+def _remove_hls_versions(b2_client, bucket_name, hls_prefix, keys, keep_latest_of=()):
+    """Deletes every stored version of `keys` under hls_prefix, except the newest version of keys in keep_latest_of
+    (a later attempt overwrote them). Plain deletes only hide a file in B2 and it stays billed. Never raises."""
+    keys, keep = set(keys), set(keep_latest_of)
+    if not keys:
+        return 0
+    try:
+        doomed = []
+        for page in b2_client.get_paginator("list_object_versions").paginate(Bucket=bucket_name, Prefix=f"{hls_prefix}/"):
+            for v in page.get("Versions", []) + page.get("DeleteMarkers", []):
+                if v["Key"] in keys and not (v["Key"] in keep and v.get("IsLatest")):
+                    doomed.append({"Key": v["Key"], "VersionId": v["VersionId"]})
+        for i in range(0, len(doomed), 1000):
+            b2_client.delete_objects(Bucket=bucket_name, Delete={"Objects": doomed[i:i + 1000], "Quiet": True})
+        return len(doomed)
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not remove {len(keys)} left-over segments: {err}")
+        return 0
+
+
+# Shared by the Modal workers below and the RunPod worker (runpod_worker/handler.py imports this file), so both
+# make exactly the same streams. Moved here unchanged from _transcode_video_core.
+def _hls_out_dirs(src_height, has_audio):
+    """Stream folders for a source of this height: no tier above the source, 480p always, audio if it has sound."""
+    out_dirs = []
+    if src_height >= 1080: out_dirs.append("1080p")
+    if src_height >= 720:  out_dirs.append("720p")
+    out_dirs.append("480p") # Always generate at least 480p
+    if has_audio:
+        out_dirs.append("audio")
+    return out_dirs
+
+
+def _gpu_all_attempts(stream):
+    """The all-formats GPU worker's attempts in order: (name, command builder, stream fields to build it with)."""
+    attempts = [("GPU decode" if _gpu_all_plan(stream)["gpu_decode"] else "CPU decode", _gpu_all_ffmpeg_cmd, stream),
+                ("mixed (CPU filters)", _mixed_gpu_ffmpeg_cmd, stream)]
+    if _gpu_all_plan(stream)["hdr"]:
+        # As on the CPU workers: HDR the CPU tone map can't read (e.g. no primaries tag) still gets an 8-bit stream
+        attempts.append(("mixed (plain 8-bit)", _mixed_gpu_ffmpeg_cmd, {**stream, "color_transfer": None}))
+    return attempts
+
+
+def _without_tone_map(cmd, sdr_prefix):
+    """The CPU command again without the HDR tone map, for HDR that zscale can't convert (e.g. no primaries tag)."""
+    cmd = list(cmd)
+    fc = cmd.index("-filter_complex") + 1
+    cmd[fc] = cmd[fc].replace(sdr_prefix, "format=yuv420p,", 1)
+    return cmd
+
+
+def _cpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, sdr_prefix="", gop="48", hardware="cpu"):
+    """The CPU workers' single ffmpeg command: libx264 veryfast on every tier (h264_nvenc for the old "gpu" value)."""
+    cmd = ["ffmpeg", "-y", "-i", input_path]
+
+    # Build filter complex dynamically
+    split_count = len([d for d in out_dirs if d != "audio"])
+    filter_str = f"[0:v]{sdr_prefix}split={split_count}" + "".join(f"[v{i+1}]" for i in range(split_count)) + ";"
+        
+    idx = 1
+    if "1080p" in out_dirs:
+        filter_str += f"[v{idx}]scale=w=1920:h=1080:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+        idx += 1
+        
+    if "720p" in out_dirs:
+        filter_str += f"[v{idx}]scale=w=1280:h=720:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+        idx += 1
+        
+    if "480p" in out_dirs:
+        filter_str += f"[v{idx}]scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+
+    cmd += ["-filter_complex", filter_str.rstrip(";")]
+
+    vcodec = "h264_nvenc" if hardware == "gpu" else "libx264"
+    vpreset = "p4" if hardware == "gpu" else "veryfast"
+    
+    idx = 1
+    map_idx = 0
+    var_stream_parts = []
+    
+    # Codec settings injected into each map
+    def add_video_map(out_name, bitrate, maxrate, bufsize):
+        nonlocal cmd, idx, map_idx, var_stream_parts
+        cmd += ["-map", f"[v{idx}out]", f"-c:v:{map_idx}", vcodec, "-preset", vpreset]
+        if hardware == "gpu":
+            cmd += ["-cq", "28", "-force_key_frames", "expr:gte(t,n_forced*6)"]
+        else:
+            cmd += ["-g", gop, "-keyint_min", gop, "-sc_threshold", "0", "-force_key_frames", "expr:gte(t,n_forced*6)"]
+        cmd += [f"-b:v:{map_idx}", bitrate, f"-maxrate:{map_idx}", maxrate, f"-bufsize:{map_idx}", bufsize]
+        if has_audio:
+            var_stream_parts.append(f"v:{map_idx},agroup:audio,name:{out_name}")
+        else:
+            var_stream_parts.append(f"v:{map_idx},name:{out_name}")
+        idx += 1
+        map_idx += 1
+
+    if "1080p" in out_dirs: add_video_map("1080p", "4000k", "4500k", "8000k")
+    if "720p" in out_dirs: add_video_map("720p", "2500k", "3000k", "5000k")
+    if "480p" in out_dirs: add_video_map("480p", "1000k", "1200k", "2000k")
+
+    # Audio
+    if has_audio:
+        cmd += ["-map", "0:a?", "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2"]
+        var_stream_parts.insert(0, "a:0,agroup:audio,default:yes,name:audio")
+
+    var_stream = " ".join(var_stream_parts)
+
+    # Global HLS Settings
+    cmd += [
+        "-f", "hls", "-hls_time", "6", "-hls_playlist_type", "vod",
+        "-hls_flags", "independent_segments",
+        "-hls_segment_filename", str(tmp_path / "%v/seg_%03d.ts"),
+        "-master_pl_name", "master.m3u8",
+        "-var_stream_map", var_stream,
+        str(tmp_path / "%v/playlist.m3u8")
+    ]
+    return cmd
+
+
 def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_gb=None, function_name=None):
     import boto3
+    import json
     import tempfile
     import pathlib
     import subprocess
@@ -1589,6 +2396,47 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
 
     print(f"[TranscodeVideo-{hardware.upper()}] Processing video {storage_key}")
 
+    gop_6s, upload_early = _read_hls_step1_switch(request.get("event_id"))
+    upload_early = upload_early and hardware in ("cpu", "gpu_full", "gpu_all")
+    gop_6s = gop_6s and hardware in ("cpu", "gpu_full", "gpu_all")
+    early = {"last": set(), "failed": set()}  # segments the last ffmpeg run / failed runs uploaded while encoding
+
+    def upload_file_worker(args):
+        file_path, s3_key, content_type = args
+        b2_client.upload_file(
+            str(file_path), bucket_name, s3_key,
+            ExtraArgs={"ContentType": content_type, "CacheControl": "public, max-age=31536000, immutable"}
+        )
+
+    def run_ffmpeg(ffmpeg_cmd, out_dirs, tmp_path):
+        """subprocess.run, plus (upload_early) the finished segments going up meanwhile."""
+        if not upload_early:
+            return subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        early["failed"] |= early["last"]  # a run before this one didn't produce the final streams
+        # A retry (e.g. the CPU workers' plain 8-bit retry) must not have the failed run's playlists read as its own
+        _clear_hls_dirs(tmp_path, out_dirs)
+        uploader = _EarlySegmentUploader(upload_file_worker, tmp_path, out_dirs, hls_prefix).start()
+        try:
+            return subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        finally:
+            early["last"] = uploader.finish()
+
+    def remove_early_uploads_unless_live():
+        """After a failed or handed-over run: delete what it uploaded early, unless the video is already playable
+        (a re-run of a processed video only overwrote its segments)."""
+        uploaded = early["last"] | early["failed"]
+        if not uploaded:
+            return
+        try:
+            row = supabase.table("photos").select("status").eq("id", photo_id).maybe_single().execute()
+            if ((getattr(row, "data", None) if row is not None else None) or {}).get("status") == "processed":
+                return
+        except Exception as err:
+            print(f"[TranscodeVideo-{hardware.upper()}] Keeping early uploads (status unknown): {err}")
+            return
+        removed = _remove_hls_versions(b2_client, bucket_name, hls_prefix, uploaded)
+        print(f"[TranscodeVideo-{hardware.upper()}] Removed {removed} early-uploaded segment versions of a run that did not finish")
+
     try:
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = pathlib.Path(tmp_dir)
@@ -1629,6 +2477,20 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 has_audio = True
                 src_height = 1080
 
+            if _read_probe_v2_switch():
+                try:
+                    probe = subprocess.run([
+                        "ffprobe", "-v", "error",
+                        "-show_entries", "stream=codec_type,width,height:stream_side_data=rotation", "-of", "json",
+                        input_path
+                    ], capture_output=True, text=True)
+                    probed_audio, probed_height = _video_basics_from_probe(json.loads(probe.stdout or "{}"))
+                    if probed_height:
+                        has_audio, src_height = probed_audio, probed_height
+                    print(f"[TranscodeVideo-{hardware.upper()}] Probe: audio={has_audio}, height={src_height}")
+                except Exception as err:
+                    print(f"[TranscodeVideo-{hardware.upper()}] JSON probe failed, keeping the old values: {err}")
+
             video_duration_seconds = None
             try:
                 probe_dur = subprocess.run([
@@ -1645,11 +2507,48 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 except Exception:
                     pass
 
+            gop = _gop_frames(input_path) if gop_6s else "48"
+            if gop_6s:
+                print(f"[TranscodeVideo-{hardware.upper()}] Keyframe interval {gop} frames (6 s), upload while encoding: {upload_early}")
+
+            # The GPU can't take every video: check before writing anything, so a video handed to the 16-core
+            # worker doesn't get its poster written twice (issue #134: the older copy survived the delete)
+            if hardware == "gpu_full":
+                probe = subprocess.run([
+                    "ffprobe", "-v", "error", "-select_streams", "v:0",
+                    "-show_entries", "stream=codec_name,pix_fmt:stream_side_data=rotation", "-of", "json",
+                    input_path
+                ], capture_output=True, text=True)
+                stream = (json.loads(probe.stdout or "{}").get("streams") or [{}])[0]
+                problem = _gpu_decode_problem(stream)
+                if problem:
+                    raise _UseCpuWorker(problem)
+            gpu_path = None  # which step made the streams on the all-formats GPU worker (issue #141)
+            if hardware == "gpu_all":
+                probe = subprocess.run([
+                    "ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                    "stream=codec_name,pix_fmt,color_transfer,color_primaries,width,height:stream_side_data=rotation",
+                    "-of", "json", input_path
+                ], capture_output=True, text=True)
+                stream = (json.loads(probe.stdout or "{}").get("streams") or [{}])[0]
+
             # 3. Extract poster.jpg from local file at 1.0s
-            subprocess.run([
-                "ffmpeg", "-y", "-i", input_path,
-                "-ss", "00:00:01", "-vframes", "1", "-q:v", "2", str(poster_path)
-            ], capture_output=True, text=True)
+            poster_cmd = ["ffmpeg", "-y", "-i", input_path, "-ss", "00:00:01", "-vframes", "1", "-q:v", "2", str(poster_path)]
+            poster_vf = ""
+            if _read_poster_sdr_switch():  # normal colours, at most 1080p (issue #145)
+                probe = subprocess.run([
+                    "ffprobe", "-v", "error", "-select_streams", "v:0",
+                    "-show_entries", "stream=color_transfer,width,height", "-of", "json", input_path
+                ], capture_output=True, text=True)
+                poster_vf = _poster_filter((json.loads(probe.stdout or "{}").get("streams") or [{}])[0])
+            if poster_vf:
+                proc = subprocess.run(poster_cmd[:-1] + ["-vf", poster_vf, str(poster_path)], capture_output=True, text=True)
+                if proc.returncode != 0 or not poster_path.exists() or poster_path.stat().st_size == 0:
+                    # e.g. HDR without colour tags, which zscale can't convert: keep the old poster
+                    print(f"[TranscodeVideo-{hardware.upper()}] Poster conversion failed, using the plain frame: {proc.stderr[-300:]}")
+                    poster_vf = ""
+            if not poster_vf:
+                subprocess.run(poster_cmd, capture_output=True, text=True)
 
             if poster_path.exists() and poster_path.stat().st_size > 0:
                 b2_client.upload_file(
@@ -1664,85 +2563,61 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
 
             # 4. Single-Pass Multi-Output FFmpeg Generation
             # Dynamic tiers based on source height (Don't upscale)
-            out_dirs = []
-            if src_height >= 1080: out_dirs.append("1080p")
-            if src_height >= 720:  out_dirs.append("720p")
-            out_dirs.append("480p") # Always generate at least 480p
-            
-            if has_audio:
-                out_dirs.append("audio")
-                
+            out_dirs = _hls_out_dirs(src_height, has_audio)
             for out_dir in out_dirs:
                 (tmp_path / out_dir).mkdir(parents=True, exist_ok=True)
 
             print(f"[TranscodeVideo-{hardware.upper()}] Starting single-pass multi-output FFmpeg...")
-            
-            cmd = ["ffmpeg", "-y", "-i", input_path]
-            
-            # Build filter complex dynamically
+
+            if hardware == "gpu_full":
+                proc = run_ffmpeg(_full_gpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, gop), out_dirs, tmp_path)
+                if proc.returncode != 0:
+                    raise _UseCpuWorker(f"GPU ffmpeg failed: {(proc.stderr or '')[-500:]}")
+                problem = _hls_length_problem(tmp_path, out_dirs, video_duration_seconds)
+                if problem:
+                    raise _UseCpuWorker(f"GPU output incomplete: {problem}")
+
+            if hardware == "gpu_all":
+                failures = []
+                attempts = _gpu_all_attempts(stream)
+                for path_name, build, attempt_stream in attempts:
+                    proc = run_ffmpeg(build(input_path, tmp_path, out_dirs, has_audio, attempt_stream, gop), out_dirs, tmp_path)
+                    problem = (f"ffmpeg failed: {(proc.stderr or '')[-300:]}" if proc.returncode != 0
+                               else _hls_length_problem(tmp_path, out_dirs, video_duration_seconds))
+                    if not problem:
+                        gpu_path = path_name
+                        break
+                    failures.append(f"{path_name}: {problem}")
+                    print(f"[TranscodeVideo-GPU_ALL] {path_name} did not work: {problem}")
+                    _clear_hls_dirs(tmp_path, out_dirs)
+                if not gpu_path:
+                    raise _UseCpuWorker(" | ".join(failures))
+                print(f"[TranscodeVideo-GPU_ALL] Streams made by the {gpu_path} path")
+
+            # 8-bit SDR output (issue #118): only with the switch on and a source that isn't 8-bit 4:2:0 SDR
+            sdr_prefix = ""
+            if hardware not in ("gpu_full", "gpu_all") and _read_sdr_8bit_switch():
+                probe = subprocess.run([
+                    "ffprobe", "-v", "error", "-select_streams", "v:0",
+                    "-show_entries", "stream=pix_fmt,color_transfer,width,height", "-of", "json", input_path
+                ], capture_output=True, text=True)
+                sdr_prefix = _sdr_8bit_filter((json.loads(probe.stdout or "{}").get("streams") or [{}])[0])
+                if sdr_prefix:
+                    print(f"[TranscodeVideo-{hardware.upper()}] Converting to 8-bit SDR: {sdr_prefix.rstrip(',')}")
+
+            cmd = _cpu_ffmpeg_cmd(input_path, tmp_path, out_dirs, has_audio, sdr_prefix, gop, hardware)
             split_count = len([d for d in out_dirs if d != "audio"])
-            filter_str = f"[0:v]split={split_count}" + "".join(f"[v{i+1}]" for i in range(split_count)) + ";"
-                
-            idx = 1
-            if "1080p" in out_dirs:
-                filter_str += f"[v{idx}]scale=w=1920:h=1080:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
-                idx += 1
-                
-            if "720p" in out_dirs:
-                filter_str += f"[v{idx}]scale=w=1280:h=720:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
-                idx += 1
-                
-            if "480p" in out_dirs:
-                filter_str += f"[v{idx}]scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+            var_stream = cmd[cmd.index("-var_stream_map") + 1]
 
-            cmd += ["-filter_complex", filter_str.rstrip(";")]
+            if hardware not in ("gpu_full", "gpu_all"):  # the GPU run above already made the streams
+                proc = run_ffmpeg(cmd, out_dirs, tmp_path)
+                if proc.returncode != 0 and "tonemap" in sdr_prefix:
+                    # zscale can't convert colours it can't identify (e.g. HDR without primaries tags):
+                    # still give an 8-bit stream that plays, just without the tone map
+                    print(f"[TranscodeVideo-{hardware.upper()}] HDR conversion failed, retrying as plain 8-bit: {proc.stderr[-300:]}")
+                    cmd = _without_tone_map(cmd, sdr_prefix)
+                    proc = run_ffmpeg(cmd, out_dirs, tmp_path)
 
-            vcodec = "h264_nvenc" if hardware == "gpu" else "libx264"
-            vpreset = "p4" if hardware == "gpu" else "veryfast"
-            
-            idx = 1
-            map_idx = 0
-            var_stream_parts = []
-            
-            # Codec settings injected into each map
-            def add_video_map(out_name, bitrate, maxrate, bufsize):
-                nonlocal cmd, idx, map_idx, var_stream_parts
-                cmd += ["-map", f"[v{idx}out]", f"-c:v:{map_idx}", vcodec, "-preset", vpreset]
-                if hardware == "gpu":
-                    cmd += ["-cq", "28", "-force_key_frames", "expr:gte(t,n_forced*6)"]
-                else:
-                    cmd += ["-g", "48", "-keyint_min", "48", "-sc_threshold", "0", "-force_key_frames", "expr:gte(t,n_forced*6)"]
-                cmd += [f"-b:v:{map_idx}", bitrate, f"-maxrate:{map_idx}", maxrate, f"-bufsize:{map_idx}", bufsize]
-                if has_audio:
-                    var_stream_parts.append(f"v:{map_idx},agroup:audio,name:{out_name}")
-                else:
-                    var_stream_parts.append(f"v:{map_idx},name:{out_name}")
-                idx += 1
-                map_idx += 1
-
-            if "1080p" in out_dirs: add_video_map("1080p", "4000k", "4500k", "8000k")
-            if "720p" in out_dirs: add_video_map("720p", "2500k", "3000k", "5000k")
-            if "480p" in out_dirs: add_video_map("480p", "1000k", "1200k", "2000k")
-
-            # Audio
-            if has_audio:
-                cmd += ["-map", "0:a?", "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2"]
-                var_stream_parts.insert(0, "a:0,agroup:audio,default:yes,name:audio")
-
-            var_stream = " ".join(var_stream_parts)
-
-            # Global HLS Settings
-            cmd += [
-                "-f", "hls", "-hls_time", "6", "-hls_playlist_type", "vod",
-                "-hls_flags", "independent_segments",
-                "-hls_segment_filename", str(tmp_path / "%v/seg_%03d.ts"),
-                "-master_pl_name", "master.m3u8",
-                "-var_stream_map", var_stream,
-                str(tmp_path / "%v/playlist.m3u8")
-            ]
-
-            proc = subprocess.run(cmd, capture_output=True, text=True)
-            
             # GPU Fallback to CPU if hardware acceleration fails
             if proc.returncode != 0 and hardware == "gpu":
                 print(f"[TranscodeVideo-GPU] Hardware pipeline failed. Error: {proc.stderr[-500:]}")
@@ -1797,12 +2672,6 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
 
             # 5. Atomic Parallel Upload Fleet
             print(f"[TranscodeVideo-{hardware.upper()}] Transcode complete. Starting strict-order atomic B2 uploads...")
-            def upload_file_worker(args):
-                file_path, s3_key, content_type = args
-                b2_client.upload_file(
-                    str(file_path), bucket_name, s3_key,
-                    ExtraArgs={"ContentType": content_type, "CacheControl": "public, max-age=31536000, immutable"}
-                )
 
             # Phase 1: Upload all .ts chunks
             chunk_tasks = []
@@ -1810,6 +2679,10 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 res_path = tmp_path / out_dir
                 for seg_path in res_path.glob("seg_*.ts"):
                     chunk_tasks.append((seg_path, f"{hls_prefix}/{out_dir}/{seg_path.name}", "video/MP2T"))
+            final_segment_keys = {task[1] for task in chunk_tasks}
+            if early["last"]:
+                chunk_tasks = [task for task in chunk_tasks if task[1] not in early["last"]]
+                print(f"[TranscodeVideo-{hardware.upper()}] -> {len(early['last'])} chunks already went up while encoding")
 
             print(f"[TranscodeVideo-{hardware.upper()}] -> Uploading {len(chunk_tasks)} video chunks...")
             with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
@@ -1837,8 +2710,19 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 ExtraArgs={"ContentType": "application/x-mpegURL", "CacheControl": "public, max-age=3600"}
             )
 
-        # 6. Calculate exact HLS overhead size & update Supabase record
-        total_hls_bytes = sum(f.stat().st_size for f in tmp_path.glob("**/*") if f.is_file())
+        if early["failed"]:
+            # An earlier attempt of this run uploaded segments before it failed: drop the ones the final streams
+            # don't use, and the old versions of the ones the final attempt overwrote
+            removed = _remove_hls_versions(b2_client, bucket_name, hls_prefix, early["failed"],
+                                           keep_latest_of=early["failed"] & final_segment_keys)
+            print(f"[TranscodeVideo-{hardware.upper()}] Removed {removed} segment versions left by a failed attempt")
+
+        # 6. Streaming copy size, from what is now in B2. It used to be summed from the temporary folder after
+        # that folder had been deleted, so every video was saved with overhead_size 0 and its streaming copy
+        # (often more than half the original's size) never counted toward the host's storage.
+        total_hls_bytes = 0
+        for page in b2_client.get_paginator("list_objects_v2").paginate(Bucket=bucket_name, Prefix=f"{hls_prefix}/"):
+            total_hls_bytes += sum(obj["Size"] for obj in page.get("Contents", []))
         print(f"[TranscodeVideo-{hardware.upper()}] Calculated exact HLS streaming overhead: {total_hls_bytes} bytes (~{total_hls_bytes / (1024 * 1024):.2f} MB)")
 
         update_data = {
@@ -1854,15 +2738,28 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
         # A retry must preserve a frame explicitly chosen by the video owner.
         # Atomic null check also protects a concurrent custom-thumbnail save.
         supabase.table("photos").update({"thumbnail_url": poster_url}).eq("id", photo_id).is_("thumbnail_url", "null").execute()
-        supabase.table("photos").update(update_data).eq("id", photo_id).execute()
+        saved = supabase.table("photos").update(update_data).eq("id", photo_id).execute()
+        if not saved.data:
+            # The video was deleted (or its upload cancelled) while it was being converted: the delete already
+            # removed hls/<storage_key>/, but this run uploaded the streaming copy after that. Remove it again
+            # so it isn't left in B2 with nothing pointing at it.
+            removed = 0
+            # Every version, not just the latest: a plain delete only hides a file in B2 and it stays billed
+            for page in b2_client.get_paginator("list_object_versions").paginate(Bucket=bucket_name, Prefix=f"{hls_prefix}/"):
+                keys = [{"Key": v["Key"], "VersionId": v["VersionId"]} for v in page.get("Versions", []) + page.get("DeleteMarkers", [])]
+                if keys:
+                    b2_client.delete_objects(Bucket=bucket_name, Delete={"Objects": keys, "Quiet": True})
+                    removed += len(keys)
+            print(f"[TranscodeVideo-{hardware.upper()}] Video {photo_id} was deleted during processing; removed {removed} streaming files.")
+            return {"status": "cancelled", "photo_id": photo_id}
         _notify_video_processed(photo_id)
 
         # 7. Log infrastructure cost
         duration = time.time() - start_time
         memory_gb = memory_gb or (8.0 if hardware == "gpu" else 4.0)
         function_name = function_name or f"process_video_{hardware}"
-        gpu_type = "l4" if hardware == "gpu" else "None"
-        gpu_cost_rate = 0.0222 if hardware == "gpu" else 0.0
+        gpu_type = "l4" if hardware in ("gpu", "gpu_full", "gpu_all") else "None"
+        gpu_cost_rate = 0.0222 if hardware in ("gpu", "gpu_full", "gpu_all") else 0.0
         estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222) + gpu_cost_rate)
         event_id = request.get("event_id")
         user_id = request.get("user_id")
@@ -1890,8 +2787,10 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                 pass
 
         video_size = raw_video_path.stat().st_size if raw_video_path.exists() else None
-        if hardware == "gpu":
+        if hardware in ("gpu", "gpu_full", "gpu_all"):
             worker_desc = "Modal GPU Worker (NVIDIA L4 • 4 vCPU • 8GB RAM)"
+            if gpu_path:
+                worker_desc += f" • {gpu_path}"
         elif cpu_cores == 4.0:
             worker_desc = "Modal CPU Worker (4 vCPU • 4GB RAM)"
         else:
@@ -1942,7 +2841,11 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
         print(f"[TranscodeVideo-{hardware.upper()}] completed in {duration:.1f}s")
         return {"status": "success", "hls_master_url": hls_master_url}
 
+    except _UseCpuWorker:
+        remove_early_uploads_unless_live()  # the 16-core worker makes and uploads every segment again
+        raise  # not a failure: transcode_video_long_gpu hands the video to the 16-core worker
     except Exception as e:
+        remove_early_uploads_unless_live()
         error_details = str(e)
         try:
             supabase.table("photos").update({"status": "failed", "processing_error": error_details[:1000]}).eq("id", photo_id).execute()
@@ -1965,11 +2868,105 @@ def _transcode_long(request: dict):
 def _transcode_short(request: dict):
     return _transcode_video_core(request, hardware="cpu")
 
+# Issue #157 (burst of uploads): with the "queue_aware" key of the video switch on, Modal records on the photo row
+# when a video's job was queued (transcode_queued_at: accepted from QStash, or handed from the GPU to the 16-core
+# worker) and, while a worker runs it, a heartbeat every minute (transcode_heartbeat_at). The backend watchdog
+# (VIDEO_WATCHDOG_QUEUE_AWARE=true) then leaves waiting and running videos alone instead of re-sending every video
+# still processing 15 min after upload. A worker also skips a video whose row already points at this file's
+# finished stream, so a re-sent copy that starts after the first run finished doesn't transcode it again.
+# Off (the default): none of this runs. Needs supabase/migrations/20261027000000_video_transcode_heartbeat.sql;
+# without it the writes fail, are logged once and ignored.
+_TRANSCODE_HEARTBEAT_S = 60
+
+
+def _read_queue_aware_switch() -> bool:
+    try:
+        return bool(modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True).get("queue_aware", False))
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not read the queue-aware switch, keeping the old behaviour: {err}")
+        return False
+
+
+def _video_db():
+    from supabase import create_client
+
+    return create_client(os.environ.get("NEXT_PUBLIC_SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_ROLE_KEY"))
+
+
+def _utc_now_iso() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _mark_video_queued(photo_id):
+    """Best effort: if it fails, the watchdog treats the video as it always has."""
+    if not photo_id:
+        return
+    try:
+        _video_db().table("photos").update({"transcode_queued_at": _utc_now_iso()}).eq("id", photo_id).eq("status", "processing").execute()
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not record the queued time of {photo_id}: {err}")
+
+
+def _video_already_done(photo_id, storage_key) -> bool:
+    """True when the row is processed and already points at this file's stream. Any error: False (transcode)."""
+    try:
+        res = _video_db().table("photos").select("status, url").eq("id", photo_id).maybe_single().execute()
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not check whether {photo_id} is already done: {err}")
+        return False
+    row = (getattr(res, "data", None) if res is not None else None) or {}
+    return row.get("status") == "processed" and str(row.get("url") or "").endswith(f"/hls/{storage_key}/master.m3u8")
+
+
+class _TranscodeHeartbeat:
+    """Writes transcode_heartbeat_at now and every _TRANSCODE_HEARTBEAT_S seconds until the block ends."""
+
+    def __init__(self, photo_id):
+        self.photo_id = photo_id
+        self._warned = False
+
+    def _beat(self):
+        try:
+            self._db.table("photos").update({"transcode_heartbeat_at": _utc_now_iso()}).eq("id", self.photo_id).eq("status", "processing").execute()
+        except Exception as err:
+            if not self._warned:
+                print(f"[TranscodeVideo] Heartbeat for {self.photo_id} failed (logged once): {err}")
+                self._warned = True
+
+    def _run(self):
+        while not self._stop.wait(_TRANSCODE_HEARTBEAT_S):
+            self._beat()
+
+    def __enter__(self):
+        import threading
+
+        self._stop = threading.Event()
+        try:
+            self._db = _video_db()
+        except Exception as err:
+            print(f"[TranscodeVideo] No heartbeat for {self.photo_id}: {err}")
+            self._thread = None
+            return self
+        self._beat()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc):
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=5)
+        return False
+
+
 def _transcode_once(payload: dict, transcode):
     """
     Skips a second transcode of a video that is already being transcoded, e.g. when the backend
     watchdog re-queues a long video whose first run is still going.
     """
+    import contextlib
     import time
 
     storage_key = payload.get("storage_key") or payload.get("object_key") or ""
@@ -1982,7 +2979,12 @@ def _transcode_once(payload: dict, transcode):
             return {"status": "skipped", "photo_id": photo_id}
         locks[photo_id] = now  # older than the function timeout: its run died without releasing it
     try:
-        return transcode(payload)
+        queue_aware = _read_queue_aware_switch()
+        if queue_aware and _video_already_done(photo_id, storage_key):
+            print(f"[TranscodeVideo] {photo_id} is already transcoded (re-sent copy); skipping it")
+            return {"status": "skipped", "photo_id": photo_id, "reason": "already processed"}
+        with (_TranscodeHeartbeat(photo_id) if queue_aware else contextlib.nullcontext()):
+            return transcode(payload)
     finally:
         try:
             locks.pop(photo_id, None)
@@ -2017,6 +3019,97 @@ def transcode_video_short(payload: dict):
 def transcode_video_long(payload: dict):
     return _transcode_once(payload, _transcode_long)
 
+def _transcode_long_gpu(request: dict):
+    return _transcode_video_core(request, hardware="gpu_full", cpu_cores=4.0, memory_gb=8.0, function_name="process_video_gpu_long")
+
+# Same CPU and memory as the 2026-10-18 benchmark worker
+@app.function(
+    image=transcode_image,
+    gpu="L4",
+    cpu=4.0,
+    memory=8192,
+    timeout=3600,
+    scaledown_window=10,
+    retries=_video_retries,
+    max_containers=5,
+    secrets=_video_secrets,
+)
+def transcode_video_long_gpu(payload: dict):
+    import time
+
+    starts = modal.Dict.from_name(VIDEO_GPU_STARTS, create_if_missing=True)
+    call_id = modal.current_function_call_id()
+    # A retry finds its own "gpu" mark; "cpu" means watch_gpu_start gave up waiting and the 16-core worker has it
+    if not starts.put(call_id, "gpu", skip_if_exists=True) and starts.get(call_id) != "gpu":
+        print(f"[VideoGPU] {payload.get('photo_id')} already went to the 16-core worker; skipping")
+        return {"status": "skipped", "photo_id": payload.get("photo_id")}
+    started = time.time()
+    try:
+        return _transcode_once(payload, _transcode_long_gpu)
+    except _UseCpuWorker as err:
+        print(f"[VideoGPU] {payload.get('photo_id')} -> 16-core worker: {err}")
+        _log_gpu_fallback(payload, str(err), time.time() - started)
+        transcode_video_long.spawn(payload)
+        if _read_queue_aware_switch():
+            _mark_video_queued(payload.get("photo_id") or payload.get("id"))
+        return {"status": "sent_to_cpu", "photo_id": payload.get("photo_id"), "reason": str(err)[:300]}
+
+def _transcode_long_gpu_all(request: dict):
+    return _transcode_video_core(request, hardware="gpu_all", cpu_cores=4.0, memory_gb=8.0, function_name="process_video_gpu_long")
+
+# Issue #141: the L4 worker for every video format (Jellyfin ffmpeg); same resources as transcode_video_long_gpu
+@app.function(
+    image=gpu_all_image,
+    gpu="L4",
+    cpu=4.0,
+    memory=8192,
+    timeout=3600,
+    scaledown_window=10,
+    retries=_video_retries,
+    max_containers=5,
+    secrets=_video_secrets,
+)
+def transcode_video_long_gpu_all(payload: dict):
+    import time
+
+    starts = modal.Dict.from_name(VIDEO_GPU_STARTS, create_if_missing=True)
+    call_id = modal.current_function_call_id()
+    if not starts.put(call_id, "gpu", skip_if_exists=True) and starts.get(call_id) != "gpu":
+        print(f"[VideoGPU] {payload.get('photo_id')} already went to the 16-core worker; skipping")
+        return {"status": "skipped", "photo_id": payload.get("photo_id")}
+    started = time.time()
+    try:
+        return _transcode_once(payload, _transcode_long_gpu_all)
+    except _UseCpuWorker as err:
+        print(f"[VideoGPU] {payload.get('photo_id')} -> 16-core worker (both GPU steps failed): {err}")
+        _log_gpu_fallback(payload, str(err), time.time() - started)
+        transcode_video_long.spawn(payload)
+        if _read_queue_aware_switch():
+            _mark_video_queued(payload.get("photo_id") or payload.get("id"))
+        return {"status": "sent_to_cpu", "photo_id": payload.get("photo_id"), "reason": str(err)[:300]}
+
+@app.function(image=media_image, timeout=3600, secrets=_video_secrets)
+def watch_gpu_start(call_id: str, payload: dict, wait_s: float):
+    """Sends the video to the 16-core worker if no L4 has picked it up within wait_s seconds."""
+    import time
+
+    starts = modal.Dict.from_name(VIDEO_GPU_STARTS, create_if_missing=True)
+    deadline = time.time() + wait_s
+    while time.time() < deadline:
+        if starts.get(call_id):
+            return "gpu"
+        time.sleep(5)
+    if not starts.put(call_id, "cpu", skip_if_exists=True):
+        return "gpu"  # started just now
+    print(f"[VideoGPU] No L4 for {payload.get('photo_id')} after {wait_s:g}s; sending it to the 16-core worker")
+    _log_gpu_fallback(payload, f"no L4 started within {wait_s:g}s", 0.0)
+    # Best effort (a queued call can still start after cancel): if it does, it finds the "cpu" mark and skips
+    modal.FunctionCall.from_id(call_id).cancel()
+    transcode_video_long.spawn(payload)
+    if _read_queue_aware_switch():
+        _mark_video_queued(payload.get("photo_id") or payload.get("id"))
+    return "cpu"
+
 async def _accept_video_job(request, worker):
     """Checks the QStash signature, starts the transcode in the background and replies 202 at once."""
     import json
@@ -2030,8 +3123,31 @@ async def _accept_video_job(request, worker):
         raise fastapi.HTTPException(status_code=400, detail="Body must be JSON")
     if not isinstance(payload, dict) or not (payload.get("storage_key") or payload.get("object_key")):
         raise fastapi.HTTPException(status_code=400, detail="Missing required storage_key or photo_id")
+    if worker is transcode_video_long:
+        mode, gpu_events, wait_s, all_formats = await _read_video_gpu_switch()
+        if _pick_long_video_worker(payload.get("event_id"), mode, gpu_events) == "gpu":
+            gpu_worker = transcode_video_long_gpu_all if all_formats else transcode_video_long_gpu
+            call = await gpu_worker.spawn.aio(payload)
+            await watch_gpu_start.spawn.aio(call.object_id, payload, wait_s)
+            await _mark_queued_if_switch_on(payload)
+            return JSONResponse({"accepted": True, "photo_id": payload.get("photo_id") or payload.get("id")}, status_code=202)
     await worker.spawn.aio(payload)
+    await _mark_queued_if_switch_on(payload)
     return JSONResponse({"accepted": True, "photo_id": payload.get("photo_id") or payload.get("id")}, status_code=202)
+
+
+async def _mark_queued_if_switch_on(payload: dict):
+    """Issue #157: records that Modal accepted the job (queue_aware switch key only). Never raises."""
+    import asyncio
+
+    try:
+        switch = modal.Dict.from_name(VIDEO_GPU_SWITCH, create_if_missing=True)
+        if not bool(await switch.get.aio("queue_aware", False)):
+            return
+    except Exception as err:
+        print(f"[TranscodeVideo] Could not read the queue-aware switch: {err}")
+        return
+    await asyncio.to_thread(_mark_video_queued, payload.get("photo_id") or payload.get("id"))
 
 # Same names as before, so the backend's URLs don't change
 @app.function(image=media_image, secrets=_video_secrets)

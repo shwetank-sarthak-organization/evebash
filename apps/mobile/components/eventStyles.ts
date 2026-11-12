@@ -1,5 +1,5 @@
 import { StyleSheet, Dimensions, Platform } from 'react-native';
-import { MidnightColors, Fonts } from '../constants/theme';
+import { MidnightColors, Fonts, LightColors } from '../constants/theme';
 
 import { baseStyles } from './eventStyles/baseStyles';
 import { cyberTechStyles } from './eventStyles/cyberTechStyles';
@@ -7,6 +7,7 @@ import { retroArcadeStyles } from './eventStyles/retroArcadeStyles';
 import { visitorImmersiveStyles } from './eventStyles/visitorImmersiveStyles';
 import { royalStyles } from './eventStyles/royalStyles';
 import { classicStyles } from './eventStyles/classicStyles';
+import { portraitStyles } from './eventStyles/portraitStyles';
 import { gardenStyles } from './eventStyles/gardenStyles';
 import { bohemianStyles } from './eventStyles/bohemianStyles';
 import { museumStyles } from './eventStyles/museumStyles';
@@ -15,6 +16,7 @@ import { techSleekStyles } from './eventStyles/techSleekStyles';
 import { executiveSuiteStyles } from './eventStyles/executiveSuiteStyles';
 import { sportsStyles } from './eventStyles/sportsStyles';
 import { FunkyFonts } from './eventStyles/funkyFonts';
+import { makeHostLightStyles } from './eventStyles/hostLightStyles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -27,6 +29,7 @@ export const styles = StyleSheet.create({
   ...visitorImmersiveStyles,
   ...royalStyles,
   ...classicStyles,
+  ...portraitStyles,
   ...gardenStyles,
   ...bohemianStyles,
   ...museumStyles,
@@ -35,3 +38,6 @@ export const styles = StyleSheet.create({
   ...executiveSuiteStyles,
   ...sportsStyles,
 } as any);
+
+// The host's event screen in the light look (todo #1); guests and the dark look always use `styles`
+export const hostLightStyles = makeHostLightStyles(styles, LightColors);

@@ -1,0 +1,78 @@
+# Builds the RunPod video worker image (runpod_worker/, todo #18) and publishes it privately to
+# ghcr.io/<owner>/evebash-video-worker, tagged with the commit and "staging". RunPod pulls it with the read-only
+# credential "ghcr-evebash" saved in RunPod (Account > Container Registry Auth). Publishing uses this run's own
+# GITHUB_TOKEN (packages: write below), so no personal token is stored anywhere.
+name: RunPod video worker image
+
+on:
+  push:
+    branches: [staging]
+    paths:
+      - "runpod_worker/**"
+      - "modal_engine/main.py"
+      - ".github/workflows/runpod-video-worker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: runpod-video-worker
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/evebash-video-worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the image (not published yet)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: runpod_worker/Dockerfile
+          load: true
+          tags: evebash-video-worker:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test - ffmpeg encoders and filters the recipe needs
+        run: |
+          docker run --rm evebash-video-worker:test sh -c 'ffmpeg -hide_banner -encoders' | tee /tmp/encoders.txt | grep -E ' (libx264|h264_nvenc|aac) '
+          for f in libx264 h264_nvenc; do grep -q " $f " /tmp/encoders.txt || { echo "missing encoder $f"; exit 1; }; done
+          docker run --rm evebash-video-worker:test sh -c 'ffmpeg -hide_banner -filters' > /tmp/filters.txt
+          for f in zscale tonemap scale_cuda tonemap_cuda transpose_cuda; do grep -qE " $f " /tmp/filters.txt || { echo "missing filter $f"; exit 1; }; done
+
+      - name: Smoke test - the worker imports and converts a test video end to end (CPU path)
+        run: |
+          docker run --rm -v "$PWD:/repo:ro" evebash-video-worker:test sh -c '
+            python -c "import sys; sys.path.insert(0, \"/app\"); import handler; print(\"handler imports\")" &&
+            ffmpeg -v error -f lavfi -i testsrc2=size=1920x1080:rate=30 -f lavfi -i sine=frequency=440 -t 60 \
+              -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest /tmp/test.mp4 &&
+            python /repo/runpod_worker/tests/test_handler_local.py /tmp/test.mp4'
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: runpod_worker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:staging
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.description=EveBash RunPod video worker (todo #18)
+          cache-from: type=gha

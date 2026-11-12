@@ -59,15 +59,15 @@ export default function PublicPortfolioEventPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#050505] text-white">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-300" />
+      <div className="flex min-h-screen items-center justify-center bg-[#050505] light:bg-[var(--site-bg)] text-white light:text-[var(--site-text)]">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-300 light:text-indigo-700" />
       </div>
     );
   }
 
   if (!business || !portfolio) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] px-4 text-center text-white">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] light:bg-[var(--site-bg)] px-4 text-center text-white light:text-[var(--site-text)]">
         <h1 className="text-2xl font-black">Portfolio event not found.</h1>
         <button onClick={() => goBack()} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">
           Back to EB Network
@@ -110,7 +110,7 @@ export default function PublicPortfolioEventPage() {
       templateId={templateId}
     />
   ) : (
-    <div className="mx-auto flex min-h-64 max-w-4xl items-center justify-center rounded-3xl border border-dashed border-white/15 bg-black/10 px-6 text-center">
+    <div className="mx-auto flex min-h-64 max-w-4xl items-center justify-center rounded-3xl border border-dashed border-[var(--site-tint)]/15 bg-black/10 px-6 text-center">
       <span className="text-sm font-black uppercase tracking-[0.18em] opacity-60">No images uploaded yet.</span>
     </div>
   );
@@ -119,7 +119,7 @@ export default function PublicPortfolioEventPage() {
     <div className="relative min-h-screen">
       <button
         onClick={() => goBack("/eb-network")}
-        className="fixed left-4 top-4 z-[80] flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/70 text-white shadow-xl backdrop-blur transition hover:bg-black"
+        className="fixed left-4 top-4 z-[80] flex h-11 w-11 items-center justify-center rounded-full border border-[var(--site-tint)]/15 bg-black/70 text-white shadow-xl backdrop-blur transition hover:bg-black"
         aria-label="Back to EB Network"
       >
         <ArrowLeft className="h-5 w-5" />

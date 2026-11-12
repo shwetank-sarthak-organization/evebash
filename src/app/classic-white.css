@@ -1,0 +1,270 @@
+/* Classic White only (src/components/TemplateClassic.tsx): shared gallery markup keeps every other theme's styles.
+   Palette from src/lib/webTemplateTheme.ts: soft white #FCFCFA, white #fff, text #2C352E, muted #596653, sage #8B9A6E, line #E6E6E0.
+   Sage is for lines only; on white it is too light for text (about 3:1). */
+
+/* Playfair Display (already loaded) instead of the Georgia that gallery-refinements.css gives every theme */
+.event-template-shell .classic-template .font-serif { font-family: var(--font-playfair-src), Georgia, serif; }
+/* The navbar's small-screen menu sits outside .classic-template, so its serif titles would fall back to Georgia */
+.event-template-shell .classic-nav__menu .font-serif { font-family: var(--font-playfair-src), Georgia, serif; }
+
+/* Top of the page: the date / place line and the title in capitals. The date's line box stays 20px tall, so the
+   bigger text moves nothing below it. */
+.classic-hero__details {
+  font-size: clamp(14px, 1.15vw, 18px);
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  color: #596653;
+}
+.classic-hero__title {
+  font-family: var(--font-playfair-src), Georgia, serif;
+  font-size: clamp(2.25rem, min(6.5vw, 8svh), 5.5rem);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: #2C352E;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.classic-hero__title--long { font-size: clamp(2rem, min(5vw, 6.5svh), 4.25rem); }
+.classic-hero__title--xlong { font-size: clamp(1.75rem, min(3.8vw, 5svh), 3.25rem); }
+
+/* Deep sage buttons with white text (6:1): guest "Add photos" and "Load More Media" */
+.classic-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 26px;
+  border-radius: 999px;
+  background: #596653;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  box-shadow: 0 8px 20px -10px rgba(44, 53, 46, .5);
+  cursor: pointer;
+  transition: background-color .2s ease;
+}
+.classic-button--large { padding: 16px 32px; font-size: 13px; }
+.classic-button:hover:not(:disabled) { background: #2C352E; }
+.classic-button:disabled { opacity: .6; cursor: default; }
+
+/* Empty gallery: full-strength muted text instead of opacity-50 */
+.classic-empty { color: #596653; }
+.classic-empty svg { color: #8B9A6E; }
+
+/* Selected Photos / Videos tab: white on deep sage like the buttons (the shared rule gives black on light sage) */
+.classic-gallery-content [data-royal-control="segments"] [aria-pressed="true"] { background: #596653; color: #fff; }
+
+/* Photos sit in justified rows (gallery-refinements.css) with no card edge, like a printed album page */
+.classic-gallery-content .gallery-masonry { padding-block: 0; }
+
+/* The guest footer (src/components/Footer.tsx) lines up with the full-width navbar and gallery */
+body:has(.classic-template) .event-footer > div { max-width: none; }
+
+/* Gallery header (src/components/classic/ClassicGalleryHeader.tsx): text on the left, the gallery video in a white
+   mat on the right; text alone when there is no video. Stacks on narrow screens. */
+/* The gallery section starts close under the line below the cover */
+.classic-gallery-content { padding-top: clamp(28px, 3vw, 40px); }
+.classic-gh { display: grid; gap: 48px; align-items: center; color: #2C352E; text-align: left; }
+@media (min-width: 1024px) {
+  /* The text column is as tall as the video: Back / Share level with its top, the tabs level with its bottom */
+  .classic-gh--video { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(40px, 5vw, 96px); align-items: stretch; }
+  .classic-gh--video .classic-gh__text { justify-content: space-between; }
+  .classic-gh--video .classic-gh__mat { align-self: start; }
+}
+.classic-gh__text { display: flex; flex-direction: column; gap: clamp(20px, 2.5vw, 40px); min-width: 0; }
+.classic-gh__actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.classic-gh__action {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 12px 22px;
+  border: 1px solid rgba(44, 53, 46, .28);
+  border-radius: 2px;
+  background: transparent;
+  color: #2C352E;
+  font-size: 15px;
+  transition: background-color .2s ease, border-color .2s ease;
+}
+.classic-gh__action:hover { background: #fff; border-color: rgba(44, 53, 46, .5); }
+.classic-gh__title {
+  margin: 0;
+  font-family: var(--font-playfair-src), Georgia, serif;
+  font-size: clamp(2.5rem, 5vw, 5.5rem);
+  font-weight: 500;
+  line-height: .98;
+  letter-spacing: -.01em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.themed-gallery-content .classic-gh__title { color: #1F2620; }
+.classic-gh__details {
+  margin-top: 20px;
+  font-family: var(--font-playfair-src), Georgia, serif;
+  font-size: clamp(1.15rem, 1.8vw, 1.6rem);
+  font-style: italic;
+  color: #2C352E;
+}
+.classic-gh__message {
+  margin-top: 14px;
+  max-width: 42rem;
+  font-family: var(--font-playfair-src), Georgia, serif;
+  font-size: clamp(1rem, 1.2vw, 1.15rem);
+  font-style: italic;
+  line-height: 1.6;
+  color: #596653;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.classic-gh__tabs {
+  align-self: flex-start;
+  display: inline-flex; flex-wrap: wrap; gap: 40px;
+  border-bottom: 1px solid rgba(44, 53, 46, .18);
+}
+.classic-gh__tab {
+  display: inline-flex; gap: 10px;
+  margin-bottom: -1px;
+  padding: 0 0 12px;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: #596653;
+  font-size: clamp(1rem, 1.5vw, 1.3rem);
+  transition: color .2s ease, border-color .2s ease;
+}
+.classic-gh__tab:hover { color: #2C352E; }
+.classic-gh__tab[aria-pressed="true"] { color: #2C352E; border-bottom-color: #596653; }
+
+.classic-gh__mat {
+  margin: 0;
+  padding: clamp(16px, 2.4vw, 40px) clamp(16px, 2.4vw, 40px) 0;
+  background: #fff;
+  border: 1px solid #E6E6E0;
+  box-shadow: 0 22px 50px -28px rgba(44, 53, 46, .45);
+}
+.classic-gh__screen { position: relative; aspect-ratio: 16 / 10; overflow: hidden; background: #FCFCFA; outline: 1px solid #E6E6E0; outline-offset: 5px; }
+.classic-gh__player, .classic-gh__poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.classic-gh__start { position: absolute; inset: 0; display: grid; place-items: center; width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.classic-gh__play {
+  position: relative; display: grid; place-items: center;
+  width: 84px; height: 84px; border-radius: 999px;
+  background: rgba(255, 255, 255, .28);
+  border: 1px solid rgba(255, 255, 255, .55);
+  color: #fff;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+  transition: transform .2s ease, background-color .2s ease;
+}
+.classic-gh__play-icon { width: 30px; height: 30px; margin-left: 4px; fill: currentColor; }
+.classic-gh__start:hover .classic-gh__play { transform: scale(1.05); background: rgba(255, 255, 255, .38); }
+.classic-gh__start:focus-visible { outline: 2px solid #2C352E; outline-offset: -6px; }
+.classic-gh__caption { padding: 16px 0 18px; text-align: center; color: #596653; font-size: 15px; }
+@media (prefers-reduced-motion: reduce) { .classic-gh__play, .classic-gh__action, .classic-gh__tab { transition: none; } }
+
+/* Navbar (EventNavbar variant="classic"): soft white, full width, the bar between two thin sage lines; title on the left,
+   plain capital links on the right. The small-screen menu keeps the shared look. */
+.classic-nav {
+  position: fixed; inset: 0 0 auto; z-index: 50;
+  padding: 10px 16px 0;
+  background: #FCFCFA;
+  color: #2C352E;
+  transition: box-shadow .3s ease;
+}
+@media (min-width: 640px) { .classic-nav { padding-inline: 24px; } }
+@media (min-width: 1024px) { .classic-nav { padding-inline: 32px; } }
+.classic-nav--scrolled { box-shadow: 0 8px 24px -18px rgba(44, 53, 46, .45); }
+.classic-nav__bar {
+  width: 100%;
+  min-height: 60px;
+  border-top: 1px solid #8B9A6E;
+  border-bottom: 1px solid #8B9A6E;
+}
+.classic-nav__title {
+  position: relative; z-index: 50;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-playfair-src), Georgia, serif;
+  /* Upright capitals like the cover title, in bold so the small size still reads as the name */
+  font-size: 1.2rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: #2C352E;
+}
+.classic-nav__links { gap: clamp(20px, 3vw, 56px); }
+.classic-nav__link {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 0;
+  background: none;
+  color: #2C352E;
+  font-size: 13px; font-weight: 500;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color .2s ease;
+}
+.classic-nav__link::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 2px;
+  height: 1px; background: #596653;
+  transform: scaleX(0); transform-origin: left; transition: transform .25s ease;
+}
+.classic-nav__link:hover::after, .classic-nav__link--active::after { transform: scaleX(1); }
+.classic-nav__link:disabled { opacity: .6; cursor: default; }
+.classic-nav__link:focus-visible { outline: 2px solid #2C352E; outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) { .classic-nav, .classic-nav__link, .classic-nav__link::after { transition: none; } }
+
+/* Cover print and message card (src/components/classic/ClassicCoverPrint.tsx). The print fills the height left on
+   the first screen: .classic-print__space is a size container and the mount is sized from it, keeping the shape. */
+.classic-print {
+  flex: 1; min-height: 240px;
+  display: flex; flex-direction: column; align-items: center;
+  margin-top: clamp(12px, 2.4svh, 28px);
+  container-type: size;
+}
+.classic-print--no-cover { justify-content: center; }
+.classic-print__card {
+  position: relative; z-index: 2; flex-shrink: 0;
+  /* About three quarters of the mount's width (the mount is height-limited on most screens), so its white
+     border shows on both sides of the card as on a real mounted print */
+  width: max-content;
+  max-width: min(80cqw, 760px, calc((100cqh - 90px) * 1.18));
+  min-width: min(100%, 300px);
+  margin-bottom: -14px;
+  padding: 16px 58px;
+  background: #F6F6F2;
+  border: 1px solid #E6E6E0;
+  box-shadow: 0 8px 18px -12px rgba(44, 53, 46, .45);
+  rotate: 1deg;
+  color: #2C352E;
+  text-align: center;
+}
+.classic-print--no-cover .classic-print__card { margin-bottom: 0; }
+.classic-print__message {
+  margin: 0;
+  font-family: var(--font-playfair-src), Georgia, serif;
+  font-size: clamp(16px, 1.3vw, 20px);
+  font-style: italic;
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.classic-print__card--medium .classic-print__message { font-size: clamp(14px, 1.1vw, 17px); }
+/* Long messages run wider (fewer lines) so the photo keeps its room; the card is then a banner above the print */
+.classic-print__card--long { max-width: min(86cqw, 860px); }
+.classic-print__card--long .classic-print__message { font-size: clamp(13px, .95vw, 15px); line-height: 1.5; text-wrap: pretty; }
+.classic-print__sprig { position: absolute; top: 50%; left: 14px; width: clamp(30px, 2.6vw, 38px); translate: 0 -50%; color: #7D8C61; }
+.classic-print__sprig--right { left: auto; right: 14px; scale: -1 1; }
+
+.classic-print__space { position: relative; flex: 1; width: 100%; min-height: 0; container-type: size; }
+.classic-print__mount {
+  /* A little narrower than the space so the tilted corners stay inside it */
+  --w: min(94cqw, 132cqh, 1080px);
+  position: absolute; top: 0; left: 50%;
+  width: var(--w); height: calc(var(--w) / 1.38);
+  padding: max(26px, calc(var(--w) * .045));
+  translate: -50% 0; rotate: -2.2deg;
+  background: #fff;
+  border: 1px solid #E6E6E0;
+  box-shadow: 0 22px 44px -26px rgba(44, 53, 46, .55), 0 2px 6px -2px rgba(44, 53, 46, .12);
+}
+.classic-print__photo { position: relative; width: 100%; height: 100%; overflow: hidden; background: #FCFCFA; box-shadow: inset 0 0 0 1px rgba(44, 53, 46, .12); }

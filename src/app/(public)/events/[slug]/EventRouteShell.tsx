@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EventNavbar } from "@/components/EventNavbar";
+import { ConfettiFooter } from "@/components/confetti/ConfettiFooter";
+import { PortraitFooter } from "@/components/portrait/PortraitFooter";
 import { OpenInAppBanner } from "@/components/OpenInAppBanner";
 import {
     Event,
@@ -22,6 +24,7 @@ import { downloadGalleryAsZip } from "@/lib/zipDownload";
 import { getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { alertDialog, choiceDialog } from "@/components/ui/Modal";
 import { fetchEntireEventZipItems, HOME_DOWNLOAD_DIALOG, toZipItem } from "@/lib/galleryDownload";
+import { useGuestEditState, withGuestEdits } from "@/components/guestEdit/guestEditStore";
 
 interface EventRouteShellProps {
     children: React.ReactNode;
@@ -34,11 +37,19 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
     const searchParams = useSearchParams();
     const isShared = searchParams.get("shared") === "true";
     const sharedQuery = isShared ? "?shared=true" : "";
+    // The Design tab's small preview of this page (GuestPagePreview) leaves out the "Open in app" banner
+    const isPagePreview = searchParams.get("preview") === "1";
     const { user, loading: authLoading } = useAuth();
     const [isPublicView, setIsPublicView] = useState(false);
     const [event, setEvent] = useState<Event | null>(null);
-    const [mainEvent, setMainEvent] = useState<Event | null>(null);
-    const [subEvents, setSubEvents] = useState<Event[]>([]);
+    const [loadedMainEvent, setMainEvent] = useState<Event | null>(null);
+    const [loadedSubEvents, setSubEvents] = useState<Event[]>([]);
+    // Preview Guest Theme's edit mode (todo #11): the menu shows the host's unsaved gallery names too. Only an
+    // event's managers can start it, so for everyone else these are the loaded galleries.
+    const guestEdit = useGuestEditState();
+    const isEditing = !isPublicView && !!loadedMainEvent && guestEdit.rootId === loadedMainEvent.id;
+    const mainEvent = useMemo(() => isEditing ? withGuestEdits(loadedMainEvent, guestEdit) : loadedMainEvent, [guestEdit, isEditing, loadedMainEvent]);
+    const subEvents = useMemo(() => isEditing ? loadedSubEvents.map((gallery) => withGuestEdits(gallery, guestEdit, "thumbnail")) : loadedSubEvents, [guestEdit, isEditing, loadedSubEvents]);
     const [isZipping, setIsZipping] = useState(false);
     const [zipProgress, setZipProgress] = useState(0);
 
@@ -195,6 +206,10 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
         }
     }, [event, loadDownloadMedia, mainEvent, subEvents]);
 
+    // Midnight Hero is the default theme, so a gallery without a theme gets its navbar too
+    const navTemplateId = mainEvent?.templateId || event?.templateId || "hero";
+    const navVariant = navTemplateId === "royal" ? "royal" : navTemplateId === "classic" ? "classic" : navTemplateId === "hero" ? "midnight" : navTemplateId === "portrait" ? "portrait" : navTemplateId === "confetti" ? "confetti" : navTemplateId === "periwinkle" ? "periwinkle" : undefined;
+
     const navigation = useMemo(() => {
         if (!event || !mainEvent) return null;
         return (
@@ -214,11 +229,11 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
                 chromeBackgroundColor={chrome.background}
                 chromeTextColor={chrome.text}
                 chromeAccentColor={chrome.accent}
-                variant={(mainEvent?.templateId || event?.templateId) === "royal" ? "royal" : undefined}
+                variant={navVariant}
                 chromeBorderColor={chrome.border}
             />
         );
-    }, [activePage, chrome, event, handleDownloadZip, isPublicView, isShared, isZipping, mainEvent, router, sharedQuery, subEvents, user, zipProgress]);
+    }, [activePage, chrome, event, handleDownloadZip, isPublicView, isShared, isZipping, mainEvent, navVariant, router, sharedQuery, subEvents, user, zipProgress]);
 
     return (
         <div
@@ -233,7 +248,10 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
         >
             {navigation}
             {children}
-            <OpenInAppBanner />
+            {/* Confetti Circle and Sunlit Portrait have their own footer on every page (the shared event footer hides itself then) */}
+            {navTemplateId === "confetti" && mainEvent && <ConfettiFooter title={mainEvent.title} />}
+            {navTemplateId === "portrait" && mainEvent && <PortraitFooter event={mainEvent} />}
+            {!isPagePreview && <OpenInAppBanner />}
         </div>
     );
 }

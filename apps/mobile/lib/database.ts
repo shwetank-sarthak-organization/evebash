@@ -1,6 +1,12 @@
+import { readEventSizes, type EventStorageSize } from '../../../shared/storage/eventSizes';
+import { fetchMemberDetails, fetchMemberDirectory } from '../../../shared/permissions/memberDetails';
 import { supabase } from "./supabase";
 import { sendPushNotificationDirectly } from "./notifications";
 import { DEFAULT_EVENT_COVER_IMAGE } from "./eventCovers";
+import { appAlert } from "./feedback";
+import { isMissingUploadedFile } from "../../../shared/media/missingUpload";
+import { readThemeContent, type ThemeContent, type ThemeContentBlock } from "../../../shared/themes/themeContent";
+import { removeGuestPreviewPictures } from "./guestPreviewSnapshot";
 
 const COVER_USAGE_TAG = "__cover_usage__";
 const BUSINESS_PORTFOLIO_EVENTS_KEY = "__portfolio_events__";
@@ -71,6 +77,12 @@ export interface Event {
     coverOffsetX?: number;
     coverScale?: number;
     coverMode?: 'fit' | 'fill';
+    // The phone cover (app and phone browsers); empty = the cover fields above (shared/themes/phoneCover.ts)
+    phoneCoverImage?: string | null;
+    phoneCoverMode?: 'fit' | 'fill' | null;
+    phoneCoverOffset?: number | null;
+    phoneCoverOffsetX?: number | null;
+    phoneCoverScale?: number | null;
     order?: number;
     titleAlign?: 'left' | 'center' | 'right';
     hostName?: string;
@@ -79,6 +91,10 @@ export interface Event {
     sampleGalleryOrder?: number;
     /** Sub-gallery hidden from guests by the host (managers still see it) */
     isHidden?: boolean;
+    /** Cinematic highlight video (photos.id) shown under the welcome message; null = none, undefined = column not there yet */
+    galleryVideoId?: string | null;
+    /** The theme's own content (Confetti Circle's couple...), main events only; undefined = not read (no column yet) */
+    themeContent?: ThemeContent;
 }
 
 export interface Photo {
@@ -324,13 +340,20 @@ function mapSqlToEvent(e: any): Event {
         coverOffset: e.cover_offset,
         coverOffsetX: e.cover_offset_x,
         coverScale: e.cover_scale,
+        phoneCoverImage: e.phone_cover_image ?? null,
+        phoneCoverMode: e.phone_cover_mode ?? null,
+        phoneCoverOffset: e.phone_cover_offset ?? null,
+        phoneCoverOffsetX: e.phone_cover_offset_x ?? null,
+        phoneCoverScale: e.phone_cover_scale ?? null,
         coverMode: e.cover_mode,
         titleAlign: e.title_align,
         vendors: e.vendors || [],
         hostName: e.host_name,
         isSampleGallery: !!e.is_sample_gallery,
         isHidden: !!e.is_hidden,
-        sampleGalleryOrder: e.sample_gallery_order
+        sampleGalleryOrder: e.sample_gallery_order,
+        galleryVideoId: e.gallery_video_id === undefined ? undefined : e.gallery_video_id,
+        themeContent: e.theme_content === undefined ? undefined : readThemeContent(e.theme_content)
     };
 }
 
@@ -761,17 +784,36 @@ export interface GuestProfile {
     profileImage?: string;
 }
 
+/** Username and email of everyone on an event's Permissions list, by guest row id. */
+export async function getMemberDirectory(eventId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, '');
+    if (!session?.access_token || !apiBaseUrl) return {};
+    return fetchMemberDirectory(`${apiBaseUrl}/api/v1/permissions/member-directory`, session.access_token, eventId);
+}
+
+/** Username and email for people who manage this guest row's event; the backend decides who that is. */
+async function getMemberDetails(logId?: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, '');
+    if (!logId || !session?.access_token || !apiBaseUrl) return {};
+    return fetchMemberDetails(`${apiBaseUrl}/api/v1/permissions/member-details`, session.access_token, logId);
+}
+
 /**
  * Profile details of a guest row, for the gallery host's guest panel. Rows made by request_gallery_access carry the
- * account (user_id): name and photo come from profile_cards, which hosts can still read once RLS is on (username and
- * email are private then). Older phone/email rows keep the direct profile lookup, which works until the lockdown;
- * after it the panel shows the guest row's own name and phone.
+ * account (user_id): name and photo come from profile_cards, which hosts can still read once RLS is on, and username
+ * and email from the backend, for people who manage the event. Older phone/email rows keep the direct profile lookup,
+ * which works until the lockdown; after it the panel shows the guest row's own name and phone.
  */
-export async function getGuestProfile(log: { userId?: string; email?: string; phone?: string }): Promise<GuestProfile | null> {
+export async function getGuestProfile(log: { id?: string; userId?: string; email?: string; phone?: string }): Promise<GuestProfile | null> {
     if (log.userId) {
-        const { data, error } = await supabase.from('profile_cards').select('id, name, profile_image').eq('id', log.userId).maybeSingle();
+        const [{ data, error }, details] = await Promise.all([
+            supabase.from('profile_cards').select('id, name, profile_image').eq('id', log.userId).maybeSingle(),
+            getMemberDetails(log.id),
+        ]);
         if (error) throw error;
-        return data ? { id: data.id, name: data.name, profileImage: data.profile_image } : null;
+        return data ? { id: data.id, name: data.name, profileImage: data.profile_image, ...details } : null;
     }
 
     // Older rows: the newest profile with the row's email (its phone when it has no email), ignoring case and
@@ -809,10 +851,17 @@ export async function getGuestProfile(log: { userId?: string; email?: string; ph
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export type StorageBreakdown = { events: number; vault: number; total: number };
+/** Event storage by kind; the four parts add up to `events`. */
+export type EventStorageParts = { photos: number; videos: number; albumDesigns: number; voiceNotes: number };
+
+export type StorageBreakdown = { events: number; vault: number; total: number; eventParts?: EventStorageParts | null; eventSizes?: EventStorageSize[] };
 
 /** Bytes used by event media. */
-export async function getUserEventStorage(identifiers: string[]): Promise<number> {
+export async function getUserEventStorage(
+    identifiers: string[],
+    // Opt-in: rethrow instead of returning 0, so screens can tell "nothing used" from "couldn't load"
+    options?: { throwOnError?: boolean }
+): Promise<number> {
     try {
         const { data, error } = await supabase
             .from('photos')
@@ -823,6 +872,7 @@ export async function getUserEventStorage(identifiers: string[]): Promise<number
         return (data || []).reduce((acc, p) => acc + (p.size || 0), 0);
     } catch (error) {
         console.error("Error fetching storage stats:", error);
+        if (options?.throwOnError) throw error;
         return 0;
     }
 }
@@ -849,12 +899,23 @@ export async function getUserVaultStorage(identifiers: string[]): Promise<number
 }
 
 
+/** The server's event storage split; null from older backends or before its migration, so the card doesn't expand. */
+function readEventParts(parts: any): EventStorageParts | null {
+    if (!parts || typeof parts !== 'object') return null;
+    return {
+        photos: Number(parts.photos) || 0,
+        videos: Number(parts.videos) || 0,
+        albumDesigns: Number(parts.albumDesigns) || 0,
+        voiceNotes: Number(parts.voiceNotes) || 0,
+    };
+}
+
 /**
  * The signed-in user's storage as the server counts it for upload limits: everything in galleries they own (whoever
  * uploaded it, previews and streaming copies included) plus EB Vault. Null when it isn't about the signed-in user or
  * the server can't be reached, so callers fall back to adding it up on the device.
  */
-async function getOwnStorageFromServer(identifiers: string[]): Promise<{ events: number; vault: number; total: number } | null> {
+async function getOwnStorageFromServer(identifiers: string[]): Promise<StorageBreakdown | null> {
     try {
         const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
         const { data: { session } } = await supabase.auth.getSession();
@@ -865,22 +926,22 @@ async function getOwnStorageFromServer(identifiers: string[]): Promise<{ events:
         if (!response.ok) return null;
         const data = await response.json();
         if (typeof data?.total !== 'number') return null;
-        return { events: Number(data.events) || 0, vault: Number(data.vault) || 0, total: data.total };
+        return { events: Number(data.events) || 0, vault: Number(data.vault) || 0, total: data.total, eventParts: readEventParts(data.eventParts), eventSizes: readEventSizes(data.eventSizes) };
     } catch {
         return null;
     }
 }
 /** Event and Vault usage share one plan-wide storage limit. */
-export async function getUserStorageBreakdown(identifiers: string[]): Promise<StorageBreakdown> {
+export async function getUserStorageBreakdown(identifiers: string[], options?: { throwOnError?: boolean }): Promise<StorageBreakdown> {
     const fromServer = await getOwnStorageFromServer(identifiers);
     if (fromServer) return fromServer;
-    const [events, vault] = await Promise.all([getUserEventStorage(identifiers), getUserVaultStorage(identifiers)]);
+    const [events, vault] = await Promise.all([getUserEventStorage(identifiers, options), getUserVaultStorage(identifiers)]);
     return { events, vault, total: events + vault };
 }
 
 /** Total plan storage used, events plus Vault; upload limit checks use this. */
-export async function getUserTotalStorage(identifiers: string[]): Promise<number> {
-    return (await getUserStorageBreakdown(identifiers)).total;
+export async function getUserTotalStorage(identifiers: string[], options?: { throwOnError?: boolean }): Promise<number> {
+    return (await getUserStorageBreakdown(identifiers, options)).total;
 }
 
 export async function getUserEventCount(uid: string): Promise<number> {
@@ -1088,14 +1149,40 @@ export async function updateUserProfile(uid: string, updateData: Partial<UserPro
     }
 }
 
-export async function submitFeedback(userId: string, userName: string, text: string, category: string) {
+/** Saves a message to contact_messages through the backend, the same place the website's Contact Us sends to. */
+export async function sendContactMessage(input: { firstName: string; lastName: string; email: string; message: string }): Promise<{ success: boolean; error?: string }> {
     try {
-        console.log(`[Supabase] Feedback received: ${userName} (${userId}) - [${category}] ${text}`);
-        return true;
+        const apiBaseUrl = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '');
+        const response = await fetch(`${apiBaseUrl}/api/v1/contact-messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...input, source: 'mobile' }),
+        });
+        const result = await response.json().catch(() => ({}));
+        return response.ok && result.success ? { success: true } : { success: false, error: result.error || 'Unable to send message right now.' };
     } catch (error) {
-        console.error("Error submitting feedback:", error);
-        return false;
+        console.error('Error sending contact message:', error);
+        return { success: false, error: 'Please check your connection and try again.' };
     }
+}
+
+/** Settings > Report a Bug / Send Feedback: sent as a contact message tagged with the category and account. */
+export async function submitFeedback(
+    user: { uid: string; name: string; email: string | null; phone?: string },
+    text: string,
+    category: string,
+) {
+    const [firstName, ...rest] = (user.name || 'App user').trim().split(/\s+/);
+    const isPhoneLogin = !user.email || user.email.endsWith('@phone-login.local');
+    const contact = isPhoneLogin ? `Phone: ${user.phone || 'unknown'}` : `Email: ${user.email}`;
+    return sendContactMessage({
+        firstName: firstName || 'App',
+        // The backend needs a last name; one-word names get a dash
+        lastName: rest.join(' ') || '-',
+        // Phone logins have no real email; their placeholder address still passes the backend's email check
+        email: user.email || `${user.uid}@phone-login.local`,
+        message: `[App ${category}] ${text}\n\nUser ID: ${user.uid}\n${contact}`,
+    });
 }
 
 export async function getUserPhotosCount(uid: string): Promise<number> {
@@ -1340,7 +1427,8 @@ export async function getEventPhotos(eventId: string, legacyId?: string): Promis
             .in('event_id', ids);
 
         if (error) throw error;
-        const photos = (data || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery);
+        // Guest screen (events/sub): leaves out photos whose file never reached storage
+        const photos = (data || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery).filter((photo) => !isMissingUploadedFile(photo));
         const visiblePhotos = await filterPhotosForPlanExpiry(photos, ids);
         return visiblePhotos.sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
     } catch (error) {
@@ -1354,11 +1442,14 @@ export async function getEventPhotosPaginated(
     legacyId?: string,
     page: number = 0,
     limit: number = 20,
-    options: MediaQueryOptions = {}
+    // throwOnError (opt-in): rethrow instead of returning an empty page, so screens can tell "no photos" from
+    // "couldn't load"
+    options: MediaQueryOptions & { throwOnError?: boolean } = {}
 ): Promise<{ photos: Photo[], hasMore: boolean, totalPhotos: number, totalVideos: number }> {
     if (!eventId) return { photos: [], hasMore: false, totalPhotos: 0, totalVideos: 0 };
     // Hidden media is filtered here rather than in the query, so this also works before the is_hidden column exists
-    const isShown = (photo: Photo) => options.includeHidden || !photo.isHidden;
+    // Guests don't get media the host hid, nor photos whose file never reached storage; the host (includeHidden) sees both
+    const isShown = (photo: Photo) => options.includeHidden || (!photo.isHidden && !isMissingUploadedFile(photo));
     try {
         const ids = legacyId && legacyId !== eventId ? [eventId, legacyId] : [eventId];
 
@@ -1397,6 +1488,7 @@ export async function getEventPhotosPaginated(
         };
     } catch (error) {
         console.error("Error fetching paginated photos:", error);
+        if (options.throwOnError) throw error;
         return { photos: [], hasMore: false, totalPhotos: 0, totalVideos: 0 };
     }
 }
@@ -1443,14 +1535,16 @@ export async function getFavouritePhotosForEvents(eventIds: string[], options: M
     }
 }
 
-export async function getEventFavouritePhotos(eventId: string): Promise<EventFavouritePhoto[]> {
-    if (!eventId) return [];
+/** Stars saved under these galleries (an album reads its own and the main event's: stars are saved under the main event) */
+export async function getEventFavouritePhotos(eventId: string | string[]): Promise<EventFavouritePhoto[]> {
+    const eventIds = Array.from(new Set((Array.isArray(eventId) ? eventId : [eventId]).filter(Boolean)));
+    if (eventIds.length === 0) return [];
 
     try {
         const { data, error } = await supabase
             .from('event_favourite_photos')
             .select('*')
-            .eq('event_id', eventId)
+            .in('event_id', eventIds)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -1469,24 +1563,29 @@ export async function getEventFavouritePhotos(eventId: string): Promise<EventFav
     }
 }
 
-export async function toggleEventFavouritePhoto(eventId: string, photoId: string, markedBy?: string) {
+/**
+ * Stars a photo for the event's Primary Gallery, or removes the star. New stars are saved under `eventId` (the main
+ * event); `alsoEventIds` (the event's albums) are checked too, so a star saved under an album by an older app version
+ * is removed instead of a second one being added.
+ */
+export async function toggleEventFavouritePhoto(eventId: string, photoId: string, markedBy?: string, alsoEventIds: string[] = []) {
     if (!eventId || !photoId) return { favourited: false, error: 'Missing event or photo.' };
 
     try {
+        const eventIds = Array.from(new Set([eventId, ...alsoEventIds].filter(Boolean)));
         const { data: existing, error: selectError } = await supabase
             .from('event_favourite_photos')
             .select('id')
-            .eq('event_id', eventId)
-            .eq('photo_id', photoId)
-            .maybeSingle();
+            .in('event_id', eventIds)
+            .eq('photo_id', photoId);
 
         if (selectError) throw selectError;
 
-        if (existing) {
+        if (existing && existing.length > 0) {
             const { error: deleteError } = await supabase
                 .from('event_favourite_photos')
                 .delete()
-                .eq('id', existing.id);
+                .in('id', existing.map((row: { id: string }) => row.id));
             if (deleteError) throw deleteError;
             return { favourited: false };
         }
@@ -1664,7 +1763,11 @@ export function safeParseDateToISO(dateInput?: string | Date): string | null {
     }
 }
 
-export async function createEvent(event: Event) {
+/**
+ * Saves a new event. On failure `error` is set only for refusals written for users (SQLSTATE EBA02, such as the plan's
+ * event limit); other failures leave it empty so screens show their own wording.
+ */
+export async function createEvent(event: Event): Promise<{ success: boolean; error?: string }> {
     try {
         const payload: Record<string, any> = {
             id: event.id,
@@ -1694,7 +1797,7 @@ export async function createEvent(event: Event) {
         }
 
         if (error) throw error;
-        return true;
+        return { success: true };
     } catch (error) {
         const details = error && typeof error === "object"
             ? {
@@ -1705,7 +1808,9 @@ export async function createEvent(event: Event) {
             }
             : error;
         console.error("Error creating event:", details);
-        return false;
+        const isUserMessage = error && typeof error === "object" && "code" in error && error.code === 'EBA02'
+            && "message" in error && typeof error.message === "string";
+        return { success: false, error: isUserMessage ? (error as { message: string }).message : undefined };
     }
 }
 
@@ -1755,8 +1860,11 @@ export async function addComment(photoId: string, userId: string, userName: stri
 export function onPhotoInteractions(photoId: string, callback: (data: { likes: any[], comments: any[] }) => void) {
     let currentLikes: any[] = [];
     let currentComments: any[] = [];
+    let closed = false;
+    let latestFetch = 0;
 
     const fetchAndTrigger = async () => {
+        const fetchId = ++latestFetch;
         // Signed in: names come from profile_cards (name and photo only), since other people's profiles aren't
         // readable once RLS is on. Signed out keeps the old embed; likes and comments are members-only after the lockdown.
         const { data: { session } } = await supabase.auth.getSession();
@@ -1765,6 +1873,8 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
             supabase.from('likes').select(`id, created_at, user_id, ${people}`).eq('photo_id', photoId),
             supabase.from('comments').select(`id, text, created_at, user_id, parent_id, ${people}`).eq('photo_id', photoId)
         ]);
+        // Only the newest read counts, and none after the caller has stopped listening
+        if (closed || fetchId !== latestFetch) return;
 
         if (!likesRes.error && likesRes.data) {
             currentLikes = likesRes.data.map((l: any) => ({
@@ -1805,9 +1915,11 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
         .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter: `photo_id=eq.${photoId}` }, () => fetchAndTrigger())
         .subscribe();
 
-    return () => {
+    // Realtime is off (#49), so callers also call refresh() after their own like or comment changes (#235)
+    return Object.assign(() => {
+        closed = true;
         supabase.removeChannel(interactionsChannel);
-    };
+    }, { refresh: fetchAndTrigger });
 }
 
 export async function deletePhotoComment(commentId: string) {
@@ -1939,6 +2051,17 @@ export async function getEventLogs(eventId: string): Promise<GuestLog[]> {
     }
 }
 
+/**
+ * An album's photographer or client keeps Admin Access until the album's roles change: the database refuses
+ * (SQLSTATE EBA01) and says which album. Shows that as a warning; true when it was this refusal.
+ */
+function warnIfAlbumRole(error: unknown) {
+    const e = error as { code?: string; message?: string } | null;
+    if (e?.code !== 'EBA01') return false;
+    appAlert('Change the album roles first', e.message || 'This person has a role in an album.');
+    return true;
+}
+
 export async function updateGuestStatus(logId: string, status: 'pending' | 'approved' | 'rejected') {
     try {
         // Approving doesn't turn on uploads or comments: the host switches those on per guest
@@ -1953,12 +2076,14 @@ export async function updateGuestStatus(logId: string, status: 'pending' | 'appr
         if (status !== 'pending') void notifyGalleryDecision(logId);
         return true;
     } catch (error) {
+        if (warnIfAlbumRole(error)) return false;
         console.error("Error updating guest status:", error);
         return false;
     }
 }
 
-export async function updateGuestPermissions(logId: string, permissions: Partial<{ canAdmin: boolean, canUpload: boolean, canComment: boolean }>) {
+/** true when saved; null when refused because the person has an album role (the warning is already shown). */
+export async function updateGuestPermissions(logId: string, permissions: Partial<{ canAdmin: boolean, canUpload: boolean, canComment: boolean }>): Promise<boolean | null> {
     try {
         const updateData: any = {};
         if (permissions.canAdmin !== undefined) updateData.can_admin = permissions.canAdmin;
@@ -1973,6 +2098,7 @@ export async function updateGuestPermissions(logId: string, permissions: Partial
         if (error) throw error;
         return true;
     } catch (error) {
+        if (warnIfAlbumRole(error)) return null;
         console.error("Error updating guest permissions:", error);
         return false;
     }
@@ -2210,6 +2336,9 @@ export async function deleteEvent(eventId: string) {
         // Remove the gallery's face scans (guest privacy), as the website does
         await supabase.from('faces').delete().eq('event_id', eventId);
 
+        // The picture of the guest home (todo #31): its file can only be removed while the gallery exists
+        await removeGuestPreviewPictures(eventId);
+
         const { error } = await supabase.from('events').delete().eq('id', eventId);
         if (error) throw error;
         return true;
@@ -2266,6 +2395,91 @@ export function visibleGalleries<T extends { isHidden?: boolean }>(galleries: T[
     return galleries.filter(gallery => !gallery.isHidden);
 }
 
+/**
+ * Sets (or clears, with null) the gallery's cinematic highlight video, one of its own videos. Same as the website's
+ * setGalleryVideo; supabase/migrations/20261022000000_gallery_video.sql
+ */
+export async function setGalleryVideo(galleryId: string, videoId: string | null): Promise<{ success: boolean; error?: string }> {
+    const { error } = await supabase.from('events').update({ gallery_video_id: videoId }).eq('id', galleryId);
+    if (!error) return { success: true };
+    console.error('Error changing the gallery video:', error);
+    return {
+        success: false,
+        error: error.code === 'PGRST204'
+            ? "Cinematic highlight videos aren't available yet (database update pending)."
+            : "Couldn't update the cinematic highlight video. Please try again.",
+    };
+}
+
+/**
+ * Saves one block of the event's theme content (shared/themes/themeContent.ts) on its main event, keeping the other
+ * blocks; null removes it. Any gallery id of the event works. Returns the event's theme content as now saved. Same as
+ * the website's saveThemeContentBlock; supabase/migrations/20261107120000_theme_content.sql
+ */
+export async function saveThemeContentBlock<B extends ThemeContentBlock>(
+    galleryId: string,
+    block: B,
+    value: ThemeContent[B] | null,
+): Promise<{ success: boolean; content?: ThemeContent; error?: string }> {
+    const { data, error } = await supabase.rpc('set_theme_content_block', { p_event_id: galleryId, p_block: block, p_value: value });
+    if (!error) return { success: true, content: readThemeContent(data) };
+    console.error('Error saving the theme content:', error);
+    return {
+        success: false,
+        error: error.code === 'PGRST202'
+            ? "The couple details can't be saved until the database update is applied."
+            : "Couldn't save the couple details. Please try again.",
+    };
+}
+
+/**
+ * A gallery's own videos, newest first, for the host's cinematic highlight chooser (includes hidden and
+ * still-processing ones). Older uploads may be stored under the gallery's legacy id.
+ */
+export async function getGalleryVideos(galleryId: string, legacyId?: string): Promise<Photo[]> {
+    const ids = [galleryId, ...(legacyId && legacyId !== galleryId ? [legacyId] : [])];
+    const { data, error } = await supabase
+        .from('photos')
+        .select('*')
+        .in('event_id', ids)
+        .eq('media_type', 'video')
+        .neq('status', 'uploading')
+        .order('uploaded_at', { ascending: false })
+        .limit(200);
+    if (error) {
+        console.warn("[GalleryVideo] Could not load the gallery's videos:", error.message);
+        return [];
+    }
+    return (data || []).map(mapSqlToPhoto);
+}
+
+export interface GalleryVideo {
+    id: string;
+    /** HLS stream, never the uploaded original */
+    streamUrl: string;
+    posterUrl?: string;
+    width?: number;
+    height?: number;
+}
+
+/** What a guest page needs to play the gallery's cinematic highlight video, or null when there's none to show. */
+export async function getGalleryVideo(galleryId: string): Promise<GalleryVideo | null> {
+    const { data, error } = await supabase.rpc('get_gallery_video', { p_event_id: galleryId });
+    if (error) {
+        console.warn('[GalleryVideo] Could not load the gallery video:', error.message);
+        return null;
+    }
+    const row = Array.isArray(data) ? data[0] : null;
+    if (!row?.id || !row.stream_url) return null;
+    return {
+        id: row.id,
+        streamUrl: row.stream_url,
+        posterUrl: row.poster_url || undefined,
+        width: row.width ?? undefined,
+        height: row.height ?? undefined,
+    };
+}
+
 export async function updateEvent(eventId: string, data: Partial<Event>): Promise<boolean> {
     try {
         const updateObj: any = {};
@@ -2278,6 +2492,11 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
         if (data.coverOffset !== undefined) updateObj.cover_offset = data.coverOffset;
         if (data.coverOffsetX !== undefined) updateObj.cover_offset_x = data.coverOffsetX;
         if (data.coverScale !== undefined) updateObj.cover_scale = data.coverScale;
+        if (data.phoneCoverImage !== undefined) updateObj.phone_cover_image = data.phoneCoverImage;
+        if (data.phoneCoverMode !== undefined) updateObj.phone_cover_mode = data.phoneCoverMode;
+        if (data.phoneCoverOffset !== undefined) updateObj.phone_cover_offset = data.phoneCoverOffset;
+        if (data.phoneCoverOffsetX !== undefined) updateObj.phone_cover_offset_x = data.phoneCoverOffsetX;
+        if (data.phoneCoverScale !== undefined) updateObj.phone_cover_scale = data.phoneCoverScale;
         if (data.coverMode !== undefined) updateObj.cover_mode = data.coverMode;
         if (data.order !== undefined) updateObj.order = data.order;
         if (data.joinId !== undefined) updateObj.join_id = data.joinId;
@@ -2303,6 +2522,11 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
                         cover_offset: 'coverOffset',
                         cover_offset_x: 'coverOffsetX',
                         cover_scale: 'coverScale',
+                        phone_cover_image: 'phoneCoverImage',
+                        phone_cover_mode: 'phoneCoverMode',
+                        phone_cover_offset: 'phoneCoverOffset',
+                        phone_cover_offset_x: 'phoneCoverOffsetX',
+                        phone_cover_scale: 'phoneCoverScale',
                         cover_mode: 'coverMode',
                         order: 'order',
                         title_align: 'titleAlign',
@@ -2773,7 +2997,7 @@ export async function addEnquiry(enquiry: Omit<Enquiry, 'id' | 'createdAt' | 'st
                 enquiry.vendorOwnerId,
                 '📩 New enquiry received',
                 `You have a new enquiry${enquiry.category ? ` about ${enquiry.category}` : ''}`,
-                { enquiryId }
+                { enquiryId, businessId: enquiry.businessId }
             ).catch(() => {});
         }
 
@@ -2868,7 +3092,7 @@ export async function sendMessage(
                 recipientUid,
                 `New message from ${senderName}`,
                 text.length > 60 ? `${text.substring(0, 60)}...` : text,
-                { roomId, senderId },
+                { roomId, senderId, senderName },
                 'likesAndComments'
               )
             );
@@ -2983,7 +3207,8 @@ export function generateEventJoinId(eventId: string): string {
     return `${prefix}-${randomSuffix}`;
 }
 
-export async function deleteGuest(logId: string) {
+/** true when removed; null when refused because the person has an album role (the warning is already shown). */
+export async function deleteGuest(logId: string): Promise<boolean | null> {
     try {
         const { error } = await supabase
             .from('guests')
@@ -2992,6 +3217,7 @@ export async function deleteGuest(logId: string) {
         if (error) throw error;
         return true;
     } catch (error) {
+        if (warnIfAlbumRole(error)) return null;
         console.error("Error deleting guest:", error);
         return false;
     }

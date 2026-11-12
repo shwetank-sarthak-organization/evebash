@@ -18,7 +18,8 @@ export type AdminAction =
   | 'deleteBackblazeOrphans'
   | 'updatePricingPlans'
   | 'recordPayment'
-  | 'deletePayment';
+  | 'deletePayment'
+  | 'vaultUsage';
 
 export interface GalleryMedia {
   id: string;
@@ -47,6 +48,8 @@ export interface AdminActionResult {
   totalFiles?: number;
   deletedFiles?: number;
   deletedBytes?: number;
+  /** vaultUsage: EB Vault bytes per user id (users with none are left out). */
+  vaultBytes?: Record<string, number>;
 }
 
 export function getApiBaseUrl() {

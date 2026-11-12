@@ -6,6 +6,8 @@ import { Event, getApprovedSharedEventsForUser, getUserEvents } from "@/lib/data
 import { getCreatedTime } from "@/lib/eventSort";
 import { cn } from "@/lib/utils";
 import { Calendar } from "lucide-react";
+import { coverImageStyle } from "@/lib/coverStyle";
+import { useCoverTarget, withScreenCover } from "@/lib/screenCover";
 
 // Shared by the dashboard (src/app/(main)/dashboard/page.tsx) and its full events list (dashboard/events/page.tsx).
 
@@ -53,18 +55,12 @@ function getCoverImageStyle(event?: Event): React.CSSProperties {
         return { objectFit: "contain", backgroundColor: "#050505" };
     }
 
-    const x = 50 + (event?.coverOffsetX || 0);
-    const y = 50 + (event?.coverOffset || 0);
-    return {
-        objectFit: "cover",
-        objectPosition: `${Math.max(0, Math.min(100, x))}% ${Math.max(0, Math.min(100, y))}%`,
-        transform: `scale(${event?.coverScale || 1})`,
-    };
+    return coverImageStyle({ ...event, coverMode: "fill" });
 }
 
 export function DashboardTabs({ active, onChange }: { active: DashboardTab; onChange: (tab: DashboardTab) => void }) {
     return (
-        <div className="-mx-1 flex w-fit max-w-full overflow-x-auto rounded-full border border-[#273034] bg-[#0E141A] p-1">
+        <div className="-mx-1 flex w-fit max-w-full overflow-x-auto rounded-full border border-[var(--site-line)] bg-[var(--site-surface)] p-1">
             {DASHBOARD_TABS.map((tab) => (
                 <button
                     key={tab.key}
@@ -73,8 +69,8 @@ export function DashboardTabs({ active, onChange }: { active: DashboardTab; onCh
                     className={cn(
                         "shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors sm:px-5",
                         active === tab.key
-                            ? "bg-[#CA9C68] font-bold uppercase text-[#13191F]"
-                            : "text-slate-300 hover:text-white"
+                            ? "bg-[var(--site-gold)] font-bold uppercase text-[var(--site-on-gold)]"
+                            : "text-[var(--site-subtle)] hover:text-[var(--site-text)]"
                     )}
                 >
                     {tab.label}
@@ -101,20 +97,24 @@ function GuestsIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 // Also used by the host page's Host / Shared grid, which opens the event's manage view (onOpen) and adds a footer
-export function DashboardEventCard({ event, guests, onOpen, footer }: {
+export function DashboardEventCard({ event, guests, onOpen, footer, className }: {
     event: Event;
     guests?: number | null;
     onOpen?: () => void;
     footer?: React.ReactNode;
+    // e.g. a darker background when the card sits inside a panel (Dashboard)
+    className?: string;
 }) {
-    const coverImage = resolveEventCoverImage(event.coverImage, "thumbnail", event.category);
+    // The cover for this screen: the phone cover on phones, the computer cover on wider screens
+    const shownEvent = withScreenCover(event, useCoverTarget(), "thumbnail");
+    const coverImage = resolveEventCoverImage(shownEvent.coverImage, "thumbnail", event.category);
     return (
         <button
             type="button"
             onClick={onOpen || (() => window.open(`/events/${event.id}?mode=visitor`, "_blank", "noopener,noreferrer"))}
-            className="group flex flex-col rounded-2xl border border-[#273034] bg-[#0E141A] p-3 text-left font-sans transition-all hover:-translate-y-1 hover:border-[#CA9C68]/40"
+            className={cn("group flex flex-col rounded-2xl border border-[var(--site-line)] bg-[var(--site-surface)] p-3 text-left font-sans transition-all hover:-translate-y-1 hover:border-[var(--site-gold)]/40", className)}
         >
-            <div className="relative w-full overflow-hidden rounded-xl bg-[#0E141A]" style={{ aspectRatio: "16 / 10" }}>
+            <div className="relative w-full overflow-hidden rounded-xl bg-[var(--site-bg)]" style={{ aspectRatio: "16 / 10" }}>
                 <img
                     src={coverImage}
                     alt=""
@@ -124,23 +124,23 @@ export function DashboardEventCard({ event, guests, onOpen, footer }: {
                     src={coverImage}
                     alt={event.title}
                     className="absolute inset-0 h-full w-full transition-transform duration-700 group-hover:scale-105"
-                    style={getCoverImageStyle(event)}
+                    style={getCoverImageStyle(shownEvent)}
                 />
                 {event.category && (
-                    <div className="absolute left-3 top-3 rounded-full border border-[#CA9C68]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#CA9C68] backdrop-blur-sm">
+                    <div className="site-noir absolute left-3 top-3 rounded-full border border-[var(--site-gold)]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--site-gold-text)] backdrop-blur-sm">
                         {event.category}
                     </div>
                 )}
             </div>
             <div className="px-1 pb-1 pt-4">
-                <h3 className="truncate text-xl leading-tight text-white" style={SERIF}>{event.title}</h3>
+                <h3 className="truncate text-xl leading-tight text-[var(--site-text)]" style={SERIF}>{event.title}</h3>
                 <div className="mt-2 flex items-center justify-between gap-3 text-sm">
-                    <span className="flex min-w-0 items-center gap-1.5 text-slate-400">
-                        <Calendar className="h-4 w-4 shrink-0 text-[#CA9C68]" aria-hidden="true" />
+                    <span className="flex min-w-0 items-center gap-1.5 text-[var(--site-muted)]">
+                        <Calendar className="h-4 w-4 shrink-0 text-[var(--site-gold-text)]" aria-hidden="true" />
                         <span className="truncate">{formatShortEventDate(event.date)}</span>
                     </span>
                     {guests != null && (
-                        <span className="flex shrink-0 items-center gap-1 font-medium text-[#CA9C68]" title={`${guests} ${guests === 1 ? "guest" : "guests"}`}>
+                        <span className="flex shrink-0 items-center gap-1 font-medium text-[var(--site-gold-text)]" title={`${guests} ${guests === 1 ? "guest" : "guests"}`}>
                             <GuestsIcon className="h-4 w-4" aria-hidden="true" />
                             <span>{guests}</span>
                         </span>

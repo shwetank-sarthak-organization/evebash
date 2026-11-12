@@ -41,9 +41,9 @@ const packages = [
     photos: "~2,000 photos",
     prices: {
       monthly: { price: "₹150", period: "/ month", save: null },
-      quarterly: { price: "₹400", period: "/ 3 mo", save: null },
-      semiannual: { price: "₹700", period: "/ 6 mo", save: null },
-      yearly: { price: "₹1,000", period: "/ yr", save: null },
+      quarterly: { price: "₹399", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹749", period: "/ 6 mo", save: null },
+      yearly: { price: "₹1,249", period: "/ yr", save: null },
     },
     features: [
       "10 Active Events",
@@ -65,9 +65,9 @@ const packages = [
     photos: "~5,000 photos",
     prices: {
       monthly: { price: "₹300", period: "/ month", save: null },
-      quarterly: { price: "₹800", period: "/ 3 mo", save: null },
-      semiannual: { price: "₹1,400", period: "/ 6 mo", save: null },
-      yearly: { price: "₹2,000", period: "/ yr", save: null },
+      quarterly: { price: "₹799", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹1,499", period: "/ 6 mo", save: null },
+      yearly: { price: "₹2,499", period: "/ yr", save: null },
     },
     features: [
       "25 Active Events",
@@ -92,9 +92,9 @@ const packages = [
     photos: "~10,000 photos",
     prices: {
       monthly: { price: "₹450", period: "/ month", save: null },
-      quarterly: { price: "₹1,200", period: "/ 3 mo", save: null },
-      semiannual: { price: "₹2,100", period: "/ 6 mo", save: null },
-      yearly: { price: "₹3,000", period: "/ yr", save: null },
+      quarterly: { price: "₹1,199", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹2,249", period: "/ 6 mo", save: null },
+      yearly: { price: "₹3,749", period: "/ yr", save: null },
     },
     features: [
       "50 Active Events",
@@ -119,9 +119,9 @@ const packages = [
     photos: "~20,000 photos",
     prices: {
       monthly: { price: "₹750", period: "/ month", save: null },
-      quarterly: { price: "₹2,000", period: "/ 3 mo", save: null },
-      semiannual: { price: "₹3,500", period: "/ 6 mo", save: null },
-      yearly: { price: "₹5,000", period: "/ yr", save: null },
+      quarterly: { price: "₹1,999", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹3,799", period: "/ 6 mo", save: null },
+      yearly: { price: "₹6,299", period: "/ yr", save: null },
     },
     isPopular: true,
     features: [
@@ -147,9 +147,9 @@ const packages = [
     photos: "~40,000 photos",
     prices: {
       monthly: { price: "₹1,200", period: "/ month", save: null },
-      quarterly: { price: "₹3,200", period: "/ 3 mo", save: null },
-      semiannual: { price: "₹5,600", period: "/ 6 mo", save: null },
-      yearly: { price: "₹8,000", period: "/ yr", save: null },
+      quarterly: { price: "₹3,199", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹6,099", period: "/ 6 mo", save: null },
+      yearly: { price: "₹10,049", period: "/ yr", save: null },
     },
     features: [
       "200 Active Events",
@@ -175,9 +175,9 @@ const packages = [
     photos: "~100,000 photos",
     prices: {
       monthly: { price: "₹2,200", period: "/ month", save: null },
-      quarterly: { price: "₹6,000", period: "/ 3 mo", save: null },
-      semiannual: { price: "₹10,500", period: "/ 6 mo", save: null },
-      yearly: { price: "₹15,000", period: "/ yr", save: null },
+      quarterly: { price: "₹5,899", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹11,199", period: "/ 6 mo", save: null },
+      yearly: { price: "₹18,449", period: "/ yr", save: null },
     },
     features: [
       "500 Active Events",
@@ -204,9 +204,9 @@ const packages = [
     photos: "~200,000 photos",
     prices: {
       monthly: { price: "₹3,750", period: "/ month", save: null },
-      quarterly: { price: "₹10,000", period: "/ 3 mo", save: null },
-      semiannual: { price: "₹17,500", period: "/ 6 mo", save: null },
-      yearly: { price: "₹25,000", period: "/ yr", save: null },
+      quarterly: { price: "₹10,099", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹19,099", period: "/ 6 mo", save: null },
+      yearly: { price: "₹31,499", period: "/ yr", save: null },
     },
     features: [
       "1000 Active Events",
@@ -236,6 +236,8 @@ export default function PricingScreen() {
   const [selectedTierIndex, setSelectedTierIndex] = useState<number>(4); // Default to 100 GB (index 4)
 
   const activePackage = packages[selectedTierIndex];
+  // The tick colours are bright, made for the dark look; the light look uses a deeper shade of each (todo #1)
+  const checkColor = isDark ? activePackage.checkColor : LIGHT_CHECK_COLORS[activePackage.checkColor] ?? activePackage.checkColor;
   const activePlanData = activePackage.prices[billingCycle];
 
   return (
@@ -257,7 +259,7 @@ export default function PricingScreen() {
           <IconSymbol name="chevron.left" size={24} color={colors.gold} />
         </TouchableOpacity>
         <View style={styles.headingLogoRow}>
-          <EveBashLogoBadge />
+          <EveBashLogoBadge color={colors.brandMark} />
           <Text style={styles.headerTitle}>Upgrade Plan</Text>
         </View>
         <View style={{ width: 40 }} /> 
@@ -368,11 +370,11 @@ export default function PricingScreen() {
           <View style={styles.featuresList}>
             {activePackage.features.map((feature, fIndex) => (
               <View key={fIndex} style={styles.featureRow}>
-                <View style={[styles.iconBox, { backgroundColor: `${activePackage.checkColor}20` }]}>
+                <View style={[styles.iconBox, { backgroundColor: `${checkColor}20` }]}>
                   <IconSymbol 
                     name="checkmark" 
                     size={12} 
-                    color={activePackage.checkColor} 
+                    color={checkColor} 
                   />
                 </View>
                 <Text style={styles.featureText}>{feature}</Text>
@@ -383,7 +385,7 @@ export default function PricingScreen() {
           <TouchableOpacity 
             style={[
               styles.ctaButton, 
-              { backgroundColor: activePackage.isPopular ? '#CA9C68' : '#2B2F2E' }
+              { backgroundColor: activePackage.isPopular ? colors.goldFill : colors.slate800 }
             ]}
             onPress={() => {
               router.push('/contact');
@@ -392,7 +394,7 @@ export default function PricingScreen() {
           >
             <Text style={[
               styles.ctaText, 
-              activePackage.isPopular && { color: '#13191F', fontFamily: 'Outfit_800ExtraBold' }
+              activePackage.isPopular && { color: colors.onAccent, fontFamily: 'Outfit_800ExtraBold' }
             ]}>{activePackage.cta}</Text>
           </TouchableOpacity>
         </View>
@@ -417,6 +419,16 @@ export default function PricingScreen() {
     </SafeAreaView>
   );
 }
+
+const LIGHT_CHECK_COLORS: Record<string, string> = {
+  '#CDB89E': '#6B6358',
+  '#14b8a6': '#0F766E',
+  '#0ea5e9': '#0369A1',
+  '#CA9C68': '#8A6224',
+  '#8b5cf6': '#6D28D9',
+  '#ec4899': '#BE185D',
+  '#f97316': '#C2410C',
+};
 
 const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   safeArea: {
@@ -490,7 +502,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderRadius: 10,
   },
   filterTabActive: {
-    backgroundColor: '#CA9C68',
+    backgroundColor: colors.goldFill,
   },
   filterTabText: {
     fontSize: 12,
@@ -498,7 +510,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     color: colors.slate400,
   },
   filterTabTextActive: {
-    color: '#13191F',
+    color: colors.onAccent,
     fontFamily: 'Outfit_800ExtraBold',
   },
   sectionLabel: {
@@ -530,7 +542,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     position: 'relative',
   },
   tierPillActive: {
-    borderColor: '#CA9C68',
+    borderColor: colors.gold,
     backgroundColor: 'rgba(202, 156, 104, 0.1)',
   },
   tierPillPopularBorder: {
@@ -539,7 +551,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   popularBadgeMini: {
     position: 'absolute',
     top: -6,
-    backgroundColor: '#CA9C68',
+    backgroundColor: colors.goldFill,
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 1,
@@ -547,7 +559,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   popularBadgeMiniText: {
     fontSize: 10,
     fontFamily: 'Outfit_800ExtraBold',
-    color: '#13191F',
+    color: colors.onAccent,
   },
   tierPillTitle: {
     fontSize: 16,
@@ -555,7 +567,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     color: colors.ghostWhite,
   },
   tierPillTitleActive: {
-    color: '#CA9C68',
+    color: colors.gold,
   },
   tierPillSubtitle: {
     fontSize: 10,
@@ -572,7 +584,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     padding: 24,
   },
   cardPopularBorder: {
-    borderColor: '#CA9C68',
+    borderColor: colors.gold,
     borderWidth: 1.5,
   },
   planHeaderRow: {
@@ -601,7 +613,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     borderColor: 'rgba(16, 185, 129, 0.3)',
   },
   saveBadgeText: {
-    color: '#10b981',
+    color: isDark ? '#10b981' : '#047857',
     fontSize: 11,
     fontFamily: 'Outfit_700Bold',
   },
@@ -654,7 +666,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     alignItems: 'center',
   },
   ctaText: {
-    color: '#ffffff',
+    color: isDark ? '#ffffff' : colors.white,
     fontSize: 13,
     fontFamily: 'Outfit_700Bold',
     textTransform: 'uppercase',
@@ -702,7 +714,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     lineHeight: 22,
   },
   customPlanLink: {
-    color: '#CA9C68',
+    color: colors.gold,
     fontSize: 14,
     fontFamily: 'Outfit_700Bold',
   },

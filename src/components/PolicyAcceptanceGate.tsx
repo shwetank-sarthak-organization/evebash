@@ -16,7 +16,8 @@ export function PolicyAcceptanceGate({ userId, onSignOut, children }: { userId?:
   const [retry, setRetry] = useState(0);
   const dialog = useRef<HTMLDialogElement>(null);
   const legalPage = ['/privacy-policy', '/terms-and-conditions', '/cancellation-refund-policy', '/digital-service-delivery-policy', '/delete-account', '/reset-password', '/forgot-password'].includes(pathname);
-  const blocked = Boolean(userId && acceptedUser !== userId && !legalPage);
+  // Only open once the check says "not accepted" (ready) or fails; opening while it runs flashed the popup on every page load
+  const blocked = Boolean(userId && acceptedUser !== userId && !legalPage && (ready || error));
   useEffect(() => {
     if (!blocked) return;
     const element = dialog.current;

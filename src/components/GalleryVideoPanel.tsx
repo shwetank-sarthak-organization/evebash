@@ -9,13 +9,13 @@ import { ModalHeader, modalStyles } from "@/components/ui/Modal";
 // Host page, under a gallery's Welcome Message: the video that plays at the top of that gallery's guest page
 // (events.gallery_video_id). The host uploads one straight into the gallery, or picks one of its existing videos.
 
-const panelButton = "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50";
-const goldButton = cn(panelButton, "bg-[#CA9C68] text-slate-950 hover:bg-[#D7AE7D]");
-const outlineButton = cn(panelButton, "border border-[#CA9C68]/45 text-[#F5E7D4] hover:bg-[#CA9C68]/10");
+const panelButton = "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50";
+const goldButton = cn(panelButton, "home-btn-gold");
+const outlineButton = cn(panelButton, "border border-[var(--site-gold)]/45 text-[var(--site-text)] hover:bg-[var(--site-gold)]/10");
 
 function VideoThumb({ video, className }: { video?: Photo; className?: string }) {
     return (
-        <span className={cn("relative block aspect-video overflow-hidden rounded-xl border border-[#CA9C68]/45 bg-slate-900", className)}>
+        <span className={cn("relative block aspect-video overflow-hidden rounded-xl border border-[var(--site-gold)]/45 bg-[var(--site-surface)]", className)}>
             {video?.thumbnailUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={video.thumbnailUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -27,7 +27,7 @@ function VideoThumb({ video, className }: { video?: Photo; className?: string })
                 </span>
             )}
             {video && video.status !== "processed" && (
-                <span className="absolute inset-x-0 bottom-2 mx-auto flex w-fit items-center gap-1.5 rounded-full bg-slate-950/85 px-2.5 py-1 text-[11px] font-semibold text-[#F5E7D4]">
+                <span className="absolute inset-x-0 bottom-2 mx-auto flex w-fit items-center gap-1.5 rounded-full bg-[var(--site-bg)]/85 px-2.5 py-1 text-[11px] font-semibold text-[var(--site-text)]">
                     <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
                     Processing
                 </span>
@@ -56,12 +56,12 @@ function GalleryVideoChooser({ videos, currentId, onChoose, onClose }: {
                         aria-pressed={video.id === currentId}
                         onClick={() => onChoose(video.id)}
                         className={cn(
-                            "rounded-2xl p-1 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#CA9C68]",
-                            video.id === currentId ? "bg-[#CA9C68]/25 ring-2 ring-[#CA9C68]" : "hover:bg-white/5"
+                            "rounded-2xl p-1 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--site-gold)]",
+                            video.id === currentId ? "bg-[var(--site-gold)]/25 ring-2 ring-[var(--site-gold)]" : "hover:bg-[var(--site-tint)]/5"
                         )}
                     >
                         <VideoThumb video={video} />
-                        <span className="mt-1.5 block truncate px-1 text-xs text-slate-300">
+                        <span className="mt-1.5 block truncate px-1 text-xs text-[var(--site-subtle)]">
                             {video.id === currentId ? "Current cinematic highlight video" : video.storageKey?.split("/").pop() || "Video"}
                         </span>
                     </button>
@@ -121,9 +121,9 @@ export function GalleryVideoPanel({ gallery, canUpload, onUpload, onChange, onPl
     const pickFile = () => fileInput.current?.click();
 
     return (
-        <div className="mb-6 rounded-2xl border border-[#CA9C68]/55 bg-slate-950/40 p-4 sm:p-5">
-            <p className="text-base font-semibold text-white">Cinematic Highlight Video</p>
-            <p className="mb-4 mt-1 text-sm text-slate-400">
+        <div className="mb-6 rounded-2xl border border-[var(--site-gold)]/55 bg-[var(--site-bg)]/40 p-4 sm:p-5">
+            <p className="text-base font-semibold text-[var(--site-text)]">Cinematic Highlight Video</p>
+            <p className="mb-4 mt-1 text-sm text-[var(--site-muted)]">
                 Plays at the top of this gallery for guests. Usually the photographer&apos;s 3-6 minute summary film of the
                 event.
             </p>
@@ -140,14 +140,14 @@ export function GalleryVideoPanel({ gallery, canUpload, onUpload, onChange, onPl
                         <VideoThumb video={chosen} />
                         {chosenReady && (
                             <span className="absolute inset-0 grid place-items-center">
-                                <span className="grid h-11 w-11 place-items-center rounded-full bg-[#CA9C68]/90 text-slate-950 shadow-lg transition-transform group-hover:scale-105">
+                                <span className="grid h-11 w-11 place-items-center rounded-full bg-[var(--site-gold)]/90 text-[var(--site-on-gold)] shadow-lg transition-transform group-hover:scale-105">
                                     <Play className="ml-0.5 h-5 w-5 fill-current" aria-hidden="true" />
                                 </span>
                             </span>
                         )}
                     </button>
                     <div className="flex flex-1 flex-col gap-3">
-                        <p className="text-sm text-slate-300">
+                        <p className="text-sm text-[var(--site-subtle)]">
                             {!videos ? "Loading..." : !chosen
                                 ? "This video is no longer in this gallery, so guests don't see it. Choose another one."
                                 : chosen.isHidden ? "This video is hidden from guests, so they don't see it until you show it again."
@@ -168,7 +168,7 @@ export function GalleryVideoPanel({ gallery, canUpload, onUpload, onChange, onPl
                                 type="button"
                                 disabled={saving}
                                 onClick={() => void change(null)}
-                                className={cn(outlineButton, "border-rose-400/40 text-rose-300 hover:bg-rose-400/10")}
+                                className={cn(outlineButton, "border-rose-400/40 text-rose-300 light:text-rose-700 hover:bg-rose-400/10")}
                             >
                                 {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <X className="h-4 w-4" aria-hidden="true" />}
                                 Remove
@@ -177,9 +177,9 @@ export function GalleryVideoPanel({ gallery, canUpload, onUpload, onChange, onPl
                     </div>
                 </div>
             ) : (
-                <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-[#CA9C68]/40 px-4 py-6 text-center">
-                    <Clapperboard className="h-7 w-7 text-[#CA9C68]" aria-hidden="true" />
-                    <p className="text-sm text-slate-300">No cinematic highlight video yet.</p>
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-[var(--site-gold)]/40 px-4 py-6 text-center">
+                    <Clapperboard className="h-7 w-7 text-[var(--site-gold-text)]" aria-hidden="true" />
+                    <p className="text-sm text-[var(--site-subtle)]">No cinematic highlight video yet.</p>
                     <div className="flex flex-wrap justify-center gap-2">
                         {canUpload && (
                             <button type="button" disabled={isUploading} onClick={pickFile} className={goldButton}>
@@ -191,17 +191,17 @@ export function GalleryVideoPanel({ gallery, canUpload, onUpload, onChange, onPl
                             Choose from this gallery&apos;s videos ({usableVideos.length})
                         </button>
                     </div>
-                    {!canUpload && <p className="text-xs text-slate-500">Only the event owner and event admins can upload videos.</p>}
+                    {!canUpload && <p className="text-xs text-[var(--site-muted)]">Only the event owner and event admins can upload videos.</p>}
                 </div>
             )}
 
             {isUploading && (
-                <p className="mt-3 flex items-center gap-2 text-sm text-[#E2B77F]">
+                <p className="mt-3 flex items-center gap-2 text-sm text-[var(--site-gold-text)]">
                     <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
                     <span className="min-w-0 flex-1">
                         Uploading &quot;{pendingUpload?.fileName}&quot;. It becomes the cinematic highlight video once it&apos;s saved; progress shows in the upload panel.
                     </span>
-                    <button type="button" onClick={() => setPendingUpload(null)} aria-label="Hide this note" className="rounded p-1 text-slate-400 hover:text-white">
+                    <button type="button" onClick={() => setPendingUpload(null)} aria-label="Hide this note" className="rounded p-1 text-[var(--site-muted)] hover:text-[var(--site-text)]">
                         <X className="h-4 w-4" aria-hidden="true" />
                     </button>
                 </p>

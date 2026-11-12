@@ -53,7 +53,8 @@ test('single media deletion is scoped and preserves the row on storage failure',
     assert.deepEqual(deletedRows, []);
     failStorage = false;
     assert.equal(await deleteGalleryMedia(db, 'photo-1', 'event-1'), true);
-    assert.equal(deletedFiles.length, 5);
+    assert.equal(deletedFiles.length, 6);
+    assert.ok(deletedFiles.includes(`${key}-grid.webp`));
     assert.ok(!deletedFiles.includes(`${key}-unrelated`));
     assert.ok(deletedFiles.includes(`hls/${key}/segment.ts`));
     assert.deepEqual(deletedRows, ['faces', 'likes', 'comments', 'photos']);
