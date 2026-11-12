@@ -6037,7 +6037,7 @@ Status:    TODO
 Priority:  Medium
 Platform:  Website (iPhone Safari)
 Brief:     media.evebash.com used to send the whole video when the player asked for one part of it. iPhones need parts to play or seek a plain MP4 (the website's fallback when a video stream fails, EB Vault video previews, resumed downloads). The media worker can now send just the part asked for (issue #181).
-Detail:    Commit d005f8b6. Run this only after the worker is deployed AND its MEDIA_FORWARD_RANGE setting is "on" (until then nothing has changed). Video streams (HLS) and photos are not meant to change. Checked by Claude only on a local copy of the worker (wrangler dev), not on media.evebash.com or a phone. For the link, use the 30 s test clip in test-face-new (its file name ends in t157_watchdog_30s.mp4): https://media.evebash.com/ followed by that video's storage_key (ask Claude or look it up in Supabase, photos.storage_key).
+Detail:    Commit 18b33116. Run this only after the worker is deployed AND its MEDIA_FORWARD_RANGE setting is "on" (until then nothing has changed). Video streams (HLS) and photos are not meant to change. Checked by Claude only on a local copy of the worker (wrangler dev), not on media.evebash.com or a phone. For the link, use the 30 s test clip in test-face-new (its file name ends in t157_watchdog_30s.mp4): https://media.evebash.com/ followed by that video's storage_key (ask Claude or look it up in Supabase, photos.storage_key).
 How to test:
   1. On a computer: curl -A "Mozilla/5.0" -H "Range: bytes=0-99" -o /dev/null -w "%{http_code} %{size_download}\n" <the link>. Expect: "206 100" (before the switch: "200 10961412").
   2. iPhone Safari: open the link. Expect: the video plays with sound.
