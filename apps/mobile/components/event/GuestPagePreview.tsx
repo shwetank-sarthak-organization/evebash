@@ -61,8 +61,9 @@ interface GuestPagePreviewProps {
 
 // What guests see, small: the app (guests who use it) as a picture of its guest home, taken when a host last had it
 // open with Preview Guest Theme, on this phone or another (lib/guestPreviewSnapshot.ts; the app's guest view is part
-// of the event screen and can't be drawn small), and the website guest page itself on a computer, drawn at a computer's size and shrunk to
-// fit. The page opens with ?preview=1 (no edit mode, no "Open in app" banner) and takes no touches.
+// of the event screen and can't be drawn small), dimmed once the theme has changed since; and the website guest page
+// itself, drawn at a computer's size and shrunk to fit. The page opens with ?preview=1 (no edit mode, no "Open in app"
+// banner) and takes no touches. Sarthak (2026-11-12): no note under the app frame, the same as the website's card.
 export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }: GuestPagePreviewProps) {
   const [reloads, setReloads] = useState(0);
   const [session, setSession] = useState<WebSession | undefined>(undefined);
@@ -124,7 +125,7 @@ export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }
         <View style={styles.headerText}>
           <Text style={[styles.title, { color: colors.white }]}>Guest Home Preview</Text>
           <Text style={[styles.subtitle, { color: colors.slate400 }]}>
-            What guests see: this app, and the website on a computer.
+            What guests see in this app and on the website.
           </Text>
         </View>
         <TouchableOpacity
@@ -155,13 +156,6 @@ export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }
           </View>
         </View>
         <Text style={[styles.caption, { color: colors.slate400 }]}>App</Text>
-        {picture && (
-          <Text style={[styles.note, { color: pictureOutOfDate ? colors.gold : colors.slate400 }]}>
-            {pictureOutOfDate
-              ? 'The theme changed since this picture. Open Preview Guest Theme to update it.'
-              : `Picture from ${new Date(picture.takenAt).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}. Preview Guest Theme updates it.`}
-          </Text>
-        )}
       </View>
 
       <View style={styles.column}>
@@ -182,7 +176,7 @@ export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }
             )}
           </View>
         </View>
-        <Text style={[styles.caption, { color: colors.slate400 }]}>Website on a computer</Text>
+        <Text style={[styles.caption, { color: colors.slate400 }]}>Website</Text>
       </View>
     </View>
   );
@@ -239,7 +233,6 @@ const styles = StyleSheet.create({
   phoneEmpty: { color: '#94a3b8', fontSize: 11, fontFamily: Fonts.inter.medium, textAlign: 'center', lineHeight: 16, paddingHorizontal: 18 },
   outOfDate: { opacity: 0.45 },
   caption: { fontSize: 9.5, fontFamily: Fonts.inter.medium, textTransform: 'uppercase', letterSpacing: 1.5 },
-  note: { fontSize: 11, fontFamily: Fonts.inter.regular, textAlign: 'center', lineHeight: 16, paddingHorizontal: 8 },
   browser: { alignSelf: 'stretch', borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', backgroundColor: '#1c1c1f' },
   browserBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.05)' },
   browserDots: { flexDirection: 'row', gap: 5 },

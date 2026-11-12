@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Loader2, RotateCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { isGuestPreviewPictureOutOfDate, readGuestPreviewPicture, type GuestPreviewPicture } from "../../shared/themes/guestPreviewPicture";
@@ -9,10 +9,10 @@ type PageSize = { width: number; height: number };
 /** The app's picture and the event's template now (null: none yet, undefined: still loading) */
 type AppPicture = { picture: GuestPreviewPicture | null; templateId: string | null } | undefined;
 
-// The screen sizes the guest page is drawn at before it is shrunk: a common phone and a laptop
-const PHONE_PAGE: PageSize = { width: 390, height: 844 };
+// The screen size the guest page is drawn at before it is shrunk: a laptop's
 const COMPUTER_PAGE: PageSize = { width: 1280, height: 800 };
-const PHONE_SCREEN_WIDTH = 195;
+// The app frame: a common phone's shape (390 x 844), shrunk
+const PHONE_SCREEN: PageSize = { width: 195, height: 422 };
 
 const noSubscription = () => () => {};
 // The address bar shows the site the preview loads from (staging.evebash.com on staging)
@@ -26,14 +26,12 @@ interface GuestPagePreviewProps {
 }
 
 // What guests see, small. The app: a picture of its guest home, taken when a host last had it open with Preview Guest
-// Theme in the app (todo #31; the app's guest view can't be drawn in a browser). The website: the guest page itself
-// (not a sketch), drawn at a phone's and a computer's size and shrunk to fit, with each theme's own layout, fonts and
-// photos, the phone cover in the phone frame and the computer cover in the browser (issue #64).
-// The pages open with ?preview=1 (no edit mode, no "Open in app" banner) and take no clicks, so nothing can be liked
-// or uploaded from here. The iframes keep the host's sign-in (same site), so private galleries open.
-// When the website's phone app screen is switched on (NEXT_PUBLIC_MOBILE_APP_GATE, src/lib/appGate.ts), phone
-// visitors get "Get the EveBash app" instead of the page; while it is off they see the page as in the phone frame.
-// The frames load with the host's computer browser, so they always show the page itself.
+// Theme in the app (todo #31; the app's guest view can't be drawn in a browser), dimmed once the theme has changed
+// since. The website: the guest page itself (not a sketch), drawn at a computer's size and shrunk to fit, with the
+// theme's own layout, fonts, photos and computer cover. Sarthak (2026-11-12): no website-at-phone-size frame and no
+// note under the app frame.
+// The page opens with ?preview=1 (no edit mode, no "Open in app" banner) and takes no clicks, so nothing can be liked
+// or uploaded from here. The iframe keeps the host's sign-in (same site), so private galleries open.
 export function GuestPagePreview({ eventId, refreshKey = 0 }: GuestPagePreviewProps) {
     const [reloads, setReloads] = useState(0);
     const [computerWidth, setComputerWidth] = useState(0);
@@ -67,7 +65,7 @@ export function GuestPagePreview({ eventId, refreshKey = 0 }: GuestPagePreviewPr
             <div className="mb-5 flex items-start justify-between gap-4">
                 <div className="min-w-0">
                     <h5 className="text-lg font-black text-[var(--site-text)]">Guest Home Preview</h5>
-                    <p className="text-xs font-bold text-[var(--site-muted)]">What guests see in the EveBash app, and on the website on a phone and a computer. Use Preview Guest Theme to scroll and click around.</p>
+                    <p className="text-xs font-bold text-[var(--site-muted)]">What guests see in the EveBash app and on the website. Use Preview Guest Theme to scroll and click around.</p>
                 </div>
                 <button
                     type="button"
@@ -81,19 +79,13 @@ export function GuestPagePreview({ eventId, refreshKey = 0 }: GuestPagePreviewPr
             </div>
 
             <div className="flex flex-wrap items-start justify-center gap-x-6 gap-y-8">
-                <figure className="flex w-[211px] shrink-0 flex-col items-center gap-3">
-                    <PhoneBezel>
-                        <AppScreen appPicture={appPicture} />
-                    </PhoneBezel>
+                <figure className="flex shrink-0 flex-col items-center gap-3">
+                    <div className="shrink-0 rounded-[2.4rem] border border-white/15 bg-[#050505] p-[7px] shadow-2xl shadow-black/60">
+                        <div className="overflow-hidden rounded-[2rem]">
+                            <AppScreen appPicture={appPicture} />
+                        </div>
+                    </div>
                     <figcaption className="text-[10px] font-black uppercase tracking-widest text-[var(--site-muted)]">App</figcaption>
-                    <AppPictureNote appPicture={appPicture} />
-                </figure>
-
-                <figure className="flex w-[211px] shrink-0 flex-col items-center gap-3">
-                    <PhoneBezel>
-                        <PageFrame key={frameKey} eventId={eventId} title="Guest page on a phone" page={PHONE_PAGE} width={PHONE_SCREEN_WIDTH} />
-                    </PhoneBezel>
-                    <figcaption className="text-[10px] font-black uppercase tracking-widest text-[var(--site-muted)]">Website on a phone</figcaption>
                 </figure>
 
                 <figure className="flex min-w-[min(100%,26rem)] flex-1 basis-[26rem] flex-col items-center gap-3">
@@ -115,17 +107,9 @@ export function GuestPagePreview({ eventId, refreshKey = 0 }: GuestPagePreviewPr
                             )}
                         </div>
                     </div>
-                    <figcaption className="text-[10px] font-black uppercase tracking-widest text-[var(--site-muted)]">Website on a computer</figcaption>
+                    <figcaption className="text-[10px] font-black uppercase tracking-widest text-[var(--site-muted)]">Website</figcaption>
                 </figure>
             </div>
-        </div>
-    );
-}
-
-function PhoneBezel({ children }: { children: ReactNode }) {
-    return (
-        <div className="shrink-0 rounded-[2.4rem] border border-white/15 bg-[#050505] p-[7px] shadow-2xl shadow-black/60">
-            <div className="overflow-hidden rounded-[2rem]">{children}</div>
         </div>
     );
 }
@@ -133,10 +117,9 @@ function PhoneBezel({ children }: { children: ReactNode }) {
 // The app's picture at the phone frame's size; it is taken at the phone's own shape, so it is cropped from the top
 function AppScreen({ appPicture }: { appPicture: AppPicture }) {
     const outOfDate = !!appPicture?.picture && isGuestPreviewPictureOutOfDate(appPicture.picture, appPicture.templateId);
-    const height = Math.round(PHONE_PAGE.height * (PHONE_SCREEN_WIDTH / PHONE_PAGE.width));
 
     return (
-        <div className="relative grid place-items-center overflow-hidden bg-[#0b0b0c]" style={{ width: PHONE_SCREEN_WIDTH, height }}>
+        <div className="relative grid place-items-center overflow-hidden bg-[#0b0b0c]" style={PHONE_SCREEN}>
             {appPicture === undefined ? (
                 <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
             ) : appPicture.picture ? (
@@ -153,21 +136,6 @@ function AppScreen({ appPicture }: { appPicture: AppPicture }) {
                 </p>
             )}
         </div>
-    );
-}
-
-function AppPictureNote({ appPicture }: { appPicture: AppPicture }) {
-    const picture = appPicture?.picture;
-    if (!picture) return null;
-    const outOfDate = isGuestPreviewPictureOutOfDate(picture, appPicture.templateId);
-    const takenAt = new Date(picture.takenAt).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
-
-    return (
-        <p className={`text-center text-[11px] font-semibold leading-relaxed ${outOfDate ? "text-[var(--site-gold-text)]" : "text-[var(--site-muted)]"}`}>
-            {outOfDate
-                ? "The theme changed since this picture. Open Preview Guest Theme in the app to update it."
-                : `Picture from ${takenAt}. Preview Guest Theme in the app updates it.`}
-        </p>
     );
 }
 
