@@ -5980,6 +5980,7 @@ Date tested:      2026-11-12
 Account used:     host (owner of Bijay Wedding)
 Screenshot / recording:
 Fix ref:
-Feedback:         2026-11-12 Sarthak: website good (steps 1-3). Claude, simulator: steps 5 (form part) and 6 PASS:
-                  box and bottom sheet readable in light and dark. Still to do: step 4 (send a real transfer,
-                  pending state, cancel) on website and app, step 7, and a real phone.
+Feedback:         2026-11-12 Sarthak: website good (steps 1-3). Claude, simulator: in the app the box and the
+                  bottom sheet (form) are readable in light and dark (parts of steps 5 and 6). Still to do: step 4
+                  (send a real transfer, gold pending box, cancel) on website and app, the pending box in light
+                  look, the website in light look, step 7, and a real phone.
