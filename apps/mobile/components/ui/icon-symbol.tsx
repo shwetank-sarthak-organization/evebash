@@ -127,6 +127,7 @@ const MAPPING = {
   'gobackward.10': 'replay-10',
   'goforward.10': 'forward-10',
   'arrow.up.and.down': 'swap-vert',
+  'arrow.left.arrow.right': 'swap-horiz',
   'building.2': 'business',
   'line.3.horizontal.decrease.circle': 'filter-list',
 } as const;

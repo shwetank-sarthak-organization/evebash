@@ -4649,13 +4649,14 @@ function DashboardContent() {
 
                                         {activeEventDetailTab === "permissions" && (
                                             <div className="space-y-5">
-                                                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                                                     <div>
                                                         <h4 className="text-xl font-black text-[var(--site-text)]">Permissions</h4>
                                                         <p className="text-sm font-bold text-[var(--site-muted)]">Approve, deny, or remove guest access requests for this event.</p>
                                                     </div>
+                                                    <div className="grid w-full shrink-0 gap-3 sm:grid-cols-2 xl:flex xl:w-auto">
                                                     {canChangeSelectedEventVisibility && selectedMainEvent && (
-                                                        <div className="w-full shrink-0 sm:w-[22rem]">
+                                                        <div className="flex w-full flex-col xl:w-[22rem]">
                                                             <button
                                                                 type="button"
                                                                 role="switch"
@@ -4665,7 +4666,7 @@ function DashboardContent() {
                                                                 disabled={savingVisibility}
                                                                 onClick={() => void changeEventVisibility(!selectedMainEvent.isPublic)}
                                                                 className={cn(
-                                                                    "flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)]/60 disabled:cursor-wait",
+                                                                    "flex w-full flex-1 items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)]/60 disabled:cursor-wait",
                                                                     selectedMainEvent.isPublic
                                                                         ? "border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10"
                                                                         : "border-[var(--site-border)] bg-[var(--site-surface)]/45 hover:border-[var(--site-gold)]/45 hover:bg-[var(--site-surface)]/70"
@@ -4687,9 +4688,9 @@ function DashboardContent() {
                                                             {visibilityError && <p role="alert" className="mt-2 text-xs text-rose-300 light:text-rose-700">{visibilityError}</p>}
                                                         </div>
                                                     )}
+                                                    {selectedMainEvent && !selectedMainEvent.parentId && <TransferOwnershipCard key={selectedMainEvent.id} eventId={selectedMainEvent.id} className="w-full xl:w-[22rem]" />}
+                                                    </div>
                                                 </div>
-
-                                                {selectedMainEvent && !selectedMainEvent.parentId && <TransferOwnershipCard key={selectedMainEvent.id} eventId={selectedMainEvent.id} />}
 
                                                 {loadingEventDetail ? (
                                                     <div className="flex items-center justify-center rounded-[1.5rem] border border-[var(--site-border)] p-8 text-[var(--site-muted)]">
