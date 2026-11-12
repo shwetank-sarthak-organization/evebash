@@ -24,21 +24,6 @@ Next issue number: 261
 ACTIVE ISSUES
 =====================================================================
 
-#6
-Listed: 2026-10-09
-Platform: Both
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Turning on EVENT_UPLOAD_LIMITS=true on the production backend (Railway)
-Found in: Website vs app consistency audit (2026-10-05)
-Issue: Storage and plan limits only apply on the website. The app and backend don't block uploads over the plan's storage, and the app's storage totals ignore overhead_size. Ideally enforced in the backend so both platforms follow it.
-How to reproduce: With a free account near its 1 GB limit, upload past the limit from the website (blocked) and from the app (allowed). Compare the storage used shown on each.
-Update 2026-10-10: events and EB Vault now share one plan storage pool. Website/app totals include Vault usage, and Vault uploads are checked on the backend. Event uploads are still only checked on the website and app, so this stays open.
-Update 2026-10-10 (8acf63a): the gallery OWNER pays (decided by Sarthak): vault_event_storage_bytes counts media in galleries the owner owns, whoever uploaded it (migration 20261010030000 applied). The server checks the owner's plan (events + Vault, videos x1.35, paused while a paid plan is expired) before handing out upload links, behind EVENT_UPLOAD_LIMITS (off by default). Website and app read storage from GET /api/v1/media/storage-usage. Move to fixed once the switch is on and test #40 passes.
-Update 2026-11-07: the plan's event limit was also only checked on the website and app. Migration 20261107000000_event_count_limit.sql adds the same check in the database (trigger on new top-level events from website/app sessions; admins, delegated accounts and the backend aren't limited; existing events untouched; applied 2026-11-07). The app now shows the database's refusal message too, like the website. Device test #202. Still open until EVENT_UPLOAD_LIMITS=true is set on Railway and device test #40 passes.
-Update 2026-11-11: device tests #40 (upload limits) and #202 (event limit in the database) PASS on staging (Android phone dev build + website). #40 first failed only because EVENT_UPLOAD_LIMITS was staged on Railway but not deployed: Redeploy does not apply staged variables, use Deploy next to "Apply changes". Left: set EVENT_UPLOAD_LIMITS=true on the production backend and Deploy, then move this issue to RECENTLY FIXED.
-
 #9
 Listed: 2026-10-09
 Platform: Analytics dashboard
@@ -1530,6 +1515,22 @@ How to reproduce: Not reliable yet. In the app, log out, log in as another accou
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#6
+Listed: 2026-10-09
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: Storage and plan limits only apply on the website. The app and backend don't block uploads over the plan's storage, and the app's storage totals ignore overhead_size. Ideally enforced in the backend so both platforms follow it.
+How to reproduce: With a free account near its 1 GB limit, upload past the limit from the website (blocked) and from the app (allowed). Compare the storage used shown on each.
+Update 2026-10-10: events and EB Vault now share one plan storage pool. Website/app totals include Vault usage, and Vault uploads are checked on the backend. Event uploads are still only checked on the website and app, so this stays open.
+Update 2026-10-10 (8acf63a): the gallery OWNER pays (decided by Sarthak): vault_event_storage_bytes counts media in galleries the owner owns, whoever uploaded it (migration 20261010030000 applied). The server checks the owner's plan (events + Vault, videos x1.35, paused while a paid plan is expired) before handing out upload links, behind EVENT_UPLOAD_LIMITS (off by default). Website and app read storage from GET /api/v1/media/storage-usage. Move to fixed once the switch is on and test #40 passes.
+Update 2026-11-07: the plan's event limit was also only checked on the website and app. Migration 20261107000000_event_count_limit.sql adds the same check in the database (trigger on new top-level events from website/app sessions; admins, delegated accounts and the backend aren't limited; existing events untouched; applied 2026-11-07). The app now shows the database's refusal message too, like the website. Device test #202. Still open until EVENT_UPLOAD_LIMITS=true is set on Railway and device test #40 passes.
+Update 2026-11-11: device tests #40 (upload limits) and #202 (event limit in the database) PASS on staging (Android phone dev build + website). #40 first failed only because EVENT_UPLOAD_LIMITS was staged on Railway but not deployed: Redeploy does not apply staged variables, use Deploy next to "Apply changes". Left: set EVENT_UPLOAD_LIMITS=true on the production backend and Deploy, then move this issue to RECENTLY FIXED.
+Update 2026-11-12: production (api.evebash.com, main) has EVENT_UPLOAD_LIMITS=true. Checked from the Android phone dev build pointed at production, as newone@email.com (Free, about 42.5 GB): the upload was refused with "You've reached your plan's storage limit..." (a server-only message) and no upload_intents row was created.
+Fixed in: 8acf63a8 (2026-11-12), switched on in production 2026-11-12. Device tests #40 and #202.
 
 #258
 Listed: 2026-11-10
