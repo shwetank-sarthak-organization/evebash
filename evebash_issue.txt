@@ -1055,17 +1055,6 @@ Found in: Claude device-test run on staging (2026-10-28, test #74)
 Issue: On /dashboard at about 1024 px wide, the Total Photos stat is cut off ("661 Pho..."): the number uses class "truncate text-xl lg:text-2xl" and its box is narrower than the text (text 113 px, box 105 px). Total Videos fits. Fix idea: smaller text at lg, or let the stat wrap, or give the stat boxes more room.
 How to reproduce: Signed in with an account that has 600+ photos, open /dashboard in a 1024 px wide window. Look at the Total Photos box.
 
-#176
-Listed: 2026-10-28
-Platform: Website
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Device test #95, Claude run on staging (2026-10-28)
-Issue: In Host -> event -> Home (Primary Gallery) -> Filter, the Source gallery list counts only the photos already loaded on the page, not the whole gallery. test-face-new shows "Photos (42)" but the list offers only "All galleries (17)" and "Home (Primary Gallery) (17)"; sub-galleries whose favourites aren't loaded yet (check-fail-test, new_check, newcheck) are missing, so the host can't filter by them. In src/app/(main)/host/page.tsx, sourceGalleryOptions and the "All galleries (N)" label are built from selectedMediaItems (currentEventPhotos, which loads in pages); Uploaded by already loads everyone when opened ("Loading everyone..."), Source gallery doesn't. Fix idea: load all media (or ask the server for per-gallery counts) when the Filter panel opens, like Uploaded by does, and show "N+" while more pages are left.
-How to reproduce: Host -> test-face-new -> Galleries -> Home (Primary Gallery). Don't scroll. Filter -> Source gallery: compare the numbers with the Photos (42) tab, and look for the sub-gallery names.
-
 #179
 Listed: 2026-10-28
 Platform: Backend only
@@ -1205,6 +1194,7 @@ Blocked by: -
 Found in: Upload flow review (chat 2026-11-02)
 Issue: Some numbers are stale after an upload or a lost connection. (1) The Dashboard keeps "Couldn't load your events" after the connection returns until Try again is tapped. (2) The host gallery's "Source gallery: All galleries · N" counts only the items loaded so far (selectedMediaItems in apps/mobile/app/events/[id].tsx): it showed 36, then 16, for a gallery of 44 photos. (3) Storage Usage stayed at 46.24 GB after an upload.
 How to reproduce: Seen on the Pixel 8 emulator on 2026-11-02 in test-face-new.
+Note 2026-11-12: part 2 (the Source gallery count) is fixed in 913ef3ec together with #176: opening the list loads the whole gallery, and until then the count ends in "+". Checked on the Pixel 8 emulator (dev build on a local bundler with this commit): test-face-new showed "All galleries · 16+", then All galleries 46 and Home 46 in the list, matching Photos (46); samarth weds Jyoti showed 24 / 14 / 5 / 2 / 3, matching the database. Device test #209. Parts 1 and 3 are still open.
 
 #216
 Listed: 2026-11-02
@@ -1527,6 +1517,18 @@ How to reproduce: In the app, set Appearance to Light. Open an event you host, g
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
 
+#176
+Listed: 2026-10-28
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test #95, Claude run on staging (2026-10-28)
+Issue: In Host -> event -> Home (Primary Gallery) -> Filter, the Source gallery list counts only the photos already loaded on the page, not the whole gallery. test-face-new shows "Photos (42)" but the list offers only "All galleries (17)" and "Home (Primary Gallery) (17)"; sub-galleries whose favourites aren't loaded yet (check-fail-test, new_check, newcheck) are missing, so the host can't filter by them. In src/app/(main)/host/page.tsx, sourceGalleryOptions and the "All galleries (N)" label are built from selectedMediaItems (currentEventPhotos, which loads in pages); Uploaded by already loads everyone when opened ("Loading everyone..."), Source gallery doesn't. Fix idea: load all media (or ask the server for per-gallery counts) when the Filter panel opens, like Uploaded by does, and show "N+" while more pages are left.
+How to reproduce: Host -> test-face-new -> Galleries -> Home (Primary Gallery). Don't scroll. Filter -> Source gallery: compare the numbers with the Photos (42) tab, and look for the sub-gallery names.
+Fixed in: 913ef3ec (2026-11-12). Opening the Source gallery list on Home now loads the whole gallery first, the same way Uploaded by does ("Loading galleries…" meanwhile), and until then the Home and All galleries counts end in "+" while more pages are left. The website and the app build the list with one helper, shared/media/sourceGalleries.ts. Sub-galleries appear on Home only through their starred photos, which already load in full; test-face-new has none now, so only Home is listed there. Checked on the local website signed in as the host (built-in browser): test-face-new showed "All galleries (16+)", then "All galleries (46)" and "Home (Primary Gallery) (46)" after opening the list, matching Photos (46); samarth weds Jyoti showed All galleries 24, Home 14, Rec 1 5, REc 10 2, Reception 5 3, matching the database, and picking Rec 1 showed its 5 photos. The app's copy of the same bug (#215 part 2) is fixed by the same commit and was checked the same way on the Pixel 8 emulator. Device test #209.
+
 #6
 Listed: 2026-10-09
 Platform: Both
@@ -1640,210 +1642,3 @@ Issue: The Permissions member popup shows Username, Email ID and Phone Number as
 How to reproduce: As newone@email.com open Host > wedding-fdd8 > Permissions > Shwetank Chauhan. Username and Email ID say "Not set", though the profile has both.
 Decision 2026-11-05 Shwetank: owners and admins see username and email only, never the phone.
 Fixed in: 7df379a (2026-11-05). Device test #188.
-#180
-Listed: 2026-10-28
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Device test #163 simulator run (chat 2026-10-28)
-Issue: In the photo/video viewer, dragging the video seek bar sideways changes to the next or previous item instead of seeking. The viewer's swipe handler (apps/mobile/components/PhotoViewer.tsx handleViewerTouchStart / handleViewerTouchEnd, raw onTouchStart / onTouchEnd on the media frame) sees every touch inside the frame, including the seek bar's, and navigates on any move over 45 px. Seen on the Android emulator (a drag on the bar went from 2/9 to 1/9, twice, with the controls showing); on the iOS simulator taps on the bar did not seek either. The +10 / -10 buttons work.
-How to reproduce: open a gallery with 2+ videos in the app, open a video, show the controls, drag the seek bar thumb to the right.
-Fix idea: ignore the swipe when the touch started on the video controls (e.g. set a "scrubbing" ref in the seek bar's onResponderGrant and clear it on release; handleViewerTouchEnd returns early while it is set), then check tap-to-seek on the bar too.
-Fixed in: ccf4612 (2026-11-04). The seek bar and the volume slider in apps/mobile/components/PhotoViewer.tsx stop their touches from reaching the viewer's swipe handler (stopPropagation on their onTouchStart / onTouchEnd), so dragging them no longer changes item; a swipe on the picture still does. Checked in test-face-new's Videos tab on the Android emulator (drag right to 0:22, drag left to 0:03, tap to 0:14, volume drag to 0: all stayed on the same video; swipe on the picture went from 1/4 to 2/4) and on the iPhone 17 Pro simulator with a bundle of this commit (drag to 0:22 and tap to 0:07 stayed on 1/4; swipe went to 2/4). Tap-to-seek works on iOS too; the earlier iOS note was most likely that phone's old built-in bundle. The host viewer (Host tab) uses the same controls but was not clicked through. Device test #186.
-
-#245
-Listed: 2026-11-04
-Platform: App
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: #190 fix (chat 2026-11-04)
-Issue: Queued uploads point at their copy by its full file path (fileUri in apps/mobile/lib/uploadQueue.ts, e.g. .../Documents/evebash_uploads/<name>). On iPhone the app's folder path can change after an app update, so photos still waiting to upload across an update would fail as if the file were missing, although the copy is still there. From how iOS stores app data; not reproduced. Fix: at startup, rebuild the path of copies in evebash_uploads from the current documents folder (the copy's name is already unique).
-How to reproduce: Not run. On an iPhone, queue photos with airplane mode on, install a newer build of the app, open it and turn airplane mode off: expect those uploads to fail.
-Fixed in: 894b9af (2026-11-04). At startup apps/mobile/lib/uploadQueue.ts rebuilds the path of each copy in evebash_uploads from the current documents folder (withCurrentCopyPath; the copy's name is unique) and saves the queue again if any path changed; nothing changes when the folder hasn't moved. The chunked-upload resume state also records the path but never reads it. Checked on the iPhone 17 Pro simulator with a release build: a saved queue whose items pointed at a made-up old app folder was rewritten to the current folder, every path led to its copy, and a leftover copy was deleted. Device test #184 step 3 covers it on a phone.
-
-
-#177
-Listed: 2026-10-28
-Platform: Website
-Priority: High
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Device test #58, Claude run on staging (2026-10-28)
-Issue: Tapping the heart on a photo in the website gallery grid saves the like (POST /likes 201) but the heart and the like count don't change until the page is reloaded. Tapping again (because nothing seemed to happen) silently removes the like. Unlike has the same problem. src/components/ui/MasonryGrid.tsx handleToggleLike calls toggleLike and then waits for onPhotoInteractions (src/lib/database.ts) to refresh the likes, but that only refreshes on Supabase Realtime postgres_changes, and Realtime is off (issue #49). Comments in the grid count pill have the same dependency. Fix idea: update the likes list in the tile straight after toggleLike succeeds (optimistic, roll back on error), or re-fetch the photo's likes after the call.
-How to reproduce: Signed in, open a gallery (e.g. /events/test-face-new-155c), tap the heart on a photo that has no likes. The heart stays white and no "1" pill appears. Reload: the photo shows as liked with "1".
-Fixed in: 35e8f8f (2026-11-04). src/lib/database.ts: after toggleLike, addComment or deletePhotoComment succeeds, every open view of that photo (grid tile and viewer) reads its likes and comments again, so nothing waits for Realtime; only the newest read counts. The grid heart and count (src/components/ui/MasonryGrid.tsx) change at once and go back if saving fails. The host page viewer (src/components/ui/Lightbox.tsx) waited the same way and is fixed by the same change. Checked on the local website signed in (built-in browser, 720 px wide): like and unlike showed at once and matched the database; after a comment in the viewer the grid tile showed 1 comment without a reload. Test likes and comments deleted. The host page viewer was not clicked through. Device test #185; device test #58 set to RETEST.
-
-#178
-Listed: 2026-10-28
-Platform: Website
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Device tests #64, #110, #111, Claude run on staging (2026-10-28)
-Issue: The website's gallery photo viewer (src/components/page-flip/PageFlipSocialBar.tsx, used by MasonryGrid for every guest gallery since the page-flip viewer, 6a7e38ea) is behind the older Lightbox (src/components/ui/Lightbox.tsx, now only used on the host page): (1) no Reply button and no reply threads at all, so test #111 can't be done on the website and the app's replies don't show as threads there; (2) Delete on your own comment removes it at once with no "Delete comment?" confirm (test #64 step 2); (3) right after posting, your new comment has no Delete button until you close and reopen the photo; (4) the header reads "1 shared thoughts". Fix idea: bring reply threads and confirmDialog into PageFlipSocialBar (reuse Lightbox's logic, ideally shared), set the new comment's user id so Delete shows at once, and fix the singular.
-How to reproduce: Signed in, open /events/test-face-new-155c, open a photo, open Comments, post a comment: no Reply button; no Delete until reopening; then Delete removes it without asking.
-Note 2026-11-03: the app now uses shared/text/commentTime.ts (formatCommentTime: the time for today, the date for older comments). The website has two copies that show only the time (formatInteractionTime in src/components/ui/Lightbox.tsx, formatCommentTime in src/components/page-flip/PageFlipSocialBar.tsx); use the shared one when this is fixed.
-Fixed in: 35e8f8f (2026-11-04). src/components/page-flip/PageFlipSocialBar.tsx: (1) Reply on top comments; replies sit indented under the comment they answer (one level deep, same order as the app), with a "Replying to <name>" bar and an X, cleared when moving to another photo; (2) Delete asks "Delete comment?" first (and says its replies go too; the database deletes them with it), and Esc on that confirm closes only the confirm, not the viewer behind it (isDialogOpen in src/components/ui/Modal.tsx, also used by the host page Lightbox); (3) a new comment gets its Delete button as soon as it is saved; (4) "1 shared thought". Both website viewers now use shared/text/commentTime.ts. Checked on the local website signed in as a host: comment, Reply, cancel reply, reply, Esc on the confirm, delete reply and comment all worked, and the database was back to 0 comments. Not checked: the order against the app with replies from both, or a guest without comment rights. Device test #185; device test #111 set to RETEST, #110 Fix ref filled.
-
-#190
-Listed: 2026-11-01
-Platform: App
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: App crash audit (chat 2026-11-01)
-Issue: A very large upload queue can disappear after a restart. apps/mobile/lib/uploadQueue.ts saves the whole queue as one AsyncStorage value and rewrites it on every change. One item is about 570 bytes, so about 3,500 files reach Android's 2 MB limit for reading one row, and about 10,500 reach AsyncStorage's default 6 MB database limit. Past that the read or save fails. The error is caught, so the app doesn't crash, but pending uploads silently vanish after a restart and their copies stay in the app's documents folder. Sizes are calculated, not reproduced. Fix: store one row per item or per batch, and clean up orphaned copies at startup.
-How to reproduce: Not run. On Android, queue 4,000 photos, close the app before they finish, and reopen it: expect the queue to be empty.
-Fixed in: 11a60c8 (2026-11-04). apps/mobile/lib/uploadQueue.ts saves the queue as a JSON file (Documents/evebash_upload_queue.json, written to a temporary file and then moved into place) instead of one AsyncStorage value, so neither AsyncStorage limit applies. A queue saved by an older version is moved to the file at startup, and the old value is removed only after the file exists. At startup, copies in Documents/evebash_uploads that no queue item points at are deleted (matched by file name; copies still being added are kept). Saves still happen once per status change, as before. Checked on the iPhone 17 Pro simulator with a release build: a seeded 4,000-item queue in the old format (2.65 MB, past Android's 2 MB read limit) moved to the file, the old value was removed, leftover copies were deleted and referenced ones kept; after a restart all 4,000 items loaded again. Not run on Android. Device test #184. Found while fixing: #245.
-
-
-#189
-Listed: 2026-11-01
-Platform: App
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: App crash audit (chat 2026-11-01)
-Issue: Google sign-in on iPhone would crash the app if the iOS client ID is ever missing or wrong. apps/mobile/context/AuthContext.tsx falls back to 'YOUR_IOS_CLIENT_ID_HERE'. Google's SDK then raises a native exception ("Your app is missing support for the following URL schemes"), and react-native-google-signin only catches it in DEBUG builds (ios/RNGoogleSignin.mm), so a release build closes when the user taps Continue with Google. Not happening today: the value in EAS production, EAS preview and the local .env all match iosUrlScheme in app.json. Fix: remove the placeholder, and when the value is missing hide the Google button on iPhone or show a normal error.
-How to reproduce: Not run. Make an iOS release build with EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID unset and tap Continue with Google: expect the app to close.
-Fixed in: 7c165dc (2026-11-04). apps/mobile/context/AuthContext.tsx no longer uses the placeholder ID. On iPhone, if EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID is missing or doesn't match the iosUrlScheme of the google-signin plugin in app.json (read from the built app's config), Google sign-in is left unconfigured and Continue with Google shows the existing "not available in this app build" message instead of the app closing. Checked: type check; the built app's embedded config carries the plugin's iosUrlScheme and the local .env ID matches it, so current builds behave as before. Not run: a build with a wrong ID.
-
-#191
-Listed: 2026-11-01
-Platform: App
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: App crash audit (chat 2026-11-01)
-Issue: Two kinds of push open pages that don't exist. apps/mobile/app/_layout.tsx sends chat pushes to /chat/<id> and enquiry pushes to /enquiries, but the routes are app/chat.tsx (no id route) and app/business-enquiries.tsx, and there is no +not-found screen, so the user lands on expo-router's default "Unmatched Route" page. Not a crash; both are Phase 2 features. Fix: point them at the real routes and add a branded app/+not-found.tsx.
-How to reproduce: Not run. Tap a chat or enquiry push: expect the Unmatched Route page.
-Fixed in: 7c165dc (2026-11-04). Chat pushes open /chat with the room, and the sender's name (now in the push data) as the header. Enquiry pushes now carry businessId (addEnquiry in apps/mobile/lib/database.ts) and open /business-enquiries for it; older enquiry pushes without it do nothing. New apps/mobile/app/+not-found.tsx is a branded page with Go to Home / Go back. Checked on the iPhone 17 Pro simulator with a release build: simulated chat and enquiry pushes (xcrun simctl push) opened the chat screen with the sender's name and the enquiries page; a test-only link to a missing page showed the new page, and Go to Home opened the Dashboard. These two pushes still aren't sent at all until #58 (missing profiles.notification_preferences column) is fixed.
-
-#237
-Listed: 2026-11-03
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: App screen review, photo viewer comments (chat 2026-11-03)
-Issue: In the full-screen photo viewer that guest galleries use (the "dashboard" layout in apps/mobile/components/PhotoViewer.tsx, from about line 1736; seen in Royal Emerald), the Guestbook panel is see-through. Its background is the theme's panel colour, which is mostly transparent (the default is rgba(255,255,255,0.08)). The Like / Comment / Share / Download row stays underneath and shows through, right on top of the "No whispers yet..." empty state. The empty state's second line, "Write the first beautiful word.", is hidden behind the comment box. Fix idea that keeps each theme's colours: hide the action row while comments are open (the other layout raises it with viewerActionsRaised) and put a solid backing behind the panel's theme colour; then check every guest theme.
-How to reproduce: Android emulator, test-face-new-155c guest view (Royal Emerald), open any photo, tap the comment icon.
-Fixed in: 40a55ee (2026-11-03). In the guest viewer the Like / Comment / Share / Download row is hidden (its space kept) while the comment panel is open, and the empty message has less padding so both lines fit (apps/mobile/components/PhotoViewer.tsx, apps/mobile/components/eventStyles/visitorImmersiveStyles.ts); theme colours unchanged. Correction to the text above: the Royal Emerald panel is 94% opaque (rgba(2,35,28,0.94)), not mostly transparent; the row showed faintly because it sat right under it. Checked on the Android emulator in Royal Emerald (photo with no comments): nothing shows through, both lines fit, the row comes back when the panel closes. Device test #181.
-
-#235
-Listed: 2026-11-03
-Platform: App
-Priority: High
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: App screen review, photo viewer (chat 2026-11-03)
-Issue: In the app's photo/video viewer, likes and comments don't show after you add them. Tapping the heart saves the like, but the heart stays empty and the count stays 0 until the viewer is closed and opened again. Tapping again (because nothing seemed to happen) silently removes the like. A new comment doesn't appear either, and a deleted one stays. The viewer only reloads likes and comments when Supabase Realtime reports a change (onPhotoInteractions in apps/mobile/lib/database.ts, used by apps/mobile/components/PhotoViewer.tsx), and Realtime is off (#49). Same cause as the website grid's #177. Fix idea: after toggleLike, addComment and deletePhotoComment succeed, fetch that photo's likes and comments again (or update the lists straight away and undo on error).
-How to reproduce: Signed in on the Android emulator (2026-11-03), test-face-new-155c guest view, photo 8 of the grid: tap the heart. The like was saved (1 row in likes) but the heart stayed empty with "0". Tapping again removed it (0 rows). Comments weren't posted in this check; they use the same code path.
-Fixed in: d100d39 (2026-11-03). The viewer reloads the photo's likes and comments after your own like, comment or delete (onPhotoInteractions in apps/mobile/lib/database.ts now also returns refresh(), and ignores late or stale reads); the heart changes at once. Checked on the Android emulator (Pixel 8, dev build, test-face-new-155c): like and unlike showed at once and matched the database; a test comment appeared at once and Delete removed it at once (both removed afterwards). iPhone not checked. Device test #176.
-
-#236
-Listed: 2026-11-03
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: App screen review, photo viewer comments (chat 2026-11-03)
-Issue: Every comment's time in the app's viewer will read "Invalid Date". PhotoViewer.tsx (comment and reply rows, about lines 1383 and 1443) reads comment.createdAt.seconds, an old Firestore shape, but onPhotoInteractions (apps/mobile/lib/database.ts) gives created_at as a text date, so .seconds is undefined and the date is invalid. It also shows only the time of day, so a comment from last week looks like today's. Fix idea: use new Date(comment.createdAt), and show the date for comments older than today (e.g. "3 Nov, 4:05 pm").
-How to reproduce: Not seen on screen yet: the database has no comments today. Post a comment in the app, close and reopen the photo (see #235) and look at the time next to the name. The same expression run in Node prints "Invalid Date".
-Fixed in: d100d39 (2026-11-03). Comment and reply times use shared/text/commentTime.ts: the time for today, the date for older comments ("Oct 27, 04:00 PM", or "Dec 31, 2025" for older years). Checked on the Android emulator: a new comment showed "8:50 PM". Device test #176.
-
-#238
-Listed: 2026-11-03
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: App screen review, video viewer (chat 2026-11-03)
-Issue: In the app's video viewer, Play stops working once a video has reached the end. The button switches to Pause, but the time stays at the end (0:30 / 0:30) and nothing plays; the next tap switches it back to Play. After going full screen and back at the end, the picture is black too. handleTogglePlayback in apps/mobile/components/PhotoViewer.tsx calls player.play() without going back to the start, and a finished player on Android doesn't restart by itself. Fix idea: if the time is at (or within half a second of) the end, set player.currentTime = 0 before play(), and show a replay icon at the end. Check on iPhone too.
-How to reproduce: Android emulator (Pixel 8), test-face-new-155c guest view > Videos, open the first video (30 s), let it play to the end, tap Play.
-Fixed in: d100d39 (2026-11-03). Play on a finished video goes back to 0:00 first (handleTogglePlayback in apps/mobile/components/PhotoViewer.tsx). Checked on the Android emulator: a 30 s video ended showing Play and its last frame, and Play started it again from 0:00 with the picture. iPhone not checked. Device test #176.
-
-#230
-Listed: 2026-11-03
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: App screen review (chat 2026-11-01, item 8)
-Issue: Host event screens are pure black while the rest of the app is charcoal (#13191F). The host view always borrows the Midnight Hero guest theme (apps/mobile/app/events/[id].tsx, selectedTemplate locks to 'hero': background #000000, muted text #94a3b8, tiles #09090b), so the page is black above a charcoal bottom bar, and the host-only markup mixes in blue-grey and navy (#94a3b8, #cbd5e1, #0f172a, slate-blue Design cards and video sheet). The Midnight Hero guest theme itself must stay as it is.
-How to reproduce: Open an event you host: the page behind Galleries, Permissions, Design and Album is black, the bottom bar is charcoal, and the Design cards are slate blue.
-Fixed in: f203787 (2026-11-03). The host view uses the app's colours (charcoal #13191F, warm text) instead of Midnight Hero's black: selectedTemplate gets host colours when showAdminView, and the blue-grey and navy in the host-only markup map to MidnightColors; the Design card is warm grey. Guests on Midnight Hero are unchanged. Checked on the Pixel 8 emulator (Galleries, gallery page, Permissions, Design). Device test #173.
-
-#231
-Listed: 2026-11-03
-Platform: App
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: App screen review (chat 2026-11-01, item 9)
-Issue: Host event screens use the yellow gold #CCA43B (rgba(204,164,59,...)) next to the brand gold #CA9C68: the PRIMARY badge, Preview Guest Theme, Select and Retry buttons, toggles and highlights in apps/mobile/app/events/[id].tsx. Guest themes are covered by #147 and are not part of this.
-How to reproduce: Open an event you host > Galleries: compare the PRIMARY badge with the gold tabs and buttons.
-Fixed in: f203787 (2026-11-03). rgba(204,164,59,...) and #CCA43B on host screens are now the brand gold; the PRIMARY badge is brand gold with dark text. Guest themes stay with #147. Checked on the Pixel 8 emulator. Device test #173.
-
-#232
-Listed: 2026-11-03
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: App screen review (chat 2026-11-01, item 14)
-Issue: Access request rows use bright, unlabelled red and green circles (an X and a tick) and squeeze the guest's name to make room for them. Same on Host > Requests (apps/mobile/app/(tabs)/gallery.tsx) and an event's Permissions tab (apps/mobile/app/events/[id].tsx). The request detail sheet's Approve button is bright green too.
-How to reproduce: Have a guest request access to an event you host, then open Host > Requests or the event's Permissions tab.
-Fixed in: f203787 (2026-11-03). Both lists show the guest's name on its own line with labelled Deny (outlined) and Approve (gold) buttons from components/ui/Button; the request sheet's Approve Access is gold. Not seen on screen yet (no pending requests): device test #173 step 4.
-
-#233
-Listed: 2026-11-03
-Platform: App
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: App screen review (chat 2026-11-01, item 15)
-Issue: The Permissions tab is rough: the Event visibility card's Public button and border are slate blue (apps/mobile/components/EventVisibilityControl.tsx), each guest row shows unlabelled role icons (eye, shield, camera, bubble) and a "#01" number that means nothing to a host, and "Guest List" sits tight under the visibility card.
-How to reproduce: Open an event you host > Permissions.
-Fixed in: f203787 (2026-11-03). Guest rows show the name, phone and a line such as "Admin: full access" or "Can view, upload and comment", with no "#01"; EventVisibilityControl uses MidnightColors; more room above Guest List. Checked on the Pixel 8 emulator (samarth weds Jyoti). Device test #173.
-
-#234
-Listed: 2026-11-03
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: App screen review (chat 2026-11-01, item 21)
-Issue: On sign-up (apps/mobile/app/login.tsx), Google and Apple come after the whole email form, below the fold, and the Terms and Privacy links appear twice (a links row under the checkbox and the "Review our Terms" footer). Separately, the gold category tags on event cards (apps/mobile/components/ui/EventGridCard.tsx) are hard to read over busy cover photos.
-How to reproduce: Signed out, open the app > Sign Up. For the tags: Dashboard or Host, cards with busy cover photos.
-Fixed in: f203787 (2026-11-03). Sign-up shows Google and Apple, then OR, then the form; the bottom "Review our Terms" line shows only on Sign In. Category tags sit on a nearly solid charcoal backing. Checked on the iPhone 16e simulator (sign-up) and the Pixel 8 emulator (Dashboard). Device test #173.
-
-#219
-Listed: 2026-11-02
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Upload feedback fix (chat 2026-11-02)
-Issue: Offline, the host gallery looks empty. With airplane mode on, an event's gallery manager showed "Photos (0)", "Videos (0)", "All galleries · 0", Storage Usage "0 GB / 50 GB" and "No photos yet. Tap Add Photos." for a gallery of 44 photos (apps/mobile/app/events/[id].tsx). A host at a venue with bad signal would think their photos are gone. It should keep what was already loaded, or say it couldn't load.
-How to reproduce: Open an event you host > Galleries > a gallery with photos, turn on airplane mode, start an upload or pull to refresh.
-Fixed in: 6ee885b (2026-11-03). getEventPhotosPaginated and getUserEventStorage (apps/mobile/lib/database.ts) returned an empty page and 0 bytes on any error; both now take an opt-in throwOnError (other callers unchanged). Host view: a gallery already on screen keeps its photos, counts and storage when a reload fails, with a "Couldn't refresh" toast; a gallery that hasn't loaded shows "Couldn't load this gallery. Check your connection." with Retry instead of "No photos yet". Load more and the "Uploaded by" full load no longer end the list or zero the counts offline. Checked on the Pixel 8 emulator (test-face-new: Photos (46) and 46.38 GB stayed offline; new_check showed Retry, then loaded its 15 photos online). The toast was not seen on screen. Guest theme pages are unchanged. Device test #171.
