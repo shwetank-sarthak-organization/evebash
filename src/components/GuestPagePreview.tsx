@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Loader2, RotateCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { isGuestPreviewPictureOutOfDate, readGuestPreviewPicture, type GuestPreviewPicture } from "../../shared/themes/guestPreviewPicture";
+import { guestPreviewSamplePath, isGuestPreviewPictureOutOfDate, readGuestPreviewPicture, type GuestPreviewPicture } from "../../shared/themes/guestPreviewPicture";
 
 type PageSize = { width: number; height: number };
 /** The app's picture and the event's template now (null: none yet, undefined: still loading) */
@@ -26,9 +26,9 @@ interface GuestPagePreviewProps {
 }
 
 // What guests see, small. The app: a picture of its guest home, taken when a host last had it open with Preview Guest
-// Theme in the app (todo #31; the app's guest view can't be drawn in a browser), dimmed once the theme has changed
-// since. The website: the guest page itself (not a sketch), drawn at a computer's size and shrunk to fit, with the
-// theme's own layout, fonts, photos and computer cover. Sarthak (2026-11-12): no website-at-phone-size frame and no
+// Theme in the app (todo #31; the app's guest view can't be drawn in a browser), or a sample of the app in the theme
+// once the theme has changed since (Sarthak 2026-11-12). The website: the guest page itself (not a sketch), drawn at a
+// computer's size and shrunk to fit, with the theme's own layout, fonts, photos and computer cover. Sarthak (2026-11-12): no website-at-phone-size frame and no
 // note under the app frame.
 // The page opens with ?preview=1 (no edit mode, no "Open in app" banner) and takes no clicks, so nothing can be liked
 // or uploaded from here. The iframe keeps the host's sign-in (same site), so private galleries open.
@@ -114,14 +114,29 @@ export function GuestPagePreview({ eventId, refreshKey = 0 }: GuestPagePreviewPr
     );
 }
 
-// The app's picture at the phone frame's size; it is taken at the phone's own shape, so it is cropped from the top
+// The app's picture at the phone frame's size; it is taken at the phone's own shape, so it is cropped from the top.
+// Until there is one in the current theme (a theme picked on the website, or the app never opened), a sample of the app
+// in that theme stands in for it.
 function AppScreen({ appPicture }: { appPicture: AppPicture }) {
     const outOfDate = !!appPicture?.picture && isGuestPreviewPictureOutOfDate(appPicture.picture, appPicture.templateId);
+    const samplePath = appPicture && (!appPicture.picture || outOfDate) ? guestPreviewSamplePath(appPicture.templateId) : null;
 
     return (
         <div className="relative grid place-items-center overflow-hidden bg-[#0b0b0c]" style={PHONE_SCREEN}>
             {appPicture === undefined ? (
                 <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+            ) : samplePath ? (
+                <>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- a fixed small picture, like the one below */}
+                    <img
+                        src={samplePath}
+                        alt="A sample of the app's guest home in this theme"
+                        className="absolute inset-0 h-full w-full object-cover object-top"
+                    />
+                    <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-white/90 backdrop-blur-sm">
+                        Sample
+                    </span>
+                </>
             ) : appPicture.picture ? (
                 // A picture from the media domain at a fixed small size; next/image would need the domain configured
                 // eslint-disable-next-line @next/next/no-img-element

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { isGuestPreviewPictureOutOfDate, readGuestPreviewPicture } from '../../shared/themes/guestPreviewPicture';
+import { existsSync } from 'node:fs';
+import { ACTIVE_THEME_IDS } from '../../shared/themes/activeThemes';
+import { guestPreviewSamplePath, isGuestPreviewPictureOutOfDate, readGuestPreviewPicture } from '../../shared/themes/guestPreviewPicture';
 
 // The app's guest home picture on the Design tab's Guest Home Preview (todo #31), as the backend saves it
 const saved = {
@@ -24,5 +26,14 @@ assert.equal(isGuestPreviewPictureOutOfDate(saved, 'confetti'), false);
 assert.equal(isGuestPreviewPictureOutOfDate(saved, 'hero'), true);
 assert.equal(isGuestPreviewPictureOutOfDate({ templateId: null }, undefined), false);
 assert.equal(isGuestPreviewPictureOutOfDate({ templateId: null }, 'hero'), true);
+
+// A sample of the app for every theme hosts can pick, and the file is on the website (no template: Midnight Hero)
+for (const themeId of ACTIVE_THEME_IDS) {
+  const path = guestPreviewSamplePath(themeId);
+  assert.ok(path, `no sample for ${themeId}`);
+  assert.ok(existsSync(new URL(`../../public${path.split('?')[0]}`, import.meta.url)), `missing file for ${path}`);
+}
+assert.equal(guestPreviewSamplePath(null), guestPreviewSamplePath('hero'));
+assert.equal(guestPreviewSamplePath('vintage'), null);
 
 console.log('guest preview picture tests passed');

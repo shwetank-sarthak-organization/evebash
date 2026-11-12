@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import { saveGuestPreviewPicture, GuestPreviewPictureError, type GuestPreviewPictureDependencies } from '../src/services/guestPreviewPicture.js';
+import {
+  removeGuestPreviewPicture, saveGuestPreviewPicture, GuestPreviewPictureError,
+  type GuestPreviewPictureDependencies, type RemoveGuestPreviewPictureDependencies,
+} from '../src/services/guestPreviewPicture.js';
 
 const NOW = new Date('2026-11-12T08:00:00.000Z');
 const OLD_URL = 'https://media.example/events/wedding-fdd8/guest-preview/app-old.jpg';
@@ -96,4 +99,53 @@ test('removes its own upload when another save came first or the database fails'
   const failed = fixture({ commit: async () => { throw new Error('database unavailable'); } });
   await assert.rejects(saveGuestPreviewPicture(await input(), failed.deps), /database unavailable/);
   assert.deepEqual(failed.removed, failed.uploaded);
+});
+
+function removeFixture(saved: unknown, overrides: Partial<RemoveGuestPreviewPictureDependencies> = {}) {
+  const removed: string[] = [], cleared: unknown[] = [];
+  const deps: RemoveGuestPreviewPictureDependencies = {
+    canManage: async () => true,
+    load: async () => ({ picture: saved }),
+    clear: async (_eventId, previous) => { cleared.push(previous); return true; },
+    remove: async key => { removed.push(key); },
+    ...overrides,
+  };
+  return { deps, removed, cleared };
+}
+
+test('removing: empties the link, then deletes the file in this event\'s preview folder', async () => {
+  const saved = { url: OLD_URL, templateId: 'hero', takenAt: '2026-11-11T08:00:00.000Z', width: 585, height: 1266 };
+  const f = removeFixture(saved);
+  assert.deepEqual(await removeGuestPreviewPicture({ eventId: 'wedding-fdd8' }, f.deps), { success: true, removed: true });
+  assert.deepEqual(f.cleared, [saved]);
+  assert.deepEqual(f.removed, ['events/wedding-fdd8/guest-preview/app-old.jpg']);
+});
+
+test('removing: only managers, valid IDs, and never a file outside the folder', async () => {
+  const managerless = removeFixture({ url: OLD_URL }, { canManage: async () => false });
+  await rejectsStatus(removeGuestPreviewPicture({ eventId: 'wedding-fdd8' }, managerless.deps), 403);
+  assert.deepEqual([managerless.cleared, managerless.removed], [[], []]);
+  await rejectsStatus(removeGuestPreviewPicture({ eventId: '../other' }, removeFixture({ url: OLD_URL }).deps), 400);
+
+  for (const url of ['https://media.example/events/wedding-fdd8/photos/cover.jpg', 'https://media.example/events/other/guest-preview/app-x.jpg',
+    'https://media.example/events/wedding-fdd8/guest-preview/x/..%2F..%2Fphotos%2Fcover.jpg', 'not a url']) {
+    const f = removeFixture({ url });
+    assert.deepEqual(await removeGuestPreviewPicture({ eventId: 'wedding-fdd8' }, f.deps), { success: true, removed: false });
+    assert.equal(f.cleared.length, 1);
+    assert.deepEqual(f.removed, []);
+  }
+});
+
+test('removing: nothing to do without a picture or event; keeps the file if another save came first', async () => {
+  for (const saved of [null, { templateId: 'hero' }]) {
+    const f = removeFixture(saved);
+    assert.deepEqual(await removeGuestPreviewPicture({ eventId: 'wedding-fdd8' }, f.deps), { success: true, removed: false });
+    assert.deepEqual([f.cleared, f.removed], [[], []]);
+  }
+  const missing = removeFixture(null, { load: async () => null });
+  assert.deepEqual(await removeGuestPreviewPicture({ eventId: 'wedding-fdd8' }, missing.deps), { success: true, removed: false });
+
+  const lost = removeFixture({ url: OLD_URL }, { clear: async () => false });
+  await rejectsStatus(removeGuestPreviewPicture({ eventId: 'wedding-fdd8' }, lost.deps), 409);
+  assert.deepEqual(lost.removed, []);
 });

@@ -107,6 +107,33 @@ async function sendGuestPreviewPicture(eventId: string, templateId: string | nul
   }
 }
 
+/** Before a gallery is deleted: removes the backend's picture and its file, and this phone's own copy. Never throws. */
+export async function removeGuestPreviewPictures(eventId: string) {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data.session?.access_token;
+    if (accessToken) {
+      const response = await fetchWithEndpointFallback(
+        getEndpointsForPath('/api/media/guest-preview-picture/delete'),
+        (endpoint) => fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ eventId }),
+        }),
+        'guest preview picture delete'
+      );
+      if (!response.ok) console.warn('[GuestPreviewSnapshot] The backend did not remove the picture:', response.status);
+    }
+  } catch (err) {
+    console.warn('[GuestPreviewSnapshot] Could not remove the picture:', err);
+  }
+  try {
+    const own = await loadGuestPreviewSnapshot(eventId);
+    await AsyncStorage.removeItem(storageKey(eventId));
+    if (own) await FileSystem.deleteAsync(own.uri, { idempotent: true });
+  } catch { /* Only the app's cache: the system clears it in time anyway */ }
+}
+
 /** The picture the backend keeps for the event (from any of the host's phones), or null for none */
 export async function loadSavedGuestPreviewPicture(eventId: string): Promise<GuestPreviewPicture | null> {
   try {

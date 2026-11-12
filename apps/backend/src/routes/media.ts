@@ -1,6 +1,6 @@
 import { canPostEventPhoto, canPostEventVideo, isPhotoUploadPermissionRequired, isVideoUpload } from "../services/eventVideoPermission.js";
 import { saveVideoThumbnail, ThumbnailError } from "../services/videoThumbnail.js";
-import { saveGuestPreviewPicture, GuestPreviewPictureError } from "../services/guestPreviewPicture.js";
+import { removeGuestPreviewPicture, saveGuestPreviewPicture, GuestPreviewPictureError } from "../services/guestPreviewPicture.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
@@ -1757,6 +1757,36 @@ mediaRouter.post("/guest-preview-picture", asyncRoute(async (request, response) 
         if (previous === null) query = query.is("guest_preview_picture", null);
         else if (typeof previousUrl === "string") query = query.eq("guest_preview_picture->>url", previousUrl);
         const { data, error } = await query.select("id").maybeSingle();
+        if (error) throw error;
+        return Boolean(data);
+      },
+      remove: async (key) => deleteB2File(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), key),
+    });
+    response.json(result);
+  } catch (error) {
+    if (error instanceof GuestPreviewPictureError) return jsonError(response, error.status, error.message);
+    throw error;
+  }
+}));
+
+// Removes that picture and its file; the website and app call it just before they delete a gallery
+mediaRouter.post("/guest-preview-picture/delete", asyncRoute(async (request, response) => {
+  const verified = await verifyRequestUser(request);
+  if (!verified) return jsonError(response, 401, "Authorization required");
+  const db = getSupabaseAdminClient();
+  try {
+    const result = await removeGuestPreviewPicture(request.body || {}, {
+      canManage: (eventId) => canPostEventVideo(db, verified.user, eventId),
+      load: async (eventId) => {
+        const { data, error } = await db.from("events").select("guest_preview_picture").eq("id", eventId).maybeSingle();
+        if (error) throw error;
+        return data ? { picture: data.guest_preview_picture } : null;
+      },
+      clear: async (eventId, previous) => {
+        const previousUrl = previous && typeof previous === "object" ? (previous as { url?: unknown }).url : undefined;
+        if (typeof previousUrl !== "string") return false;
+        const { data, error } = await db.from("events").update({ guest_preview_picture: null })
+          .eq("id", eventId).eq("guest_preview_picture->>url", previousUrl).select("id").maybeSingle();
         if (error) throw error;
         return Boolean(data);
       },

@@ -4,6 +4,7 @@ import type { Request, Response as ExpressResponse } from "express";
 import { Router } from "express";
 import { getCachedBackblazeAuth, type BackblazeAuth } from "../backblaze.js";
 import { GRID_SUFFIX, gridKey } from "../services/gridVariant.js";
+import { guestPreviewFolder } from "../services/guestPreviewPicture.js";
 import { adminAuthStatus, getAdminClient, verifySuperAdmin } from "../adminAuth.js";
 
 export const adminRouter = Router();
@@ -226,13 +227,16 @@ async function getReferencedB2Keys(supabaseAdmin: ReturnType<typeof getAdminClie
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabaseAdmin
       .from("events")
-      .select("id")
+      .select("id, guest_preview_picture")
       .range(from, from + pageSize - 1);
 
     if (error) throw error;
 
     for (const row of data || []) {
       if (row.id) activeEventIds.add(String(row.id).toLowerCase());
+      // The app's picture of the gallery's guest home (events/<id>/guest-preview/, todo #31) is in use too
+      const pictureUrl = (row.guest_preview_picture as { url?: unknown } | null)?.url;
+      if (typeof pictureUrl === "string") referencedKeys.add(keyFromMediaUrl(pictureUrl).toLowerCase());
     }
 
     if (!data || data.length < pageSize) break;
@@ -414,6 +418,18 @@ async function deleteB2Prefix(auth: BackblazeAuth, bucketId: string, prefix: str
   } catch (error) {
     console.warn(`[admin/control] Could not delete B2 prefix ${prefix}:`, error);
     return false;
+  }
+}
+
+// The app's pictures of the galleries' guest homes (todo #31); a storage error never stops the delete
+async function deleteGuestPreviewFolders(eventIds: string[]) {
+  if (eventIds.length === 0) return;
+  try {
+    const auth = await getCachedBackblazeAuth();
+    const bucketId = requireEnv("B2_BUCKET_ID");
+    for (const eventId of eventIds) await deleteB2Prefix(auth, bucketId, guestPreviewFolder(eventId));
+  } catch (error) {
+    console.warn("[admin/control] Could not delete guest preview pictures:", error);
   }
 }
 
@@ -1032,6 +1048,8 @@ async function resetUserData(
     }
   }
 
+  await deleteGuestPreviewFolders(eventIds);
+
   for (const chunk of chunkArray(photoIds, 100)) {
     if (chunk.length === 0) continue;
     const { error: facesByPhotoError } = await supabaseAdmin.from("faces").delete().in("image_id", chunk);
@@ -1239,6 +1257,8 @@ async function deleteEventTree(
       ]);
     }
   }
+
+  await deleteGuestPreviewFolders([eventId]);
 
   for (const chunk of chunkArray(photoIds, 100)) {
     if (chunk.length === 0) continue;

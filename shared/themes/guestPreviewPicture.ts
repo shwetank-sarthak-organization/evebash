@@ -28,3 +28,16 @@ export function readGuestPreviewPicture(value: unknown): GuestPreviewPicture | n
 export function isGuestPreviewPictureOutOfDate(picture: { templateId: string | null }, templateId: string | null | undefined) {
   return (picture.templateId ?? null) !== (templateId ?? null);
 }
+
+// Themes with a sample picture of the app's guest home (website public/theme-previews/app/<id>.jpg): the active themes
+// (activeThemes.ts). A theme without one keeps showing the old picture, dimmed. Raise the version after retaking them,
+// so no phone or browser keeps a cached old one.
+const SAMPLE_TEMPLATE_IDS: readonly string[] = ['royal', 'classic', 'portrait', 'hero', 'confetti'];
+const SAMPLE_VERSION = 1;
+
+/** The website path of a sample picture of the app in this theme (no template: the app's default, Midnight Hero), shown
+ *  while the event has no picture in its current theme yet; null for a theme without one. The app adds the site's address. */
+export function guestPreviewSamplePath(templateId: string | null | undefined): string | null {
+  const theme = templateId || 'hero';
+  return SAMPLE_TEMPLATE_IDS.includes(theme) ? `/theme-previews/app/${theme}.jpg?v=${SAMPLE_VERSION}` : null;
+}

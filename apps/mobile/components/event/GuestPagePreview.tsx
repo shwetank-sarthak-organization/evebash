@@ -6,7 +6,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { loadGuestPreviewSnapshot, loadSavedGuestPreviewPicture, type GuestPreviewSnapshot } from '@/lib/guestPreviewSnapshot';
 import { supabase } from '@/lib/supabase';
 import { getGalleryWebUrl, getWebBaseUrl } from '@/lib/webLinks';
-import { isGuestPreviewPictureOutOfDate, type GuestPreviewPicture } from '../../../../shared/themes/guestPreviewPicture';
+import { guestPreviewSamplePath, isGuestPreviewPictureOutOfDate, type GuestPreviewPicture } from '../../../../shared/themes/guestPreviewPicture';
 import { Fonts, MidnightColors } from '../../constants/theme';
 
 const PHONE_SCREEN_WIDTH = 160;
@@ -61,7 +61,8 @@ interface GuestPagePreviewProps {
 
 // What guests see, small: the app (guests who use it) as a picture of its guest home, taken when a host last had it
 // open with Preview Guest Theme, on this phone or another (lib/guestPreviewSnapshot.ts; the app's guest view is part
-// of the event screen and can't be drawn small), dimmed once the theme has changed since; and the website guest page
+// of the event screen and can't be drawn small), or a sample of the app in the theme (from the website) until there is
+// one in the current theme (Sarthak 2026-11-12); and the website guest page
 // itself, drawn at a computer's size and shrunk to fit. The page opens with ?preview=1 (no edit mode, no "Open in app"
 // banner) and takes no touches. Sarthak (2026-11-12): no note under the app frame, the same as the website's card.
 export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }: GuestPagePreviewProps) {
@@ -78,6 +79,8 @@ export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }
     ? { uri: savedPicture.url, templateId: savedPicture.templateId, takenAt: savedAt }
     : snapshot;
   const pictureOutOfDate = !!picture && isGuestPreviewPictureOutOfDate(picture, templateId);
+  const pictureLoaded = snapshot !== undefined && savedPicture !== undefined;
+  const samplePath = pictureLoaded && (!picture || pictureOutOfDate) ? guestPreviewSamplePath(templateId) : null;
 
   // The picture is taken while this card isn't shown (the guest view replaces it), so it's read each time the card opens
   useEffect(() => {
@@ -142,7 +145,18 @@ export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }
       <View style={styles.column}>
         <View style={styles.phoneBezel}>
           <View style={[styles.phoneScreen, { width: PHONE_SCREEN_WIDTH, height: phoneScreenHeight }]}>
-            {picture ? (
+            {samplePath ? (
+              <>
+                <Image
+                  source={{ uri: `${getWebBaseUrl()}${samplePath}` }}
+                  style={StyleSheet.absoluteFill}
+                  contentFit="cover"
+                  contentPosition="top"
+                  accessibilityLabel="A sample of the app's guest home in this theme"
+                />
+                <Text style={styles.sampleTag}>Sample</Text>
+              </>
+            ) : picture ? (
               <Image
                 source={{ uri: picture.uri }}
                 style={[StyleSheet.absoluteFill, pictureOutOfDate && styles.outOfDate]}
@@ -150,7 +164,7 @@ export function GuestPagePreview({ eventId, templateId, refreshKey = 0, colors }
                 contentPosition="top"
                 accessibilityLabel="Picture of the app's guest home"
               />
-            ) : snapshot === null && savedPicture === null ? (
+            ) : pictureLoaded ? (
               <Text style={styles.phoneEmpty}>Open Preview Guest Theme once to see the app here.</Text>
             ) : null}
           </View>
@@ -232,6 +246,7 @@ const styles = StyleSheet.create({
   phoneScreen: { borderRadius: 24, overflow: 'hidden', backgroundColor: '#0b0b0c', alignItems: 'center', justifyContent: 'center' },
   phoneEmpty: { color: '#94a3b8', fontSize: 11, fontFamily: Fonts.inter.medium, textAlign: 'center', lineHeight: 16, paddingHorizontal: 18 },
   outOfDate: { opacity: 0.45 },
+  sampleTag: { position: 'absolute', bottom: 10, alignSelf: 'center', overflow: 'hidden', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: 'rgba(0, 0, 0, 0.7)', color: 'rgba(255, 255, 255, 0.9)', fontSize: 8.5, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', letterSpacing: 1.5 },
   caption: { fontSize: 9.5, fontFamily: Fonts.inter.medium, textTransform: 'uppercase', letterSpacing: 1.5 },
   browser: { alignSelf: 'stretch', borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', backgroundColor: '#1c1c1f' },
   browserBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.05)' },

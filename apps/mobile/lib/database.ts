@@ -6,6 +6,7 @@ import { DEFAULT_EVENT_COVER_IMAGE } from "./eventCovers";
 import { appAlert } from "./feedback";
 import { isMissingUploadedFile } from "../../../shared/media/missingUpload";
 import { readThemeContent, type ThemeContent, type ThemeContentBlock } from "../../../shared/themes/themeContent";
+import { removeGuestPreviewPictures } from "./guestPreviewSnapshot";
 
 const COVER_USAGE_TAG = "__cover_usage__";
 const BUSINESS_PORTFOLIO_EVENTS_KEY = "__portfolio_events__";
@@ -2334,6 +2335,9 @@ export async function deleteEvent(eventId: string) {
 
         // Remove the gallery's face scans (guest privacy), as the website does
         await supabase.from('faces').delete().eq('event_id', eventId);
+
+        // The picture of the guest home (todo #31): its file can only be removed while the gallery exists
+        await removeGuestPreviewPictures(eventId);
 
         const { error } = await supabase.from('events').delete().eq('id', eventId);
         if (error) throw error;

@@ -2252,6 +2252,22 @@ export async function rotatePhoto(
 /**
  * Deletes an event and recursively deletes sub-events.
  */
+/** Removes the app's picture of a gallery's guest home (todo #31) and its stored file; a failure never stops a delete */
+async function deleteGuestPreviewPicture(eventId: string) {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+        const response = await fetch(getApiUrl("/api/media/guest-preview-picture/delete"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ eventId }),
+        });
+        if (!response.ok) console.warn("[deleteEvent] Could not remove the guest preview picture:", response.status);
+    } catch (error) {
+        console.warn("[deleteEvent] Could not remove the guest preview picture:", error);
+    }
+}
+
 export async function deleteEvent(eventId: string): Promise<boolean> {
     try {
         // 1. Delete sub-events recursively
@@ -2303,7 +2319,10 @@ export async function deleteEvent(eventId: string): Promise<boolean> {
         // 4. Explicitly delete facial indexes associated with this event (for guest privacy)
         await supabase.from('faces').delete().eq('event_id', eventId);
 
-        // 5. Delete the parent event (Cascading foreign key triggers automatically delete associated photos, likes, & comments!)
+        // 5. The app's picture of the guest home (todo #31): its file can only be removed while the gallery exists
+        await deleteGuestPreviewPicture(eventId);
+
+        // 6. Delete the parent event (Cascading foreign key triggers automatically delete associated photos, likes, & comments!)
         const { error } = await supabase.from('events').delete().eq('id', eventId);
         if (error) throw error;
 
