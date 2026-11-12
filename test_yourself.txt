@@ -2764,7 +2764,7 @@ Feedback: Host part (step 6) partly: as host, posted a comment from the photo vi
 
 --------------------------------------------------------------------------------
 #111 Comment threads (replies) on photos (website and app)
-Status:    RETEST
+Status:    PASS
 Priority:  Medium
 Platform:  Website + App (Android and iOS)
 Brief:     Replies sit under the comment they answer, on both the website and the app, and show the same on both.
@@ -2786,14 +2786,14 @@ How to test:
      deletes their own comment that has replies: write down what happens to the replies (disappear, or
      stay without a parent) on website and app; both should behave the same.
   9. Guest B (comments OFF): sees the thread but no Reply buttons.
-Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), 1366x768 at 2x; not a real device
-Build / version: staging.evebash.com as of 2026-11-12 (staging ad123bdb)
+Done by: Claude (for Sarthak); final check Shwetank (with Claude)
+Device / browser: Claude built-in browser (Chromium), 1366x768 at 2x; then desktop browser (website) and Android phone I2012 (Android 14), app
+Build / version: staging.evebash.com as of 2026-11-12 (staging ad123bdb); app: local dev build com.evebash.app from staging 6d1dbe5, backend api-staging
 Date tested: 2026-11-12
-Account used: host newone@email.com
+Account used: host newone@email.com; then host shwetank.chauhan3@gmail.com, guest A newone2@email.com (comments ON), guest B newone1@email.com (comments OFF), gallery Wedding 2, photo VIS_6005.JPG
 Screenshot / recording:
-Fix ref: 35e8f8f (2026-11-04), issue #178: the gallery photo viewer now has Reply and reply threads (see device test #185)
-Feedback: The website gallery photo viewer has no Reply button at all (src/components/page-flip/PageFlipSocialBar.tsx has no reply threads); replies only exist in the old Lightbox, which is now used only on the host page. Issue #178. RETEST 2026-11-12 (Claude, host only): the website part of #178 works. samarth weds Jyoti, photo 1: Reply opens "Replying to New" with an X and the hint "Write a reply..."; the reply shows indented under the comment with no Reply of its own; X clears the bar; going to the next photo clears it too; deleting the parent asks "Its replies will be deleted too" and removes both. Test comments deleted. Enter in the box adds a new line, it doesn't send. Still RETEST: guest A and guest B steps need a second account, and the app part needs a check.
+Fix ref: 35e8f8f (2026-11-04), issue #178: the gallery photo viewer now has Reply and reply threads (see device test #185); 6d1dbe5 (2026-11-12), issue #268: the app's delete warning mentions the replies
+Feedback: The website gallery photo viewer has no Reply button at all (src/components/page-flip/PageFlipSocialBar.tsx has no reply threads); replies only exist in the old Lightbox, which is now used only on the host page. Issue #178. RETEST 2026-11-12 (Claude, host only): the website part of #178 works. samarth weds Jyoti, photo 1: Reply opens "Replying to New" with an X and the hint "Write a reply..."; the reply shows indented under the comment with no Reply of its own; X clears the bar; going to the next photo clears it too; deleting the parent asks "Its replies will be deleted too" and removes both. Test comments deleted. Enter in the box adds a new line, it doesn't send. Still RETEST: guest A and guest B steps need a second account, and the app part needs a check. PASS 2026-11-12 (Shwetank with Claude, all steps checked in the database): website, guest A replied to the host's comment (saved as a reply) and, after X, posted a normal top comment; app, guest A's "App reply 1" went under the same comment, same order as the website, replies have no Reply button; guest A deleted their own reply (gone on both); guest B sees the thread with no Reply button and no comment box. Host deleting their own comment with a reply removed both. The app's warning didn't mention the replies (issue #268, fixed in 6d1dbe5): after the fix it says "Its replies will be deleted too.", checked as host and as guest A. Only the comment's author sees Delete (website and app); a host can't delete a guest's comment. Test comments deleted.
 
 #113 Website: Royal Emerald gallery controls and phone hero (issues #86-#90, #94, #96)
 Status:    TODO

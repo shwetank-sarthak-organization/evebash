@@ -1568,21 +1568,21 @@ Issue: The app's guest home pictures (events/<id>/guest-preview/app-<uuid>.jpg o
 How to reproduce: Read getReferencedB2Keys in apps/backend/src/routes/admin.ts before 520cc156: it reads only events.id, photos.storage_key and profiles.profile_image.
 Update 2026-11-12: fixed in 520cc156. The orphan scan counts events.guest_preview_picture as in use. New POST /api/media/guest-preview-picture/delete (gallery managers only; empties the column, then deletes the file, only inside events/<id>/guest-preview/) is called by deleteEvent on the website (src/lib/database.ts) and in the app (apps/mobile/lib/database.ts, which also drops the phone's own copy); admin gallery deletes and account resets remove the events/<id>/guest-preview/ folder. Backend tests added (apps/backend/tests/guestPreviewPicture.test.ts). No switch: it only adds cleanup and stops a wrong delete. Needs the staging Railway deploy; the app part needs a new build.
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #268
 Listed: 2026-11-12
 Platform: App
 Priority: Low
-Status: In progress
+Status: Fixed
 Owner: Shwetank (with Claude)
-Blocked by: Device check (test_yourself #111, step 8, app); move to RECENTLY FIXED once it passes
 Found in: Device test #111, step 8 (2026-11-12)
 Issue: In the app, deleting a comment that has replies gave no warning that the replies go too. The app always asked "Are you sure you want to delete this comment?" (handleDeleteComment in apps/mobile/components/PhotoViewer.tsx), while the website adds "Its replies will be deleted too." (src/components/page-flip/PageFlipSocialBar.tsx). The delete itself works the same on both: the database removes the replies with the comment.
 How to reproduce: App, as the host, open a photo whose comment has a reply and delete that comment: the confirm box doesn't mention the replies.
 Update 2026-11-12: fixed in the app: PhotoViewer checks whether the comment has replies and then uses the website's wording. JS only, so Metro shows it after a reload; installed builds need the next EAS build.
-
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+Fixed in: 6d1dbe5 (2026-11-12). Checked on an Android phone (dev build from staging): deleting a comment with a reply, as host and as guest A, shows "Its replies will be deleted too." and removes both. Device test #111 PASS.
 
 #267
 Listed: 2026-11-12
