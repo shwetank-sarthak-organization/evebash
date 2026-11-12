@@ -28,7 +28,7 @@ Last updated: 2026-11-12
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
-Status:    RETEST
+Status:    PASS
 Priority:  High
 Platform:  Website + App
 Brief:     Find You now needs login and gallery access. Check real users are not blocked.
@@ -39,16 +39,24 @@ How to test:
   2. Open Find You, take/upload a selfie.
   3. Expect: your photos are found. NOT "no access" / "log in" / error.
   4. Repeat on a gallery you joined as a guest (not created).
-Done by:   Sarthak
-Device / browser: Chrome (website)
-Build / version: website staging after fba2cdc
-Date tested: 2026-10-10
-Account used: host (own gallery photo_check)
+Done by:   Shwetank (with Claude); earlier website run Sarthak
+Device / browser: Desktop browser (website); Android phone I2012 (Android 14), app
+Build / version: website staging; local dev build com.evebash.app from staging, backend api-staging with
+           FIND_YOU_REQUIRE_ACCESS=true (added on Railway staging and deployed 2026-11-12)
+Date tested: 2026-11-12
+Account used: shwetank.chauhan3@gmail.com (website); newone2@email.com and shwetank.chauhan3@gmail.com (app)
 Screenshot / recording:
 Fix ref:   fba2cdc (2026-10-10) website + app now send the login token. App needs a new build.
 Feedback:  2026-10-10 Sarthak, website: "Failed to search: 401". Every logged-in search failed.
            2026-10-10 Sarthak, website after fix: PASS, photos found. App not tested yet (needs new build, then
            turn FIND_YOU_REQUIRE_ACCESS back to true and retest website + app).
+           2026-11-12 Shwetank (with Claude): FIND_YOU_REQUIRE_ACCESS was missing on Railway staging (missing
+           = off); added as true and deployed. A search without login now gets 401 "Log in to use Find You.".
+           Website: Find You found photos on a gallery the account created and on one it joined as a guest.
+           App: two searches, by newone2@email.com and shwetank.chauhan3@gmail.com, both found photos
+           (selfie detected, 41 matches each; same numbers, so likely the same gallery as owner and as guest).
+           PASS. Left: set FIND_YOU_REQUIRE_ACCESS=true on the production backend (Apply, then Deploy) and
+           check one search on www.evebash.com.
 
 --------------------------------------------------------------------------------
 #2  Find You asks logged-out visitors to log in
