@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 207
+Next test number: 208
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-07
+Last updated: 2026-11-12
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -5911,7 +5911,7 @@ Feedback:         2026-11-07 Claude, before staging: step 5 on the iPhone 16e si
 Status:    TODO
 Priority:  Medium
 Platform:  App
-Brief:     The app's Design tab card now also has an "App" phone frame with a picture of the app's real guest home (the screen guests see in the app). The picture is taken a few seconds after you open Preview Guest Theme and is kept on this phone only (not uploaded, not in the database).
+Brief:     The app's Design tab card now also has an "App" phone frame with a picture of the app's real guest home (the screen guests see in the app). The picture is taken a few seconds after you open Preview Guest Theme and is kept on this phone. (Since todo #31 a smaller copy is also saved on the event for the website's preview; that part is test #207.)
 Detail:    Todo #29, commit ddc95b35. Uses the new library react-native-view-shot, so it needs a new EAS staging build (an older build simply never takes a picture). Builds on #205.
 How to test:
   1. On a phone that has never previewed the event: Host > an event > Design, scroll to Guest Home Preview. Expect: an "App" phone frame saying "Open Preview Guest Theme once to see the app here", and the website frame under it.
@@ -5933,3 +5933,27 @@ Feedback:         2026-11-07 Claude, before staging: steps 1 and 2 on the iPhone
                   frame showed the message; after Preview Guest Theme the picture (1170 x 2532 JPEG, ~400 KB,
                   in the app's cache folder) showed the real Confetti Circle guest home with its time. Not done:
                   3-7, a real phone.
+
+--------------------------------------------------------------------------------
+#207 Website + App: Guest Home Preview shows the app's picture on the website too
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     The website's Guest Home Preview showed the website drawn at phone size and called it "Phone", but the theme looks different in the app. Now the website card has three frames: "App" (a picture of the app's guest home, sent by the app when you open Preview Guest Theme there), "Website on a phone" and "Website on a computer". The app's own card also shows the picture when it was taken on another phone.
+Detail:    Todo #31, commit 8c0d7799. Needs the database change supabase/migrations/20261112120000_guest_preview_picture.sql (applied 2026-11-12), the backend and website on staging, and an app build with react-native-view-shot (a new EAS staging build, as for #206). Builds on #205 and #206.
+How to test:
+  1. Website, on a computer: Host > an event you have never opened with Preview Guest Theme in the app > Design > Guest Home Preview. Expect: three frames, App ("Open Preview Guest Theme in the EveBash app once to see the app here"), Website on a phone and Website on a computer.
+  2. On a phone with the new app build, signed in as the same host: open the same event > Preview Guest Theme, stay at the top without scrolling for about 5 seconds, then go back.
+  3. Website: press Reload (round arrow) on Guest Home Preview. Expect: the App frame shows the same guest home you saw on the phone, with "Picture from <date and time>" under it.
+  4. Website: change Template to another theme. Expect: after "Theme updated", the App picture is dimmed with "The theme changed since this picture. Open Preview Guest Theme in the app to update it." Do step 2 again, then Reload. Expect: the new theme, not dimmed.
+  5. A second phone (or the same phone after deleting and reinstalling the app), signed in as a host of the event: Host > the event > Design. Expect: the App frame shows the picture from step 4, not "Open Preview Guest Theme once".
+  6. Website on a narrow laptop window and at phone width: the three frames wrap onto new rows and nothing overlaps.
+  7. Website light and dark look (Settings > Appearance): the notes under the App frame are readable.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

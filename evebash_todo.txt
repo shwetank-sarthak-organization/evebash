@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 31
+Next todo number: 32
 
 Last updated: 2026-11-12
 
@@ -687,6 +687,42 @@ Brief:        Staging and production share one Supabase project, so every migrat
 DONE / DROPPED (delete after 14 days)
 =====================================================================
 
+#31 Website Guest Home Preview: show the app too (picture of the app's guest home)
+Listed:       2026-11-12
+Platform:     Both
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       M
+Suggested by: Sarthak (2026-11-12: the website's Design tab "Phone" frame looks nothing like the theme
+              in the app)
+Discussed:    Yes
+Decision:     2026-11-12 Sarthak (with Claude): send the app's picture (todo #29) to the backend and
+              show it on the website, rather than building the app's guest screen for the web
+              (always current, but days of work: the guest view is part of the 9,300-line event
+              screen).
+Owner:        Sarthak (with Claude)
+Depends on:   Database change supabase/migrations/20261112120000_guest_preview_picture.sql (applied
+              by Sarthak); an app build with react-native-view-shot (as todo #29).
+Brief:        The website's Guest Home Preview (src/components/GuestPagePreview.tsx) showed the
+              website drawn at phone width and called it "Phone". The app draws each theme with its
+              own code and a different phone layout (top bar, cover height, tabs), so that frame was
+              not what app guests see. The app's picture of its guest home (todo #29) stayed on the
+              phone that took it, so the website could never show it.
+              Now: after the app takes the picture (Preview Guest Theme, 3 s at the top), it sends a
+              585 px copy to the backend (POST /api/media/guest-preview-picture,
+              apps/backend/src/services/guestPreviewPicture.ts). The backend checks the caller manages
+              the event, saves the JPEG under events/<id>/guest-preview/ in the media bucket, keeps
+              {url, templateId, takenAt, width, height} in the new column events.guest_preview_picture
+              and deletes the picture it replaces. The website card shows three frames: App (the
+              picture and its time, dimmed after a template change), Website on a phone, Website on a
+              computer. The app's card shows the saved picture when it is newer than this phone's own
+              (taken on another phone). Shared reader: shared/themes/guestPreviewPicture.ts. Older app
+              builds never send a picture; until the database change is applied the App frame says
+              to open Preview Guest Theme in the app.
+Done in:      8c0d7799 (2026-11-12), on staging; device test #207. Real phones need a new EAS
+              staging build (as #29).
+
 #12 Confetti Circle theme in the app
 Listed:       2026-10-27
 Platform:     App
@@ -764,6 +800,8 @@ Decision:     2026-11-07 Sarthak (with Claude): show a picture (snapshot) of the
               while the host has it open with Preview Guest Theme, instead of a live small copy (the
               guest view is built into the event screen; drawing it small means pulling theme code
               apart). The picture stays on the phone only: not in the database, not uploaded.
+              2026-11-12 Sarthak: changed by todo #31: a smaller copy now also goes to the backend, so
+              the website's preview shows the app too.
 Owner:        Sarthak (with Claude)
 Depends on:   #28
 Brief:        Follows #28, where the app's Design tab card showed only the website on a computer. Now
