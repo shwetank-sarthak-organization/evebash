@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 262
+Next issue number: 263
 
 =====================================================================
 ACTIVE ISSUES
@@ -1512,6 +1512,17 @@ Blocked by: -
 Found in: Chat with Sarthak (2026-11-12): "the light theme permission page has a visibility issue"
 Issue: In the light theme, the host's Permissions tab in the app is hard to read. The likely cause (from the code, not yet checked on a phone): the two sheets that open from that tab, the member sheet (tap a guest: name, profile details, Member Privileges switches, Save Permissions) and the access request sheet ("Requesting Access"), draw their background with a fixed dark gradient, colors={['#1B211F', hp.onAccent]} in apps/mobile/app/events/[id].tsx (about lines 6336 and 6478 on staging). The light theme turns their text dark (hostLightStyles in apps/mobile/components/eventStyles/hostLightStyles.ts sets premiumModalTitle and userInfoDetailValue to the light theme's dark text colour, and an active privilege's label uses hp.white, which is dark in the light theme), so the guest's name, the privilege names and other labels are dark on dark. Fix: when hostLight is on, give both sheets a light background from the theme (for example appColors.deepSlate / card) and check every text and switch on them; the dark theme and guest themes stay as they are. Also look over the rest of the Permissions tab in the light theme in case the report means something else on that page.
 How to reproduce: In the app, set Appearance to Light. Open an event you host, go to the Permissions tab and tap a guest in the Guest List (or a pending access request). Expect: the sheet's text is readable. Now: dark text on a dark sheet.
+
+#262
+Listed: 2026-11-12
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: #176 fix (chat 2026-11-12)
+Issue: Plain gallery logic is copied in the website and the app, so the two can drift apart. (1) src/lib/uploaders.ts and apps/mobile/lib/uploaders.ts both define UploaderRole, the role labels and order, buildUploaderOptions and uploaderOf ("Keep in sync" comments); only fetchUploaderDetails really differs (how each finds the API). (2) mergeHomeMedia is in both src/lib/database.ts and apps/mobile/lib/database.ts. Fix: move the plain parts to shared/ (for example shared/media/uploaders.ts and shared/media/homeMedia.ts, next to shared/media/sourceGalleries.ts) and import them from both; leave fetchUploaderDetails where it is. Behaviour should not change.
+How to reproduce: Read the files: diff src/lib/uploaders.ts apps/mobile/lib/uploaders.ts.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
