@@ -16,4 +16,4 @@ routes = [
 MEDIA_EDGE_CACHE = "on"
 # "on" = pass the viewer's Range header to B2, so video seeking and resumed downloads get just the part asked for
 # (206), with Range allowed and Content-Range exposed for other sites. Anything else = the whole file, as before (#181).
-MEDIA_FORWARD_RANGE = "off"
+MEDIA_FORWARD_RANGE = "on"
