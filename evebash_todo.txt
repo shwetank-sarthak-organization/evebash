@@ -34,7 +34,7 @@ Field values:
 
 Next todo number: 31
 
-Last updated: 2026-11-11
+Last updated: 2026-11-12
 
 =====================================================================
 ACTIVE TODOS
@@ -205,64 +205,6 @@ Brief:        Today hosts edit a gallery's title, date, message, cover and highl
               - A new cover is uploaded only on Save; the video sheet reuses GalleryVideoPanel.
               - Behind NEXT_PUBLIC_GUEST_EDIT_MODE / EXPO_PUBLIC_GUEST_EDIT_MODE, off by default.
               Phases: website text fields; website cover + video; app; cover move/zoom after #64.
-Done in:      -
-
-#12 Confetti Circle theme in the app
-Listed:       2026-10-27
-Platform:     App
-Priority:     High
-Phase:        1 (v1 launch)
-Status:       In progress
-Effort:       M
-Suggested by: Sarthak (2026-10-27: "website looks done, next is mobile app for this theme")
-Discussed:    Yes
-Decision:     2026-10-27 Sarthak: the website version is done; build the app version next.
-              2026-11-06 Sarthak: High priority, build it before launch. It is one of the five themes
-              every event type can pick (shared/themes/activeThemes.ts); until it's built the app's
-              pickers show the other four.
-              2026-11-07 Sarthak (with Claude): build the guest design first, then the Couple editor;
-              another chat builds the app's Couple sheet (EditChip, useGuestEdit, GuestEditBar) on top
-              of the design. Design built and checked in the iOS simulator; on staging in 4b97ef14
-              (device test #203). The Couple sheet (step 2) is still to come.
-              2026-11-07 step 2 built (Claude): the app's Couple sheet in edit mode (EXPO_PUBLIC_GUEST_EDIT_MODE):
-              "Add bride" / "Bride" pencils on each side open the sheet on that side (label, name, a few
-              words, Instagram / Facebook / X; a wrong link is flagged and not saved), saved with
-              set_theme_content_block on the main event from Home or any album. COUPLE_FIELD is no longer
-              web-only. Checked on the iPhone 17 Pro simulator with mehandi night (Home + album newcheck,
-              save checked in the database, then put back to Jyoti / Samarth). Device test #204. On
-              staging in 6d0b2861 (Sarthak's go, 2026-11-07); the app switch stays off.
-Owner:        Sarthak (with Claude)
-Depends on:   -
-Brief:        The website has the wedding theme "Confetti Circle" (id "confetti", device test #151),
-              but the app has no "confetti" entry in apps/mobile/constants/templates.ts, so the app's
-              theme picker doesn't offer it and a gallery set to it on the website isn't drawn in that
-              design in the app. Copy the website design (staging: src/components/TemplateConfetti.tsx,
-              src/components/confetti/, src/app/confetti-circle.css):
-              - Cover: the photo fills the first screen with a big 70% white circle in the middle:
-                the couple's names in Bebas Neue capitals, pink #e8175d to orange #ff7a1a, "- and -"
-                between them, then "March | 28 | 2025" and the place. On the circle's top edge a dark
-                tag with a red heart and the gallery's message in italics and quotes ("Happily
-                married" in capitals when there is none; long messages get a wider tag, at most 4
-                lines). Pink and orange paint specks round the circle, a torn-paper edge at the
-                bottom, a round dark arrow button.
-              - Top bar: frosted white over the photo, the couple's names with a pink heart for the
-                "&", links in Bebas Neue capitals; solid white once scrolled.
-              - Under the cover: "We're getting married!", the highlight video (or the cover photo)
-                in a soft-edged widescreen frame with specks and a white "Name ♥ Name" ribbon, the
-                bride and the groom with a few words and social icons. Since #10 (2026-11-07) these
-                come from the main event's theme_content: read it in apps/mobile/lib/database.ts
-                (readThemeContent), show only the named sides and filled links (shownCouple in
-                shared/themes/themeContent.ts, never names from the title), and drop platforms
-                ["web"] from COUPLE_FIELD in shared/themes/editableFields.ts so the app's edit bar
-                gets the Couple sheet (save with set_theme_content_block).
-              - Gallery: Back / Share, "PHOTO GALLERY | <gallery name> | VIDEO GALLERY" (the pink
-                words switch photos / videos), the full message in italics when the tag cut it,
-                full-width rows of whole photos (never cropped).
-              - Footer: torn-paper edge, Create your own event / Sample galleries / Pricing at the
-                far left, "S ♥ R" with "Made with EveBash" (EveBash font) in the middle, Privacy /
-                Terms / Contact us at the far right.
-              Once the app has it, the app's pickers offer it on their own (it's in ACTIVE_THEME_IDS):
-              update the app list in src/lib/hiddenTemplates.test.ts. Add a device test when it ships.
 Done in:      -
 
 #13 Videos: add a 4K stream when the upload is 4K (never above the upload's own size)
@@ -744,6 +686,70 @@ Brief:        Staging and production share one Supabase project, so every migrat
 =====================================================================
 DONE / DROPPED (delete after 14 days)
 =====================================================================
+
+#12 Confetti Circle theme in the app
+Listed:       2026-10-27
+Platform:     App
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       M
+Suggested by: Sarthak (2026-10-27: "website looks done, next is mobile app for this theme")
+Discussed:    Yes
+Decision:     2026-10-27 Sarthak: the website version is done; build the app version next.
+              2026-11-06 Sarthak: High priority, build it before launch. It is one of the five themes
+              every event type can pick (shared/themes/activeThemes.ts); until it's built the app's
+              pickers show the other four.
+              2026-11-07 Sarthak (with Claude): build the guest design first, then the Couple editor;
+              another chat builds the app's Couple sheet (EditChip, useGuestEdit, GuestEditBar) on top
+              of the design. Design built and checked in the iOS simulator; on staging in 4b97ef14
+              (device test #203). The Couple sheet (step 2) is still to come.
+              2026-11-07 step 2 built (Claude): the app's Couple sheet in edit mode (EXPO_PUBLIC_GUEST_EDIT_MODE):
+              "Add bride" / "Bride" pencils on each side open the sheet on that side (label, name, a few
+              words, Instagram / Facebook / X; a wrong link is flagged and not saved), saved with
+              set_theme_content_block on the main event from Home or any album. COUPLE_FIELD is no longer
+              web-only. Checked on the iPhone 17 Pro simulator with mehandi night (Home + album newcheck,
+              save checked in the database, then put back to Jyoti / Samarth). Device test #204. On
+              staging in 6d0b2861 (Sarthak's go, 2026-11-07); the app switch stays off.
+              2026-11-07 (Claude): Collections menu and photo viewer drawn in Confetti's light colours
+              (issue #257, 6804a08b, device test #203 step 10).
+              2026-11-12 Sarthak: close it; everything is on staging.
+Owner:        Sarthak (with Claude)
+Depends on:   -
+Brief:        The website has the wedding theme "Confetti Circle" (id "confetti", device test #151),
+              but the app has no "confetti" entry in apps/mobile/constants/templates.ts, so the app's
+              theme picker doesn't offer it and a gallery set to it on the website isn't drawn in that
+              design in the app. Copy the website design (staging: src/components/TemplateConfetti.tsx,
+              src/components/confetti/, src/app/confetti-circle.css):
+              - Cover: the photo fills the first screen with a big 70% white circle in the middle:
+                the couple's names in Bebas Neue capitals, pink #e8175d to orange #ff7a1a, "- and -"
+                between them, then "March | 28 | 2025" and the place. On the circle's top edge a dark
+                tag with a red heart and the gallery's message in italics and quotes ("Happily
+                married" in capitals when there is none; long messages get a wider tag, at most 4
+                lines). Pink and orange paint specks round the circle, a torn-paper edge at the
+                bottom, a round dark arrow button.
+              - Top bar: frosted white over the photo, the couple's names with a pink heart for the
+                "&", links in Bebas Neue capitals; solid white once scrolled.
+              - Under the cover: "We're getting married!", the highlight video (or the cover photo)
+                in a soft-edged widescreen frame with specks and a white "Name ♥ Name" ribbon, the
+                bride and the groom with a few words and social icons. Since #10 (2026-11-07) these
+                come from the main event's theme_content: read it in apps/mobile/lib/database.ts
+                (readThemeContent), show only the named sides and filled links (shownCouple in
+                shared/themes/themeContent.ts, never names from the title), and drop platforms
+                ["web"] from COUPLE_FIELD in shared/themes/editableFields.ts so the app's edit bar
+                gets the Couple sheet (save with set_theme_content_block).
+              - Gallery: Back / Share, "PHOTO GALLERY | <gallery name> | VIDEO GALLERY" (the pink
+                words switch photos / videos), the full message in italics when the tag cut it,
+                full-width rows of whole photos (never cropped).
+              - Footer: torn-paper edge, Create your own event / Sample galleries / Pricing at the
+                far left, "S ♥ R" with "Made with EveBash" (EveBash font) in the middle, Privacy /
+                Terms / Contact us at the far right.
+              Once the app has it, the app's pickers offer it on their own (it's in ACTIVE_THEME_IDS):
+              update the app list in src/lib/hiddenTemplates.test.ts. Add a device test when it ships.
+Done in:      4b97ef14 (design) + d805e71c (phone-style cover) + 6d0b2861 (Couple sheet) + 6804a08b
+              (issue #257), all 2026-11-07, on staging. Needs a new EAS staging build. Checked on the
+              iPhone 17 Pro simulator (dev build); device tests #203 and #204. The Couple sheet's app
+              switch (EXPO_PUBLIC_GUEST_EDIT_MODE) stays off.
 
 #29 App: Guest Home Preview shows a picture of the app's own guest screen
 Listed:       2026-11-07
