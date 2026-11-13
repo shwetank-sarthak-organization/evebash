@@ -710,6 +710,17 @@ Update 2026-11-13: step 3 done by Shwetank, staging Auth copied from production.
               Rate limits, sessions, attack protection, MFA: matched by hand. Not yet tested.
               After step 5, remove localhost and staging.evebash.com from production's redirect
               URLs. Weak password rule (6, no rules) noted for before launch.
+Update 2026-11-13: step 3 checked with the Management API (SUPABASE_MGMT_KEY): 240 of 244 Auth
+              settings identical; the rest are the Site URL and redirect list (different on purpose)
+              and the Google secret and SMTP password (stored hashed per project, can't compare).
+Update 2026-11-13: step 4 done. Copied from production to staging, as one transaction: the 10
+              team/test accounts (auth.users with password hashes, 14 identities, profiles, policy
+              acceptances), so everyone logs in on staging with the same email, password, Google
+              login and role (3 admins). Samarth's account (samarth.chauhan198, a real person) not
+              copied. Also copied pricing_plans (8 rows), the only settings table. No galleries,
+              photos, comments or payments; test galleries get made after step 5 (staging needs its
+              own B2 storage first). Email test: staging sent a "Reset your password" email to
+              shwetank.chauhan3@gmail.com through Hostinger; it arrived in the inbox.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
