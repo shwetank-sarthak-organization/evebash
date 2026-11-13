@@ -737,6 +737,11 @@ Update 2026-11-13: step 5a (Backblaze) in progress. Decided: four buckets, galle
               #269), and the Backblaze account had a failed $16.50 payment (31 Oct); Shwetank
               updated the card on 2026-11-13, suspension date was 1 Dec. Next: the three
               bucket-only keys, then delete the temporary key.
+Update 2026-11-13: step 5a done. Shwetank created three keys, each limited to one bucket, Read and
+              Write: "Staging-Media" (EveBash-Staging-Media), "Staging-Vault"
+              (EveBash-Staging-Vault), "Live-Vault" (EveBash-Vault); saved in his password manager,
+              go into Railway in step 5d. Temporary key deleted and removed from .env.dbcopy.
+              Check in Billing that the failed $16.50 charge was retried.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
