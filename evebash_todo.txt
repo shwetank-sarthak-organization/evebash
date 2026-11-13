@@ -687,6 +687,16 @@ Update 2026-11-13: step 1 done. Staging project "Evebash-Staging" created by Shw
               https://degbveyjppkuhydwxfjq.supabase.co. The current project stays production, unchanged.
               Only the structure gets copied, no real data. Note: a free project pauses after about a
               week without use; production (115 of 500 MB) has no daily backups on Free.
+Update 2026-11-13: step 2 done. Production's structure copied to staging with pg_dump (schema
+              only, public and eb_private, read-only on production; no rows, accounts or secrets).
+              Staging got the vector and pg_trgm extensions first. Loaded as one transaction. Then
+              production's exact table and function permissions were applied, because a new project
+              grants anon/authenticated access to new objects by default (16 tables and 37 functions
+              would otherwise have been open). Compared afterwards: 39 tables, 1 view, 63 functions
+              (same code), 10 triggers, 18 RLS policies, 97 indexes, all grants and default grants
+              identical. Production has no storage buckets, cron jobs or auth.users triggers, so
+              nothing else to copy. Staging carries the same 12 tables without RLS as production
+              (issue #21), to be locked down on staging first. Next: step 3 (Auth setup).
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
