@@ -697,6 +697,19 @@ Update 2026-11-13: step 2 done. Production's structure copied to staging with pg
               identical. Production has no storage buckets, cron jobs or auth.users triggers, so
               nothing else to copy. Staging carries the same 12 tables without RLS as production
               (issue #21), to be locked down on staging first. Next: step 3 (Auth setup).
+Update 2026-11-13: step 3 done by Shwetank, staging Auth copied from production. URL config: Site
+              URL https://staging.evebash.com; redirects http://localhost:*/**,
+              https://staging.evebash.com, https://staging.evebash.com/** (production's own
+              evebash.com entries left out). Email: signups on, anonymous off, confirm email on,
+              secure email change on, secure password change off, min password 6, no character
+              rules, OTP 3600 s / 8 digits. SMTP: same Hostinger mailbox noreply@evebash.com
+              (new projects must have custom SMTP to edit templates). Templates: Confirm signup
+              is the custom EveBash one (supabase/templates/confirmation.html); the other five are
+              Supabase defaults on both. Google: same two client IDs and secret, skip nonce on;
+              staging callback added to the Google web client's redirect URIs. Apple: copied.
+              Rate limits, sessions, attack protection, MFA: matched by hand. Not yet tested.
+              After step 5, remove localhost and staging.evebash.com from production's redirect
+              URLs. Weak password rule (6, no rules) noted for before launch.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
