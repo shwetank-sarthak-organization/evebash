@@ -622,7 +622,7 @@ Listed:       2026-11-11
 Platform:     Both
 Priority:     High
 Phase:        1
-Status:       Idea
+Status:       In progress
 Effort:       L
 Suggested by: Shwetank
 Discussed:    Yes
@@ -682,6 +682,11 @@ Brief:        Staging and production share one Supabase project, so every migrat
               - Migrations contain no cron jobs or storage bucket setup. Still check the live
                 database for triggers on sign-up and enabled extensions, which a plain copy can miss.
               Device tests waiting at the switch need their accounts recreated.
+Update 2026-11-13: step 1 done. Staging project "Evebash-Staging" created by Shwetank in the same
+              organisation (Free plan, now 2 of 2 active projects), region ap-south-1 (Mumbai), size NANO:
+              https://degbveyjppkuhydwxfjq.supabase.co. The current project stays production, unchanged.
+              Only the structure gets copied, no real data. Note: a free project pauses after about a
+              week without use; production (115 of 500 MB) has no daily backups on Free.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
