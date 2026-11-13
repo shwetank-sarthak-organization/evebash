@@ -721,6 +721,21 @@ Update 2026-11-13: step 4 done. Copied from production to staging, as one transa
               photos, comments or payments; test galleries get made after step 5 (staging needs its
               own B2 storage first). Email test: staging sent a "Reset your password" email to
               shwetank.chauhan3@gmail.com through Hostinger; it arrived in the inbox.
+Update 2026-11-13: step 5a (Backblaze) in progress. Decided: four buckets, gallery and EB Vault for
+              live and for staging, each with its own key limited to that bucket. Live gallery stays
+              "EveBash". The old vault bucket "Evebash-Vault-Staging" was in fact the live vault
+              (shared by live and staging); its only data (newone@email.com's 8 test items) was
+              deleted from staging.evebash.com, database rows 0, B2 hides then erases after 1 day.
+              It gets deleted at the end, once empty and unused. Created with a temporary all-bucket
+              key (expires 2026-11-14): "EveBash-Staging-Media", "EveBash-Staging-Vault" and
+              "EveBash-Vault" (new live vault), all private, SSE-B2, keep only the last version.
+              CORS: staging media copies EveBash's rule (all origins, upload and download);
+              staging vault allows localhost:3000 and staging.evebash.com; live vault allows
+              www.evebash.com and evebash.com. Live CORS was "custom" (not visible in the web UI);
+              read through the API. Found: both existing server keys work on all buckets (issue
+              #269), and the Backblaze account had a failed $16.50 payment (31 Oct); Shwetank
+              updated the card on 2026-11-13, suspension date was 1 Dec. Next: the three
+              bucket-only keys, then delete the temporary key.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)

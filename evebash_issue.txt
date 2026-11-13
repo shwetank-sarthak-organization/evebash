@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 269
+Next issue number: 270
 
 =====================================================================
 ACTIVE ISSUES
@@ -1567,6 +1567,16 @@ Found in: #265 fix (chat 2026-11-12)
 Issue: The app's guest home pictures (events/<id>/guest-preview/app-<uuid>.jpg on media.evebash.com, todo #31) were not cleaned up properly. (1) The admin orphan cleanup (deleteBackblazeOrphans in apps/backend/src/routes/admin.ts, run from the analytics dashboard) only counted photos and profile pictures as in use, so it listed every gallery's current picture as an orphan and would have deleted it. (2) Deleting a gallery (website, app or admin) left its picture in storage until an orphan cleanup ran.
 How to reproduce: Read getReferencedB2Keys in apps/backend/src/routes/admin.ts before 520cc156: it reads only events.id, photos.storage_key and profiles.profile_image.
 Update 2026-11-12: fixed in 520cc156. The orphan scan counts events.guest_preview_picture as in use. New POST /api/media/guest-preview-picture/delete (gallery managers only; empties the column, then deletes the file, only inside events/<id>/guest-preview/) is called by deleteEvent on the website (src/lib/database.ts) and in the app (apps/mobile/lib/database.ts, which also drops the phone's own copy); admin gallery deletes and account resets remove the events/<id>/guest-preview/ folder. Backend tests added (apps/backend/tests/guestPreviewPicture.test.ts). No switch: it only adds cleanup and stops a wrong delete. Needs the staging Railway deploy; the app part needs a new build.
+
+#269
+Listed: 2026-11-13
+Platform: Backend only
+Priority: Medium
+Status: Open
+Owner: Shwetank (with Claude)
+Found in: Todo #30 step 5a (Backblaze key check, chat 2026-11-13)
+Issue: Both Backblaze keys the servers use today ("evebash-media-key" for gallery media, "evebash-vault-staging-backend" for EB Vault) work on ALL buckets in the account and can also change bucket settings (writeBuckets). So the live server's media key can read and delete files in the vault and staging buckets, and a leaked key exposes everything. The new staging and live-vault keys are limited to one bucket each.
+Fix idea: during todo #30 step 5d, give the live server a new key limited to the "EveBash" bucket (Read and Write only), deploy, check uploads and deletes, then delete "evebash-media-key". Delete "evebash-vault-staging-backend" once nothing uses the old "Evebash-Vault-Staging" bucket. The local .env / .env.local B2 key is stale (rejected by Backblaze); replace it with a staging key in step 5h.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
