@@ -729,8 +729,9 @@ Update 2026-11-13: step 5a (Backblaze) in progress. Decided: four buckets, galle
               It gets deleted at the end, once empty and unused. Created with a temporary all-bucket
               key (expires 2026-11-14): "EveBash-Staging-Media", "EveBash-Staging-Vault" and
               "EveBash-Vault" (new live vault), all private, SSE-B2, keep only the last version.
-              CORS: staging media copies EveBash's rule (all origins, upload and download);
-              staging vault allows localhost:3000 and staging.evebash.com; live vault allows
+              CORS: staging media copies EveBash's rule (upload and download) but only for
+              staging.evebash.com and localhost:3000 (Shwetank's choice; live EveBash allows all
+              origins); staging vault allows localhost:3000 and staging.evebash.com; live vault allows
               www.evebash.com and evebash.com. Live CORS was "custom" (not visible in the web UI);
               read through the API. Found: both existing server keys work on all buckets (issue
               #269), and the Backblaze account had a failed $16.50 payment (31 Oct); Shwetank
