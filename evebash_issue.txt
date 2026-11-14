@@ -1572,11 +1572,24 @@ Update 2026-11-12: fixed in 520cc156. The orphan scan counts events.guest_previe
 Listed: 2026-11-13
 Platform: Backend only
 Priority: Medium
-Status: Open
+Status: In progress
 Owner: Shwetank (with Claude)
 Found in: Todo #30 step 5a (Backblaze key check, chat 2026-11-13)
 Issue: Both Backblaze keys the servers use today ("evebash-media-key" for gallery media, "evebash-vault-staging-backend" for EB Vault) work on ALL buckets in the account and can also change bucket settings (writeBuckets). So the live server's media key can read and delete files in the vault and staging buckets, and a leaked key exposes everything. The new staging and live-vault keys are limited to one bucket each.
 Fix idea: during todo #30 step 5d, give the live server a new key limited to the "EveBash" bucket (Read and Write only), deploy, check uploads and deletes, then delete "evebash-media-key". Delete "evebash-vault-staging-backend" once nothing uses the old "Evebash-Vault-Staging" bucket. The local .env / .env.local B2 key is stale (rejected by Backblaze); replace it with a staging key in step 5h.
+Update 2026-11-14: new key "Live-Media-Only" (keyID ...000a, bucket EveBash only, Read and Write, no
+writeKeys/deleteBuckets) put on the live media worker (wrangler secret), live Railway
+(evebash-api-production-backend, redeployed 17:31 IST), Vercel evebash-production (B2_KEY_ID /
+B2_APPLICATION_KEY; the website code does not use them) and the root .env (used for live Modal deploys).
+Typed by Shwetank, checked with Backblaze first. Checked after: a real live thumbnail fetched fresh from
+B2 through media.evebash.com 200, missing file gives B2 not_found; live server /health, / and
+/api/v1/pricing-plans 200, no startup errors; the key stored on live Railway authorizes on EveBash and
+lists files. Staging already uses one-bucket keys (todo #30 5a-5e). Backups of the old live Railway
+values and root .env kept in the session scratchpad. Still to do: live Modal (v133, 2026-10-27, from
+d2d7be9) still has "evebash-media-key" baked in; it gets the new key at the next live Modal deploy
+(planned with Sarthak, as that deploy also ships 8bfc220). Then delete "evebash-media-key" (...0001).
+"evebash-vault-staging-backend" (...0002) is no longer used anywhere: delete with Shwetank's OK.
+Status: Testing until those two deletes.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
