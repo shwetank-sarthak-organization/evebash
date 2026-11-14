@@ -1588,8 +1588,10 @@ lists files. Staging already uses one-bucket keys (todo #30 5a-5e). Backups of t
 values and root .env kept in the session scratchpad. Still to do: live Modal (v133, 2026-10-27, from
 d2d7be9) still has "evebash-media-key" baked in; it gets the new key at the next live Modal deploy
 (planned with Sarthak, as that deploy also ships 8bfc220). Then delete "evebash-media-key" (...0001).
-"evebash-vault-staging-backend" (...0002) is no longer used anywhere: delete with Shwetank's OK.
-Status: Testing until those two deletes.
+"evebash-vault-staging-backend" (...0002) was in fact limited to the old "Evebash-Vault-Staging" bucket
+(not all buckets); it was no longer used anywhere (checked: staging and live Railway, local settings
+files) and Shwetank deleted it on 2026-11-14. The emptied "Evebash-Vault-Staging" bucket can now be
+deleted too (with Shwetank's OK). Status: Testing until "evebash-media-key" is deleted.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
