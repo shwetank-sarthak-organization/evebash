@@ -773,7 +773,25 @@ Update 2026-11-14: step 5c. modal_engine/main.py reads its settings file from
               staging file never has the live NEXT_PUBLIC_SUPABASE_URL; checked with Modal's own loader
               that staging now loads the staging database, bucket, media domain and backend.
               Redeployed 12:37 IST (same 6 URLs). Checked at 07:15 UTC: the staging job wrote its 2
-              cost rows to the STAGING database and live had only its own 2. Step 5c done. Modal CLI on
+              cost rows to the STAGING database and live had only its own 2. Step 5c done.
+Update 2026-11-14: steps 5d and 5e done. Railway and Vercel CLIs on Shwetank's Mac (railway via
+              brew, vercel via npx vercel@65.16.0). Staging Railway (evebash-api-staging-backend):
+              22 values changed (staging Supabase URL/anon/service role incl. EXPO_PUBLIC copies,
+              B2 bucket EveBash-Staging-Media + id 01ae35ab69fcde57a21a0d16 + Staging-Media-Only key,
+              MEDIA_DOMAIN/NEXT_PUBLIC_MEDIA_DOMAIN/FIND_YOU_SELFIE_HOSTS media-staging.evebash.com,
+              the 6 staging Modal URLs, the new INTERNAL_JOB_SECRET, vault EveBash-Staging-Vault +
+              Staging-Vault-Only key); 43 others unchanged (RunPod, QStash, Razorpay test, switches).
+              Vercel evebash-staging: NEXT_PUBLIC_SUPABASE_URL/ANON_KEY and NEXT_PUBLIC_MEDIA_DOMAIN
+              (now Config, Vercel refuses NEXT_PUBLIC_ as Secret), SUPABASE_SERVICE_ROLE_KEY,
+              MEDIA_DOMAIN, B2 bucket/id and Staging-Media-Only key. Both redeployed 14:15 IST.
+              Checked: api-staging health/pricing 200, no startup errors; staging.evebash.com bundle
+              has only the staging Supabase ref. Shwetank logged in on staging with a test account,
+              made event "Staging test 1", uploaded a photo: staging DB row ready/indexed with a
+              media-staging URL, processed by staging Modal (process_photo_v2); live DB 0 new photos.
+              Live Railway and Vercel untouched. Old key ...0002 (evebash-vault-staging-backend) is
+              no longer used by staging; delete with Shwetank's OK. Live key swap (#269) still to do
+              with a new "Live-Media-Only" key (live Railway, live media worker, live Modal).
+              Next: 5f (optional gallery copy), 5g (EAS, needs Sarthak), 5h, 5i, 5j. Modal CLI on
               Shwetank's Mac (~/.modal-cli). Modal environment "staging" created in workspace
               shwetank-sarthak, photo-pipeline-switch mode=v2 (same as live; video switch empty on
               both). Settings in the git-ignored .env.modal-staging (15 values: staging Supabase,
