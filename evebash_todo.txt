@@ -845,6 +845,16 @@ Update 2026-11-14: app checked on staging. Shwetank tests the app as a local dev
               Sarthak's Expo account elnino_009; set staging and production values there once Shwetank is
               invited (not needed for local development builds). Live Modal deploy and the old key delete
               are tracked in issue #269.
+Update 2026-11-14: Expo project moved. Sarthak backed up the Android keystore (shared password manager,
+              "EveBash Android keystore") and transferred the EAS project from elnino_009 to the shared
+              organization evebash (@evebash/evebash, same project ID c56e7efd). app.json owner = evebash
+              in staging 2af0784. Its 4 EAS environment variables were project-level and moved with it.
+              Only a staging update channel exists (never a production one). The owner change changed the
+              fingerprint runtime version, so older staging builds (a7927990, 663facd1, 58b1804b) get no new
+              over-the-air updates; testing OTA needs a new build. No build or update was run. Left: log in
+              to the Expo tool with the shared account, give the EAS staging and production environments
+              their own Supabase/server/media values, set eas.json staging EXPO_PUBLIC_MEDIA_DOMAIN to
+              media-staging.evebash.com, then a new staging build (with OK) to check it.
 
 #32 Analytics dashboard: switch between Live and Staging data
 Listed:       2026-11-14
