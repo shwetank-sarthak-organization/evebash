@@ -864,6 +864,17 @@ Update 2026-11-14: EAS values separated. Found: all EAS builds got the LIVE Supa
               eas.json: staging profile "environment": "preview" and media-staging.evebash.com; production
               profile "environment": "production", api.evebash.com and media.evebash.com. No build run.
               Left: a new staging build (with OK) to check it end to end, then Done.
+Update 2026-11-14: staging build 4c48b178 (versionCode 25, staging 0703c5e) finished, but not checked:
+              it will be replaced. Shwetank decided the staging app gets its own identity, like
+              staging.evebash.com for the website, as the last step of #30: name "EveBash Staging",
+              Android/iOS app ID com.evebash.app.staging, link scheme evebash-staging, so staging and live
+              can be installed side by side and staging links never open the live app. Production stays
+              "EveBash", com.evebash.app, scheme evebash, same keystore. Touches: app.json -> app.config.js
+              (variant from the build profile), apps/mobile/lib/deepLinks.ts schemes, the website's
+              OpenInAppBanner (staging site opens evebash-staging://), Firebase (add the staging Android
+              app, new google-services.json), Google Cloud (Android OAuth client for the new app ID + its
+              signing SHA-1, for Google sign-in), EAS (new keystore for the staging app ID, created by EAS;
+              FCM key upload for push). Then a new staging build, checked on the Mac and on a phone.
 
 #32 Analytics dashboard: switch between Live and Staging data
 Listed:       2026-11-14
