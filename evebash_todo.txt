@@ -855,6 +855,15 @@ Update 2026-11-14: Expo project moved. Sarthak backed up the Android keystore (s
               to the Expo tool with the shared account, give the EAS staging and production environments
               their own Supabase/server/media values, set eas.json staging EXPO_PUBLIC_MEDIA_DOMAIN to
               media-staging.evebash.com, then a new staging build (with OK) to check it.
+Update 2026-11-14: EAS values separated. Found: all EAS builds got the LIVE Supabase URL/anon key, while
+              staging builds used the staging server (mixed), and the production profile had no server
+              address (would fall back to api-staging). Done with the eas CLI as the shared account: the
+              live EXPO_PUBLIC_SUPABASE_URL/ANON_KEY now apply to the production environment only; new
+              staging copies for preview + development (checked: preview/development = staging key,
+              production = live key). EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID and SENTRY_AUTH_TOKEN stay shared.
+              eas.json: staging profile "environment": "preview" and media-staging.evebash.com; production
+              profile "environment": "production", api.evebash.com and media.evebash.com. No build run.
+              Left: a new staging build (with OK) to check it end to end, then Done.
 
 #32 Analytics dashboard: switch between Live and Staging data
 Listed:       2026-11-14
