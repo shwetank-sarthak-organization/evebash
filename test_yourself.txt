@@ -24,7 +24,7 @@ Next test number: 213
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-12
+Last updated: 2026-11-14
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -3805,9 +3805,9 @@ Detail:    Branch feat/sentry-crash-reporting. Env vars: NEXT_PUBLIC_SENTRY_DSN 
            2026-11-04 (issue #186, 82784bd): app errors and source maps now go to the Sentry project "evebash-app".
            Look there for app errors from builds made after that commit (older builds report to a different project).
            2026-11-04: EAS Android staging build 58b1804b (staging 29e92eb) uploaded its source maps to Sentry project
-           evebash-app (release com.evebash.app@1.2.4+25, dist 25). Use it for steps 4, 5 and 8. Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/58b1804b-a070-4280-99f8-6f9adfa7c4c1
+           evebash-app (release com.evebash.app@1.2.4+25, dist 25). Use it for steps 4, 5 and 8. Install: https://expo.dev/accounts/evebash/projects/evebash/builds/58b1804b-a070-4280-99f8-6f9adfa7c4c1
            2026-11-06: newer EAS Android staging build 663facd1 (staging b4118bd) also uploaded its source maps to
-           evebash-app (release com.evebash.app@1.2.4+25). Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/663facd1-8ffb-4b78-a6f3-8e8a51cef101
+           evebash-app (release com.evebash.app@1.2.4+25). Install: https://expo.dev/accounts/evebash/projects/evebash/builds/663facd1-8ffb-4b78-a6f3-8e8a51cef101
 How to test:
   1. Website: open staging.evebash.com, use it normally for a minute (log in, open a gallery). Expect: works
      exactly as before. In Sentry (project evebash-web / Next.js) nothing new unless something broke.
@@ -4613,7 +4613,7 @@ Detail:    App code only, no new native build needed. On staging in 6653ed4.
            2026-11-04: the normal staging build 58b1804b (staging 29e92eb) contains this fix, but it has no crash-test page,
            so steps that force the error screen still need the special test build described above.
            2026-11-06: ready-made Android crash-test build a7927990 (staging c36845f plus the test page, built from a local
-           commit that is never pushed). Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/a7927990-bef7-4da8-b08b-d35f806ccf9e
+           commit that is never pushed). Install: https://expo.dev/accounts/evebash/projects/evebash/builds/a7927990-bef7-4da8-b08b-d35f806ccf9e
            It replaces the normal staging app, so install build 663facd1 again after this test. Open the test page with:
            adb shell am start -a android.intent.action.VIEW -d evebash://events/crash-test
            Its source maps are in Sentry (evebash-app), so the step 5 error should show readable file and function names.
@@ -5055,8 +5055,8 @@ Detail:    Commit eed090f on staging (app only; needs a new staging app build or
            host grid on rec-8-3d4d and Royal Emerald guest grid on test-face-new-155c. Photos in view always showed,
            far ones were dropped and came back on scrolling up. The simulator can't show the memory saving, so this
            needs a real phone.
-           2026-11-04: in the EAS Android staging build 58b1804b (staging 29e92eb). Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/58b1804b-a070-4280-99f8-6f9adfa7c4c1
-           2026-11-06: newer EAS Android staging build 663facd1 (staging b4118bd) also has this. Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/663facd1-8ffb-4b78-a6f3-8e8a51cef101
+           2026-11-04: in the EAS Android staging build 58b1804b (staging 29e92eb). Install: https://expo.dev/accounts/evebash/projects/evebash/builds/58b1804b-a070-4280-99f8-6f9adfa7c4c1
+           2026-11-06: newer EAS Android staging build 663facd1 (staging b4118bd) also has this. Install: https://expo.dev/accounts/evebash/projects/evebash/builds/663facd1-8ffb-4b78-a6f3-8e8a51cef101
 How to test:
   1. As the host of a gallery with lots of photos (300+ is best), open its photo grid and scroll quickly to the
      bottom, then back to the top. Expect: every photo you stop on shows; while flicking, a few tiles may show an
@@ -5269,7 +5269,7 @@ Detail:    Commit 11a60c8 on staging (app code only; needs a staging build or up
            2026-11-04: also covers issue #245 (894b9af): on an iPhone, step 3 checks that waiting uploads still find their
            copies after the app is updated.
            2026-11-06: test on EAS Android staging build 663facd1 (staging b4118bd), which has this fix and #245.
-           Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/663facd1-8ffb-4b78-a6f3-8e8a51cef101
+           Install: https://expo.dev/accounts/evebash/projects/evebash/builds/663facd1-8ffb-4b78-a6f3-8e8a51cef101
 How to test:
   1. As a host, pick about 30 photos and upload them to your own test gallery. While they upload, close the app
      completely (swipe it away), then open it again. Expect: the upload card shows the rest and carries on; every
