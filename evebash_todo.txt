@@ -769,7 +769,9 @@ Update 2026-11-14: step 5c. modal_engine/main.py reads its settings file from
               (07:00:17 dispatch_outbox_jobs, 07:00:19 sweep_stuck_jobs). Staging app stopped at 12:32.
               Fix: from_dotenv(repo root, filename=<name>), plus checks that the file exists and that a
               staging file never has the live NEXT_PUBLIC_SUPABASE_URL; checked with Modal's own loader
-              that staging now loads the staging database, bucket, media domain and backend. Modal CLI on
+              that staging now loads the staging database, bucket, media domain and backend.
+              Redeployed 12:37 IST (same 6 URLs). Checked at 07:15 UTC: the staging job wrote its 2
+              cost rows to the STAGING database and live had only its own 2. Step 5c done. Modal CLI on
               Shwetank's Mac (~/.modal-cli). Modal environment "staging" created in workspace
               shwetank-sarthak, photo-pipeline-switch mode=v2 (same as live; video switch empty on
               both). Settings in the git-ignored .env.modal-staging (15 values: staging Supabase,
