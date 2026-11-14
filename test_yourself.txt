@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 214
+Next test number: 215
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6135,3 +6135,32 @@ Feedback:  All steps passed. Staging database: photos ready and face-indexed wit
            object in EveBash-Staging-Vault. Live database: 0 new photos or videos all day. Step 4 first
            gave a 404 because the whole share message was pasted into the address bar; with only the link
            it showed the private-gallery page as expected.
+
+#214 App: "EveBash Staging" EAS build installs next to the live app and uses only staging (todo #30)
+Status:    PASS
+Priority:  High
+Platform:  App (Android)
+Brief:     Staging app builds now have their own identity: "EveBash Staging", app ID
+           com.evebash.app.staging, link scheme evebash-staging, own signing key, and the EAS "preview"
+           environment (staging Supabase). Check it installs next to EveBash and uses only staging.
+Detail:    app.config.js picks the identity from APP_VARIANT (eas.json; unset = staging). Firebase app and
+           Google sign-in clients for com.evebash.app.staging added 2026-11-14. Push notifications in the
+           staging app need the FCM V1 key uploaded on EAS for com.evebash.app.staging (not done yet).
+How to test:
+  1. Install the latest EAS staging build from expo.dev (account evebash > Builds, profile staging).
+     Expect: a separate app "EveBash Staging" next to EveBash; nothing to uninstall.
+  2. Log in with a test account (email and password). Expect: staging-only event "Staging test 1" shows.
+  3. Upload one photo in it. Expect: thumbnail within a minute.
+  4. Log out, Sign in with Google. Expect: signed in.
+  5. Ask Claude to check the databases. Expect: the new photo only in the staging database.
+Done by:   Shwetank (with Claude)
+Device / browser: Android phone
+Build / version: EAS staging build 997a9866 (staging a97213d, versionCode 25)
+Date tested: 2026-11-14
+Account used: host test account
+Screenshot / recording:
+Fix ref:
+Feedback:  All steps passed. Build checked on the Mac first: package com.evebash.app.staging, label
+           EveBash Staging, scheme evebash-staging, staging Supabase/api-staging/media-staging only, no
+           live addresses. Photo uploaded 16:59 UTC: processed, ready, indexed, media-staging thumbnail, in
+           "Staging test 1 - Sub Gallery". Live database: 0 new photos.

@@ -622,7 +622,8 @@ Listed:       2026-11-11
 Platform:     Both
 Priority:     High
 Phase:        1
-Status:       In progress
+Status:       Done
+Done in:      a97213d (2026-11-14)
 Effort:       L
 Suggested by: Shwetank
 Discussed:    Yes
@@ -887,6 +888,14 @@ Update 2026-11-14: staging identity code in 629aa16 (app.config.js: APP_VARIANT 
               "EveBash Android EAS (com.evebash.app.staging)" and "EveBash Android debug
               (com.evebash.app.staging)". Left: FCM V1 push key for the staging app on EAS (optional), new
               staging build, rebuild the USB dev build as EveBash Staging.
+Update 2026-11-14: DONE. EAS staging build 997a9866 (a97213d) checked on the Mac (com.evebash.app.staging,
+              EveBash Staging, evebash-staging, staging addresses only) and on Shwetank's phone: installed
+              next to EveBash, login, "Staging test 1", photo upload (staging DB: ready + indexed,
+              media-staging), Google sign-in all passed; live DB 0 new photos. Device test #214 PASS.
+              Sarthak can resume (pull staging first; builds now default to the staging app). Small
+              follow-ups, not part of #30: FCM V1 push key for com.evebash.app.staging on EAS; the USB
+              dev build becomes EveBash Staging the next time it is rebuilt (npx expo run:android); live
+              Modal deploy and the old B2 key delete stay in issue #269.
 
 #32 Analytics dashboard: switch between Live and Staging data
 Listed:       2026-11-14
