@@ -875,6 +875,18 @@ Update 2026-11-14: staging build 4c48b178 (versionCode 25, staging 0703c5e) fini
               app, new google-services.json), Google Cloud (Android OAuth client for the new app ID + its
               signing SHA-1, for Google sign-in), EAS (new keystore for the staging app ID, created by EAS;
               FCM key upload for push). Then a new staging build, checked on the Mac and on a phone.
+Update 2026-11-14: staging identity code in 629aa16 (app.config.js: APP_VARIANT unset or staging ->
+              EveBash Staging / com.evebash.app.staging / evebash-staging; eas.json production sets
+              APP_VARIANT=production; deepLinks accepts evebash-staging://, tests pass; website Open in app
+              uses evebash-staging:// when the server address is staging). EAS made a new keystore for
+              com.evebash.app.staging (SHA-1 67:ED:C7:F2:65:F8:C6:CD:58:A0:CB:5F:49:AF:84:3B:BB:A3:B5:98).
+              Shwetank added the Firebase Android app "EveBash Staging" (both SHA-1s: EAS key and the
+              standard debug key 5E:8F:...:F6:25 for the USB build) and the new google-services.json is in
+              apps/mobile (adds the staging app; live entries unchanged). Firebase did not create the
+              Android sign-in clients, so Shwetank added two in Google Cloud (project evebash-e36ae):
+              "EveBash Android EAS (com.evebash.app.staging)" and "EveBash Android debug
+              (com.evebash.app.staging)". Left: FCM V1 push key for the staging app on EAS (optional), new
+              staging build, rebuild the USB dev build as EveBash Staging.
 
 #32 Analytics dashboard: switch between Live and Staging data
 Listed:       2026-11-14

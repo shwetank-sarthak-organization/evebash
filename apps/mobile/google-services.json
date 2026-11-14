@@ -37,6 +37,13 @@
             {
               "client_id": "71982315150-f5rfe8cr2sido3l06v6sprlkju4siis2.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "71982315150-e883v8ajl6qqnsgg3a7clqd9a5t4s9qk.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.evebash.app"
+              }
             }
           ]
         }
@@ -47,6 +54,58 @@
         "mobilesdk_app_id": "1:71982315150:android:152f5b3980ea273879fbdf",
         "android_client_info": {
           "package_name": "com.evebash.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "71982315150-f0r5s7fikn62ea1bhgq9u4sme3iejatk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.evebash.app",
+            "certificate_hash": "2940b3bdeb22b71fa2e5e68cb092522bd2083047"
+          }
+        },
+        {
+          "client_id": "71982315150-oiguor0266bif3cgq0p956u3i5gpjn2r.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.evebash.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "71982315150-f5rfe8cr2sido3l06v6sprlkju4siis2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAuKWahPHUB2Ray2BA12S4og2gZxSsZs4k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "71982315150-f5rfe8cr2sido3l06v6sprlkju4siis2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "71982315150-e883v8ajl6qqnsgg3a7clqd9a5t4s9qk.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.evebash.app"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:71982315150:android:2945ae02f3d8ab4779fbdf",
+        "android_client_info": {
+          "package_name": "com.evebash.app.staging"
         }
       },
       "oauth_client": [
@@ -66,6 +125,13 @@
             {
               "client_id": "71982315150-f5rfe8cr2sido3l06v6sprlkju4siis2.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "71982315150-e883v8ajl6qqnsgg3a7clqd9a5t4s9qk.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.evebash.app"
+              }
             }
           ]
         }
