@@ -742,6 +742,16 @@ Update 2026-11-13: step 5a done. Shwetank created three keys, each limited to on
               (EveBash-Staging-Vault), "Live-Vault" (EveBash-Vault); saved in his password manager,
               go into Railway in step 5d. Temporary key deleted and removed from .env.dbcopy.
               Check in Billing that the failed $16.50 charge was retried.
+Update 2026-11-14: step 5b done. New Cloudflare worker "evebash-media-worker-staging" (same
+              worker.js, [env.staging] in cloudflare-worker/evebash-media-worker/wrangler.toml,
+              deployed with npx wrangler@3 deploy --env staging and the CLOUDFLARE_API_TOKEN from
+              .env, version 271004f8) on the custom domain media-staging.evebash.com, reading
+              "EveBash-Staging-Media" with the "Staging-Media" key (secrets typed by Shwetank).
+              Checked: a missing file gives B2's 404 (key accepted); a real live thumbnail gives
+              200 on media.evebash.com and 404 on media-staging.evebash.com; OPTIONS from
+              staging.evebash.com gives 204. Live worker untouched. Staging must use
+              media-staging.evebash.com (NEXT_PUBLIC_MEDIA_DOMAIN, MEDIA_DOMAIN,
+              EXPO_PUBLIC_MEDIA_DOMAIN) from steps 5c-5g. Next: 5c (Modal staging environment).
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
