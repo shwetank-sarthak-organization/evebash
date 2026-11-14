@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 32
+Next todo number: 33
 
 Last updated: 2026-11-12
 
@@ -763,6 +763,21 @@ Update 2026-11-14: the 3 keys from step 5a turned out to reach ALL buckets with 
 Update 2026-11-14: step 5c. modal_engine/main.py reads its settings file from
               EVEBASH_MODAL_ENV_FILE (default .env, so live deploys are unchanged), with checks that
               stop .env going to staging or the staging file going to live (fdeacac).
+              Modal CLI on Shwetank's Mac (~/.modal-cli). Modal environment "staging" created in workspace
+              shwetank-sarthak, photo-pipeline-switch mode=v2 (same as live; video switch empty on
+              both). Settings in the git-ignored .env.modal-staging (15 values: staging Supabase,
+              EveBash-Staging-Media + Staging-Media-Only key, media-staging.evebash.com,
+              BACKEND_API_URL https://api-staging.evebash.com, a NEW INTERNAL_JOB_SECRET/CRON_SECRET
+              that staging Railway must get in 5d, shared QStash). Deployed with
+              MODAL_ENVIRONMENT=staging EVEBASH_MODAL_ENV_FILE=.env.modal-staging modal deploy
+              modal_engine/main.py. Live "main" untouched. Staging Railway values for 5d (the backend
+              falls back to the LIVE Modal URLs if any is missing, so set all six):
+                MODAL_PREVIEW_URL      https://shwetank-sarthak-staging--wedding-media-engine-generate--5e9b43.us-east.modal.run
+                MODAL_MEDIA_BATCH_URL  https://shwetank-sarthak-staging--wedding-media-engine-process-m-8c9752.us-east.modal.run
+                MODAL_FACE_INGRESS_URL https://shwetank-sarthak-staging--wedding-media-engine-face-inde-25e1c5.us-east.modal.run
+                MODAL_FIND_YOU_URL     https://shwetank-sarthak-staging--wedding-media-engine-find-matc-e88a89.us-east.modal.run
+                MODAL_CPU_WEBHOOK_URL  https://shwetank-sarthak-staging--wedding-media-engine-process-v-56612f.us-east.modal.run
+                MODAL_GPU_WEBHOOK_URL  https://shwetank-sarthak-staging--wedding-media-engine-process-v-4f12f9.us-east.modal.run
               Mistake found and fixed: Modal's from_dotenv(path) only uses path as the folder to START
               searching from and always looks for "filename" (default .env), so the first staging
               deploy (12:25 IST) silently got the LIVE .env. Its 5-minute job ran once on the live
@@ -796,23 +811,39 @@ Update 2026-11-14: step 5i done. Shwetank removed http://localhost:*/**, https:/
               and https://staging.evebash.com/** from the production Supabase redirect URLs.
               Re-read with the Management API: site URL https://www.evebash.com, 6 URLs left
               (localhost:5173 and /reset-password for the analytics dashboard, which still reads
-              live data, to review in 5h; www/apex evebash.com /profile and /reset-password). Modal CLI on
-              Shwetank's Mac (~/.modal-cli). Modal environment "staging" created in workspace
-              shwetank-sarthak, photo-pipeline-switch mode=v2 (same as live; video switch empty on
-              both). Settings in the git-ignored .env.modal-staging (15 values: staging Supabase,
-              EveBash-Staging-Media + Staging-Media-Only key, media-staging.evebash.com,
-              BACKEND_API_URL https://api-staging.evebash.com, a NEW INTERNAL_JOB_SECRET/CRON_SECRET
-              that staging Railway must get in 5d, shared QStash). Deployed with
-              MODAL_ENVIRONMENT=staging EVEBASH_MODAL_ENV_FILE=.env.modal-staging modal deploy
-              modal_engine/main.py. Live "main" untouched. Staging Railway values for 5d (the backend
-              falls back to the LIVE Modal URLs if any is missing, so set all six):
-                MODAL_PREVIEW_URL      https://shwetank-sarthak-staging--wedding-media-engine-generate--5e9b43.us-east.modal.run
-                MODAL_MEDIA_BATCH_URL  https://shwetank-sarthak-staging--wedding-media-engine-process-m-8c9752.us-east.modal.run
-                MODAL_FACE_INGRESS_URL https://shwetank-sarthak-staging--wedding-media-engine-face-inde-25e1c5.us-east.modal.run
-                MODAL_FIND_YOU_URL     https://shwetank-sarthak-staging--wedding-media-engine-find-matc-e88a89.us-east.modal.run
-                MODAL_CPU_WEBHOOK_URL  https://shwetank-sarthak-staging--wedding-media-engine-process-v-56612f.us-east.modal.run
-                MODAL_GPU_WEBHOOK_URL  https://shwetank-sarthak-staging--wedding-media-engine-process-v-4f12f9.us-east.modal.run
-              Next: 5d (Railway staging settings).
+              live data, to review in 5h; www/apex evebash.com /profile and /reset-password).
+Update 2026-11-14: step 5h done. Local dev now points at STAGING (each file backed up first, header
+              line added): .env.local (website: staging Supabase URL/anon/service role, B2
+              EveBash-Staging-Media + Staging-Media-Only key, media-staging.evebash.com incl.
+              NEXT_PUBLIC_MEDIA_DOMAIN and FIND_YOU_SELFIE_HOSTS, staging INTERNAL_JOB_SECRET, staging
+              MODAL_MEDIA_BATCH_URL/MODAL_FIND_YOU_URL, NEXT_PUBLIC_API_URL api-staging);
+              apps/mobile/.env and .env.local (staging Supabase, EXPO_PUBLIC_MEDIA_DOMAIN
+              media-staging); apps/analytics-dashboard/.env (staging Supabase; it already called
+              api-staging, and live api.evebash.com does not allow localhost:5173 in CORS). Root .env
+              stays LIVE: live Modal deploys read it by default and it holds the admin tokens.
+              Before 5h the local files mixed the live database with the api-staging server, which
+              stopped working after 5d. The two localhost:5173 redirect URLs on production are now
+              unused (remove when convenient). Dashboard Live/Staging switch: todo #32.
+
+#32 Analytics dashboard: switch between Live and Staging data
+Listed:       2026-11-14
+Platform:     Analytics dashboard
+Priority:     Medium
+Phase:        TBD (1 or 2, decide after discussion)
+Status:       Idea
+Effort:       M
+Suggested by: Shwetank (during todo #30)
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   Todo #30 (staging and production separated).
+Brief:        Since todo #30 step 5h the local analytics dashboard (apps/analytics-dashboard,
+              localhost:5173) reads STAGING (staging Supabase + api-staging), because the live server
+              (api.evebash.com) does not allow localhost:5173 in CORS_ORIGINS. Add a Live/Staging
+              switch in the dashboard: two sets of VITE_ settings (Supabase URL + anon key + API base
+              URL), a clear banner showing which one is active, and allow the dashboard origin on the
+              live server's CORS (or host the dashboard on its own domain). Admin login must work on
+              both Supabase projects (redirect URLs for the dashboard on each).
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
