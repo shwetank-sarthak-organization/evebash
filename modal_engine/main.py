@@ -9,6 +9,22 @@ except ImportError:
 
 app = modal.App("wedding-media-engine")
 
+# Which settings file the deploy reads (todo #30). Default: the repo-root .env, exactly as before (live).
+# Staging deploy:  MODAL_ENVIRONMENT=staging EVEBASH_MODAL_ENV_FILE=.env.modal-staging modal deploy modal_engine/main.py
+# The path is relative to the repo root. The checks below stop live settings going to staging and the other way round.
+_ENV_FILE_NAME = os.environ.get("EVEBASH_MODAL_ENV_FILE", ".env")
+_ENV_FILE = os.path.join(os.path.dirname(__file__), "..", _ENV_FILE_NAME)
+if modal.is_local():
+    _modal_env = os.environ.get("MODAL_ENVIRONMENT", "")
+    if _modal_env == "staging" and _ENV_FILE_NAME == ".env":
+        raise RuntimeError("Staging deploy needs EVEBASH_MODAL_ENV_FILE=.env.modal-staging (not the live .env).")
+    if _ENV_FILE_NAME != ".env" and _modal_env != "staging":
+        raise RuntimeError(f"{_ENV_FILE_NAME} is for the staging environment only: set MODAL_ENVIRONMENT=staging.")
+
+
+def _settings_secret():
+    return modal.Secret.from_dotenv(_ENV_FILE)
+
 # Define the Modal image with system OpenCV dependencies and InsightFace + ONNX Runtime.
 image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -231,7 +247,7 @@ def _hand_off_to_fast_pipeline(photos: list) -> dict:
 @app.function(
     # Only hands photos off to the 2-stage pipeline, so it doesn't need the face-recognition image
     image=media_image,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+    secrets=[_settings_secret()]
 )
 @modal.fastapi_endpoint(method="POST")
 def process_media_batch(request: dict):
@@ -259,7 +275,7 @@ def process_media_batch(request: dict):
     memory=768,
     max_containers=15,
     scaledown_window=60,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+    secrets=[_settings_secret()]
 )
 def process_photo_preview(photo_data: dict):
     """
@@ -429,7 +445,7 @@ def process_photo_preview(photo_data: dict):
 
 @app.function(
     image=media_image,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+    secrets=[_settings_secret()]
 )
 @modal.fastapi_endpoint(method="POST")
 async def generate_photo_preview(request: fastapi.Request):
@@ -462,7 +478,7 @@ async def generate_photo_preview(request: fastapi.Request):
 
 @app.function(
     image=media_image,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+    secrets=[_settings_secret()]
 )
 @modal.fastapi_endpoint(method="POST")
 async def face_index_ingress(request: fastapi.Request):
@@ -489,7 +505,7 @@ async def face_index_ingress(request: fastapi.Request):
     max_containers=12,
     scaledown_window=45,
     retries=0,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+    secrets=[_settings_secret()]
 )
 class FaceIndexer:
     @modal.enter()
@@ -1105,7 +1121,7 @@ def _save_faces_v2(photo_id, asset_version, event_id, user_id, preview_url, load
     scaledown_window=15,
     retries=0,
     timeout=V2_TIME_LIMIT_SECONDS,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+    secrets=[_settings_secret()]
 )
 @modal.concurrent(max_inputs=4)
 class PhotoProcessorV2:
@@ -1438,7 +1454,7 @@ def dispatch_outbox_jobs():
     return {"dispatched": dispatched}
 
 
-_maintenance_secrets = [modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+_maintenance_secrets = [_settings_secret()]
 
 # One container every 5 minutes instead of two every minute. QStash and the direct spawns are the
 # main path; this only picks up jobs they dropped, so a few minutes of delay is fine.
@@ -1684,7 +1700,7 @@ def _find_you_secret_ok(provided: str) -> bool:
     return bool(expected) and hmac.compare_digest((provided or "").strip().encode("utf-8"), expected.encode("utf-8"))
 
 
-_find_you_secrets = [modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+_find_you_secrets = [_settings_secret()]
 # 2 cores for the selfie face detection (the default 0.125 core made each search take seconds longer).
 
 @app.function(image=image, secrets=_find_you_secrets, cpu=2.0, memory=2048)
@@ -2853,7 +2869,7 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
             pass
         raise fastapi.HTTPException(status_code=500, detail=f"Transcoding failed: {error_details}")
 
-_video_secrets = [modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+_video_secrets = [_settings_secret()]
 
 # Long videos (> 10 min) run on 16 CPU cores instead of an L4: 1.6x faster and ~38% cheaper in the
 # Oct 2026 benchmark (33-min 1080p60 video).
