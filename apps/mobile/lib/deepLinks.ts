@@ -1,10 +1,11 @@
 /**
  * Links that open the app (app/+native-intent.tsx): website event links (https://www.evebash.com/events/<ref>,
- * .../events/<ref>/find-you) and the app scheme (evebash://events/<ref>). The ref is passed straight through:
- * the event screen resolves event ids, join codes and legacy ids with openGallery, as the website does.
+ * .../events/<ref>/find-you) and the app scheme (evebash://events/<ref>, evebash-staging:// in the staging app).
+ * The ref is passed straight through: the event screen resolves event ids, join codes and legacy ids with
+ * openGallery, as the website does.
  */
 
-const APP_SCHEMES = new Set(['evebash', 'exp+evebash']);
+const APP_SCHEMES = new Set(['evebash', 'exp+evebash', 'evebash-staging', 'exp+evebash-staging']);
 const WEBSITE_HOST = /^(?:[a-z0-9-]+\.)*evebash\.com$/i;
 
 type ParsedLink = { ours: boolean; path: string; query: string };
