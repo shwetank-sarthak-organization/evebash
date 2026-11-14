@@ -11,19 +11,38 @@ app = modal.App("wedding-media-engine")
 
 # Which settings file the deploy reads (todo #30). Default: the repo-root .env, exactly as before (live).
 # Staging deploy:  MODAL_ENVIRONMENT=staging EVEBASH_MODAL_ENV_FILE=.env.modal-staging modal deploy modal_engine/main.py
-# The path is relative to the repo root. The checks below stop live settings going to staging and the other way round.
+# The name is a file in the repo root. The checks below stop live settings going to staging and the other way round.
 _ENV_FILE_NAME = os.environ.get("EVEBASH_MODAL_ENV_FILE", ".env")
-_ENV_FILE = os.path.join(os.path.dirname(__file__), "..", _ENV_FILE_NAME)
+_ENV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+def _supabase_url_in(path):
+    with open(path) as f:
+        for line in f:
+            if line.startswith("NEXT_PUBLIC_SUPABASE_URL="):
+                return line.split("=", 1)[1].strip().strip("\"'")
+    return ""
+
+
 if modal.is_local():
     _modal_env = os.environ.get("MODAL_ENVIRONMENT", "")
     if _modal_env == "staging" and _ENV_FILE_NAME == ".env":
         raise RuntimeError("Staging deploy needs EVEBASH_MODAL_ENV_FILE=.env.modal-staging (not the live .env).")
     if _ENV_FILE_NAME != ".env" and _modal_env != "staging":
         raise RuntimeError(f"{_ENV_FILE_NAME} is for the staging environment only: set MODAL_ENVIRONMENT=staging.")
+    if not os.path.isfile(os.path.join(_ENV_DIR, _ENV_FILE_NAME)):
+        raise RuntimeError(f"Settings file {_ENV_FILE_NAME} not found in {_ENV_DIR}.")
+    if _modal_env == "staging" and _supabase_url_in(os.path.join(_ENV_DIR, _ENV_FILE_NAME)) in (
+        "",
+        _supabase_url_in(os.path.join(_ENV_DIR, ".env")),
+    ):
+        raise RuntimeError("Staging settings point at the live database (same NEXT_PUBLIC_SUPABASE_URL as .env).")
 
 
 def _settings_secret():
-    return modal.Secret.from_dotenv(_ENV_FILE)
+    # from_dotenv's first argument is only where Modal STARTS looking (walking up the folders) and `filename` is the
+    # file it looks for, so the name must go in `filename`. Passing a full path to a different file silently loads .env.
+    return modal.Secret.from_dotenv(_ENV_DIR, filename=_ENV_FILE_NAME)
 
 # Define the Modal image with system OpenCV dependencies and InsightFace + ONNX Runtime.
 image = (

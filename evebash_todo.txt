@@ -659,7 +659,7 @@ Brief:        Staging and production share one Supabase project, so every migrat
                 Small code change: the .env path, written in 9 places, becomes one setting. Railway
                 staging needs new MODAL_CPU_WEBHOOK_URL, MODAL_GPU_WEBHOOK_URL,
                 MODAL_FACE_INGRESS_URL, MODAL_FIND_YOU_URL, MODAL_MEDIA_BATCH_URL and
-                MODAL_PREVIEW_URL. Any modal deploy must keep MODAL_COST_TUNING=true. No always-on
+                MODAL_PREVIEW_URL. (MODAL_COST_TUNING no longer exists: 97def26 made it permanent.) No always-on
                 containers in main.py, so staging costs only what it processes plus the 5-minute job.
               - RunPod (videos only, todo #18, switch VIDEO_RUNPOD, off by default): keep one account
                 and the same endpoints, no separate copy. The worker holds no database or storage
@@ -752,6 +752,40 @@ Update 2026-11-14: step 5b done. New Cloudflare worker "evebash-media-worker-sta
               staging.evebash.com gives 204. Live worker untouched. Staging must use
               media-staging.evebash.com (NEXT_PUBLIC_MEDIA_DOMAIN, MEDIA_DOMAIN,
               EXPO_PUBLIC_MEDIA_DOMAIN) from steps 5c-5g. Next: 5c (Modal staging environment).
+Update 2026-11-14: the 3 keys from step 5a turned out to reach ALL buckets with every capability
+              (bucketName empty, incl. writeKeys/deleteBuckets): the form's bucket box was left on
+              "All". New one-bucket keys made: "Staging-Media-Only" (keyID ...0007,
+              EveBash-Staging-Media, checked); "Staging-Vault-Only" and "Live-Vault-Only" still to
+              make. To do: put ...0007 on evebash-media-worker-staging (it has ...0004), then delete
+              the old keys ...0004/0005/0006 with Shwetank's OK.
+Update 2026-11-14: step 5c. modal_engine/main.py reads its settings file from
+              EVEBASH_MODAL_ENV_FILE (default .env, so live deploys are unchanged), with checks that
+              stop .env going to staging or the staging file going to live (fdeacac).
+              Mistake found and fixed: Modal's from_dotenv(path) only uses path as the folder to START
+              searching from and always looks for "filename" (default .env), so the first staging
+              deploy (12:25 IST) silently got the LIVE .env. Its 5-minute job ran once on the live
+              database at 07:00 UTC: it claimed no outbox rows and found no stuck photos (checked
+              read-only; 0 candidates, 0 uploads), and left 2 extra rows in live modal_cost_logs
+              (07:00:17 dispatch_outbox_jobs, 07:00:19 sweep_stuck_jobs). Staging app stopped at 12:32.
+              Fix: from_dotenv(repo root, filename=<name>), plus checks that the file exists and that a
+              staging file never has the live NEXT_PUBLIC_SUPABASE_URL; checked with Modal's own loader
+              that staging now loads the staging database, bucket, media domain and backend. Modal CLI on
+              Shwetank's Mac (~/.modal-cli). Modal environment "staging" created in workspace
+              shwetank-sarthak, photo-pipeline-switch mode=v2 (same as live; video switch empty on
+              both). Settings in the git-ignored .env.modal-staging (15 values: staging Supabase,
+              EveBash-Staging-Media + Staging-Media-Only key, media-staging.evebash.com,
+              BACKEND_API_URL https://api-staging.evebash.com, a NEW INTERNAL_JOB_SECRET/CRON_SECRET
+              that staging Railway must get in 5d, shared QStash). Deployed with
+              MODAL_ENVIRONMENT=staging EVEBASH_MODAL_ENV_FILE=.env.modal-staging modal deploy
+              modal_engine/main.py. Live "main" untouched. Staging Railway values for 5d (the backend
+              falls back to the LIVE Modal URLs if any is missing, so set all six):
+                MODAL_PREVIEW_URL      https://shwetank-sarthak-staging--wedding-media-engine-generate--5e9b43.us-east.modal.run
+                MODAL_MEDIA_BATCH_URL  https://shwetank-sarthak-staging--wedding-media-engine-process-m-8c9752.us-east.modal.run
+                MODAL_FACE_INGRESS_URL https://shwetank-sarthak-staging--wedding-media-engine-face-inde-25e1c5.us-east.modal.run
+                MODAL_FIND_YOU_URL     https://shwetank-sarthak-staging--wedding-media-engine-find-matc-e88a89.us-east.modal.run
+                MODAL_CPU_WEBHOOK_URL  https://shwetank-sarthak-staging--wedding-media-engine-process-v-56612f.us-east.modal.run
+                MODAL_GPU_WEBHOOK_URL  https://shwetank-sarthak-staging--wedding-media-engine-process-v-4f12f9.us-east.modal.run
+              Next: 5d (Railway staging settings).
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
