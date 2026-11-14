@@ -755,8 +755,9 @@ Update 2026-11-14: step 5b done. New Cloudflare worker "evebash-media-worker-sta
 Update 2026-11-14: the 3 keys from step 5a turned out to reach ALL buckets with every capability
               (bucketName empty, incl. writeKeys/deleteBuckets): the form's bucket box was left on
               "All". New one-bucket keys made: "Staging-Media-Only" (keyID ...0007,
-              EveBash-Staging-Media, checked); "Staging-Vault-Only" and "Live-Vault-Only" still to
-              make. To do: put ...0007 on evebash-media-worker-staging (it has ...0004), then delete
+              EveBash-Staging-Media, checked); "Staging-Vault-Only" (...0008, EveBash-Staging-Vault)
+              and "Live-Vault-Only" (...0009, EveBash-Vault), all three checked: one bucket, Read and
+              Write, no writeKeys/deleteBuckets. To do: put ...0007 on evebash-media-worker-staging (it has ...0004), then delete
               the old keys ...0004/0005/0006 with Shwetank's OK.
 Update 2026-11-14: step 5c. modal_engine/main.py reads its settings file from
               EVEBASH_MODAL_ENV_FILE (default .env, so live deploys are unchanged), with checks that
