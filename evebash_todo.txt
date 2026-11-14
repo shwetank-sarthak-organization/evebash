@@ -835,6 +835,16 @@ Update 2026-11-14: step 5j, website part passed (Shwetank on staging.evebash.com
               key "evebash-media-key" left). Step 5f (gallery copy) skipped for now: fresh test events
               are enough; do the small 8 GB option later if testers need it. Left: 5g (staging app
               build, needs Sarthak, issue #19) and the next live Modal deploy with Sarthak.
+Update 2026-11-14: app checked on staging. Shwetank tests the app as a local development build over USB,
+              which reads apps/mobile/.env (staging since 5h), not expo.dev. Claude stopped the old Metro
+              (running since 2026-11-10 with live values), ran adb reverse and started
+              npx expo start -c --dev-client. On the phone: logged in with the test account, saw the
+              staging-only event "Staging test 1", uploaded a photo: ready/indexed in the staging DB with a
+              media-staging thumbnail; live DB 0 new photos. Device test #213 PASS. Still open: EAS cloud
+              builds (staging/production profiles) take their Supabase values from expo.dev, owned by
+              Sarthak's Expo account elnino_009; set staging and production values there once Shwetank is
+              invited (not needed for local development builds). Live Modal deploy and the old key delete
+              are tracked in issue #269.
 
 #32 Analytics dashboard: switch between Live and Staging data
 Listed:       2026-11-14

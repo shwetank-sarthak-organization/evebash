@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 213
+Next test number: 214
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6094,3 +6094,44 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback:
+--------------------------------------------------------------------------------
+#213 Website + App: staging uses its own database, storage and Modal (todo #30)
+Status:    PASS
+Priority:  High
+Platform:  Website + App
+Brief:     Staging now has its own Supabase project, Backblaze buckets (EveBash-Staging-Media,
+           EveBash-Staging-Vault), media address (media-staging.evebash.com) and Modal "staging" environment.
+           Check that the staging website and the app's local development build work end to end on it,
+           and that nothing reaches the live database.
+Detail:    Todo #30 steps 5a-5j (2026-11-13/14). Staging Railway and Vercel switched 2026-11-14 14:15 IST.
+           The local development build reads apps/mobile/.env (switched to staging in step 5h); restart
+           Metro with a cleared cache (npx expo start -c) after any .env change. EAS cloud builds take their
+           values from expo.dev and are not switched yet (needs access to the Expo account).
+How to test:
+  1. Website, private window: log in on staging.evebash.com with a test account (not a real customer).
+     Expect: dashboard loads.
+  2. Create a test event, upload 2-3 photos with a clear face. Expect: thumbnails within a minute,
+     photo opens large.
+  3. Find You in that event as host, then as a second test account after an access request approved by
+     the host. Expect: matches found.
+  4. Open the event's guest link in a logged-out private window (paste only the link, not the whole share
+     message). Expect: "This gallery is private" with Log in / Create account.
+  5. Upload a short video. Expect: cover picture and playback after a few minutes.
+  6. EB Vault: upload a small file, open it, delete it. Expect: it opens, then moves to Trash.
+  7. App (local development build over USB, Metro restarted with -c): log out, log in with the same test
+     account. Expect: the test event from step 2 is there (it exists only in the staging database).
+  8. Upload one photo from the phone. Expect: thumbnail within a minute.
+  9. Ask Claude to check the databases. Expect: new rows only in the staging database, none in live.
+Done by:   Shwetank (with Claude)
+Device / browser: Chrome on Mac (private windows); Android phone over USB, local development build
+Build / version: staging.evebash.com and api-staging redeployed 2026-11-14 (staging a85d937 after the push);
+           app: local Metro from railway-backend-staging, apps/mobile/.env on staging
+Date tested: 2026-11-14
+Account used: host test account; guest newone2@email.com (Member, View only)
+Screenshot / recording: in the Claude chat of 2026-11-14 (Permissions tab, private-gallery page)
+Fix ref:
+Feedback:  All steps passed. Staging database: photos ready and face-indexed with media-staging links,
+           10 faces; staging Modal ran process_photo_v2, find_matching_photos, process_video_cpu; vault
+           object in EveBash-Staging-Vault. Live database: 0 new photos or videos all day. Step 4 first
+           gave a 404 because the whole share message was pasted into the address bar; with only the link
+           it showed the private-gallery page as expected.
