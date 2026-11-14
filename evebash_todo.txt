@@ -824,6 +824,17 @@ Update 2026-11-14: step 5h done. Local dev now points at STAGING (each file back
               Before 5h the local files mixed the live database with the api-staging server, which
               stopped working after 5d. The two localhost:5173 redirect URLs on production are now
               unused (remove when convenient). Dashboard Live/Staging switch: todo #32.
+Update 2026-11-14: step 5j, website part passed (Shwetank on staging.evebash.com, test accounts):
+              1) Find You as host and as guest "newone2" (Member, View only, after an access request
+              approved by the host): matches found, staging Modal find_matching_photos; 3 photos
+              ready/indexed, 10 faces. 2) Guest link /events/staging-test-1-fc5b: private gallery asks
+              to log in, request, approve, gallery opens. 3) Short video: cover picture and playback,
+              staging Modal process_video_cpu, files on media-staging.evebash.com. 4) EB Vault upload,
+              open and delete to Trash: object in bucket EveBash-Staging-Vault. Live database: 0 new
+              photos or videos. Live side of the key swap: issue #269 (only live Modal and the old
+              key "evebash-media-key" left). Step 5f (gallery copy) skipped for now: fresh test events
+              are enough; do the small 8 GB option later if testers need it. Left: 5g (staging app
+              build, needs Sarthak, issue #19) and the next live Modal deploy with Sarthak.
 
 #32 Analytics dashboard: switch between Live and Staging data
 Listed:       2026-11-14
