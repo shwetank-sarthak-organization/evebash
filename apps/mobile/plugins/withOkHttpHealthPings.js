@@ -1,11 +1,12 @@
 // Android (#260): React Native's HTTP client (OkHttp) has no timeouts and never checks that a pooled HTTP/2
 // connection is still alive. When the phone's network path to Supabase dies silently, every later request is sent
 // down that dead connection and hangs until lib/supabase.ts gives up after 20 s, until the app is restarted.
-// A ping every PING_SECONDS lets OkHttp notice a dead connection (no answer by the next ping), fail it and open a
-// new one. Everything else stays React Native's default client (same cookie jar, 10 MB cache, no timeouts).
+// A ping every PING_SECONDS lets OkHttp notice a dead connection (no answer by the next ping), fail it and retry the
+// request on a new one. 5 s keeps that under 10 s, inside lib/supabase.ts's 20 s limit, so the request in flight
+// still succeeds. Everything else stays React Native's default client (same cookie jar, 10 MB cache, no timeouts).
 const { withMainApplication } = require('expo/config-plugins');
 
-const PING_SECONDS = 10;
+const PING_SECONDS = 5;
 const MARKER = 'OkHttpClientProvider.setOkHttpClientFactory';
 const IMPORTS = [
   'import com.facebook.react.modules.network.OkHttpClientProvider',
@@ -24,7 +25,11 @@ module.exports = function withOkHttpHealthPings(config) {
       throw new Error('withOkHttpHealthPings: expected a Kotlin MainApplication');
     }
     let src = cfg.modResults.contents;
-    if (src.includes(MARKER)) return cfg;
+    if (src.includes(MARKER)) {
+      // Already added by an earlier prebuild (local android/ folder): only keep the interval up to date
+      cfg.modResults.contents = src.replace(/pingInterval\(\d+, TimeUnit\.SECONDS\)/, `pingInterval(${PING_SECONDS}, TimeUnit.SECONDS)`);
+      return cfg;
+    }
 
     const lastImport = [...src.matchAll(/^import .+$/gm)].pop();
     if (!lastImport || !src.includes('super.onCreate()\n')) {
