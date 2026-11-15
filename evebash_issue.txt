@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 271
+Next issue number: 272
 
 =====================================================================
 ACTIVE ISSUES
@@ -1599,6 +1599,17 @@ d2d7be9) still has "evebash-media-key" baked in; it gets the new key at the next
 (not all buckets); it was no longer used anywhere (checked: staging and live Railway, local settings
 files) and Shwetank deleted it on 2026-11-14. The emptied "Evebash-Vault-Staging" bucket can now be
 deleted too (with Shwetank's OK). Status: Testing until "evebash-media-key" is deleted.
+
+#271
+Listed: 2026-11-15
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Sarthak
+Blocked by: -
+Found in: Sarthak's chat (2026-11-15): "fix app design wherever possible, also light theme"
+Issue: The app's design needs a full pass. Go screen by screen and fix whatever can be fixed: spacing, font sizes, colours, buttons, loading and empty states, and anything that looks different from the website. Do it in both the dark and the light theme. The light theme (todo #1, shipped 2026-11-06 in 94def90) still has misses; known ones have their own issues: #261 (Permissions tab sheets are dark text on dark) and #253 (Classic White guest clock is white on white). Rules: changed UI takes its colours from useAppTheme() (apps/mobile/constants/theme.ts, apps/mobile/context/ThemeContext.tsx; the event screen's host view uses apps/mobile/components/eventStyles/hostLightStyles.ts), not MidnightColors directly. The dark look must not change unless that is the fix. Guest event themes keep their own designs (change them only with Sarthak's OK). Login screens stay dark, and the Phase 2 business screens are left out. Add a Note here for each screen done, and give any bigger finding its own issue.
+How to reproduce: On staging, open each main app screen (Dashboard, Host, an event as host and as guest, an album, Profile, Settings, EB Network) once with Settings > Appearance set to Light and once set to Dark, and note anything that looks wrong or doesn't match the website.
 How to reproduce: Backblaze > Application Keys: "evebash-media-key" (...0001) still exists with access to all buckets.
 Note 2026-11-15 (from Sarthak's Claude, checked by Claude): before the live Modal deploy, add BACKEND_API_URL=https://api.evebash.com to the root .env. live Modal posts "video processed" to {BACKEND_API_URL}/api/v1/media/internal/video-processed (modal_engine/main.py _notify_video_processed). Shwetank's root .env has no BACKEND_API_URL at all (the callback is then skipped); Sarthak's has api-staging, which since todo #30 5d answers 401 (staging's own INTERNAL_JOB_SECRET). Today no user impact: live Railway has VIDEO_READY_PUSH unset, so the backend announces videos at upload and doesn't wait for this callback. Also check that the root .env's INTERNAL_JOB_SECRET matches live Railway's (compare without printing). After the deploy: one test video on live, expect "Video-ready callback ... HTTP 200" in the live Modal logs.
 
