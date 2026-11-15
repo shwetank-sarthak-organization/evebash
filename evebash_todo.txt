@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 36
+Next todo number: 37
 
 Last updated: 2026-11-15
 
@@ -707,6 +707,36 @@ Brief:        apps/mobile/app.config.js gives staging builds the iOS bundle ID c
               and added to Supabase's Apple settings on the staging project, iOS push (APNs key on EAS for that
               app ID), and the Firebase iOS app if push or Firebase is used on iOS. Production iOS
               (com.evebash.app) is unchanged.
+
+#36 Confetti Circle redesign: our own look, not a copy of the Crafto demo (copyright risk)
+Listed:       2026-11-15
+Platform:     Both
+Priority:     Medium
+Phase:        2 (after launch)
+Status:       Agreed
+Effort:       M
+Suggested by: Sarthak's Claude (legal research, 2026-11-15)
+Discussed:    Yes
+Decision:     2026-11-15 Sarthak: do it in Phase 2, not now.
+Owner:        Unassigned
+Depends on:   -
+Brief:        Confetti Circle (website src/components/TemplateConfetti.tsx, src/components/confetti/,
+              src/app/confetti-circle.css; app apps/mobile/components/confetti/; shared
+              shared/themes/confettiCircle.ts) was drawn from scratch, with no Crafto files, but it rebuilds
+              the cover and couple section of ThemeZaa's Crafto Wedding Invitation demo
+              (https://crafto.themezaa.com/wedding-invitation/) almost one for one. Matching parts: white
+              circle over the photo, dark tag on its top edge, pink-to-orange tall capitals with "- AND -",
+              "Month | 28 | Year" date, paint specks, torn edge, near-identical colours, the bride / ribboned
+              photo / groom couple section, the "M ♥ A" logo. Code comments and commits b708222e, 30d07b9f say
+              it copies "the reference". Full research and risk table: reports/Confetti Circle copyright
+              risk.md. Main risk is a takedown notice (GitHub, Vercel, app stores), not a lawsuit; a licence
+              does not help. Do: change several main parts together (shape, tag, name style, colours,
+              specks, edge, couple layout, logo), on the website and the app; rewrite the comments; replace
+              public/home/designs/confetti.jpg and public/theme-previews/app/confetti.jpg; show the demo and
+              the new design to 2-3 people who have seen neither. Also give Periwinkle Script and Sunlit
+              Portrait the same side-by-side check (their code also mentions "the reference"). The report
+              advises doing this before launch, because after launch it changes paying hosts' live galleries.
+              If any letter or takedown notice arrives first, call an IP lawyer before replying.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
