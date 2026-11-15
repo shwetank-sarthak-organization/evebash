@@ -454,6 +454,30 @@ insert into _r (who, check_name, expected, actual) values
      $$select role || '|' || coalesce(role_type, 'null') from public.profiles where id = '44444444-4444-4444-8444-444444444444'$$));
 reset role;
 
+
+-- The website and app create galleries with an upsert (2026-11-15 staging test)
+select set_config('request.jwt.claims', '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated","email":"owner@step3.test"}', true);
+set local role authenticated;
+insert into _r (who, check_name, expected, actual) values
+  ('owner', 'upsert creates a new gallery', 'rows=1', pg_temp.try_write($$insert into public.events (id, title, created_by, type) values ('step3-new-main', 'New', '11111111-1111-4111-8111-111111111111', 'main') on conflict (id) do update set title = excluded.title$$)),
+  ('owner', 'upsert creates a sub-gallery', 'rows=1', pg_temp.try_write($$insert into public.events (id, title, created_by, type, parent_id) values ('step3-new-sub', 'New Sub', '11111111-1111-4111-8111-111111111111', 'sub', 'step3-private') on conflict (id) do update set title = excluded.title$$)),
+  ('owner', 'upsert updates own gallery', 'rows=1', pg_temp.try_write($$insert into public.events (id, title, created_by) values ('step3-private', 'Renamed', '11111111-1111-4111-8111-111111111111') on conflict (id) do update set title = excluded.title$$));
+reset role;
+select set_config('request.jwt.claims', '{"sub":"22222222-2222-4222-8222-222222222222","role":"authenticated","email":"gadmin@step3.test"}', true);
+set local role authenticated;
+insert into _r (who, check_name, expected, actual) values
+  ('guest_admin', 'own sub-gallery is given to the owner', '11111111-1111-4111-8111-111111111111', pg_temp.after_write($$insert into public.events (id, title, created_by, type, parent_id) values ('step3-ga-sub2', 'GA Sub', '22222222-2222-4222-8222-222222222222', 'sub', 'step3-private')$$, $$select eb_private.event_creator('step3-ga-sub2')$$)),
+  ('guest_admin', 'upsert creates a sub-gallery', 'rows=1', pg_temp.try_write($$insert into public.events (id, title, created_by, type, parent_id) values ('step3-ga-sub', 'GA Sub', '11111111-1111-4111-8111-111111111111', 'sub', 'step3-private') on conflict (id) do update set title = excluded.title$$));
+reset role;
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-8444-444444444444","role":"authenticated","email":"random@step3.test"}', true);
+set local role authenticated;
+insert into _r (who, check_name, expected, actual) values
+  ('random', 'cannot create a gallery for someone else', 'blocked', pg_temp.try_write($$insert into public.events (id, title, created_by) values ('step3-fake', 'Fake', '11111111-1111-4111-8111-111111111111') on conflict (id) do update set title = excluded.title$$)),
+  ('random', 'cannot add a sub-gallery to others', 'blocked', pg_temp.try_write($$insert into public.events (id, title, created_by, parent_id) values ('step3-fake-sub', 'Fake', '44444444-4444-4444-8444-444444444444', 'step3-private') on conflict (id) do update set title = excluded.title$$)),
+  ('random', 'cannot add one as the owner either', 'blocked', pg_temp.try_write($$insert into public.events (id, title, created_by, parent_id) values ('step3-fake-sub2', 'Fake', '11111111-1111-4111-8111-111111111111', 'step3-private') on conflict (id) do update set title = excluded.title$$)),
+  ('random', 'still sees no private gallery', '0', (select count(*) from public.events where id = 'step3-private')::text);
+reset role;
+
 -- ── Results (raising here rolls back the whole transaction) ────────────────────
 do $$
 begin

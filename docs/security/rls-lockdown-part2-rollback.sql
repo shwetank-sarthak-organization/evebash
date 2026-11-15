@@ -88,6 +88,7 @@ drop policy if exists contact_messages_admin on public.contact_messages;
 drop policy if exists vendor_leads_admin on public.vendor_leads;
 drop policy if exists payments_select on public.payments;
 drop function if exists eb_private.is_hidden_from_guests(text, boolean);
+drop function if exists eb_private.event_creator(text);
 
 -- Tables that had RLS off before
 alter table public.events disable row level security;

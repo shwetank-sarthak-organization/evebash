@@ -92,6 +92,11 @@ language plpgsql security definer set search_path = '' as $$
 begin
   if eb_private.is_trusted_session() or eb_private.is_platform_admin() then return new; end if;
   if tg_op = 'INSERT' then
+    -- A sub-gallery belongs to the family's owner, whoever adds it (the website and app send the person logged in,
+    -- e.g. a guest admin). The insert policy then checks that the caller manages the parent.
+    if new.parent_id is not null then
+      new.created_by := eb_private.event_creator(eb_private.root_event_id(new.parent_id));
+    end if;
     if new.is_public and (new.created_by is distinct from auth.uid()::text) then
       raise exception 'Only the event owner can create a public event' using errcode = '42501';
     end if;
@@ -144,11 +149,27 @@ grant execute on function eb_private.is_hidden_from_guests(text, boolean) to ano
 
 -- events
 alter table public.events enable row level security;
+-- The creator and the parent's members are checked on the row itself too: the website and app create events with an
+-- upsert, which checks the NEW row against this policy before viewable_event_ids() can see it (2026-11-15 staging test)
 create policy events_select on public.events for select to authenticated
-  using (id in (select eb_private.viewable_event_ids())
-         and (not coalesce(is_hidden, false) or parent_id is null or eb_private.can_manage_event(id)));
+  using ((id in (select eb_private.viewable_event_ids())
+          or parent_id in (select eb_private.viewable_event_ids())
+          or created_by = auth.uid()::text or created_by = (auth.jwt() ->> 'email'))
+         and (not coalesce(is_hidden, false) or parent_id is null or eb_private.can_manage_event(coalesce(parent_id, id))));
+-- Top-level gallery: created by the caller for themselves. Sub-gallery: only by someone who manages the parent (owner
+-- or guest admin), and owned by the parent's owner like the rest of the family (2026-11-15 staging test: guest admins
+-- couldn't add one, and anyone could add one to someone else's gallery).
+create or replace function eb_private.event_creator(p_event_id text) returns text
+language sql stable security definer set search_path = '' as $$
+  select e.created_by from public.events e where e.id = p_event_id
+$$;
+revoke execute on function eb_private.event_creator(text) from public;
+grant execute on function eb_private.event_creator(text) to authenticated;
 create policy events_insert on public.events for insert to authenticated
-  with check (created_by = auth.uid()::text or eb_private.is_platform_admin());
+  with check (eb_private.is_platform_admin()
+              or (parent_id is null and created_by = auth.uid()::text)
+              or (parent_id is not null and eb_private.can_manage_event(parent_id)
+                  and created_by = eb_private.event_creator(parent_id)));
 create policy events_update on public.events for update to authenticated
   using (eb_private.can_manage_event(id)) with check (eb_private.can_manage_event(id));
 create policy events_delete on public.events for delete to authenticated
