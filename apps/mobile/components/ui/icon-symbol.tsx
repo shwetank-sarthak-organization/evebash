@@ -130,6 +130,7 @@ const MAPPING = {
   'arrow.left.arrow.right': 'swap-horiz',
   'building.2': 'business',
   'line.3.horizontal.decrease.circle': 'filter-list',
+  'icloud.and.arrow.up.fill': 'cloud-upload',
 } as const;
 
 export type IconSymbolName = keyof typeof MAPPING;
