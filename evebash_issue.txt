@@ -1494,20 +1494,6 @@ Note 2026-11-06: Being fixed with todo #11 on local branch feat/guest-edit-mode 
 Note 2026-11-07: all four parts fixed on staging in 610b2c0a and 65238da8. The cover position is a focus point in % plus a zoom everywhere; the five active website themes, the app and the host page's Guest Home Preview (phone frame = phone cover, browser frame = computer cover) follow it; a gallery can have a separate phone cover. Themes outside the five (now "Coming soon") keep their old cover look. Checked on staging.evebash.com and in the browser on localhost. Device test #198.
 Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone), device test #198 partly: the Royal Emerald frame and the Confetti Circle cover of mehandi night both follow its moved cover (52% 2.1%, 1.8x zoom). Classic White, Sunlit Portrait, Midnight Hero, moving the Position and the app are not checked yet.
 
-#260
-Listed: 2026-11-11
-Platform: App
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #216) on a new EAS staging build (already passed on the USB dev build); move to RECENTLY FIXED once it passes
-Found in: Device tests #40 and #202 on an Android phone (2026-11-11)
-Issue: The app sometimes stops loading anything: every Supabase request times out (lib/supabase.ts gives up after 20 s with "Supabase request timed out") until the app is closed and reopened. Screens stay empty or half-loaded and uploads don't start, with no message to the user. At the same time the website, the backend and Supabase were fast, and the phone's Wi-Fi worked (ping to the Supabase host fine), so it is inside the app. Seen twice on 2026-11-11 (13:16 and 16:28, local dev build com.evebash.app on an Android 14 phone over USB; the second time about 30 s after logging out and into another account and opening an event). Cause not confirmed; a guess is a stalled HTTP connection to Supabase that keeps being reused (requests failed in groups of 3 to 5). Check whether it also happens in a release/staging build and without the USB/Metro connection.
-How to reproduce: Not reliable yet. In the app, log out, log in as another account and open an event; or leave the app open for a while and come back. If screens stop loading, the device log (adb logcat, ReactNativeJS) shows repeated "[Supabase] Network request failed: Supabase request timed out" while the website works.
-Update 2026-11-12: seen again during device test #18 (Android phone, shwetank.chauhan3@gmail.com, opening Wedding 2 to move a video): every request timed out, then the app lost its link to Metro. After a restart it worked; one more single timeout appeared when opening the gallery link, but the move still went through.
-Note 2026-11-15: cause found, fixed in eb096f18 + f55b4d38 (Android only). React Native's Android HTTP client (OkHttp, no timeouts) never checks that a pooled HTTP/2 connection is still alive. When the network path to Supabase dies silently (no reset reaches the phone, e.g. a Wi-Fi/NAT drop or the phone sleeping), every later request is sent down that dead connection and hangs until lib/supabase.ts aborts it after 20 s. The abort doesn't mark the connection broken, so this repeats until the app restarts. Reproduced on the Mac with the same library (OkHttp 4.9.2 and 4.12.0, React Native's settings) against staging Supabase, through a relay that silently drops the connection: 4 of 4 requests after the drop hung 20 s and no new connection was tried. Fix: config plugin apps/mobile/plugins/withOkHttpHealthPings.js (in app.json) gives React Native's client an HTTP/2 ping every 5 s; otherwise it is the default client (cookie jar, 10 MB cache, no timeouts). OkHttp then fails a dead connection within 10 s, inside the app's 20 s limit, and retries the request on a new one: in the same test the request in flight came back 200 in about 9.5 s (both OkHttp versions) and the next ones took about 50 ms. A 4-minute idle run with the pings kept the same connection to staging Supabase (the server doesn't mind them). Other native clients don't need the change: images (expo-image), video, audio and photo uploads (expo-file-system) use OkHttp with read timeouts, which find a dead connection by themselves (10 s; 60 s for upload chunks); only React Native's client has none. It is a native change, so it needs a new app build (an over-the-air update won't carry it). Checked: the USB dev build of EveBash Staging on the Pixel 8 has the code (dexdump, interval 5) and loads the dashboard from staging normally. Left: device test #216 on a new build.
-Note 2026-11-15: device test #216 steps 1-7 passed on the Pixel 8 USB dev build (Sarthak with Claude reading the phone's log): Wi-Fi off (mobile data) and back on, 10 min idle, 10 min locked, log out and in, and a 3-photo upload all loaded in about 1-2 s, with 0 timeouts, network failures or crashes. Left: push, a new EveBash Staging build (EAS), and #216 on it without USB or Metro; then move this issue to RECENTLY FIXED.
-
 #261
 Listed: 2026-11-12
 Platform: App
@@ -1641,6 +1627,21 @@ How to reproduce: Compare the two functions in the files above.
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
 
+#260
+Listed: 2026-11-11
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device tests #40 and #202 on an Android phone (2026-11-11)
+Issue: The app sometimes stops loading anything: every Supabase request times out (lib/supabase.ts gives up after 20 s with "Supabase request timed out") until the app is closed and reopened. Screens stay empty or half-loaded and uploads don't start, with no message to the user. At the same time the website, the backend and Supabase were fast, and the phone's Wi-Fi worked (ping to the Supabase host fine), so it is inside the app. Seen twice on 2026-11-11 (13:16 and 16:28, local dev build com.evebash.app on an Android 14 phone over USB; the second time about 30 s after logging out and into another account and opening an event). Cause not confirmed; a guess is a stalled HTTP connection to Supabase that keeps being reused (requests failed in groups of 3 to 5). Check whether it also happens in a release/staging build and without the USB/Metro connection.
+How to reproduce: Not reliable yet. In the app, log out, log in as another account and open an event; or leave the app open for a while and come back. If screens stop loading, the device log (adb logcat, ReactNativeJS) shows repeated "[Supabase] Network request failed: Supabase request timed out" while the website works.
+Update 2026-11-12: seen again during device test #18 (Android phone, shwetank.chauhan3@gmail.com, opening Wedding 2 to move a video): every request timed out, then the app lost its link to Metro. After a restart it worked; one more single timeout appeared when opening the gallery link, but the move still went through.
+Note 2026-11-15: cause found, fixed in eb096f18 + f55b4d38 (Android only). React Native's Android HTTP client (OkHttp, no timeouts) never checks that a pooled HTTP/2 connection is still alive. When the network path to Supabase dies silently (no reset reaches the phone, e.g. a Wi-Fi/NAT drop or the phone sleeping), every later request is sent down that dead connection and hangs until lib/supabase.ts aborts it after 20 s. The abort doesn't mark the connection broken, so this repeats until the app restarts. Reproduced on the Mac with the same library (OkHttp 4.9.2 and 4.12.0, React Native's settings) against staging Supabase, through a relay that silently drops the connection: 4 of 4 requests after the drop hung 20 s and no new connection was tried. Fix: config plugin apps/mobile/plugins/withOkHttpHealthPings.js (in app.json) gives React Native's client an HTTP/2 ping every 5 s; otherwise it is the default client (cookie jar, 10 MB cache, no timeouts). OkHttp then fails a dead connection within 10 s, inside the app's 20 s limit, and retries the request on a new one: in the same test the request in flight came back 200 in about 9.5 s (both OkHttp versions) and the next ones took about 50 ms. A 4-minute idle run with the pings kept the same connection to staging Supabase (the server doesn't mind them). Other native clients don't need the change: images (expo-image), video, audio and photo uploads (expo-file-system) use OkHttp with read timeouts, which find a dead connection by themselves (10 s; 60 s for upload chunks); only React Native's client has none. It is a native change, so it needs a new app build (an over-the-air update won't carry it). Checked: the USB dev build of EveBash Staging on the Pixel 8 has the code (dexdump, interval 5) and loads the dashboard from staging normally. Left: device test #216 on a new build.
+Note 2026-11-15: device test #216 steps 1-7 passed on the Pixel 8 USB dev build (Sarthak with Claude reading the phone's log): Wi-Fi off (mobile data) and back on, 10 min idle, 10 min locked, log out and in, and a 3-photo upload all loaded in about 1-2 s, with 0 timeouts, network failures or crashes. Left: push, a new EveBash Staging build (EAS), and #216 on it without USB or Metro; then move this issue to RECENTLY FIXED.
+Fixed in: eb096f18 + f55b4d38 (2026-11-15). React Native's Android network client now pings its HTTP/2 connections every 5 s (config plugin apps/mobile/plugins/withOkHttpHealthPings.js), so a connection that died silently is replaced within 10 s instead of being reused until the app restarts. Device test #216 PASS on the Pixel 8: USB dev build (steps 1-7) and EAS staging build e4b646ad (staging a430d44c) without USB or Metro (normal use, Wi-Fi off and on, all loaded). Android only; reaches users with the next app build.
+
 #273
 Listed: 2026-11-15
 Platform: App
@@ -1756,31 +1757,6 @@ Issue: The analytics dashboard doesn't show EB Vault storage anywhere. User Acco
 How to reproduce: Analytics Hub > User Accounts > newone@email.com: no Vault column, and Total GB is 0.12 GB less than staging.evebash.com/profile > Storage Usage on that account.
 Note 2026-11-10: fixed on staging in ceb0cdbb. Backend: read-only admin action vaultUsage on /api/admin/control (listVaultUsage in apps/backend/src/routes/admin.ts, platform admins only, test tests/vaultUsage.test.ts). Dashboard: User Accounts has a Vault GB column (sortable); Total GB and Cost include EB Vault; the user detail page has an EB Vault Storage card and its used/quota meter and Backblaze cost include it. Until the backend is deployed the column shows 0.00 GB.
 Fixed in: ceb0cdbb (2026-11-10). Checked on the deployed dashboard 2026-11-10: the Vault GB column shows.
-
-#257
-Listed: 2026-11-07
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Checking a gap under the Confetti Circle cover on the iPhone 17 Pro simulator (chat 2026-11-07)
-Issue: Two parts of the app's Confetti Circle gallery used dark-theme colours on its light page. (1) The Collections menu fell back to Royal Emerald's dark green with dark album names, so they were hard to read (apps/mobile/components/event/ThemeHeader.tsx only had light colours for Classic White and Sunlit Portrait). (2) The photo viewer treated Confetti as a dark theme, so its counter, close button and Like / Comment / Share / Download row were white on the light background (the light-theme list in apps/mobile/components/PhotoViewer.tsx).
-How to reproduce: In the app, open a Confetti Circle gallery with albums. Tap COLLECTIONS: the menu is dark green with hard-to-read names. Tap a photo: the buttons along the bottom are almost invisible.
-Fixed in: 6804a08b (2026-11-07). The Collections menu uses the page's paper colour, a thin ink border and a pink tint on the open album; Confetti is in the viewer's list of light themes, so its controls are dark on light. Other themes unchanged. Checked on the iPhone 17 Pro simulator (dev build on a local bundler with this commit, gallery "samarth weds Jyoti"): the menu's album names read clearly and the viewer's counter, close button and bottom row show dark. Device test #203 step 10.
-
-#256
-Listed: 2026-11-07
-Platform: Website
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Building the app's Couple sheet, todo #12 step 2 (chat 2026-11-07); found by reading the code, not yet seen in a browser
-Issue: In the website's edit mode, clearing both sides of Confetti Circle's couple and pressing Save removes the couple from the database, but the page keeps showing the old names until it is reloaded. The save stores the event's theme content as returned (without the removed "couple" block), and the page merges it over the loaded event's theme content (applyGalleryDraft in shared/guestEdit/draft.ts spreads the saved blocks over the old ones), so the old block stays. The website doesn't reload the page after Save. The app's save (apps/mobile/components/event/guestEdit/useGuestEdit.ts, step 4) names the block even when it was removed, so the app is not affected. Fix idea: do the same in saveGuestEdits (src/components/guestEdit/guestEditStore.ts): save themeContent as { ...result.content, [block]: result.content?.[block] }.
-How to reproduce: On staging (edit mode on), open a Confetti Circle gallery with a saved couple > Preview Guest Theme > Couple. Clear this side on both sides and Save. Expect: the section shows no names. Actual: the old names stay until you reload the page.
-Note 2026-11-07: the same bug was also found with device test #201 and is already fixed in 65238da8 (branch feat/guest-edit-mode, not on staging yet): move this entry to RECENTLY FIXED with "Fixed in: 65238da8" when that lands, and move Jira EB-154 to Done.
-Fixed in: 65238da8 (2026-11-07). saveGuestEdits now marks a block that is gone as undefined in the saved layer, so the page stops showing it; test in src/lib/guestEdit.test.ts. Recheck with device test #201 step 7 (RETEST).
 
 #181
 Listed: 2026-10-29

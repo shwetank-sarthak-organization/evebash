@@ -6189,7 +6189,7 @@ Fix ref:
 Feedback:  All steps passed. Website: Link copied, pasted link opens the event. App: Link copied; the link sent to WhatsApp opens the event page (in the phone's browser, which shows the "Get the EveBash app" screen, as designed). Share Invitation in WhatsApp: preview card plus the message, link shown once.
 --------------------------------------------------------------------------------
 #216 App (Android): screens keep loading after the network drops out, no app restart needed (#260)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  App (Android)
 Brief:     Sometimes every screen in the app stopped loading (empty screens, uploads not starting) until the app was
@@ -6214,21 +6214,24 @@ How to test:
   7. Upload 3 photos to a test gallery. Expect: uploads start and finish as before.
   8. If screens ever stop loading: note the time, wait 30 s and try again without closing the app, and say in
      Feedback whether it came back by itself.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Sarthak (with Claude reading the phone's log)
+Device / browser: Pixel 8, Android 16
+Build / version: EAS staging build e4b646ad (staging a430d44c, versionCode 25), no USB or Metro; first run on the
+           USB development build with the same fix
+Date tested: 2026-11-15
+Account used: Sarthak's own account (gallery "Test 260"); newone1 for steps 1-6 of the first run (looked only)
 Screenshot / recording:
-Fix ref:
-Feedback:  First run 2026-11-15 on the USB development build (debug build with eb096f18 + f55b4d38, Metro over USB),
+Fix ref:   eb096f18 + f55b4d38
+Feedback:  EAS build run 2026-11-15, cable unplugged: normal use, Wi-Fi off (mobile data) and Wi-Fi on all loaded,
+           no app restart (tester's result; the phone's log kept only the last minute: a gallery in 1.3 s, 0 timeouts,
+           0 network failures, 0 crashes). Build checked first: com.evebash.app.staging signed with the staging key,
+           the 5 s ping in MainApplication, staging addresses only.
+           First run 2026-11-15 on the USB development build (debug build with eb096f18 + f55b4d38, Metro over USB),
            Pixel 8 / Android 16, Sarthak with Claude reading the phone's log: steps 1-7 PASS, 0 timeouts, 0 network
            failures, 0 crashes. 1) gallery ~1 s, photos ~0.5 s. 2) Wi-Fi off, phone on mobile data (LTE): ~1.7 s.
            3) back on Wi-Fi: ~1.5 s. 4) 10 min idle, screen on: ~1.9 s. 5) 10 min locked: photos ~1 s after unlock.
            6) log out and in, open event: ~0.9 s. 7) 3 photos uploaded (3-6 s each), processed in 15 s, thumbnails on
-           media-staging. Accounts: newone1 (looked only) and Sarthak's own (gallery "Test 260"). Still to do: the
-           same on the EAS staging build, without USB or Metro (#260 asked for that check), then fill in the fields
-           above.
+           media-staging. Accounts: newone1 (looked only) and Sarthak's own (gallery "Test 260").
 --------------------------------------------------------------------------------
 #217 App: the upload bar shows clear counts, a state icon and bigger buttons (issue #273)
 Status:    TODO
