@@ -1,5 +1,6 @@
 -- RLS lockdown part 2 (issue #21), rebuilt 2026-11-15 from sections 4-7 of rls-lockdown-draft.sql.
--- NOT APPLIED until it passes the dry run (rls-lockdown-part2-tests.sql) on staging and Shwetank says go.
+-- Applied on STAGING 2026-11-15 (with the fixes found in the staging tests). NOT on live yet: live only after the
+-- staging tests pass and Shwetank says go.
 --
 -- Why rebuilt: about 25 migrations landed after the draft (hidden sub-galleries/photos, gallery video, theme content,
 -- album proofing, ownership transfer, guest upload/comment switches, Find You consent, EB Vault, job queues). The

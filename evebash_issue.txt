@@ -77,8 +77,8 @@ Status: In progress
 Owner: Shwetank (with Claude)
 Blocked by: - (live step needs an agreed quiet window)
 Found in: Supabase access check (2026-10-06)
-Issue: Supabase RLS lockdown part 2 is not applied yet: most tables can still be read and changed with the public app key (launch blocker). Everything is ready: run sheet https://claude.ai/artifact/WQCggv3QSkj6MSdewUKpTZ, draft docs/security/rls-lockdown-draft.sql, tested rollback docs/security/rls-lockdown-part2-rollback.sql.
-Before applying: re-scan which tables the website, app and backend read/write directly, and re-run both dry runs (docs/security/rls-lockdown-tests.sql and rls-lockdown-part1-tests.sql) on current staging, since a lot of code changed after the 2026-10-09 runs. If tables were added since then (EB Vault etc.), re-check the anon grant list at the top of the part 2 rollback. To undo, use ONLY rls-lockdown-part2-rollback.sql; never docs/security/rls-lockdown-rollback.sql, which also drops open_gallery, profile_cards and eb_private and breaks every gallery.
+Issue: Supabase RLS lockdown part 2 is not applied yet: most tables can still be read and changed with the public app key (launch blocker). Current files (rebuilt 2026-11-15): docs/security/rls-lockdown-part2.sql, tests docs/security/rls-lockdown-part2-tests.sql, rollback docs/security/rls-lockdown-part2-rollback.sql. Don't run rls-lockdown-draft.sql or its old test files: the draft holds old copies of open_gallery, get_public_gallery_media and the helpers and would undo about 25 later migrations.
+Before applying on live: run part2 + part2-tests in one rolled-back transaction on live (read the result, nothing saved), in a quiet window; to undo, use ONLY rls-lockdown-part2-rollback.sql; never docs/security/rls-lockdown-rollback.sql, which also drops open_gallery, profile_cards and eb_private and breaks every gallery.
 How to reproduce: With only the public anon key, request /rest/v1/profiles?select=id,role: every profile comes back.
 Update 2026-11-15: taken over by Shwetank (with Claude) so a client can sign up on live safely; Sarthak moves to the app launch bugs. The old blockers are gone: staging has its own database since todo #30, and the EveBash Staging app build 997a9866 is on a test phone. Plan: re-scan direct table use (website, app, backend, EB Vault), update the scripts, dry runs on staging, apply on staging, test website + app, then live in a quiet window with the part 2 rollback ready.
 Update 2026-11-15: rebuilt part 2 as docs/security/rls-lockdown-part2.sql (the draft's sections 1-3 hold old copies of open_gallery, get_public_gallery_media and the helpers, and would undo about 25 later migrations, e.g. hidden photos would show to logged-out visitors). New in part 2: hidden sub-galleries/photos readable only by managers; can_manage_event_visibility (the host page and app call it; missing today); found and closed: 7 backend/Modal-only security-definer functions (claim_*_job, complete_media_job, create_photo_with_media_job, replace_photo_faces, cleanup_stale_upload_intents) were callable with only the public key, and the 3 queue tables were open to it. Tests docs/security/rls-lockdown-part2-tests.sql (October suite + 28 new checks): 173/173 on staging, rolled back, nothing saved. Rollback rls-lockdown-part2-rollback.sql updated and checked on staging (part 2 then rollback leaves tables, RLS, anon grants, policies and triggers exactly as before). Staging and live security setups were identical before the run. Next: apply on staging (with OK), then website + app tests on staging.
@@ -852,7 +852,7 @@ Platform: Both
 Priority: High
 Status: Open
 Owner: Shwetank (with Claude)
-Blocked by: Sarthak: set the variables on the production Railway service before launch
+Blocked by: device tests #130, #131, #135 (TODO); done on release day after the RLS lockdown (#21)
 Found in: launch-config review after #120-#124 and #121 (2026-10-25)
 Issue: The new backend switches are only set on the staging Railway service (api-staging.evebash.com). The production service (api.evebash.com, Railway qa264myg) has none of them, so after launch rotate would again keep stale copies (#123) and turn phone photos the wrong way (#124), and rotate wouldn't make grid images (#121).
 Fix: On the production Railway service set ROTATE_VERSIONED_LINKS=true (#123), ROTATE_UPRIGHT_FIRST=true (#124) and GRID_VARIANT=true (#121), after their device tests (test_yourself #130, #131, #135) pass. Already done elsewhere: Vercel Production has NEXT_PUBLIC_GRID_HIRES=true (on with the next release from main); the Cloudflare media cache and the Modal "grid" switch are shared by staging and production. Optional at the same time: delete the leftover Cloudflare DNS record media.evebash.com.evebash.com (old media-proxy custom domain, serves nothing).
@@ -1576,10 +1576,11 @@ Update 2026-11-12: fixed in 520cc156. The orphan scan counts events.guest_previe
 
 #269
 Listed: 2026-11-13
-Platform: Backend only
+Platform: Both
 Priority: Medium
 Status: In progress
 Owner: Shwetank (with Claude)
+Blocked by: the next live Modal deploy, done together with Sarthak (it also ships 8bfc220)
 Found in: Todo #30 step 5a (Backblaze key check, chat 2026-11-13)
 Issue: Both Backblaze keys the servers use today ("evebash-media-key" for gallery media, "evebash-vault-staging-backend" for EB Vault) work on ALL buckets in the account and can also change bucket settings (writeBuckets). So the live server's media key can read and delete files in the vault and staging buckets, and a leaked key exposes everything. The new staging and live-vault keys are limited to one bucket each.
 Fix idea: during todo #30 step 5d, give the live server a new key limited to the "EveBash" bucket (Read and Write only), deploy, check uploads and deletes, then delete "evebash-media-key". Delete "evebash-vault-staging-backend" once nothing uses the old "Evebash-Vault-Staging" bucket. The local .env / .env.local B2 key is stale (rejected by Backblaze); replace it with a staging key in step 5h.
@@ -1598,6 +1599,8 @@ d2d7be9) still has "evebash-media-key" baked in; it gets the new key at the next
 (not all buckets); it was no longer used anywhere (checked: staging and live Railway, local settings
 files) and Shwetank deleted it on 2026-11-14. The emptied "Evebash-Vault-Staging" bucket can now be
 deleted too (with Shwetank's OK). Status: Testing until "evebash-media-key" is deleted.
+How to reproduce: Backblaze > Application Keys: "evebash-media-key" (...0001) still exists with access to all buckets.
+Note 2026-11-15 (from Sarthak's Claude, checked by Claude): before the live Modal deploy, add BACKEND_API_URL=https://api.evebash.com to the root .env. live Modal posts "video processed" to {BACKEND_API_URL}/api/v1/media/internal/video-processed (modal_engine/main.py _notify_video_processed). Shwetank's root .env has no BACKEND_API_URL at all (the callback is then skipped); Sarthak's has api-staging, which since todo #30 5d answers 401 (staging's own INTERNAL_JOB_SECRET). Today no user impact: live Railway has VIDEO_READY_PUSH unset, so the backend announces videos at upload and doesn't wait for this callback. Also check that the root .env's INTERNAL_JOB_SECRET matches live Railway's (compare without printing). After the deploy: one test video on live, expect "Video-ready callback ... HTTP 200" in the live Modal logs.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

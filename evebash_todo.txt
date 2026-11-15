@@ -32,9 +32,9 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 35
+Next todo number: 36
 
-Last updated: 2026-11-12
+Last updated: 2026-11-15
 
 =====================================================================
 ACTIVE TODOS
@@ -617,6 +617,100 @@ Brief:        Each time an event or sub-gallery is changed (title, date, cover, 
               log on their event, and whether photo, album and permission changes join later.
 Done in:      -
 
+#32 Analytics dashboard: switch between Live and Staging data
+Listed:       2026-11-14
+Platform:     Analytics dashboard
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       In progress
+Effort:       M
+Suggested by: Shwetank (during todo #30)
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: do it before the first client signs up on live, so live plans and
+              limits can be set from the dashboard (today it can only change staging).
+Owner:        Shwetank (with Claude)
+Depends on:   Todo #30 (staging and production separated).
+Brief:        Since todo #30 step 5h the local analytics dashboard (apps/analytics-dashboard,
+              localhost:5173) reads STAGING (staging Supabase + api-staging), because the live server
+              (api.evebash.com) does not allow localhost:5173 in CORS_ORIGINS. Add a Live/Staging
+              switch in the dashboard: two sets of VITE_ settings (Supabase URL + anon key + API base
+              URL), a clear banner showing which one is active, and allow the dashboard origin on the
+              live server's CORS (or host the dashboard on its own domain). Admin login must work on
+              both Supabase projects (redirect URLs for the dashboard on each).
+Update 2026-11-15: code done (not yet used on Live): src/lib/environment.ts reads VITE_STAGING_* (old VITE_SUPABASE_* / VITE_API_BASE_URL count as Staging) and VITE_LIVE_SUPABASE_URL, VITE_LIVE_SUPABASE_ANON_KEY, VITE_LIVE_API_BASE_URL; the choice is kept per browser, Staging by default; Live only when its 3 settings exist and differ from Staging. EnvironmentSwitch on the login screen and in the header (Live asks first, red strip "LIVE DATA" on every page); every server call uses the chosen backend (the pricing screen's copy of getApiBaseUrl now uses the shared one). Checked: type check clean, login screen shows Staging selected and Live greyed out. Left (after the #21 staging tests): add the 3 VITE_LIVE_ settings to apps/analytics-dashboard/.env, allow http://localhost:5173 in the live server's CORS_ORIGINS (Railway, needs OK), check live Supabase still allows localhost:5173 as a login return address, then log in on Live and check every page read-only first.
+
+
+#33 Automatic Modal publishing and database migrations (GitHub Actions)
+Listed:       2026-11-15
+Platform:     Backend only
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       Agreed
+Effort:       M
+Suggested by: Claude (Shwetank agreed 2026-11-15)
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: automate both, with a manual "Approve" on GitHub before anything
+              reaches live. Do it after the RLS lockdown (issue #21), which stays a careful manual step.
+Owner:        Shwetank (with Claude)
+Depends on:   Issue #21 (RLS lockdown part 2) done first; todo #30 (separate staging and live).
+Brief:        Today Modal (modal_engine/) and database changes (supabase/migrations/*.sql) are published
+              by hand, and nothing records which .sql file has run on which database. Add GitHub Actions:
+              push to staging -> publish Modal to the "staging" environment (.env.modal-staging values)
+              and apply new migrations to the staging database; merge to main -> the same for live
+              (Modal "main", live database), only after a required approval (GitHub environment
+              "production" with Shwetank/Sarthak as reviewers). Steps: (1) Modal tokens per environment
+              and the settings as GitHub secrets (never in the repo); Modal step only when modal_engine/
+              changed. (2) Migrations with the Supabase CLI, which keeps a history table per database;
+              one-time baseline first: mark every migration already applied by hand as applied on both
+              databases (check each against the real schema), so nothing re-runs. (3) Test on staging
+              with a harmless change, then one release to live. (4) Document the release order (database
+              first if the new code needs it, then merge, then Modal) in the release notes.
+
+#34 "Copy link" button next to Share Invitation (website and app)
+Listed:       2026-11-15
+Platform:     Both
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       In progress
+Effort:       S
+Suggested by: Claude (Shwetank agreed 2026-11-15, during the issue #21 staging tests)
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: do it now (fix problems as we find them); Share Invitation stays as it is.
+Owner:        Shwetank (with Claude)
+Depends on:   Issue #21 staging tests finished (no website changes while testing).
+Brief:        The share window (website host page, handleShareInvitation in src/app/(main)/host/page.tsx;
+              app apps/mobile/app/events/[id].tsx) has only "Share Invitation", which shares the whole message
+              ("Join our event ... Join ID: ... Link: https://..."). On a computer, choosing Copy in the share
+              menu copies the whole message, and pasted into a browser's address bar it gives a 404 (happened
+              twice in testing). Add a "Copy link" button that copies only getEventShareUrl(...), with a
+              "Link copied" message; same in the app. Also check whether WhatsApp shows the link twice, because
+              navigator.share gets both text (which already contains the link) and url; if so, pass only one.
+Update 2026-11-15: built. Website: "Copy link" button under Share Invitation in the host page's share window (handleCopyShareLink copies only getEventShareUrl, shows "Link copied" for 2 s). App: same button in the event's share window (expo-clipboard, already a dependency; styles shareCopyBtn/shareCopyText in baseStyles and the light host look). Type checks pass. Not changed: Share Invitation (the WhatsApp double-link check is left for the device test). Left: push to staging, check on the website, and in the app with the next staging build or the USB build.
+Update 2026-11-15: pushed to staging (d3f34563); Shwetank checked the website: Link copied, the pasted link opens the event. App part and the WhatsApp double-link check wait for the next app build: device test #215.
+
+#35 iOS: set up the EveBash Staging app (com.evebash.app.staging) before the first iOS staging build
+Listed:       2026-11-15
+Platform:     App
+Priority:     Medium
+Phase:        TBD (before the first iOS build)
+Status:       Idea
+Effort:       S
+Suggested by: Sarthak's Claude (review of todo #30, 2026-11-15)
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   Todo #30 (done); an Apple developer account (company account, see the legal-entity plan).
+Brief:        apps/mobile/app.config.js gives staging builds the iOS bundle ID com.evebash.app.staging too, but
+              only Android is set up for it (Firebase app, Google sign-in clients, EAS keystore). Before the
+              first iOS staging build: a Google iOS sign-in client for com.evebash.app.staging (and its URL
+              scheme in the google-signin plugin, or per-variant), Sign in with Apple enabled for that app ID
+              and added to Supabase's Apple settings on the staging project, iOS push (APNs key on EAS for that
+              app ID), and the Firebase iOS app if push or Firebase is used on iOS. Production iOS
+              (com.evebash.app) is unchanged.
+
+=====================================================================
+DONE / DROPPED (delete after 14 days)
+=====================================================================
 #30 Separate Supabase database for staging and production
 Listed:       2026-11-11
 Platform:     Both
@@ -896,81 +990,6 @@ Update 2026-11-14: DONE. EAS staging build 997a9866 (a97213d) checked on the Mac
               follow-ups, not part of #30: FCM V1 push key for com.evebash.app.staging on EAS; the USB
               dev build becomes EveBash Staging the next time it is rebuilt (npx expo run:android); live
               Modal deploy and the old B2 key delete stay in issue #269.
-
-#32 Analytics dashboard: switch between Live and Staging data
-Listed:       2026-11-14
-Platform:     Analytics dashboard
-Priority:     High
-Phase:        1 (v1 launch)
-Status:       In progress
-Effort:       M
-Suggested by: Shwetank (during todo #30)
-Discussed:    Yes
-Decision:     2026-11-15 Shwetank: do it before the first client signs up on live, so live plans and
-              limits can be set from the dashboard (today it can only change staging).
-Owner:        Shwetank (with Claude)
-Depends on:   Todo #30 (staging and production separated).
-Brief:        Since todo #30 step 5h the local analytics dashboard (apps/analytics-dashboard,
-              localhost:5173) reads STAGING (staging Supabase + api-staging), because the live server
-              (api.evebash.com) does not allow localhost:5173 in CORS_ORIGINS. Add a Live/Staging
-              switch in the dashboard: two sets of VITE_ settings (Supabase URL + anon key + API base
-              URL), a clear banner showing which one is active, and allow the dashboard origin on the
-              live server's CORS (or host the dashboard on its own domain). Admin login must work on
-              both Supabase projects (redirect URLs for the dashboard on each).
-Update 2026-11-15: code done (not yet used on Live): src/lib/environment.ts reads VITE_STAGING_* (old VITE_SUPABASE_* / VITE_API_BASE_URL count as Staging) and VITE_LIVE_SUPABASE_URL, VITE_LIVE_SUPABASE_ANON_KEY, VITE_LIVE_API_BASE_URL; the choice is kept per browser, Staging by default; Live only when its 3 settings exist and differ from Staging. EnvironmentSwitch on the login screen and in the header (Live asks first, red strip "LIVE DATA" on every page); every server call uses the chosen backend (the pricing screen's copy of getApiBaseUrl now uses the shared one). Checked: type check clean, login screen shows Staging selected and Live greyed out. Left (after the #21 staging tests): add the 3 VITE_LIVE_ settings to apps/analytics-dashboard/.env, allow http://localhost:5173 in the live server's CORS_ORIGINS (Railway, needs OK), check live Supabase still allows localhost:5173 as a login return address, then log in on Live and check every page read-only first.
-
-
-#33 Automatic Modal publishing and database migrations (GitHub Actions)
-Listed:       2026-11-15
-Platform:     Backend only
-Priority:     High
-Phase:        1 (v1 launch)
-Status:       Agreed
-Effort:       M
-Suggested by: Claude (Shwetank agreed 2026-11-15)
-Discussed:    Yes
-Decision:     2026-11-15 Shwetank: automate both, with a manual "Approve" on GitHub before anything
-              reaches live. Do it after the RLS lockdown (issue #21), which stays a careful manual step.
-Owner:        Shwetank (with Claude)
-Depends on:   Issue #21 (RLS lockdown part 2) done first; todo #30 (separate staging and live).
-Brief:        Today Modal (modal_engine/) and database changes (supabase/migrations/*.sql) are published
-              by hand, and nothing records which .sql file has run on which database. Add GitHub Actions:
-              push to staging -> publish Modal to the "staging" environment (.env.modal-staging values)
-              and apply new migrations to the staging database; merge to main -> the same for live
-              (Modal "main", live database), only after a required approval (GitHub environment
-              "production" with Shwetank/Sarthak as reviewers). Steps: (1) Modal tokens per environment
-              and the settings as GitHub secrets (never in the repo); Modal step only when modal_engine/
-              changed. (2) Migrations with the Supabase CLI, which keeps a history table per database;
-              one-time baseline first: mark every migration already applied by hand as applied on both
-              databases (check each against the real schema), so nothing re-runs. (3) Test on staging
-              with a harmless change, then one release to live. (4) Document the release order (database
-              first if the new code needs it, then merge, then Modal) in the release notes.
-
-#34 "Copy link" button next to Share Invitation (website and app)
-Listed:       2026-11-15
-Platform:     Both
-Priority:     Medium
-Phase:        1 (v1 launch)
-Status:       In progress
-Effort:       S
-Suggested by: Claude (Shwetank agreed 2026-11-15, during the issue #21 staging tests)
-Discussed:    Yes
-Decision:     2026-11-15 Shwetank: do it now (fix problems as we find them); Share Invitation stays as it is.
-Owner:        Shwetank (with Claude)
-Depends on:   Issue #21 staging tests finished (no website changes while testing).
-Brief:        The share window (website host page, handleShareInvitation in src/app/(main)/host/page.tsx;
-              app apps/mobile/app/events/[id].tsx) has only "Share Invitation", which shares the whole message
-              ("Join our event ... Join ID: ... Link: https://..."). On a computer, choosing Copy in the share
-              menu copies the whole message, and pasted into a browser's address bar it gives a 404 (happened
-              twice in testing). Add a "Copy link" button that copies only getEventShareUrl(...), with a
-              "Link copied" message; same in the app. Also check whether WhatsApp shows the link twice, because
-              navigator.share gets both text (which already contains the link) and url; if so, pass only one.
-Update 2026-11-15: built. Website: "Copy link" button under Share Invitation in the host page's share window (handleCopyShareLink copies only getEventShareUrl, shows "Link copied" for 2 s). App: same button in the event's share window (expo-clipboard, already a dependency; styles shareCopyBtn/shareCopyText in baseStyles and the light host look). Type checks pass. Not changed: Share Invitation (the WhatsApp double-link check is left for the device test). Left: push to staging, check on the website, and in the app with the next staging build or the USB build.
-Update 2026-11-15: pushed to staging (d3f34563); Shwetank checked the website: Link copied, the pasted link opens the event. App part and the WhatsApp double-link check wait for the next app build: device test #215.
-
-=====================================================================
-DONE / DROPPED (delete after 14 days)
-=====================================================================
 
 #31 Website Guest Home Preview: show the app too (picture of the app's guest home)
 Listed:       2026-11-12

@@ -34,12 +34,17 @@ const configs: Record<DashboardEnvironment, EnvironmentConfig> = {
   },
 };
 
-/** Live is offered only when fully set up and not accidentally the same project as Staging. */
+/**
+ * Live is offered only when fully set up and not accidentally pointing at Staging: neither the same Supabase project
+ * nor the same (or a staging) backend, so live data is never paired with the staging server.
+ */
 export const liveAvailable =
   !!configs.live.supabaseUrl &&
   !!configs.live.supabaseAnonKey &&
   !!configs.live.apiBaseUrl &&
-  configs.live.supabaseUrl !== configs.staging.supabaseUrl;
+  configs.live.supabaseUrl !== configs.staging.supabaseUrl &&
+  configs.live.apiBaseUrl !== configs.staging.apiBaseUrl &&
+  !/staging/i.test(configs.live.apiBaseUrl);
 
 function readChoice(): DashboardEnvironment {
   try {
