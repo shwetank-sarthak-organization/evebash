@@ -1,5 +1,10 @@
--- Rollback for PART 2 of the lockdown (sections 4-7 of docs/security/rls-lockdown-draft.sql: triggers, row level
+-- Rollback for PART 2 of the lockdown (docs/security/rls-lockdown-part2.sql, rebuilt 2026-11-15: triggers, row level
 -- security, policies, anon write grants, plus the part 2 visibility functions). One transaction, takes seconds.
+-- Updated 2026-11-15 for the rebuilt file and checked against staging: the anon write list below is still exact.
+-- On purpose it does NOT give back: EXECUTE on the backend/Modal-only functions (claim_*_job, complete_media_job,
+-- create_photo_with_media_job, replace_photo_faces, cleanup_stale_upload_intents, ...) or access to the internal
+-- queue tables (processing_outbox, upload_intents, event_notifications_outbox). No website, app or dashboard code uses
+-- them, and giving them back would reopen a hole without fixing anything.
 --
 -- Use this one after part 2. It does NOT touch part 1 or the later functions (open_gallery, get_public_gallery_media,
 -- request_gallery_access, archive_deleted_event, profile_cards, is_username_available, get_media_plan_limit,
@@ -23,7 +28,6 @@ grant insert, update, delete, truncate on public.contact_messages to anon;
 grant insert, update, delete, truncate on public.deleted_events_archive to anon;
 grant insert, update, delete, truncate on public.enquiries to anon;
 grant insert, update, delete, truncate on public.event_favourite_photos to anon;
-grant insert, update, delete, truncate on public.event_notifications_outbox to anon;
 grant insert, update, delete, truncate on public.events to anon;
 grant insert, update, delete, truncate on public.faces to anon;
 grant insert, update, delete, truncate on public.guests to anon;
@@ -34,10 +38,8 @@ grant insert, update, delete, truncate on public.modal_cost_logs to anon;
 grant insert, update, delete, truncate on public.payments to anon;
 grant insert, update, delete, truncate on public.photos to anon;
 grant insert, update, delete, truncate on public.pricing_plans to anon;
-grant insert, update, delete, truncate on public.processing_outbox to anon;
 grant insert, update, delete, truncate on public.profile_assigned_events to anon;
 grant insert, update, delete, truncate on public.profiles to anon;
-grant insert, update, delete, truncate on public.upload_intents to anon;
 grant insert, update, delete, truncate on public.vendor_leads to anon;
 
 -- 6 + 5. New policies
@@ -82,6 +84,10 @@ drop policy if exists enquiries_insert on public.enquiries;
 drop policy if exists chat_rooms_participants on public.chat_rooms;
 drop policy if exists messages_select on public.messages;
 drop policy if exists messages_insert on public.messages;
+drop policy if exists contact_messages_admin on public.contact_messages;
+drop policy if exists vendor_leads_admin on public.vendor_leads;
+drop policy if exists payments_select on public.payments;
+drop function if exists eb_private.is_hidden_from_guests(text, boolean);
 
 -- Tables that had RLS off before
 alter table public.events disable row level security;
@@ -118,6 +124,22 @@ create policy "Allow authenticated admins full access to infra_invoices" on publ
   for all to authenticated
   using (exists (select 1 from public.profiles where profiles.id = (auth.uid())::text and profiles.role = 'admin'))
   with check (exists (select 1 from public.profiles where profiles.id = (auth.uid())::text and profiles.role = 'admin'));
+
+-- Policies as they were on 2026-11-15 (pg_policies on staging, same on live)
+create policy "Admins can update contact messages" on public.contact_messages for update to authenticated
+  using (exists (select 1 from public.profiles where profiles.id = (auth.uid())::text and profiles.role = 'admin' and profiles.delegated_by is null))
+  with check (exists (select 1 from public.profiles where profiles.id = (auth.uid())::text and profiles.role = 'admin' and profiles.delegated_by is null));
+create policy "Admins can view contact messages" on public.contact_messages for select to authenticated
+  using (exists (select 1 from public.profiles where profiles.id = (auth.uid())::text and profiles.role = 'admin' and profiles.delegated_by is null));
+create policy "Admins can update vendor leads" on public.vendor_leads for update to authenticated
+  using (exists (select 1 from public.profiles where profiles.id = (auth.uid())::text and profiles.role = 'admin' and profiles.delegated_by is null))
+  with check (exists (select 1 from public.profiles where profiles.id = (auth.uid())::text and profiles.role = 'admin' and profiles.delegated_by is null));
+create policy "Admins can view vendor leads" on public.vendor_leads for select to authenticated
+  using (exists (select 1 from public.profiles where profiles.id = (auth.uid())::text and profiles.role = 'admin' and profiles.delegated_by is null));
+create policy "Allow service role full access to payments" on public.payments for all
+  using (auth.role() = 'service_role');
+create policy "Users can view their own payments" on public.payments for select
+  using ((auth.uid())::text = user_id);
 
 -- 4. Triggers
 drop trigger if exists eb_protect_profile_columns on public.profiles;
