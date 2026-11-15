@@ -1,10 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import { currentConfig, currentEnvironment } from './environment';
 
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in environment variables");
+if (!currentConfig.supabaseUrl || !currentConfig.supabaseAnonKey) {
+  console.error(`Missing Supabase settings for ${currentEnvironment} in apps/analytics-dashboard/.env`);
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
+// Supabase stores the login under a key that includes the project's ref, so the Staging and Live logins stay apart
+export const supabase = createClient(currentConfig.supabaseUrl, currentConfig.supabaseAnonKey);

@@ -16,7 +16,7 @@ import {
   X,
   Package
 } from 'lucide-react';
-import { runAdminAction } from '../lib/adminApi';
+import { getApiBaseUrl, runAdminAction } from '../lib/adminApi';
 import { directUpdatePricingPlans } from '../lib/analytics';
 
 type PlanDraft = {
@@ -211,15 +211,6 @@ const textInputClass =
 function toNumber(value: string) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
-}
-
-function getApiBaseUrl() {
-  const env = (import.meta as any).env;
-  return (
-    env.VITE_API_BASE_URL ||
-    env.VITE_NEXT_PUBLIC_SITE_URL ||
-    'http://localhost:8080'
-  ).replace(/\/$/, '');
 }
 
 function normalizePlan(raw: Partial<PlanDraft>, index: number): PlanDraft {

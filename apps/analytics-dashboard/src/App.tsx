@@ -36,6 +36,7 @@ import { SuperAdminPanel } from './components/SuperAdminPanel';
 import { ContactMessagesGrid } from './components/ContactMessagesGrid';
 import { PaymentsGrid } from './components/PaymentsGrid';
 import { runAdminAction, type AdminAction } from './lib/adminApi';
+import { EnvironmentSwitch, LiveWarningStrip } from './components/EnvironmentSwitch';
 import { BarChart3, Users, Folder, LogOut, Key, Mail, AlertTriangle, ShieldCheck, Layers, DollarSign, Settings2, CheckCircle2, ArrowLeft, CreditCard } from 'lucide-react';
 
 const isPasswordRecoveryUrl = () => {
@@ -396,6 +397,9 @@ export default function App() {
                   ? 'Create a new password for this admin account'
                   : 'Sign in to view simple analytics & monitoring'}
             </p>
+            <div className="mt-5">
+              <EnvironmentSwitch />
+            </div>
           </div>
 
           <form
@@ -732,6 +736,7 @@ export default function App() {
 
       {/* Main Panel Area */}
       <div className="h-screen flex-1 flex flex-col min-w-0 overflow-hidden bg-[#07091a]">
+        <LiveWarningStrip />
         {/* Fixed Header */}
         <header className="h-16 border-b border-white/5 bg-[#0c1028]/80 backdrop-blur-sm flex items-center justify-between px-8 shrink-0 select-none">
           <div className="flex items-center gap-3">
@@ -752,6 +757,7 @@ export default function App() {
             </h2>
           </div>
           <div className="flex items-center space-x-2.5">
+            <EnvironmentSwitch compact />
             <span className="text-xs text-slate-500 font-medium">
               Database: <span className="text-emerald-400 font-bold">Online</span>
             </span>

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { currentConfig } from './environment';
 
 export type AdminAction =
   | 'deleteGalleryMedia'
@@ -52,13 +53,9 @@ export interface AdminActionResult {
   vaultBytes?: Record<string, number>;
 }
 
+/** The backend of the environment chosen in the dashboard (Staging or Live, see lib/environment.ts). */
 export function getApiBaseUrl() {
-  const env = (import.meta as any).env;
-  return (
-    env.VITE_API_BASE_URL ||
-    env.VITE_NEXT_PUBLIC_SITE_URL ||
-    'http://localhost:8080'
-  ).replace(/\/$/, '');
+  return currentConfig.apiBaseUrl;
 }
 
 export async function getAccessToken(forceRefresh = false) {

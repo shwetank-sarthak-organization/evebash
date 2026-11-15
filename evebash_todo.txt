@@ -902,7 +902,7 @@ Listed:       2026-11-14
 Platform:     Analytics dashboard
 Priority:     High
 Phase:        1 (v1 launch)
-Status:       Agreed
+Status:       In progress
 Effort:       M
 Suggested by: Shwetank (during todo #30)
 Discussed:    Yes
@@ -917,6 +917,8 @@ Brief:        Since todo #30 step 5h the local analytics dashboard (apps/analyti
               URL), a clear banner showing which one is active, and allow the dashboard origin on the
               live server's CORS (or host the dashboard on its own domain). Admin login must work on
               both Supabase projects (redirect URLs for the dashboard on each).
+Update 2026-11-15: code done (not yet used on Live): src/lib/environment.ts reads VITE_STAGING_* (old VITE_SUPABASE_* / VITE_API_BASE_URL count as Staging) and VITE_LIVE_SUPABASE_URL, VITE_LIVE_SUPABASE_ANON_KEY, VITE_LIVE_API_BASE_URL; the choice is kept per browser, Staging by default; Live only when its 3 settings exist and differ from Staging. EnvironmentSwitch on the login screen and in the header (Live asks first, red strip "LIVE DATA" on every page); every server call uses the chosen backend (the pricing screen's copy of getApiBaseUrl now uses the shared one). Checked: type check clean, login screen shows Staging selected and Live greyed out. Left (after the #21 staging tests): add the 3 VITE_LIVE_ settings to apps/analytics-dashboard/.env, allow http://localhost:5173 in the live server's CORS_ORIGINS (Railway, needs OK), check live Supabase still allows localhost:5173 as a login return address, then log in on Live and check every page read-only first.
+
 
 #33 Automatic Modal publishing and database migrations (GitHub Actions)
 Listed:       2026-11-15
