@@ -666,12 +666,17 @@ Brief:        Today Modal (modal_engine/) and database changes (supabase/migrati
               with a harmless change, then one release to live. (4) Document the release order (database
               first if the new code needs it, then merge, then Modal) in the release notes.
 
+
+=====================================================================
+DONE / DROPPED (delete after 14 days)
+=====================================================================
 #34 "Copy link" button next to Share Invitation (website and app)
 Listed:       2026-11-15
 Platform:     Both
 Priority:     Medium
 Phase:        1 (v1 launch)
-Status:       In progress
+Status:       Done
+Done in:      d3f34563 (2026-11-15)
 Effort:       S
 Suggested by: Claude (Shwetank agreed 2026-11-15, during the issue #21 staging tests)
 Discussed:    Yes
@@ -760,10 +765,9 @@ Brief:        Build the EveBash Staging app (APP_VARIANT unset = staging, bundle
               vault, share window (Copy link), dark and light look. Fix iOS-only problems (layout, safe areas,
               keyboard, permissions text). Not possible in the simulator: real push, the camera. Then add a device
               test for a real iPhone, which waits for the Apple Developer account and todo #35.
+Update 2026-11-15: app checked on Shwetank's Android phone (USB build, staging): Copy link shows "Link copied"; the link sent to WhatsApp opens the event page. Share Invitation in WhatsApp shows the preview card and the link once (no double link, nothing to change). On a phone the link opens in the browser, which shows the website's "Get the EveBash app" screen (existing behaviour, issue #109); opening the app straight from the link needs Android App Links (issue #67). Device test #215 PASS.
 
-=====================================================================
-DONE / DROPPED (delete after 14 days)
-=====================================================================
+
 #30 Separate Supabase database for staging and production
 Listed:       2026-11-11
 Platform:     Both

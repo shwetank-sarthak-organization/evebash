@@ -6166,7 +6166,7 @@ Feedback:  All steps passed. Build checked on the Mac first: package com.evebash
            "Staging test 1 - Sub Gallery". Live database: 0 new photos.
 
 #215 Website + App: "Copy link" in the share window copies only the event link (todo #34)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website + App
 Brief:     The share window has a "Copy link" button under Share Invitation. It copies only the event's link
@@ -6179,11 +6179,11 @@ How to test:
   3. App (EveBash Staging, host): open the event, Share, tap Copy link. Expect: "Link copied".
   4. Paste the link into WhatsApp or Notes and tap it. Expect: the event opens.
   5. Share Invitation to WhatsApp (send to yourself). Note whether the link shows twice (todo #34 asks to check).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Shwetank (with Claude)
+Device / browser: Chrome on Mac (staging.evebash.com); Android phone, USB development build
+Build / version: staging d3f34563 (website); app from Metro, same code
+Date tested: 2026-11-15
+Account used: host test account
 Screenshot / recording:
 Fix ref:
-Feedback:  2026-11-15 steps 1-2 passed on the website (Shwetank). Steps 3-5 wait for the app build.
+Feedback:  All steps passed. Website: Link copied, pasted link opens the event. App: Link copied; the link sent to WhatsApp opens the event page (in the phone's browser, which shows the "Get the EveBash app" screen, as designed). Share Invitation in WhatsApp: preview card plus the message, link shown once.
