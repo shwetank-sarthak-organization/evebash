@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 38
+Next todo number: 39
 
 Last updated: 2026-11-15
 
@@ -666,33 +666,6 @@ Brief:        Today Modal (modal_engine/) and database changes (supabase/migrati
               with a harmless change, then one release to live. (4) Document the release order (database
               first if the new code needs it, then merge, then Modal) in the release notes.
 
-
-=====================================================================
-DONE / DROPPED (delete after 14 days)
-=====================================================================
-#34 "Copy link" button next to Share Invitation (website and app)
-Listed:       2026-11-15
-Platform:     Both
-Priority:     Medium
-Phase:        1 (v1 launch)
-Status:       Done
-Done in:      d3f34563 (2026-11-15)
-Effort:       S
-Suggested by: Claude (Shwetank agreed 2026-11-15, during the issue #21 staging tests)
-Discussed:    Yes
-Decision:     2026-11-15 Shwetank: do it now (fix problems as we find them); Share Invitation stays as it is.
-Owner:        Shwetank (with Claude)
-Depends on:   Issue #21 staging tests finished (no website changes while testing).
-Brief:        The share window (website host page, handleShareInvitation in src/app/(main)/host/page.tsx;
-              app apps/mobile/app/events/[id].tsx) has only "Share Invitation", which shares the whole message
-              ("Join our event ... Join ID: ... Link: https://..."). On a computer, choosing Copy in the share
-              menu copies the whole message, and pasted into a browser's address bar it gives a 404 (happened
-              twice in testing). Add a "Copy link" button that copies only getEventShareUrl(...), with a
-              "Link copied" message; same in the app. Also check whether WhatsApp shows the link twice, because
-              navigator.share gets both text (which already contains the link) and url; if so, pass only one.
-Update 2026-11-15: built. Website: "Copy link" button under Share Invitation in the host page's share window (handleCopyShareLink copies only getEventShareUrl, shows "Link copied" for 2 s). App: same button in the event's share window (expo-clipboard, already a dependency; styles shareCopyBtn/shareCopyText in baseStyles and the light host look). Type checks pass. Not changed: Share Invitation (the WhatsApp double-link check is left for the device test). Left: push to staging, check on the website, and in the app with the next staging build or the USB build.
-Update 2026-11-15: pushed to staging (d3f34563); Shwetank checked the website: Link copied, the pasted link opens the event. App part and the WhatsApp double-link check wait for the next app build: device test #215.
-
 #35 iOS: set up the EveBash Staging app (com.evebash.app.staging) before the first iOS staging build
 Listed:       2026-11-15
 Platform:     App
@@ -765,8 +738,70 @@ Brief:        Build the EveBash Staging app (APP_VARIANT unset = staging, bundle
               vault, share window (Copy link), dark and light look. Fix iOS-only problems (layout, safe areas,
               keyboard, permissions text). Not possible in the simulator: real push, the camera. Then add a device
               test for a real iPhone, which waits for the Apple Developer account and todo #35.
-Update 2026-11-15: app checked on Shwetank's Android phone (USB build, staging): Copy link shows "Link copied"; the link sent to WhatsApp opens the event page. Share Invitation in WhatsApp shows the preview card and the link once (no double link, nothing to change). On a phone the link opens in the browser, which shows the website's "Get the EveBash app" screen (existing behaviour, issue #109); opening the app straight from the link needs Android App Links (issue #67). Device test #215 PASS.
 
+
+#38 Report a photo or video, and report a user (bad, unwanted or restricted uploads)
+Listed:       2026-11-15
+Platform:     Both
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       Idea
+Effort:       L
+Suggested by: Sarthak (2026-11-15)
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Let people report a photo or video in an event gallery, and report the person who uploaded it,
+              when it is bad (nudity, violence, hate, illegal), unwanted (for example "I'm in this and want it
+              taken down") or restricted (anything the Terms don't allow). Today there is no Report button
+              anywhere on the website or in the app, and no reports table or endpoint, but the Terms (section
+              10 "Content Moderation", shared/legal/policies.json) already say EveBash acts on user reports and
+              may quarantine or remove content and suspend accounts. Guests can upload to events, so this is
+              user-generated content: Apple's App Review guideline 1.2 and Google Play's User Generated Content
+              policy ask for an in-app way to report content and users (Apple also asks for a way to block
+              abusive users), so it likely has to be in the app before store review (check the current rules
+              then).
+              Rough shape: a Report option in the photo/video viewer's menu and on the uploader's name (website
+              and app); a short reason list plus an optional note; the reported item hidden for the reporter
+              straight away; a new reports table (RLS on, no direct client access) written through the backend;
+              a review queue in the analytics dashboard with actions (dismiss, hide or remove the item, stop the
+              user uploading to that event, suspend the account); a notice to the host and to
+              support@evebash.com. Put the reason list and types in shared/ so the website and app match.
+              To decide: who can report (guests only, or anyone who can see the gallery, including logged-out
+              viewers of public galleries); the reasons; whether the host can act on reports in their own event
+              or only EveBash admins; whether an item is hidden for everyone after N reports or for some reasons
+              at once; whether the uploader is told (never who reported); a target response time; and whether
+              hosts also get a "block this guest" option.
+Done in:      -
+
+
+=====================================================================
+DONE / DROPPED (delete after 14 days)
+=====================================================================
+#34 "Copy link" button next to Share Invitation (website and app)
+Listed:       2026-11-15
+Platform:     Both
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Done in:      d3f34563 (2026-11-15)
+Effort:       S
+Suggested by: Claude (Shwetank agreed 2026-11-15, during the issue #21 staging tests)
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: do it now (fix problems as we find them); Share Invitation stays as it is.
+Owner:        Shwetank (with Claude)
+Depends on:   Issue #21 staging tests finished (no website changes while testing).
+Brief:        The share window (website host page, handleShareInvitation in src/app/(main)/host/page.tsx;
+              app apps/mobile/app/events/[id].tsx) has only "Share Invitation", which shares the whole message
+              ("Join our event ... Join ID: ... Link: https://..."). On a computer, choosing Copy in the share
+              menu copies the whole message, and pasted into a browser's address bar it gives a 404 (happened
+              twice in testing). Add a "Copy link" button that copies only getEventShareUrl(...), with a
+              "Link copied" message; same in the app. Also check whether WhatsApp shows the link twice, because
+              navigator.share gets both text (which already contains the link) and url; if so, pass only one.
+Update 2026-11-15: built. Website: "Copy link" button under Share Invitation in the host page's share window (handleCopyShareLink copies only getEventShareUrl, shows "Link copied" for 2 s). App: same button in the event's share window (expo-clipboard, already a dependency; styles shareCopyBtn/shareCopyText in baseStyles and the light host look). Type checks pass. Not changed: Share Invitation (the WhatsApp double-link check is left for the device test). Left: push to staging, check on the website, and in the app with the next staging build or the USB build.
+Update 2026-11-15: pushed to staging (d3f34563); Shwetank checked the website: Link copied, the pasted link opens the event. App part and the WhatsApp double-link check wait for the next app build: device test #215.
+Update 2026-11-15: app checked on Shwetank's Android phone (USB build, staging): Copy link shows "Link copied"; the link sent to WhatsApp opens the event page. Share Invitation in WhatsApp shows the preview card and the link once (no double link, nothing to change). On a phone the link opens in the browser, which shows the website's "Get the EveBash app" screen (existing behaviour, issue #109); opening the app straight from the link needs Android App Links (issue #67). Device test #215 PASS.
 
 #30 Separate Supabase database for staging and production
 Listed:       2026-11-11
