@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 37
+Next todo number: 38
 
 Last updated: 2026-11-15
 
@@ -737,6 +737,29 @@ Brief:        Confetti Circle (website src/components/TemplateConfetti.tsx, src/
               Portrait the same side-by-side check (their code also mentions "the reference"). The report
               advises doing this before launch, because after launch it changes paying hosts' live galleries.
               If any letter or takedown notice arrives first, call an IP lawyer before replying.
+
+#37 iOS: run and test the app in the iPhone simulator (staging)
+Listed:       2026-11-15
+Platform:     App
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       Agreed
+Effort:       M
+Suggested by: Shwetank (wants iOS done alongside Android, 2026-11-15)
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: start iOS now with the iPhone simulator on his Mac (free); real-device testing,
+              TestFlight and the App Store come with the paid Apple Developer account (company account after
+              Ossciv is incorporated, needs a D-U-N-S number). Shwetank has an iPhone for real-device tests later;
+              Sarthak doesn't.
+Owner:        Shwetank (with Claude)
+Depends on:   Xcode installed on Shwetank's Mac (Mac App Store, free; not installed on 2026-11-15, 101 GB free).
+Brief:        Build the EveBash Staging app (APP_VARIANT unset = staging, bundle ID com.evebash.app.staging) for
+              the iOS simulator on Shwetank's Mac, open it in the simulator panel, and run the same checks as the
+              Android USB build: login (email + password; Google and Sign in with Apple as far as the simulator
+              allows), staging-only event, upload from the photo library, gallery, Find You with a library photo,
+              vault, share window (Copy link), dark and light look. Fix iOS-only problems (layout, safe areas,
+              keyboard, permissions text). Not possible in the simulator: real push, the camera. Then add a device
+              test for a real iPhone, which waits for the Apple Developer account and todo #35.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
