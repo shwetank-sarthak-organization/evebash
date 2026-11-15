@@ -10,6 +10,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import * as Clipboard from 'expo-clipboard';
 import { Button } from '@/components/ui/Button';
 import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, getMemberDirectory, GuestProfile, removeGuestChatPermission, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery, getGalleryVideo, setGalleryVideo, type GalleryVideo } from '@/lib/database';
 import { confirmDenyRequest } from '@/lib/denyRequest';
@@ -1356,6 +1357,7 @@ function EventDetailScreen() {
   const [editTitleAlign, setEditTitleAlign] = useState<'left' | 'center' | 'right'>('left');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showShareModal, setShowShareModal] = useState(share === 'true');
+  const [shareLinkCopied, setShareLinkCopied] = useState(false);
   const [showApproved, setShowApproved] = useState(false);
 
   const [loadedActiveSubEvent, setActiveSubEvent] = useState<DatabaseEvent | null>(null);
@@ -2594,6 +2596,18 @@ function EventDetailScreen() {
       console.log('[GalleryOpen] Switched isAdminViewActive to false successfully!');
     } catch (error) {
       console.error('[GalleryOpen] Error in handleOpenGalleryImmersive:', error);
+    }
+  };
+
+  // Only the link, for a browser, a bio or a printed card (todo #34). Share Invitation sends the whole message.
+  const handleCopyShareLink = async () => {
+    if (!event) return;
+    try {
+      await Clipboard.setStringAsync(getGalleryWebUrl(event.id));
+      setShareLinkCopied(true);
+      setTimeout(() => setShareLinkCopied(false), 2000);
+    } catch (error) {
+      console.error('Copying the link failed', error);
     }
   };
 
@@ -8748,6 +8762,11 @@ function EventDetailScreen() {
             <TouchableOpacity style={styles.shareActionBtn} onPress={handleShare}>
               <IconSymbol name="square.and.arrow.up" size={18} color={hp.onAccent} />
               <Text style={styles.shareActionText}>Share Invitation</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.shareCopyBtn} onPress={handleCopyShareLink} accessibilityLiveRegion="polite">
+              <IconSymbol name={shareLinkCopied ? 'checkmark' : 'doc.on.doc.fill'} size={17} color={hp.gold} />
+              <Text style={styles.shareCopyText}>{shareLinkCopied ? 'Link copied' : 'Copy link'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.closeModalBtn} onPress={() => setShowShareModal(false)}>

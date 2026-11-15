@@ -60,6 +60,8 @@ export function makeHostLightStyles(base: EventStyles, c: typeof MidnightColors)
       shareModalContent: with_('shareModalContent', { backgroundColor: c.deepSlate }),
       shareActionBtn: with_('shareActionBtn', { backgroundColor: c.goldFill }),
       shareActionText: with_('shareActionText', { color: c.onAccent }),
+      shareCopyBtn: with_('shareCopyBtn', { borderColor: c.gold }),
+      shareCopyText: with_('shareCopyText', { color: c.gold }),
       joinIdBox: with_('joinIdBox', { backgroundColor: c.tint(0.03) }),
       joinIdLabel: with_('joinIdLabel', { color: c.slate400 }),
       joinIdValue: with_('joinIdValue', { color: c.gold }),

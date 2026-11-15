@@ -951,11 +951,11 @@ Listed:       2026-11-15
 Platform:     Both
 Priority:     Medium
 Phase:        1 (v1 launch)
-Status:       Agreed
+Status:       In progress
 Effort:       S
 Suggested by: Claude (Shwetank agreed 2026-11-15, during the issue #21 staging tests)
 Discussed:    Yes
-Decision:     2026-11-15 Shwetank: add it after the RLS staging tests; Share Invitation stays as it is.
+Decision:     2026-11-15 Shwetank: do it now (fix problems as we find them); Share Invitation stays as it is.
 Owner:        Shwetank (with Claude)
 Depends on:   Issue #21 staging tests finished (no website changes while testing).
 Brief:        The share window (website host page, handleShareInvitation in src/app/(main)/host/page.tsx;
@@ -965,6 +965,7 @@ Brief:        The share window (website host page, handleShareInvitation in src/
               twice in testing). Add a "Copy link" button that copies only getEventShareUrl(...), with a
               "Link copied" message; same in the app. Also check whether WhatsApp shows the link twice, because
               navigator.share gets both text (which already contains the link) and url; if so, pass only one.
+Update 2026-11-15: built. Website: "Copy link" button under Share Invitation in the host page's share window (handleCopyShareLink copies only getEventShareUrl, shows "Link copied" for 2 s). App: same button in the event's share window (expo-clipboard, already a dependency; styles shareCopyBtn/shareCopyText in baseStyles and the light host look). Type checks pass. Not changed: Share Invitation (the WhatsApp double-link check is left for the device test). Left: push to staging, check on the website, and in the app with the next staging build or the USB build.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)

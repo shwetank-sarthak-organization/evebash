@@ -81,6 +81,7 @@ import {
     SlidersHorizontal,
     BookImage,
     Monitor,
+    Link2,
 } from "lucide-react";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1164,6 +1165,7 @@ function DashboardContent() {
     const [renamingEvent, setRenamingEvent] = useState<Event | null>(null);
     const [editDetailsMode, setEditDetailsMode] = useState<"title" | "date">("title");
     const [shareModalEvent, setShareModalEvent] = useState<Event | null>(null);
+    const [shareLinkCopied, setShareLinkCopied] = useState(false);
 
     const [showPlanDetailsModal, setShowPlanDetailsModal] = useState(false);
     const [newTitle, setNewTitle] = useState("");
@@ -3075,6 +3077,24 @@ function DashboardContent() {
             }
         } catch (error) {
             console.error("Sharing failed:", error);
+        }
+    };
+
+    // Only the link, for a browser, a bio or a printed card (todo #34). Share Invitation sends the whole message.
+    const handleCopyShareLink = async () => {
+        if (!shareModalEvent) return;
+        try {
+            await navigator.clipboard.writeText(getEventShareUrl(shareModalEvent.id));
+            setShareLinkCopied(true);
+            setTimeout(() => setShareLinkCopied(false), 2000);
+        } catch (error) {
+            console.error("Copying the link failed:", error);
+            setMessage("Couldn't copy the link. Please use Share Invitation instead.");
+            setStatus("error");
+            setTimeout(() => {
+                setStatus("idle");
+                setMessage("");
+            }, 3000);
         }
     };
 
@@ -6539,6 +6559,15 @@ function DashboardContent() {
                                 >
                                     <Share2 className="h-5 w-5" />
                                     <span>Share Invitation</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleCopyShareLink}
+                                    aria-live="polite"
+                                    className="mt-3 flex w-full items-center justify-center gap-3 rounded-full border border-[var(--site-gold)]/50 px-6 py-4 text-sm font-black uppercase tracking-wide text-[var(--site-gold-text)] transition-colors hover:bg-[var(--site-gold)]/10 active:scale-[0.98]"
+                                >
+                                    {shareLinkCopied ? <Check className="h-5 w-5" /> : <Link2 className="h-5 w-5" />}
+                                    <span>{shareLinkCopied ? "Link copied" : "Copy link"}</span>
                                 </button>
                             </motion.div>
                         </div>
