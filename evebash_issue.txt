@@ -74,12 +74,13 @@ Listed: 2026-10-09
 Platform: Both
 Priority: Critical
 Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Testers on a new app build from staging; an agreed quiet window
+Owner: Shwetank (with Claude)
+Blocked by: - (live step needs an agreed quiet window)
 Found in: Supabase access check (2026-10-06)
 Issue: Supabase RLS lockdown part 2 is not applied yet: most tables can still be read and changed with the public app key (launch blocker). Everything is ready: run sheet https://claude.ai/artifact/WQCggv3QSkj6MSdewUKpTZ, draft docs/security/rls-lockdown-draft.sql, tested rollback docs/security/rls-lockdown-part2-rollback.sql.
 Before applying: re-scan which tables the website, app and backend read/write directly, and re-run both dry runs (docs/security/rls-lockdown-tests.sql and rls-lockdown-part1-tests.sql) on current staging, since a lot of code changed after the 2026-10-09 runs. If tables were added since then (EB Vault etc.), re-check the anon grant list at the top of the part 2 rollback. To undo, use ONLY rls-lockdown-part2-rollback.sql; never docs/security/rls-lockdown-rollback.sql, which also drops open_gallery, profile_cards and eb_private and breaks every gallery.
 How to reproduce: With only the public anon key, request /rest/v1/profiles?select=id,role: every profile comes back.
+Update 2026-11-15: taken over by Shwetank (with Claude) so a client can sign up on live safely; Sarthak moves to the app launch bugs. The old blockers are gone: staging has its own database since todo #30, and the EveBash Staging app build 997a9866 is on a test phone. Plan: re-scan direct table use (website, app, backend, EB Vault), update the scripts, dry runs on staging, apply on staging, test website + app, then live in a quiet window with the part 2 rollback ready.
 
 #25
 Listed: 2026-10-10
