@@ -900,14 +900,15 @@ Update 2026-11-14: DONE. EAS staging build 997a9866 (a97213d) checked on the Mac
 #32 Analytics dashboard: switch between Live and Staging data
 Listed:       2026-11-14
 Platform:     Analytics dashboard
-Priority:     Medium
-Phase:        TBD (1 or 2, decide after discussion)
-Status:       Idea
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       Agreed
 Effort:       M
 Suggested by: Shwetank (during todo #30)
-Discussed:    No
-Decision:     -
-Owner:        Unassigned
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: do it before the first client signs up on live, so live plans and
+              limits can be set from the dashboard (today it can only change staging).
+Owner:        Shwetank (with Claude)
 Depends on:   Todo #30 (staging and production separated).
 Brief:        Since todo #30 step 5h the local analytics dashboard (apps/analytics-dashboard,
               localhost:5173) reads STAGING (staging Supabase + api-staging), because the live server
