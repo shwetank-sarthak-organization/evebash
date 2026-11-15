@@ -1597,11 +1597,15 @@ d2d7be9) still has "evebash-media-key" baked in; it gets the new key at the next
 files) and Shwetank deleted it on 2026-11-14. The emptied "Evebash-Vault-Staging" bucket can now be
 deleted too (with Shwetank's OK). Status: Testing until "evebash-media-key" is deleted.
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #270
 Listed: 2026-11-15
 Platform: Both
 Priority: High
-Status: In progress
+Status: Fixed
 Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Dashboard login test during issue #21 (2026-11-15)
@@ -1609,10 +1613,8 @@ Issue: "Continue with Google" fails on everything that uses the staging database
 Fix: Google Cloud > APIs and services > Credentials > OAuth client "EveBash Web" > Authorized redirect URIs > add https://degbveyjppkuhydwxfjq.supabase.co/auth/v1/callback > Save (keep the live one). Takes a few minutes to apply.
 How to reproduce: localhost:5173 (Staging) or staging.evebash.com > Continue with Google.
 Update 2026-11-15: Shwetank added the staging return address to "EveBash Web" in Google Cloud (Clients). Checked by Claude: localhost:5173 (Staging) > Continue with Google now opens Google's account page for degbveyjppkuhydwxfjq.supabase.co instead of Error 400. The dashboard now always shows Google's account picker (prompt=select_account). Left: Shwetank logs in with an admin account to confirm.
-
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+Update 2026-11-15: Shwetank logged in to the dashboard (Staging) with Google: works.
+Fixed in: Google Cloud setting + dashboard aa6aea94 (2026-11-15)
 
 #268
 Listed: 2026-11-12
