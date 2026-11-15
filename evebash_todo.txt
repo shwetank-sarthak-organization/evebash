@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 34
+Next todo number: 35
 
 Last updated: 2026-11-12
 
@@ -945,6 +945,26 @@ Brief:        Today Modal (modal_engine/) and database changes (supabase/migrati
               databases (check each against the real schema), so nothing re-runs. (3) Test on staging
               with a harmless change, then one release to live. (4) Document the release order (database
               first if the new code needs it, then merge, then Modal) in the release notes.
+
+#34 "Copy link" button next to Share Invitation (website and app)
+Listed:       2026-11-15
+Platform:     Both
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Agreed
+Effort:       S
+Suggested by: Claude (Shwetank agreed 2026-11-15, during the issue #21 staging tests)
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: add it after the RLS staging tests; Share Invitation stays as it is.
+Owner:        Shwetank (with Claude)
+Depends on:   Issue #21 staging tests finished (no website changes while testing).
+Brief:        The share window (website host page, handleShareInvitation in src/app/(main)/host/page.tsx;
+              app apps/mobile/app/events/[id].tsx) has only "Share Invitation", which shares the whole message
+              ("Join our event ... Join ID: ... Link: https://..."). On a computer, choosing Copy in the share
+              menu copies the whole message, and pasted into a browser's address bar it gives a 404 (happened
+              twice in testing). Add a "Copy link" button that copies only getEventShareUrl(...), with a
+              "Link copied" message; same in the app. Also check whether WhatsApp shows the link twice, because
+              navigator.share gets both text (which already contains the link) and url; if so, pass only one.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
