@@ -111,6 +111,19 @@ begin
   end;
 end $$;
 
+create function pg_temp.after_write(p_sql text, p_check text) returns text language plpgsql as $$
+declare v_out text;
+begin
+  begin
+    execute p_sql;
+    execute p_check into v_out;
+    raise exception using errcode = 'P0099', message = 'undo';
+  exception
+    when sqlstate 'P0099' then return coalesce(v_out, 'null');
+    when others then return 'blocked';
+  end;
+end $$;
+
 create function pg_temp.try_call(p_sql text) returns text language plpgsql as $$
 declare v_out text;
 begin
@@ -186,9 +199,9 @@ insert into _r (who, check_name, expected, actual) values
   ('random', 'still cannot see other host',       '0', (select count(*) from public.events where id = 'step3-other')::text);
 insert into _r (who, check_name, expected, actual) values
   ('random', 'can edit own name',                 'rows=1', pg_temp.try_write($$update public.profiles set name = 'renamed' where id = '44444444-4444-4444-8444-444444444444'$$)),
-  ('random', 'cannot make self admin',            'blocked', pg_temp.try_write($$update public.profiles set role = 'admin' where id = '44444444-4444-4444-8444-444444444444'$$)),
-  ('random', 'cannot give self a paid plan',      'blocked', pg_temp.try_write($$update public.profiles set role = 'standard', plan_end_date = '2030-01-01' where id = '44444444-4444-4444-8444-444444444444'$$)),
-  ('random', 'cannot make self a manager',        'blocked', pg_temp.try_write($$update public.profiles set delegated_by = '11111111-1111-4111-8111-111111111111', role_type = 'primary' where id = '44444444-4444-4444-8444-444444444444'$$)),
+  ('random', 'cannot make self admin (kept)',     'user', pg_temp.after_write($$update public.profiles set role = 'admin' where id = '44444444-4444-4444-8444-444444444444'$$, $$select role from public.profiles where id = '44444444-4444-4444-8444-444444444444'$$)),
+  ('random', 'cannot give self a paid plan (kept)', 'user|null', pg_temp.after_write($$update public.profiles set role = 'standard', plan_end_date = '2030-01-01' where id = '44444444-4444-4444-8444-444444444444'$$, $$select role || '|' || coalesce(plan_end_date::text, 'null') from public.profiles where id = '44444444-4444-4444-8444-444444444444'$$)),
+  ('random', 'cannot make self a manager (kept)', 'null|null', pg_temp.after_write($$update public.profiles set delegated_by = '11111111-1111-4111-8111-111111111111', role_type = 'primary' where id = '44444444-4444-4444-8444-444444444444'$$, $$select coalesce(delegated_by, 'null') || '|' || coalesce(role_type, 'null') from public.profiles where id = '44444444-4444-4444-8444-444444444444'$$)),
   ('random', 'cannot edit someone else''s profile', 'rows=0', pg_temp.try_write($$update public.profiles set name = 'x' where id = '11111111-1111-4111-8111-111111111111'$$)),
   ('random', 'cannot approve own request',        'rows=0', pg_temp.try_write($$update public.guests set status = 'approved' where user_id = '44444444-4444-4444-8444-444444444444' and event_id = 'step3-private'$$)),
   ('random', 'can like a photo in joined gallery', 'rows=1', pg_temp.try_write($$insert into public.likes (photo_id, user_id) values ('step3-p2', '44444444-4444-4444-8444-444444444444')$$)),
@@ -283,7 +296,7 @@ insert into _r (who, check_name, expected, actual) values
   ('owner', 'can write deletion record',          'ok',     pg_temp.try_call($$select 'ok' from (select public.archive_deleted_event('step3-empty', 1, 0, 100, 'user_web', now())) x$$)),
   ('owner', 'cannot read deletion records (admin only)', '0', (select count(*) from public.deleted_events_archive where event_id = 'step3-empty')::text),
   ('owner', 'can delete own gallery',             'rows=1', pg_temp.try_write($$delete from public.events where id = 'step3-empty'$$)),
-  ('owner', 'cannot make self admin',             'blocked', pg_temp.try_write($$update public.profiles set role = 'admin' where id = '11111111-1111-4111-8111-111111111111'$$)),
+  ('owner', 'cannot make self admin (kept)',      'standard', pg_temp.after_write($$update public.profiles set role = 'admin' where id = '11111111-1111-4111-8111-111111111111'$$, $$select role from public.profiles where id = '11111111-1111-4111-8111-111111111111'$$)),
   ('owner', 'cannot delete other host gallery',   'rows=0', pg_temp.try_write($$delete from public.events where id = 'step3-other'$$));
 delete from public.events where id = 'step3-public-sub';   -- kept (not undone): checked below as postgres
 reset role;
@@ -429,6 +442,17 @@ insert into _r (who, check_name, expected, actual) values
      from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r')),
   ('db', 'no table without RLS', '0', (select count(*)::text from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and not c.relrowsecurity)),
   ('db', 'old public-viewing trigger gone', '0', (select count(*)::text from pg_trigger where tgname = 'guard_event_public_setting'));
+
+
+-- The website's/app's profile save (createUserProfile) upserts role and role_type every time (2026-11-15 staging test)
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-8444-444444444444","role":"authenticated","email":"random@step3.test"}', true);
+set local role authenticated;
+insert into _r (who, check_name, expected, actual) values
+  ('random', 'profile save with role fields works', 'user|null', pg_temp.after_write(
+     $$insert into public.profiles (id, name, email, role, role_type, last_login) values ('44444444-4444-4444-8444-444444444444', 'Step3 Random', 'random@step3.test', 'user', 'primary', now())
+       on conflict (id) do update set name = excluded.name, role = excluded.role, role_type = excluded.role_type, last_login = excluded.last_login$$,
+     $$select role || '|' || coalesce(role_type, 'null') from public.profiles where id = '44444444-4444-4444-8444-444444444444'$$));
+reset role;
 
 -- ── Results (raising here rolls back the whole transaction) ────────────────────
 do $$

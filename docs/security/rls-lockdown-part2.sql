@@ -71,13 +71,13 @@ begin
     new.pending_plan_start_date := null; new.pending_plan_end_date := null;
     return new;
   end if;
-  if (new.role, new.role_type, new.delegated_by, new.subscription_duration, new.plan_start_date, new.plan_end_date,
-      new.pending_plan_role, new.pending_subscription_duration, new.pending_plan_start_date, new.pending_plan_end_date)
-     is distinct from
-     (old.role, old.role_type, old.delegated_by, old.subscription_duration, old.plan_start_date, old.plan_end_date,
-      old.pending_plan_role, old.pending_subscription_duration, old.pending_plan_start_date, old.pending_plan_end_date) then
-    raise exception 'Plan, role and admin changes go through the server' using errcode = '42501';
-  end if;
+  -- Keep the stored values instead of refusing the save: the website's and app's profile save (createUserProfile)
+  -- sends role and role_type every time, and failing it blocked creating events (found in the 2026-11-15 staging test)
+  new.role := old.role; new.role_type := old.role_type; new.delegated_by := old.delegated_by;
+  new.subscription_duration := old.subscription_duration;
+  new.plan_start_date := old.plan_start_date; new.plan_end_date := old.plan_end_date;
+  new.pending_plan_role := old.pending_plan_role; new.pending_subscription_duration := old.pending_subscription_duration;
+  new.pending_plan_start_date := old.pending_plan_start_date; new.pending_plan_end_date := old.pending_plan_end_date;
   return new;
 end $$;
 drop trigger if exists eb_protect_profile_columns on public.profiles;
