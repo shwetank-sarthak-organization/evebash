@@ -928,7 +928,7 @@ Suggested by: Claude (Shwetank agreed 2026-11-15)
 Discussed:    Yes
 Decision:     2026-11-15 Shwetank: automate both, with a manual "Approve" on GitHub before anything
               reaches live. Do it after the RLS lockdown (issue #21), which stays a careful manual step.
-Owner:        Unassigned
+Owner:        Shwetank (with Claude)
 Depends on:   Issue #21 (RLS lockdown part 2) done first; todo #30 (separate staging and live).
 Brief:        Today Modal (modal_engine/) and database changes (supabase/migrations/*.sql) are published
               by hand, and nothing records which .sql file has run on which database. Add GitHub Actions:

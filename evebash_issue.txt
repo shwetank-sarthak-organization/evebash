@@ -847,12 +847,13 @@ Listed: 2026-10-25
 Platform: Both
 Priority: High
 Status: Open
-Owner: Sarthak
+Owner: Shwetank (with Claude)
 Blocked by: Sarthak: set the variables on the production Railway service before launch
 Found in: launch-config review after #120-#124 and #121 (2026-10-25)
 Issue: The new backend switches are only set on the staging Railway service (api-staging.evebash.com). The production service (api.evebash.com, Railway qa264myg) has none of them, so after launch rotate would again keep stale copies (#123) and turn phone photos the wrong way (#124), and rotate wouldn't make grid images (#121).
 Fix: On the production Railway service set ROTATE_VERSIONED_LINKS=true (#123), ROTATE_UPRIGHT_FIRST=true (#124) and GRID_VARIANT=true (#121), after their device tests (test_yourself #130, #131, #135) pass. Already done elsewhere: Vercel Production has NEXT_PUBLIC_GRID_HIRES=true (on with the next release from main); the Cloudflare media cache and the Modal "grid" switch are shared by staging and production. Optional at the same time: delete the leftover Cloudflare DNS record media.evebash.com.evebash.com (old media-proxy custom domain, serves nothing).
 How to reproduce: Railway > production backend service > Variables: the three names are missing.
+Update 2026-11-15: owner changed from Sarthak to Shwetank (with Claude); done as part of the next release to live, after the RLS lockdown (#21).
 
 #138
 Listed: 2026-10-25
