@@ -1601,13 +1601,14 @@ deleted too (with Shwetank's OK). Status: Testing until "evebash-media-key" is d
 Listed: 2026-11-15
 Platform: Both
 Priority: High
-Status: Open
+Status: In progress
 Owner: Shwetank (with Claude)
-Blocked by: Shwetank: add the staging return address in Google Cloud
+Blocked by: -
 Found in: Dashboard login test during issue #21 (2026-11-15)
 Issue: "Continue with Google" fails on everything that uses the staging database (staging website, analytics dashboard on Staging): Google shows "Error 400: redirect_uri_mismatch". The Google web sign-in client "EveBash Web" (project evebash-e36ae) only lists the live Supabase return address (https://sbhouirpyiyybrravvih.supabase.co/auth/v1/callback); the staging project made in todo #30 (degbveyjppkuhydwxfjq) was never added. Staging Supabase itself is fine (Google provider on, localhost and staging.evebash.com allowed). The app is not affected (native Google sign-in with an ID token, no return address).
 Fix: Google Cloud > APIs and services > Credentials > OAuth client "EveBash Web" > Authorized redirect URIs > add https://degbveyjppkuhydwxfjq.supabase.co/auth/v1/callback > Save (keep the live one). Takes a few minutes to apply.
 How to reproduce: localhost:5173 (Staging) or staging.evebash.com > Continue with Google.
+Update 2026-11-15: Shwetank added the staging return address to "EveBash Web" in Google Cloud (Clients). Checked by Claude: localhost:5173 (Staging) > Continue with Google now opens Google's account page for degbveyjppkuhydwxfjq.supabase.co instead of Error 400. The dashboard now always shows Google's account picker (prompt=select_account). Left: Shwetank logs in with an admin account to confirm.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
