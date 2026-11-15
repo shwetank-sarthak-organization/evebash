@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 215
+Next test number: 216
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6164,3 +6164,26 @@ Feedback:  All steps passed. Build checked on the Mac first: package com.evebash
            EveBash Staging, scheme evebash-staging, staging Supabase/api-staging/media-staging only, no
            live addresses. Photo uploaded 16:59 UTC: processed, ready, indexed, media-staging thumbnail, in
            "Staging test 1 - Sub Gallery". Live database: 0 new photos.
+
+#215 Website + App: "Copy link" in the share window copies only the event link (todo #34)
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     The share window has a "Copy link" button under Share Invitation. It copies only the event's link
+           (no invitation text), so it can be pasted into a browser, a bio or a card.
+Detail:    Website part checked by Shwetank on staging 2026-11-15 (Link copied, pasted link opened the event).
+           The app part needs a new EveBash Staging build (or the USB build rebuilt).
+How to test:
+  1. Website (staging.evebash.com, host): open an event's share window, tap Copy link. Expect: "Link copied".
+  2. Paste into a new tab's address bar. Expect: the event page opens (no 404).
+  3. App (EveBash Staging, host): open the event, Share, tap Copy link. Expect: "Link copied".
+  4. Paste the link into WhatsApp or Notes and tap it. Expect: the event opens.
+  5. Share Invitation to WhatsApp (send to yourself). Note whether the link shows twice (todo #34 asks to check).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:  2026-11-15 steps 1-2 passed on the website (Shwetank). Steps 3-5 wait for the app build.

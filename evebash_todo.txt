@@ -966,6 +966,7 @@ Brief:        The share window (website host page, handleShareInvitation in src/
               "Link copied" message; same in the app. Also check whether WhatsApp shows the link twice, because
               navigator.share gets both text (which already contains the link) and url; if so, pass only one.
 Update 2026-11-15: built. Website: "Copy link" button under Share Invitation in the host page's share window (handleCopyShareLink copies only getEventShareUrl, shows "Link copied" for 2 s). App: same button in the event's share window (expo-clipboard, already a dependency; styles shareCopyBtn/shareCopyText in baseStyles and the light host look). Type checks pass. Not changed: Share Invitation (the WhatsApp double-link check is left for the device test). Left: push to staging, check on the website, and in the app with the next staging build or the USB build.
+Update 2026-11-15: pushed to staging (d3f34563); Shwetank checked the website: Link copied, the pasted link opens the event. App part and the WhatsApp double-link check wait for the next app build: device test #215.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
