@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 270
+Next issue number: 271
 
 =====================================================================
 ACTIVE ISSUES
@@ -1596,6 +1596,18 @@ d2d7be9) still has "evebash-media-key" baked in; it gets the new key at the next
 (not all buckets); it was no longer used anywhere (checked: staging and live Railway, local settings
 files) and Shwetank deleted it on 2026-11-14. The emptied "Evebash-Vault-Staging" bucket can now be
 deleted too (with Shwetank's OK). Status: Testing until "evebash-media-key" is deleted.
+
+#270
+Listed: 2026-11-15
+Platform: Both
+Priority: High
+Status: Open
+Owner: Shwetank (with Claude)
+Blocked by: Shwetank: add the staging return address in Google Cloud
+Found in: Dashboard login test during issue #21 (2026-11-15)
+Issue: "Continue with Google" fails on everything that uses the staging database (staging website, analytics dashboard on Staging): Google shows "Error 400: redirect_uri_mismatch". The Google web sign-in client "EveBash Web" (project evebash-e36ae) only lists the live Supabase return address (https://sbhouirpyiyybrravvih.supabase.co/auth/v1/callback); the staging project made in todo #30 (degbveyjppkuhydwxfjq) was never added. Staging Supabase itself is fine (Google provider on, localhost and staging.evebash.com allowed). The app is not affected (native Google sign-in with an ID token, no return address).
+Fix: Google Cloud > APIs and services > Credentials > OAuth client "EveBash Web" > Authorized redirect URIs > add https://degbveyjppkuhydwxfjq.supabase.co/auth/v1/callback > Save (keep the live one). Takes a few minutes to apply.
+How to reproduce: localhost:5173 (Staging) or staging.evebash.com > Continue with Google.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
