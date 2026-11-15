@@ -201,7 +201,9 @@ export default function App() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin
+          redirectTo: window.location.origin,
+          // Always show Google's account picker, so the right admin account can be chosen
+          queryParams: { prompt: 'select_account' }
         }
       });
       if (error) throw error;
