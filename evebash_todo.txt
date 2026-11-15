@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 33
+Next todo number: 34
 
 Last updated: 2026-11-12
 
@@ -916,6 +916,32 @@ Brief:        Since todo #30 step 5h the local analytics dashboard (apps/analyti
               URL), a clear banner showing which one is active, and allow the dashboard origin on the
               live server's CORS (or host the dashboard on its own domain). Admin login must work on
               both Supabase projects (redirect URLs for the dashboard on each).
+
+#33 Automatic Modal publishing and database migrations (GitHub Actions)
+Listed:       2026-11-15
+Platform:     Backend only
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       Agreed
+Effort:       M
+Suggested by: Claude (Shwetank agreed 2026-11-15)
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: automate both, with a manual "Approve" on GitHub before anything
+              reaches live. Do it after the RLS lockdown (issue #21), which stays a careful manual step.
+Owner:        Unassigned
+Depends on:   Issue #21 (RLS lockdown part 2) done first; todo #30 (separate staging and live).
+Brief:        Today Modal (modal_engine/) and database changes (supabase/migrations/*.sql) are published
+              by hand, and nothing records which .sql file has run on which database. Add GitHub Actions:
+              push to staging -> publish Modal to the "staging" environment (.env.modal-staging values)
+              and apply new migrations to the staging database; merge to main -> the same for live
+              (Modal "main", live database), only after a required approval (GitHub environment
+              "production" with Shwetank/Sarthak as reviewers). Steps: (1) Modal tokens per environment
+              and the settings as GitHub secrets (never in the repo); Modal step only when modal_engine/
+              changed. (2) Migrations with the Supabase CLI, which keeps a history table per database;
+              one-time baseline first: mark every migration already applied by hand as applied on both
+              databases (check each against the real schema), so nothing re-runs. (3) Test on staging
+              with a harmless change, then one release to live. (4) Document the release order (database
+              first if the new code needs it, then merge, then Modal) in the release notes.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
