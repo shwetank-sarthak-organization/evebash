@@ -6194,21 +6194,22 @@ Priority:  High
 Platform:  App (Android)
 Brief:     Sometimes every screen in the app stopped loading (empty screens, uploads not starting) until the app was
            closed and reopened. Cause: Android kept reusing a connection to Supabase that had silently died. The app
-           now checks its connection every 10 s and replaces a dead one. Check that the app works as before and
+           now checks its connection every 5 s and replaces a dead one. Check that the app works as before and
            recovers by itself after network changes.
-Detail:    Fix eb096f18 (apps/mobile/plugins/withOkHttpHealthPings.js). Native change: needs a new EveBash Staging
-           build (EAS), or the USB development build rebuilt; an over-the-air update won't carry it. Android only.
-           Already checked on the Mac with the same Android network library against staging: without the fix every
-           request after a silent drop hung 20 s, again and again; with it the app's next requests worked.
+Detail:    Fix eb096f18 + f55b4d38 (apps/mobile/plugins/withOkHttpHealthPings.js). Native change: needs a new
+           EveBash Staging build (EAS), or the USB development build rebuilt; an over-the-air update won't carry it.
+           Android only. Already checked on the Mac with the same Android network library against staging: without
+           the fix every request after a silent drop hung 20 s, again and again; with it the request came back in
+           about 10 s and the next ones at normal speed.
 How to test:
   1. Install the new staging build and log in with a test account. Open a few galleries, some photos and
      Profile. Expect: everything loads as before.
   2. With a gallery open, turn Wi-Fi off (the phone moves to mobile data) and open another gallery or pull to
-     refresh. Expect: it loads (at worst after about 20 s), and the screens after it load normally.
+     refresh. Expect: it loads (at worst after about 10 s), and the screens after it load normally.
   3. Turn Wi-Fi back on and do the same. Expect: same.
   4. Leave the app open on the Dashboard for 10 minutes with the screen on, then open a gallery. Expect: it loads.
   5. Lock the phone for 10 minutes or more with the app open, unlock and use it. Expect: screens load (the first
-     one may take up to about 20 s), with no need to close the app.
+     one may take up to about 10 s), with no need to close the app.
   6. Log out, log in with a second test account and open an event (where #260 was first seen). Expect: it loads.
   7. Upload 3 photos to a test gallery. Expect: uploads start and finish as before.
   8. If screens ever stop loading: note the time, wait 30 s and try again without closing the app, and say in
