@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 272
+Next issue number: 273
 
 =====================================================================
 ACTIVE ISSUES
@@ -1500,12 +1500,13 @@ Platform: App
 Priority: High
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #216) on a new app build; move to RECENTLY FIXED once it passes
+Blocked by: Device check (test_yourself #216) on a new EAS staging build (already passed on the USB dev build); move to RECENTLY FIXED once it passes
 Found in: Device tests #40 and #202 on an Android phone (2026-11-11)
 Issue: The app sometimes stops loading anything: every Supabase request times out (lib/supabase.ts gives up after 20 s with "Supabase request timed out") until the app is closed and reopened. Screens stay empty or half-loaded and uploads don't start, with no message to the user. At the same time the website, the backend and Supabase were fast, and the phone's Wi-Fi worked (ping to the Supabase host fine), so it is inside the app. Seen twice on 2026-11-11 (13:16 and 16:28, local dev build com.evebash.app on an Android 14 phone over USB; the second time about 30 s after logging out and into another account and opening an event). Cause not confirmed; a guess is a stalled HTTP connection to Supabase that keeps being reused (requests failed in groups of 3 to 5). Check whether it also happens in a release/staging build and without the USB/Metro connection.
 How to reproduce: Not reliable yet. In the app, log out, log in as another account and open an event; or leave the app open for a while and come back. If screens stop loading, the device log (adb logcat, ReactNativeJS) shows repeated "[Supabase] Network request failed: Supabase request timed out" while the website works.
 Update 2026-11-12: seen again during device test #18 (Android phone, shwetank.chauhan3@gmail.com, opening Wedding 2 to move a video): every request timed out, then the app lost its link to Metro. After a restart it worked; one more single timeout appeared when opening the gallery link, but the move still went through.
 Note 2026-11-15: cause found, fixed in eb096f18 + f55b4d38 (Android only). React Native's Android HTTP client (OkHttp, no timeouts) never checks that a pooled HTTP/2 connection is still alive. When the network path to Supabase dies silently (no reset reaches the phone, e.g. a Wi-Fi/NAT drop or the phone sleeping), every later request is sent down that dead connection and hangs until lib/supabase.ts aborts it after 20 s. The abort doesn't mark the connection broken, so this repeats until the app restarts. Reproduced on the Mac with the same library (OkHttp 4.9.2 and 4.12.0, React Native's settings) against staging Supabase, through a relay that silently drops the connection: 4 of 4 requests after the drop hung 20 s and no new connection was tried. Fix: config plugin apps/mobile/plugins/withOkHttpHealthPings.js (in app.json) gives React Native's client an HTTP/2 ping every 5 s; otherwise it is the default client (cookie jar, 10 MB cache, no timeouts). OkHttp then fails a dead connection within 10 s, inside the app's 20 s limit, and retries the request on a new one: in the same test the request in flight came back 200 in about 9.5 s (both OkHttp versions) and the next ones took about 50 ms. A 4-minute idle run with the pings kept the same connection to staging Supabase (the server doesn't mind them). Other native clients don't need the change: images (expo-image), video, audio and photo uploads (expo-file-system) use OkHttp with read timeouts, which find a dead connection by themselves (10 s; 60 s for upload chunks); only React Native's client has none. It is a native change, so it needs a new app build (an over-the-air update won't carry it). Checked: the USB dev build of EveBash Staging on the Pixel 8 has the code (dexdump, interval 5) and loads the dashboard from staging normally. Left: device test #216 on a new build.
+Note 2026-11-15: device test #216 steps 1-7 passed on the Pixel 8 USB dev build (Sarthak with Claude reading the phone's log): Wi-Fi off (mobile data) and back on, 10 min idle, 10 min locked, log out and in, and a 3-photo upload all loaded in about 1-2 s, with 0 timeouts, network failures or crashes. Left: push, a new EveBash Staging build (EAS), and #216 on it without USB or Metro; then move this issue to RECENTLY FIXED.
 
 #261
 Listed: 2026-11-12
@@ -1613,6 +1614,17 @@ Issue: The app's design needs a full pass. Go screen by screen and fix whatever 
 How to reproduce: On staging, open each main app screen (Dashboard, Host, an event as host and as guest, an album, Profile, Settings, EB Network) once with Settings > Appearance set to Light and once set to Dark, and note anything that looks wrong or doesn't match the website.
 How to reproduce: Backblaze > Application Keys: "evebash-media-key" (...0001) still exists with access to all buckets.
 Note 2026-11-15 (from Sarthak's Claude, checked by Claude): before the live Modal deploy, add BACKEND_API_URL=https://api.evebash.com to the root .env. live Modal posts "video processed" to {BACKEND_API_URL}/api/v1/media/internal/video-processed (modal_engine/main.py _notify_video_processed). Shwetank's root .env has no BACKEND_API_URL at all (the callback is then skipped); Sarthak's has api-staging, which since todo #30 5d answers 401 (staging's own INTERNAL_JOB_SECRET). Today no user impact: live Railway has VIDEO_READY_PUSH unset, so the backend announces videos at upload and doesn't wait for this callback. Also check that the root .env's INTERNAL_JOB_SECRET matches live Railway's (compare without printing). After the deploy: one test video on live, expect "Video-ready callback ... HTTP 200" in the live Modal logs.
+
+#272
+Listed: 2026-11-15
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Sarthak
+Blocked by: -
+Found in: Sarthak's chat (2026-11-15): "the photo viewer design issue"
+Issue: The app's photo viewer (apps/mobile/components/PhotoViewer.tsx, styles in apps/mobile/components/eventStyles/visitorImmersiveStyles.ts) has a design problem. Placeholder: Sarthak will look at the viewer and write down what is wrong here. Viewer problems already listed on their own: #239 (empty "Quality: Auto" gear in the video player), #240 (comment panel), #242 (Android keyboard covers the comment box), #251 (Sunlit Portrait action row too tall). Part of the app design pass (#271).
+How to reproduce: On staging, open a gallery in the app and tap a photo. Steps to be added by Sarthak.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

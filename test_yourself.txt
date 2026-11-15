@@ -6221,4 +6221,11 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  First run 2026-11-15 on the USB development build (debug build with eb096f18 + f55b4d38, Metro over USB),
+           Pixel 8 / Android 16, Sarthak with Claude reading the phone's log: steps 1-7 PASS, 0 timeouts, 0 network
+           failures, 0 crashes. 1) gallery ~1 s, photos ~0.5 s. 2) Wi-Fi off, phone on mobile data (LTE): ~1.7 s.
+           3) back on Wi-Fi: ~1.5 s. 4) 10 min idle, screen on: ~1.9 s. 5) 10 min locked: photos ~1 s after unlock.
+           6) log out and in, open event: ~0.9 s. 7) 3 photos uploaded (3-6 s each), processed in 15 s, thumbnails on
+           media-staging. Accounts: newone1 (looked only) and Sarthak's own (gallery "Test 260"). Still to do: the
+           same on the EAS staging build, without USB or Metro (#260 asked for that check), then fill in the fields
+           above.
