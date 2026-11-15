@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 217
+Next test number: 218
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6229,3 +6229,40 @@ Feedback:  First run 2026-11-15 on the USB development build (debug build with e
            media-staging. Accounts: newone1 (looked only) and Sarthak's own (gallery "Test 260"). Still to do: the
            same on the EAS staging build, without USB or Metro (#260 asked for that check), then fill in the fields
            above.
+--------------------------------------------------------------------------------
+#217 App: the upload bar shows clear counts, a state icon and bigger buttons (issue #273)
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone + Android)
+Brief:     The bar at the bottom of a gallery while the host uploads was redesigned. Before, it said "Uploading photos
+           (0 of 10)" the whole time, showed file names, stopped near 90% and had tiny Retry and Cancel buttons. Now
+           it counts files as they upload, shows a percent, has an icon for each state (uploading, waiting for
+           connection, getting videos ready, done, didn't upload) and bigger buttons. Check it in Light and Dark.
+Detail:    Fix 22ec6541 (apps/mobile/components/event/UploadProgressCard.tsx). JavaScript only: reaches the staging
+           app with an over-the-air update or a new build. Host view only; the pop-ups guests see are unchanged.
+           Checked by Claude on the iPhone 16e simulator with made-up upload data, not with real uploads.
+How to test:
+  1. Log in as a host on staging, open one of your galleries, tap Add Photos and pick about 10. Expect: a card
+     slides up above the bottom bar with a cloud icon, "Uploading 10 photos" and "3 of 10 uploaded · 34%". The
+     count goes up as each photo finishes, the percent climbs smoothly, and no file names are shown.
+  2. Watch the end. Expect: "10 photos uploaded" with a green tick, "Finishing up. You can leave this screen." and
+     a Hide button; then the card goes and a "10 photos uploaded" message shows. Hide makes the card go at once.
+  3. Start 10 more and, while they upload, pick 5 more. Expect: the card says "Uploading 15 photos" and never shows
+     more uploaded than the total or more than 99% before the end.
+  4. Start an upload, then turn on airplane mode. Expect: a yellow no-Wi-Fi icon, "Waiting for connection" and "N of
+     M uploaded. The rest carry on when you're back online." Turn airplane mode off. Expect: it carries on.
+  5. Upload one long video (over 20 MB). Expect: the second line shows sizes ("120 MB of 480 MB · 25%"). After the
+     upload, "Getting 1 video ready" with a clock icon and a bar that slides back and forth, plus a Hide button.
+  6. Tap Cancel during an upload. Expect: "Cancel uploads?" with "Keep uploading" and "Cancel uploads".
+  7. Make a file fail (for example, go over a free plan's limit). Expect: "1 photo didn't upload" with a red warning
+     icon, "See why" (opens the reason), a red Retry and a Dismiss button. Retry tries it again.
+  8. Switch Settings > Appearance between Light and Dark and repeat step 1. Expect: the card is easy to read in
+     both, and Retry, Cancel and Hide are easy to tap.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
