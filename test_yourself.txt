@@ -1213,7 +1213,7 @@ Done by:   Sarthak (with Claude guiding and reading the phone's log)
 Device / browser: Pixel 8, Android 16, Gboard
 Build / version: EAS staging build e4b646ad (staging a430d44c, versionCode 25)
 Date tested: 2026-11-16
-Account used: newone1 (staging test account)
+Account used: Sarthak's own account (signed in on the phone)
 Screenshot / recording:
 Fix ref:
 Feedback:  Android steps 1-5 PASS (tester's result). Step 5 used Gboard's Floating keyboard on the phone instead of a
@@ -3742,7 +3742,7 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:  2026-11-16 partial run, Android only (Pixel 8, Android 16, EAS staging build e4b646ad, account newone1;
+Feedback:  2026-11-16 partial run, Android only (Pixel 8, Android 16, EAS staging build e4b646ad, Sarthak's own account;
            Sarthak, with Claude checking the staging database): steps 1, 2 and 4 PASS. Network off for about 2 min
            mid-upload: no "upload failed", the upload carried on by itself, and all 14 photos arrived once with
            thumbnails. Step 3 not hit (the second cut came after the last photo was in). iPhone not run. Tip: a Pixel
@@ -3796,7 +3796,7 @@ Feedback:         1 PASS: dashboard "How to host" card dark warm brown (#1E1B17 
 
 --------------------------------------------------------------------------------
 #145 Crashes and errors reach Sentry, with no personal data
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website + App (staging) + Backend
 Brief:     Sentry crash and error reporting (todo #6). It is off unless the Sentry DSN env var is set, so
@@ -3829,28 +3829,34 @@ How to test:
   7. Production website: Expect: no requests to "ingest.us.sentry.io" in the network tab (Sentry is off there).
   8. App: once SENTRY_AUTH_TOKEN is an EAS secret, open an app error in Sentry from a build made after that.
      Expect: real file and function names, not minified code. In the EAS build log, expect no "sentry-cli" failure.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Sarthak with Claude (app on the phone; website and backend by Claude, Sentry read by Claude in Sarthak's Chrome)
+Device / browser: Pixel 8, Android 16; Claude built-in browser (desktop size); Sarthak's Chrome for sentry.io
+Build / version: EAS staging build e4b646ad (steps 4-5); crash-test build e67e82ff (step 8); staging.evebash.com
+Date tested: 2026-11-16
+Account used: phone: Sarthak's own account; website: newone
 Screenshot / recording:
 Fix ref:
 Feedback:  2026-11-16 app steps 4 and 5 PASS (Sarthak, with Claude checking the staging database and the phone's log;
-           Pixel 8, Android 16, EAS staging build e4b646ad = staging a430d44c, versionCode 25, Sentry on; account
-           newone1): normal use and a 15-photo upload worked as before, no pop-ups or slow start-up. Airplane mode
+           Pixel 8, Android 16, EAS staging build e4b646ad = staging a430d44c, versionCode 25, Sentry on;
+           Sarthak's own account): normal use and a 15-photo upload worked as before, no pop-ups or slow start-up. Airplane mode
            with Wi-Fi off mid-upload: no "upload failed", the upload paused 2 min 15 s and carried on by itself; all
            14 photos arrived once with thumbnails, none failed.
            2026-11-16 website and backend steps 1, 2, 3, 6 and 7 PASS (Claude in the Claude built-in browser, desktop
-           size, not a real phone; signed in to staging by Sarthak as newone1). 1: dashboard, Host console and a gallery
+           size, not a real phone; signed in to staging by Sarthak as newone). 1: dashboard, Host console and a gallery
            (staging-test-1-sub-gallery-67fb) load as before; its cover photo is broken by a staging image setting, not by
            Sentry (issue #279). 2: a test error on staging.evebash.com was accepted by Sentry (HTTP 200, environment
            "staging"). 3: checked in what the browser sent, logged out and signed in (event 0787fdf3332e4687a67dcd864e18d166):
            no email (not even the signed-in user's), no tokens, no Authorization or Cookie header, no user; not opened on
            sentry.io. 6: Railway evebash-api-staging-backend deploy log (2026-11-16 07:45 UTC) says "Sentry error
            reporting on" and /health answers 200. 7: www.evebash.com doesn't load Sentry, and a test error sent nothing.
-           Only step 8 is left: an app error in Sentry (evebash-app) with readable file and function names, e.g. from
-           the crash-test build for test #165.
+           2026-11-16 steps 3 and 8 PASS, read on sentry.io: the two website test errors (evebash-web, "staging") hold no
+           email, tokens, Authorization or Cookie header; the user part has only a rough city that Sentry works out
+           from the sender's address (the address itself isn't stored). The app crash from the crash-test build for
+           test #165 (EAS e67e82ff = staging a7a02520 plus a temporary page that was never pushed) is EVEBASH-APP-1
+           (evebash-app, release com.evebash.app.staging@1.2.4+25, dist 25, Pixel 8 / Android 16): real names, file
+           app/events/crash-test.tsx, function CrashTest, line 3 with its code; user only an id and a rough city, no
+           email or tokens. The build log shows the source map upload with no sentry-cli error. It was the first event
+           evebash-app ever received.
 
 --------------------------------------------------------------------------------
 #146 Phone menu shows Profile and Logout when signed in (issue #70)
@@ -4617,7 +4623,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #165 A page that fails shows an error screen instead of closing the app
-Status:    TODO
+Status:    PASS
 Priority:  High (launch blocker, test first)
 Platform:  App (Android first; iPhone was only checked on a simulator)
 Brief:     Issue #184. When a page fails to draw, the app now shows "Something went wrong" with Try again and
@@ -4638,21 +4644,28 @@ Detail:    App code only, no new native build needed. On staging in 6653ed4.
            adb shell am start -a android.intent.action.VIEW -d evebash://events/crash-test
            Its source maps are in Sentry (evebash-app), so the step 5 error should show readable file and function names.
 How to test:
-  1. Open evebash://events/crash-test. Expect: "Something went wrong" with Try again and Go back, the app stays
-     open, and no page name such as events/crash-test shows at the top.
-  2. Tap Try again. This page keeps failing, so expect: the app reloads and lands on the Dashboard, with no crash.
+  1. Open evebash-staging://events/crash-test (evebash:// on the live app). Expect: "Something went wrong" with
+     Try again and Go back, the app stays open, and no page name such as events/crash-test shows at the top.
+  2. Tap Try again. Expect: the app reloads and opens the page again, with no crash. The test page always fails,
+     so the error screen comes back (on the iPhone simulator it landed on the Dashboard instead; both are fine).
   3. Open the link again and tap Go back. Expect: you land on the Dashboard.
   4. Open a real gallery, scroll, open a photo, then go back. Expect: everything works as it did before.
   5. In a staging build with Sentry on (test #145), repeat step 1. Expect: the error appears in Sentry with no
      personal data in it.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Sarthak with Claude (Claude opened the page and tapped over USB, read the screen, the phone's log and Sentry)
+Device / browser: Pixel 8, Android 16
+Build / version: crash-test build e67e82ff (EAS staging profile, staging a7a02520 plus a temporary page that was never
+           pushed); the normal staging build e4b646ad was put back afterwards
+Date tested: 2026-11-16
+Account used: Sarthak's own account
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  Steps 1, 3, 4 and 5 PASS, step 2 as reworded above. 1: "Something went wrong" with Try again and Go back, no page
+           name, app open. 2: Try again reloaded the app (same process) and opened the page again, which failed again,
+           so the error screen came back; no crash. 3: Go back landed on the Dashboard. 4: gallery "Test event staging"
+           opened, scrolled, a photo opened in the viewer and Back returned; no other app errors. 5: the error is
+           EVEBASH-APP-1 in Sentry (evebash-app) with real file and function names and no email or tokens (test #145).
+           0 lines in the phone's crash log throughout.
 
 --------------------------------------------------------------------------------
 #166 App polish: sheet headers, Plan & Usage header, Profile role, password box, Phase 2 wording
