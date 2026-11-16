@@ -1592,12 +1592,13 @@ How to reproduce: select join_id, count(*) from events where join_id is not null
 Listed: 2026-11-16
 Platform: Website
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Push (Sarthak's OK), then a check of the cover photo on the staging deploy
 Found in: Device test #145 step 1 on staging.evebash.com (chat 2026-11-16)
 Issue: On the staging website, photos shown through Next.js's image resizer don't load. next.config.mjs (images.remotePatterns) allows media.evebash.com but not media-staging.evebash.com, the staging media address since the staging/live split (todo #30). Vercel answers /_next/image?url=https://media-staging.evebash.com/... with 400 INVALID_IMAGE_OPTIMIZE_REQUEST, while the same file loads directly (200). Seen on the Midnight Hero cover photo (src/components/TemplateHero.tsx) of staging-test-1-sub-gallery-67fb; the grid photos there load. Live (www.evebash.com with media.evebash.com) is not affected. Testers on staging see empty covers and may report false bugs. Fix idea: add media-staging.evebash.com to images.remotePatterns (one entry; nothing changes on live).
 How to reproduce: Signed in on staging.evebash.com, open https://staging.evebash.com/events/staging-test-1-sub-gallery-67fb: the big cover photo is empty. In the browser's network tab its /_next/image request returns 400.
+Note 2026-11-16: fix in next.config.mjs: images.remotePatterns now also allows media-staging.evebash.com; media.evebash.com stays, so the live website is unchanged. Checked locally that the config loads with both addresses.
 
 #280
 Listed: 2026-11-16
