@@ -48,6 +48,7 @@ interface PaymentsGridProps {
   onPlanDatesChange?: (userId: string, startDate: string, endDate: string) => Promise<void> | void;
   onDeleteEvent?: (eventId: string) => Promise<void> | void;
   onToggleSampleGallery?: (eventId: string, isSample: boolean) => Promise<void> | void;
+  onVisibilityChange: (eventId: string, isPublic: boolean) => void;
 }
 
 const planTiers = [
@@ -70,6 +71,7 @@ export const PaymentsGrid: React.FC<PaymentsGridProps> = ({
   onPlanDatesChange,
   onDeleteEvent,
   onToggleSampleGallery,
+  onVisibilityChange,
 }) => {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -279,6 +281,7 @@ export const PaymentsGrid: React.FC<PaymentsGridProps> = ({
         onPlanDatesChange={onPlanDatesChange}
         onDeleteEvent={onDeleteEvent}
         onToggleSampleGallery={onToggleSampleGallery}
+        onVisibilityChange={onVisibilityChange}
       />
     );
   }

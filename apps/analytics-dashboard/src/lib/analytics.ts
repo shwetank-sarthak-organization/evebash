@@ -44,6 +44,8 @@ export interface Event {
   type?: string;
   vendors?: string[];
   isSampleGallery?: boolean;
+  /** Public viewing; set on the top-level gallery, sub-galleries follow it. */
+  isPublic?: boolean;
   isDeleted?: boolean;
   deletedAt?: string;
   status?: string;
@@ -147,7 +149,7 @@ export async function fetchEvents(): Promise<Event[]> {
     for (let from = 0; ; from += pageSize) {
       const { data, error } = await supabase
         .from('events')
-        .select('id, title, date, created_by, parent_id, type, vendors, is_sample_gallery')
+        .select('id, title, date, created_by, parent_id, type, vendors, is_sample_gallery, is_public')
         .order('id', { ascending: true })
         .range(from, from + pageSize - 1);
 
@@ -166,7 +168,8 @@ export async function fetchEvents(): Promise<Event[]> {
       parentId: d.parent_id || '',
       type: d.type || (d.parent_id ? 'sub' : 'main'),
       vendors: d.vendors || [],
-      isSampleGallery: !!d.is_sample_gallery
+      isSampleGallery: !!d.is_sample_gallery,
+      isPublic: !!d.is_public
     }));
   } catch (err) {
     console.error("Error fetching events:", err);
@@ -611,6 +614,16 @@ export async function directToggleSampleGallery(eventId: string, isSampleGallery
     .update({ is_sample_gallery: isSampleGallery })
     .eq('id', eventId);
   if (error) throw error;
+}
+
+// Same database call as the website's and app's visibility switch; it lets platform admins change any top-level
+// gallery and refuses sub-galleries (they follow their parent). Returns the saved value.
+export async function directSetEventVisibility(eventId: string, isPublic: boolean): Promise<boolean> {
+  if (!eventId) throw new Error('Event ID is required.');
+  const { data, error } = await supabase.rpc('set_event_public_viewing', { event_id: eventId, public_viewing: isPublic });
+  if (error) throw error;
+  if (typeof data !== 'boolean') throw new Error('Unexpected response while saving visibility.');
+  return data;
 }
 
 export async function directDeleteEvent(eventId: string) {

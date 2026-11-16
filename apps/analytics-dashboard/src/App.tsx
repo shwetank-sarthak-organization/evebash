@@ -358,6 +358,11 @@ export default function App() {
     }
   };
 
+  // The gallery viewer saves visibility itself; update the list in place, since a full reload would close the viewer
+  const handleVisibilityChange = (eventId: string, isPublic: boolean) => {
+    setEvents(prev => prev.map(event => (event.id === eventId ? { ...event, isPublic } : event)));
+  };
+
   const handleContactMessageStatusChange = async (id: string, status: ContactMessageStatus) => {
     await updateContactMessageStatus(id, status);
     setContactMessages(prev =>
@@ -825,9 +830,12 @@ export default function App() {
                       isSampleGallery ? 'Event added to Sample Galleries.' : 'Event removed from Sample Galleries.'
                     )
                   }
+                  onVisibilityChange={handleVisibilityChange}
                 />
               )}
-              {activeTab === 'events' && <EventGrid events={events} users={users} guests={guests} photos={photos} />}
+              {activeTab === 'events' && (
+                <EventGrid events={events} users={users} guests={guests} photos={photos} onVisibilityChange={handleVisibilityChange} />
+              )}
               {activeTab === 'plans' && <PlanDetailsGrid users={users} />}
               {activeTab === 'pricing' && <ManagePricingGrid />}
               {activeTab === 'infra' && <InfraCostGrid stats={stats} users={users} events={events} guests={guests} photos={photos} />}
@@ -867,6 +875,7 @@ export default function App() {
                       isSampleGallery ? 'Event added to Sample Galleries.' : 'Event removed from Sample Galleries.'
                     )
                   }
+                  onVisibilityChange={handleVisibilityChange}
                 />
               )}
               {activeTab === 'messages' && (

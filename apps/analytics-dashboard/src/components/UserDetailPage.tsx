@@ -54,6 +54,7 @@ interface UserDetailPageProps {
   onPlanDatesChange?: (userId: string, planStartDate: string, planEndDate: string) => Promise<void> | void;
   onDeleteEvent?: (eventId: string) => Promise<void> | void;
   onToggleSampleGallery?: (eventId: string, isSample: boolean) => Promise<void> | void;
+  onVisibilityChange: (eventId: string, isPublic: boolean) => void;
 }
 
 const planTiers = [
@@ -123,6 +124,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
   onPlanDatesChange,
   onDeleteEvent,
   onToggleSampleGallery,
+  onVisibilityChange,
 }) => {
   const [activeTab, setActiveTab] = useState<UserDetailTabType>(initialTab);
 
@@ -2228,6 +2230,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
           initialGallery={viewingGallery}
           events={events}
           onClose={() => setViewingGallery(null)}
+          onVisibilityChange={onVisibilityChange}
         />
       </div>
     );

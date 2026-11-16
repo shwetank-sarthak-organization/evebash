@@ -67,6 +67,7 @@ interface Props {
   onDeleteUser?: (userId: string) => Promise<void> | void;
   onDeleteEvent?: (eventId: string) => Promise<void> | void;
   onToggleSampleGallery?: (eventId: string, isSampleGallery: boolean) => Promise<void> | void;
+  onVisibilityChange: (eventId: string, isPublic: boolean) => void;
   resetTrigger?: number;
 }
 
@@ -338,7 +339,7 @@ const sortColumnLabelMap: Record<SortColumn, string> = {
   planEnd: 'Plan End Date',
 };
 
-export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], resetTrigger, onPlanChange, onDurationChange, onPlanDatesChange, onResetUserData, onDeleteUser, onDeleteEvent, onToggleSampleGallery }) => {
+export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], resetTrigger, onPlanChange, onDurationChange, onPlanDatesChange, onResetUserData, onDeleteUser, onDeleteEvent, onToggleSampleGallery, onVisibilityChange }) => {
   const accountScroll = useRef(0);
 
   const [search, setSearch] = useState('');
@@ -1075,6 +1076,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
         onPlanDatesChange={onPlanDatesChange}
         onDeleteEvent={onDeleteEvent}
         onToggleSampleGallery={onToggleSampleGallery}
+        onVisibilityChange={onVisibilityChange}
       />
     );
   }
