@@ -76,6 +76,7 @@ Found in: Website UI re-check (2026-10-11)
 Issue: Sample galleries still show test data: one sample ("Wedding") whose albums are named "Rec 1", "REc 10", "Rec 2"..., listed in text order (Rec 10 before Rec 2, localeCompare without numeric in src/lib/database.ts getSubEvents), and the "Rec 5" cover image is broken.
 How to reproduce: Open /sample-galleries/wedding-fdd8 and look at the album cards.
 Note 2026-10-28: On staging there are now no sample galleries at all: /sample-galleries says "No sample galleries are available yet." and /sample-galleries/wedding-fdd8 shows the 404 page (Claude test run, tests #12 and #53 blocked).
+Note 2026-11-16 (client demo check): live has NO sample galleries either (read-only query: 0 events with is_sample_gallery), while the live home page and /pricing link to /sample-galleries, which then shows "No sample galleries are available yet." The album order part is already fixed in code (getSubEvents sorts with numeric: true). Plan for the demo: Shwetank builds a polished demo event on live and marks it as a sample gallery in the analytics dashboard (Live > Galleries > sample toggle), so the home page link shows it.
 
 #33
 Listed: 2026-10-11
