@@ -3287,7 +3287,7 @@ Feedback:          2026-10-24 (Claude; website in the desktop app's browser, iOS
 
 --------------------------------------------------------------------------------
 #129 Photos and videos load from Cloudflare's cache and still look and play right
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website + App
 Brief:     media.evebash.com now keeps copies of photos and videos in Cloudflare's cache (issue
@@ -3307,14 +3307,21 @@ How to test:
   4. Download one photo and one video (and Download All on a small gallery). Expect: files open and
      are the full originals.
   5. Upload a new photo. Expect: its thumbnail appears once processing is done, as before.
-Done by: Claude (for Sarthak)
-Device / browser: curl on a Mac and Claude built-in browser; not a real device
-Build / version: staging.evebash.com as of 2026-11-12 (staging ad123bdb)
-Date tested: 2026-11-12
-Account used: host newone@email.com
+Done by: Claude (for Sarthak) for the website; Sarthak with Claude for the app (2026-11-16)
+Device / browser: website: curl on a Mac and Claude built-in browser; app: Pixel 8, Android 16
+Build / version: staging.evebash.com as of 2026-11-12 (staging ad123bdb); app: EAS staging build 60443d04
+Date tested: 2026-11-12 (website), 2026-11-16 (app)
+Account used: website: host newone@email.com; app: Sarthak's own account (gallery "Test event staging")
 Screenshot / recording:
 Fix ref:
 Feedback: 2026-11-12 Claude: website side still fine. Thumbnail, preview, grid image, video poster, HLS playlist and a video segment each go MISS then HIT with identical bytes; a missing file gives 404 with no-store. Found: the worker doesn't pass the Range header to B2, so a range request gets the whole file with status 200 (already issue #181). Left: the app on iPhone and Android.
+           2026-11-16 app on Android PASS (Sarthak on the Pixel, Claude checking the phone's log, the staging database
+           and the cache headers): a new 28 s video was ready in under a minute (poster and 1080p/720p/480p); the grid
+           scrolled to the end and back with every photo right, photos sharp in the viewer, the video played, seeked
+           and changed quality with sound in sync; the downloaded photo (1,320,615 bytes) and video (18,002,828
+           bytes) are byte-for-byte the uploaded originals; a new photo's thumbnail appeared. media-staging.evebash.com
+           answers X-Media-Cache HIT for that thumbnail, the poster and the 1080p and 480p segments the phone played,
+           and partial (Range) requests get 206. 0 crashes or app errors in the phone's log. iPhone not run.
 
 --------------------------------------------------------------------------------
 #130 A rotated photo shows rotated for everyone (and as gallery cover)

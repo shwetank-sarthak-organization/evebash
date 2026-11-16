@@ -568,20 +568,6 @@ Fix: with the video switch's "probe_v2" key on (modal_engine/video_gpu_switch.py
 Correction to the text above: a rotated 720p phone video was not enlarged before (its output fitted inside 1080 anyway); only rotated videos under 720p were.
 2026-10-25: Modal v130 deployed (eae06d0, 00:13 IST; rollback v129) and probe_v2 switched on for every video (video_gpu_switch.py probe-v2 off to undo). Checked: video endpoints reject unsigned calls (401), all four video functions present.
 
-#120
-Listed: 2026-10-24
-Platform: Both
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #129)
-Found in: thumbnail speed comparison with Samaro (2026-10-24)
-Issue: Cloudflare caches no photos or videos. media.evebash.com/* runs the worker "evebash-media-worker" (made in the Cloudflare dashboard, not in the repo until now), which fetches every file from B2 (Canada) with an Authorization header and never uses the Cloudflare cache, so every view goes to B2: cf-cache-status BYPASS, 0.55-1.6 s to first byte on repeat requests of the same thumbnail (Samaro's BunnyCDN: ~0.27 s, cache HIT). The repo's cloudflare-worker/src/index.ts (media-proxy), which does cache, is bound to the mistyped domain media.evebash.com.evebash.com and serves nothing. Also, Indian visitors are served from Cloudflare's Marseille data centre (cdn-cgi/trace: loc=IN, colo=MRS), which adds ~0.3-0.4 s even when cached.
-Fix: cloudflare-worker/evebash-media-worker/ (the deployed script, then a Cache API layer behind the MEDIA_EDGE_CACHE var): whole-file GETs are kept at the edge for 30 days (previews/thumbnails are rewritten at the same path when reprocessed); Range, HEAD and errors go to B2 as before; X-Media-Cache: HIT/MISS header. Tested locally with wrangler dev against real B2.
-2026-10-24: deployed (wrangler, version 5e26fca4; MEDIA_EDGE_CACHE on; B2 secrets kept). Live check: 4 thumbnails and an HLS playlist + segment go MISS then HIT with identical bytes; 404s not cached (no-store); Range/HEAD/OPTIONS as before. Cached thumbnails 0.42-0.65 s to first byte (was 0.55-1.6 s); the rest is the Marseille routing. Left: device check (test_yourself #129), commit the worker folder. Rollback: set MEDIA_EDGE_CACHE to off in the dashboard. Deleted/reprocessed files stay cached up to 30 days: #122.
-How to reproduce: curl -sI the same media.evebash.com thumbnail URL 3 times: cf-cache-status BYPASS and no speed-up.
-Note 2026-11-12: checked again with curl: thumbnail, preview, grid image, poster, HLS playlist and a video segment go MISS then HIT with identical bytes; 404s are no-store. The worker still drops the Range header (issue #181). Device test #129 still needs the app.
-
 #121
 Listed: 2026-10-24
 Platform: Both
@@ -1564,6 +1550,21 @@ How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switc
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#120
+Listed: 2026-10-24
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: thumbnail speed comparison with Samaro (2026-10-24)
+Issue: Cloudflare caches no photos or videos. media.evebash.com/* runs the worker "evebash-media-worker" (made in the Cloudflare dashboard, not in the repo until now), which fetches every file from B2 (Canada) with an Authorization header and never uses the Cloudflare cache, so every view goes to B2: cf-cache-status BYPASS, 0.55-1.6 s to first byte on repeat requests of the same thumbnail (Samaro's BunnyCDN: ~0.27 s, cache HIT). The repo's cloudflare-worker/src/index.ts (media-proxy), which does cache, is bound to the mistyped domain media.evebash.com.evebash.com and serves nothing. Also, Indian visitors are served from Cloudflare's Marseille data centre (cdn-cgi/trace: loc=IN, colo=MRS), which adds ~0.3-0.4 s even when cached.
+Fix: cloudflare-worker/evebash-media-worker/ (the deployed script, then a Cache API layer behind the MEDIA_EDGE_CACHE var): whole-file GETs are kept at the edge for 30 days (previews/thumbnails are rewritten at the same path when reprocessed); Range, HEAD and errors go to B2 as before; X-Media-Cache: HIT/MISS header. Tested locally with wrangler dev against real B2.
+2026-10-24: deployed (wrangler, version 5e26fca4; MEDIA_EDGE_CACHE on; B2 secrets kept). Live check: 4 thumbnails and an HLS playlist + segment go MISS then HIT with identical bytes; 404s not cached (no-store); Range/HEAD/OPTIONS as before. Cached thumbnails 0.42-0.65 s to first byte (was 0.55-1.6 s); the rest is the Marseille routing. Left: device check (test_yourself #129), commit the worker folder. Rollback: set MEDIA_EDGE_CACHE to off in the dashboard. Deleted/reprocessed files stay cached up to 30 days: #122.
+How to reproduce: curl -sI the same media.evebash.com thumbnail URL 3 times: cf-cache-status BYPASS and no speed-up.
+Note 2026-11-12: checked again with curl: thumbnail, preview, grid image, poster, HLS playlist and a video segment go MISS then HIT with identical bytes; 404s are no-store. The worker still drops the Range header (issue #181). Device test #129 still needs the app.
+Fixed in: 3e73a75d (2026-10-24; worker live since 2026-10-24, staging copy since d055fd9a), closed 2026-11-16 after device test #129 PASS: the app on a Pixel 8 (EAS staging build 60443d04) showed, played and downloaded photos and a new video from media-staging.evebash.com as before, with X-Media-Cache HIT on what the phone loaded and byte-for-byte originals on download. iPhone not run.
 
 #104
 Listed: 2026-10-22
