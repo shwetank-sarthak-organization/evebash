@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 283
+Next issue number: 284
 
 =====================================================================
 ACTIVE ISSUES
@@ -1712,6 +1712,18 @@ Update 2026-10-22 (later): no longer applies. Royal Emerald galleries now use th
 Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): hero, crest, plaque, Back / Share and the Photos / Videos switch are all in the bronze gold family. Device test #101 is FAIL only for step 7 (#92); this part passes.
 Fixed in: eabe4a96 (2026-10-22). Royal Emerald galleries use their own header (src/components/royal/RoyalGalleryHeader.tsx) in the bronze gold family; no #cca43b and no gold-400/500/600 left in TemplateRoyal.tsx, src/components/royal/ or royal-emerald.css (grep 2026-11-16).
 Closed 2026-11-16 without a phone test: colour check, passed in the browser 2026-11-12.
+
+#283
+Listed: 2026-11-16
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: iOS USB test, test_yourself #218 step 8 (chat 2026-11-16)
+Issue: On iPhone, EB Vault's + sheet did nothing: tapping "Upload photos & videos" or "Upload files" closed the sheet but no picker opened, with no error. ActionSheet (apps/mobile/components/vault/VaultModals.tsx) called onClose() and then the picker straight away, while the BottomSheet Modal was still sliding away; iOS drops a screen shown over a closing Modal. The dropped document picker then stayed "in progress", so every later try failed with "Different document picking in progress" (a red error, since the promise had no catch). Android was fine.
+How to reproduce: iPhone, EB Vault > + > Upload photos & videos (or Upload files). Nothing opens.
+Fixed in: d6a45650 (2026-11-16). BottomSheet (apps/mobile/components/ui/BottomSheet.tsx) has a new onClosed prop that runs once the sheet is fully gone (after the Modal's onDismiss on iOS); ActionSheet runs the tapped action there, so pickers, rename and move dialogs open after the sheet. Picker errors now show "Couldn't open your photos/files". Checked on Shwetank's iPhone 11: photo library and Files both open, 2 photos uploaded to the vault. Other BottomSheet screens that open a picker from a sheet row can use onClosed the same way.
 
 #275
 Listed: 2026-11-16

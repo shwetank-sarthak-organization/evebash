@@ -6314,7 +6314,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #218 App: the EveBash Staging app works on a real iPhone (USB build, todo #37)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  App (iPhone)
 Brief:     First iOS run on a real phone. The staging app is installed over USB from Shwetank's Mac with a free Apple
@@ -6342,14 +6342,21 @@ How to test:
   9. Event share window: Share Invitation (send to yourself on WhatsApp) and Copy link. Expect: "Link copied", and
      the link opens the event page.
  10. Settings > Appearance: switch Light and Dark and look at Dashboard, an event and Profile. Expect: readable.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
-Fix ref:
-Feedback:
+Done by:   Shwetank (with Claude, screenshots over USB)
+Device / browser: iPhone 11, iOS 26.7
+Build / version: Debug USB build (Personal Team), Metro on port 8082, staging branch at d6a45650
+Date tested: 2026-11-16
+Account used: newone1@email.com (email), Shwetank's Google account
+Screenshot / recording: taken by Claude with devicectl (not kept)
+Fix ref:   d6a45650 (issue #283, step 8)
+Feedback:  All 10 steps pass. 1-3 open, email and Google login OK. 4 event page loads, nothing under the notch.
+           5 three photos uploaded ("3 files uploaded"), faces processed in 17 s. 6 viewer, swipe and comment OK;
+           the comment box stays above the keyboard (small polish: with the keyboard up the Guestbook title and
+           old comments are hidden and its X sits on the send button). 7 Find You: selfie found, 3 matches; no
+           camera prompt shown (already allowed), the app's camera text is set. 8 EB Vault upload buttons did
+           nothing on iPhone: fixed in d6a45650 (#283), then photos and Files both worked. 9 Copy link and Share
+           give a staging.evebash.com link; on the phone it opens the website's "Get the EveBash app" screen, as
+           on Android (#109, #67). 10 Light and Dark readable.
 
 --------------------------------------------------------------------------------
 #219 Website + App: join codes are 8 characters and work without the dash (#277)

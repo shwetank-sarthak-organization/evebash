@@ -702,7 +702,7 @@ Listed:       2026-11-15
 Platform:     App
 Priority:     High
 Phase:        1 (v1 launch)
-Status:       In progress
+Status:       Done
 Effort:       M
 Suggested by: Shwetank (wants iOS done alongside Android, 2026-11-15)
 Discussed:    Yes
@@ -730,6 +730,12 @@ Update 2026-11-16: iOS runs. Set up on Shwetank's Mac: Xcode 27.2, iOS 27.2 simu
               and push (switched off in the USB build; they wait for the paid account, todo #35). Found: issue #275
               (Google tokens logged). Still to check on the iPhone: device test #218 (event, upload, gallery, Find
               You, Vault, share window, Light and Dark).
+Update 2026-11-16 (later): device test #218 PASS on Shwetank's iPhone 11, all 10 steps (event, upload from the
+              library, viewer and comments, Find You with the real camera, EB Vault, share window, Light and
+              Dark). Found and fixed issue #283: EB Vault's upload buttons did nothing on iPhone (code d6a45650).
+              Still open outside this todo: #276 (make the Xcode 27 fixes survive prebuild), Sign in with Apple and
+              push (todo #35, paid account).
+Done in:      d6a45650 (2026-11-16)
 
 
 #38 Report a photo or video, and report a user (bad, unwanted or restricted uploads)
