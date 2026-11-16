@@ -617,29 +617,6 @@ Brief:        Each time an event or sub-gallery is changed (title, date, cover, 
               log on their event, and whether photo, album and permission changes join later.
 Done in:      -
 
-#32 Analytics dashboard: switch between Live and Staging data
-Listed:       2026-11-14
-Platform:     Analytics dashboard
-Priority:     High
-Phase:        1 (v1 launch)
-Status:       In progress
-Effort:       M
-Suggested by: Shwetank (during todo #30)
-Discussed:    Yes
-Decision:     2026-11-15 Shwetank: do it before the first client signs up on live, so live plans and
-              limits can be set from the dashboard (today it can only change staging).
-Owner:        Shwetank (with Claude)
-Depends on:   Todo #30 (staging and production separated).
-Brief:        Since todo #30 step 5h the local analytics dashboard (apps/analytics-dashboard,
-              localhost:5173) reads STAGING (staging Supabase + api-staging), because the live server
-              (api.evebash.com) does not allow localhost:5173 in CORS_ORIGINS. Add a Live/Staging
-              switch in the dashboard: two sets of VITE_ settings (Supabase URL + anon key + API base
-              URL), a clear banner showing which one is active, and allow the dashboard origin on the
-              live server's CORS (or host the dashboard on its own domain). Admin login must work on
-              both Supabase projects (redirect URLs for the dashboard on each).
-Update 2026-11-15: code done (not yet used on Live): src/lib/environment.ts reads VITE_STAGING_* (old VITE_SUPABASE_* / VITE_API_BASE_URL count as Staging) and VITE_LIVE_SUPABASE_URL, VITE_LIVE_SUPABASE_ANON_KEY, VITE_LIVE_API_BASE_URL; the choice is kept per browser, Staging by default; Live only when its 3 settings exist and differ from Staging. EnvironmentSwitch on the login screen and in the header (Live asks first, red strip "LIVE DATA" on every page); every server call uses the chosen backend (the pricing screen's copy of getApiBaseUrl now uses the shared one). Checked: type check clean, login screen shows Staging selected and Live greyed out. Left (after the #21 staging tests): add the 3 VITE_LIVE_ settings to apps/analytics-dashboard/.env, allow http://localhost:5173 in the live server's CORS_ORIGINS (Railway, needs OK), check live Supabase still allows localhost:5173 as a login return address, then log in on Live and check every page read-only first.
-Update 2026-11-16: Live switched on with Shwetank's OK. Live server (evebash-api-production-backend) CORS_ORIGINS now https://evebash.com,https://www.evebash.com,http://localhost:5173 (redeployed, healthy; an unknown site still gets no CORS header). apps/analytics-dashboard/.env got VITE_LIVE_SUPABASE_URL, VITE_LIVE_SUPABASE_ANON_KEY (from the root .env) and VITE_LIVE_API_BASE_URL=https://api.evebash.com (file is git-ignored; backup in the session scratchpad). Live login already allowed localhost:5173. Checked: the Live button is enabled, Live shows "LIVE: real customers' data", Continue with Google goes to the live project (sbhouirpyiyybrravvih). Live platform admins: shwetank.chauhan17@gmail.com, shwetank.sarthak@gmail.com, code4sarthak@gmail.com. Left: Shwetank logs in on Live and checks every page read-only.
-
 #33 Automatic Modal publishing and database migrations (GitHub Actions)
 Listed:       2026-11-15
 Platform:     Backend only
@@ -848,6 +825,32 @@ Update 2026-11-16: Shwetank checked Sentry's alerts: issue alerts are on, and ea
 =====================================================================
 DONE / DROPPED (delete after 14 days)
 =====================================================================
+#32 Analytics dashboard: switch between Live and Staging data
+Listed:       2026-11-14
+Platform:     Analytics dashboard
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       Done
+Done in:      8d0c9c2 (2026-11-16)
+Effort:       M
+Suggested by: Shwetank (during todo #30)
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: do it before the first client signs up on live, so live plans and
+              limits can be set from the dashboard (today it can only change staging).
+Owner:        Shwetank (with Claude)
+Depends on:   Todo #30 (staging and production separated).
+Brief:        Since todo #30 step 5h the local analytics dashboard (apps/analytics-dashboard,
+              localhost:5173) reads STAGING (staging Supabase + api-staging), because the live server
+              (api.evebash.com) does not allow localhost:5173 in CORS_ORIGINS. Add a Live/Staging
+              switch in the dashboard: two sets of VITE_ settings (Supabase URL + anon key + API base
+              URL), a clear banner showing which one is active, and allow the dashboard origin on the
+              live server's CORS (or host the dashboard on its own domain). Admin login must work on
+              both Supabase projects (redirect URLs for the dashboard on each).
+Update 2026-11-15: code done (not yet used on Live): src/lib/environment.ts reads VITE_STAGING_* (old VITE_SUPABASE_* / VITE_API_BASE_URL count as Staging) and VITE_LIVE_SUPABASE_URL, VITE_LIVE_SUPABASE_ANON_KEY, VITE_LIVE_API_BASE_URL; the choice is kept per browser, Staging by default; Live only when its 3 settings exist and differ from Staging. EnvironmentSwitch on the login screen and in the header (Live asks first, red strip "LIVE DATA" on every page); every server call uses the chosen backend (the pricing screen's copy of getApiBaseUrl now uses the shared one). Checked: type check clean, login screen shows Staging selected and Live greyed out. Left (after the #21 staging tests): add the 3 VITE_LIVE_ settings to apps/analytics-dashboard/.env, allow http://localhost:5173 in the live server's CORS_ORIGINS (Railway, needs OK), check live Supabase still allows localhost:5173 as a login return address, then log in on Live and check every page read-only first.
+Update 2026-11-16: Live switched on with Shwetank's OK. Live server (evebash-api-production-backend) CORS_ORIGINS now https://evebash.com,https://www.evebash.com,http://localhost:5173 (redeployed, healthy; an unknown site still gets no CORS header). apps/analytics-dashboard/.env got VITE_LIVE_SUPABASE_URL, VITE_LIVE_SUPABASE_ANON_KEY (from the root .env) and VITE_LIVE_API_BASE_URL=https://api.evebash.com (file is git-ignored; backup in the session scratchpad). Live login already allowed localhost:5173. Checked: the Live button is enabled, Live shows "LIVE: real customers' data", Continue with Google goes to the live project (sbhouirpyiyybrravvih). Live platform admins: shwetank.chauhan17@gmail.com, shwetank.sarthak@gmail.com, code4sarthak@gmail.com. Left: Shwetank logs in on Live and checks every page read-only.
+Update 2026-11-16: DONE. Shwetank logged in on Live (Google, platform admin): red LIVE strip shown, Overview, User Accounts, Galleries, Plans Info, Infra Cost and Payments all load with live data. Nothing changed on Live during the check.
+
+
 #41 Push key (FCM V1) for the staging app
 Listed:       2026-11-16
 Platform:     App
