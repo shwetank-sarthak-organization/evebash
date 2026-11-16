@@ -190,7 +190,7 @@ export default function DashboardHub() {
                                 Total Photos
                             </span>
                             <span className="truncate text-xl text-[var(--site-gold-text)] xl:text-2xl" style={SERIF}>
-                                {statsLoaded ? totalPhotos.toLocaleString("en-US") : "—"} {totalPhotos === 1 ? "Photo" : "Photos"}
+                                {statsLoaded ? totalPhotos.toLocaleString("en-US") : "—"}
                             </span>
                         </div>
                         <div className={STAT_BOX} style={STAT_BOX_SIZE}>
@@ -199,7 +199,7 @@ export default function DashboardHub() {
                                 Total Videos
                             </span>
                             <span className="truncate text-xl text-[var(--site-gold-text)] xl:text-2xl" style={SERIF}>
-                                {statsLoaded ? totalVideos.toLocaleString("en-US") : "—"} {totalVideos === 1 ? "Video" : "Videos"}
+                                {statsLoaded ? totalVideos.toLocaleString("en-US") : "—"}
                             </span>
                         </div>
                         <div className={STAT_BOX} style={STAT_BOX_SIZE}>
@@ -208,7 +208,7 @@ export default function DashboardHub() {
                                 Events Joined
                             </span>
                             <span className="truncate text-xl text-[var(--site-gold-text)] xl:text-2xl" style={SERIF}>
-                                {attendedCount.toLocaleString("en-US")} {attendedCount === 1 ? "Event" : "Events"}
+                                {attendedCount.toLocaleString("en-US")}
                             </span>
                         </div>
                     </div>
