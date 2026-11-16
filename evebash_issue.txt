@@ -674,13 +674,14 @@ How to reproduce: Take a portrait photo on a phone, upload it, open it and tap R
 Listed: 2026-10-24
 Platform: Both
 Priority: Low
-Status: In progress
+Status: Blocked
 Owner: Sarthak (with Claude)
-Blocked by: #141 (deploy + switch)
+Blocked by: a decision to use the Modal L4 for long videos again (#220, #229, #133)
 Found in: GPU long-video work (#117), edge-case test on Modal, 2026-10-24
 Issue: Long 10-bit / HDR videos (iPhone's default "HDR video", many newer cameras) can't use the GPU worker and go to the 16-core worker (slower, about 40% more compute per video). NVDEC turns 10-bit video into p010 frames, and scale_npp, the only GPU resize filter in our ffmpeg (jrottenberg/ffmpeg:7.0-nvidia2204 has no scale_cuda), rejects them ("Unsupported input format: p010le", tested). Even past that, h264_nvenc only encodes 8-bit and HDR needs tone mapping to SDR, and the image has no GPU tone-map filter. _gpu_decode_problem in modal_engine/main.py sends them to the CPU on purpose. Fix: an ffmpeg build with scale_cuda (p010 -> nv12) and a GPU tone map (tonemap_cuda / libplacebo), re-measured like #117; do it together with #118 (the CPU path makes unplayable High 10 from the same videos).
 How to reproduce: Upload an iPhone HDR video over 10 minutes to a gallery on the GPU switch: modal_cost_logs shows process_video_cpu_long and Modal logs "[VideoGPU] ... hevc yuv420p10le is not transcoded on the GPU".
 2026-10-25: covered by #141 (10-bit/HDR): code on staging, behind the gpu_all_formats switch, not deployed.
+Note 2026-11-16: parked by Sarthak. The L4 mode is off (#220) and long videos are a Modal vs RunPod decision (#133, #229); look at this again only if the L4 comes back.
 
 #127
 Listed: 2026-10-24
