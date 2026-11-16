@@ -80,6 +80,8 @@ export async function registerDeviceForPushNotifications(userId: string): Promis
     } else {
       console.warn('[Notifications] Failed to register device push token in database.');
     }
+    devicePushToken = token;
+    await claimPushToken(token);
 
     return token;
   } catch (error: any) {
@@ -89,6 +91,57 @@ export async function registerDeviceForPushNotifications(userId: string): Promis
       console.warn('[Notifications] Could not register push token:', error?.message || error);
     }
     return null;
+  }
+}
+
+// This phone's Expo push token, once registerDeviceForPushNotifications has read it
+let devicePushToken: string | null = null;
+
+/**
+ * Asks the backend to take this phone's token off every other account (issue #104), so a phone only gets the pushes
+ * of the account signed in on it. Other accounts' profiles aren't writable from the app once RLS is on. Best effort:
+ * if it fails, the token is still saved on this account as before.
+ */
+async function claimPushToken(token: string) {
+  try {
+    const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, '');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!apiBaseUrl || !session?.access_token) return;
+    const response = await fetch(`${apiBaseUrl}/api/v1/notifications/push-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ token }),
+    });
+    if (!response.ok) console.warn('[Notifications] Could not move the push token to this account:', response.status);
+  } catch (error) {
+    console.warn('[Notifications] Could not move the push token to this account:', error);
+  }
+}
+
+/**
+ * Called on logout, before the session ends: takes this phone's push token off the account, so the phone stops
+ * getting that account's pushes (issue #104). Only clears it when the account still holds this phone's token, so
+ * logging out here never stops pushes to the account's other phone. Best effort, and gives up after 3 s so logout
+ * never waits on it.
+ */
+export async function releasePushToken(userId: string | undefined): Promise<void> {
+  if (!userId || Platform.OS === 'web' || isExpoGo || !Notifications) return;
+  const release = async () => {
+    let token = devicePushToken;
+    if (!token) {
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') return;
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
+      token = (await Notifications.getExpoPushTokenAsync({ projectId: projectId || undefined })).data;
+    }
+    const { error } = await supabase.from('profiles').update({ push_token: null }).eq('id', userId).eq('push_token', token);
+    if (error) console.warn('[Notifications] Could not remove the push token on logout:', error.message);
+    devicePushToken = null;
+  };
+  try {
+    await Promise.race([release(), new Promise((resolve) => setTimeout(resolve, 3000))]);
+  } catch (error) {
+    console.warn('[Notifications] Could not remove the push token on logout:', error);
   }
 }
 

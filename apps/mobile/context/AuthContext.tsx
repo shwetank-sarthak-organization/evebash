@@ -1,6 +1,7 @@
 import { PolicyAcceptanceGate } from "../components/PolicyAcceptanceGate";
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { releasePushToken } from '@/lib/notifications';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants from 'expo-constants';
@@ -584,6 +585,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    // While still signed in: stop this phone getting the account's pushes (#104)
+    await releasePushToken(user?.uid);
     try {
       // Only this device: the default ('global') also signs the account out on its other phones and browsers
       await supabase.auth.signOut({ scope: 'local' });
