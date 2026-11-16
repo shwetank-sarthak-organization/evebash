@@ -34,6 +34,7 @@ Blocked by: #21 (lockdown part 2: the save function only allows platform admins 
 Found in: Visibility switch work (2026-10-09)
 Issue: No public/private switch for galleries in the admin dashboard. Platform admins can't change visibility of galleries they don't own anywhere on the website.
 How to reproduce: Open a gallery in the admin dashboard Events grid: there is no visibility control.
+Note 2026-11-16: unblocked, #21 is live. set_event_public_viewing (the call the website and app use) already lets platform admins change any top-level gallery (can_manage_event passes is_platform_admin), checked on live. No database change needed: the dashboard never loads is_public (apps/analytics-dashboard/src/lib/analytics.ts fetchEvents) and GalleryViewer has no switch. Fix is dashboard only.
 
 #18
 Listed: 2026-10-09
@@ -53,10 +54,11 @@ Platform: Both
 Priority: Medium
 Status: Blocked
 Owner: Unassigned
-Blocked by: Phase 2 (business features)
+Blocked by: Phase 2 (business features). Lockdown part 2 (#21) is live since 2026-11-16, so nothing else is in the way.
 Found in: Lockdown access re-scan (2026-10-09)
 Issue: Phase 2 business features will break once RLS lockdown part 2 is on: enquiry and vendor-chat pushes read other users' push tokens, business view counts edit someone else's row, and logged-out visitors can't browse vendors (EB Network, Explore).
 How to reproduce: After part 2: send an enquiry or chat message (no push to the other person), open a vendor page (view count doesn't change), open EB Network logged out (empty).
+Note 2026-11-16: checked after #21 went live. Nothing in v1 reaches these features: the website's /eb-network and /eb-business (linked from the Navbar and Footer) show "Coming soon" with no vendor list on staging and live; in the app the Businesses and Explore-business tabs are hidden (href: null in apps/mobile/app/(tabs)/_layout.tsx), the vendors tab shows "COMING SOON" and the business alert switches are off (SHOW_BUSINESS_ALERTS = false in settings.tsx). Not checked: the /eb-network/<id> vendor detail pages and any link from a v1 app screen to shortlist.tsx, chat.tsx, customer-chats.tsx, business-enquiries.tsx. The #21 entry doesn't say what part 2 did to the business tables, so this is still untested; start with that when Phase 2 starts. Board: EB-9 moved to To Do (Phase 2 column) with Sarthak's OK, an exception to the rule that Blocked issues sit in To Do - Active Phase.
 
 #25
 Listed: 2026-10-10
