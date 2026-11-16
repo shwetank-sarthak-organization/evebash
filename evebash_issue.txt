@@ -931,12 +931,13 @@ How to reproduce: App, pick 10 photos to upload; while they upload, tap Add Phot
 Listed: 2026-10-28
 Platform: Website
 Priority: High
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Claude device-test run on staging (built-in browser, 2026-10-28)
 Issue: The Host page sometimes loads with "HOST 0 / SHARED 0 / REQUESTS 0" and "No events yet" for a host who has 4 events, and stays that way until a reload. It happened on 3 of about 7 loads of a /host?view=manage&level=event-details&eventId=...&galleryId=... link (also right after the saved sign-in was restored). A plain /host load and a second reload showed all 4 events. A host who opens a saved or shared Host link may think their events are gone. Likely cause: src/app/(main)/host/page.tsx fetchUserEvents is started from several effects with no check that the response is still the latest one (no request id / cancelled flag), so an early call made before the user, view or manage level are settled can finish last and overwrite the list with an empty one. Fix idea: guard fetchUserEvents with a request counter (ignore stale responses) and only run it once auth has loaded.
 How to reproduce: Signed in as a host on staging.evebash.com, open https://staging.evebash.com/host?view=manage&level=event-details&eventId=<your event>&mode=add-image&galleryId=<a sub-gallery> in a new tab, or reload it a few times. Sometimes the page shows "No events yet" instead of the gallery.
+Update 2026-11-16: fixed on staging (needed for the client demo). fetchUserEvents (src/app/(main)/host/page.tsx) now keeps a request counter (userEventsRequestRef): only the newest call saves events, shared events, logs and the loading flag, so an early call that finishes last can't replace the list with an empty one. It also doesn't run while a deep link is still opening (sub-gallery list wanted but the event not known yet), which was the call that returned the empty list. Website type check passes; lint unchanged (68 old problems). Left: Shwetank reloads the deep link from the issue several times on staging and checks the events always show.
 
 #173
 Listed: 2026-10-28

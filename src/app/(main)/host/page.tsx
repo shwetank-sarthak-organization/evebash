@@ -1445,11 +1445,19 @@ function DashboardContent() {
         };
     }, [selectedMainEventId, selectedMainEventLegacyId, manageLevel]);
 
+    // Issue #172: counts fetchUserEvents calls so only the newest one saves its result
+    const userEventsRequestRef = useRef(0);
     const fetchUserEvents = async () => {
         if (!user || !user.uid) return;
-        setLoadingEvents(true);
         const type = (view === "main" || manageLevel === "events" || manageLevel === "event-details") ? "main" : "sub";
         const parentId = (view === "manage" && (manageLevel === "galleries" || manageLevel === "photos")) ? selectedMainEvent?.id : undefined;
+        // Issue #172: while a deep link is still opening, the event isn't known yet; asking for "sub-galleries of no
+        // event" returned an empty list that could replace the real one. Wait until the event is known.
+        if (type === "sub" && !parentId) return;
+        // Issue #172: this runs from several effects, so only the newest call may save its result
+        const requestId = ++userEventsRequestRef.current;
+        const isStale = () => requestId !== userEventsRequestRef.current;
+        setLoadingEvents(true);
 
         // Own events are always visible. Delegated owner events are scoped by roleType below.
         const ownIdentifiers = [user.uid];
@@ -1477,6 +1485,7 @@ function DashboardContent() {
             const sorted = combined.sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
 
             // Event managers only see events explicitly assigned to them.
+            if (isStale()) return;
             if (user.roleType === 'event') {
                 const assignedEvents = user.assignedEvents || [];
                 setUserEvents(sorted.filter(e =>
@@ -1495,6 +1504,7 @@ function DashboardContent() {
                     getApprovedSharedEventsForUser(ownIdentifiers, true),
                     getGuestLogs(identifiers),
                 ]);
+                if (isStale()) return;
                 setSharedEvents(approvedSharedEvents.sort((a, b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0)));
                 setTrafficLogs(logs);
             }
@@ -1513,6 +1523,7 @@ function DashboardContent() {
                 });
             }
 
+            if (isStale()) return;
             // Event managers only see events explicitly assigned to them.
             if (user.roleType === 'event') {
                 const assignedEvents = user.assignedEvents || [];
@@ -1524,7 +1535,7 @@ function DashboardContent() {
                 setUserEvents(combinedEvents);
             }
         }
-        setLoadingEvents(false);
+        if (!isStale()) setLoadingEvents(false);
     };
 
     const fetchEventPhotos = async () => {
