@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 41
+Next todo number: 42
 
 Last updated: 2026-11-16
 
@@ -847,6 +847,25 @@ Done in:      -
 =====================================================================
 DONE / DROPPED (delete after 14 days)
 =====================================================================
+#41 Push key (FCM V1) for the staging app
+Listed:       2026-11-16
+Platform:     App
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Done in:      expo.dev credential, no commit (2026-11-16); checked by a test push and device test #221
+Effort:       S
+Suggested by: Shwetank (task split 2026-11-15; follow-up of todo #30)
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: Sarthak sets up the push key for the staging app (Jira EB-179).
+Owner:        Sarthak (with Claude)
+Depends on:   Todo #30 (staging app com.evebash.app.staging)
+Brief:        Pushes need an FCM V1 service account key on expo.dev for each Android app ID. The live app had
+              one; the staging app (com.evebash.app.staging, todo #30) had none, so no push reached staging
+              builds. Sarthak linked the Firebase key (project evebash-e36ae) to com.evebash.app.staging on
+              expo.dev > Credentials > Android on 2026-11-16. Checked: a test push through Expo reached the
+              Pixel 8 (receipt "ok"), and "New access request" pushes arrived in device test #221 (issue #104).
+
 #34 "Copy link" button next to Share Invitation (website and app)
 Listed:       2026-11-15
 Platform:     Both
@@ -1150,6 +1169,7 @@ Update 2026-11-14: DONE. EAS staging build 997a9866 (a97213d) checked on the Mac
               follow-ups, not part of #30: FCM V1 push key for com.evebash.app.staging on EAS; the USB
               dev build becomes EveBash Staging the next time it is rebuilt (npx expo run:android); live
               Modal deploy and the old B2 key delete stay in issue #269.
+Update 2026-11-16: the FCM V1 push key for com.evebash.app.staging is linked on expo.dev (todo #41, Jira EB-179).
 
 #31 Website Guest Home Preview: show the app too (picture of the app's guest home)
 Listed:       2026-11-12
