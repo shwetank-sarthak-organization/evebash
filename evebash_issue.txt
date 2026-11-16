@@ -47,17 +47,6 @@ Issue: Google sign-in will fail (DEVELOPER_ERROR) on Play and EAS-signed Android
 How to reproduce: Install an EAS-signed or Play build and tap "Continue with Google": DEVELOPER_ERROR.
 Update 2026-10-11: for the new package com.evebash.app (#41) the debug and EAS upload-key SHA-1s are in Firebase, and their Android OAuth clients exist in Google Cloud (made by hand; Firebase did not create them). Only the Play app-signing SHA-1 is left: add it to the Firebase app com.evebash.app and as a Google Cloud Android OAuth client after the first Play upload.
 
-#19
-Listed: 2026-10-09
-Platform: App
-Priority: Medium
-Status: Blocked
-Owner: Sarthak (decision)
-Blocked by: Decision on the production backend (staging API or a separate one); deferred by Sarthak 2026-10-10
-Found in: Access-request push work (2026-10-09)
-Issue: The EAS production build profile doesn't set EXPO_PUBLIC_API_BASE_URL (development and staging do). Uploads and the access-request push need it; confirm it's set in EAS environment settings before the first store build.
-How to reproduce: Check build.production.env in apps/mobile/eas.json and the EAS project's environment variables.
-
 #20
 Listed: 2026-10-09
 Platform: Both
@@ -1835,3 +1824,16 @@ Note 2026-11-12: LIVE on media.evebash.com (the user's OK). Deployed with the sw
 Note 2026-11-12: who this affects (checked in the code): the main case is a video that is still processing. Its photos.url is the original MP4 on media.evebash.com until the stream is ready, and both the app (apps/mobile/components/PhotoViewer.tsx, "Optimizing video quality...") and the website (HLSVideoPlayer) play that MP4 meanwhile, so iPhones could not play or seek it before this fix. All 74 processed videos use stream links and were never affected. The app has no MP4 fallback after that (nothing sets raw_url). EB Vault is NOT affected: its previews use signed B2 links, not media.evebash.com. The website shows "download the app" on phones (NEXT_PUBLIC_MOBILE_APP_GATE), so device test #211 now checks the iPhone app plus Mac Safari.
 Note 2026-11-12: checked with Apple's video engine on the Mac (AVFoundation, the same engine as the iPhone app's player): through a local copy of the worker with MEDIA_FORWARD_RANGE off, the test clip fails to load with -11850 "The server is not correctly configured" (underlying -12939), the error iPhones give; through the live worker it loads in about 4 s, plays and seeks to 18 s in about 1 s, fetching only the parts it needs. iOS Simulator Safari plays the live link. The in-app upload test (device test #211 steps 2-4) was not run: the simulator was being used by another session.
 Fixed in: 18b33116 (2026-11-12), live on media.evebash.com since 2026-11-12 (worker version 50650e04, MEDIA_FORWARD_RANGE "on", recorded in wrangler.toml in be739d4c). The worker passes the viewer's Range header to B2, allows Range in preflights and exposes Content-Range; Range requests still skip the edge cache. Checked: curl on the live worker (206 with the right bytes, 416 past the end, photos and whole files unchanged); Apple's video engine on the Mac (through the old worker the clip fails with -11850, through the live one it plays and seeks); and on the iOS Simulator (iPhone 17, staging code through local Metro, signed in as the test-face-new host): the app's player playing a video's original MP4 the way it does while a video is still processing ("Optimizing video quality..."). A real upload was refused by the host's plan storage limit (42.53 GB of 1 GB), so a temporary local code change pointed the player at the originals and was undone afterwards. The 30 s clip played to the end; the 1.94 GB, 48:40 PART-06 original opened in about 10 s, jumped to 34:15 and kept playing; normal stream playback is unchanged. Closed on the simulator result at the user's request (2026-11-12); a real iPhone and Mac Safari are not checked. Device test #211.
+
+#19
+Listed: 2026-10-09
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak
+Blocked by: -
+Found in: Access-request push work (2026-10-09)
+Issue: The EAS production build profile doesn't set EXPO_PUBLIC_API_BASE_URL (development and staging do). Uploads and the access-request push need it; confirm it's set in EAS environment settings before the first store build.
+How to reproduce: Check build.production.env in apps/mobile/eas.json and the EAS project's environment variables.
+Note 2026-11-16: the decision was made with todo #30: staging and live are fully separate and live has its own backend at https://api.evebash.com. Checked: apps/mobile/eas.json build.production.env.EXPO_PUBLIC_API_BASE_URL is that address, https://api.evebash.com/health answers 200, and the only staging fallback in apps/mobile/lib/storage.ts applies only when the variable is unset.
+Fixed in: 0703c5ec (2026-11-14). The production profile in apps/mobile/eas.json now sets EXPO_PUBLIC_API_BASE_URL to https://api.evebash.com (staging uses https://api-staging.evebash.com).
