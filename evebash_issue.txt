@@ -1021,17 +1021,6 @@ Found in: Claude device-test run on staging (2026-10-28)
 Issue: Creating a sub-gallery from Host -> event -> Galleries -> Create Sub-Gallery shows the toast "Your event has been created! ✨". It should say the sub-gallery (gallery) was created, since no event was made.
 How to reproduce: Host -> any event -> Galleries -> Create Sub-Gallery, type a name, Create Sub-Gallery. Read the toast.
 
-#175
-Listed: 2026-10-28
-Platform: Website
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Claude device-test run on staging (2026-10-28, test #74)
-Issue: On /dashboard at about 1024 px wide, the Total Photos stat is cut off ("661 Pho..."): the number uses class "truncate text-xl lg:text-2xl" and its box is narrower than the text (text 113 px, box 105 px). Total Videos fits. Fix idea: smaller text at lg, or let the stat wrap, or give the stat boxes more room.
-How to reproduce: Signed in with an account that has 600+ photos, open /dashboard in a 1024 px wide window. Look at the Total Photos box.
-
 #179
 Listed: 2026-10-28
 Platform: Backend only
@@ -1638,6 +1627,18 @@ How to reproduce: Signed in on staging.evebash.com, open https://staging.evebash
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#175
+Listed: 2026-10-28
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Claude device-test run on staging (2026-10-28, test #74)
+Issue: On /dashboard at about 1024 px wide, the Total Photos stat is cut off ("661 Pho..."): the number uses class "truncate text-xl lg:text-2xl" and its box is narrower than the text (text 113 px, box 105 px). Total Videos fits. Fix idea: smaller text at lg, or let the stat wrap, or give the stat boxes more room.
+How to reproduce: Signed in with an account that has 600+ photos, open /dashboard in a 1024 px wide window. Look at the Total Photos box.
+Fixed in: f8575675 (2026-11-16). The Noir dashboard redesign (c76732fe) already made the number smaller (text-xl up to 1279 px) so 661 Photos fits at 1024 px; a 4-digit count still clipped at exactly 1024 px, so the three stat numbers now show just the count (the label above already says Photos, Videos, Events Joined) in src/app/(main)/dashboard/page.tsx. Checked on staging in the built-in browser at 1024, 1100, 1200 and 1279 px before the change; device test #220.
 
 #85
 Listed: 2026-10-22

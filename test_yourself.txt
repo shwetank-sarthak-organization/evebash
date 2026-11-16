@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 220
+Next test number: 221
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6353,6 +6353,29 @@ How to test:
   5. Older event (made before this change, its code looks like WEDD-77D4): on the website and in the app, join with
      its code typed with the dash, then without it (WEDD77D4). Expect: both work.
   6. Type a code that doesn't exist (ZZZZ-ZZZZ). Expect: "Invalid Join ID" (website) or "Invalid Code" (app).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#220 Dashboard stat numbers at a narrow window (about 1024 px)
+Status:    TODO
+Priority:  Low
+Platform:  Website
+Brief:     The three boxes at the top of the dashboard (Total Photos, Total Videos, Events Joined) used to show
+           "661 Photos", which got cut off ("661 Pho...") in a window about 1024 px wide. They now show only the
+           number, because the label above already names it.
+Detail:    Issue #175, website only, staging.evebash.com once deployed. Best with an account that has 1,000 or
+           more photos; with fewer photos just check the look.
+How to test:
+  1. Website: sign in, open Dashboard, make the browser window about 1024 px wide. Expect: each box shows its
+     label (Total Photos, Total Videos, Events Joined) and a plain number under it, nothing cut off with "...".
+  2. Make the window wider (1280 px and more) and narrower (phone width). Expect: the numbers still fit.
 Done by:
 Device / browser:
 Build / version:
