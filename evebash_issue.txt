@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 281
+Next issue number: 282
 
 =====================================================================
 ACTIVE ISSUES
@@ -1610,6 +1610,18 @@ Found in: Issue #21 staging test step E (Shwetank deleted the RLS test event in 
 Issue: Deleting an event in the app runs the B2 file cleanup twice ("[deleteEvent] Cleaning up B2 files for 3 photos under event ..." appears twice in the Metro log). On the second run a file that is already gone isn't removed by api-staging, so apps/mobile/lib/database.ts falls through to the dev-only endpoints (127.0.0.1:8080, 10.0.2.2:8080, localhost:8080), which fail, and the app shows "Error deleting photo: TypeError: Network request failed" (dev builds show it as a red banner). The guest preview picture delete is also called after the event is gone and gets 403 ("[GuestPreviewSnapshot] The backend did not remove the picture: 403"). Nothing is left behind: the staging database had 0 rows left (event, sub-gallery, photos, faces, guests; 2 deletion records with the right owner) and the staging bucket had 0 files under both event prefixes. Not caused by the RLS lockdown.
 Fix idea: find why deleteEvent's cleanup runs twice (double tap, or the confirm handler/effect firing twice) and run it once; treat "already deleted" from /api/media/delete as success instead of trying other endpoints; delete the guest preview picture before the event row.
 How to reproduce: Android USB build on staging, host deletes an event that has photos in a sub-gallery and the Home gallery; watch the Metro log and the screen.
+
+#281
+Listed: 2026-11-16
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Check of #101 with Sarthak (2026-11-16)
+Issue: The live Modal photo-pipeline-switch (read by modal_engine/main.py) lost its "face_filter" and "grid" keys at some point after 2026-10-24; it only held mode v2 and v2_events ['test-v2-358c']. Cause unknown (probably the Dict was reset or recreated; a Modal Dict has no key history). Effect: new photos saved every face until face_filter was set again on 2026-11-16 (#101), and the grid image (#121, "<file>-grid.webp", set for test-v2-358c on 2026-10-24) is no longer made. Staging Modal's switch (created 2026-11-14) also has only mode v2.
+Fix idea: (1) find when and why the keys went (Modal logs, anyone who ran photo_pipeline_switch.py or deleted the Dict); (2) check whether #121 was rolled out beyond test-v2-358c and whether the website still needs the grid images, then set "grid" again with `photo_pipeline_switch.py grid add <gallery id>` / `grid all` if so; (3) keep the intended switch values in a tracked note so a reset can be spotted: run `photo_pipeline_switch.py show` and compare.
+How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switch.py show (read-only); it should list a face filter and, for test-v2-358c, a grid image.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
