@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -131,13 +131,20 @@ export type SheetAction = { label: string; icon: string; destructive?: boolean; 
 
 /** Actions menu for a file, folder or the + button, using the app's bottom sheet. */
 export function ActionSheet({ visible, title, actions, onClose }: { visible: boolean; title: string; actions: SheetAction[]; onClose: () => void }) {
+  // The tapped action runs after the sheet is gone, so pickers it opens also work on iOS
+  const pendingRef = useRef<(() => void) | null>(null);
+  const runPending = () => {
+    const action = pendingRef.current;
+    pendingRef.current = null;
+    action?.();
+  };
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
+    <BottomSheet visible={visible} onClose={onClose} onClosed={runPending}>
       <Text style={styles.sheetTitle} numberOfLines={1}>{title}</Text>
       {actions.map((action) => (
         <TouchableOpacity
           key={action.label}
-          onPress={() => { onClose(); action.onPress(); }}
+          onPress={() => { pendingRef.current = action.onPress; onClose(); }}
           style={styles.sheetRow}
           accessibilityRole="button"
         >

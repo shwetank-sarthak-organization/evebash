@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -35,6 +35,11 @@ type BottomSheetProps = {
   children: React.ReactNode;
   /** Extra styles for the sheet container (e.g. maxHeight) */
   style?: StyleProp<ViewStyle>;
+  /**
+   * Called once the sheet is fully gone. Open pickers, share sheets or other modals here, not in onClose:
+   * iOS can't show a new screen while the sheet's Modal is still on top, and drops it without an error.
+   */
+  onClosed?: () => void;
 };
 
 const CLOSE_DISTANCE = 110;
@@ -44,26 +49,40 @@ const CLOSE_VELOCITY = 900;
  * App-wide bottom sheet: dimmed backdrop, drag handle (drag down to close),
  * Android back support, keyboard avoidance and safe-area bottom padding.
  */
-export function BottomSheet({ visible, onClose, children, style }: BottomSheetProps) {
+export function BottomSheet({ visible, onClose, children, style, onClosed }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
   const styles = useSheetStyles();
   const { height } = useWindowDimensions();
   const [mounted, setMounted] = useState(visible);
+  // iOS: the Modal is hidden first and unmounted in onDismiss, so onClosed runs only after iOS has removed it
+  const [modalVisible, setModalVisible] = useState(visible);
+  const onClosedRef = useRef(onClosed);
+  onClosedRef.current = onClosed;
   const translateY = useSharedValue(height);
   const backdrop = useSharedValue(0);
   // Android: lift the sheet by the keyboard height (see the hook for why not KeyboardAvoidingView)
   const keyboardHeight = useAndroidKeyboardHeight(mounted);
 
+  const finishClose = () => {
+    setMounted(false);
+    onClosedRef.current?.();
+  };
+  const finishHide = () => {
+    if (Platform.OS === 'ios') setModalVisible(false);
+    else finishClose();
+  };
+
   useEffect(() => {
     if (visible) {
       setMounted(true);
+      setModalVisible(true);
       translateY.value = height;
       translateY.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) });
       backdrop.value = withTiming(1, { duration: 200 });
     } else {
       backdrop.value = withTiming(0, { duration: 180 });
       translateY.value = withTiming(height, { duration: 220, easing: Easing.in(Easing.cubic) }, (finished) => {
-        if (finished) runOnJS(setMounted)(false);
+        if (finished) runOnJS(finishHide)();
       });
     }
   }, [visible, height, translateY, backdrop]);
@@ -86,7 +105,7 @@ export function BottomSheet({ visible, onClose, children, style }: BottomSheetPr
   if (!mounted) return null;
 
   return (
-    <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
+    <Modal visible={modalVisible} transparent animationType="none" statusBarTranslucent onRequestClose={onClose} onDismiss={finishClose}>
       <GestureHandlerRootView style={styles.flex}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
