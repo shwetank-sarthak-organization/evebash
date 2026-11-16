@@ -819,6 +819,7 @@ Update 2026-11-16: Modal: sentry-sdk in every image; _sentry() / _report_error()
               file. SENTRY_DSN (the server's Sentry project) + SENTRY_ENVIRONMENT added to .env.modal-staging
               (staging) and the root .env (production, used at the next live Modal deploy, #269). Staging deploy
               started.
+Update 2026-11-16: staging Modal deployed with it (all functions, same URLs); the staging Modal log shows "[Sentry] error reporting on" at 14:00:06 IST. Left: the live Modal deploy (#269) and a check that a real failure appears in Sentry (service=modal).
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
