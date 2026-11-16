@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 282
+Next issue number: 283
 
 =====================================================================
 ACTIVE ISSUES
@@ -1546,6 +1546,18 @@ Found in: Check of #101 with Sarthak (2026-11-16)
 Issue: The live Modal photo-pipeline-switch (read by modal_engine/main.py) lost its "face_filter" and "grid" keys at some point after 2026-10-24; it only held mode v2 and v2_events ['test-v2-358c']. Cause unknown (probably the Dict was reset or recreated; a Modal Dict has no key history). Effect: new photos saved every face until face_filter was set again on 2026-11-16 (#101), and the grid image (#121, "<file>-grid.webp", set for test-v2-358c on 2026-10-24) is no longer made. Staging Modal's switch (created 2026-11-14) also has only mode v2.
 Fix idea: (1) find when and why the keys went (Modal logs, anyone who ran photo_pipeline_switch.py or deleted the Dict); (2) check whether #121 was rolled out beyond test-v2-358c and whether the website still needs the grid images, then set "grid" again with `photo_pipeline_switch.py grid add <gallery id>` / `grid all` if so; (3) keep the intended switch values in a tracked note so a reset can be spotted: run `photo_pipeline_switch.py show` and compare.
 How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switch.py show (read-only); it should list a face filter and, for test-v2-358c, a grid image.
+
+#282
+Listed: 2026-11-16
+Platform: Both
+Priority: Critical
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: live: needs the fix on main (hotfix or release day) and a live server deploy, with Shwetank's OK
+Found in: Re-check of the 2026-10-05 security audit after the RLS lockdown (issue #21), 2026-11-16
+Issue: GET /api/media/all-photos (and /api/v1/media/all-photos) on the backend returns the address, gallery id and size of EVERY photo in the database, private galleries included, to anyone, with no login (apps/backend/src/routes/media.ts, admin Supabase client, so the RLS lockdown doesn't apply). Checked 2026-11-16: api.evebash.com answered 200 with about 367 KB; api-staging 200. Nothing in the website, app, dashboard or Modal calls it. First reported in the October audit (PROJECT_ANALYSIS_2026-10-04.md item 3).
+Fix: route removed in apps/backend/src/routes/media.ts (backend type check passes). Staging gets it with the push; live needs it on main and a redeploy of evebash-api-production-backend.
+How to reproduce: curl -s -o /dev/null -w '%{http_code}' https://api.evebash.com/api/media/all-photos (200 = still open; 404 = fixed).
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
