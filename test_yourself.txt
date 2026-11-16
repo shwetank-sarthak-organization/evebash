@@ -3742,7 +3742,11 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  2026-11-16 partial run, Android only (Pixel 8, Android 16, EAS staging build e4b646ad, account newone1;
+           Sarthak, with Claude checking the staging database): steps 1, 2 and 4 PASS. Network off for about 2 min
+           mid-upload: no "upload failed", the upload carried on by itself, and all 14 photos arrived once with
+           thumbnails. Step 3 not hit (the second cut came after the last photo was in). iPhone not run. Tip: a Pixel
+           can keep Wi-Fi on in airplane mode, so also turn Wi-Fi off and check its icon is gone.
 
 #144 Website pages use the app's warm greys and gold
 Status:    PASS
@@ -3832,7 +3836,12 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  2026-11-16 app steps 4 and 5 PASS (Sarthak, with Claude checking the staging database and the phone's log;
+           Pixel 8, Android 16, EAS staging build e4b646ad = staging a430d44c, versionCode 25, Sentry on; account
+           newone1): normal use and a 15-photo upload worked as before, no pop-ups or slow start-up. Airplane mode
+           with Wi-Fi off mid-upload: no "upload failed", the upload paused 2 min 15 s and carried on by itself; all
+           14 photos arrived once with thumbnails, none failed. Steps 1-3, 6, 7 and 8 not run here. Step 8 still
+           needs an app error in Sentry (evebash-app), e.g. from the crash-test build for test #165.
 
 --------------------------------------------------------------------------------
 #146 Phone menu shows Profile and Logout when signed in (issue #70)
