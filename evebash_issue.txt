@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 279
+Next issue number: 280
 
 =====================================================================
 ACTIVE ISSUES
@@ -1647,6 +1647,17 @@ Blocked by: -
 Found in: #277 (chat 2026-11-16)
 Issue: Nothing in the database stops two events from having the same join code: events has no unique index on join_id. On live one pair of sub-galleries already shares a code (checked 2026-11-16, neither is the other's parent). open_gallery (supabase/migrations/20261007000000_rls_part1_gallery_link_functions.sql) then picks one of the two, so a guest who types that code can land in the wrong gallery. Since #277 new codes are random 8-character codes, so a new clash is very unlikely, but nothing prevents one. Fix idea (database change, staging first): give one of the two sub-galleries a new code, check staging for clashes the same way, then add a unique index on join_id where join_id is not null; when saving a code hits the index, make a new code and save again.
 How to reproduce: select join_id, count(*) from events where join_id is not null group by join_id having count(*) > 1;
+
+#279
+Listed: 2026-11-16
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Device test #145 step 1 on staging.evebash.com (chat 2026-11-16)
+Issue: On the staging website, photos shown through Next.js's image resizer don't load. next.config.mjs (images.remotePatterns) allows media.evebash.com but not media-staging.evebash.com, the staging media address since the staging/live split (todo #30). Vercel answers /_next/image?url=https://media-staging.evebash.com/... with 400 INVALID_IMAGE_OPTIMIZE_REQUEST, while the same file loads directly (200). Seen on the Midnight Hero cover photo (src/components/TemplateHero.tsx) of staging-test-1-sub-gallery-67fb; the grid photos there load. Live (www.evebash.com with media.evebash.com) is not affected. Testers on staging see empty covers and may report false bugs. Fix idea: add media-staging.evebash.com to images.remotePatterns (one entry; nothing changes on live).
+How to reproduce: Signed in on staging.evebash.com, open https://staging.evebash.com/events/staging-test-1-sub-gallery-67fb: the big cover photo is empty. In the browser's network tab its /_next/image request returns 400.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
