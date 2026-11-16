@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 42
+Next todo number: 43
 
 Last updated: 2026-11-16
 
@@ -825,6 +825,37 @@ Update 2026-11-16: Shwetank checked Sentry's alerts: issue alerts are on, and ea
 =====================================================================
 DONE / DROPPED (delete after 14 days)
 =====================================================================
+#42 Upload status over the whole app, with a minimize-to-floating-button option
+Listed:       2026-11-16
+Platform:     App
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       M
+Suggested by: Sarthak (2026-11-16, after the upload bar fix #273)
+Discussed:    Yes
+Decision:     2026-11-16 Sarthak: keep the in-app upload status (the phone notification can't replace it: it
+              needs notification permission and has no Retry or Cancel), redesign it, let the host minimize it
+              to a floating button, and show it over the app on other pages, not only in the gallery.
+              2026-11-16 Sarthak, after comparing with the website's upload panel (src/context/UploadContext.tsx):
+              build template B, the website's panel with a row per file (its own bar and cancel, plus Cancel
+              all) and photo thumbnails, with the floating button when minimized.
+Owner:        Sarthak (with Claude)
+Depends on:   Issue #273 (fixed in 22ec6541)
+Brief:        Today the upload card (apps/mobile/components/event/UploadProgressCard.tsx) shows only inside the
+              gallery being uploaded to, in the host view, and covers the bottom of the grid with no way to tuck
+              it away. Plan: mount it once at the app root (apps/mobile/app/_layout.tsx) for every upload in the
+              queue; a compact card with a progress ring, a minimize button that turns it into a round floating
+              button (the same ring, can be dragged to either side), tap to open it again; it sits above the tab
+              bar or the event screen's bottom bar. Guest event pages (themes) and the login screens keep it
+              hidden; the guests' own end-of-upload pop-ups stay as they are. Needs a device test.
+              Cancelling one file must work like the website: the app's cancelUploadItem (apps/mobile/lib/
+              uploadQueue.ts) only took the file off the list (an upload in progress kept going, a saved file
+              stayed in the gallery) and freed its upload slot twice; it now stops the transfer, deletes a saved
+              file, and the worker frees its own slot.
+Done in:      d860be59 (2026-11-16); device test #222. Checked on the iPhone 16e simulator with made-up upload
+              data; real uploads and the cancel itself wait on #222.
+
 #32 Analytics dashboard: switch between Live and Staging data
 Listed:       2026-11-14
 Platform:     Analytics dashboard
