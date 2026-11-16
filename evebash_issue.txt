@@ -1547,21 +1547,24 @@ Issue: The live Modal photo-pipeline-switch (read by modal_engine/main.py) lost 
 Fix idea: (1) find when and why the keys went (Modal logs, anyone who ran photo_pipeline_switch.py or deleted the Dict); (2) check whether #121 was rolled out beyond test-v2-358c and whether the website still needs the grid images, then set "grid" again with `photo_pipeline_switch.py grid add <gallery id>` / `grid all` if so; (3) keep the intended switch values in a tracked note so a reset can be spotted: run `photo_pipeline_switch.py show` and compare.
 How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switch.py show (read-only); it should list a face filter and, for test-v2-358c, a grid image.
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #282
 Listed: 2026-11-16
 Platform: Both
 Priority: Critical
-Status: In progress
+Status: Fixed
 Owner: Shwetank (with Claude)
-Blocked by: live: needs the fix on main (hotfix or release day) and a live server deploy, with Shwetank's OK
+Blocked by: -
 Found in: Re-check of the 2026-10-05 security audit after the RLS lockdown (issue #21), 2026-11-16
 Issue: GET /api/media/all-photos (and /api/v1/media/all-photos) on the backend returns the address, gallery id and size of EVERY photo in the database, private galleries included, to anyone, with no login (apps/backend/src/routes/media.ts, admin Supabase client, so the RLS lockdown doesn't apply). Checked 2026-11-16: api.evebash.com answered 200 with about 367 KB; api-staging 200. Nothing in the website, app, dashboard or Modal calls it. First reported in the October audit (PROJECT_ANALYSIS_2026-10-04.md item 3).
 Fix: route removed in apps/backend/src/routes/media.ts (backend type check passes). Staging gets it with the push; live needs it on main and a redeploy of evebash-api-production-backend.
 How to reproduce: curl -s -o /dev/null -w '%{http_code}' https://api.evebash.com/api/media/all-photos (200 = still open; 404 = fixed).
+Update 2026-11-16: hotfix to main with Shwetank's OK (branch hotfix/remove-all-photos, PR #11, merged 48dc066f); the live server redeployed by itself. Checked: api.evebash.com /api/media/all-photos and /api/v1/media/all-photos 404, /health and /api/v1/pricing-plans 200, www.evebash.com 200. Staging already had it (336c5453).
+Fixed in: 25b930fe on main, 336c5453 on staging (2026-11-16)
 
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
 
 #120
 Listed: 2026-10-24
