@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 284
+Next issue number: 285
 
 =====================================================================
 ACTIVE ISSUES
@@ -1546,6 +1546,24 @@ Found in: Check of #101 with Sarthak (2026-11-16)
 Issue: The live Modal photo-pipeline-switch (read by modal_engine/main.py) lost its "face_filter" and "grid" keys at some point after 2026-10-24; it only held mode v2 and v2_events ['test-v2-358c']. Cause unknown (probably the Dict was reset or recreated; a Modal Dict has no key history). Effect: new photos saved every face until face_filter was set again on 2026-11-16 (#101), and the grid image (#121, "<file>-grid.webp", set for test-v2-358c on 2026-10-24) is no longer made. Staging Modal's switch (created 2026-11-14) also has only mode v2.
 Fix idea: (1) find when and why the keys went (Modal logs, anyone who ran photo_pipeline_switch.py or deleted the Dict); (2) check whether #121 was rolled out beyond test-v2-358c and whether the website still needs the grid images, then set "grid" again with `photo_pipeline_switch.py grid add <gallery id>` / `grid all` if so; (3) keep the intended switch values in a tracked note so a reset can be spotted: run `photo_pipeline_switch.py show` and compare.
 How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switch.py show (read-only); it should list a face filter and, for test-v2-358c, a grid image.
+
+#284
+Listed: 2026-11-16
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Shwetank (with Claude)
+Blocked by: Shwetank's OK to fix (staging first, then live)
+Found in: Security review after the RLS lockdown (issue #21) and #282, 2026-11-16 (read-only; status codes only, no data downloaded)
+Issue: Four small gaps left after the October audit (none lets anyone read photos or change data):
+ 1. Modal process_media_batch (modal_engine/main.py) doesn't check the QStash signature, unlike every other Modal web address. Anyone with its URL and real photo ids could restart processing of photos stuck as pending/failed (cost, not data). The backend reaches it only through QStash (apps/backend/src/qstash.ts), so adding verify_qstash_signature is safe.
+ 2. Backend POST /api/media/process-thumbnail needs no login: anyone can make the server queue a Modal batch for any event id (cost). On staging it answered 200 with no login.
+ 3. Backend GET /api/media/indexing-status needs no login: it returns photo and face counts for any event id (event ids are readable slugs like "rls-test-7110").
+ 4. Backend POST /api/media/mobile/reconcile-upload needs no login: it says whether an upload/storage key exists (read-only).
+ Also: CORS_ORIGINS empty means "allow every site" (apps/backend/src/server.ts); live and staging both set it, so no effect today, but a missing setting would open it.
+Checked fine: the Cloudflare media worker only serves single files by exact path (no listing; keys contain random parts); /api/admin/* cost and invoice routes answer 401 without login; video-worker, push-token, account delete, guest-preview, permissions routes need a login or job token; the other Modal web addresses check the QStash signature or the Find You secret.
+Fix idea: 1 add verify_qstash_signature (deploy staging Modal, then live with #269); 2-4 require a logged-in user who can see/manage the event (check what the website and app send first; process-thumbnail may also accept the internal job secret); CORS: treat an empty list as "allow none" except same-origin. Staging first, then live (hotfix or release day).
+How to reproduce: curl -s -X POST https://api-staging.evebash.com/api/v1/media/process-thumbnail -H 'Content-Type: application/json' -d '{}' (200 without login).
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
