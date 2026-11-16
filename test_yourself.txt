@@ -24,7 +24,7 @@ Next test number: 218
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-15
+Last updated: 2026-11-16
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -1193,7 +1193,7 @@ Fix ref:
 Feedback: 404 page PASS on computer (EB logo, "We couldn't find that page", Go to the homepage, Sample galleries, Pricing, Contact us). Note: it shows "Go to my events" (also when logged out) where the test expects "Find your photos". Sample gallery step FAILS: no sample galleries on staging (see #12, issue #32). WhatsApp previews and Rich Results need a person.
 
 #54 Typing in bottom sheets: the keyboard doesn't make the sheet flicker or cover the text box
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  App (Android and iOS)
 Brief:     The shared bottom sheet's keyboard handling changed on Android (issue #45): it lifts the sheet
@@ -1209,14 +1209,16 @@ How to test:
   4. Host > create a new event (New Event sheet). Tap Event Name and type. Expect: same as step 1.
   5. Android only, if you have one: a phone or tablet with a Bluetooth keyboard, or the emulator with
      its hardware keyboard on (only Gboard's small toolbar shows). Expect: the sheet doesn't move.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Sarthak (with Claude guiding and reading the phone's log)
+Device / browser: Pixel 8, Android 16, Gboard
+Build / version: EAS staging build e4b646ad (staging a430d44c, versionCode 25)
+Date tested: 2026-11-16
+Account used: newone1 (staging test account)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  Android steps 1-5 PASS (tester's result). Step 5 used Gboard's Floating keyboard on the phone instead of a
+           Bluetooth keyboard or the emulator: the Join Event sheet stayed at the bottom with no flicker. The phone's
+           log showed 0 crashes and 0 app errors during the test. iOS not checked (its code didn't change in #45).
 
 #55 App Permissions screen: hosts see every guest and request, guest admins keep their controls
 Status:    TODO
