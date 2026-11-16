@@ -1558,21 +1558,24 @@ How to reproduce: curl -s -X POST https://api-staging.evebash.com/api/v1/media/p
 Update 2026-11-16: fixed on staging with Shwetank's OK. 1 Modal process_media_batch verifies the QStash signature (async, same pattern as generate_photo_preview). 2 /process-thumbnail: owner/platform admin/internal job only, via a new authorizeEventProcessing() shared with /trigger-modal-batch. 3 /indexing-status: login required; the website (UploadContext + the /api/media/indexing-status pass-through) and the app (uploadQueue) now send the login. 4 /mobile/reconcile-upload: login required (the app already sent it). CORS: an empty CORS_ORIGINS no longer allows every site. Type checks pass (backend, website, app). Live gets it on release day.
 Update 2026-11-16: checked on staging from outside: process-thumbnail, indexing-status and reconcile-upload answer 401 without a login; the staging Modal process_media_batch answers 401 without a QStash signature; staging server healthy; CORS still allows staging.evebash.com. Left: the upload progress check during Shwetank's device tests (website + app send the login to indexing-status now), then live on release day.
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #285
 Listed: 2026-11-16
 Platform: Website
 Priority: Medium
-Status: In progress
+Status: Fixed
 Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Device test #130 step 7 (Shwetank, 2026-11-16): download works in the app, not on the website
 Issue: On the website, Download on a single photo or video (photo viewer, gallery grid, album page-flip viewer) didn't save the file. The three places each made a link with a "download" attribute to the media address (media.evebash.com / media-staging.evebash.com), and browsers ignore "download" for another domain, so the file just opened (or nothing visible happened). Not related to rotation or the RLS lockdown: the media worker served the rotated file fine (200, with and without ?v=, CORS allows it). The same code is on live.
 Fix: one shared downloadMediaFile() in src/lib/zipDownload.ts fetches the file (CORS) and saves it with a clean name (never "?v="); if the fetch fails or the file is over 300 MB (long original videos) it opens in a new tab instead. Lightbox, MasonryGrid and PageFlipViewer use it (the three copies are gone). Website type check passes.
 How to reproduce: staging.evebash.com, host or member, open a photo, click Download (Chrome).
+Update 2026-11-16: Shwetank retested on staging (device test #130 step 7): Download saves the rotated photo with a normal name. Live gets it with the next release.
+Fixed in: c643074b (2026-11-16)
 
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
 
 #172
 Listed: 2026-10-28

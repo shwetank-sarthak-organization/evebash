@@ -3325,7 +3325,7 @@ Feedback: 2026-11-12 Claude: website side still fine. Thumbnail, preview, grid i
 
 --------------------------------------------------------------------------------
 #130 A rotated photo shows rotated for everyone (and as gallery cover)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website + App
 Brief:     Rotating a photo now saves new links (issue #123), so other guests and devices see it
@@ -3344,14 +3344,14 @@ How to test:
   6. Set that photo as the gallery cover, rotate it, reload. Expect: the cover is rotated too.
   7. Download the rotated photo (website and app). Expect: the file is rotated and has a normal
      name (no "?v=" in it). Then delete the photo. Expect: it disappears, no error.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Shwetank (with Claude)
+Device / browser: Chrome on Mac (staging.evebash.com); Android phone, EveBash USB development build
+Build / version: staging c643074b and later (website); app from Metro, same code
+Date tested: 2026-11-16
+Account used: host test account; guest newone2
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:   All steps passed on staging (rotate switches on): rotate right/left in the app showed at once, the website and the guest saw the new direction after a reload, the cover rotated too. Step 7: the app download was rotated; the website download first only opened the file (issue #285), after the fix it saved the rotated file with a normal name (no ?v=). Deleting the photo worked.
 
 --------------------------------------------------------------------------------
 #131 Rotate turns phone photos the right way
