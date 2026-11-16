@@ -685,6 +685,10 @@ Brief:        apps/mobile/app.config.js gives staging builds the iOS bundle ID c
               and added to Supabase's Apple settings on the staging project, iOS push (APNs key on EAS for that
               app ID), and the Firebase iOS app if push or Firebase is used on iOS. Production iOS
               (com.evebash.app) is unchanged.
+Update 2026-11-16: Google part done (todo #37): iOS OAuth client "EveBash Staging iOS" for com.evebash.app.staging,
+              added to staging Supabase's Google Client IDs; app.config.js gives the staging variant its own
+              iosUrlScheme from EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID (eas.json staging profile, apps/mobile/.env.local)
+              in 560cbd71. Google login checked on a USB iPhone. Still open: Sign in with Apple, APNs, Firebase iOS.
 
 #36 Confetti Circle redesign: our own look, not a copy of the Crafto demo (copyright risk)
 Listed:       2026-11-15
@@ -721,7 +725,7 @@ Listed:       2026-11-15
 Platform:     App
 Priority:     High
 Phase:        1 (v1 launch)
-Status:       Agreed
+Status:       In progress
 Effort:       M
 Suggested by: Shwetank (wants iOS done alongside Android, 2026-11-15)
 Discussed:    Yes
@@ -738,6 +742,17 @@ Brief:        Build the EveBash Staging app (APP_VARIANT unset = staging, bundle
               vault, share window (Copy link), dark and light look. Fix iOS-only problems (layout, safe areas,
               keyboard, permissions text). Not possible in the simulator: real push, the camera. Then add a device
               test for a real iPhone, which waits for the Apple Developer account and todo #35.
+Update 2026-11-16: iOS runs. Set up on Shwetank's Mac: Xcode 27.2, iOS 27.2 simulator, CocoaPods (brew). The
+              staging app builds and opens in the iPhone 18 Pro simulator and, over USB, on Shwetank's iPhone 11
+              (iOS 26.7) with his free Apple account (Personal Team; the app expires 7 days after install). This
+              needed local fixes in the generated ios folder (issue #276: iOS 27 scene lifecycle, iOS 16 minimum,
+              Xcode 27 pod targets; plus quoting for the spaces in this Mac's project path). Metro for iOS runs on
+              port 8082. Checked on the iPhone: email login works, the Dashboard shows "Staging test 1", Google
+              login works with the new staging iOS client (Google Cloud "EveBash Staging iOS", added to staging
+              Supabase's Google Client IDs; code 560cbd71). Not possible with the free account: Sign in with Apple
+              and push (switched off in the USB build; they wait for the paid account, todo #35). Found: issue #275
+              (Google tokens logged). Still to check on the iPhone: device test #218 (event, upload, gallery, Find
+              You, Vault, share window, Light and Dark).
 
 
 #38 Report a photo or video, and report a user (bad, unwanted or restricted uploads)

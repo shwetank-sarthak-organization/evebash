@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 275
+Next issue number: 277
 
 =====================================================================
 ACTIVE ISSUES
@@ -1611,6 +1611,28 @@ Blocked by: -
 Found in: Upload bar fix #273 (chat 2026-11-15)
 Issue: Two copies of the same file-size formatter in the app: formatBytes in apps/mobile/lib/vaultFiles.ts (EB Vault) and formatStorageSize in apps/mobile/lib/planLimits.ts. Same code, except an empty size reads "0 KB" in one and "0 MB" in the other, so they will drift. Fix idea: keep formatStorageSize and have vaultFiles.ts import it (change only with the Vault owner's OK; Vault is Shwetank's area).
 How to reproduce: Compare the two functions in the files above.
+
+#275
+Listed: 2026-11-16
+Platform: App
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: iOS USB test, todo #37 (chat 2026-11-16)
+Issue: Google sign-in writes the whole Google reply to the log: apps/mobile/context/AuthContext.tsx line 527 logs JSON.stringify(response) from GoogleSignin.signIn(), which holds the user's idToken, serverAuthCode, email and photo. Nothing strips console.log in release builds, so the tokens land in the phone's system log and, through Sentry's console breadcrumbs, can be sent to Sentry. Fix idea: log only the response type (success / cancelled), never data. Check the rest of AuthContext.tsx for the same pattern.
+How to reproduce: Run the app with Metro, sign in with Google, and look at the Metro log: "[Auth] GoogleSignin.signIn() response: {...idToken...}".
+
+#276
+Listed: 2026-11-16
+Platform: App
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: iOS simulator and USB iPhone builds, todo #37 (chat 2026-11-16)
+Issue: The iOS app doesn't build or start with Xcode 27 / the iOS 27 SDK unless the generated apps/mobile/ios folder is patched by hand. (1) The app closes at launch on iOS 27 (crash in UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption): apps built with the iOS 27 SDK must use the UIScene lifecycle, and Expo SDK 55's AppDelegate doesn't. Fixed locally with a SceneDelegate in AppDelegate.swift (starts React Native in scene(_:willConnectTo:), forwards deep links and universal links to the AppDelegate) and UIApplicationSceneManifest in Info.plist. (2) Xcode 27 refuses pods whose minimum iOS is below 15, and expo-router uses an iOS 16 API, so all pods and the app need a minimum of iOS 16.0 (set in the Podfile post_install). Both live only in the gitignored ios folder, so "npx expo prebuild --clean" and EAS builds lose them. Fix: a config plugin in apps/mobile (or expo-build-properties deploymentTarget 16.0 plus a scene-lifecycle plugin), or an Expo SDK that supports scenes, before the first EAS iOS build on an Xcode 27 image and before Apple requires the iOS 27 SDK for App Store uploads. Local-only extra (not a product bug): this Mac's project path has spaces, which breaks the RN prebuilt-core download and some unquoted script phases; the Podfile post_install quotes them and pods are installed with RCT_USE_PREBUILT_RNCORE=0 RCT_USE_RN_DEP=0. Full notes in the todo #37 entry.
+How to reproduce: On a Mac with Xcode 27, from apps/mobile: npx expo prebuild --clean, pod install, build for an iOS 27 simulator and open the app. Expect: build errors on deployment targets; after fixing those, the app closes right after the splash.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 218
+Next test number: 219
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6263,6 +6263,45 @@ How to test:
      icon, "See why" (opens the reason), a red Retry and a Dismiss button. Retry tries it again.
   8. Switch Settings > Appearance between Light and Dark and repeat step 1. Expect: the card is easy to read in
      both, and Retry, Cancel and Hide are easy to tap.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#218 App: the EveBash Staging app works on a real iPhone (USB build, todo #37)
+Status:    TODO
+Priority:  High
+Platform:  App (iPhone)
+Brief:     First iOS run on a real phone. The staging app is installed over USB from Shwetank's Mac with a free Apple
+           account (Personal Team) and loads its code from the Mac's Metro server on port 8082. Check the main
+           features end to end on staging, in Light and Dark.
+Detail:    Build: apps/mobile/ios (local, patched for Xcode 27, see issue #276), Debug, signed with the Personal Team;
+           Sign in with Apple and push are switched off in this build (free accounts can't sign them; they need the
+           paid Apple Developer account, todo #35). Google sign-in uses the staging iOS client from commit 560cbd71.
+           The app stops opening 7 days after install; reinstall from the Mac. Checked by Claude 2026-11-16 on
+           Shwetank's iPhone 11 (iOS 26.7): email login, Dashboard with "Staging test 1", Google login.
+How to test:
+  1. iPhone on the same Wi-Fi as the Mac, Metro running on port 8082 on the Mac. Open EveBash Staging. Expect: the
+     intro, then the login screen (if "Development Build" shows, tap the address ending in :8082).
+  2. Log in with email and password. Expect: the Dashboard with your staging events.
+  3. Log out, tap Continue with Google, pick an account. Expect: you are logged in (a new account sees "Welcome to
+     EveBash").
+  4. Open "Staging test 1". Expect: the event page and its photos load, the top and bottom are not hidden behind
+     the notch or the home bar.
+  5. As host, tap Add Photos and pick 3 photos from the library. Expect: iPhone asks for photo access with
+     EveBash's own text, the upload bar counts to 3, the photos appear in the gallery.
+  6. Open a photo, swipe between photos, open comments and type one. Expect: the keyboard doesn't cover the box.
+  7. Find You: take a selfie with the real camera. Expect: iPhone asks for camera access with EveBash's text, your
+     photos are found.
+  8. EB Vault: open it, add a file, open it again.
+  9. Event share window: Share Invitation (send to yourself on WhatsApp) and Copy link. Expect: "Link copied", and
+     the link opens the event page.
+ 10. Settings > Appearance: switch Light and Dark and look at Dashboard, an event and Profile. Expect: readable.
 Done by:
 Device / browser:
 Build / version:
