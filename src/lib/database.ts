@@ -32,7 +32,7 @@ export interface Event {
     legacyId?: string; // Captures original truncated/mismatched ID for backward compatibility
     category?: string;
     templateId?: string; // 'hero' | 'classic', defaults to 'hero'
-    joinId?: string; // 6-digit unique code for guests to join
+    joinId?: string; // Join ID guests type in Join Event, e.g. K7MP-Q4RX (shared/text/joinCode.ts)
     vendors?: string[];
     coverOffset?: number;
     coverOffsetX?: number;
@@ -2159,20 +2159,6 @@ async function notifyGalleryRequest(ref: string) {
     } catch (error) {
         console.warn('[GalleryRequest] Could not notify the host:', error);
     }
-}
-
-export function generateEventJoinId(eventId: string): string {
-    const cleanId = eventId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    const parts = eventId.split('-');
-    const suffix = parts.length > 1 ? parts[parts.length - 1].toUpperCase() : '';
-    const prefix = cleanId.slice(0, 4);
-
-    if (suffix && suffix.length >= 3 && /^[A-Z0-9]+$/.test(suffix)) {
-        return `${prefix}-${suffix}`;
-    }
-
-    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `${prefix}-${randomSuffix}`;
 }
 
 /**

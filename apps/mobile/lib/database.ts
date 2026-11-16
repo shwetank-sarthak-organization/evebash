@@ -3193,20 +3193,6 @@ export function serializeDatabaseData<T>(data: T): T {
     return data;
 }
 
-export function generateEventJoinId(eventId: string): string {
-    const cleanId = eventId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    const parts = eventId.split('-');
-    const suffix = parts.length > 1 ? parts[parts.length - 1].toUpperCase() : '';
-    const prefix = cleanId.slice(0, 4);
-
-    if (suffix && suffix.length >= 3 && /^[A-Z0-9]+$/.test(suffix)) {
-        return `${prefix}-${suffix}`;
-    }
-
-    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `${prefix}-${randomSuffix}`;
-}
-
 /** true when removed; null when refused because the person has an album role (the warning is already shown). */
 export async function deleteGuest(logId: string): Promise<boolean | null> {
     try {

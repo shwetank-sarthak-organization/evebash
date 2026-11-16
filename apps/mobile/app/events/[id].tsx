@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import * as Clipboard from 'expo-clipboard';
 import { Button } from '@/components/ui/Button';
-import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, getMemberDirectory, GuestProfile, removeGuestChatPermission, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery, getGalleryVideo, setGalleryVideo, type GalleryVideo } from '@/lib/database';
+import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, getMemberDirectory, GuestProfile, removeGuestChatPermission, getUserTotalStorage, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery, getGalleryVideo, setGalleryVideo, type GalleryVideo } from '@/lib/database';
 import { confirmDenyRequest } from '@/lib/denyRequest';
 import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDetails } from '@/lib/uploaders';
 import { useAuth } from '@/context/AuthContext';
@@ -31,6 +31,7 @@ import { GuestEditBar } from '../../components/event/guestEdit/GuestEditBar';
 import { EditChip, GuestEditSpots } from '../../components/event/guestEdit/EditChip';
 import { coverContentPosition, coverZoomStyle } from '@/lib/coverStyle';
 import { focusToOffsets } from '../../../../shared/themes/coverFocus';
+import { newEventJoinCode } from '../../../../shared/text/joinCode';
 import { subscribeToUploadQueue, addToUploadQueue, cancelUploadItem, clearFinishedUploads, UploadQueueItem } from '@/lib/uploadQueue';
 import { validateVideoAsset } from '@/lib/videoValidation';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -1716,9 +1717,9 @@ function EventDetailScreen() {
       if (eventData) {
         // Ensure joinId exists
         if (!eventData.joinId) {
-          const shortId = generateEventJoinId(eventData.id);
-          await updateEvent(eventData.id, { joinId: shortId });
-          eventData.joinId = shortId;
+          const joinCode = newEventJoinCode();
+          await updateEvent(eventData.id, { joinId: joinCode });
+          eventData.joinId = joinCode;
         }
 
         if (!eventData.templateId) {
@@ -3067,7 +3068,8 @@ function EventDetailScreen() {
         type: 'sub',
         parentId: event.id,
         templateId: event.templateId || 'hero',
-        order: subEvents.length
+        order: subEvents.length,
+        joinId: newEventJoinCode()
       });
       if (!created.success) {
         appAlert("Error", created.error || "Failed to create gallery. Please try again.");

@@ -113,7 +113,6 @@ import {
 	    getEventFavouritePhotos,
 	    toggleEventFavouritePhoto,
 	    getFavouritePhotosForEvents,
-	    generateEventJoinId,
 	    openGallery,
 	    movePhotosToGallery,
 	    setGalleryHidden,
@@ -126,6 +125,7 @@ import {
 import { uploadEventImage, validateVideoFile } from "@/lib/storage";
 import { removeEventCover, uploadEventCover } from "@/lib/eventCoverUpload";
 import { eventDateInputValue } from "../../../../shared/text/eventDate";
+import { newEventJoinCode } from "../../../../shared/text/joinCode";
 import { comingSoonThemes, pickableThemes } from "../../../../shared/themes/activeThemes";
 import { clampCoverZoom, dragCoverFocus, focusToOffsets } from "../../../../shared/themes/coverFocus";
 import { coverImageStyle } from "@/lib/coverStyle";
@@ -2333,7 +2333,7 @@ function DashboardContent() {
                 createdBy: creatorUid,
                 type: isSubEvent ? "sub" : "main",
                 category: isSubEvent ? (selectedMainEvent.category || eventType) : eventType,
-                joinId: generateEventJoinId(eventId),
+                joinId: newEventJoinCode(),
                 ...(isSubEvent && { parentId: selectedMainEvent.id }),
                 templateId: isSubEvent ? (selectedMainEvent.templateId || "hero") : selectedTemplate
             };
@@ -3027,7 +3027,7 @@ function DashboardContent() {
     const ensureEventJoinId = async (eventToShare: Event) => {
         if (eventToShare.joinId) return eventToShare;
 
-        const joinId = generateEventJoinId(eventToShare.id);
+        const joinId = newEventJoinCode();
         const eventWithJoinId = { ...eventToShare, joinId };
         const saved = await updateEvent(eventToShare.id, { joinId });
         if (!saved) throw new Error("updateEvent returned false");
@@ -3057,7 +3057,7 @@ function DashboardContent() {
         if (!shareModalEvent) return;
 
         const url = getEventShareUrl(shareModalEvent.id);
-        const text = `Join our event "${shareModalEvent.title}" on EveBash!\nJoin ID: ${shareModalEvent.joinId || generateEventJoinId(shareModalEvent.id)}\nLink: ${url}`;
+        const text = `Join our event "${shareModalEvent.title}" on EveBash!\nJoin ID: ${shareModalEvent.joinId}\nLink: ${url}`;
 
         try {
             if (navigator.share) {
@@ -4049,7 +4049,8 @@ function DashboardContent() {
 
 
     const shareModalUrl = shareModalEvent ? getEventShareUrl(shareModalEvent.id) : "";
-    const shareModalJoinId = shareModalEvent?.joinId || (shareModalEvent ? generateEventJoinId(shareModalEvent.id) : "");
+    // handleShareEventLink saves a code before the modal opens
+    const shareModalJoinId = shareModalEvent?.joinId || "";
 
     return (
         <div className={cn(
