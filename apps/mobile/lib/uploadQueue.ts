@@ -143,6 +143,11 @@ type QueueListener = (items: UploadQueueItem[]) => void;
 
 let queue: UploadQueueItem[] = [];
 let activeSlots = 0;
+// Files cancelled while a worker still has them: the worker stops quietly instead of retrying or failing
+const cancelledIds = new Set<string>();
+// The single-part transfer in flight per file, so a cancel can stop it
+const uploadTasks = new Map<string, FileSystem.UploadTask>();
+const cancelledListeners = new Set<(photoId: string) => void>();
 const listeners = new Set<QueueListener>();
 // Names of copies in the uploads folder whose queue items haven't been added yet, so the startup clean-up keeps them
 const copiesBeingAdded = new Set<string>();
@@ -641,6 +646,11 @@ async function uploadWorker(item: UploadQueueItem) {
       // transcode — same as the web flow. No save-photo-batch call here: it would only re-upsert
       // the same row (resetting its duration) and send the host a second "new video" notification.
       console.log(`[UploadQueue] Chunked upload finalized for ${storageKey}. Backend saved the row and queued transcoding.`);
+      if (cancelledIds.delete(item.id)) {
+        // Cancelled while the last part was finishing: the row exists now, so delete it like a saved upload
+        await deleteCancelledUpload(storageKey);
+        return;
+      }
       await mutateQueue(q => {
         const target = q.find(i => i.id === item.id);
         if (target) {
@@ -764,7 +774,10 @@ async function uploadWorker(item: UploadQueueItem) {
       }
     );
 
+    uploadTasks.set(item.id, uploadTask);
     const response = await uploadTask.uploadAsync();
+    // Cancelled: the transfer was stopped (or had just ended; the file is never saved to the gallery then)
+    if (cancelledIds.delete(item.id)) return;
     if (!response || response.status !== 200) {
       throw new Error(`Direct B2 upload failed with status: ${response ? response.status : 'unknown'}`);
     }
@@ -784,6 +797,7 @@ async function uploadWorker(item: UploadQueueItem) {
     // Trigger metadata batch flusher
     void flushMetadataBatches();
   } catch (err: any) {
+    if (cancelledIds.delete(item.id)) return;
     const retries = (item.retryCount || 0) + 1;
     // Set by chunkUpload for 4xx responses — repeating the identical request cannot succeed.
     const nonRetryable = err?.nonRetryable === true;
@@ -831,6 +845,7 @@ async function uploadWorker(item: UploadQueueItem) {
       if (err?.code && PLAN_LIMIT_CODES.has(err.code)) showPlanLimitAlert(err.message);
     }
   } finally {
+    uploadTasks.delete(item.id);
     activeSlots = Math.max(0, activeSlots - 1);
     void updateProgressNotification(true);
     processQueue();
@@ -1324,13 +1339,49 @@ export async function clearFinishedUploads() {
   });
 }
 
-export async function cancelUploadItem(itemId: string) {
+/** Files that can be cancelled: not while the save itself is running (a few seconds), as on the website */
+export function isUploadCancellable(item: UploadQueueItem) {
+  return item.status !== 'uploaded_pending_metadata';
+}
+
+/** True when the file is already in the gallery, so cancelling it deletes it */
+export function isUploadSaved(item: UploadQueueItem) {
+  return (item.status === 'processing' || item.status === 'completed') && !!item.storageKey;
+}
+
+/** Called with the photo id of a saved upload that was cancelled (and so deleted), e.g. to reload the gallery on screen */
+export function onUploadCancelled(listener: (photoId: string) => void) {
+  cancelledListeners.add(listener);
+  return () => { cancelledListeners.delete(listener); };
+}
+
+async function deleteCancelledUpload(storageKey: string) {
+  const { deletePhoto } = require('./database');
+  const photoId = photoRowIdFor(storageKey);
+  const deleted: boolean = await deletePhoto(photoId);
+  if (deleted) cancelledListeners.forEach(listener => listener(photoId));
+  return deleted;
+}
+
+/**
+ * Cancels one file, like the website's upload panel: a file not uploaded yet stops (nothing is kept), one already
+ * in the gallery is deleted. Returns false if a saved file couldn't be deleted (it stays in the list and the gallery).
+ */
+export async function cancelUploadItem(itemId: string): Promise<boolean> {
   const item = queue.find(i => i.id === itemId);
-  if (!item) return;
+  if (!item || !isUploadCancellable(item)) return true;
+
+  if (isUploadSaved(item)) {
+    if (!(await deleteCancelledUpload(item.storageKey!))) return false;
+  } else if (item.status !== 'failed') {
+    // A worker may have it (uploading, or waiting for the network): it stops at its next step
+    cancelledIds.add(itemId);
+    uploadTasks.get(itemId)?.cancelAsync().catch(() => {});
+  }
 
   await cleanupDurableFile(item.fileUri);
 
-  if (item.fileSize && item.fileSize >= 20 * 1024 * 1024) {
+  if (item.mediaType === 'video' && item.fileSize >= 20 * 1024 * 1024 && !isUploadSaved(item)) {
     const { abortChunkedUpload } = require('./chunkUpload');
     abortChunkedUpload(item).catch((err: any) => console.warn('[UploadQueue] Failed to abort chunked upload:', err));
   }
@@ -1339,11 +1390,10 @@ export async function cancelUploadItem(itemId: string) {
     queue = q.filter(i => i.id !== itemId);
   });
 
-  if (item.status === 'uploading') {
-    activeSlots = Math.max(0, activeSlots - 1);
-  }
+  // The worker frees its own slot when it stops
   void updateProgressNotification(true);
   processQueue();
+  return true;
 }
 
 export async function retryUploadItem(itemId: string) {

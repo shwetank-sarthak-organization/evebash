@@ -18,6 +18,13 @@ const MAX_SESSION_RESTARTS = 2; // how many times an expired B2 session may be r
 const API_TIMEOUT_MS = 20_000;
 const COMPLETE_TIMEOUT_MS = 60_000; // finish_large_file + DB save + QStash enqueue
 
+// Uploads cancelled in the upload panel: the part loop stops at the next part instead of sending the rest
+const cancelledUploads = new Set<string>();
+const throwIfCancelled = (itemId: string) => {
+  if (!cancelledUploads.delete(itemId)) return;
+  throw Object.assign(new Error('Upload cancelled'), { nonRetryable: true });
+};
+
 export interface ChunkUploadState {
   version: 1;
   clientUploadId: string;
@@ -127,6 +134,7 @@ export async function clearChunkUploadState(itemId: string) {
 
 /** Cancels an unfinished B2 large file (and its 'uploading' row) and drops the local resume state. */
 export async function abortChunkedUpload(item: UploadQueueItem) {
+  cancelledUploads.add(item.id);
   const stateKey = stateKeyFor(item.id);
   const stateRaw = await AsyncStorage.getItem(stateKey);
   if (!stateRaw) return;
@@ -262,6 +270,7 @@ export async function uploadVideoInChunks(
           continue;
         }
 
+        throwIfCancelled(item.id);
         const result = await uploadPartWithRetry(file, state, item.id, partNumber);
         if (result === 'session_expired') {
           sessionExpired = true;
@@ -401,6 +410,7 @@ async function uploadPartWithRetry(
 
     let lastErr: unknown;
     for (let attempt = 1; attempt <= MAX_PART_RETRIES; attempt++) {
+      throwIfCancelled(itemId);
       try {
         // Fresh part URL per attempt (B2 upload URLs are single-use and tokens expire).
         const partUrlRes = await postChunkApi('/api/media/upload/chunk/part-url', { fileId: state.b2FileId });

@@ -32,7 +32,7 @@ import { EditChip, GuestEditSpots } from '../../components/event/guestEdit/EditC
 import { coverContentPosition, coverZoomStyle } from '@/lib/coverStyle';
 import { focusToOffsets } from '../../../../shared/themes/coverFocus';
 import { newEventJoinCode } from '../../../../shared/text/joinCode';
-import { subscribeToUploadQueue, addToUploadQueue, cancelUploadItem, clearFinishedUploads, UploadQueueItem } from '@/lib/uploadQueue';
+import { subscribeToUploadQueue, addToUploadQueue, clearFinishedUploads, onUploadCancelled, UploadQueueItem } from '@/lib/uploadQueue';
 import { validateVideoAsset } from '@/lib/videoValidation';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -49,7 +49,7 @@ import { PORTRAIT_TABS_HEIGHT, SHOW_EVENT_PARTNERS, ThemeHeader } from '../../co
 import { MasonryPhotoColumns } from '@/components/event/MasonryPhotoColumns';
 import { useScrollWindow } from '@/hooks/use-scroll-window';
 import { ThemeDivider } from '../../components/event/ThemeDivider';
-import { UploadProgressCard } from '../../components/event/UploadProgressCard';
+import { useUploadStatusPlacement } from '../../components/UploadStatusOverlay';
 import { GalleryAccessGate, GalleryGateState } from '../../components/event/GalleryAccessGate';
 import { RenameEventModal } from '../../components/event/modals/RenameEventModal';
 import { SubEventModal } from '../../components/event/modals/SubEventModal';
@@ -1029,6 +1029,8 @@ function EventDetailScreen() {
   // Read by the upload-queue listener, which is set up once per gallery
   const showAdminViewRef = React.useRef(showAdminView);
   showAdminViewRef.current = showAdminView;
+  // The app-wide upload status sits above the host view's bottom bar; guest pages keep their own pop-ups
+  useUploadStatusPlacement(showAdminView ? 70 + insets.bottom : null);
 
   // Theme colors are intentionally FIXED to the light palette for the visitor event view —
   // the selected template must look the same regardless of the device OS dark/light setting.
@@ -2783,6 +2785,8 @@ function EventDetailScreen() {
       loadPhotos(liveGalleryId, liveGalleryLegacyId, { silent: true });
     }
   };
+  // An upload cancelled in the upload panel after it was saved is deleted: reload so it leaves the grid
+  useEffect(() => onUploadCancelled(() => refreshLiveGalleryRef.current()), []);
 
   useEffect(() => {
     if (!liveGalleryId || liveGalleryId === 'event-partners' || liveGalleryId === 'find-you' || !hasMemberAccess) return;
@@ -8907,8 +8911,6 @@ function EventDetailScreen() {
         </View>
       )}
 
-      {/* ── UPLOAD PROGRESS CARD (host view; guest pages keep their own pop-ups) ── */}
-      {showAdminView && <UploadProgressCard items={uploadQueue} bottom={70 + insets.bottom} />}
 
       {/* ── CUSTOM THEME-STYLED UPLOAD COMPLETE MODAL ── */}
       <Modal
