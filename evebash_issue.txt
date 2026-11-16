@@ -445,18 +445,6 @@ Issue: The website and app carry files, assets and packages nothing uses. App: 7
 How to reproduce: grep the repo for each file or package name: only its own file (or package.json) mentions it.
 Note 2026-10-26: src/components/ui/Hero.tsx is deleted (22c0ec8, with #151).
 
-#104
-Listed: 2026-10-22
-Platform: App
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: FCM V1 push key for com.evebash.app.staging on expo.dev, a new staging build, then device test #221
-Found in: Retesting the #47 access-request push (2026-10-22)
-Issue: Pushes go to the wrong phone when people switch accounts. Signing in to the app saves the phone's push token on that account (registerDeviceForPushNotifications, apps/mobile/lib/notifications.ts), but logging out (apps/mobile/context/AuthContext.tsx, logout) leaves it there, and nothing removes it from accounts that used the phone before. Each account also holds only one token, the last phone it signed in on. Result: a phone gets the pushes of every account that ever signed in on it, and a user's own phone stops getting pushes once they sign in anywhere else. Seen 2026-10-22: the Android emulator's token is on 3 profiles ("New" e8848fc1..., "Sarthak Chauhan" b7ab6182..., "Sarthak " f78d1089...). On 2026-10-21 b7ab6182 asked to join "Samarth and Jyoti" (owned by f78d1089) from the emulator, and the owner's "New access request" push arrived on that same emulator instead of the owner's phone. The server side (#47) works. Fix idea: on logout, clear the account's push_token when it is this phone's token; on sign-in, remove this token from every other profile (needs the server or a database function, since other profiles aren't writable once RLS part 2 is on); later, allow several phones per account (a push_tokens table). Needs a new app build. Related: the website and app both push via the backend (#47, #58).
-How to reproduce: Phone with the app: sign in as A, log out, sign in as B. Another account asks to join A's private gallery: the push arrives on this phone (signed in as B), and A's own phone gets nothing if A last signed in here.
-Note 2026-11-16: also on staging: 8 of 10 profiles hold a push token but only 5 are different. Fix in 6d4fb5a1 (not in an app build yet): after saving its token, the app calls the new backend route POST /api/v1/notifications/push-token, which takes the token off every other profile and saves it on the caller (apps/backend/src/routes/notifications.ts; switch PUSH_TOKEN_CLAIM=false turns it off, then the app works as before). On logout the app clears push_token on the account when it still holds this phone's token, before signing out, and gives up after 3 s (releasePushToken in apps/mobile/lib/notifications.ts, called from logout in context/AuthContext.tsx). No database change. Backend test tests/pushTokenClaim.test.ts. Still one token per account: a second phone replaces the first (push_tokens table later). Device test #221.
-
 #105
 Listed: 2026-10-22
 Platform: App
@@ -1576,6 +1564,19 @@ How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switc
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#104
+Listed: 2026-10-22
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Retesting the #47 access-request push (2026-10-22)
+Issue: Pushes go to the wrong phone when people switch accounts. Signing in to the app saves the phone's push token on that account (registerDeviceForPushNotifications, apps/mobile/lib/notifications.ts), but logging out (apps/mobile/context/AuthContext.tsx, logout) leaves it there, and nothing removes it from accounts that used the phone before. Each account also holds only one token, the last phone it signed in on. Result: a phone gets the pushes of every account that ever signed in on it, and a user's own phone stops getting pushes once they sign in anywhere else. Seen 2026-10-22: the Android emulator's token is on 3 profiles ("New" e8848fc1..., "Sarthak Chauhan" b7ab6182..., "Sarthak " f78d1089...). On 2026-10-21 b7ab6182 asked to join "Samarth and Jyoti" (owned by f78d1089) from the emulator, and the owner's "New access request" push arrived on that same emulator instead of the owner's phone. The server side (#47) works. Fix idea: on logout, clear the account's push_token when it is this phone's token; on sign-in, remove this token from every other profile (needs the server or a database function, since other profiles aren't writable once RLS part 2 is on); later, allow several phones per account (a push_tokens table). Needs a new app build. Related: the website and app both push via the backend (#47, #58).
+How to reproduce: Phone with the app: sign in as A, log out, sign in as B. Another account asks to join A's private gallery: the push arrives on this phone (signed in as B), and A's own phone gets nothing if A last signed in here.
+Note 2026-11-16: also on staging: 8 of 10 profiles hold a push token but only 5 are different. Fix in 6d4fb5a1 (not in an app build yet): after saving its token, the app calls the new backend route POST /api/v1/notifications/push-token, which takes the token off every other profile and saves it on the caller (apps/backend/src/routes/notifications.ts; switch PUSH_TOKEN_CLAIM=false turns it off, then the app works as before). On logout the app clears push_token on the account when it still holds this phone's token, before signing out, and gives up after 3 s (releasePushToken in apps/mobile/lib/notifications.ts, called from logout in context/AuthContext.tsx). No database change. Backend test tests/pushTokenClaim.test.ts. Still one token per account: a second phone replaces the first (push_tokens table later). Device test #221.
+Fixed in: 6d4fb5a1 (2026-11-16). Device test #221 PASS on a Pixel 8 (Android 16, EAS staging build 60443d04): signing in moves the phone's token to that account only, logging out clears it, and with the phone signed in as another account a join request to the first account's private gallery no longer pushes to this phone (server: "owner has no push token"); after signing back in, the push arrives. The staging app's FCM V1 key was linked on expo.dev the same day. Not run: iPhone, and a second phone for one account. Live gets it with the next app release (backend from main, app build).
 
 #49
 Listed: 2026-10-12

@@ -3833,7 +3833,7 @@ Done by:   Sarthak with Claude (app on the phone; website and backend by Claude,
 Device / browser: Pixel 8, Android 16; Claude built-in browser (desktop size); Sarthak's Chrome for sentry.io
 Build / version: EAS staging build e4b646ad (steps 4-5); crash-test build e67e82ff (step 8); staging.evebash.com
 Date tested: 2026-11-16
-Account used: phone: Sarthak's own account; website: newone
+Account used: phone: Sarthak's own account; website: newone1
 Screenshot / recording:
 Fix ref:
 Feedback:  2026-11-16 app steps 4 and 5 PASS (Sarthak, with Claude checking the staging database and the phone's log;
@@ -3842,7 +3842,7 @@ Feedback:  2026-11-16 app steps 4 and 5 PASS (Sarthak, with Claude checking the 
            with Wi-Fi off mid-upload: no "upload failed", the upload paused 2 min 15 s and carried on by itself; all
            14 photos arrived once with thumbnails, none failed.
            2026-11-16 website and backend steps 1, 2, 3, 6 and 7 PASS (Claude in the Claude built-in browser, desktop
-           size, not a real phone; signed in to staging by Sarthak as newone). 1: dashboard, Host console and a gallery
+           size, not a real phone; signed in to staging by Sarthak as newone1). 1: dashboard, Host console and a gallery
            (staging-test-1-sub-gallery-67fb) load as before; its cover photo is broken by a staging image setting, not by
            Sentry (issue #279). 2: a test error on staging.evebash.com was accepted by Sentry (HTTP 200, environment
            "staging"). 3: checked in what the browser sent, logged out and signed in (event 0787fdf3332e4687a67dcd864e18d166):
@@ -6400,7 +6400,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #221 App (Android first): a phone only gets the pushes of the account signed in on it (#104)
-Status:    TODO
+Status:    PASS
 Priority:  High (launch blocker, test first)
 Platform:  App (Android first, then iPhone)
 Brief:     A phone used to keep getting the pushes of every account that ever signed in on it, and an account's own
@@ -6421,11 +6421,20 @@ How to test:
   4. Sign in as A on a second phone (or reinstall and sign in as A), then make a push for A. Expect: it arrives on
      A's phone only, not on the phone signed in as B.
   5. Log out and in a few times, and use the app normally. Expect: logging out is as quick as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Sarthak with Claude (Claude checked the staging database, the server log and the phone's notifications over
+           USB, and sent the join requests from the website in the Claude built-in browser)
+Device / browser: Pixel 8, Android 16; staging.evebash.com in the Claude built-in browser for the requests
+Build / version: EAS staging build 60443d04 (staging 481cb2b2, versionCode 25); staging API with 6d4fb5a1
+Date tested: 2026-11-16
+Account used: A = Sarthak's own account (owns private galleries "Test 260" and "Test event staging"); B = newone1
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  PASS on Android. Before: a test push through Expo reached the phone (FCM V1 key linked on expo.dev,
+           receipt "ok"). Signed in as A: the app called /push-token (HTTP 200) and the phone's token was on A only.
+           Logged out (quick, as before): no account held the token. Signed in as B: token on B only, A had none.
+           B asked to join A's "Test 260" from the website: server log "push not sent: owner has no push token",
+           nothing on the phone (before the fix A's push would have landed here). Signed back in as A: token on A
+           only; B asked to join A's "Test event staging": server "push sent", "New access request" showed on the
+           phone. Step 3 (a push for B's own gallery) was checked in the database only (token on B), and step 4 was
+           not run (one phone). iPhone not run (the staging iPhone app has no push setup yet). Left behind on
+           staging: B's two pending requests to A's galleries (test data).
