@@ -1552,6 +1552,7 @@ d2d7be9) still has "evebash-media-key" baked in; it gets the new key at the next
 (not all buckets); it was no longer used anywhere (checked: staging and live Railway, local settings
 files) and Shwetank deleted it on 2026-11-14. The emptied "Evebash-Vault-Staging" bucket can now be
 deleted too (with Shwetank's OK). Status: Testing until "evebash-media-key" is deleted.
+Note 2026-11-16: the next live Modal deploy also switches on Sentry for Modal (todo #39): the root .env now has SENTRY_DSN and SENTRY_ENVIRONMENT=production. After the deploy, check the live Modal log says "[Sentry] error reporting on".
 
 #271
 Listed: 2026-11-15

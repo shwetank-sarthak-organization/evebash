@@ -44,6 +44,52 @@ def _settings_secret():
     # file it looks for, so the name must go in `filename`. Passing a full path to a different file silently loads .env.
     return modal.Secret.from_dotenv(_ENV_DIR, filename=_ENV_FILE_NAME)
 
+
+# Crash and error reporting (Sentry). Off unless SENTRY_DSN is in the deploy's settings file (.env for live,
+# .env.modal-staging for staging) with SENTRY_ENVIRONMENT; runs only inside Modal's containers. Modal catches a
+# function's exceptions itself, so the places that mark a photo or video "failed" report it with _report_error.
+_sentry_sdk = None
+_sentry_checked = False
+
+def _sentry():
+    global _sentry_sdk, _sentry_checked
+    if _sentry_checked:
+        return _sentry_sdk
+    _sentry_checked = True
+    dsn = (os.environ.get("SENTRY_DSN") or "").strip()
+    if not dsn or modal.is_local():
+        return None
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=dsn,
+            environment=(os.environ.get("SENTRY_ENVIRONMENT") or "production").strip(),
+            traces_sample_rate=0,
+            send_default_pii=False,
+        )
+        sentry_sdk.set_tag("service", "modal")
+        _sentry_sdk = sentry_sdk
+        print("[Sentry] error reporting on")
+    except Exception as e:
+        print(f"[Sentry] off: {e}")
+    return _sentry_sdk
+
+def _report_error(err: BaseException, where: str, **context):
+    """Sends a caught error to Sentry with where it happened (photo id etc.). Never raises."""
+    sdk = _sentry()
+    if not sdk:
+        return
+    try:
+        with sdk.new_scope() as scope:
+            scope.set_tag("where", where)
+            for key, value in context.items():
+                scope.set_extra(key, value)
+            sdk.capture_exception(err)
+    except Exception:
+        pass
+
+_sentry()
+
 # Define the Modal image with system OpenCV dependencies and InsightFace + ONNX Runtime.
 image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -58,6 +104,7 @@ image = (
         "supabase",
         "requests",
         "numpy",
+        "sentry-sdk",
     )
     .run_commands(
         # Download AuraFace weights from fal/AuraFace-v1 to the standard model folder
@@ -79,6 +126,7 @@ media_image = (
         "Pillow",
         "supabase",
         "requests",
+        "sentry-sdk",
     )
 )
 
@@ -447,6 +495,7 @@ def process_photo_preview(photo_data: dict):
 
     except Exception as e:
         print(f"[{photo_id}] Fast Preview generation failed: {e}")
+        _report_error(e, "photo_preview", photo_id=photo_id)
         failed_update = {
             "media_status": "failed",
             "processing_error": str(e)[:1000]
@@ -662,6 +711,7 @@ class FaceIndexer:
 
         except Exception as e:
             print(f"[{photo_id}] Face indexing error: {e}")
+            _report_error(e, "face_index", photo_id=photo_id)
             try:
                 supabase.table("photos").update({
                     "face_status": "failed",
@@ -975,6 +1025,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
 
     except Exception as e:
         print(f"[{photo_id}] Fast Preview generation failed: {e}")
+        _report_error(e, "photo_preview", photo_id=photo_id)
         failed_update = {
             "media_status": "failed",
             "processing_error": str(e)[:1000]
@@ -1121,6 +1172,7 @@ def _save_faces_v2(photo_id, asset_version, event_id, user_id, preview_url, load
     except Exception as e:
         # The preview is already live; only the faces failed, and the maintenance job retries just the faces
         print(f"[{photo_id}] Face indexing error: {e}")
+        _report_error(e, "face_index", photo_id=photo_id)
         try:
             _db_execute(supabase.table("photos").update({
                 "face_status": "failed",
@@ -1748,7 +1800,7 @@ transcode_image = (
     # `python -u worker.py` startup — FFmpeg sees `-u` as an unknown flag and crashes.
     # Clear it so Modal can launch its Python runtime normally.
     .dockerfile_commands(["ENTRYPOINT []", "CMD []"])
-    .pip_install("boto3", "supabase", "fastapi[standard]")
+    .pip_install("boto3", "supabase", "fastapi[standard]", "sentry-sdk")
 )
 
 # Issue #141: the GPU worker that takes every video format needs CUDA filters the image above lacks (scale_cuda
@@ -1766,7 +1818,7 @@ gpu_all_image = (
         "mkdir -p /opt/jellyfin-ffmpeg && tar -xJf /tmp/jellyfin-ffmpeg.tar.xz -C /opt/jellyfin-ffmpeg && rm /tmp/jellyfin-ffmpeg.tar.xz",
         "ln -s /opt/jellyfin-ffmpeg/ffmpeg /usr/local/bin/ffmpeg && ln -s /opt/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe",
     )
-    .pip_install("boto3", "supabase", "fastapi[standard]")
+    .pip_install("boto3", "supabase", "fastapi[standard]", "sentry-sdk")
 )
 
 def _notify_video_processed(photo_id: str):
@@ -2882,6 +2934,7 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
     except Exception as e:
         remove_early_uploads_unless_live()
         error_details = str(e)
+        _report_error(e, f"transcode_{hardware}", photo_id=photo_id)
         try:
             supabase.table("photos").update({"status": "failed", "processing_error": error_details[:1000]}).eq("id", photo_id).execute()
         except Exception:
