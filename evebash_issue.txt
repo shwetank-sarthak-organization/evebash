@@ -321,20 +321,6 @@ How to reproduce: Open any Royal Emerald gallery and scroll past the hero: two h
 Update 2026-10-22: fixed. The theme's own "Treasured Moments / The Wedding Collection" heading was removed; only the shared gallery heading remains.
 Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): no "Treasured Moments" heading; only the crest and "Home Gallery" between gold lines. Device test #101 is FAIL only for step 7 (#92); this part passes.
 
-#85
-Listed: 2026-10-22
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: Royal Emerald uses three different golds: #cca43b (yellow) in the hero (src/components/TemplateRoyal.tsx), #ca9c69 (bronze) in the theme colours and gallery (src/app/royal-emerald.css, apps/mobile/constants/templates.ts), and gold-400/500/600 in the shared SectionHeader. The hero and the gallery below don't match.
-How to reproduce: Open a Royal Emerald gallery: compare the Explore Gallery button and frame gold with the gold of the gallery controls and liked hearts.
-Update 2026-10-22: hero now uses the bronze gold family (#ca9c69 / #e6c574 gradients) everywhere, no #cca43b left in TemplateRoyal. Still open: the shared SectionHeader keeps gold-400/500/600.
-Update 2026-10-22 (later): no longer applies. Royal Emerald galleries now use their own header (src/components/royal/RoyalGalleryHeader.tsx) instead of SectionHeader, all in the bronze gold family. Waiting only on device test #101/#102.
-Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): hero, crest, plaque, Back / Share and the Photos / Videos switch are all in the bronze gold family. Device test #101 is FAIL only for step 7 (#92); this part passes.
-
 #86
 Listed: 2026-10-22
 Platform: Website
@@ -1651,6 +1637,22 @@ How to reproduce: Signed in on staging.evebash.com, open https://staging.evebash
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#85
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Royal Emerald uses three different golds: #cca43b (yellow) in the hero (src/components/TemplateRoyal.tsx), #ca9c69 (bronze) in the theme colours and gallery (src/app/royal-emerald.css, apps/mobile/constants/templates.ts), and gold-400/500/600 in the shared SectionHeader. The hero and the gallery below don't match.
+How to reproduce: Open a Royal Emerald gallery: compare the Explore Gallery button and frame gold with the gold of the gallery controls and liked hearts.
+Update 2026-10-22: hero now uses the bronze gold family (#ca9c69 / #e6c574 gradients) everywhere, no #cca43b left in TemplateRoyal. Still open: the shared SectionHeader keeps gold-400/500/600.
+Update 2026-10-22 (later): no longer applies. Royal Emerald galleries now use their own header (src/components/royal/RoyalGalleryHeader.tsx) instead of SectionHeader, all in the bronze gold family. Waiting only on device test #101/#102.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): hero, crest, plaque, Back / Share and the Photos / Videos switch are all in the bronze gold family. Device test #101 is FAIL only for step 7 (#92); this part passes.
+Fixed in: eabe4a96 (2026-10-22). Royal Emerald galleries use their own header (src/components/royal/RoyalGalleryHeader.tsx) in the bronze gold family; no #cca43b and no gold-400/500/600 left in TemplateRoyal.tsx, src/components/royal/ or royal-emerald.css (grep 2026-11-16).
+Closed 2026-11-16 without a phone test: colour check, passed in the browser 2026-11-12.
 
 #275
 Listed: 2026-11-16
