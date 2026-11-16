@@ -32,9 +32,9 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 40
+Next todo number: 41
 
-Last updated: 2026-11-15
+Last updated: 2026-11-16
 
 =====================================================================
 ACTIVE TODOS
@@ -820,6 +820,29 @@ Update 2026-11-16: Modal: sentry-sdk in every image; _sentry() / _report_error()
               (staging) and the root .env (production, used at the next live Modal deploy, #269). Staging deploy
               started.
 Update 2026-11-16: staging Modal deployed with it (all functions, same URLs); the staging Modal log shows "[Sentry] error reporting on" at 14:00:06 IST. Left: the live Modal deploy (#269) and a check that a real failure appears in Sentry (service=modal).
+
+#40 Turn on Realtime (live updates) for the v1 launch
+Listed:       2026-11-16
+Platform:     Both
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Agreed
+Effort:       M
+Suggested by: Sarthak (2026-11-16, while closing issue #49)
+Discussed:    Yes
+Decision:     2026-11-16 Sarthak: Realtime goes in v1 for: new access requests (guests), new photos, likes and
+              comments. Vendor chat stays Phase 2. Tables are switched on one at a time, behind a switch, staging first.
+Owner:        Unassigned
+Depends on:   -  (issue #21, RLS lockdown part 2, is live since 2026-11-16)
+Brief:        Realtime has been off since 2026-09-30 (the supabase_realtime publication has no tables). Steps:
+              (1) add the tables one at a time (guests, photos, likes, comments), checking after each that only
+              people allowed to see a row get it; (2) review the app's existing listeners (photos, events,
+              profiles, likes, comments, chat, businesses are all dormant now) and fix the Gallery and Usage tabs,
+              which create a new randomly named channel every time they open (apps/mobile/app/(tabs)/gallery.tsx,
+              usage.tsx), so they unsubscribe; (3) check the Supabase plan's limits on live connections and
+              messages; (4) put it behind a switch so it can be turned off fast; (5) when access requests are live,
+              decide if the reload-on-return workaround from #48 (c42c419) stays as a fallback. Needs a device test.
+Done in:      -
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)

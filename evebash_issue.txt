@@ -99,17 +99,6 @@ Issue: New access requests only show in the app after the host leaves and reopen
 How to reproduce: Keep the event's Permissions tab open in the app, send a request from the website: it doesn't appear until you reopen the screen.
 Note 2026-10-27: Fixed in c42c419 (needs a new app build): apps/mobile/hooks/use-reload-on-return.ts reloads the Permissions tab and Gallery > Requests silently when a push with an eventId arrives while the screen is open, and when the app returns from the background. The push has no type field, so any event push reloads (one small query). Tapping the push still opens the event on its Galleries tab, not Permissions. Device check: test_yourself #161.
 
-#49
-Listed: 2026-10-12
-Platform: Both
-Priority: Low
-Status: Blocked
-Owner: Unassigned
-Blocked by: #21 (RLS lockdown part 2)
-Found in: Discussing live updates while testing #51 (2026-10-12)
-Issue: Supabase Realtime is off (the supabase_realtime publication has no tables since 2026-09-30, the user's choice). Decision 2026-10-12: keep it off for the v1 launch and turn it on later per table, only where a feature needs it (first candidate: Phase 2 vendor chat, messages and chat_rooms; then maybe comments and likes; guests only if #48 isn't enough). Before turning any table on: (1) #21 must be applied, or Realtime sends row changes to anyone listening; (2) add tables one at a time, not all; (3) review the existing listeners first: the app subscribes to photos, events, profiles, likes, comments, chat, businesses (all dormant now), and the Gallery and Usage tabs create a new randomly named channel each time they open (apps/mobile/app/(tabs)/gallery.tsx, usage.tsx), so check they unsubscribe; (4) check the Supabase plan's limits on live connections and messages.
-How to reproduce: In Supabase, Database > Publications > supabase_realtime: no tables.
-
 #58
 Listed: 2026-10-12
 Platform: Both
@@ -1587,6 +1576,18 @@ How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switc
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#49
+Listed: 2026-10-12
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Unassigned
+Blocked by: -
+Found in: Discussing live updates while testing #51 (2026-10-12)
+Issue: Supabase Realtime is off (the supabase_realtime publication has no tables since 2026-09-30, the user's choice). Decision 2026-10-12: keep it off for the v1 launch and turn it on later per table, only where a feature needs it (first candidate: Phase 2 vendor chat, messages and chat_rooms; then maybe comments and likes; guests only if #48 isn't enough). Before turning any table on: (1) #21 must be applied, or Realtime sends row changes to anyone listening; (2) add tables one at a time, not all; (3) review the existing listeners first: the app subscribes to photos, events, profiles, likes, comments, chat, businesses (all dormant now), and the Gallery and Usage tabs create a new randomly named channel each time they open (apps/mobile/app/(tabs)/gallery.tsx, usage.tsx), so check they unsubscribe; (4) check the Supabase plan's limits on live connections and messages.
+How to reproduce: In Supabase, Database > Publications > supabase_realtime: no tables.
+Fixed in: closed as a decision, no code change (2026-11-16). 2026-11-16 Sarthak: Realtime is wanted in v1 (access requests, new photos, likes and comments; vendor chat stays Phase 2). Checklist step 1 (#21) is done (live 2026-11-16). The remaining steps moved into todo #40.
 
 #9
 Listed: 2026-10-09
