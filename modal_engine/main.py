@@ -317,19 +317,24 @@ def _hand_off_to_fast_pipeline(photos: list) -> dict:
     secrets=[_settings_secret()]
 )
 @modal.fastapi_endpoint(method="POST")
-def process_media_batch(request: dict):
+async def process_media_batch(request: fastapi.Request):
     """
     QStash Webhook Entrypoint.
     Accepts a batch of photos and fans them out to parallel CPU workers.
+    Verifies Upstash-Signature like the other webhooks (issue #284): the backend only reaches it through QStash
+    (apps/backend/src/qstash.ts publishModalBatchTask).
     """
-    import time
-    start_time = time.time()
+    import asyncio
+    import json
+    body = await request.body()
+    verify_qstash_signature(body, request.headers.get("Upstash-Signature", ""), str(request.url))
 
-    photos = request.get("photos", [])
+    payload = json.loads(body.decode("utf-8")) if body else {}
+    photos = payload.get("photos", []) if isinstance(payload, dict) else []
     if not photos:
         return {"status": "no photos provided"}
 
-    return _hand_off_to_fast_pipeline(photos)
+    return await asyncio.to_thread(_hand_off_to_fast_pipeline, photos)
 
 
 # ==============================================================================

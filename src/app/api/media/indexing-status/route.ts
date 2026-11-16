@@ -19,7 +19,11 @@ export async function GET(request: NextRequest) {
   try {
     const backendResponse = await fetch(
       `${apiBaseUrl}/api/v1/media/indexing-status?${new URLSearchParams({ eventId }).toString()}`,
-      { cache: "no-store" },
+      {
+        cache: "no-store",
+        // The backend needs the caller's login for this (issue #284)
+        headers: { Authorization: request.headers.get("authorization") || "" },
+      },
     );
     const payload = await backendResponse.json().catch(() => ({
       error: "Unexpected backend response.",

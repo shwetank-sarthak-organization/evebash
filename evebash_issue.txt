@@ -1551,9 +1551,9 @@ How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switc
 Listed: 2026-11-16
 Platform: Both
 Priority: Medium
-Status: Open
+Status: In progress
 Owner: Shwetank (with Claude)
-Blocked by: Shwetank's OK to fix (staging first, then live)
+Blocked by: live: release day (backend + website via main, Modal with #269)
 Found in: Security review after the RLS lockdown (issue #21) and #282, 2026-11-16 (read-only; status codes only, no data downloaded)
 Issue: Four small gaps left after the October audit (none lets anyone read photos or change data):
  1. Modal process_media_batch (modal_engine/main.py) doesn't check the QStash signature, unlike every other Modal web address. Anyone with its URL and real photo ids could restart processing of photos stuck as pending/failed (cost, not data). The backend reaches it only through QStash (apps/backend/src/qstash.ts), so adding verify_qstash_signature is safe.
@@ -1564,6 +1564,7 @@ Issue: Four small gaps left after the October audit (none lets anyone read photo
 Checked fine: the Cloudflare media worker only serves single files by exact path (no listing; keys contain random parts); /api/admin/* cost and invoice routes answer 401 without login; video-worker, push-token, account delete, guest-preview, permissions routes need a login or job token; the other Modal web addresses check the QStash signature or the Find You secret.
 Fix idea: 1 add verify_qstash_signature (deploy staging Modal, then live with #269); 2-4 require a logged-in user who can see/manage the event (check what the website and app send first; process-thumbnail may also accept the internal job secret); CORS: treat an empty list as "allow none" except same-origin. Staging first, then live (hotfix or release day).
 How to reproduce: curl -s -X POST https://api-staging.evebash.com/api/v1/media/process-thumbnail -H 'Content-Type: application/json' -d '{}' (200 without login).
+Update 2026-11-16: fixed on staging with Shwetank's OK. 1 Modal process_media_batch verifies the QStash signature (async, same pattern as generate_photo_preview). 2 /process-thumbnail: owner/platform admin/internal job only, via a new authorizeEventProcessing() shared with /trigger-modal-batch. 3 /indexing-status: login required; the website (UploadContext + the /api/media/indexing-status pass-through) and the app (uploadQueue) now send the login. 4 /mobile/reconcile-upload: login required (the app already sent it). CORS: an empty CORS_ORIGINS no longer allows every site. Type checks pass (backend, website, app). Live gets it on release day.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

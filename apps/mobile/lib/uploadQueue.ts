@@ -1211,9 +1211,12 @@ export function triggerAndTrackProcessing(eventId: string) {
 
     try {
       const statusEndpoints = getEndpointsForPath(`/api/v1/media/indexing-status?eventId=${eventId}`);
+      // The server needs a login for this (issue #284)
+      const { data: statusSession } = await supabase.auth.getSession();
+      const statusToken = statusSession.session?.access_token;
       const response = await fetchWithEndpointFallback(
         statusEndpoints,
-        (endpoint: string) => fetch(endpoint),
+        (endpoint: string) => fetch(endpoint, statusToken ? { headers: { Authorization: `Bearer ${statusToken}` } } : undefined),
         'indexing-status'
       );
 

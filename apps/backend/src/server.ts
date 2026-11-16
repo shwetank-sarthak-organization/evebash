@@ -69,7 +69,9 @@ app.use(pinoHttp());
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || corsOrigins.length === 0 || corsOrigins.includes(origin)) {
+      // No Origin header = not a browser (server-to-server, the apps). An empty CORS_ORIGINS no longer means "allow
+      // every site" (issue #284): every environment sets it.
+      if (!origin || corsOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
