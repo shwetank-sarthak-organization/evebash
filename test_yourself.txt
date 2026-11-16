@@ -3355,7 +3355,7 @@ Feedback:   All steps passed on staging (rotate switches on): rotate right/left 
 
 --------------------------------------------------------------------------------
 #131 Rotate turns phone photos the right way
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website + App
 Brief:     Rotating a portrait phone photo did nothing (right) or turned it upside down (left) (issue
@@ -3374,14 +3374,14 @@ How to test:
   5. Repeat 2-4 for the Android photo and the landscape photo (website and app).
   6. Reload the gallery on another device. Expect: same direction as on your phone, grid tile shape
      matches the photo (no hard cropping).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Shwetank (with Claude)
+Device / browser: iPhone and Android phone photos; Android EveBash USB build and Chrome on Mac (staging.evebash.com)
+Build / version: staging 2026-11-16 (ROTATE_UPRIGHT_FIRST and ROTATE_VERSIONED_LINKS on)
+Date tested: 2026-11-16
+Account used: host test account
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:   All photos rotated the way tapped, never upside down (Shwetank). Checked in the staging database: 4 photos uploaded 19:43-19:45 IST, all ready; 3 rotated (new ?v= links), one left sideways (1024x768), two rotated back to their original shape.
 
 --------------------------------------------------------------------------------
 #132 App: Classic White cover and gallery header match the website
