@@ -1514,19 +1514,6 @@ Issue: Deleting an event in the app runs the B2 file cleanup twice ("[deleteEven
 Fix idea: find why deleteEvent's cleanup runs twice (double tap, or the confirm handler/effect firing twice) and run it once; treat "already deleted" from /api/media/delete as success instead of trying other endpoints; delete the guest preview picture before the event row.
 How to reproduce: Android USB build on staging, host deletes an event that has photos in a sub-gallery and the Home gallery; watch the Metro log and the screen.
 
-#281
-Listed: 2026-11-16
-Platform: Both
-Priority: Medium
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: live Modal publish with Sarthak (#269)
-Found in: Check of #101 with Sarthak (2026-11-16)
-Issue: The live Modal photo-pipeline-switch (read by modal_engine/main.py) lost its "face_filter" and "grid" keys at some point after 2026-10-24; it only held mode v2 and v2_events ['test-v2-358c']. Cause unknown (probably the Dict was reset or recreated; a Modal Dict has no key history). Effect: new photos saved every face until face_filter was set again on 2026-11-16 (#101), and the grid image (#121, "<file>-grid.webp", set for test-v2-358c on 2026-10-24) is no longer made. Staging Modal's switch (created 2026-11-14) also has only mode v2.
-Fix idea: (1) find when and why the keys went (Modal logs, anyone who ran photo_pipeline_switch.py or deleted the Dict); (2) check whether #121 was rolled out beyond test-v2-358c and whether the website still needs the grid images, then set "grid" again with `photo_pipeline_switch.py grid add <gallery id>` / `grid all` if so; (3) keep the intended switch values in a tracked note so a reset can be spotted: run `photo_pipeline_switch.py show` and compare.
-How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switch.py show (read-only); it should list a face filter and, for test-v2-358c, a grid image.
-Update 2026-11-16: live Modal switch now has grid "all" again (with Shwetank's OK; face_filter and mode unchanged); staging has grid "all" too. Left: (1) the live Modal publish with Sarthak (#269), so the running live Modal code is the version that makes grid copies; (2) then set NEXT_PUBLIC_GRID_HIRES=true on Vercel evebash-production and rebuild (it is not set on live), and check a new live upload has "-grid.webp".
-
 #284
 Listed: 2026-11-16
 Platform: Both
@@ -1551,6 +1538,22 @@ Update 2026-11-16: backend + website LIVE with the release (PR #12, 83095020). C
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#281
+Listed: 2026-11-16
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Check of #101 with Sarthak (2026-11-16)
+Issue: The live Modal photo-pipeline-switch (read by modal_engine/main.py) lost its "face_filter" and "grid" keys at some point after 2026-10-24; it only held mode v2 and v2_events ['test-v2-358c']. Cause unknown (probably the Dict was reset or recreated; a Modal Dict has no key history). Effect: new photos saved every face until face_filter was set again on 2026-11-16 (#101), and the grid image (#121, "<file>-grid.webp", set for test-v2-358c on 2026-10-24) is no longer made. Staging Modal's switch (created 2026-11-14) also has only mode v2.
+Fix idea: (1) find when and why the keys went (Modal logs, anyone who ran photo_pipeline_switch.py or deleted the Dict); (2) check whether #121 was rolled out beyond test-v2-358c and whether the website still needs the grid images, then set "grid" again with `photo_pipeline_switch.py grid add <gallery id>` / `grid all` if so; (3) keep the intended switch values in a tracked note so a reset can be spotted: run `photo_pipeline_switch.py show` and compare.
+How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switch.py show (read-only); it should list a face filter and, for test-v2-358c, a grid image.
+Update 2026-11-16: live Modal switch now has grid "all" again (with Shwetank's OK; face_filter and mode unchanged); staging has grid "all" too. Left: (1) the live Modal publish with Sarthak (#269), so the running live Modal code is the version that makes grid copies; (2) then set NEXT_PUBLIC_GRID_HIRES=true on Vercel evebash-production and rebuild (it is not set on live), and check a new live upload has "-grid.webp".
+Update 2026-11-16: the Modal code already running on live makes grid copies: all 5 photos of Shwetank's live test upload (event images-1-05b9) have "-grid.webp" (200). So no need to wait for #269. With Shwetank's OK, NEXT_PUBLIC_GRID_HIRES=true set on Vercel evebash-production and the live website rebuilt (evebash-production-7hfhr3taw, aliased to www.evebash.com); the live grid code has the switch on. Cause of the lost keys still unknown; if it happens again, compare with: live {mode: v2, v2_events: [test-v2-358c], face_filter: {min_score 0.4, min_px 24}, grid: all}, staging {mode: v2, grid: all}.
+Fixed in: live settings, no code change (2026-11-16)
+
 
 #137
 Listed: 2026-10-25
