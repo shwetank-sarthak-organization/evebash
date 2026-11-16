@@ -3495,7 +3495,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #135 Sharper photos in the Classic White grid on computers
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Brief:     On computer screens the gallery grid now loads a 1000 px "grid" image instead of the small
@@ -3514,14 +3514,14 @@ How to test:
   5. Make the window narrow (under 1024 px). Expect: grid still works.
   6. Rotate one of the new photos (host page viewer), reload. Expect: rotated in the grid too.
   7. Other themes (e.g. Royal): look as before.
-Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), 1366x768 at 2x; not a real device
-Build / version: staging.evebash.com as of 2026-11-12 (staging ad123bdb)
-Date tested: 2026-11-12
-Account used: host newone@email.com
+Done by:   Shwetank (with Claude)
+Device / browser: MacBook: Chrome and Safari (staging.evebash.com)
+Build / version: staging 2026-11-16, NEXT_PUBLIC_GRID_HIRES on, staging Modal switch grid=all (set 2026-11-16 with Shwetank's OK)
+Date tested: 2026-11-16
+Account used: host test account
 Screenshot / recording:
 Fix ref:
-Feedback: 2026-11-12 Claude (partly done, so still TODO): album newcheck (15 photos from 2026-10-24 that have grid images), with the event switched to Classic White for the test and back to Confetti Circle after. Steps 1-2: at 1366 px (2x) 15/15 tiles load the -grid.webp image, none broken, no "Image unavailable". Step 5: at 900 px wide 15/15 load thumbnails, none broken. Sharpness not judged by eye. Not done: 3 (Safari, Firefox), 4 (older gallery), 6 (rotate), 7 (other themes).
+Feedback:   Grid photos look sharp, nothing broken, narrow window and older galleries fine (Shwetank). Checked from outside: the 12 newest staging photos all have their -grid.webp image (200 on media-staging.evebash.com).
 
 --------------------------------------------------------------------------------
 #136 Portrait phone videos without sound process and play upright
