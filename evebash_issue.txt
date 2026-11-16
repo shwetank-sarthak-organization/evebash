@@ -24,18 +24,6 @@ Next issue number: 282
 ACTIVE ISSUES
 =====================================================================
 
-#9
-Listed: 2026-10-09
-Platform: Analytics dashboard
-Priority: Low
-Status: Blocked
-Owner: Unassigned
-Blocked by: #21 (lockdown part 2: the save function only allows platform admins after it)
-Found in: Visibility switch work (2026-10-09)
-Issue: No public/private switch for galleries in the admin dashboard. Platform admins can't change visibility of galleries they don't own anywhere on the website.
-How to reproduce: Open a gallery in the admin dashboard Events grid: there is no visibility control.
-Note 2026-11-16: unblocked, #21 is live. set_event_public_viewing (the call the website and app use) already lets platform admins change any top-level gallery (can_manage_event passes is_platform_admin), checked on live. No database change needed: the dashboard never loads is_public (apps/analytics-dashboard/src/lib/analytics.ts fetchEvents) and GalleryViewer has no switch. Fix is dashboard only.
-
 #18
 Listed: 2026-10-09
 Platform: App
@@ -1599,6 +1587,19 @@ How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switc
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#9
+Listed: 2026-10-09
+Platform: Analytics dashboard
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Visibility switch work (2026-10-09)
+Issue: No public/private switch for galleries in the admin dashboard. Platform admins can't change visibility of galleries they don't own anywhere on the website.
+How to reproduce: Open a gallery in the admin dashboard Events grid: there is no visibility control.
+Note 2026-11-16: unblocked, #21 is live. set_event_public_viewing (the call the website and app use) already lets platform admins change any top-level gallery (can_manage_event passes is_platform_admin), checked on live. No database change needed: the dashboard never loads is_public (apps/analytics-dashboard/src/lib/analytics.ts fetchEvents) and GalleryViewer has no switch. Fix is dashboard only.
+Fixed in: 03679e72 (2026-11-16). The dashboard's gallery view (Events grid and user pages) has a Private / Public switch for top-level galleries, using set_event_public_viewing; making a gallery public asks first, like the website. Sub-galleries show "Visibility follows <parent>". Events grid rows show a Public / Private badge. Checked on staging in the Claude built-in browser (local dashboard, platform admin): "Staging test 1" (owned by newone1) set to Public, then open_gallery with only the public key returned public_view; set back to Private, it returned login_required; a save with only the public key is refused (42501). The gallery was left Private, as it was.
 
 #279
 Listed: 2026-11-16
