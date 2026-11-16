@@ -1612,17 +1612,6 @@ Found in: Upload bar fix #273 (chat 2026-11-15)
 Issue: Two copies of the same file-size formatter in the app: formatBytes in apps/mobile/lib/vaultFiles.ts (EB Vault) and formatStorageSize in apps/mobile/lib/planLimits.ts. Same code, except an empty size reads "0 KB" in one and "0 MB" in the other, so they will drift. Fix idea: keep formatStorageSize and have vaultFiles.ts import it (change only with the Vault owner's OK; Vault is Shwetank's area).
 How to reproduce: Compare the two functions in the files above.
 
-#275
-Listed: 2026-11-16
-Platform: App
-Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: iOS USB test, todo #37 (chat 2026-11-16)
-Issue: Google sign-in writes the whole Google reply to the log: apps/mobile/context/AuthContext.tsx line 527 logs JSON.stringify(response) from GoogleSignin.signIn(), which holds the user's idToken, serverAuthCode, email and photo. Nothing strips console.log in release builds, so the tokens land in the phone's system log and, through Sentry's console breadcrumbs, can be sent to Sentry. Fix idea: log only the response type (success / cancelled), never data. Check the rest of AuthContext.tsx for the same pattern.
-How to reproduce: Run the app with Metro, sign in with Google, and look at the Metro log: "[Auth] GoogleSignin.signIn() response: {...idToken...}".
-
 #276
 Listed: 2026-11-16
 Platform: App
@@ -1637,6 +1626,18 @@ How to reproduce: On a Mac with Xcode 27, from apps/mobile: npx expo prebuild --
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#275
+Listed: 2026-11-16
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Unassigned
+Blocked by: -
+Found in: iOS USB test, todo #37 (chat 2026-11-16)
+Issue: Google sign-in writes the whole Google reply to the log: apps/mobile/context/AuthContext.tsx line 527 logs JSON.stringify(response) from GoogleSignin.signIn(), which holds the user's idToken, serverAuthCode, email and photo. Nothing strips console.log in release builds, so the tokens land in the phone's system log and, through Sentry's console breadcrumbs, can be sent to Sentry. Fix idea: log only the response type (success / cancelled), never data. Check the rest of AuthContext.tsx for the same pattern.
+How to reproduce: Run the app with Metro, sign in with Google, and look at the Metro log: "[Auth] GoogleSignin.signIn() response: {...idToken...}".
+Fixed in: 03270d59 (2026-11-16). Only the result type is logged now ("[Auth] GoogleSignin.signIn() result: success"); checked in the bundle Metro serves to the iPhone. No other token logging found in apps/mobile, src, shared or apps/backend/src.
 
 #45
 Listed: 2026-10-12
