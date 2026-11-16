@@ -927,18 +927,6 @@ Found in: Chat 2026-10-28 (can a host start a new upload set while one is upload
 Issue: The app's upload progress counts are wrong when a second set is added while the first is uploading. The in-app upload card (apps/mobile/app/events/[id].tsx, total = uploadQueue[0]?.batchTotal) takes its total from the first set's file count but adds up progress for every file in the queue, so it can go past 100% or show e.g. "12 of 10". The phone notification (updateProgressNotification in apps/mobile/lib/uploadQueue.ts) takes the newest set's count but adds up every file for that event, so it can show "Uploading 13 of 5" (the percent is capped at 100). The "N files uploaded" notification at the end has the same mix-up. Fix idea: count the files still in the queue (or the sum of the active sets' sizes) instead of one set's batchTotal, in both places.
 How to reproduce: App, pick 10 photos to upload; while they upload, tap Add Photo and pick 5 more. Watch the upload card and the notification: the counts don't match 15 files.
 
-#172
-Listed: 2026-10-28
-Platform: Website
-Priority: High
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Claude device-test run on staging (built-in browser, 2026-10-28)
-Issue: The Host page sometimes loads with "HOST 0 / SHARED 0 / REQUESTS 0" and "No events yet" for a host who has 4 events, and stays that way until a reload. It happened on 3 of about 7 loads of a /host?view=manage&level=event-details&eventId=...&galleryId=... link (also right after the saved sign-in was restored). A plain /host load and a second reload showed all 4 events. A host who opens a saved or shared Host link may think their events are gone. Likely cause: src/app/(main)/host/page.tsx fetchUserEvents is started from several effects with no check that the response is still the latest one (no request id / cancelled flag), so an early call made before the user, view or manage level are settled can finish last and overwrite the list with an empty one. Fix idea: guard fetchUserEvents with a request counter (ignore stale responses) and only run it once auth has loaded.
-How to reproduce: Signed in as a host on staging.evebash.com, open https://staging.evebash.com/host?view=manage&level=event-details&eventId=<your event>&mode=add-image&galleryId=<a sub-gallery> in a new tab, or reload it a few times. Sometimes the page shows "No events yet" instead of the gallery.
-Update 2026-11-16: fixed on staging (needed for the client demo). fetchUserEvents (src/app/(main)/host/page.tsx) now keeps a request counter (userEventsRequestRef): only the newest call saves events, shared events, logs and the loading flag, so an early call that finishes last can't replace the list with an empty one. It also doesn't run while a deep link is still opening (sub-gallery list wanted but the event not known yet), which was the call that returned the empty list. Website type check passes; lint unchanged (68 old problems). Left: Shwetank reloads the deep link from the issue several times on staging and checks the events always show.
-
 #173
 Listed: 2026-10-28
 Platform: Website
@@ -1584,6 +1572,21 @@ How to reproduce: staging.evebash.com, host or member, open a photo, click Downl
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#172
+Listed: 2026-10-28
+Platform: Website
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Claude device-test run on staging (built-in browser, 2026-10-28)
+Issue: The Host page sometimes loads with "HOST 0 / SHARED 0 / REQUESTS 0" and "No events yet" for a host who has 4 events, and stays that way until a reload. It happened on 3 of about 7 loads of a /host?view=manage&level=event-details&eventId=...&galleryId=... link (also right after the saved sign-in was restored). A plain /host load and a second reload showed all 4 events. A host who opens a saved or shared Host link may think their events are gone. Likely cause: src/app/(main)/host/page.tsx fetchUserEvents is started from several effects with no check that the response is still the latest one (no request id / cancelled flag), so an early call made before the user, view or manage level are settled can finish last and overwrite the list with an empty one. Fix idea: guard fetchUserEvents with a request counter (ignore stale responses) and only run it once auth has loaded.
+How to reproduce: Signed in as a host on staging.evebash.com, open https://staging.evebash.com/host?view=manage&level=event-details&eventId=<your event>&mode=add-image&galleryId=<a sub-gallery> in a new tab, or reload it a few times. Sometimes the page shows "No events yet" instead of the gallery.
+Update 2026-11-16: fixed on staging (needed for the client demo). fetchUserEvents (src/app/(main)/host/page.tsx) now keeps a request counter (userEventsRequestRef): only the newest call saves events, shared events, logs and the loading flag, so an early call that finishes last can't replace the list with an empty one. It also doesn't run while a deep link is still opening (sub-gallery list wanted but the event not known yet), which was the call that returned the empty list. Website type check passes; lint unchanged (68 old problems). Left: Shwetank reloads the deep link from the issue several times on staging and checks the events always show.
+Update 2026-11-16: Shwetank reloaded the deep link (Staging test 1 / Ashu Wedding) 10 times on staging: the events showed every time. Live gets it with the next release (staging -> main).
+Fixed in: 31821146 (2026-11-16)
+
 
 #282
 Listed: 2026-11-16
