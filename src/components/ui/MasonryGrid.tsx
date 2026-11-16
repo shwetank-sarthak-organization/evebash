@@ -10,7 +10,7 @@ import type { LightboxTheme } from "./Lightbox";
 import { getGridSrcSet, getGridThumbnail, getImageUrl, GRID_HIRES_ENABLED } from "@/lib/imageUrl";
 import { PageFlipViewer, type GalleryMediaItem, type PageFlipTheme, type ViewerLayout } from "@/components/page-flip/PageFlipViewer";
 import { getPageFlipThemeForTemplateId } from "@/components/page-flip/pageFlipThemes";
-import { getOriginalMediaUrl } from "@/lib/zipDownload";
+import { downloadMediaFile } from "@/lib/zipDownload";
 
 interface Photo {
     id: string;
@@ -154,15 +154,8 @@ function PhotoCard({
         if (disableDownload) return;
         setIsDownloading(true);
         try {
-            // Videos: the uploaded file, not the streaming playlist
-            const downloadUrl = getOriginalMediaUrl(photo.downloadUrl || photo.src);
-
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.setAttribute('download', photo.filename || 'wedding-photo');
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            // Videos: the uploaded file, not the streaming playlist (downloadMediaFile handles both)
+            await downloadMediaFile(photo.downloadUrl || photo.src, photo.filename);
         } catch (error) {
             console.error("Download failed", error);
         } finally {
