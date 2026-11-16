@@ -1568,18 +1568,6 @@ Found in: #277 (chat 2026-11-16)
 Issue: Nothing in the database stops two events from having the same join code: events has no unique index on join_id. On live one pair of sub-galleries already shares a code (checked 2026-11-16, neither is the other's parent). open_gallery (supabase/migrations/20261007000000_rls_part1_gallery_link_functions.sql) then picks one of the two, so a guest who types that code can land in the wrong gallery. Since #277 new codes are random 8-character codes, so a new clash is very unlikely, but nothing prevents one. Fix idea (database change, staging first): give one of the two sub-galleries a new code, check staging for clashes the same way, then add a unique index on join_id where join_id is not null; when saving a code hits the index, make a new code and save again.
 How to reproduce: select join_id, count(*) from events where join_id is not null group by join_id having count(*) > 1;
 
-#279
-Listed: 2026-11-16
-Platform: Website
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Push (Sarthak's OK), then a check of the cover photo on the staging deploy
-Found in: Device test #145 step 1 on staging.evebash.com (chat 2026-11-16)
-Issue: On the staging website, photos shown through Next.js's image resizer don't load. next.config.mjs (images.remotePatterns) allows media.evebash.com but not media-staging.evebash.com, the staging media address since the staging/live split (todo #30). Vercel answers /_next/image?url=https://media-staging.evebash.com/... with 400 INVALID_IMAGE_OPTIMIZE_REQUEST, while the same file loads directly (200). Seen on the Midnight Hero cover photo (src/components/TemplateHero.tsx) of staging-test-1-sub-gallery-67fb; the grid photos there load. Live (www.evebash.com with media.evebash.com) is not affected. Testers on staging see empty covers and may report false bugs. Fix idea: add media-staging.evebash.com to images.remotePatterns (one entry; nothing changes on live).
-How to reproduce: Signed in on staging.evebash.com, open https://staging.evebash.com/events/staging-test-1-sub-gallery-67fb: the big cover photo is empty. In the browser's network tab its /_next/image request returns 400.
-Note 2026-11-16: fix in next.config.mjs: images.remotePatterns now also allows media-staging.evebash.com; media.evebash.com stays, so the live website is unchanged. Checked locally that the config loads with both addresses.
-
 #280
 Listed: 2026-11-16
 Platform: App
@@ -1607,6 +1595,19 @@ How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switc
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#279
+Listed: 2026-11-16
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test #145 step 1 on staging.evebash.com (chat 2026-11-16)
+Issue: On the staging website, photos shown through Next.js's image resizer don't load. next.config.mjs (images.remotePatterns) allows media.evebash.com but not media-staging.evebash.com, the staging media address since the staging/live split (todo #30). Vercel answers /_next/image?url=https://media-staging.evebash.com/... with 400 INVALID_IMAGE_OPTIMIZE_REQUEST, while the same file loads directly (200). Seen on the Midnight Hero cover photo (src/components/TemplateHero.tsx) of staging-test-1-sub-gallery-67fb; the grid photos there load. Live (www.evebash.com with media.evebash.com) is not affected. Testers on staging see empty covers and may report false bugs. Fix idea: add media-staging.evebash.com to images.remotePatterns (one entry; nothing changes on live).
+How to reproduce: Signed in on staging.evebash.com, open https://staging.evebash.com/events/staging-test-1-sub-gallery-67fb: the big cover photo is empty. In the browser's network tab its /_next/image request returns 400.
+Note 2026-11-16: fix in next.config.mjs: images.remotePatterns now also allows media-staging.evebash.com; media.evebash.com stays, so the live website is unchanged. Checked locally that the config loads with both addresses.
+Fixed in: a1cac4c9 (2026-11-16). Checked on the staging deploy in the Claude built-in browser: the /_next/image request for the cover photo of staging-test-1-sub-gallery-67fb went from 400 to 200, and the Midnight Hero cover now shows (all 4 photos on the page load, none broken). Live is unchanged (it doesn't have this commit yet, and media.evebash.com stays allowed).
 
 #21
 Listed: 2026-10-09
