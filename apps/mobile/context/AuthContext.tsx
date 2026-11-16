@@ -524,7 +524,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
-      console.log('[Auth] GoogleSignin.signIn() response:', JSON.stringify(response));
+      // Only the result type: the response holds the user's ID token and auth code, and logs can reach Sentry (#275)
+      console.log('[Auth] GoogleSignin.signIn() result:', (response as any)?.type ?? 'legacy');
 
       // v16 returns { type: 'success' | 'cancelled' | 'noSavedCredentialFound', data }
       if ((response as any).type === 'cancelled') {
