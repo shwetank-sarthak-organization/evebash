@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 277
+Next issue number: 279
 
 =====================================================================
 ACTIVE ISSUES
@@ -1623,6 +1623,30 @@ Blocked by: -
 Found in: iOS simulator and USB iPhone builds, todo #37 (chat 2026-11-16)
 Issue: The iOS app doesn't build or start with Xcode 27 / the iOS 27 SDK unless the generated apps/mobile/ios folder is patched by hand. (1) The app closes at launch on iOS 27 (crash in UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption): apps built with the iOS 27 SDK must use the UIScene lifecycle, and Expo SDK 55's AppDelegate doesn't. Fixed locally with a SceneDelegate in AppDelegate.swift (starts React Native in scene(_:willConnectTo:), forwards deep links and universal links to the AppDelegate) and UIApplicationSceneManifest in Info.plist. (2) Xcode 27 refuses pods whose minimum iOS is below 15, and expo-router uses an iOS 16 API, so all pods and the app need a minimum of iOS 16.0 (set in the Podfile post_install). Both live only in the gitignored ios folder, so "npx expo prebuild --clean" and EAS builds lose them. Fix: a config plugin in apps/mobile (or expo-build-properties deploymentTarget 16.0 plus a scene-lifecycle plugin), or an Expo SDK that supports scenes, before the first EAS iOS build on an Xcode 27 image and before Apple requires the iOS 27 SDK for App Store uploads. Local-only extra (not a product bug): this Mac's project path has spaces, which breaks the RN prebuilt-core download and some unquoted script phases; the Podfile post_install quotes them and pods are installed with RCT_USE_PREBUILT_RNCORE=0 RCT_USE_RN_DEP=0. Full notes in the todo #37 entry.
 How to reproduce: On a Mac with Xcode 27, from apps/mobile: npx expo prebuild --clean, pod install, build for an iOS 27 simulator and open the app. Expect: build errors on deployment targets; after fixing those, the app closes right after the splash.
+
+#277
+Listed: 2026-11-16
+Platform: Both
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #219); move to RECENTLY FIXED once it passes
+Found in: Sarthak's chat (2026-11-16): "join code length, decide and fix, app and website"
+Issue: Event join codes (events.join_id, the "Join ID" guests type in Join Event) have no fixed length. generateEventJoinId (one copy in src/lib/database.ts, one in apps/mobile/lib/database.ts) builds the code from the event id: the first 4 letters of the event's name, a dash, then the id's random ending. Website events end in 4 characters (WEDD-77D4, 9 with the dash) and app events in 5 (WEDD-77D4K, 10); older codes have 6 (ABC-1- style). On live (2026-11-16): 77 codes, 64 of 9 characters, 5 of 10, 8 of 6. The two Join Event boxes disagree too: the website shows "A1B2-C3D4" and stops at 12 characters, the app shows "E.G. A1B2C3" (6, no dash) and has no limit. A code only works typed exactly with its dash, because open_gallery matches join_id as written: "WEDD77D4" gives "Invalid Code". And because the first half is the event's name, it is easy to guess, and every "Wedding ..." event shares WEDD- with only 65,536 possible endings, so two events will get the same code once there are a few hundred of them (see #278). The code comment says "6-digit unique code", which is wrong too.
+Decision (Claude, 2026-11-16, asked to decide): 8 characters, shown as XXXX-XXXX. It is the length most codes already have and what the website box shows; 4 + 4 is easy to read out and type; 8 random characters give about 850 billion codes, so guessing a code, or two events getting the same one, is very unlikely. New codes are random, not taken from the name, and leave out look-alike characters (0, O, 1, I, L). Both boxes accept a code with or without the dash, in small letters, with spaces. Existing codes stay as they are and keep working.
+How to reproduce: App: Dashboard > Join Event, type an existing code without its dash (e.g. WEDD77D4): "Invalid Code". Compare the boxes' examples: website A1B2-C3D4, app A1B2C3. Create one event on the website and one in the app: their codes have different lengths.
+Note 2026-11-16: fixed in 3dbb3083 (on staging 2026-11-16). New shared/text/joinCode.ts (website and app) replaces both copies of generateEventJoinId: newEventJoinCode makes the 8-character code, normalizeJoinCode reads what was typed (capitals; a code of 8 or more letters and digits typed without its dash, or with a space, gets the dash back after the 4th character; anything shorter is only capitalised, so old 6-character codes still match). Used by the Join Event box on the website (src/app/(main)/dashboard/page.tsx) and in the app (apps/mobile/app/(tabs)/dashboard.tsx, also for scanned QR text that isn't a link); both show K7MP-Q4RX as the example and take up to 12 characters. New codes are made when an event or sub-gallery is created (website host page; app Host tab and Add Sub-Gallery, which before got a code only when first opened) and when an event without a code is shared or opened. The website share window no longer makes up an unsaved code. No database change; existing codes are untouched. Checked: npx tsx --test shared/text/joinCode.test.ts 3/3 (2,000 new codes all XXXX-XXXX and different; typing variants; old codes), app tsc 0 errors, website tsc 0 errors in src and shared (reports/ left out). Not clicked in a browser or on a phone: device test #219.
+
+#278
+Listed: 2026-11-16
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: #277 (chat 2026-11-16)
+Issue: Nothing in the database stops two events from having the same join code: events has no unique index on join_id. On live one pair of sub-galleries already shares a code (checked 2026-11-16, neither is the other's parent). open_gallery (supabase/migrations/20261007000000_rls_part1_gallery_link_functions.sql) then picks one of the two, so a guest who types that code can land in the wrong gallery. Since #277 new codes are random 8-character codes, so a new clash is very unlikely, but nothing prevents one. Fix idea (database change, staging first): give one of the two sub-galleries a new code, check staging for clashes the same way, then add a unique index on join_id where join_id is not null; when saving a code hits the index, make a new code and save again.
+How to reproduce: select join_id, count(*) from events where join_id is not null group by join_id having count(*) > 1;
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

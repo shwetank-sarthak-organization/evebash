@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 219
+Next test number: 220
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6311,6 +6311,39 @@ How to test:
   9. Event share window: Share Invitation (send to yourself on WhatsApp) and Copy link. Expect: "Link copied", and
      the link opens the event page.
  10. Settings > Appearance: switch Light and Dark and look at Dashboard, an event and Profile. Expect: readable.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#219 Website + App: join codes are 8 characters and work without the dash (#277)
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Event join codes ("Join ID") used to be 6, 9 or 10 characters, started with the event's name, and only
+           worked when typed exactly, dash included. New events now get a random 8-character code like K7MP-Q4RX
+           (never 0, O, 1, I or L). The Join Event box on the website and in the app takes a code with or without
+           the dash, in small letters, or with a space. Codes of older events don't change and keep working.
+Detail:    Issue #277, commit 3dbb3083. Website: staging.evebash.com once the change is deployed. App: JavaScript
+           only, so it needs an over-the-air update or a new staging build. Use two accounts: a host and a guest.
+How to test:
+  1. Website, host: Host > create a new event, then open its Share window. Expect: "Unique Join ID" is 8
+     characters as XXXX-XXXX (e.g. K7MP-Q4RX), doesn't start with the event's name, and has no 0, O, 1, I or L.
+  2. App, host: Host tab > New Event, open the event and its share window. Expect: the same kind of code.
+  3. Website, guest: Dashboard > Join Event. Expect: the box shows K7MP-Q4RX as the example. Type the code from
+     step 1 in small letters and without the dash (e.g. k7mpq4rx), then Join with Code. Expect: "You're in" (public
+     event) or "Request sent" (private), and it is the event from step 1.
+  4. App, guest: Dashboard > Join Event. Expect: the box shows K7MP-Q4RX and takes at most 12 characters. Type the
+     code from step 2 with a space instead of the dash (K7MP Q4RX). Expect: the event from step 2 opens (public) or
+     "Request Sent" (private).
+  5. Older event (made before this change, its code looks like WEDD-77D4): on the website and in the app, join with
+     its code typed with the dash, then without it (WEDD77D4). Expect: both work.
+  6. Type a code that doesn't exist (ZZZZ-ZZZZ). Expect: "Invalid Join ID" (website) or "Invalid Code" (app).
 Done by:
 Device / browser:
 Build / version:
