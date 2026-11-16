@@ -1730,7 +1730,7 @@ Listed: 2026-11-16
 Platform: App
 Priority: High
 Status: Fixed
-Owner: Unassigned
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: iOS USB test, todo #37 (chat 2026-11-16)
 Issue: Google sign-in writes the whole Google reply to the log: apps/mobile/context/AuthContext.tsx line 527 logs JSON.stringify(response) from GoogleSignin.signIn(), which holds the user's idToken, serverAuthCode, email and photo. Nothing strips console.log in release builds, so the tokens land in the phone's system log and, through Sentry's console breadcrumbs, can be sent to Sentry. Fix idea: log only the response type (success / cancelled), never data. Check the rest of AuthContext.tsx for the same pattern.
