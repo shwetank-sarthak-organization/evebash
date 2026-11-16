@@ -60,6 +60,7 @@ import { appAlert, showToast } from '@/lib/feedback';
 import { getGalleryWebUrl } from '@/lib/webLinks';
 import { confirmDenyRequest } from '@/lib/denyRequest';
 import { useReloadOnReturn } from '@/hooks/use-reload-on-return';
+import { newEventJoinCode } from '../../../../shared/text/joinCode';
 
 // Approve / reject a guest with a confirming haptic
 function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'approved' | 'rejected') {
@@ -373,7 +374,8 @@ export default function PortfolioTabScreen() {
         createdBy: user.uid,
         type: 'main',
         templateId: defaultTemplate.id,
-        category: newEventType
+        category: newEventType,
+        joinId: newEventJoinCode()
       });
 
       if (!created.success) {

@@ -15,7 +15,7 @@ import { getVisiblePageFlipIndexes } from "./pageFlipNavigation";
 import { usePageFlipNavigation } from "./usePageFlipNavigation";
 import { useSwipeNavigation } from "./useSwipeNavigation";
 import type { GalleryMediaItem, GalleryTransitionMode, PageFlipTheme, PageFlipThemeConfig, ViewerLayout } from "./types";
-import { getOriginalMediaUrl } from "@/lib/zipDownload";
+import { downloadMediaFile } from "@/lib/zipDownload";
 
 export interface PageFlipViewerProps {
   items: GalleryMediaItem[];
@@ -44,13 +44,8 @@ export interface PageFlipViewerProps {
 
 function downloadItem(item?: GalleryMediaItem) {
   if (!item) return;
-  const link = document.createElement("a");
-  // Videos: the uploaded file, not the streaming playlist
-  link.href = getOriginalMediaUrl(item.originalUrl || item.previewUrl);
-  link.setAttribute("download", item.filename || "evebash-media");
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  // Videos: the uploaded file, not the streaming playlist (downloadMediaFile handles both)
+  void downloadMediaFile(item.originalUrl || item.previewUrl, item.filename);
 }
 
 function getTransitionVariants(mode: GalleryTransitionMode, direction: "next" | "prev", reducedMotion: boolean) {

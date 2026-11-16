@@ -12,6 +12,9 @@ assert.equal(atLaunch('https://evebash.com/events/AB12CD/'), '/events/AB12CD');
 assert.equal(atLaunch('evebash://events/abc-123'), '/events/abc-123');
 assert.equal(whileOpen('evebash:///events/abc-123?shared=true#top'), '/events/abc-123?shared=true');
 assert.equal(atLaunch('evebash://events/a%20b'), '/events/a%20b');
+// The staging app's scheme (app.config.js) opens events too
+assert.equal(atLaunch('evebash-staging://events/abc-123'), '/events/abc-123');
+assert.equal(atLaunch('exp+evebash-staging:///'), 'exp+evebash-staging:///');
 
 // Find You opens the Find You tab; Event Partners opens the event
 assert.equal(atLaunch('https://www.evebash.com/events/AB12CD/find-you?shared=true'), '/events/AB12CD?shared=true&findYou=1');

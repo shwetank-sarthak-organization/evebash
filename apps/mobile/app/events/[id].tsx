@@ -10,8 +10,9 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import * as Clipboard from 'expo-clipboard';
 import { Button } from '@/components/ui/Button';
-import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, getMemberDirectory, GuestProfile, removeGuestChatPermission, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery, getGalleryVideo, setGalleryVideo, type GalleryVideo } from '@/lib/database';
+import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, getMemberDirectory, GuestProfile, removeGuestChatPermission, getUserTotalStorage, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery, getGalleryVideo, setGalleryVideo, type GalleryVideo } from '@/lib/database';
 import { confirmDenyRequest } from '@/lib/denyRequest';
 import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDetails } from '@/lib/uploaders';
 import { useAuth } from '@/context/AuthContext';
@@ -30,7 +31,8 @@ import { GuestEditBar } from '../../components/event/guestEdit/GuestEditBar';
 import { EditChip, GuestEditSpots } from '../../components/event/guestEdit/EditChip';
 import { coverContentPosition, coverZoomStyle } from '@/lib/coverStyle';
 import { focusToOffsets } from '../../../../shared/themes/coverFocus';
-import { subscribeToUploadQueue, addToUploadQueue, retryUploadItem, cancelUploadItem, clearFinishedUploads, resetUploadQueue, UploadQueueItem, WAITING_FOR_CONNECTION, uploadErrorMessage } from '@/lib/uploadQueue';
+import { newEventJoinCode } from '../../../../shared/text/joinCode';
+import { subscribeToUploadQueue, addToUploadQueue, clearFinishedUploads, onUploadCancelled, UploadQueueItem } from '@/lib/uploadQueue';
 import { validateVideoAsset } from '@/lib/videoValidation';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -47,6 +49,7 @@ import { PORTRAIT_TABS_HEIGHT, SHOW_EVENT_PARTNERS, ThemeHeader } from '../../co
 import { MasonryPhotoColumns } from '@/components/event/MasonryPhotoColumns';
 import { useScrollWindow } from '@/hooks/use-scroll-window';
 import { ThemeDivider } from '../../components/event/ThemeDivider';
+import { useUploadStatusPlacement } from '../../components/UploadStatusOverlay';
 import { GalleryAccessGate, GalleryGateState } from '../../components/event/GalleryAccessGate';
 import { RenameEventModal } from '../../components/event/modals/RenameEventModal';
 import { SubEventModal } from '../../components/event/modals/SubEventModal';
@@ -1026,6 +1029,8 @@ function EventDetailScreen() {
   // Read by the upload-queue listener, which is set up once per gallery
   const showAdminViewRef = React.useRef(showAdminView);
   showAdminViewRef.current = showAdminView;
+  // The app-wide upload status sits above the host view's bottom bar; guest pages keep their own pop-ups
+  useUploadStatusPlacement(showAdminView ? 70 + insets.bottom : null);
 
   // Theme colors are intentionally FIXED to the light palette for the visitor event view —
   // the selected template must look the same regardless of the device OS dark/light setting.
@@ -1356,6 +1361,7 @@ function EventDetailScreen() {
   const [editTitleAlign, setEditTitleAlign] = useState<'left' | 'center' | 'right'>('left');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showShareModal, setShowShareModal] = useState(share === 'true');
+  const [shareLinkCopied, setShareLinkCopied] = useState(false);
   const [showApproved, setShowApproved] = useState(false);
 
   const [loadedActiveSubEvent, setActiveSubEvent] = useState<DatabaseEvent | null>(null);
@@ -1713,9 +1719,9 @@ function EventDetailScreen() {
       if (eventData) {
         // Ensure joinId exists
         if (!eventData.joinId) {
-          const shortId = generateEventJoinId(eventData.id);
-          await updateEvent(eventData.id, { joinId: shortId });
-          eventData.joinId = shortId;
+          const joinCode = newEventJoinCode();
+          await updateEvent(eventData.id, { joinId: joinCode });
+          eventData.joinId = joinCode;
         }
 
         if (!eventData.templateId) {
@@ -2597,6 +2603,18 @@ function EventDetailScreen() {
     }
   };
 
+  // Only the link, for a browser, a bio or a printed card (todo #34). Share Invitation sends the whole message.
+  const handleCopyShareLink = async () => {
+    if (!event) return;
+    try {
+      await Clipboard.setStringAsync(getGalleryWebUrl(event.id));
+      setShareLinkCopied(true);
+      setTimeout(() => setShareLinkCopied(false), 2000);
+    } catch (error) {
+      console.error('Copying the link failed', error);
+    }
+  };
+
   const handleShare = async () => {
     if (!event) return;
     const shareUrl = getGalleryWebUrl(event.id);
@@ -2767,6 +2785,8 @@ function EventDetailScreen() {
       loadPhotos(liveGalleryId, liveGalleryLegacyId, { silent: true });
     }
   };
+  // An upload cancelled in the upload panel after it was saved is deleted: reload so it leaves the grid
+  useEffect(() => onUploadCancelled(() => refreshLiveGalleryRef.current()), []);
 
   useEffect(() => {
     if (!liveGalleryId || liveGalleryId === 'event-partners' || liveGalleryId === 'find-you' || !hasMemberAccess) return;
@@ -3052,7 +3072,8 @@ function EventDetailScreen() {
         type: 'sub',
         parentId: event.id,
         templateId: event.templateId || 'hero',
-        order: subEvents.length
+        order: subEvents.length,
+        joinId: newEventJoinCode()
       });
       if (!created.success) {
         appAlert("Error", created.error || "Failed to create gallery. Please try again.");
@@ -3406,131 +3427,6 @@ function EventDetailScreen() {
     if (words.length === 0) return ['W', 'E', 'D'];
     const letters = words.slice(0, 4).map(w => w.charAt(0).toUpperCase());
     return letters;
-  };
-
-  const renderUploadProgressCard = () => {
-    const active = uploadQueue.filter(
-      i => i.status === 'uploading' || i.status === 'pending' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation' || i.status === 'processing'
-    );
-    const failed = uploadQueue.filter(i => i.status === 'failed');
-
-    if (active.length === 0 && failed.length === 0) return null;
-
-    const total = uploadQueue[0]?.batchTotal || uploadQueue.length;
-    const completed = uploadQueue.filter(i => i.status === 'completed').length;
-    const noun = uploadQueue.every(i => i.mediaType === 'video') ? 'videos' : uploadQueue.every(i => i.mediaType === 'photo') ? 'photos' : 'files';
-    const waitingForConnection = active.some(i => i.status === 'pending' && i.error === WAITING_FOR_CONNECTION);
-    const currentUploading = uploadQueue.find(
-      i => i.status === 'uploading' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation'
-    );
-    const isProcessingOnly = active.length > 0 && !currentUploading && active.every(i => i.status === 'processing');
-
-    // Calculate progress percentage
-    const progressSum = uploadQueue.reduce((sum, item) => {
-      if (item.status === 'completed') return sum + 100;
-      if (item.status === 'failed') return sum;
-      return sum + item.progress;
-    }, 0);
-    const overallPercent = total > 0 ? progressSum / (total * 100) * 100 : 0;
-
-    const bottomPosition = showAdminView ? 70 + insets.bottom : 20 + insets.bottom;
-
-    return (
-      <View style={[localStyles.progressCard, { bottom: bottomPosition, backgroundColor: hp.deepSlate, borderColor: hp.border }, progressLight?.card]}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={[localStyles.progressCardTitle, progressLight?.title]}>
-              {isProcessingOnly
-                ? `Getting your ${noun} ready`
-                : active.length > 0
-                  ? `Uploading ${noun} (${completed} of ${total})`
-                  : `${failed.length} ${failed.length === 1 ? noun.replace(/s$/, '') : noun} didn't upload`}
-            </Text>
-            {isProcessingOnly ? (
-              <Text style={[localStyles.progressCardSubtitle, progressLight?.subtitle]} numberOfLines={1}>
-                {active.every(i => i.mediaType === 'video')
-                  ? `Preparing ${active.length > 1 ? 'videos' : 'video'} for playback...`
-                  : `You can leave this screen · ${Math.round(overallPercent)}%`}
-              </Text>
-            ) : waitingForConnection && !currentUploading ? (
-              <Text style={[localStyles.progressCardSubtitle, progressLight?.subtitle]} numberOfLines={2}>
-                Waiting for connection. Uploads carry on when you're back online.
-              </Text>
-            ) : currentUploading ? (
-              <Text style={[localStyles.progressCardSubtitle, progressLight?.subtitle]} numberOfLines={1}>
-                {currentUploading.status === 'uploaded_pending_metadata'
-                  ? `Finalizing ${currentUploading.fileName}...`
-                  : currentUploading.status === 'upload_needs_reconciliation'
-                    ? `Checking ${currentUploading.fileName}...`
-                    : currentUploading.retryCount && currentUploading.retryCount > 0
-                      ? `Retrying ${currentUploading.fileName} (${Math.round(currentUploading.progress)}%)...`
-                      : currentUploading.progress >= 90
-                        ? `Finishing ${currentUploading.fileName}...`
-                        : `${currentUploading.fileName} (${Math.round(currentUploading.progress)}%)`}
-              </Text>
-            ) : null}
-            {failed.length > 0 && (
-              <TouchableOpacity
-                onPress={() => {
-                  const errors = failed.map(item => `${item.fileName}: ${uploadErrorMessage(item.error)}`).join('\n\n');
-                  appAlert("Why it didn't upload", errors);
-                }}
-              >
-                <Text style={[localStyles.progressCardSubtitle, { color: hp.dangerSoft, textDecorationLine: 'underline' }]}>
-                  {active.length > 0 ? `${failed.length} didn't upload. ` : ''}Tap to see why
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {failed.length > 0 && (
-              <TouchableOpacity
-                style={[localStyles.progressCardBtn, { backgroundColor: 'rgba(248,113,113,0.15)' }]}
-                onPress={async () => {
-                  for (const item of failed) {
-                    await retryUploadItem(item.id);
-                  }
-                }}
-              >
-                <Text style={{ color: '#f87171', fontSize: 11, fontWeight: 'bold' }}>Retry</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={[localStyles.progressCardBtn, { backgroundColor: hp.tint(0.08) }]}
-              onPress={async () => {
-                if (active.length > 0) {
-                  appAlert(
-                    "Cancel uploads?",
-                    "Files that haven't finished uploading won't be sent.",
-                    [
-                      { text: "Keep uploading", style: "cancel" },
-                      {
-                        text: "Cancel uploads",
-                        style: "destructive",
-                        onPress: async () => {
-                          await resetUploadQueue();
-                        }
-                      }
-                    ]
-                  );
-                } else {
-                  await clearFinishedUploads();
-                }
-              }}
-            >
-              <Text style={{ color: hp.slate300, fontSize: 11, fontWeight: 'bold' }}>
-                {active.length > 0 ? 'Cancel' : 'Dismiss'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Progress Bar */}
-        <View style={[localStyles.progressBarBg, progressLight?.track]}>
-          <View style={[localStyles.progressBarFill, { width: `${overallPercent}%`, backgroundColor: hp.goldFill }]} />
-        </View>
-      </View>
-    );
   };
 
   const photoActionItemIsFavourite = photoActionItem ? eventFavouritePhotoIds.has(photoActionItem.id) : false;
@@ -8750,6 +8646,11 @@ function EventDetailScreen() {
               <Text style={styles.shareActionText}>Share Invitation</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.shareCopyBtn} onPress={handleCopyShareLink} accessibilityLiveRegion="polite">
+              <IconSymbol name={shareLinkCopied ? 'checkmark' : 'doc.on.doc.fill'} size={17} color={hp.gold} />
+              <Text style={styles.shareCopyText}>{shareLinkCopied ? 'Link copied' : 'Copy link'}</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.closeModalBtn} onPress={() => setShowShareModal(false)}>
               <Text style={styles.closeModalText}>Close</Text>
             </TouchableOpacity>
@@ -9010,8 +8911,6 @@ function EventDetailScreen() {
         </View>
       )}
 
-      {/* ── UPLOAD PROGRESS CARD (host view; guest pages keep their own pop-ups) ── */}
-      {showAdminView && renderUploadProgressCard()}
 
       {/* ── CUSTOM THEME-STYLED UPLOAD COMPLETE MODAL ── */}
       <Modal
@@ -9340,13 +9239,6 @@ const localStyles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontFamily: Fonts.inter.regular,
-  },
-  progressCardBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   progressBarBg: {
     height: 6,

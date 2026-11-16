@@ -21,6 +21,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { ModalHeader, modalStyles } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
+import { JOIN_CODE_EXAMPLE, JOIN_CODE_INPUT_MAX_LENGTH, normalizeJoinCode } from "../../../../shared/text/joinCode";
 import { IncomingTransfers } from "@/components/transfer/IncomingTransfers";
 import { CollectionsIcon } from "@/components/CollectionsIcon";
 import { EventsJoinedStatIcon, PhotosStatIcon, VideosStatIcon } from "@/components/dashboard/StatIcons";
@@ -87,7 +88,7 @@ export default function DashboardHub() {
     const handleJoinEvent = async (e?: React.FormEvent) => {
         e?.preventDefault();
 
-        const finalCode = joinCode.trim().toUpperCase();
+        const finalCode = normalizeJoinCode(joinCode);
         if (!finalCode) return;
 
         if (!user) {
@@ -189,7 +190,7 @@ export default function DashboardHub() {
                                 Total Photos
                             </span>
                             <span className="truncate text-xl text-[var(--site-gold-text)] xl:text-2xl" style={SERIF}>
-                                {statsLoaded ? totalPhotos.toLocaleString("en-US") : "—"} {totalPhotos === 1 ? "Photo" : "Photos"}
+                                {statsLoaded ? totalPhotos.toLocaleString("en-US") : "—"}
                             </span>
                         </div>
                         <div className={STAT_BOX} style={STAT_BOX_SIZE}>
@@ -198,7 +199,7 @@ export default function DashboardHub() {
                                 Total Videos
                             </span>
                             <span className="truncate text-xl text-[var(--site-gold-text)] xl:text-2xl" style={SERIF}>
-                                {statsLoaded ? totalVideos.toLocaleString("en-US") : "—"} {totalVideos === 1 ? "Video" : "Videos"}
+                                {statsLoaded ? totalVideos.toLocaleString("en-US") : "—"}
                             </span>
                         </div>
                         <div className={STAT_BOX} style={STAT_BOX_SIZE}>
@@ -207,7 +208,7 @@ export default function DashboardHub() {
                                 Events Joined
                             </span>
                             <span className="truncate text-xl text-[var(--site-gold-text)] xl:text-2xl" style={SERIF}>
-                                {attendedCount.toLocaleString("en-US")} {attendedCount === 1 ? "Event" : "Events"}
+                                {attendedCount.toLocaleString("en-US")}
                             </span>
                         </div>
                     </div>
@@ -322,8 +323,11 @@ export default function DashboardHub() {
                                         value={joinCode}
                                         onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
                                         className={cn(modalStyles.input, "text-center text-2xl font-black tracking-[0.2em]")}
-                                        placeholder="A1B2-C3D4"
-                                        maxLength={12}
+                                        placeholder={JOIN_CODE_EXAMPLE}
+                                        maxLength={JOIN_CODE_INPUT_MAX_LENGTH}
+                                        autoComplete="off"
+                                        autoCapitalize="characters"
+                                        spellCheck={false}
                                     />
                                 </div>
 

@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import LoadingScreen from '@/components/LoadingScreen';
 import AppIntro from '@/components/intro/AppIntro';
 import { FeedbackHost } from '@/components/feedback/FeedbackHost';
+import { UploadStatusOverlay } from '@/components/UploadStatusOverlay';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { AppThemeProvider, DarkThemeScope, StatusBarOverrideContext, useAppTheme, type StatusBarLook } from '@/context/ThemeContext';
@@ -231,6 +232,8 @@ function RootLayoutContent({ onReady }: { onReady: () => void }) {
         </AuthGate>
       </StatusBarOverrideContext.Provider>
       <StatusBar style={statusBarOverride ?? (isDark || keepsDarkLook ? "light" : "dark")} />
+      {/* Upload progress over every page (todo #42); under the toasts and dialogs */}
+      <UploadStatusOverlay />
       {/* App-wide toasts and the themed alert dialog (see lib/feedback.ts) */}
       {/* A screen that sets its own status bar (the host's event screen) also follows the chosen look for toasts */}
       <DarkThemeScope enabled={keepsDarkLook && !statusBarOverride}>

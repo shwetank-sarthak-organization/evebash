@@ -17,3 +17,19 @@ MEDIA_EDGE_CACHE = "on"
 # "on" = pass the viewer's Range header to B2, so video seeking and resumed downloads get just the part asked for
 # (206), with Range allowed and Content-Range exposed for other sites. Anything else = the whole file, as before (#181).
 MEDIA_FORWARD_RANGE = "on"
+
+# Staging copy (todo #30): media-staging.evebash.com, reads the "EveBash-Staging-Media" bucket.
+# Deploy with: npx wrangler deploy --env staging   (the live worker above is deployed without --env)
+# Secrets for staging only (set with: npx wrangler secret put <NAME> --env staging): B2_KEY_ID, B2_APPLICATION_KEY
+# (the "Staging-Media" key, limited to that bucket). Vars are not inherited by an env, so they are repeated here.
+[env.staging]
+name = "evebash-media-worker-staging"
+workers_dev = false
+routes = [
+  { pattern = "media-staging.evebash.com", custom_domain = true }
+]
+
+[env.staging.vars]
+B2_BUCKET_NAME = "EveBash-Staging-Media"
+MEDIA_EDGE_CACHE = "on"
+MEDIA_FORWARD_RANGE = "on"

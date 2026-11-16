@@ -36,6 +36,7 @@ import { SuperAdminPanel } from './components/SuperAdminPanel';
 import { ContactMessagesGrid } from './components/ContactMessagesGrid';
 import { PaymentsGrid } from './components/PaymentsGrid';
 import { runAdminAction, type AdminAction } from './lib/adminApi';
+import { EnvironmentSwitch, LiveWarningStrip } from './components/EnvironmentSwitch';
 import { BarChart3, Users, Folder, LogOut, Key, Mail, AlertTriangle, ShieldCheck, Layers, DollarSign, Settings2, CheckCircle2, ArrowLeft, CreditCard } from 'lucide-react';
 
 const isPasswordRecoveryUrl = () => {
@@ -200,7 +201,9 @@ export default function App() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin
+          redirectTo: window.location.origin,
+          // Always show Google's account picker, so the right admin account can be chosen
+          queryParams: { prompt: 'select_account' }
         }
       });
       if (error) throw error;
@@ -355,6 +358,11 @@ export default function App() {
     }
   };
 
+  // The gallery viewer saves visibility itself; update the list in place, since a full reload would close the viewer
+  const handleVisibilityChange = (eventId: string, isPublic: boolean) => {
+    setEvents(prev => prev.map(event => (event.id === eventId ? { ...event, isPublic } : event)));
+  };
+
   const handleContactMessageStatusChange = async (id: string, status: ContactMessageStatus) => {
     await updateContactMessageStatus(id, status);
     setContactMessages(prev =>
@@ -396,6 +404,9 @@ export default function App() {
                   ? 'Create a new password for this admin account'
                   : 'Sign in to view simple analytics & monitoring'}
             </p>
+            <div className="mt-5">
+              <EnvironmentSwitch />
+            </div>
           </div>
 
           <form
@@ -732,6 +743,7 @@ export default function App() {
 
       {/* Main Panel Area */}
       <div className="h-screen flex-1 flex flex-col min-w-0 overflow-hidden bg-[#07091a]">
+        <LiveWarningStrip />
         {/* Fixed Header */}
         <header className="h-16 border-b border-white/5 bg-[#0c1028]/80 backdrop-blur-sm flex items-center justify-between px-8 shrink-0 select-none">
           <div className="flex items-center gap-3">
@@ -752,6 +764,7 @@ export default function App() {
             </h2>
           </div>
           <div className="flex items-center space-x-2.5">
+            <EnvironmentSwitch compact />
             <span className="text-xs text-slate-500 font-medium">
               Database: <span className="text-emerald-400 font-bold">Online</span>
             </span>
@@ -817,9 +830,12 @@ export default function App() {
                       isSampleGallery ? 'Event added to Sample Galleries.' : 'Event removed from Sample Galleries.'
                     )
                   }
+                  onVisibilityChange={handleVisibilityChange}
                 />
               )}
-              {activeTab === 'events' && <EventGrid events={events} users={users} guests={guests} photos={photos} />}
+              {activeTab === 'events' && (
+                <EventGrid events={events} users={users} guests={guests} photos={photos} onVisibilityChange={handleVisibilityChange} />
+              )}
               {activeTab === 'plans' && <PlanDetailsGrid users={users} />}
               {activeTab === 'pricing' && <ManagePricingGrid />}
               {activeTab === 'infra' && <InfraCostGrid stats={stats} users={users} events={events} guests={guests} photos={photos} />}
@@ -859,6 +875,7 @@ export default function App() {
                       isSampleGallery ? 'Event added to Sample Galleries.' : 'Event removed from Sample Galleries.'
                     )
                   }
+                  onVisibilityChange={handleVisibilityChange}
                 />
               )}
               {activeTab === 'messages' && (

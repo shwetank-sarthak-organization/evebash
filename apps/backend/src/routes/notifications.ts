@@ -39,6 +39,11 @@ export function isGalleryApprovalPushEnabled() {
   return process.env.GALLERY_APPROVAL_PUSH?.trim().toLowerCase() !== "false";
 }
 
+/** Kill switch: PUSH_TOKEN_CLAIM=false stops /push-token from changing profiles (the app then works as before #104). */
+export function isPushTokenClaimEnabled() {
+  return process.env.PUSH_TOKEN_CLAIM?.trim().toLowerCase() !== "false";
+}
+
 /** The caller's access to a gallery as the database sees it (open_gallery with the caller's own token). */
 export async function openGalleryAccessAsCaller(request: Request, eventId: string): Promise<string | null> {
   const { data, error } = await getSupabaseUserClient(getBearerToken(request)).rpc("open_gallery", { p_ref: eventId });
@@ -251,8 +256,48 @@ export function createNotificationsRouter(
     }
   });
 
+  /**
+   * Saves this phone's push token on the signed-in account and takes it off every other account (issue #104). The app
+   * calls this after sign-in; without it a phone kept getting the pushes of every account that had signed in on it.
+   * Other accounts' profiles aren't writable from the app once RLS is on, so this runs here.
+   */
+  notificationsRouter.post("/push-token", async (request: Request, response: Response) => {
+    try {
+      const verified = await verifyUser(request);
+      if (!verified) {
+        return response.status(401).json({ success: false, error: "Authentication required." });
+      }
+
+      const token = typeof request.body?.token === "string" ? request.body.token.trim() : "";
+      if (!EXPO_PUSH_TOKEN.test(token)) {
+        return response.status(400).json({ success: false, error: "A valid Expo push token is required." });
+      }
+      if (!isPushTokenClaimEnabled()) return response.json({ success: true, released: 0, skipped: true });
+
+      const { user, supabaseAdmin } = verified;
+      const { data: released, error: releaseError } = await supabaseAdmin
+        .from("profiles")
+        .update({ push_token: null })
+        .eq("push_token", token)
+        .neq("id", user.id)
+        .select("id");
+      if (releaseError) throw releaseError;
+      const { error: saveError } = await supabaseAdmin.from("profiles").update({ push_token: token }).eq("id", user.id);
+      if (saveError) throw saveError;
+
+      const count = released?.length ?? 0;
+      if (count) console.log("[notifications] push token moved to this account", JSON.stringify({ user: user.id, releasedFrom: count }));
+      return response.json({ success: true, released: count });
+    } catch (error) {
+      console.error("[notifications] push token save failed:", error);
+      return response.status(500).json({ success: false, error: "Could not save the push token." });
+    }
+  });
+
   return notificationsRouter;
 }
+
+const EXPO_PUSH_TOKEN = /^Expo(nent)?PushToken\[[^\]\s]+\]$/;
 
 const DENIED_PUSH_TITLE = "Access request not approved";
 const deniedPushBody = (title: string) => `The host didn't approve your request to join "${title}". You can ask again later.`;

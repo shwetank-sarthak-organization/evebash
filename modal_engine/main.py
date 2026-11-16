@@ -9,6 +9,87 @@ except ImportError:
 
 app = modal.App("wedding-media-engine")
 
+# Which settings file the deploy reads (todo #30). Default: the repo-root .env, exactly as before (live).
+# Staging deploy:  MODAL_ENVIRONMENT=staging EVEBASH_MODAL_ENV_FILE=.env.modal-staging modal deploy modal_engine/main.py
+# The name is a file in the repo root. The checks below stop live settings going to staging and the other way round.
+_ENV_FILE_NAME = os.environ.get("EVEBASH_MODAL_ENV_FILE", ".env")
+_ENV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+def _supabase_url_in(path):
+    with open(path) as f:
+        for line in f:
+            if line.startswith("NEXT_PUBLIC_SUPABASE_URL="):
+                return line.split("=", 1)[1].strip().strip("\"'")
+    return ""
+
+
+if modal.is_local():
+    _modal_env = os.environ.get("MODAL_ENVIRONMENT", "")
+    if _modal_env == "staging" and _ENV_FILE_NAME == ".env":
+        raise RuntimeError("Staging deploy needs EVEBASH_MODAL_ENV_FILE=.env.modal-staging (not the live .env).")
+    if _ENV_FILE_NAME != ".env" and _modal_env != "staging":
+        raise RuntimeError(f"{_ENV_FILE_NAME} is for the staging environment only: set MODAL_ENVIRONMENT=staging.")
+    if not os.path.isfile(os.path.join(_ENV_DIR, _ENV_FILE_NAME)):
+        raise RuntimeError(f"Settings file {_ENV_FILE_NAME} not found in {_ENV_DIR}.")
+    if _modal_env == "staging" and _supabase_url_in(os.path.join(_ENV_DIR, _ENV_FILE_NAME)) in (
+        "",
+        _supabase_url_in(os.path.join(_ENV_DIR, ".env")),
+    ):
+        raise RuntimeError("Staging settings point at the live database (same NEXT_PUBLIC_SUPABASE_URL as .env).")
+
+
+def _settings_secret():
+    # from_dotenv's first argument is only where Modal STARTS looking (walking up the folders) and `filename` is the
+    # file it looks for, so the name must go in `filename`. Passing a full path to a different file silently loads .env.
+    return modal.Secret.from_dotenv(_ENV_DIR, filename=_ENV_FILE_NAME)
+
+
+# Crash and error reporting (Sentry). Off unless SENTRY_DSN is in the deploy's settings file (.env for live,
+# .env.modal-staging for staging) with SENTRY_ENVIRONMENT; runs only inside Modal's containers. Modal catches a
+# function's exceptions itself, so the places that mark a photo or video "failed" report it with _report_error.
+_sentry_sdk = None
+_sentry_checked = False
+
+def _sentry():
+    global _sentry_sdk, _sentry_checked
+    if _sentry_checked:
+        return _sentry_sdk
+    _sentry_checked = True
+    dsn = (os.environ.get("SENTRY_DSN") or "").strip()
+    if not dsn or modal.is_local():
+        return None
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=dsn,
+            environment=(os.environ.get("SENTRY_ENVIRONMENT") or "production").strip(),
+            traces_sample_rate=0,
+            send_default_pii=False,
+        )
+        sentry_sdk.set_tag("service", "modal")
+        _sentry_sdk = sentry_sdk
+        print("[Sentry] error reporting on")
+    except Exception as e:
+        print(f"[Sentry] off: {e}")
+    return _sentry_sdk
+
+def _report_error(err: BaseException, where: str, **context):
+    """Sends a caught error to Sentry with where it happened (photo id etc.). Never raises."""
+    sdk = _sentry()
+    if not sdk:
+        return
+    try:
+        with sdk.new_scope() as scope:
+            scope.set_tag("where", where)
+            for key, value in context.items():
+                scope.set_extra(key, value)
+            sdk.capture_exception(err)
+    except Exception:
+        pass
+
+_sentry()
+
 # Define the Modal image with system OpenCV dependencies and InsightFace + ONNX Runtime.
 image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -23,6 +104,7 @@ image = (
         "supabase",
         "requests",
         "numpy",
+        "sentry-sdk",
     )
     .run_commands(
         # Download AuraFace weights from fal/AuraFace-v1 to the standard model folder
@@ -44,6 +126,7 @@ media_image = (
         "Pillow",
         "supabase",
         "requests",
+        "sentry-sdk",
     )
 )
 
@@ -231,22 +314,27 @@ def _hand_off_to_fast_pipeline(photos: list) -> dict:
 @app.function(
     # Only hands photos off to the 2-stage pipeline, so it doesn't need the face-recognition image
     image=media_image,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+    secrets=[_settings_secret()]
 )
 @modal.fastapi_endpoint(method="POST")
-def process_media_batch(request: dict):
+async def process_media_batch(request: fastapi.Request):
     """
     QStash Webhook Entrypoint.
     Accepts a batch of photos and fans them out to parallel CPU workers.
+    Verifies Upstash-Signature like the other webhooks (issue #284): the backend only reaches it through QStash
+    (apps/backend/src/qstash.ts publishModalBatchTask).
     """
-    import time
-    start_time = time.time()
+    import asyncio
+    import json
+    body = await request.body()
+    verify_qstash_signature(body, request.headers.get("Upstash-Signature", ""), str(request.url))
 
-    photos = request.get("photos", [])
+    payload = json.loads(body.decode("utf-8")) if body else {}
+    photos = payload.get("photos", []) if isinstance(payload, dict) else []
     if not photos:
         return {"status": "no photos provided"}
 
-    return _hand_off_to_fast_pipeline(photos)
+    return await asyncio.to_thread(_hand_off_to_fast_pipeline, photos)
 
 
 # ==============================================================================
@@ -259,7 +347,7 @@ def process_media_batch(request: dict):
     memory=768,
     max_containers=15,
     scaledown_window=60,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+    secrets=[_settings_secret()]
 )
 def process_photo_preview(photo_data: dict):
     """
@@ -412,6 +500,7 @@ def process_photo_preview(photo_data: dict):
 
     except Exception as e:
         print(f"[{photo_id}] Fast Preview generation failed: {e}")
+        _report_error(e, "photo_preview", photo_id=photo_id)
         failed_update = {
             "media_status": "failed",
             "processing_error": str(e)[:1000]
@@ -429,7 +518,7 @@ def process_photo_preview(photo_data: dict):
 
 @app.function(
     image=media_image,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+    secrets=[_settings_secret()]
 )
 @modal.fastapi_endpoint(method="POST")
 async def generate_photo_preview(request: fastapi.Request):
@@ -462,7 +551,7 @@ async def generate_photo_preview(request: fastapi.Request):
 
 @app.function(
     image=media_image,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+    secrets=[_settings_secret()]
 )
 @modal.fastapi_endpoint(method="POST")
 async def face_index_ingress(request: fastapi.Request):
@@ -489,7 +578,7 @@ async def face_index_ingress(request: fastapi.Request):
     max_containers=12,
     scaledown_window=45,
     retries=0,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+    secrets=[_settings_secret()]
 )
 class FaceIndexer:
     @modal.enter()
@@ -627,6 +716,7 @@ class FaceIndexer:
 
         except Exception as e:
             print(f"[{photo_id}] Face indexing error: {e}")
+            _report_error(e, "face_index", photo_id=photo_id)
             try:
                 supabase.table("photos").update({
                     "face_status": "failed",
@@ -940,6 +1030,7 @@ def _process_photo_v2(photo_data: dict, face_app, supabase, b2_client, bucket_na
 
     except Exception as e:
         print(f"[{photo_id}] Fast Preview generation failed: {e}")
+        _report_error(e, "photo_preview", photo_id=photo_id)
         failed_update = {
             "media_status": "failed",
             "processing_error": str(e)[:1000]
@@ -1086,6 +1177,7 @@ def _save_faces_v2(photo_id, asset_version, event_id, user_id, preview_url, load
     except Exception as e:
         # The preview is already live; only the faces failed, and the maintenance job retries just the faces
         print(f"[{photo_id}] Face indexing error: {e}")
+        _report_error(e, "face_index", photo_id=photo_id)
         try:
             _db_execute(supabase.table("photos").update({
                 "face_status": "failed",
@@ -1105,7 +1197,7 @@ def _save_faces_v2(photo_id, asset_version, event_id, user_id, preview_url, load
     scaledown_window=15,
     retries=0,
     timeout=V2_TIME_LIMIT_SECONDS,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+    secrets=[_settings_secret()]
 )
 @modal.concurrent(max_inputs=4)
 class PhotoProcessorV2:
@@ -1438,7 +1530,7 @@ def dispatch_outbox_jobs():
     return {"dispatched": dispatched}
 
 
-_maintenance_secrets = [modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+_maintenance_secrets = [_settings_secret()]
 
 # One container every 5 minutes instead of two every minute. QStash and the direct spawns are the
 # main path; this only picks up jobs they dropped, so a few minutes of delay is fine.
@@ -1684,7 +1776,7 @@ def _find_you_secret_ok(provided: str) -> bool:
     return bool(expected) and hmac.compare_digest((provided or "").strip().encode("utf-8"), expected.encode("utf-8"))
 
 
-_find_you_secrets = [modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+_find_you_secrets = [_settings_secret()]
 # 2 cores for the selfie face detection (the default 0.125 core made each search take seconds longer).
 
 @app.function(image=image, secrets=_find_you_secrets, cpu=2.0, memory=2048)
@@ -1713,7 +1805,7 @@ transcode_image = (
     # `python -u worker.py` startup — FFmpeg sees `-u` as an unknown flag and crashes.
     # Clear it so Modal can launch its Python runtime normally.
     .dockerfile_commands(["ENTRYPOINT []", "CMD []"])
-    .pip_install("boto3", "supabase", "fastapi[standard]")
+    .pip_install("boto3", "supabase", "fastapi[standard]", "sentry-sdk")
 )
 
 # Issue #141: the GPU worker that takes every video format needs CUDA filters the image above lacks (scale_cuda
@@ -1731,7 +1823,7 @@ gpu_all_image = (
         "mkdir -p /opt/jellyfin-ffmpeg && tar -xJf /tmp/jellyfin-ffmpeg.tar.xz -C /opt/jellyfin-ffmpeg && rm /tmp/jellyfin-ffmpeg.tar.xz",
         "ln -s /opt/jellyfin-ffmpeg/ffmpeg /usr/local/bin/ffmpeg && ln -s /opt/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe",
     )
-    .pip_install("boto3", "supabase", "fastapi[standard]")
+    .pip_install("boto3", "supabase", "fastapi[standard]", "sentry-sdk")
 )
 
 def _notify_video_processed(photo_id: str):
@@ -2847,13 +2939,14 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
     except Exception as e:
         remove_early_uploads_unless_live()
         error_details = str(e)
+        _report_error(e, f"transcode_{hardware}", photo_id=photo_id)
         try:
             supabase.table("photos").update({"status": "failed", "processing_error": error_details[:1000]}).eq("id", photo_id).execute()
         except Exception:
             pass
         raise fastapi.HTTPException(status_code=500, detail=f"Transcoding failed: {error_details}")
 
-_video_secrets = [modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+_video_secrets = [_settings_secret()]
 
 # Long videos (> 10 min) run on 16 CPU cores instead of an L4: 1.6x faster and ~38% cheaper in the
 # Oct 2026 benchmark (33-min 1080p60 video).

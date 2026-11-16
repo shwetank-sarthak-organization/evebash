@@ -207,8 +207,8 @@ export function VaultScreen() {
   const openNewSheet = () => setSheet({
     title: 'Add to EB Vault',
     actions: [
-      { label: 'Upload photos & videos', icon: 'photo.fill', onPress: () => void pickMedia() },
-      { label: 'Upload files', icon: 'arrow.up.doc.fill', onPress: () => void pickFiles() },
+      { label: 'Upload photos & videos', icon: 'photo.fill', onPress: () => void pickMedia().catch((error) => appAlert("Couldn't open your photos", errorText(error))) },
+      { label: 'Upload files', icon: 'arrow.up.doc.fill', onPress: () => void pickFiles().catch((error) => appAlert("Couldn't open your files", errorText(error))) },
       { label: 'New folder', icon: 'folder.badge.plus', onPress: () => setDialog({ type: 'new-folder' }) },
     ],
   });

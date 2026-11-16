@@ -43,6 +43,11 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'media.evebash.com',
       },
+      {
+        // Staging media (issue #279)
+        protocol: 'https',
+        hostname: 'media-staging.evebash.com',
+      },
     ],
   },
   experimental: {

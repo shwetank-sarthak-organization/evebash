@@ -2049,6 +2049,9 @@ headerGreeting: {
   joinIdValue: { color: MidnightColors.gold, fontSize: 24, fontFamily: Fonts.outfit.extraBold, letterSpacing: 4 },
   shareActionBtn: { backgroundColor: MidnightColors.gold, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16, paddingHorizontal: 32, borderRadius: 20, marginTop: 32, width: '100%', justifyContent: 'center' },
   shareActionText: { color: MidnightColors.background, fontSize: 16, fontFamily: Fonts.outfit.extraBold, textTransform: 'uppercase' },
+  // Copy link (todo #34): outlined, under Share Invitation
+  shareCopyBtn: { borderWidth: 1, borderColor: MidnightColors.gold, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 32, borderRadius: 20, marginTop: 12, width: '100%', justifyContent: 'center' },
+  shareCopyText: { color: MidnightColors.gold, fontSize: 15, fontFamily: Fonts.outfit.extraBold, textTransform: 'uppercase' },
   closeModalBtn: { marginTop: 16, padding: 10 },
   closeModalText: { color: MidnightColors.slate400, fontSize: 14, fontFamily: Fonts.inter.medium },
 };

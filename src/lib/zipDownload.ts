@@ -43,6 +43,48 @@ function fileNameFromUrl(url: string) {
     }
 }
 
+// Files up to this size are saved through the page; bigger ones (long original videos) open in a new tab instead
+const SAVE_IN_PAGE_MAX_BYTES = 300 * 1024 * 1024;
+
+function clickLink(href: string, fileName?: string, newTab = false) {
+    const link = document.createElement("a");
+    link.href = href;
+    if (fileName) link.setAttribute("download", fileName);
+    if (newTab) {
+        link.target = "_blank";
+        link.rel = "noopener";
+    }
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+/**
+ * Saves one gallery item to the computer. Media lives on another domain (media.evebash.com), and browsers ignore a
+ * link's "download" for other domains and just open the file, so the file is fetched and saved from the page (the
+ * media worker allows it with CORS). The name never carries the "?v=" a rotated photo's link has. If the fetch fails
+ * or the file is very large, it opens in a new tab instead, where the browser's own Save works.
+ */
+export async function downloadMediaFile(url: string, fileName?: string) {
+    const fileUrl = getOriginalMediaUrl(url);
+    const name = (fileName || fileNameFromUrl(fileUrl) || "evebash-media").replace(/[\\/:*?"<>|]/g, "_");
+    try {
+        const response = await fetch(fileUrl, { mode: "cors" });
+        const size = Number(response.headers.get("content-length") || 0);
+        if (!response.ok || size > SAVE_IN_PAGE_MAX_BYTES) {
+            await response.body?.cancel();
+            clickLink(fileUrl, undefined, true);
+            return;
+        }
+        const objectUrl = URL.createObjectURL(await response.blob());
+        clickLink(objectUrl, name);
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (error) {
+        console.error("Download failed, opening the file instead", error);
+        clickLink(fileUrl, undefined, true);
+    }
+}
+
 export interface ZipDownloadResult {
     total: number;
     included: number;

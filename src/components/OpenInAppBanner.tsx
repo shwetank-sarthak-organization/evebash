@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
 import { EveBashLogo } from "@/components/EveBashLogo";
+import { getApiBaseUrl } from "@/lib/apiBase";
 
 // Off unless NEXT_PUBLIC_OPEN_IN_APP_BANNER=true at build time
 const BANNER_ENABLED = process.env.NEXT_PUBLIC_OPEN_IN_APP_BANNER === "true";
@@ -15,11 +16,15 @@ const DISMISS_FOR_MS = 7 * 24 * 60 * 60 * 1000;
 
 type Platform = "android" | "ios";
 
-/** evebash:// link for the event page being viewed; the app resolves the ref itself (apps/mobile/lib/deepLinks.ts). */
+// The staging site opens the staging app (its own scheme, apps/mobile/app.config.js), the live site the live app.
+// Same staging check as the app's lib/webLinks.ts: the configured server address.
+const APP_SCHEME = getApiBaseUrl().includes("staging") ? "evebash-staging" : "evebash";
+
+/** App link for the event page being viewed; the app resolves the ref itself (apps/mobile/lib/deepLinks.ts). */
 function appLinkForPage(pathname: string, search: string): string | null {
     const match = /^\/events\/([^/]+)(\/find-you)?/.exec(pathname);
     if (!match) return null;
-    return `evebash://events/${match[1]}${match[2] ?? ""}${search ? `?${search}` : ""}`;
+    return `${APP_SCHEME}://events/${match[1]}${match[2] ?? ""}${search ? `?${search}` : ""}`;
 }
 
 // Phones and tablets. iPadOS Safari reports itself as a Mac, so a touch screen tells them apart.

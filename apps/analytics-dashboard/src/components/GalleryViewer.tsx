@@ -1,7 +1,7 @@
 import { deleteSelectedMedia } from '../lib/deleteSelectedMedia';
 import { LoaderCircle, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import type { Event } from '../lib/analytics';
+import { directSetEventVisibility, type Event } from '../lib/analytics';
 import type { GalleryMedia } from '../lib/adminApi';
 import {
   directFetchGalleryMedia,
@@ -12,10 +12,12 @@ import {
 
 const buttonClass = 'rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-40';
 
-export function GalleryViewer({ initialGallery, events, onClose }: {
+export function GalleryViewer({ initialGallery, events, onClose, onVisibilityChange }: {
   initialGallery: Event;
   events: Event[];
   onClose: () => void;
+  /** Called with the saved value so the dashboard's event list (and this viewer) show it without a full reload. */
+  onVisibilityChange: (eventId: string, isPublic: boolean) => void;
 }) {
   const [gallery, setGallery] = useState(initialGallery);
   const [media, setMedia] = useState<GalleryMedia[]>([]);
@@ -41,6 +43,10 @@ export function GalleryViewer({ initialGallery, events, onClose }: {
   const dialog = useRef<HTMLDialogElement>(null);
   const parent = events.find(event => event.id === gallery.parentId);
   const children = events.filter(event => event.parentId === gallery.id);
+  // Visibility is set on the top-level gallery; a sub-gallery shows its parent's setting
+  const visibilityEvent = gallery.parentId ? parent : events.find(event => event.id === gallery.id);
+  const [savingVisibility, setSavingVisibility] = useState(false);
+  const [visibilityError, setVisibilityError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -112,7 +118,21 @@ export function GalleryViewer({ initialGallery, events, onClose }: {
     }
   };
 
-  const navigate = (event: Event) => { setChecked(new Map()); setBulkMessage(''); setBulkFailures([]); setDeleteError(''); setGallery(event); setPage(0); setSelected(null); };
+  const changeVisibility = async (isPublic: boolean) => {
+    if (!visibilityEvent || savingVisibility || isPublic === !!visibilityEvent.isPublic) return;
+    if (isPublic && !window.confirm(`Make “${visibilityEvent.title}” public? Anyone with the link will be able to view this event and its sub-galleries without approval.`)) return;
+    setSavingVisibility(true);
+    setVisibilityError('');
+    try {
+      onVisibilityChange(visibilityEvent.id, await directSetEventVisibility(visibilityEvent.id, isPublic));
+    } catch (err) {
+      setVisibilityError(err instanceof Error ? err.message : 'Unable to change visibility');
+    } finally {
+      setSavingVisibility(false);
+    }
+  };
+
+  const navigate = (event: Event) => { setChecked(new Map()); setBulkMessage(''); setBulkFailures([]); setDeleteError(''); setVisibilityError(''); setGallery(event); setPage(0); setSelected(null); };
   const current = selected === null ? null : media[selected];
 
   return <section className="space-y-6">
@@ -122,6 +142,24 @@ export function GalleryViewer({ initialGallery, events, onClose }: {
       <h2 className="text-2xl font-bold text-white">{gallery.title || 'Untitled Gallery'}</h2>
       <p className="mt-1 text-sm text-slate-400">Photos and videos in this gallery’s home section</p>
     </div>
+    {visibilityEvent && (gallery.parentId
+      ? <p className="text-sm text-slate-400">Visibility follows “{visibilityEvent.title}”: {visibilityEvent.isPublic ? 'Public' : 'Private'}</p>
+      : <div className="space-y-2">
+        <div role="group" aria-label="Event visibility" className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-slate-300">Visibility</span>
+          {[false, true].map(value => <button
+            key={String(value)}
+            type="button"
+            aria-pressed={!!visibilityEvent.isPublic === value}
+            disabled={savingVisibility}
+            onClick={() => void changeVisibility(value)}
+            className={`${buttonClass} ${!!visibilityEvent.isPublic === value ? 'border-violet-400 bg-violet-600 text-white' : ''}`}
+          >{value ? 'Public' : 'Private'}</button>)}
+          {savingVisibility && <LoaderCircle role="status" aria-label="Saving visibility" className="h-5 w-5 animate-spin text-slate-400" />}
+        </div>
+        <p className="text-sm text-slate-400">{visibilityEvent.isPublic ? 'Anyone with the link can view this event and its sub-galleries. Upload permissions stay separate.' : 'Guests need approval to view this event through its shared link.'}</p>
+        {visibilityError && <p role="alert" className="text-sm text-rose-300">{visibilityError}</p>}
+      </div>)}
     {parent && <button type="button" onClick={() => navigate(parent)} className={buttonClass}>← {parent.title}</button>}
     {children.length > 0 && <nav aria-label="Sub-galleries" className="flex flex-wrap gap-2">
       {children.map(child => <button key={child.id} type="button" onClick={() => navigate(child)} className={buttonClass}>{child.title || 'Untitled Sub-gallery'}</button>)}

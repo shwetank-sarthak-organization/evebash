@@ -52,6 +52,7 @@ import { appAlert, showToast } from '@/lib/feedback';
 import { MidnightColors } from '@/constants/theme';
 import { EventGrid, getEventGridCardWidth } from '@/constants/layout';
 import { galleryIdFromLink } from '@/lib/webLinks';
+import { JOIN_CODE_EXAMPLE, JOIN_CODE_INPUT_MAX_LENGTH, normalizeJoinCode } from '../../../../shared/text/joinCode';
 import { withPhoneCover } from '@/lib/eventCovers';
 
 const { width, height } = Dimensions.get('window');
@@ -359,7 +360,7 @@ export default function DashboardScreen() {
   const [permission, requestPermission] = useCameraPermissions();
 
   const handleJoinEvent = async (code?: string) => {
-    const finalCode = (code || joinCode).trim().toUpperCase();
+    const finalCode = normalizeJoinCode(code || joinCode);
     if (!finalCode) return;
 
     if (!user) {
@@ -732,9 +733,11 @@ export default function DashboardScreen() {
                             style={[styles.input, { letterSpacing: 4, fontSize: 20, textAlign: 'center', fontFamily: 'Outfit_700Bold' }]}
                             value={joinCode}
                             onChangeText={setJoinCode}
-                            placeholder="E.G. A1B2C3"
+                            placeholder={JOIN_CODE_EXAMPLE}
                             placeholderTextColor={colors.slate600}
                             autoCapitalize="characters"
+                            autoCorrect={false}
+                            maxLength={JOIN_CODE_INPUT_MAX_LENGTH}
                           />
                         </View>
 

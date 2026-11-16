@@ -1289,6 +1289,9 @@ mediaRouter.post("/mobile/get-upload-url", asyncRoute(async (request, response) 
 }));
 
 mediaRouter.post("/mobile/reconcile-upload", asyncRoute(async (request, response) => {
+  // The app always sends its login here; without one it could probe for uploads (issue #284)
+  const user = await requireUser(request, response);
+  if (!user) return;
   const body = request.body || {};
   const clientUploadId = String(body.clientUploadId || "").trim();
   const storageKey = String(body.storageKey || "").trim();
@@ -1500,6 +1503,8 @@ mediaRouter.post("/process-thumbnail", asyncRoute(async (request, response) => {
   const eventId = String(request.body?.eventId || "");
 
   if (eventId) {
+    // Queues Modal work, so only the event's owner, a platform admin or an internal job (issue #284)
+    if (!(await authorizeEventProcessing(request, response, eventId))) return;
     background("ProcessThumbnailModalTrigger", async () => {
       await publishDelayedModalTrigger(eventId, getRequestOrigin(request));
     });
@@ -1508,24 +1513,34 @@ mediaRouter.post("/process-thumbnail", asyncRoute(async (request, response) => {
   response.json({ success: true, status: "offloaded_to_modal", storageKey });
 }));
 
+// Starting processing for an event: internal jobs, or the event's owner / a platform admin (issue #284)
+async function authorizeEventProcessing(request: Request, response: Response, eventId: string) {
+  if (verifyInternalJob(request)) return true;
+  const verified = await verifyRequestUser(request);
+  if (!verified) {
+    jsonError(response, 401, "Authorization required");
+    return false;
+  }
+  const supabaseAdmin = getSupabaseAdminClient();
+  const [{ data: event, error: eventError }, { data: profile, error: profileError }] = await Promise.all([
+    supabaseAdmin.from("events").select("created_by").eq("id", eventId).maybeSingle(),
+    supabaseAdmin.from("profiles").select("role").eq("id", verified.user.id).maybeSingle(),
+  ]);
+  if (eventError || profileError) throw eventError || profileError;
+  const isAuthorized = event?.created_by === verified.user.id || profile?.role === "admin" || profile?.role === "super_admin";
+  if (!isAuthorized) {
+    jsonError(response, 403, "Not authorized to index this event");
+    return false;
+  }
+  return true;
+}
+
 mediaRouter.post("/trigger-modal-batch", asyncRoute(async (request, response) => {
   const eventId = String(request.body?.eventId || request.query.eventId || "");
   if (!eventId) return jsonError(response, 400, "Missing eventId");
 
   const supabaseAdmin = getSupabaseAdminClient();
-  if (!verifyInternalJob(request)) {
-    const verified = await verifyRequestUser(request);
-    if (!verified) return jsonError(response, 401, "Authorization required");
-
-    const [{ data: event, error: eventError }, { data: profile, error: profileError }] = await Promise.all([
-      supabaseAdmin.from("events").select("created_by").eq("id", eventId).maybeSingle(),
-      supabaseAdmin.from("profiles").select("role").eq("id", verified.user.id).maybeSingle(),
-    ]);
-    if (eventError || profileError) throw eventError || profileError;
-
-    const isAuthorized = event?.created_by === verified.user.id || profile?.role === "admin" || profile?.role === "super_admin";
-    if (!isAuthorized) return jsonError(response, 403, "Not authorized to index this event");
-  }
+  if (!(await authorizeEventProcessing(request, response, eventId))) return;
 
   let query = supabaseAdmin
     .from("photos")
@@ -1565,6 +1580,9 @@ mediaRouter.post("/internal/video-processed", asyncRoute(async (request, respons
 }));
 
 mediaRouter.get("/indexing-status", asyncRoute(async (request, response) => {
+  // Logged-in users only (issue #284): the counts of any event were readable without a login
+  const user = await requireUser(request, response);
+  if (!user) return;
   const eventId = String(request.query.eventId || "");
   if (!eventId) return jsonError(response, 400, "Missing eventId");
 
@@ -1951,7 +1969,6 @@ mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
 
 // GET /all-photos was removed (issue #282): it returned every photo's address with no login check, past the RLS
 // lockdown, and nothing called it.
-
 
 mediaRouter.use((error: unknown, _request: Request, response: Response, next: NextFunction) => {
   void next;

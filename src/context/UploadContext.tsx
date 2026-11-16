@@ -260,7 +260,12 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
         const checkStatus = async () => {
             try {
-                const res = await fetch(getApiUrl(`/api/v1/media/indexing-status?eventId=${indexingEventId}`));
+                // The server needs a login for this (issue #284)
+                const { data: sessionData } = await supabase.auth.getSession();
+                const accessToken = sessionData.session?.access_token;
+                const res = await fetch(getApiUrl(`/api/v1/media/indexing-status?eventId=${indexingEventId}`), {
+                    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+                });
                 if (res.ok) {
                     const data = await res.json();
                     setIndexingStatus(data);

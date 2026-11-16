@@ -32,9 +32,9 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 32
+Next todo number: 43
 
-Last updated: 2026-11-12
+Last updated: 2026-11-16
 
 =====================================================================
 ACTIVE TODOS
@@ -617,12 +617,327 @@ Brief:        Each time an event or sub-gallery is changed (title, date, cover, 
               log on their event, and whether photo, album and permission changes join later.
 Done in:      -
 
+#33 Automatic Modal publishing and database migrations (GitHub Actions)
+Listed:       2026-11-15
+Platform:     Backend only
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       Agreed
+Effort:       M
+Suggested by: Claude (Shwetank agreed 2026-11-15)
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: automate both, with a manual "Approve" on GitHub before anything
+              reaches live. Do it after the RLS lockdown (issue #21), which stays a careful manual step.
+Owner:        Shwetank (with Claude)
+Depends on:   Issue #21 (RLS lockdown part 2) done first; todo #30 (separate staging and live).
+Brief:        Today Modal (modal_engine/) and database changes (supabase/migrations/*.sql) are published
+              by hand, and nothing records which .sql file has run on which database. Add GitHub Actions:
+              push to staging -> publish Modal to the "staging" environment (.env.modal-staging values)
+              and apply new migrations to the staging database; merge to main -> the same for live
+              (Modal "main", live database), only after a required approval (GitHub environment
+              "production" with Shwetank/Sarthak as reviewers). Steps: (1) Modal tokens per environment
+              and the settings as GitHub secrets (never in the repo); Modal step only when modal_engine/
+              changed. (2) Migrations with the Supabase CLI, which keeps a history table per database;
+              one-time baseline first: mark every migration already applied by hand as applied on both
+              databases (check each against the real schema), so nothing re-runs. (3) Test on staging
+              with a harmless change, then one release to live. (4) Document the release order (database
+              first if the new code needs it, then merge, then Modal) in the release notes.
+
+#35 iOS: set up the EveBash Staging app (com.evebash.app.staging) before the first iOS staging build
+Listed:       2026-11-15
+Platform:     App
+Priority:     Medium
+Phase:        TBD (before the first iOS build)
+Status:       Idea
+Effort:       S
+Suggested by: Sarthak's Claude (review of todo #30, 2026-11-15)
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   Todo #30 (done); an Apple developer account (company account, see the legal-entity plan).
+Brief:        apps/mobile/app.config.js gives staging builds the iOS bundle ID com.evebash.app.staging too, but
+              only Android is set up for it (Firebase app, Google sign-in clients, EAS keystore). Before the
+              first iOS staging build: a Google iOS sign-in client for com.evebash.app.staging (and its URL
+              scheme in the google-signin plugin, or per-variant), Sign in with Apple enabled for that app ID
+              and added to Supabase's Apple settings on the staging project, iOS push (APNs key on EAS for that
+              app ID), and the Firebase iOS app if push or Firebase is used on iOS. Production iOS
+              (com.evebash.app) is unchanged.
+Update 2026-11-16: Google part done (todo #37): iOS OAuth client "EveBash Staging iOS" for com.evebash.app.staging,
+              added to staging Supabase's Google Client IDs; app.config.js gives the staging variant its own
+              iosUrlScheme from EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID (eas.json staging profile, apps/mobile/.env.local)
+              in 560cbd71. Google login checked on a USB iPhone. Still open: Sign in with Apple, APNs, Firebase iOS.
+
+#36 Confetti Circle redesign: our own look, not a copy of the Crafto demo (copyright risk)
+Listed:       2026-11-15
+Platform:     Both
+Priority:     Medium
+Phase:        2 (after launch)
+Status:       Agreed
+Effort:       M
+Suggested by: Sarthak's Claude (legal research, 2026-11-15)
+Discussed:    Yes
+Decision:     2026-11-15 Sarthak: do it in Phase 2, not now.
+Owner:        Unassigned
+Depends on:   -
+Brief:        Confetti Circle (website src/components/TemplateConfetti.tsx, src/components/confetti/,
+              src/app/confetti-circle.css; app apps/mobile/components/confetti/; shared
+              shared/themes/confettiCircle.ts) was drawn from scratch, with no Crafto files, but it rebuilds
+              the cover and couple section of ThemeZaa's Crafto Wedding Invitation demo
+              (https://crafto.themezaa.com/wedding-invitation/) almost one for one. Matching parts: white
+              circle over the photo, dark tag on its top edge, pink-to-orange tall capitals with "- AND -",
+              "Month | 28 | Year" date, paint specks, torn edge, near-identical colours, the bride / ribboned
+              photo / groom couple section, the "M ♥ A" logo. Code comments and commits b708222e, 30d07b9f say
+              it copies "the reference". Full research and risk table: reports/Confetti Circle copyright
+              risk.md. Main risk is a takedown notice (GitHub, Vercel, app stores), not a lawsuit; a licence
+              does not help. Do: change several main parts together (shape, tag, name style, colours,
+              specks, edge, couple layout, logo), on the website and the app; rewrite the comments; replace
+              public/home/designs/confetti.jpg and public/theme-previews/app/confetti.jpg; show the demo and
+              the new design to 2-3 people who have seen neither. Also give Periwinkle Script and Sunlit
+              Portrait the same side-by-side check (their code also mentions "the reference"). The report
+              advises doing this before launch, because after launch it changes paying hosts' live galleries.
+              If any letter or takedown notice arrives first, call an IP lawyer before replying.
+
+#37 iOS: run and test the app in the iPhone simulator (staging)
+Listed:       2026-11-15
+Platform:     App
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       M
+Suggested by: Shwetank (wants iOS done alongside Android, 2026-11-15)
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: start iOS now with the iPhone simulator on his Mac (free); real-device testing,
+              TestFlight and the App Store come with the paid Apple Developer account (company account after
+              Ossciv is incorporated, needs a D-U-N-S number). Shwetank has an iPhone for real-device tests later;
+              Sarthak doesn't.
+Owner:        Shwetank (with Claude)
+Depends on:   Xcode installed on Shwetank's Mac (Mac App Store, free; not installed on 2026-11-15, 101 GB free).
+Brief:        Build the EveBash Staging app (APP_VARIANT unset = staging, bundle ID com.evebash.app.staging) for
+              the iOS simulator on Shwetank's Mac, open it in the simulator panel, and run the same checks as the
+              Android USB build: login (email + password; Google and Sign in with Apple as far as the simulator
+              allows), staging-only event, upload from the photo library, gallery, Find You with a library photo,
+              vault, share window (Copy link), dark and light look. Fix iOS-only problems (layout, safe areas,
+              keyboard, permissions text). Not possible in the simulator: real push, the camera. Then add a device
+              test for a real iPhone, which waits for the Apple Developer account and todo #35.
+Update 2026-11-16: iOS runs. Set up on Shwetank's Mac: Xcode 27.2, iOS 27.2 simulator, CocoaPods (brew). The
+              staging app builds and opens in the iPhone 18 Pro simulator and, over USB, on Shwetank's iPhone 11
+              (iOS 26.7) with his free Apple account (Personal Team; the app expires 7 days after install). This
+              needed local fixes in the generated ios folder (issue #276: iOS 27 scene lifecycle, iOS 16 minimum,
+              Xcode 27 pod targets; plus quoting for the spaces in this Mac's project path). Metro for iOS runs on
+              port 8082. Checked on the iPhone: email login works, the Dashboard shows "Staging test 1", Google
+              login works with the new staging iOS client (Google Cloud "EveBash Staging iOS", added to staging
+              Supabase's Google Client IDs; code 560cbd71). Not possible with the free account: Sign in with Apple
+              and push (switched off in the USB build; they wait for the paid account, todo #35). Found: issue #275
+              (Google tokens logged). Still to check on the iPhone: device test #218 (event, upload, gallery, Find
+              You, Vault, share window, Light and Dark).
+Update 2026-11-16 (later): device test #218 PASS on Shwetank's iPhone 11, all 10 steps (event, upload from the
+              library, viewer and comments, Find You with the real camera, EB Vault, share window, Light and
+              Dark). Found and fixed issue #283: EB Vault's upload buttons did nothing on iPhone (code d6a45650).
+              Still open outside this todo: #276 (make the Xcode 27 fixes survive prebuild), Sign in with Apple and
+              push (todo #35, paid account).
+Done in:      d6a45650 (2026-11-16)
+
+
+#38 Report a photo or video, and report a user (bad, unwanted or restricted uploads)
+Listed:       2026-11-15
+Platform:     Both
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       Idea
+Effort:       L
+Suggested by: Sarthak (2026-11-15)
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        Let people report a photo or video in an event gallery, and report the person who uploaded it,
+              when it is bad (nudity, violence, hate, illegal), unwanted (for example "I'm in this and want it
+              taken down") or restricted (anything the Terms don't allow). Today there is no Report button
+              anywhere on the website or in the app, and no reports table or endpoint, but the Terms (section
+              10 "Content Moderation", shared/legal/policies.json) already say EveBash acts on user reports and
+              may quarantine or remove content and suspend accounts. Guests can upload to events, so this is
+              user-generated content: Apple's App Review guideline 1.2 and Google Play's User Generated Content
+              policy ask for an in-app way to report content and users (Apple also asks for a way to block
+              abusive users), so it likely has to be in the app before store review (check the current rules
+              then).
+              Rough shape: a Report option in the photo/video viewer's menu and on the uploader's name (website
+              and app); a short reason list plus an optional note; the reported item hidden for the reporter
+              straight away; a new reports table (RLS on, no direct client access) written through the backend;
+              a review queue in the analytics dashboard with actions (dismiss, hide or remove the item, stop the
+              user uploading to that event, suspend the account); a notice to the host and to
+              support@evebash.com. Put the reason list and types in shared/ so the website and app match.
+              To decide: who can report (guests only, or anyone who can see the gallery, including logged-out
+              viewers of public galleries); the reasons; whether the host can act on reports in their own event
+              or only EveBash admins; whether an item is hidden for everyone after N reports or for some reasons
+              at once; whether the uploader is told (never who reported); a target response time; and whether
+              hosts also get a "block this guest" option.
+Done in:      -
+
+#39 Sentry error reporting on every platform that needs it (live website, live server, Modal)
+Listed:       2026-11-16
+Platform:     Both
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       In progress
+Effort:       S
+Suggested by: Shwetank (2026-11-16: "set up sentry for each platform where it is needed")
+Discussed:    Yes
+Decision:     2026-11-16 Shwetank: switch Sentry on now for the live website and live server, and add it to Modal
+              (staging first, live with the next live Modal deploy, issue #269). Cloudflare worker later if needed;
+              Supabase, QStash and the analytics dashboard don't need it; RunPod only if it's switched on.
+Owner:        Shwetank (with Claude)
+Depends on:   Live Modal part: issue #269 (the next live Modal deploy, with Sarthak).
+Brief:        Sentry code was already on live (main has src/lib/sentry.ts, src/instrumentation*.ts,
+              apps/backend/src/sentry.ts) but switched off there: only staging had the settings. The app's
+              production profile already has EXPO_PUBLIC_SENTRY_DSN (issue #186 tracks proving crashes arrive).
+Update 2026-11-16: live server (Railway evebash-api-production-backend): SENTRY_DSN (same as staging's server) and
+              SENTRY_ENVIRONMENT=production set, redeployed; log says "[EveBashBackend] Sentry error reporting on";
+              /health 200. Backup of the old variables in the session scratchpad.
+Update 2026-11-16: live website (Vercel evebash-production): NEXT_PUBLIC_SENTRY_DSN (same as staging's website)
+              and NEXT_PUBLIC_SENTRY_ENVIRONMENT=production, current production build (main) rebuilt; www.evebash.com
+              and /pricing 200, the Sentry address is in the live JavaScript.
+Update 2026-11-16: Modal: sentry-sdk in every image; _sentry() / _report_error() in modal_engine/main.py report
+              the failures that mark a photo or video "failed" (fast preview, face index, V2 preview, V2 face index,
+              video transcode), tagged service=modal and where=...; off unless SENTRY_DSN is in the deploy's settings
+              file. SENTRY_DSN (the server's Sentry project) + SENTRY_ENVIRONMENT added to .env.modal-staging
+              (staging) and the root .env (production, used at the next live Modal deploy, #269). Staging deploy
+              started.
+Update 2026-11-16: staging Modal deployed with it (all functions, same URLs); the staging Modal log shows "[Sentry] error reporting on" at 14:00:06 IST. Left: the live Modal deploy (#269) and a check that a real failure appears in Sentry (service=modal).
+
+#40 Turn on Realtime (live updates) for the v1 launch
+Listed:       2026-11-16
+Platform:     Both
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Agreed
+Effort:       M
+Suggested by: Sarthak (2026-11-16, while closing issue #49)
+Discussed:    Yes
+Decision:     2026-11-16 Sarthak: Realtime goes in v1 for: new access requests (guests), new photos, likes and
+              comments. Vendor chat stays Phase 2. Tables are switched on one at a time, behind a switch, staging first.
+Owner:        Unassigned
+Depends on:   -  (issue #21, RLS lockdown part 2, is live since 2026-11-16)
+Brief:        Realtime has been off since 2026-09-30 (the supabase_realtime publication has no tables). Steps:
+              (1) add the tables one at a time (guests, photos, likes, comments), checking after each that only
+              people allowed to see a row get it; (2) review the app's existing listeners (photos, events,
+              profiles, likes, comments, chat, businesses are all dormant now) and fix the Gallery and Usage tabs,
+              which create a new randomly named channel every time they open (apps/mobile/app/(tabs)/gallery.tsx,
+              usage.tsx), so they unsubscribe; (3) check the Supabase plan's limits on live connections and
+              messages; (4) put it behind a switch so it can be turned off fast; (5) when access requests are live,
+              decide if the reload-on-return workaround from #48 (c42c419) stays as a fallback. Needs a device test.
+Done in:      -
+Update 2026-11-16: Shwetank checked Sentry's alerts: issue alerts are on, and each project (app, website, server; Modal reports to the server's project) has an email rule "Send a notification for high priority issues". Only the live Modal part is left (#269).
+
+=====================================================================
+DONE / DROPPED (delete after 14 days)
+=====================================================================
+#42 Upload status over the whole app, with a minimize-to-floating-button option
+Listed:       2026-11-16
+Platform:     App
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       M
+Suggested by: Sarthak (2026-11-16, after the upload bar fix #273)
+Discussed:    Yes
+Decision:     2026-11-16 Sarthak: keep the in-app upload status (the phone notification can't replace it: it
+              needs notification permission and has no Retry or Cancel), redesign it, let the host minimize it
+              to a floating button, and show it over the app on other pages, not only in the gallery.
+              2026-11-16 Sarthak, after comparing with the website's upload panel (src/context/UploadContext.tsx):
+              build template B, the website's panel with a row per file (its own bar and cancel, plus Cancel
+              all) and photo thumbnails, with the floating button when minimized.
+Owner:        Sarthak (with Claude)
+Depends on:   Issue #273 (fixed in 22ec6541)
+Brief:        Today the upload card (apps/mobile/components/event/UploadProgressCard.tsx) shows only inside the
+              gallery being uploaded to, in the host view, and covers the bottom of the grid with no way to tuck
+              it away. Plan: mount it once at the app root (apps/mobile/app/_layout.tsx) for every upload in the
+              queue; a compact card with a progress ring, a minimize button that turns it into a round floating
+              button (the same ring, can be dragged to either side), tap to open it again; it sits above the tab
+              bar or the event screen's bottom bar. Guest event pages (themes) and the login screens keep it
+              hidden; the guests' own end-of-upload pop-ups stay as they are. Needs a device test.
+              Cancelling one file must work like the website: the app's cancelUploadItem (apps/mobile/lib/
+              uploadQueue.ts) only took the file off the list (an upload in progress kept going, a saved file
+              stayed in the gallery) and freed its upload slot twice; it now stops the transfer, deletes a saved
+              file, and the worker frees its own slot.
+Done in:      d860be59 (2026-11-16); device test #222. Checked on the iPhone 16e simulator with made-up upload
+              data; real uploads and the cancel itself wait on #222.
+
+#32 Analytics dashboard: switch between Live and Staging data
+Listed:       2026-11-14
+Platform:     Analytics dashboard
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       Done
+Done in:      8d0c9c2 (2026-11-16)
+Effort:       M
+Suggested by: Shwetank (during todo #30)
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: do it before the first client signs up on live, so live plans and
+              limits can be set from the dashboard (today it can only change staging).
+Owner:        Shwetank (with Claude)
+Depends on:   Todo #30 (staging and production separated).
+Brief:        Since todo #30 step 5h the local analytics dashboard (apps/analytics-dashboard,
+              localhost:5173) reads STAGING (staging Supabase + api-staging), because the live server
+              (api.evebash.com) does not allow localhost:5173 in CORS_ORIGINS. Add a Live/Staging
+              switch in the dashboard: two sets of VITE_ settings (Supabase URL + anon key + API base
+              URL), a clear banner showing which one is active, and allow the dashboard origin on the
+              live server's CORS (or host the dashboard on its own domain). Admin login must work on
+              both Supabase projects (redirect URLs for the dashboard on each).
+Update 2026-11-15: code done (not yet used on Live): src/lib/environment.ts reads VITE_STAGING_* (old VITE_SUPABASE_* / VITE_API_BASE_URL count as Staging) and VITE_LIVE_SUPABASE_URL, VITE_LIVE_SUPABASE_ANON_KEY, VITE_LIVE_API_BASE_URL; the choice is kept per browser, Staging by default; Live only when its 3 settings exist and differ from Staging. EnvironmentSwitch on the login screen and in the header (Live asks first, red strip "LIVE DATA" on every page); every server call uses the chosen backend (the pricing screen's copy of getApiBaseUrl now uses the shared one). Checked: type check clean, login screen shows Staging selected and Live greyed out. Left (after the #21 staging tests): add the 3 VITE_LIVE_ settings to apps/analytics-dashboard/.env, allow http://localhost:5173 in the live server's CORS_ORIGINS (Railway, needs OK), check live Supabase still allows localhost:5173 as a login return address, then log in on Live and check every page read-only first.
+Update 2026-11-16: Live switched on with Shwetank's OK. Live server (evebash-api-production-backend) CORS_ORIGINS now https://evebash.com,https://www.evebash.com,http://localhost:5173 (redeployed, healthy; an unknown site still gets no CORS header). apps/analytics-dashboard/.env got VITE_LIVE_SUPABASE_URL, VITE_LIVE_SUPABASE_ANON_KEY (from the root .env) and VITE_LIVE_API_BASE_URL=https://api.evebash.com (file is git-ignored; backup in the session scratchpad). Live login already allowed localhost:5173. Checked: the Live button is enabled, Live shows "LIVE: real customers' data", Continue with Google goes to the live project (sbhouirpyiyybrravvih). Live platform admins: shwetank.chauhan17@gmail.com, shwetank.sarthak@gmail.com, code4sarthak@gmail.com. Left: Shwetank logs in on Live and checks every page read-only.
+Update 2026-11-16: DONE. Shwetank logged in on Live (Google, platform admin): red LIVE strip shown, Overview, User Accounts, Galleries, Plans Info, Infra Cost and Payments all load with live data. Nothing changed on Live during the check.
+
+
+#41 Push key (FCM V1) for the staging app
+Listed:       2026-11-16
+Platform:     App
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Done in:      expo.dev credential, no commit (2026-11-16); checked by a test push and device test #221
+Effort:       S
+Suggested by: Shwetank (task split 2026-11-15; follow-up of todo #30)
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: Sarthak sets up the push key for the staging app (Jira EB-179).
+Owner:        Sarthak (with Claude)
+Depends on:   Todo #30 (staging app com.evebash.app.staging)
+Brief:        Pushes need an FCM V1 service account key on expo.dev for each Android app ID. The live app had
+              one; the staging app (com.evebash.app.staging, todo #30) had none, so no push reached staging
+              builds. Sarthak linked the Firebase key (project evebash-e36ae) to com.evebash.app.staging on
+              expo.dev > Credentials > Android on 2026-11-16. Checked: a test push through Expo reached the
+              Pixel 8 (receipt "ok"), and "New access request" pushes arrived in device test #221 (issue #104).
+
+#34 "Copy link" button next to Share Invitation (website and app)
+Listed:       2026-11-15
+Platform:     Both
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       Done
+Done in:      d3f34563 (2026-11-15)
+Effort:       S
+Suggested by: Claude (Shwetank agreed 2026-11-15, during the issue #21 staging tests)
+Discussed:    Yes
+Decision:     2026-11-15 Shwetank: do it now (fix problems as we find them); Share Invitation stays as it is.
+Owner:        Shwetank (with Claude)
+Depends on:   Issue #21 staging tests finished (no website changes while testing).
+Brief:        The share window (website host page, handleShareInvitation in src/app/(main)/host/page.tsx;
+              app apps/mobile/app/events/[id].tsx) has only "Share Invitation", which shares the whole message
+              ("Join our event ... Join ID: ... Link: https://..."). On a computer, choosing Copy in the share
+              menu copies the whole message, and pasted into a browser's address bar it gives a 404 (happened
+              twice in testing). Add a "Copy link" button that copies only getEventShareUrl(...), with a
+              "Link copied" message; same in the app. Also check whether WhatsApp shows the link twice, because
+              navigator.share gets both text (which already contains the link) and url; if so, pass only one.
+Update 2026-11-15: built. Website: "Copy link" button under Share Invitation in the host page's share window (handleCopyShareLink copies only getEventShareUrl, shows "Link copied" for 2 s). App: same button in the event's share window (expo-clipboard, already a dependency; styles shareCopyBtn/shareCopyText in baseStyles and the light host look). Type checks pass. Not changed: Share Invitation (the WhatsApp double-link check is left for the device test). Left: push to staging, check on the website, and in the app with the next staging build or the USB build.
+Update 2026-11-15: pushed to staging (d3f34563); Shwetank checked the website: Link copied, the pasted link opens the event. App part and the WhatsApp double-link check wait for the next app build: device test #215.
+Update 2026-11-15: app checked on Shwetank's Android phone (USB build, staging): Copy link shows "Link copied"; the link sent to WhatsApp opens the event page. Share Invitation in WhatsApp shows the preview card and the link once (no double link, nothing to change). On a phone the link opens in the browser, which shows the website's "Get the EveBash app" screen (existing behaviour, issue #109); opening the app straight from the link needs Android App Links (issue #67). Device test #215 PASS.
+
 #30 Separate Supabase database for staging and production
 Listed:       2026-11-11
 Platform:     Both
 Priority:     High
 Phase:        1
-Status:       Idea
+Status:       Done
+Done in:      a97213d (2026-11-14)
 Effort:       L
 Suggested by: Shwetank
 Discussed:    Yes
@@ -659,7 +974,7 @@ Brief:        Staging and production share one Supabase project, so every migrat
                 Small code change: the .env path, written in 9 places, becomes one setting. Railway
                 staging needs new MODAL_CPU_WEBHOOK_URL, MODAL_GPU_WEBHOOK_URL,
                 MODAL_FACE_INGRESS_URL, MODAL_FIND_YOU_URL, MODAL_MEDIA_BATCH_URL and
-                MODAL_PREVIEW_URL. Any modal deploy must keep MODAL_COST_TUNING=true. No always-on
+                MODAL_PREVIEW_URL. (MODAL_COST_TUNING no longer exists: 97def26 made it permanent.) No always-on
                 containers in main.py, so staging costs only what it processes plus the 5-minute job.
               - RunPod (videos only, todo #18, switch VIDEO_RUNPOD, off by default): keep one account
                 and the same endpoints, no separate copy. The worker holds no database or storage
@@ -682,10 +997,220 @@ Brief:        Staging and production share one Supabase project, so every migrat
               - Migrations contain no cron jobs or storage bucket setup. Still check the live
                 database for triggers on sign-up and enabled extensions, which a plain copy can miss.
               Device tests waiting at the switch need their accounts recreated.
-
-=====================================================================
-DONE / DROPPED (delete after 14 days)
-=====================================================================
+Update 2026-11-13: step 1 done. Staging project "Evebash-Staging" created by Shwetank in the same
+              organisation (Free plan, now 2 of 2 active projects), region ap-south-1 (Mumbai), size NANO:
+              https://degbveyjppkuhydwxfjq.supabase.co. The current project stays production, unchanged.
+              Only the structure gets copied, no real data. Note: a free project pauses after about a
+              week without use; production (115 of 500 MB) has no daily backups on Free.
+Update 2026-11-13: step 2 done. Production's structure copied to staging with pg_dump (schema
+              only, public and eb_private, read-only on production; no rows, accounts or secrets).
+              Staging got the vector and pg_trgm extensions first. Loaded as one transaction. Then
+              production's exact table and function permissions were applied, because a new project
+              grants anon/authenticated access to new objects by default (16 tables and 37 functions
+              would otherwise have been open). Compared afterwards: 39 tables, 1 view, 63 functions
+              (same code), 10 triggers, 18 RLS policies, 97 indexes, all grants and default grants
+              identical. Production has no storage buckets, cron jobs or auth.users triggers, so
+              nothing else to copy. Staging carries the same 12 tables without RLS as production
+              (issue #21), to be locked down on staging first. Next: step 3 (Auth setup).
+Update 2026-11-13: step 3 done by Shwetank, staging Auth copied from production. URL config: Site
+              URL https://staging.evebash.com; redirects http://localhost:*/**,
+              https://staging.evebash.com, https://staging.evebash.com/** (production's own
+              evebash.com entries left out). Email: signups on, anonymous off, confirm email on,
+              secure email change on, secure password change off, min password 6, no character
+              rules, OTP 3600 s / 8 digits. SMTP: same Hostinger mailbox noreply@evebash.com
+              (new projects must have custom SMTP to edit templates). Templates: Confirm signup
+              is the custom EveBash one (supabase/templates/confirmation.html); the other five are
+              Supabase defaults on both. Google: same two client IDs and secret, skip nonce on;
+              staging callback added to the Google web client's redirect URIs. Apple: copied.
+              Rate limits, sessions, attack protection, MFA: matched by hand. Not yet tested.
+              After step 5, remove localhost and staging.evebash.com from production's redirect
+              URLs. Weak password rule (6, no rules) noted for before launch.
+Update 2026-11-13: step 3 checked with the Management API (SUPABASE_MGMT_KEY): 240 of 244 Auth
+              settings identical; the rest are the Site URL and redirect list (different on purpose)
+              and the Google secret and SMTP password (stored hashed per project, can't compare).
+Update 2026-11-13: step 4 done. Copied from production to staging, as one transaction: the 10
+              team/test accounts (auth.users with password hashes, 14 identities, profiles, policy
+              acceptances), so everyone logs in on staging with the same email, password, Google
+              login and role (3 admins). Samarth's account (samarth.chauhan198, a real person) not
+              copied. Also copied pricing_plans (8 rows), the only settings table. No galleries,
+              photos, comments or payments; test galleries get made after step 5 (staging needs its
+              own B2 storage first). Email test: staging sent a "Reset your password" email to
+              shwetank.chauhan3@gmail.com through Hostinger; it arrived in the inbox.
+Update 2026-11-13: step 5a (Backblaze) in progress. Decided: four buckets, gallery and EB Vault for
+              live and for staging, each with its own key limited to that bucket. Live gallery stays
+              "EveBash". The old vault bucket "Evebash-Vault-Staging" was in fact the live vault
+              (shared by live and staging); its only data (newone@email.com's 8 test items) was
+              deleted from staging.evebash.com, database rows 0, B2 hides then erases after 1 day.
+              It gets deleted at the end, once empty and unused. Created with a temporary all-bucket
+              key (expires 2026-11-14): "EveBash-Staging-Media", "EveBash-Staging-Vault" and
+              "EveBash-Vault" (new live vault), all private, SSE-B2, keep only the last version.
+              CORS: staging media copies EveBash's rule (upload and download) but only for
+              staging.evebash.com and localhost:3000 (Shwetank's choice; live EveBash allows all
+              origins); staging vault allows localhost:3000 and staging.evebash.com; live vault allows
+              www.evebash.com and evebash.com. Live CORS was "custom" (not visible in the web UI);
+              read through the API. Found: both existing server keys work on all buckets (issue
+              #269), and the Backblaze account had a failed $16.50 payment (31 Oct); Shwetank
+              updated the card on 2026-11-13, suspension date was 1 Dec. Next: the three
+              bucket-only keys, then delete the temporary key.
+Update 2026-11-13: step 5a done. Shwetank created three keys, each limited to one bucket, Read and
+              Write: "Staging-Media" (EveBash-Staging-Media), "Staging-Vault"
+              (EveBash-Staging-Vault), "Live-Vault" (EveBash-Vault); saved in his password manager,
+              go into Railway in step 5d. Temporary key deleted and removed from .env.dbcopy.
+              Check in Billing that the failed $16.50 charge was retried.
+Update 2026-11-14: step 5b done. New Cloudflare worker "evebash-media-worker-staging" (same
+              worker.js, [env.staging] in cloudflare-worker/evebash-media-worker/wrangler.toml,
+              deployed with npx wrangler@3 deploy --env staging and the CLOUDFLARE_API_TOKEN from
+              .env, version 271004f8) on the custom domain media-staging.evebash.com, reading
+              "EveBash-Staging-Media" with the "Staging-Media" key (secrets typed by Shwetank).
+              Checked: a missing file gives B2's 404 (key accepted); a real live thumbnail gives
+              200 on media.evebash.com and 404 on media-staging.evebash.com; OPTIONS from
+              staging.evebash.com gives 204. Live worker untouched. Staging must use
+              media-staging.evebash.com (NEXT_PUBLIC_MEDIA_DOMAIN, MEDIA_DOMAIN,
+              EXPO_PUBLIC_MEDIA_DOMAIN) from steps 5c-5g. Next: 5c (Modal staging environment).
+Update 2026-11-14: the 3 keys from step 5a turned out to reach ALL buckets with every capability
+              (bucketName empty, incl. writeKeys/deleteBuckets): the form's bucket box was left on
+              "All". New one-bucket keys made: "Staging-Media-Only" (keyID ...0007,
+              EveBash-Staging-Media, checked); "Staging-Vault-Only" (...0008, EveBash-Staging-Vault)
+              and "Live-Vault-Only" (...0009, EveBash-Vault), all three checked: one bucket, Read and
+              Write, no writeKeys/deleteBuckets. evebash-media-worker-staging switched to ...0007
+              (secrets typed by Shwetank); old keys ...0004/0005/0006 deleted by Shwetank. Staging
+              worker checked after both: B2 answers not_found (key accepted), preflight 204.
+Update 2026-11-14: step 5c. modal_engine/main.py reads its settings file from
+              EVEBASH_MODAL_ENV_FILE (default .env, so live deploys are unchanged), with checks that
+              stop .env going to staging or the staging file going to live (fdeacac).
+              Modal CLI on Shwetank's Mac (~/.modal-cli). Modal environment "staging" created in workspace
+              shwetank-sarthak, photo-pipeline-switch mode=v2 (same as live; video switch empty on
+              both). Settings in the git-ignored .env.modal-staging (15 values: staging Supabase,
+              EveBash-Staging-Media + Staging-Media-Only key, media-staging.evebash.com,
+              BACKEND_API_URL https://api-staging.evebash.com, a NEW INTERNAL_JOB_SECRET/CRON_SECRET
+              that staging Railway must get in 5d, shared QStash). Deployed with
+              MODAL_ENVIRONMENT=staging EVEBASH_MODAL_ENV_FILE=.env.modal-staging modal deploy
+              modal_engine/main.py. Live "main" untouched. Staging Railway values for 5d (the backend
+              falls back to the LIVE Modal URLs if any is missing, so set all six):
+                MODAL_PREVIEW_URL      https://shwetank-sarthak-staging--wedding-media-engine-generate--5e9b43.us-east.modal.run
+                MODAL_MEDIA_BATCH_URL  https://shwetank-sarthak-staging--wedding-media-engine-process-m-8c9752.us-east.modal.run
+                MODAL_FACE_INGRESS_URL https://shwetank-sarthak-staging--wedding-media-engine-face-inde-25e1c5.us-east.modal.run
+                MODAL_FIND_YOU_URL     https://shwetank-sarthak-staging--wedding-media-engine-find-matc-e88a89.us-east.modal.run
+                MODAL_CPU_WEBHOOK_URL  https://shwetank-sarthak-staging--wedding-media-engine-process-v-56612f.us-east.modal.run
+                MODAL_GPU_WEBHOOK_URL  https://shwetank-sarthak-staging--wedding-media-engine-process-v-4f12f9.us-east.modal.run
+              Mistake found and fixed: Modal's from_dotenv(path) only uses path as the folder to START
+              searching from and always looks for "filename" (default .env), so the first staging
+              deploy (12:25 IST) silently got the LIVE .env. Its 5-minute job ran once on the live
+              database at 07:00 UTC: it claimed no outbox rows and found no stuck photos (checked
+              read-only; 0 candidates, 0 uploads), and left 2 extra rows in live modal_cost_logs
+              (07:00:17 dispatch_outbox_jobs, 07:00:19 sweep_stuck_jobs). Staging app stopped at 12:32.
+              Fix: from_dotenv(repo root, filename=<name>), plus checks that the file exists and that a
+              staging file never has the live NEXT_PUBLIC_SUPABASE_URL; checked with Modal's own loader
+              that staging now loads the staging database, bucket, media domain and backend.
+              Redeployed 12:37 IST (same 6 URLs). Checked at 07:15 UTC: the staging job wrote its 2
+              cost rows to the STAGING database and live had only its own 2. Step 5c done.
+Update 2026-11-14: steps 5d and 5e done. Railway and Vercel CLIs on Shwetank's Mac (railway via
+              brew, vercel via npx vercel@65.16.0). Staging Railway (evebash-api-staging-backend):
+              22 values changed (staging Supabase URL/anon/service role incl. EXPO_PUBLIC copies,
+              B2 bucket EveBash-Staging-Media + id 01ae35ab69fcde57a21a0d16 + Staging-Media-Only key,
+              MEDIA_DOMAIN/NEXT_PUBLIC_MEDIA_DOMAIN/FIND_YOU_SELFIE_HOSTS media-staging.evebash.com,
+              the 6 staging Modal URLs, the new INTERNAL_JOB_SECRET, vault EveBash-Staging-Vault +
+              Staging-Vault-Only key); 43 others unchanged (RunPod, QStash, Razorpay test, switches).
+              Vercel evebash-staging: NEXT_PUBLIC_SUPABASE_URL/ANON_KEY and NEXT_PUBLIC_MEDIA_DOMAIN
+              (now Config, Vercel refuses NEXT_PUBLIC_ as Secret), SUPABASE_SERVICE_ROLE_KEY,
+              MEDIA_DOMAIN, B2 bucket/id and Staging-Media-Only key. Both redeployed 14:15 IST.
+              Checked: api-staging health/pricing 200, no startup errors; staging.evebash.com bundle
+              has only the staging Supabase ref. Shwetank logged in on staging with a test account,
+              made event "Staging test 1", uploaded a photo: staging DB row ready/indexed with a
+              media-staging URL, processed by staging Modal (process_photo_v2); live DB 0 new photos.
+              Live Railway and Vercel untouched. Old key ...0002 (evebash-vault-staging-backend) is
+              no longer used by staging; delete with Shwetank's OK. Live key swap (#269) still to do
+              with a new "Live-Media-Only" key (live Railway, live media worker, live Modal).
+              Next: 5f (optional gallery copy), 5g (EAS, needs Sarthak), 5h, 5i, 5j.
+Update 2026-11-14: step 5i done. Shwetank removed http://localhost:*/**, https://staging.evebash.com
+              and https://staging.evebash.com/** from the production Supabase redirect URLs.
+              Re-read with the Management API: site URL https://www.evebash.com, 6 URLs left
+              (localhost:5173 and /reset-password for the analytics dashboard, which still reads
+              live data, to review in 5h; www/apex evebash.com /profile and /reset-password).
+Update 2026-11-14: step 5h done. Local dev now points at STAGING (each file backed up first, header
+              line added): .env.local (website: staging Supabase URL/anon/service role, B2
+              EveBash-Staging-Media + Staging-Media-Only key, media-staging.evebash.com incl.
+              NEXT_PUBLIC_MEDIA_DOMAIN and FIND_YOU_SELFIE_HOSTS, staging INTERNAL_JOB_SECRET, staging
+              MODAL_MEDIA_BATCH_URL/MODAL_FIND_YOU_URL, NEXT_PUBLIC_API_URL api-staging);
+              apps/mobile/.env and .env.local (staging Supabase, EXPO_PUBLIC_MEDIA_DOMAIN
+              media-staging); apps/analytics-dashboard/.env (staging Supabase; it already called
+              api-staging, and live api.evebash.com does not allow localhost:5173 in CORS). Root .env
+              stays LIVE: live Modal deploys read it by default and it holds the admin tokens.
+              Before 5h the local files mixed the live database with the api-staging server, which
+              stopped working after 5d. The two localhost:5173 redirect URLs on production are now
+              unused (remove when convenient). Dashboard Live/Staging switch: todo #32.
+Update 2026-11-14: step 5j, website part passed (Shwetank on staging.evebash.com, test accounts):
+              1) Find You as host and as guest "newone2" (Member, View only, after an access request
+              approved by the host): matches found, staging Modal find_matching_photos; 3 photos
+              ready/indexed, 10 faces. 2) Guest link /events/staging-test-1-fc5b: private gallery asks
+              to log in, request, approve, gallery opens. 3) Short video: cover picture and playback,
+              staging Modal process_video_cpu, files on media-staging.evebash.com. 4) EB Vault upload,
+              open and delete to Trash: object in bucket EveBash-Staging-Vault. Live database: 0 new
+              photos or videos. Live side of the key swap: issue #269 (only live Modal and the old
+              key "evebash-media-key" left). Step 5f (gallery copy) skipped for now: fresh test events
+              are enough; do the small 8 GB option later if testers need it. Left: 5g (staging app
+              build, needs Sarthak, issue #19) and the next live Modal deploy with Sarthak.
+Update 2026-11-14: app checked on staging. Shwetank tests the app as a local development build over USB,
+              which reads apps/mobile/.env (staging since 5h), not expo.dev. Claude stopped the old Metro
+              (running since 2026-11-10 with live values), ran adb reverse and started
+              npx expo start -c --dev-client. On the phone: logged in with the test account, saw the
+              staging-only event "Staging test 1", uploaded a photo: ready/indexed in the staging DB with a
+              media-staging thumbnail; live DB 0 new photos. Device test #213 PASS. Still open: EAS cloud
+              builds (staging/production profiles) take their Supabase values from expo.dev, owned by
+              Sarthak's Expo account elnino_009; set staging and production values there once Shwetank is
+              invited (not needed for local development builds). Live Modal deploy and the old key delete
+              are tracked in issue #269.
+Update 2026-11-14: Expo project moved. Sarthak backed up the Android keystore (shared password manager,
+              "EveBash Android keystore") and transferred the EAS project from elnino_009 to the shared
+              organization evebash (@evebash/evebash, same project ID c56e7efd). app.json owner = evebash
+              in staging 2af0784. Its 4 EAS environment variables were project-level and moved with it.
+              Only a staging update channel exists (never a production one). The owner change changed the
+              fingerprint runtime version, so older staging builds (a7927990, 663facd1, 58b1804b) get no new
+              over-the-air updates; testing OTA needs a new build. No build or update was run. Left: log in
+              to the Expo tool with the shared account, give the EAS staging and production environments
+              their own Supabase/server/media values, set eas.json staging EXPO_PUBLIC_MEDIA_DOMAIN to
+              media-staging.evebash.com, then a new staging build (with OK) to check it.
+Update 2026-11-14: EAS values separated. Found: all EAS builds got the LIVE Supabase URL/anon key, while
+              staging builds used the staging server (mixed), and the production profile had no server
+              address (would fall back to api-staging). Done with the eas CLI as the shared account: the
+              live EXPO_PUBLIC_SUPABASE_URL/ANON_KEY now apply to the production environment only; new
+              staging copies for preview + development (checked: preview/development = staging key,
+              production = live key). EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID and SENTRY_AUTH_TOKEN stay shared.
+              eas.json: staging profile "environment": "preview" and media-staging.evebash.com; production
+              profile "environment": "production", api.evebash.com and media.evebash.com. No build run.
+              Left: a new staging build (with OK) to check it end to end, then Done.
+Update 2026-11-14: staging build 4c48b178 (versionCode 25, staging 0703c5e) finished, but not checked:
+              it will be replaced. Shwetank decided the staging app gets its own identity, like
+              staging.evebash.com for the website, as the last step of #30: name "EveBash Staging",
+              Android/iOS app ID com.evebash.app.staging, link scheme evebash-staging, so staging and live
+              can be installed side by side and staging links never open the live app. Production stays
+              "EveBash", com.evebash.app, scheme evebash, same keystore. Touches: app.json -> app.config.js
+              (variant from the build profile), apps/mobile/lib/deepLinks.ts schemes, the website's
+              OpenInAppBanner (staging site opens evebash-staging://), Firebase (add the staging Android
+              app, new google-services.json), Google Cloud (Android OAuth client for the new app ID + its
+              signing SHA-1, for Google sign-in), EAS (new keystore for the staging app ID, created by EAS;
+              FCM key upload for push). Then a new staging build, checked on the Mac and on a phone.
+Update 2026-11-14: staging identity code in 629aa16 (app.config.js: APP_VARIANT unset or staging ->
+              EveBash Staging / com.evebash.app.staging / evebash-staging; eas.json production sets
+              APP_VARIANT=production; deepLinks accepts evebash-staging://, tests pass; website Open in app
+              uses evebash-staging:// when the server address is staging). EAS made a new keystore for
+              com.evebash.app.staging (SHA-1 67:ED:C7:F2:65:F8:C6:CD:58:A0:CB:5F:49:AF:84:3B:BB:A3:B5:98).
+              Shwetank added the Firebase Android app "EveBash Staging" (both SHA-1s: EAS key and the
+              standard debug key 5E:8F:...:F6:25 for the USB build) and the new google-services.json is in
+              apps/mobile (adds the staging app; live entries unchanged). Firebase did not create the
+              Android sign-in clients, so Shwetank added two in Google Cloud (project evebash-e36ae):
+              "EveBash Android EAS (com.evebash.app.staging)" and "EveBash Android debug
+              (com.evebash.app.staging)". Left: FCM V1 push key for the staging app on EAS (optional), new
+              staging build, rebuild the USB dev build as EveBash Staging.
+Update 2026-11-14: DONE. EAS staging build 997a9866 (a97213d) checked on the Mac (com.evebash.app.staging,
+              EveBash Staging, evebash-staging, staging addresses only) and on Shwetank's phone: installed
+              next to EveBash, login, "Staging test 1", photo upload (staging DB: ready + indexed,
+              media-staging), Google sign-in all passed; live DB 0 new photos. Device test #214 PASS.
+              Sarthak can resume (pull staging first; builds now default to the staging app). Small
+              follow-ups, not part of #30: FCM V1 push key for com.evebash.app.staging on EAS; the USB
+              dev build becomes EveBash Staging the next time it is rebuilt (npx expo run:android); live
+              Modal deploy and the old B2 key delete stay in issue #269.
+Update 2026-11-16: the FCM V1 push key for com.evebash.app.staging is linked on expo.dev (todo #41, Jira EB-179).
 
 #31 Website Guest Home Preview: show the app too (picture of the app's guest home)
 Listed:       2026-11-12

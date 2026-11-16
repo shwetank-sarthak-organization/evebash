@@ -1,6 +1,7 @@
 import { PolicyAcceptanceGate } from "../components/PolicyAcceptanceGate";
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { releasePushToken } from '@/lib/notifications';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants from 'expo-constants';
@@ -524,7 +525,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
-      console.log('[Auth] GoogleSignin.signIn() response:', JSON.stringify(response));
+      // Only the result type: the response holds the user's ID token and auth code, and logs can reach Sentry (#275)
+      console.log('[Auth] GoogleSignin.signIn() result:', (response as any)?.type ?? 'legacy');
 
       // v16 returns { type: 'success' | 'cancelled' | 'noSavedCredentialFound', data }
       if ((response as any).type === 'cancelled') {
@@ -583,6 +585,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    // While still signed in: stop this phone getting the account's pushes (#104)
+    await releasePushToken(user?.uid);
     try {
       // Only this device: the default ('global') also signs the account out on its other phones and browsers
       await supabase.auth.signOut({ scope: 'local' });

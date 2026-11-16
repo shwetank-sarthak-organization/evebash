@@ -18,45 +18,25 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 267
+Next issue number: 286
 
 =====================================================================
 ACTIVE ISSUES
 =====================================================================
 
-#9
-Listed: 2026-10-09
-Platform: Analytics dashboard
-Priority: Low
-Status: Blocked
-Owner: Unassigned
-Blocked by: #21 (lockdown part 2: the save function only allows platform admins after it)
-Found in: Visibility switch work (2026-10-09)
-Issue: No public/private switch for galleries in the admin dashboard. Platform admins can't change visibility of galleries they don't own anywhere on the website.
-How to reproduce: Open a gallery in the admin dashboard Events grid: there is no visibility control.
-
 #18
 Listed: 2026-10-09
 Platform: App
 Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device test #223 (Google sign-in in the app installed from Google Play)
 Found in: Store launch review (2026-10-03)
 Issue: Google sign-in will fail (DEVELOPER_ERROR) on Play and EAS-signed Android builds: Firebase only has the debug-keystore SHA-1. Add the Play app-signing and EAS upload-key SHA-1s before store release.
 How to reproduce: Install an EAS-signed or Play build and tap "Continue with Google": DEVELOPER_ERROR.
 Update 2026-10-11: for the new package com.evebash.app (#41) the debug and EAS upload-key SHA-1s are in Firebase, and their Android OAuth clients exist in Google Cloud (made by hand; Firebase did not create them). Only the Play app-signing SHA-1 is left: add it to the Firebase app com.evebash.app and as a Google Cloud Android OAuth client after the first Play upload.
-
-#19
-Listed: 2026-10-09
-Platform: App
-Priority: Medium
-Status: Blocked
-Owner: Sarthak (decision)
-Blocked by: Decision on the production backend (staging API or a separate one); deferred by Sarthak 2026-10-10
-Found in: Access-request push work (2026-10-09)
-Issue: The EAS production build profile doesn't set EXPO_PUBLIC_API_BASE_URL (development and staging do). Uploads and the access-request push need it; confirm it's set in EAS environment settings before the first store build.
-How to reproduce: Check build.production.env in apps/mobile/eas.json and the EAS project's environment variables.
+Update 2026-11-16: the Play app-signing key is set up. From Play Console > Protected with Play > Play app signing: SHA-1 71:71:05:25:FB:CA:72:9C:47:13:15:35:51:F8:B6:B0:E0:AD:8F:DD (SHA-256 7A:68:8A:41:...:19:73:13:82). Sarthak added both to the Firebase app com.evebash.app and created the Google Cloud Android OAuth client "EveBash Android Play signing (com.evebash.app)" (71982315150-q878fe4n2ha5eh6mpkdout6d15b2mdln); apps/mobile/google-services.json refreshed from Firebase (adds that client, and the staging debug client made 2026-11-14; app IDs and keys unchanged). No code change: the app signs in with the web client ID. The App signing page shows no upload key, so nothing has been uploaded to Play yet; the first upload from EAS sets it (EAS key 29:40:B3...). Its "Copy all certificate fingerprints" also lists SHA-1 80:C9:28:77:AA:9E:D8:22:67:B8:C5:F7:4C:A3:D5:F4:80:E5:07:93 and 53:1F:5F:91:CF:78:39:85:69:C0:5C:DA:A3:33:69:99:D6:2C:43:4B (SHA-256 19:7E:20:0D:...:E7:0F and 04:91:6F:D1:...:2D:D4), most likely the previous app signing key (first used 2026-09-24, 0% installs, "Quantum-ready"); not registered, as Play signs new releases with the in-use key. If Play refuses the first EAS upload with "wrong key", reset the upload key in Play Console. Not checked yet: a sign-in from a Play-installed build (device test #223, needs that first upload, a production build: Shwetank's OK). The same two fingerprints were first added by mistake to the old Firebase app com.anonymous.evebash (unused since #41; harmless; remove that app only with Shwetank's OK). iOS (same topic, no fingerprints there): the live build's Google iOS client (EAS production EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID 71982315150-e883v8...) matches the iosUrlScheme in app.json; still to check by hand: that client's bundle ID is com.evebash.app, Sign in with Apple is on for the Apple App ID com.evebash.app, and the live Supabase Apple provider lists com.evebash.app in Client IDs.
+Update 2026-11-16 (later, with Shwetank's OK): removed the old Firebase Android app "EveBash Android" (com.anonymous.evebash, unused since #41; in Firebase's "Pending delete apps" for 30 days) and its Google Cloud Android OAuth client "EveBash Android" (71982315150-82v82..., created 2026-09-30; Google showed it last used 2026-11-16; restorable for 30 days under "Restore deleted OAuth clients"). No other client was touched (EveBash Web, EveBash iOS, the com.evebash.app EAS, debug and Play signing clients, both com.evebash.app.staging Android clients, EveBash Staging iOS). apps/mobile/google-services.json re-downloaded: exactly com.evebash.app and com.evebash.app.staging, both identical to the previous file. Checked afterwards: "Continue with Google" in EveBash Staging on a Pixel 8 (EAS staging build 60443d04) signed in (phone log: GoogleSignin.signIn() success, then SIGNED_IN; 0 crashes).
 
 #20
 Listed: 2026-10-09
@@ -64,22 +44,11 @@ Platform: Both
 Priority: Medium
 Status: Blocked
 Owner: Unassigned
-Blocked by: Phase 2 (business features)
+Blocked by: Phase 2 (business features). Lockdown part 2 (#21) is live since 2026-11-16, so nothing else is in the way.
 Found in: Lockdown access re-scan (2026-10-09)
 Issue: Phase 2 business features will break once RLS lockdown part 2 is on: enquiry and vendor-chat pushes read other users' push tokens, business view counts edit someone else's row, and logged-out visitors can't browse vendors (EB Network, Explore).
 How to reproduce: After part 2: send an enquiry or chat message (no push to the other person), open a vendor page (view count doesn't change), open EB Network logged out (empty).
-
-#21
-Listed: 2026-10-09
-Platform: Both
-Priority: Critical
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Testers on a new app build from staging; an agreed quiet window
-Found in: Supabase access check (2026-10-06)
-Issue: Supabase RLS lockdown part 2 is not applied yet: most tables can still be read and changed with the public app key (launch blocker). Everything is ready: run sheet https://claude.ai/artifact/WQCggv3QSkj6MSdewUKpTZ, draft docs/security/rls-lockdown-draft.sql, tested rollback docs/security/rls-lockdown-part2-rollback.sql.
-Before applying: re-scan which tables the website, app and backend read/write directly, and re-run both dry runs (docs/security/rls-lockdown-tests.sql and rls-lockdown-part1-tests.sql) on current staging, since a lot of code changed after the 2026-10-09 runs. If tables were added since then (EB Vault etc.), re-check the anon grant list at the top of the part 2 rollback. To undo, use ONLY rls-lockdown-part2-rollback.sql; never docs/security/rls-lockdown-rollback.sql, which also drops open_gallery, profile_cards and eb_private and breaks every gallery.
-How to reproduce: With only the public anon key, request /rest/v1/profiles?select=id,role: every profile comes back.
+Note 2026-11-16: checked after #21 went live. Nothing in v1 reaches these features: the website's /eb-network and /eb-business (linked from the Navbar and Footer) show "Coming soon" with no vendor list on staging and live; in the app the Businesses and Explore-business tabs are hidden (href: null in apps/mobile/app/(tabs)/_layout.tsx), the vendors tab shows "COMING SOON" and the business alert switches are off (SHOW_BUSINESS_ALERTS = false in settings.tsx). Not checked: the /eb-network/<id> vendor detail pages and any link from a v1 app screen to shortlist.tsx, chat.tsx, customer-chats.tsx, business-enquiries.tsx. The #21 entry doesn't say what part 2 did to the business tables, so this is still untested; start with that when Phase 2 starts. Board: EB-9 moved to To Do (Phase 2 column) with Sarthak's OK, an exception to the rule that Blocked issues sit in To Do - Active Phase.
 
 #25
 Listed: 2026-10-10
@@ -108,6 +77,7 @@ Found in: Website UI re-check (2026-10-11)
 Issue: Sample galleries still show test data: one sample ("Wedding") whose albums are named "Rec 1", "REc 10", "Rec 2"..., listed in text order (Rec 10 before Rec 2, localeCompare without numeric in src/lib/database.ts getSubEvents), and the "Rec 5" cover image is broken.
 How to reproduce: Open /sample-galleries/wedding-fdd8 and look at the album cards.
 Note 2026-10-28: On staging there are now no sample galleries at all: /sample-galleries says "No sample galleries are available yet." and /sample-galleries/wedding-fdd8 shows the 404 page (Claude test run, tests #12 and #53 blocked).
+Note 2026-11-16 (client demo check): live has NO sample galleries either (read-only query: 0 events with is_sample_gallery), while the live home page and /pricing link to /sample-galleries, which then shows "No sample galleries are available yet." The album order part is already fixed in code (getSubEvents sorts with numeric: true). Plan for the demo: Shwetank builds a polished demo event on live and marks it as a sample gallery in the analytics dashboard (Live > Galleries > sample toggle), so the home page link shows it.
 
 #33
 Listed: 2026-10-11
@@ -120,18 +90,6 @@ Found in: Website UI re-check (2026-10-11)
 Issue: The homepage has no proof: no event or photo counts, host quotes or studio logos. This is now the lowest-scoring factor in the UI rating (3/10).
 How to reproduce: Scroll the homepage: no testimonials or numbers section.
 
-#45
-Listed: 2026-10-12
-Platform: App
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Sarthak testing the Join Event sheet on the Android emulator (2026-10-12)
-Issue: On Android, tapping the Join ID box in the Join Event sheet makes the sheet flicker non-stop. The shared BottomSheet (apps/mobile/components/ui/BottomSheet.tsx) used KeyboardAvoidingView with behavior "height" on Android. With a floating keyboard (Gboard's small toolbar when a hardware keyboard is attached, as on the emulator), the keyboard events made it shrink the sheet, the toolbar hid and re-showed, and the sheet snapped back, forever. The New Event sheet (Host) has text boxes in the same sheet, so it was affected too; the other sheets have no text boxes. Fix (da340bd, needs a new app build): on Android the sheet now pads by the keyboard height from the IME insets (0 for a floating keyboard) instead; iOS unchanged. Device check: test_yourself #54.
-How to reproduce: Android emulator with the hardware keyboard on: Dashboard > Join Event > tap the Join ID box. The sheet jumps up and down, and the dashboard tab bar shows through under it.
-Note 2026-11-03: the sheet's Android keyboard code moved to apps/mobile/hooks/use-android-keyboard-height.ts (shared with the photo viewer's comment panel, #242); the sheet behaves as before.
-
 #48
 Listed: 2026-10-12
 Platform: App
@@ -143,17 +101,6 @@ Found in: Testing the #51 push on the Android emulator (2026-10-12)
 Issue: New access requests only show in the app after the host leaves and reopens the event or pulls to refresh: the Permissions tab and Gallery > Requests load once when the screen opens, and Supabase Realtime is off (and the app has no listener on guests anyway). Fix without Realtime, app only: (1) when a "New access request" push arrives while the app is open, reload the request list; tapping the push opens that event's Permissions tab; (2) reload the current screen when the app comes back to the foreground. Pull-to-refresh stays.
 How to reproduce: Keep the event's Permissions tab open in the app, send a request from the website: it doesn't appear until you reopen the screen.
 Note 2026-10-27: Fixed in c42c419 (needs a new app build): apps/mobile/hooks/use-reload-on-return.ts reloads the Permissions tab and Gallery > Requests silently when a push with an eventId arrives while the screen is open, and when the app returns from the background. The push has no type field, so any event push reloads (one small query). Tapping the push still opens the event on its Galleries tab, not Permissions. Device check: test_yourself #161.
-
-#49
-Listed: 2026-10-12
-Platform: Both
-Priority: Low
-Status: Blocked
-Owner: Unassigned
-Blocked by: #21 (RLS lockdown part 2)
-Found in: Discussing live updates while testing #51 (2026-10-12)
-Issue: Supabase Realtime is off (the supabase_realtime publication has no tables since 2026-09-30, the user's choice). Decision 2026-10-12: keep it off for the v1 launch and turn it on later per table, only where a feature needs it (first candidate: Phase 2 vendor chat, messages and chat_rooms; then maybe comments and likes; guests only if #48 isn't enough). Before turning any table on: (1) #21 must be applied, or Realtime sends row changes to anyone listening; (2) add tables one at a time, not all; (3) review the existing listeners first: the app subscribes to photos, events, profiles, likes, comments, chat, businesses (all dormant now), and the Gallery and Usage tabs create a new randomly named channel each time they open (apps/mobile/app/(tabs)/gallery.tsx, usage.tsx), so check they unsubscribe; (4) check the Supabase plan's limits on live connections and messages.
-How to reproduce: In Supabase, Database > Publications > supabase_realtime: no tables.
 
 #58
 Listed: 2026-10-12
@@ -223,7 +170,7 @@ How to reproduce: On an Android phone with the EveBash app installed, open an ev
 Update 2026-10-13 (built, not in an app build or deploy yet):
 - App (JS only, no native change): app/+native-intent.tsx with lib/deepLinks.ts sends https://<www|staging|any>.evebash.com/events/<ref>, /events/<ref>/find-you, /events/<ref>/event-partners and evebash://events/<ref> (also evebash:///events/<ref>) to /events/<ref>, keeping the query string (?shared=true). find-you adds findYou=1 and the event screen (app/events/[id].tsx) then opens its Find You tab. The ref is passed through and the event screen resolves it with openGallery as before (join codes and legacy ids redirect to the event id, keeping findYou). Other EveBash links open the start screen. Other apps' links are ignored while the app is open, and a normal launch link passes through unchanged. Signed-out users land on the event screen: a public gallery shows with Log in, a private one shows the gate, and its Log in returns to the event (existing returnTo flow). Checks: npx tsx apps/mobile/lib/deepLinks.test.ts. Being JS, it can reach phones by over-the-air update to builds that include expo-updates (5732e36 or later); older installs need a new build. Not run on a device yet: device test #73.
 - Website: src/components/OpenInAppBanner.tsx, shown from the event layout (EventRouteShell). It appears on event pages only, on Android phones only (user agent Android + Mobile; not iPhone, tablets or computers). It can be dismissed, which is remembered in localStorage (read and write in try/catch). Open is a plain link to evebash://events/<ref>[/find-you]?<query>: if the app isn't installed, Chrome does nothing and the visitor stays on the page with no error and no store link. It hides while the lightbox is open. Behind NEXT_PUBLIC_OPEN_IN_APP_BANNER=true, which is off by default and read at build time, so redeploy after setting it. With the flag off, nothing renders. Device test #72.
-TODO, Android App Links (waiting for the SHA-256): (1) Add public/.well-known/assetlinks.json: [{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"android_app","package_name":"com.evebash.app","sha256_cert_fingerprints":["<SHA-256 of the EAS keystore: expo.dev > elnino_009/evebash > Credentials > Android, or eas credentials -p android>"]}}]. Never the public React Native debug key (CN=Android Debug), which signs local release builds such as the one on the Pixel 8 emulator. Next serves files in public/.well-known as application/json with a 200 and no redirect (checked on the dev server 2026-10-13). (2) Add apps/mobile/app.json android.intentFilters: action VIEW, autoVerify true, categories BROWSABLE + DEFAULT, data scheme https, hosts www.evebash.com and staging.evebash.com, pathPrefix /events. Leave out evebash.com: it 308-redirects to www, a redirect fails verification, and on Android 11 and older one failed host blocks all of them. (3) The intentFilters are a native change, so they need a NEW APP BUILD (an over-the-air update can't add them). (4) www.evebash.com only serves the file after staging is merged to main. Check with curl -I https://www.evebash.com/.well-known/assetlinks.json (expect 200 + application/json), then adb shell pm get-app-links com.evebash.app (expect verified).
+TODO, Android App Links (waiting for the SHA-256): (1) Add public/.well-known/assetlinks.json: [{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"android_app","package_name":"com.evebash.app","sha256_cert_fingerprints":["<SHA-256 of the EAS keystore: expo.dev > evebash/evebash > Credentials > Android, or eas credentials -p android>"]}}]. Never the public React Native debug key (CN=Android Debug), which signs local release builds such as the one on the Pixel 8 emulator. Next serves files in public/.well-known as application/json with a 200 and no redirect (checked on the dev server 2026-10-13). (2) Add apps/mobile/app.json android.intentFilters: action VIEW, autoVerify true, categories BROWSABLE + DEFAULT, data scheme https, hosts www.evebash.com and staging.evebash.com, pathPrefix /events. Leave out evebash.com: it 308-redirects to www, a redirect fails verification, and on Android 11 and older one failed host blocks all of them. (3) The intentFilters are a native change, so they need a NEW APP BUILD (an over-the-air update can't add them). (4) www.evebash.com only serves the file after staging is merged to main. Check with curl -I https://www.evebash.com/.well-known/assetlinks.json (expect 200 + application/json), then adb shell pm get-app-links com.evebash.app (expect verified).
 TODO, iOS Universal Links (no Apple decision yet): this needs the Team ID. Serve /.well-known/apple-app-site-association (application/json, no redirect) with appIDs ["<TeamID>.com.evebash.app"] and components for /events/*. Add app.json ios.associatedDomains ["applinks:www.evebash.com","applinks:staging.evebash.com"]. Turn on Associated Domains for the App ID, then make a new iOS build. Even then the website bar stays Android-only: in Safari a same-site link can't open the app, and evebash:// shows an "address is invalid" error when the app isn't installed. Universal Links cover links tapped in WhatsApp, Messages and Mail.
 Update 2026-10-23 (Sarthak asked for every phone/tablet visitor to be asked to get the app; on staging, flag off): the bar now shows on every website page ((main) layout and event pages), on Android phones and tablets, iPhones and iPads (iPadOS reports as a Mac, so Mac + touch screen counts as iPad). It says "Coming soon to Google Play / the App Store" until NEXT_PUBLIC_PLAY_STORE_URL / NEXT_PUBLIC_APP_STORE_URL are set (build time), then "Get it on ..." with a Get button. Open (evebash://) is still Android event pages only. X hides it for 7 days (the old permanent "1" value still hides it for good). Same flag, still off. Device test #122.
 Update 2026-10-23 (Sarthak: phones and tablets should not see the website, only login and plan activation; on staging, flag off): added a full-screen "Get the EveBash app" screen (src/components/MobileAppGate.tsx, rules in src/lib/appGate.ts) to the (main), (public) and (vault) layouts, behind its own flag NEXT_PUBLIC_MOBILE_APP_GATE=true (build time, off). A script in <head> decides before the first paint and globals.css hides the rest of the page, so the website never flashes; the component re-checks on client-side navigation. Still open on phones: login, forgot/reset password, profile, pricing, contact-us and the policy/delete-account pages (Play/App Store review, Razorpay and password emails need them). Search crawlers (user agent with bot/crawl/spider/lighthouse) still get the website so Google keeps indexing it. Store buttons say "coming soon" until the two store URL env vars are set. Device test #123.
@@ -337,20 +284,6 @@ Issue: Royal Emerald stacks two section headings: "Treasured Moments / The Weddi
 How to reproduce: Open any Royal Emerald gallery and scroll past the hero: two headings in a row.
 Update 2026-10-22: fixed. The theme's own "Treasured Moments / The Wedding Collection" heading was removed; only the shared gallery heading remains.
 Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): no "Treasured Moments" heading; only the crest and "Home Gallery" between gold lines. Device test #101 is FAIL only for step 7 (#92); this part passes.
-
-#85
-Listed: 2026-10-22
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: Royal Emerald uses three different golds: #cca43b (yellow) in the hero (src/components/TemplateRoyal.tsx), #ca9c69 (bronze) in the theme colours and gallery (src/app/royal-emerald.css, apps/mobile/constants/templates.ts), and gold-400/500/600 in the shared SectionHeader. The hero and the gallery below don't match.
-How to reproduce: Open a Royal Emerald gallery: compare the Explore Gallery button and frame gold with the gold of the gallery controls and liked hearts.
-Update 2026-10-22: hero now uses the bronze gold family (#ca9c69 / #e6c574 gradients) everywhere, no #cca43b left in TemplateRoyal. Still open: the shared SectionHeader keeps gold-400/500/600.
-Update 2026-10-22 (later): no longer applies. Royal Emerald galleries now use their own header (src/components/royal/RoyalGalleryHeader.tsx) instead of SectionHeader, all in the bronze gold family. Waiting only on device test #101/#102.
-Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): hero, crest, plaque, Back / Share and the Photos / Videos switch are all in the bronze gold family. Device test #101 is FAIL only for step 7 (#92); this part passes.
 
 #86
 Listed: 2026-10-22
@@ -515,17 +448,6 @@ Issue: The website and app carry files, assets and packages nothing uses. App: 7
 How to reproduce: grep the repo for each file or package name: only its own file (or package.json) mentions it.
 Note 2026-10-26: src/components/ui/Hero.tsx is deleted (22c0ec8, with #151).
 
-#104
-Listed: 2026-10-22
-Platform: App
-Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Retesting the #47 access-request push (2026-10-22)
-Issue: Pushes go to the wrong phone when people switch accounts. Signing in to the app saves the phone's push token on that account (registerDeviceForPushNotifications, apps/mobile/lib/notifications.ts), but logging out (apps/mobile/context/AuthContext.tsx, logout) leaves it there, and nothing removes it from accounts that used the phone before. Each account also holds only one token, the last phone it signed in on. Result: a phone gets the pushes of every account that ever signed in on it, and a user's own phone stops getting pushes once they sign in anywhere else. Seen 2026-10-22: the Android emulator's token is on 3 profiles ("New" e8848fc1..., "Sarthak Chauhan" b7ab6182..., "Sarthak " f78d1089...). On 2026-10-21 b7ab6182 asked to join "Samarth and Jyoti" (owned by f78d1089) from the emulator, and the owner's "New access request" push arrived on that same emulator instead of the owner's phone. The server side (#47) works. Fix idea: on logout, clear the account's push_token when it is this phone's token; on sign-in, remove this token from every other profile (needs the server or a database function, since other profiles aren't writable once RLS part 2 is on); later, allow several phones per account (a push_tokens table). Needs a new app build. Related: the website and app both push via the backend (#47, #58).
-How to reproduce: Phone with the app: sign in as A, log out, sign in as B. Another account asks to join A's private gallery: the push arrives on this phone (signed in as B), and A's own phone gets nothing if A last signed in here.
-
 #105
 Listed: 2026-10-22
 Platform: App
@@ -556,12 +478,13 @@ Platform: Both
 Priority: Medium
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: Check a few days of uploads at 0.4, then decide whether to raise it
+Blocked by: Check a few days of uploads at 0.4 (re-applied 2026-11-16), then close and note the 0.5 option under #111
 Found in: Photo cost review (#77 follow-up)
 Issue: The photo workers save every face the detector finds at a very low bar (det_thresh 0.25), including blurry, half-hidden and tiny background faces. Measured 2026-10-22 by re-running v2's face models on 796 real previews (keertan-1659, traditional-4-ea0c, rec-8-3d4d): 6,220 faces, of which 1,399 (22.5%) have a detection score below 0.5 or a box under 24 px on the 1600 px preview. In a Find You simulation (1,513 clear faces as selfies, 34,974 photo matches) those faces took part in only 34 matches (0.1%), and by eye almost all were wrong: one blurry, half-hidden face "matched" 5-6 different women. A random sample of them is mostly dark blur, cloth, lights or a painted face; the few real ones are ~20 px.
 Fix: PhotoProcessorV2 skips such faces when the switch's face_filter is set (modal_engine/photo_pipeline_switch.py face-filter 0.5 24; face-filter off to undo, applies within a minute, no deploy). Off by default, so nothing changes until it is turned on. Tested with a fake database on 12 photos: filter off = byte-identical to today's v2; filter on = 97 -> 75 faces, previews and kept faces unchanged. Effect: ~22% fewer face rows (database space and Find You work) and fewer false Find You matches. Faces already saved are not changed (only new uploads).
 How to reproduce: Upload a crowded or dark photo; faces of people far in the background or blurry shapes are saved and can show up in someone's Find You results.
 Live 2026-10-22 21:03 IST: Modal v121 (4e9d37a); switch face_filter = min_score 0.4, min_px 24 (Sarthak chose 0.4 over 0.5 to start gently; in the study, scores below 0.4 were 879 of 6,220 faces, 14.1%, before the size rule). Each v2 log line says how many unclear faces were skipped.
+Note 2026-11-16: found the live switch had lost its face_filter key (and the grid key), probably a reset; new photos were saving every face. Sarthak said to turn it on: face-filter 0.4 24 set again on live Modal (main) 2026-11-16, checked with `show`. Next: check a few days of uploads (skipped counts in the v2 log lines), then close this issue and note the 0.5 option under #111. Staging Modal still has no face_filter.
 
 #109
 Listed: 2026-10-23
@@ -648,20 +571,6 @@ Fix: with the video switch's "probe_v2" key on (modal_engine/video_gpu_switch.py
 Correction to the text above: a rotated 720p phone video was not enlarged before (its output fitted inside 1080 anyway); only rotated videos under 720p were.
 2026-10-25: Modal v130 deployed (eae06d0, 00:13 IST; rollback v129) and probe_v2 switched on for every video (video_gpu_switch.py probe-v2 off to undo). Checked: video endpoints reject unsigned calls (401), all four video functions present.
 
-#120
-Listed: 2026-10-24
-Platform: Both
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #129)
-Found in: thumbnail speed comparison with Samaro (2026-10-24)
-Issue: Cloudflare caches no photos or videos. media.evebash.com/* runs the worker "evebash-media-worker" (made in the Cloudflare dashboard, not in the repo until now), which fetches every file from B2 (Canada) with an Authorization header and never uses the Cloudflare cache, so every view goes to B2: cf-cache-status BYPASS, 0.55-1.6 s to first byte on repeat requests of the same thumbnail (Samaro's BunnyCDN: ~0.27 s, cache HIT). The repo's cloudflare-worker/src/index.ts (media-proxy), which does cache, is bound to the mistyped domain media.evebash.com.evebash.com and serves nothing. Also, Indian visitors are served from Cloudflare's Marseille data centre (cdn-cgi/trace: loc=IN, colo=MRS), which adds ~0.3-0.4 s even when cached.
-Fix: cloudflare-worker/evebash-media-worker/ (the deployed script, then a Cache API layer behind the MEDIA_EDGE_CACHE var): whole-file GETs are kept at the edge for 30 days (previews/thumbnails are rewritten at the same path when reprocessed); Range, HEAD and errors go to B2 as before; X-Media-Cache: HIT/MISS header. Tested locally with wrangler dev against real B2.
-2026-10-24: deployed (wrangler, version 5e26fca4; MEDIA_EDGE_CACHE on; B2 secrets kept). Live check: 4 thumbnails and an HLS playlist + segment go MISS then HIT with identical bytes; 404s not cached (no-store); Range/HEAD/OPTIONS as before. Cached thumbnails 0.42-0.65 s to first byte (was 0.55-1.6 s); the rest is the Marseille routing. Left: device check (test_yourself #129), commit the worker folder. Rollback: set MEDIA_EDGE_CACHE to off in the dashboard. Deleted/reprocessed files stay cached up to 30 days: #122.
-How to reproduce: curl -sI the same media.evebash.com thumbnail URL 3 times: cf-cache-status BYPASS and no speed-up.
-Note 2026-11-12: checked again with curl: thumbnail, preview, grid image, poster, HLS playlist and a video segment go MISS then HIT with identical bytes; 404s are no-store. The worker still drops the Range header (issue #181). Device test #129 still needs the app.
-
 #121
 Listed: 2026-10-24
 Platform: Both
@@ -721,13 +630,14 @@ How to reproduce: Take a portrait photo on a phone, upload it, open it and tap R
 Listed: 2026-10-24
 Platform: Both
 Priority: Low
-Status: In progress
+Status: Blocked
 Owner: Sarthak (with Claude)
-Blocked by: #141 (deploy + switch)
+Blocked by: a decision to use the Modal L4 for long videos again (#220, #229, #133)
 Found in: GPU long-video work (#117), edge-case test on Modal, 2026-10-24
 Issue: Long 10-bit / HDR videos (iPhone's default "HDR video", many newer cameras) can't use the GPU worker and go to the 16-core worker (slower, about 40% more compute per video). NVDEC turns 10-bit video into p010 frames, and scale_npp, the only GPU resize filter in our ffmpeg (jrottenberg/ffmpeg:7.0-nvidia2204 has no scale_cuda), rejects them ("Unsupported input format: p010le", tested). Even past that, h264_nvenc only encodes 8-bit and HDR needs tone mapping to SDR, and the image has no GPU tone-map filter. _gpu_decode_problem in modal_engine/main.py sends them to the CPU on purpose. Fix: an ffmpeg build with scale_cuda (p010 -> nv12) and a GPU tone map (tonemap_cuda / libplacebo), re-measured like #117; do it together with #118 (the CPU path makes unplayable High 10 from the same videos).
 How to reproduce: Upload an iPhone HDR video over 10 minutes to a gallery on the GPU switch: modal_cost_logs shows process_video_cpu_long and Modal logs "[VideoGPU] ... hevc yuv420p10le is not transcoded on the GPU".
 2026-10-25: covered by #141 (10-bit/HDR): code on staging, behind the gpu_all_formats switch, not deployed.
+Note 2026-11-16: parked by Sarthak. The L4 mode is off (#220) and long videos are a Modal vs RunPod decision (#133, #229); look at this again only if the L4 comes back.
 
 #127
 Listed: 2026-10-24
@@ -846,12 +756,14 @@ Listed: 2026-10-25
 Platform: Both
 Priority: High
 Status: Open
-Owner: Sarthak
-Blocked by: Sarthak: set the variables on the production Railway service before launch
+Owner: Shwetank (with Claude)
+Blocked by: release day (set the three switches on the live server together with the staging -> main release)
 Found in: launch-config review after #120-#124 and #121 (2026-10-25)
 Issue: The new backend switches are only set on the staging Railway service (api-staging.evebash.com). The production service (api.evebash.com, Railway qa264myg) has none of them, so after launch rotate would again keep stale copies (#123) and turn phone photos the wrong way (#124), and rotate wouldn't make grid images (#121).
 Fix: On the production Railway service set ROTATE_VERSIONED_LINKS=true (#123), ROTATE_UPRIGHT_FIRST=true (#124) and GRID_VARIANT=true (#121), after their device tests (test_yourself #130, #131, #135) pass. Already done elsewhere: Vercel Production has NEXT_PUBLIC_GRID_HIRES=true (on with the next release from main); the Cloudflare media cache and the Modal "grid" switch are shared by staging and production. Optional at the same time: delete the leftover Cloudflare DNS record media.evebash.com.evebash.com (old media-proxy custom domain, serves nothing).
 How to reproduce: Railway > production backend service > Variables: the three names are missing.
+Update 2026-11-15: owner changed from Sarthak to Shwetank (with Claude); done as part of the next release to live, after the RLS lockdown (#21).
+Update 2026-11-16: device tests #130, #131 and #135 PASS on staging (Shwetank). Ready for live: ROTATE_VERSIONED_LINKS=true, ROTATE_UPRIGHT_FIRST=true, GRID_VARIANT=true on evebash-api-production-backend, plus the live Modal switch grid (issue #281), on release day.
 
 #138
 Listed: 2026-10-25
@@ -1018,17 +930,6 @@ Found in: Chat 2026-10-28 (can a host start a new upload set while one is upload
 Issue: The app's upload progress counts are wrong when a second set is added while the first is uploading. The in-app upload card (apps/mobile/app/events/[id].tsx, total = uploadQueue[0]?.batchTotal) takes its total from the first set's file count but adds up progress for every file in the queue, so it can go past 100% or show e.g. "12 of 10". The phone notification (updateProgressNotification in apps/mobile/lib/uploadQueue.ts) takes the newest set's count but adds up every file for that event, so it can show "Uploading 13 of 5" (the percent is capped at 100). The "N files uploaded" notification at the end has the same mix-up. Fix idea: count the files still in the queue (or the sum of the active sets' sizes) instead of one set's batchTotal, in both places.
 How to reproduce: App, pick 10 photos to upload; while they upload, tap Add Photo and pick 5 more. Watch the upload card and the notification: the counts don't match 15 files.
 
-#172
-Listed: 2026-10-28
-Platform: Website
-Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Claude device-test run on staging (built-in browser, 2026-10-28)
-Issue: The Host page sometimes loads with "HOST 0 / SHARED 0 / REQUESTS 0" and "No events yet" for a host who has 4 events, and stays that way until a reload. It happened on 3 of about 7 loads of a /host?view=manage&level=event-details&eventId=...&galleryId=... link (also right after the saved sign-in was restored). A plain /host load and a second reload showed all 4 events. A host who opens a saved or shared Host link may think their events are gone. Likely cause: src/app/(main)/host/page.tsx fetchUserEvents is started from several effects with no check that the response is still the latest one (no request id / cancelled flag), so an early call made before the user, view or manage level are settled can finish last and overwrite the list with an empty one. Fix idea: guard fetchUserEvents with a request counter (ignore stale responses) and only run it once auth has loaded.
-How to reproduce: Signed in as a host on staging.evebash.com, open https://staging.evebash.com/host?view=manage&level=event-details&eventId=<your event>&mode=add-image&galleryId=<a sub-gallery> in a new tab, or reload it a few times. Sometimes the page shows "No events yet" instead of the gallery.
-
 #173
 Listed: 2026-10-28
 Platform: Website
@@ -1050,17 +951,6 @@ Blocked by: -
 Found in: Claude device-test run on staging (2026-10-28)
 Issue: Creating a sub-gallery from Host -> event -> Galleries -> Create Sub-Gallery shows the toast "Your event has been created! ✨". It should say the sub-gallery (gallery) was created, since no event was made.
 How to reproduce: Host -> any event -> Galleries -> Create Sub-Gallery, type a name, Create Sub-Gallery. Read the toast.
-
-#175
-Listed: 2026-10-28
-Platform: Website
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Claude device-test run on staging (2026-10-28, test #74)
-Issue: On /dashboard at about 1024 px wide, the Total Photos stat is cut off ("661 Pho..."): the number uses class "truncate text-xl lg:text-2xl" and its box is narrower than the text (text 113 px, box 105 px). Total Videos fits. Fix idea: smaller text at lg, or let the stat wrap, or give the stat boxes more room.
-How to reproduce: Signed in with an account that has 600+ photos, open /dashboard in a 1024 px wide window. Look at the Total Photos box.
 
 #179
 Listed: 2026-10-28
@@ -1096,18 +986,6 @@ Found in: Porting the video pipeline to another project (chat 2026-10-29)
 Issue: A video still "processing" more than 6 hours after upload stays "processing" forever. The watchdog (apps/backend/src/services/watchdog.ts, runMediaWatchdog) only reads processing videos uploaded between 15 minutes and 6 hours ago (.gt("uploaded_at", sixHoursAgo)), so an older one is never re-sent and never marked failed: guests never see it and the uploader sees "processing" with no error. Normally every video finishes or fails well within 6 hours (3 Modal retries, 3 watchdog re-sends), so this needs the watchdog to miss that window: the backend down for hours, MEDIA_WATCHDOG_ENABLED=false, or a long Modal outage. None today (0 videos processing for over 6 h on 2026-10-29). Fix idea: in the same run, mark videos still processing after 24 h as failed ("Transcoding did not finish within 24 hours"), behind a flag.
 How to reproduce: on a staging test gallery, set one video's status to 'processing' and uploaded_at to 7 hours ago, then POST /api/v1/media/watchdog/run: the video is not in the report and stays processing.
 
-#184
-Listed: 2026-11-01
-Platform: App
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #165); move to RECENTLY FIXED once it passes
-Found in: App crash audit (chat 2026-11-01)
-Issue: The app has no error boundary anywhere: no route exports ErrorBoundary, and there is no Sentry.ErrorBoundary or global error handler. expo-router only catches a screen's error if that route exports ErrorBoundary (node_modules/expo-router/build/useScreens.js), so in a release build any error while drawing a screen closes the whole app instead of showing a "Something went wrong" screen. The audit found no such error today (tsc clean, no hook-order errors, no raw text or numbers outside <Text>, events.title and guests.name are NOT NULL), but 289 "any" types hide bad data from the type checker, and one unexpected backend value on the 9,085-line event screen (apps/mobile/app/events/[id].tsx) would take the whole app down. Fix: export ErrorBoundary from apps/mobile/app/_layout.tsx (a plain "Something went wrong / Try again" screen using its retry prop) and from app/events/[id].tsx, and send the error to Sentry.
-How to reproduce: Not run (it needs a code change). Add a temporary throw to the render of any screen in a release build: expect the app to close instead of showing an error screen.
-Note 2026-11-01: Fix on staging in 6653ed4. New apps/mobile/components/ui/ScreenErrorBoundary.tsx (reuses ErrorState, which gained an optional icon and second button) is exported as ErrorBoundary from app/_layout.tsx, app/events/[id].tsx and app/events/sub/[id].tsx; lib/sentry.ts gained reportError so these caught errors reach Sentry. It covers errors while drawing a page. An error in a button press or a timer doesn't reach it and can still close the app. Checked on the iPhone 17 Pro simulator with a release bundle and temporary crash pages: a page with no boundary of its own, a page with its own boundary, and one that recovers on Try again all behaved correctly, Go back and Try again both reached the Dashboard, and a real gallery opened normally. The first run showed the raw route name at the top of the error page, so the boundary now hides the header. Not run on Android or a real phone, and sending to Sentry wasn't checked (no DSN in that bundle). Device test #165.
-
 #185
 Listed: 2026-11-01
 Platform: App
@@ -1119,21 +997,6 @@ Found in: App crash audit (chat 2026-11-01)
 Issue: Two of the main photo grids keep every loaded photo on screen in memory, so scrolling a big gallery can run the phone out of memory, and the system then kills the app. Only Classic White and Sunlit Portrait guests get the windowed grid (apps/mobile/components/classic/ClassicPhotoRows.tsx draws only rows near the screen). Not windowed: (1) the host grid on every gallery (Sortable.Grid, apps/mobile/app/events/[id].tsx, about line 5737); (2) the guest masonry grid for Midnight Hero and Royal Emerald (same file, about line 7389; 29 of 74 galleries, including the biggest, reception-0e42 with 790 photos). Measured 2026-11-01 on the iPhone 17 Pro simulator (release bundle built 2026-10-28), gallery rec-8-3d4d (214 photos, 7 videos): the guest Portrait grid stayed at 85-94 MB all the way down; the host grid on the same photos went from 190 MB to 317 MB and was still rising, with CPU at 60-90% while scrolling. That is roughly 0.6-1 MB per photo (estimate: the exact number of photos loaded wasn't counted), so a 3,000-photo gallery would need about 2-3 GB. As a rough guide iOS stops an app at about half the phone's RAM, and low-end Android phones have less. The simulator has no memory limit, so it did not crash, and the masonry grid wasn't measured (same pattern, no windowing). The host grid also runs filteredPhotoItems.findIndex for every tile on every render, and the "Uploaded by" filter (loadAllAdminMedia) loads the whole gallery and draws every tile at once. Fix: reuse the ClassicPhotoRows windowing for the masonry grid; for hosts, show a windowed grid and only use Sortable.Grid in a separate Reorder mode (it draws every item); look up tile positions from a map instead of findIndex.
 How to reproduce: On a low-memory phone, open a gallery with 1,000+ photos in Midnight Hero or Royal Emerald (or any gallery as its host) and keep scrolling. Expect: the app gets slow, then closes.
 Note 2026-11-03: windowing pushed in eed090f. The host grid and the guest masonry grid now load only photos within a few screens of the view, through one shared hook (apps/mobile/hooks/use-scroll-window.ts, also used by ClassicPhotoRows; masonry columns in apps/mobile/components/event/MasonryPhotoColumns.tsx). Far tiles keep their place, frame and size and show an empty box, like a photo still loading. Hold-and-drag reordering is unchanged (Sortable.Grid kept), and host tiles take their position from the grid instead of findIndex. Checked on the iPhone 17 Pro simulator with release builds that logged how many photos were loaded: host grid on rec-8-3d4d held 71 photos after 20 flicks (113 without the change) and stayed between 50 and 71 down to the bottom; the Royal guest grid on test-face-new-155c held 26-36 of 46. Photos reloaded when scrolling back up, and the grids looked unchanged. The simulator's memory number did NOT change (host grid +40 MB vs +39 MB over 10 flicks; 313 vs 315 MB after a simulated memory warning): the simulator doesn't charge on-screen photos to the app, so the growth measured there (also on 2026-11-01 above) is mostly something else, likely every tile's buttons and icons (Sortable.Grid keeps every tile) and app data. Still open: (1) device test #178 on a real phone; (2) the Reorder-mode idea for the host grid, which changes how hosts reorder and needs Sarthak's decision. Note: the host grid's 3-column tile math in renderItem must change with the column count.
-
-#186
-Listed: 2026-11-01
-Platform: App
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: device test #145 (steps 4, 5 and 8) on build 58b1804b
-Found in: App crash audit (chat 2026-11-01)
-Issue: Production builds won't report crashes, so launch-day crashes would be invisible. apps/mobile/lib/sentry.ts only starts when EXPO_PUBLIC_SENTRY_DSN is set; apps/mobile/eas.json sets it only in the staging profile, and the EAS production environment has just three variables (Supabase URL, Supabase key, Google iOS client ID). The rest of todo #6 is also still open: no Sentry Expo plugin or SENTRY_AUTH_TOKEN, so stack traces stay minified and native crashes unreadable. The only EAS build listed (Android staging, versionCode 25, 2026-10-12, commit b1f34f8) is older than Sentry, so Sentry has no app data yet. Fix: set the DSN and EXPO_PUBLIC_SENTRY_ENVIRONMENT=production for the production profile, add the plugin and auth token, make a new staging build, run device test #145.
-How to reproduce: Read apps/mobile/eas.json (build.production has no env block) and run: eas env:list --environment production --format short
-Note 2026-11-02: Fix on staging in dee60da. apps/mobile/eas.json: the production profile now sets EXPO_PUBLIC_SENTRY_DSN (same Sentry project as staging) and EXPO_PUBLIC_SENTRY_ENVIRONMENT=production. apps/mobile/app.json: @sentry/react-native/expo plugin (org evebash, project react-native; those names come from the 2026-10-26 setup and weren't checked against Sentry). apps/mobile/metro.config.js: getSentryExpoConfig, which adds the debug ids that match errors to source maps. SENTRY_ALLOW_FAILURE=true in both profiles, because a missing token otherwise fails the build: tested, sentry-cli exits 1 without it and 0 with it, and the step that bundles the app still runs. A clean prebuild wires Sentry into both platforms, iOS and Android bundles built with debug ids, and the iOS bundle started on the simulator. Still needed: SENTRY_AUTH_TOKEN as an EAS secret; until then builds pass but upload nothing, so stack traces stay minified. No native build was run, so the upload itself is unproven until the next EAS build (device test #145). Over-the-air updates need their own upload: npx sentry-expo-upload-sourcemaps dist.
-Note 2026-11-03: SENTRY_AUTH_TOKEN saved as a secret EAS variable (preview and production). EAS staging build 6736de50 (Android, versionCode 25, staging 6111451) finished and installs from its expo.dev page. Its source map upload reached Sentry but was refused: "One or more projects are invalid (http status: 400)". So "react-native", the project name in the @sentry/react-native/expo plugin in apps/mobile/app.json, isn't the app project's real slug. SENTRY_ALLOW_FAILURE kept the build going, as planned. Next: put the real slug in app.json; the next build then uploads. Errors from this build should still reach Sentry (the DSN is right) but show minified code.
-Note 2026-11-04: fixed the project mix-up in 82784bd. The DSN in eas.json pointed at an older Sentry project (id 4512321949466624) and the plugin named a slug, "react-native", that doesn't exist. Both EAS profiles now use the evebash-app project's DSN (project id 4512321956020224, from Sentry > evebash-app > Client Keys) and the @sentry/react-native/expo plugin in apps/mobile/app.json names project evebash-app, so errors and source maps go to the same project. Checked: expo config reads org evebash / project evebash-app; EAS preview and production have no DSN variable that would override eas.json (only SENTRY_AUTH_TOKEN, Supabase and the Google iOS ID). Builds made before this commit (e.g. 6736de50) still report to the older project. Next: one EAS staging build; its log should show the source map upload succeed, then device test #145 step 8.
-Note 2026-11-04: EAS Android staging build 58b1804b (versionCode 25, staging 29e92eb) finished, and its log shows the source map upload succeeding: organization evebash, project evebash-app, release com.evebash.app@1.2.4+25, dist 25, artifact bundle with the Hermes source map (debug id f5e95ae2-cf12-42f5-b8b8-f7165ea580e7). The build uses the evebash-app DSN with environment staging. Left: an app error from this build should show readable file and function names in Sentry (device test #145 step 8). Install: https://expo.dev/accounts/elnino_009/projects/evebash/builds/58b1804b-a070-4280-99f8-6f9adfa7c4c1
 
 #205
 Listed: 2026-11-02
@@ -1488,17 +1351,6 @@ Note 2026-11-06: Being fixed with todo #11 on local branch feat/guest-edit-mode 
 Note 2026-11-07: all four parts fixed on staging in 610b2c0a and 65238da8. The cover position is a focus point in % plus a zoom everywhere; the five active website themes, the app and the host page's Guest Home Preview (phone frame = phone cover, browser frame = computer cover) follow it; a gallery can have a separate phone cover. Themes outside the five (now "Coming soon") keep their old cover look. Checked on staging.evebash.com and in the browser on localhost. Device test #198.
 Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone), device test #198 partly: the Royal Emerald frame and the Confetti Circle cover of mehandi night both follow its moved cover (52% 2.1%, 1.8x zoom). Classic White, Sunlit Portrait, Midnight Hero, moving the Position and the app are not checked yet.
 
-#260
-Listed: 2026-11-11
-Platform: App
-Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Device tests #40 and #202 on an Android phone (2026-11-11)
-Issue: The app sometimes stops loading anything: every Supabase request times out (lib/supabase.ts gives up after 20 s with "Supabase request timed out") until the app is closed and reopened. Screens stay empty or half-loaded and uploads don't start, with no message to the user. At the same time the website, the backend and Supabase were fast, and the phone's Wi-Fi worked (ping to the Supabase host fine), so it is inside the app. Seen twice on 2026-11-11 (13:16 and 16:28, local dev build com.evebash.app on an Android 14 phone over USB; the second time about 30 s after logging out and into another account and opening an event). Cause not confirmed; a guess is a stalled HTTP connection to Supabase that keeps being reused (requests failed in groups of 3 to 5). Check whether it also happens in a release/staging build and without the USB/Metro connection.
-How to reproduce: Not reliable yet. In the app, log out, log in as another account and open an event; or leave the app open for a while and come back. If screens stop loading, the device log (adb logcat, ReactNativeJS) shows repeated "[Supabase] Network request failed: Supabase request timed out" while the website works.
-
 #261
 Listed: 2026-11-12
 Platform: App
@@ -1567,9 +1419,445 @@ Issue: The app's guest home pictures (events/<id>/guest-preview/app-<uuid>.jpg o
 How to reproduce: Read getReferencedB2Keys in apps/backend/src/routes/admin.ts before 520cc156: it reads only events.id, photos.storage_key and profiles.profile_image.
 Update 2026-11-12: fixed in 520cc156. The orphan scan counts events.guest_preview_picture as in use. New POST /api/media/guest-preview-picture/delete (gallery managers only; empties the column, then deletes the file, only inside events/<id>/guest-preview/) is called by deleteEvent on the website (src/lib/database.ts) and in the app (apps/mobile/lib/database.ts, which also drops the phone's own copy); admin gallery deletes and account resets remove the events/<id>/guest-preview/ folder. Backend tests added (apps/backend/tests/guestPreviewPicture.test.ts). No switch: it only adds cleanup and stops a wrong delete. Needs the staging Railway deploy; the app part needs a new build.
 
+#269
+Listed: 2026-11-13
+Platform: Both
+Priority: Medium
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: the next live Modal deploy, done together with Sarthak (it also ships 8bfc220)
+Found in: Todo #30 step 5a (Backblaze key check, chat 2026-11-13)
+Issue: Both Backblaze keys the servers use today ("evebash-media-key" for gallery media, "evebash-vault-staging-backend" for EB Vault) work on ALL buckets in the account and can also change bucket settings (writeBuckets). So the live server's media key can read and delete files in the vault and staging buckets, and a leaked key exposes everything. The new staging and live-vault keys are limited to one bucket each.
+Fix idea: during todo #30 step 5d, give the live server a new key limited to the "EveBash" bucket (Read and Write only), deploy, check uploads and deletes, then delete "evebash-media-key". Delete "evebash-vault-staging-backend" once nothing uses the old "Evebash-Vault-Staging" bucket. The local .env / .env.local B2 key is stale (rejected by Backblaze); replace it with a staging key in step 5h.
+Update 2026-11-14: new key "Live-Media-Only" (keyID ...000a, bucket EveBash only, Read and Write, no
+writeKeys/deleteBuckets) put on the live media worker (wrangler secret), live Railway
+(evebash-api-production-backend, redeployed 17:31 IST), Vercel evebash-production (B2_KEY_ID /
+B2_APPLICATION_KEY; the website code does not use them) and the root .env (used for live Modal deploys).
+Typed by Shwetank, checked with Backblaze first. Checked after: a real live thumbnail fetched fresh from
+B2 through media.evebash.com 200, missing file gives B2 not_found; live server /health, / and
+/api/v1/pricing-plans 200, no startup errors; the key stored on live Railway authorizes on EveBash and
+lists files. Staging already uses one-bucket keys (todo #30 5a-5e). Backups of the old live Railway
+values and root .env kept in the session scratchpad. Still to do: live Modal (v133, 2026-10-27, from
+d2d7be9) still has "evebash-media-key" baked in; it gets the new key at the next live Modal deploy
+(planned with Sarthak, as that deploy also ships 8bfc220). Then delete "evebash-media-key" (...0001).
+"evebash-vault-staging-backend" (...0002) was in fact limited to the old "Evebash-Vault-Staging" bucket
+(not all buckets); it was no longer used anywhere (checked: staging and live Railway, local settings
+files) and Shwetank deleted it on 2026-11-14. The emptied "Evebash-Vault-Staging" bucket can now be
+deleted too (with Shwetank's OK). Status: Testing until "evebash-media-key" is deleted.
+Note 2026-11-16: the next live Modal deploy also switches on Sentry for Modal (todo #39): the root .env now has SENTRY_DSN and SENTRY_ENVIRONMENT=production. After the deploy, check the live Modal log says "[Sentry] error reporting on".
+
+#271
+Listed: 2026-11-15
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Sarthak
+Blocked by: -
+Found in: Sarthak's chat (2026-11-15): "fix app design wherever possible, also light theme"
+Issue: The app's design needs a full pass. Go screen by screen and fix whatever can be fixed: spacing, font sizes, colours, buttons, loading and empty states, and anything that looks different from the website. Do it in both the dark and the light theme. The light theme (todo #1, shipped 2026-11-06 in 94def90) still has misses; known ones have their own issues: #261 (Permissions tab sheets are dark text on dark) and #253 (Classic White guest clock is white on white). Rules: changed UI takes its colours from useAppTheme() (apps/mobile/constants/theme.ts, apps/mobile/context/ThemeContext.tsx; the event screen's host view uses apps/mobile/components/eventStyles/hostLightStyles.ts), not MidnightColors directly. The dark look must not change unless that is the fix. Guest event themes keep their own designs (change them only with Sarthak's OK). Login screens stay dark, and the Phase 2 business screens are left out. Add a Note here for each screen done, and give any bigger finding its own issue.
+How to reproduce: On staging, open each main app screen (Dashboard, Host, an event as host and as guest, an album, Profile, Settings, EB Network) once with Settings > Appearance set to Light and once set to Dark, and note anything that looks wrong or doesn't match the website.
+How to reproduce: Backblaze > Application Keys: "evebash-media-key" (...0001) still exists with access to all buckets.
+Note 2026-11-15 (from Sarthak's Claude, checked by Claude): before the live Modal deploy, add BACKEND_API_URL=https://api.evebash.com to the root .env. live Modal posts "video processed" to {BACKEND_API_URL}/api/v1/media/internal/video-processed (modal_engine/main.py _notify_video_processed). Shwetank's root .env has no BACKEND_API_URL at all (the callback is then skipped); Sarthak's has api-staging, which since todo #30 5d answers 401 (staging's own INTERNAL_JOB_SECRET). Today no user impact: live Railway has VIDEO_READY_PUSH unset, so the backend announces videos at upload and doesn't wait for this callback. Also check that the root .env's INTERNAL_JOB_SECRET matches live Railway's (compare without printing). After the deploy: one test video on live, expect "Video-ready callback ... HTTP 200" in the live Modal logs.
+
+#272
+Listed: 2026-11-15
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Sarthak
+Blocked by: -
+Found in: Sarthak's chat (2026-11-15): "the photo viewer design issue"
+Issue: The app's photo viewer (apps/mobile/components/PhotoViewer.tsx, styles in apps/mobile/components/eventStyles/visitorImmersiveStyles.ts) has a design problem. Placeholder: Sarthak will look at the viewer and write down what is wrong here. Viewer problems already listed on their own: #239 (empty "Quality: Auto" gear in the video player), #240 (comment panel), #242 (Android keyboard covers the comment box), #251 (Sunlit Portrait action row too tall). Part of the app design pass (#271).
+How to reproduce: On staging, open a gallery in the app and tap a photo. Steps to be added by Sarthak.
+
+#274
+Listed: 2026-11-15
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Upload bar fix #273 (chat 2026-11-15)
+Issue: Two copies of the same file-size formatter in the app: formatBytes in apps/mobile/lib/vaultFiles.ts (EB Vault) and formatStorageSize in apps/mobile/lib/planLimits.ts. Same code, except an empty size reads "0 KB" in one and "0 MB" in the other, so they will drift. Fix idea: keep formatStorageSize and have vaultFiles.ts import it (change only with the Vault owner's OK; Vault is Shwetank's area).
+How to reproduce: Compare the two functions in the files above.
+
+#276
+Listed: 2026-11-16
+Platform: App
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: iOS simulator and USB iPhone builds, todo #37 (chat 2026-11-16)
+Issue: The iOS app doesn't build or start with Xcode 27 / the iOS 27 SDK unless the generated apps/mobile/ios folder is patched by hand. (1) The app closes at launch on iOS 27 (crash in UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption): apps built with the iOS 27 SDK must use the UIScene lifecycle, and Expo SDK 55's AppDelegate doesn't. Fixed locally with a SceneDelegate in AppDelegate.swift (starts React Native in scene(_:willConnectTo:), forwards deep links and universal links to the AppDelegate) and UIApplicationSceneManifest in Info.plist. (2) Xcode 27 refuses pods whose minimum iOS is below 15, and expo-router uses an iOS 16 API, so all pods and the app need a minimum of iOS 16.0 (set in the Podfile post_install). Both live only in the gitignored ios folder, so "npx expo prebuild --clean" and EAS builds lose them. Fix: a config plugin in apps/mobile (or expo-build-properties deploymentTarget 16.0 plus a scene-lifecycle plugin), or an Expo SDK that supports scenes, before the first EAS iOS build on an Xcode 27 image and before Apple requires the iOS 27 SDK for App Store uploads. Local-only extra (not a product bug): this Mac's project path has spaces, which breaks the RN prebuilt-core download and some unquoted script phases; the Podfile post_install quotes them and pods are installed with RCT_USE_PREBUILT_RNCORE=0 RCT_USE_RN_DEP=0. Full notes in the todo #37 entry.
+How to reproduce: On a Mac with Xcode 27, from apps/mobile: npx expo prebuild --clean, pod install, build for an iOS 27 simulator and open the app. Expect: build errors on deployment targets; after fixing those, the app closes right after the splash.
+
+#277
+Listed: 2026-11-16
+Platform: Both
+Priority: Medium
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #219); move to RECENTLY FIXED once it passes
+Found in: Sarthak's chat (2026-11-16): "join code length, decide and fix, app and website"
+Issue: Event join codes (events.join_id, the "Join ID" guests type in Join Event) have no fixed length. generateEventJoinId (one copy in src/lib/database.ts, one in apps/mobile/lib/database.ts) builds the code from the event id: the first 4 letters of the event's name, a dash, then the id's random ending. Website events end in 4 characters (WEDD-77D4, 9 with the dash) and app events in 5 (WEDD-77D4K, 10); older codes have 6 (ABC-1- style). On live (2026-11-16): 77 codes, 64 of 9 characters, 5 of 10, 8 of 6. The two Join Event boxes disagree too: the website shows "A1B2-C3D4" and stops at 12 characters, the app shows "E.G. A1B2C3" (6, no dash) and has no limit. A code only works typed exactly with its dash, because open_gallery matches join_id as written: "WEDD77D4" gives "Invalid Code". And because the first half is the event's name, it is easy to guess, and every "Wedding ..." event shares WEDD- with only 65,536 possible endings, so two events will get the same code once there are a few hundred of them (see #278). The code comment says "6-digit unique code", which is wrong too.
+Decision (Claude, 2026-11-16, asked to decide): 8 characters, shown as XXXX-XXXX. It is the length most codes already have and what the website box shows; 4 + 4 is easy to read out and type; 8 random characters give about 850 billion codes, so guessing a code, or two events getting the same one, is very unlikely. New codes are random, not taken from the name, and leave out look-alike characters (0, O, 1, I, L). Both boxes accept a code with or without the dash, in small letters, with spaces. Existing codes stay as they are and keep working.
+How to reproduce: App: Dashboard > Join Event, type an existing code without its dash (e.g. WEDD77D4): "Invalid Code". Compare the boxes' examples: website A1B2-C3D4, app A1B2C3. Create one event on the website and one in the app: their codes have different lengths.
+Note 2026-11-16: fixed in 3dbb3083 (on staging 2026-11-16). New shared/text/joinCode.ts (website and app) replaces both copies of generateEventJoinId: newEventJoinCode makes the 8-character code, normalizeJoinCode reads what was typed (capitals; a code of 8 or more letters and digits typed without its dash, or with a space, gets the dash back after the 4th character; anything shorter is only capitalised, so old 6-character codes still match). Used by the Join Event box on the website (src/app/(main)/dashboard/page.tsx) and in the app (apps/mobile/app/(tabs)/dashboard.tsx, also for scanned QR text that isn't a link); both show K7MP-Q4RX as the example and take up to 12 characters. New codes are made when an event or sub-gallery is created (website host page; app Host tab and Add Sub-Gallery, which before got a code only when first opened) and when an event without a code is shared or opened. The website share window no longer makes up an unsaved code. No database change; existing codes are untouched. Checked: npx tsx --test shared/text/joinCode.test.ts 3/3 (2,000 new codes all XXXX-XXXX and different; typing variants; old codes), app tsc 0 errors, website tsc 0 errors in src and shared (reports/ left out). Not clicked in a browser or on a phone: device test #219.
+
+#278
+Listed: 2026-11-16
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: #277 (chat 2026-11-16)
+Issue: Nothing in the database stops two events from having the same join code: events has no unique index on join_id. On live one pair of sub-galleries already shares a code (checked 2026-11-16, neither is the other's parent). open_gallery (supabase/migrations/20261007000000_rls_part1_gallery_link_functions.sql) then picks one of the two, so a guest who types that code can land in the wrong gallery. Since #277 new codes are random 8-character codes, so a new clash is very unlikely, but nothing prevents one. Fix idea (database change, staging first): give one of the two sub-galleries a new code, check staging for clashes the same way, then add a unique index on join_id where join_id is not null; when saving a code hits the index, make a new code and save again.
+How to reproduce: select join_id, count(*) from events where join_id is not null group by join_id having count(*) > 1;
+
+#280
+Listed: 2026-11-16
+Platform: App
+Priority: Low
+Status: Open
+Owner: Sarthak
+Blocked by: -
+Found in: Issue #21 staging test step E (Shwetank deleted the RLS test event in the Android app, 2026-11-16)
+Issue: Deleting an event in the app runs the B2 file cleanup twice ("[deleteEvent] Cleaning up B2 files for 3 photos under event ..." appears twice in the Metro log). On the second run a file that is already gone isn't removed by api-staging, so apps/mobile/lib/database.ts falls through to the dev-only endpoints (127.0.0.1:8080, 10.0.2.2:8080, localhost:8080), which fail, and the app shows "Error deleting photo: TypeError: Network request failed" (dev builds show it as a red banner). The guest preview picture delete is also called after the event is gone and gets 403 ("[GuestPreviewSnapshot] The backend did not remove the picture: 403"). Nothing is left behind: the staging database had 0 rows left (event, sub-gallery, photos, faces, guests; 2 deletion records with the right owner) and the staging bucket had 0 files under both event prefixes. Not caused by the RLS lockdown.
+Fix idea: find why deleteEvent's cleanup runs twice (double tap, or the confirm handler/effect firing twice) and run it once; treat "already deleted" from /api/media/delete as success instead of trying other endpoints; delete the guest preview picture before the event row.
+How to reproduce: Android USB build on staging, host deletes an event that has photos in a sub-gallery and the Home gallery; watch the Metro log and the screen.
+
+#281
+Listed: 2026-11-16
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Check of #101 with Sarthak (2026-11-16)
+Issue: The live Modal photo-pipeline-switch (read by modal_engine/main.py) lost its "face_filter" and "grid" keys at some point after 2026-10-24; it only held mode v2 and v2_events ['test-v2-358c']. Cause unknown (probably the Dict was reset or recreated; a Modal Dict has no key history). Effect: new photos saved every face until face_filter was set again on 2026-11-16 (#101), and the grid image (#121, "<file>-grid.webp", set for test-v2-358c on 2026-10-24) is no longer made. Staging Modal's switch (created 2026-11-14) also has only mode v2.
+Fix idea: (1) find when and why the keys went (Modal logs, anyone who ran photo_pipeline_switch.py or deleted the Dict); (2) check whether #121 was rolled out beyond test-v2-358c and whether the website still needs the grid images, then set "grid" again with `photo_pipeline_switch.py grid add <gallery id>` / `grid all` if so; (3) keep the intended switch values in a tracked note so a reset can be spotted: run `photo_pipeline_switch.py show` and compare.
+How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switch.py show (read-only); it should list a face filter and, for test-v2-358c, a grid image.
+
+#284
+Listed: 2026-11-16
+Platform: Both
+Priority: Medium
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: live: release day (backend + website via main, Modal with #269)
+Found in: Security review after the RLS lockdown (issue #21) and #282, 2026-11-16 (read-only; status codes only, no data downloaded)
+Issue: Four small gaps left after the October audit (none lets anyone read photos or change data):
+ 1. Modal process_media_batch (modal_engine/main.py) doesn't check the QStash signature, unlike every other Modal web address. Anyone with its URL and real photo ids could restart processing of photos stuck as pending/failed (cost, not data). The backend reaches it only through QStash (apps/backend/src/qstash.ts), so adding verify_qstash_signature is safe.
+ 2. Backend POST /api/media/process-thumbnail needs no login: anyone can make the server queue a Modal batch for any event id (cost). On staging it answered 200 with no login.
+ 3. Backend GET /api/media/indexing-status needs no login: it returns photo and face counts for any event id (event ids are readable slugs like "rls-test-7110").
+ 4. Backend POST /api/media/mobile/reconcile-upload needs no login: it says whether an upload/storage key exists (read-only).
+ Also: CORS_ORIGINS empty means "allow every site" (apps/backend/src/server.ts); live and staging both set it, so no effect today, but a missing setting would open it.
+Checked fine: the Cloudflare media worker only serves single files by exact path (no listing; keys contain random parts); /api/admin/* cost and invoice routes answer 401 without login; video-worker, push-token, account delete, guest-preview, permissions routes need a login or job token; the other Modal web addresses check the QStash signature or the Find You secret.
+Fix idea: 1 add verify_qstash_signature (deploy staging Modal, then live with #269); 2-4 require a logged-in user who can see/manage the event (check what the website and app send first; process-thumbnail may also accept the internal job secret); CORS: treat an empty list as "allow none" except same-origin. Staging first, then live (hotfix or release day).
+How to reproduce: curl -s -X POST https://api-staging.evebash.com/api/v1/media/process-thumbnail -H 'Content-Type: application/json' -d '{}' (200 without login).
+Update 2026-11-16: fixed on staging with Shwetank's OK. 1 Modal process_media_batch verifies the QStash signature (async, same pattern as generate_photo_preview). 2 /process-thumbnail: owner/platform admin/internal job only, via a new authorizeEventProcessing() shared with /trigger-modal-batch. 3 /indexing-status: login required; the website (UploadContext + the /api/media/indexing-status pass-through) and the app (uploadQueue) now send the login. 4 /mobile/reconcile-upload: login required (the app already sent it). CORS: an empty CORS_ORIGINS no longer allows every site. Type checks pass (backend, website, app). Live gets it on release day.
+Update 2026-11-16: checked on staging from outside: process-thumbnail, indexing-status and reconcile-upload answer 401 without a login; the staging Modal process_media_batch answers 401 without a QStash signature; staging server healthy; CORS still allows staging.evebash.com. Left: the upload progress check during Shwetank's device tests (website + app send the login to indexing-status now), then live on release day.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#285
+Listed: 2026-11-16
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Device test #130 step 7 (Shwetank, 2026-11-16): download works in the app, not on the website
+Issue: On the website, Download on a single photo or video (photo viewer, gallery grid, album page-flip viewer) didn't save the file. The three places each made a link with a "download" attribute to the media address (media.evebash.com / media-staging.evebash.com), and browsers ignore "download" for another domain, so the file just opened (or nothing visible happened). Not related to rotation or the RLS lockdown: the media worker served the rotated file fine (200, with and without ?v=, CORS allows it). The same code is on live.
+Fix: one shared downloadMediaFile() in src/lib/zipDownload.ts fetches the file (CORS) and saves it with a clean name (never "?v="); if the fetch fails or the file is over 300 MB (long original videos) it opens in a new tab instead. Lightbox, MasonryGrid and PageFlipViewer use it (the three copies are gone). Website type check passes.
+How to reproduce: staging.evebash.com, host or member, open a photo, click Download (Chrome).
+Update 2026-11-16: Shwetank retested on staging (device test #130 step 7): Download saves the rotated photo with a normal name. Live gets it with the next release.
+Fixed in: c643074b (2026-11-16)
+
+
+#172
+Listed: 2026-10-28
+Platform: Website
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Claude device-test run on staging (built-in browser, 2026-10-28)
+Issue: The Host page sometimes loads with "HOST 0 / SHARED 0 / REQUESTS 0" and "No events yet" for a host who has 4 events, and stays that way until a reload. It happened on 3 of about 7 loads of a /host?view=manage&level=event-details&eventId=...&galleryId=... link (also right after the saved sign-in was restored). A plain /host load and a second reload showed all 4 events. A host who opens a saved or shared Host link may think their events are gone. Likely cause: src/app/(main)/host/page.tsx fetchUserEvents is started from several effects with no check that the response is still the latest one (no request id / cancelled flag), so an early call made before the user, view or manage level are settled can finish last and overwrite the list with an empty one. Fix idea: guard fetchUserEvents with a request counter (ignore stale responses) and only run it once auth has loaded.
+How to reproduce: Signed in as a host on staging.evebash.com, open https://staging.evebash.com/host?view=manage&level=event-details&eventId=<your event>&mode=add-image&galleryId=<a sub-gallery> in a new tab, or reload it a few times. Sometimes the page shows "No events yet" instead of the gallery.
+Update 2026-11-16: fixed on staging (needed for the client demo). fetchUserEvents (src/app/(main)/host/page.tsx) now keeps a request counter (userEventsRequestRef): only the newest call saves events, shared events, logs and the loading flag, so an early call that finishes last can't replace the list with an empty one. It also doesn't run while a deep link is still opening (sub-gallery list wanted but the event not known yet), which was the call that returned the empty list. Website type check passes; lint unchanged (68 old problems). Left: Shwetank reloads the deep link from the issue several times on staging and checks the events always show.
+Update 2026-11-16: Shwetank reloaded the deep link (Staging test 1 / Ashu Wedding) 10 times on staging: the events showed every time. Live gets it with the next release (staging -> main).
+Fixed in: 31821146 (2026-11-16)
+
+
+#282
+Listed: 2026-11-16
+Platform: Both
+Priority: Critical
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Re-check of the 2026-10-05 security audit after the RLS lockdown (issue #21), 2026-11-16
+Issue: GET /api/media/all-photos (and /api/v1/media/all-photos) on the backend returns the address, gallery id and size of EVERY photo in the database, private galleries included, to anyone, with no login (apps/backend/src/routes/media.ts, admin Supabase client, so the RLS lockdown doesn't apply). Checked 2026-11-16: api.evebash.com answered 200 with about 367 KB; api-staging 200. Nothing in the website, app, dashboard or Modal calls it. First reported in the October audit (PROJECT_ANALYSIS_2026-10-04.md item 3).
+Fix: route removed in apps/backend/src/routes/media.ts (backend type check passes). Staging gets it with the push; live needs it on main and a redeploy of evebash-api-production-backend.
+How to reproduce: curl -s -o /dev/null -w '%{http_code}' https://api.evebash.com/api/media/all-photos (200 = still open; 404 = fixed).
+Update 2026-11-16: hotfix to main with Shwetank's OK (branch hotfix/remove-all-photos, PR #11, merged 48dc066f); the live server redeployed by itself. Checked: api.evebash.com /api/media/all-photos and /api/v1/media/all-photos 404, /health and /api/v1/pricing-plans 200, www.evebash.com 200. Staging already had it (336c5453).
+Fixed in: 25b930fe on main, 336c5453 on staging (2026-11-16)
+
+
+#120
+Listed: 2026-10-24
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: thumbnail speed comparison with Samaro (2026-10-24)
+Issue: Cloudflare caches no photos or videos. media.evebash.com/* runs the worker "evebash-media-worker" (made in the Cloudflare dashboard, not in the repo until now), which fetches every file from B2 (Canada) with an Authorization header and never uses the Cloudflare cache, so every view goes to B2: cf-cache-status BYPASS, 0.55-1.6 s to first byte on repeat requests of the same thumbnail (Samaro's BunnyCDN: ~0.27 s, cache HIT). The repo's cloudflare-worker/src/index.ts (media-proxy), which does cache, is bound to the mistyped domain media.evebash.com.evebash.com and serves nothing. Also, Indian visitors are served from Cloudflare's Marseille data centre (cdn-cgi/trace: loc=IN, colo=MRS), which adds ~0.3-0.4 s even when cached.
+Fix: cloudflare-worker/evebash-media-worker/ (the deployed script, then a Cache API layer behind the MEDIA_EDGE_CACHE var): whole-file GETs are kept at the edge for 30 days (previews/thumbnails are rewritten at the same path when reprocessed); Range, HEAD and errors go to B2 as before; X-Media-Cache: HIT/MISS header. Tested locally with wrangler dev against real B2.
+2026-10-24: deployed (wrangler, version 5e26fca4; MEDIA_EDGE_CACHE on; B2 secrets kept). Live check: 4 thumbnails and an HLS playlist + segment go MISS then HIT with identical bytes; 404s not cached (no-store); Range/HEAD/OPTIONS as before. Cached thumbnails 0.42-0.65 s to first byte (was 0.55-1.6 s); the rest is the Marseille routing. Left: device check (test_yourself #129), commit the worker folder. Rollback: set MEDIA_EDGE_CACHE to off in the dashboard. Deleted/reprocessed files stay cached up to 30 days: #122.
+How to reproduce: curl -sI the same media.evebash.com thumbnail URL 3 times: cf-cache-status BYPASS and no speed-up.
+Note 2026-11-12: checked again with curl: thumbnail, preview, grid image, poster, HLS playlist and a video segment go MISS then HIT with identical bytes; 404s are no-store. The worker still drops the Range header (issue #181). Device test #129 still needs the app.
+Fixed in: 3e73a75d (2026-10-24; worker live since 2026-10-24, staging copy since d055fd9a), closed 2026-11-16 after device test #129 PASS: the app on a Pixel 8 (EAS staging build 60443d04) showed, played and downloaded photos and a new video from media-staging.evebash.com as before, with X-Media-Cache HIT on what the phone loaded and byte-for-byte originals on download. iPhone not run.
+
+#104
+Listed: 2026-10-22
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Retesting the #47 access-request push (2026-10-22)
+Issue: Pushes go to the wrong phone when people switch accounts. Signing in to the app saves the phone's push token on that account (registerDeviceForPushNotifications, apps/mobile/lib/notifications.ts), but logging out (apps/mobile/context/AuthContext.tsx, logout) leaves it there, and nothing removes it from accounts that used the phone before. Each account also holds only one token, the last phone it signed in on. Result: a phone gets the pushes of every account that ever signed in on it, and a user's own phone stops getting pushes once they sign in anywhere else. Seen 2026-10-22: the Android emulator's token is on 3 profiles ("New" e8848fc1..., "Sarthak Chauhan" b7ab6182..., "Sarthak " f78d1089...). On 2026-10-21 b7ab6182 asked to join "Samarth and Jyoti" (owned by f78d1089) from the emulator, and the owner's "New access request" push arrived on that same emulator instead of the owner's phone. The server side (#47) works. Fix idea: on logout, clear the account's push_token when it is this phone's token; on sign-in, remove this token from every other profile (needs the server or a database function, since other profiles aren't writable once RLS part 2 is on); later, allow several phones per account (a push_tokens table). Needs a new app build. Related: the website and app both push via the backend (#47, #58).
+How to reproduce: Phone with the app: sign in as A, log out, sign in as B. Another account asks to join A's private gallery: the push arrives on this phone (signed in as B), and A's own phone gets nothing if A last signed in here.
+Note 2026-11-16: also on staging: 8 of 10 profiles hold a push token but only 5 are different. Fix in 6d4fb5a1 (not in an app build yet): after saving its token, the app calls the new backend route POST /api/v1/notifications/push-token, which takes the token off every other profile and saves it on the caller (apps/backend/src/routes/notifications.ts; switch PUSH_TOKEN_CLAIM=false turns it off, then the app works as before). On logout the app clears push_token on the account when it still holds this phone's token, before signing out, and gives up after 3 s (releasePushToken in apps/mobile/lib/notifications.ts, called from logout in context/AuthContext.tsx). No database change. Backend test tests/pushTokenClaim.test.ts. Still one token per account: a second phone replaces the first (push_tokens table later). Device test #221.
+Fixed in: 6d4fb5a1 (2026-11-16). Device test #221 PASS on a Pixel 8 (Android 16, EAS staging build 60443d04): signing in moves the phone's token to that account only, logging out clears it, and with the phone signed in as another account a join request to the first account's private gallery no longer pushes to this phone (server: "owner has no push token"); after signing back in, the push arrives. The staging app's FCM V1 key was linked on expo.dev the same day. Not run: iPhone, and a second phone for one account. Live gets it with the next app release (backend from main, app build).
+
+#49
+Listed: 2026-10-12
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Unassigned
+Blocked by: -
+Found in: Discussing live updates while testing #51 (2026-10-12)
+Issue: Supabase Realtime is off (the supabase_realtime publication has no tables since 2026-09-30, the user's choice). Decision 2026-10-12: keep it off for the v1 launch and turn it on later per table, only where a feature needs it (first candidate: Phase 2 vendor chat, messages and chat_rooms; then maybe comments and likes; guests only if #48 isn't enough). Before turning any table on: (1) #21 must be applied, or Realtime sends row changes to anyone listening; (2) add tables one at a time, not all; (3) review the existing listeners first: the app subscribes to photos, events, profiles, likes, comments, chat, businesses (all dormant now), and the Gallery and Usage tabs create a new randomly named channel each time they open (apps/mobile/app/(tabs)/gallery.tsx, usage.tsx), so check they unsubscribe; (4) check the Supabase plan's limits on live connections and messages.
+How to reproduce: In Supabase, Database > Publications > supabase_realtime: no tables.
+Fixed in: closed as a decision, no code change (2026-11-16). 2026-11-16 Sarthak: Realtime is wanted in v1 (access requests, new photos, likes and comments; vendor chat stays Phase 2). Checklist step 1 (#21) is done (live 2026-11-16). The remaining steps moved into todo #40.
+
+#9
+Listed: 2026-10-09
+Platform: Analytics dashboard
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Visibility switch work (2026-10-09)
+Issue: No public/private switch for galleries in the admin dashboard. Platform admins can't change visibility of galleries they don't own anywhere on the website.
+How to reproduce: Open a gallery in the admin dashboard Events grid: there is no visibility control.
+Note 2026-11-16: unblocked, #21 is live. set_event_public_viewing (the call the website and app use) already lets platform admins change any top-level gallery (can_manage_event passes is_platform_admin), checked on live. No database change needed: the dashboard never loads is_public (apps/analytics-dashboard/src/lib/analytics.ts fetchEvents) and GalleryViewer has no switch. Fix is dashboard only.
+Fixed in: 03679e72 (2026-11-16). The dashboard's gallery view (Events grid and user pages) has a Private / Public switch for top-level galleries, using set_event_public_viewing; making a gallery public asks first, like the website. Sub-galleries show "Visibility follows <parent>". Events grid rows show a Public / Private badge. Checked on staging in the Claude built-in browser (local dashboard, platform admin): "Staging test 1" (owned by newone1) set to Public, then open_gallery with only the public key returned public_view; set back to Private, it returned login_required; a save with only the public key is refused (42501). The gallery was left Private, as it was.
+
+#279
+Listed: 2026-11-16
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test #145 step 1 on staging.evebash.com (chat 2026-11-16)
+Issue: On the staging website, photos shown through Next.js's image resizer don't load. next.config.mjs (images.remotePatterns) allows media.evebash.com but not media-staging.evebash.com, the staging media address since the staging/live split (todo #30). Vercel answers /_next/image?url=https://media-staging.evebash.com/... with 400 INVALID_IMAGE_OPTIMIZE_REQUEST, while the same file loads directly (200). Seen on the Midnight Hero cover photo (src/components/TemplateHero.tsx) of staging-test-1-sub-gallery-67fb; the grid photos there load. Live (www.evebash.com with media.evebash.com) is not affected. Testers on staging see empty covers and may report false bugs. Fix idea: add media-staging.evebash.com to images.remotePatterns (one entry; nothing changes on live).
+How to reproduce: Signed in on staging.evebash.com, open https://staging.evebash.com/events/staging-test-1-sub-gallery-67fb: the big cover photo is empty. In the browser's network tab its /_next/image request returns 400.
+Note 2026-11-16: fix in next.config.mjs: images.remotePatterns now also allows media-staging.evebash.com; media.evebash.com stays, so the live website is unchanged. Checked locally that the config loads with both addresses.
+Fixed in: a1cac4c9 (2026-11-16). Checked on the staging deploy in the Claude built-in browser: the /_next/image request for the cover photo of staging-test-1-sub-gallery-67fb went from 400 to 200, and the Midnight Hero cover now shows (all 4 photos on the page load, none broken). Live is unchanged (it doesn't have this commit yet, and media.evebash.com stays allowed).
+
+#21
+Listed: 2026-10-09
+Platform: Both
+Priority: Critical
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: - (live step needs an agreed quiet window)
+Found in: Supabase access check (2026-10-06)
+Issue: Supabase RLS lockdown part 2 is not applied yet: most tables can still be read and changed with the public app key (launch blocker). Current files (rebuilt 2026-11-15): docs/security/rls-lockdown-part2.sql, tests docs/security/rls-lockdown-part2-tests.sql, rollback docs/security/rls-lockdown-part2-rollback.sql. Don't run rls-lockdown-draft.sql or its old test files: the draft holds old copies of open_gallery, get_public_gallery_media and the helpers and would undo about 25 later migrations.
+Before applying on live: run part2 + part2-tests in one rolled-back transaction on live (read the result, nothing saved), in a quiet window; to undo, use ONLY rls-lockdown-part2-rollback.sql; never docs/security/rls-lockdown-rollback.sql, which also drops open_gallery, profile_cards and eb_private and breaks every gallery.
+How to reproduce: With only the public anon key, request /rest/v1/profiles?select=id,role: every profile comes back.
+Update 2026-11-15: taken over by Shwetank (with Claude) so a client can sign up on live safely; Sarthak moves to the app launch bugs. The old blockers are gone: staging has its own database since todo #30, and the EveBash Staging app build 997a9866 is on a test phone. Plan: re-scan direct table use (website, app, backend, EB Vault), update the scripts, dry runs on staging, apply on staging, test website + app, then live in a quiet window with the part 2 rollback ready.
+Update 2026-11-15: rebuilt part 2 as docs/security/rls-lockdown-part2.sql (the draft's sections 1-3 hold old copies of open_gallery, get_public_gallery_media and the helpers, and would undo about 25 later migrations, e.g. hidden photos would show to logged-out visitors). New in part 2: hidden sub-galleries/photos readable only by managers; can_manage_event_visibility (the host page and app call it; missing today); found and closed: 7 backend/Modal-only security-definer functions (claim_*_job, complete_media_job, create_photo_with_media_job, replace_photo_faces, cleanup_stale_upload_intents) were callable with only the public key, and the 3 queue tables were open to it. Tests docs/security/rls-lockdown-part2-tests.sql (October suite + 28 new checks): 173/173 on staging, rolled back, nothing saved. Rollback rls-lockdown-part2-rollback.sql updated and checked on staging (part 2 then rollback leaves tables, RLS, anon grants, policies and triggers exactly as before). Staging and live security setups were identical before the run. Next: apply on staging (with OK), then website + app tests on staging.
+Update 2026-11-15: part 2 APPLIED ON STAGING (degbveyjppkuhydwxfjq) with Shwetank's OK: 0 tables without RLS, 47 policies, no anon writes. Checked from outside with only the public key: profiles, events, photos, guests and faces return nothing; claim_media_job is not callable; staging.evebash.com loads. Live untouched (still 12 tables without RLS). Next: Shwetank tests the staging website and EveBash Staging app; then live in a quiet window.
+Update 2026-11-15: staging test step A found that Create Event failed ("Your profile is still being prepared"): createUserProfile (website and app) upserts role and role_type every time, and the profile trigger refused it. Fix: eb_private.protect_profile_columns now keeps the stored plan/role/admin values on an update instead of raising (nobody can still change them). Tests updated (role checks now confirm the value is kept, plus the website's exact upsert): 174/174 in a dry run (rollback + part 2 + tests, rolled back). Applied to staging with Shwetank's OK (only that function).
+Update 2026-11-15: step A then failed at Create Event ("new row violates row-level security policy for table events"): the website/app create events with an upsert, which checks the new row against events_select before viewable_event_ids() sees it. Fix: events_select also passes for the creator and for members of the parent; events_insert: top-level galleries for yourself only, sub-galleries only by someone who manages the parent; the trigger sets a sub-gallery's owner to the family's owner (the website sends the person logged in). Closes a gap in the October draft: anyone could add a sub-gallery to someone else's gallery. Tests 183/183, rollback re-checked. Re-applied on staging with Shwetank's OK (rollback + corrected part 2 in one transaction): 0 tables without RLS, 47 policies, public key still reads nothing.
+Update 2026-11-16: staging tests A-C PASSED (Shwetank, checked by Claude in the staging database and with the public key). A host (website): create event + sub-gallery, 6 photos processed and face-indexed, like/comment/favourite, cover by upload and by "Make Event/Gallery Thumbnail", public/private switch, hide sub-gallery, Find You (matches only outside the hidden sub-gallery, as designed), EB Vault upload/open/delete to Trash. B guest newone2: private event > Request access > host approves > sees Home photos, not the hidden sub-gallery, can like; host removes a guest; guest admin works. C logged out: private event asks to log in; public event shows the 2 Home previews only (no originals, no sub-galleries; hidden sub-gallery gives not_found). Fixes found on the way (profile save, event upsert, sub-gallery ownership) are in part 2. Next: D (app) and the dashboard step F already passed.
+Update 2026-11-16: staging tests D and E PASSED. D (Android app, USB build): host login, upload one photo (processed + face-indexed), like, comment "Test from app", hidden sub-gallery visible to the host, Find You; newone2 as guest admin sees the event and the hidden sub-gallery. The app also saved its push token to the profile under the lockdown. E: host deleted the event in the app; staging database 0 rows left, 2 deletion records with the right owner, 0 files left in the staging bucket. Small app bug found (cleanup runs twice, not RLS): issue #280. ALL STAGING TESTS (A-F) PASSED. Next: plan the live apply in a quiet window (with Shwetank's OK).
+Update 2026-11-16: APPLIED ON LIVE (sbhouirpyiyybrravvih) at 14:46 IST with Shwetank's OK, after a live dry run (part 2 + tests in one rolled-back transaction: 183/183, nothing saved, live unchanged before/after). Live now: 0 tables without RLS, 47 policies, no anon writes. Checked from outside with the live public key: profiles, events, photos, guests, faces return nothing; claim_media_job not callable; a public gallery still returns its media; www.evebash.com /, /pricing, /login and a public event page 200; api.evebash.com/health 200. Live code (main, 82 commits behind staging) makes the same database calls as staging, so the staging tests cover it. Left: Shwetank's own check on www.evebash.com (log in, open a gallery, upload a photo) and watching Sentry; undo if needed: rls-lockdown-part2-rollback.sql only.
+Update 2026-11-16: Shwetank checked live www.evebash.com after the lockdown: log in, galleries, upload (the photo processed with its preview ready in the live database), like and unlike, all working; his profile's last_login updated (the profile save that failed on staging before the fix). No errors.
+Fixed in: c743db4b (part 2 script; applied on live 2026-11-16)
+
+
+#184
+Listed: 2026-11-01
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: The app has no error boundary anywhere: no route exports ErrorBoundary, and there is no Sentry.ErrorBoundary or global error handler. expo-router only catches a screen's error if that route exports ErrorBoundary (node_modules/expo-router/build/useScreens.js), so in a release build any error while drawing a screen closes the whole app instead of showing a "Something went wrong" screen. The audit found no such error today (tsc clean, no hook-order errors, no raw text or numbers outside <Text>, events.title and guests.name are NOT NULL), but 289 "any" types hide bad data from the type checker, and one unexpected backend value on the 9,085-line event screen (apps/mobile/app/events/[id].tsx) would take the whole app down. Fix: export ErrorBoundary from apps/mobile/app/_layout.tsx (a plain "Something went wrong / Try again" screen using its retry prop) and from app/events/[id].tsx, and send the error to Sentry.
+How to reproduce: Not run (it needs a code change). Add a temporary throw to the render of any screen in a release build: expect the app to close instead of showing an error screen.
+Note 2026-11-01: Fix on staging in 6653ed4. New apps/mobile/components/ui/ScreenErrorBoundary.tsx (reuses ErrorState, which gained an optional icon and second button) is exported as ErrorBoundary from app/_layout.tsx, app/events/[id].tsx and app/events/sub/[id].tsx; lib/sentry.ts gained reportError so these caught errors reach Sentry. It covers errors while drawing a page. An error in a button press or a timer doesn't reach it and can still close the app. Checked on the iPhone 17 Pro simulator with a release bundle and temporary crash pages: a page with no boundary of its own, a page with its own boundary, and one that recovers on Try again all behaved correctly, Go back and Try again both reached the Dashboard, and a real gallery opened normally. The first run showed the raw route name at the top of the error page, so the boundary now hides the header. Not run on Android or a real phone, and sending to Sentry wasn't checked (no DSN in that bundle). Device test #165.
+Fixed in: 6653ed4 (2026-11-01), closed 2026-11-16 after device test #165 PASS on a Pixel 8 (Android 16, crash-test build e67e82ff): a page that fails shows "Something went wrong" with Try again and Go back instead of closing the app; Try again reloads and tries the page again; Go back reaches the Dashboard; the error reaches Sentry (EVEBASH-APP-1). 0 crashes in the phone's log.
+
+#186
+Listed: 2026-11-01
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: Production builds won't report crashes, so launch-day crashes would be invisible. apps/mobile/lib/sentry.ts only starts when EXPO_PUBLIC_SENTRY_DSN is set; apps/mobile/eas.json sets it only in the staging profile, and the EAS production environment has just three variables (Supabase URL, Supabase key, Google iOS client ID). The rest of todo #6 is also still open: no Sentry Expo plugin or SENTRY_AUTH_TOKEN, so stack traces stay minified and native crashes unreadable. The only EAS build listed (Android staging, versionCode 25, 2026-10-12, commit b1f34f8) is older than Sentry, so Sentry has no app data yet. Fix: set the DSN and EXPO_PUBLIC_SENTRY_ENVIRONMENT=production for the production profile, add the plugin and auth token, make a new staging build, run device test #145.
+How to reproduce: Read apps/mobile/eas.json (build.production has no env block) and run: eas env:list --environment production --format short
+Note 2026-11-02: Fix on staging in dee60da. apps/mobile/eas.json: the production profile now sets EXPO_PUBLIC_SENTRY_DSN (same Sentry project as staging) and EXPO_PUBLIC_SENTRY_ENVIRONMENT=production. apps/mobile/app.json: @sentry/react-native/expo plugin (org evebash, project react-native; those names come from the 2026-10-26 setup and weren't checked against Sentry). apps/mobile/metro.config.js: getSentryExpoConfig, which adds the debug ids that match errors to source maps. SENTRY_ALLOW_FAILURE=true in both profiles, because a missing token otherwise fails the build: tested, sentry-cli exits 1 without it and 0 with it, and the step that bundles the app still runs. A clean prebuild wires Sentry into both platforms, iOS and Android bundles built with debug ids, and the iOS bundle started on the simulator. Still needed: SENTRY_AUTH_TOKEN as an EAS secret; until then builds pass but upload nothing, so stack traces stay minified. No native build was run, so the upload itself is unproven until the next EAS build (device test #145). Over-the-air updates need their own upload: npx sentry-expo-upload-sourcemaps dist.
+Note 2026-11-03: SENTRY_AUTH_TOKEN saved as a secret EAS variable (preview and production). EAS staging build 6736de50 (Android, versionCode 25, staging 6111451) finished and installs from its expo.dev page. Its source map upload reached Sentry but was refused: "One or more projects are invalid (http status: 400)". So "react-native", the project name in the @sentry/react-native/expo plugin in apps/mobile/app.json, isn't the app project's real slug. SENTRY_ALLOW_FAILURE kept the build going, as planned. Next: put the real slug in app.json; the next build then uploads. Errors from this build should still reach Sentry (the DSN is right) but show minified code.
+Note 2026-11-04: fixed the project mix-up in 82784bd. The DSN in eas.json pointed at an older Sentry project (id 4512321949466624) and the plugin named a slug, "react-native", that doesn't exist. Both EAS profiles now use the evebash-app project's DSN (project id 4512321956020224, from Sentry > evebash-app > Client Keys) and the @sentry/react-native/expo plugin in apps/mobile/app.json names project evebash-app, so errors and source maps go to the same project. Checked: expo config reads org evebash / project evebash-app; EAS preview and production have no DSN variable that would override eas.json (only SENTRY_AUTH_TOKEN, Supabase and the Google iOS ID). Builds made before this commit (e.g. 6736de50) still report to the older project. Next: one EAS staging build; its log should show the source map upload succeed, then device test #145 step 8.
+Note 2026-11-04: EAS Android staging build 58b1804b (versionCode 25, staging 29e92eb) finished, and its log shows the source map upload succeeding: organization evebash, project evebash-app, release com.evebash.app@1.2.4+25, dist 25, artifact bundle with the Hermes source map (debug id f5e95ae2-cf12-42f5-b8b8-f7165ea580e7). The build uses the evebash-app DSN with environment staging. Left: an app error from this build should show readable file and function names in Sentry (device test #145 step 8). Install: https://expo.dev/accounts/evebash/projects/evebash/builds/58b1804b-a070-4280-99f8-6f9adfa7c4c1
+Note 2026-11-16: device test #145 steps 4 and 5 PASS on a Pixel 8 with EAS staging build e4b646ad (staging a430d44c; its bundle has the evebash-app Sentry address): normal use, a 15-photo upload, and an upload with the network off mid-way all worked as before. Step 8 is left: it needs an app error, e.g. from the crash-test build for test #165.
+Fixed in: dee60da + 82784bd (2026-11-04), closed 2026-11-16 after device test #145 PASS (all steps): app errors from an EAS staging build reach Sentry project evebash-app with real file and function names (EVEBASH-APP-1 from crash-test build e67e82ff on a Pixel 8) and no email or tokens; the build log shows the source map upload with no error. Production builds use the same setup (eas.json production profile and the EAS production secret) but no production build has been made or checked yet.
+
+#175
+Listed: 2026-10-28
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Claude device-test run on staging (2026-10-28, test #74)
+Issue: On /dashboard at about 1024 px wide, the Total Photos stat is cut off ("661 Pho..."): the number uses class "truncate text-xl lg:text-2xl" and its box is narrower than the text (text 113 px, box 105 px). Total Videos fits. Fix idea: smaller text at lg, or let the stat wrap, or give the stat boxes more room.
+How to reproduce: Signed in with an account that has 600+ photos, open /dashboard in a 1024 px wide window. Look at the Total Photos box.
+Fixed in: f8575675 (2026-11-16). The Noir dashboard redesign (c76732fe) already made the number smaller (text-xl up to 1279 px) so 661 Photos fits at 1024 px; a 4-digit count still clipped at exactly 1024 px, so the three stat numbers now show just the count (the label above already says Photos, Videos, Events Joined) in src/app/(main)/dashboard/page.tsx. Checked on staging in the built-in browser at 1024, 1100, 1200 and 1279 px before the change; device test #220.
+
+#85
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Royal Emerald uses three different golds: #cca43b (yellow) in the hero (src/components/TemplateRoyal.tsx), #ca9c69 (bronze) in the theme colours and gallery (src/app/royal-emerald.css, apps/mobile/constants/templates.ts), and gold-400/500/600 in the shared SectionHeader. The hero and the gallery below don't match.
+How to reproduce: Open a Royal Emerald gallery: compare the Explore Gallery button and frame gold with the gold of the gallery controls and liked hearts.
+Update 2026-10-22: hero now uses the bronze gold family (#ca9c69 / #e6c574 gradients) everywhere, no #cca43b left in TemplateRoyal. Still open: the shared SectionHeader keeps gold-400/500/600.
+Update 2026-10-22 (later): no longer applies. Royal Emerald galleries now use their own header (src/components/royal/RoyalGalleryHeader.tsx) instead of SectionHeader, all in the bronze gold family. Waiting only on device test #101/#102.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): hero, crest, plaque, Back / Share and the Photos / Videos switch are all in the bronze gold family. Device test #101 is FAIL only for step 7 (#92); this part passes.
+Fixed in: eabe4a96 (2026-10-22). Royal Emerald galleries use their own header (src/components/royal/RoyalGalleryHeader.tsx) in the bronze gold family; no #cca43b and no gold-400/500/600 left in TemplateRoyal.tsx, src/components/royal/ or royal-emerald.css (grep 2026-11-16).
+Closed 2026-11-16 without a phone test: colour check, passed in the browser 2026-11-12.
+
+#283
+Listed: 2026-11-16
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: iOS USB test, test_yourself #218 step 8 (chat 2026-11-16)
+Issue: On iPhone, EB Vault's + sheet did nothing: tapping "Upload photos & videos" or "Upload files" closed the sheet but no picker opened, with no error. ActionSheet (apps/mobile/components/vault/VaultModals.tsx) called onClose() and then the picker straight away, while the BottomSheet Modal was still sliding away; iOS drops a screen shown over a closing Modal. The dropped document picker then stayed "in progress", so every later try failed with "Different document picking in progress" (a red error, since the promise had no catch). Android was fine.
+How to reproduce: iPhone, EB Vault > + > Upload photos & videos (or Upload files). Nothing opens.
+Fixed in: d6a45650 (2026-11-16). BottomSheet (apps/mobile/components/ui/BottomSheet.tsx) has a new onClosed prop that runs once the sheet is fully gone (after the Modal's onDismiss on iOS); ActionSheet runs the tapped action there, so pickers, rename and move dialogs open after the sheet. Picker errors now show "Couldn't open your photos/files". Checked on Shwetank's iPhone 11: photo library and Files both open, 2 photos uploaded to the vault. Other BottomSheet screens that open a picker from a sheet row can use onClosed the same way.
+
+#275
+Listed: 2026-11-16
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: iOS USB test, todo #37 (chat 2026-11-16)
+Issue: Google sign-in writes the whole Google reply to the log: apps/mobile/context/AuthContext.tsx line 527 logs JSON.stringify(response) from GoogleSignin.signIn(), which holds the user's idToken, serverAuthCode, email and photo. Nothing strips console.log in release builds, so the tokens land in the phone's system log and, through Sentry's console breadcrumbs, can be sent to Sentry. Fix idea: log only the response type (success / cancelled), never data. Check the rest of AuthContext.tsx for the same pattern.
+How to reproduce: Run the app with Metro, sign in with Google, and look at the Metro log: "[Auth] GoogleSignin.signIn() response: {...idToken...}".
+Fixed in: 03270d59 (2026-11-16). Only the result type is logged now ("[Auth] GoogleSignin.signIn() result: success"); checked in the bundle Metro serves to the iPhone. No other token logging found in apps/mobile, src, shared or apps/backend/src.
+
+#45
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Sarthak testing the Join Event sheet on the Android emulator (2026-10-12)
+Issue: On Android, tapping the Join ID box in the Join Event sheet makes the sheet flicker non-stop. The shared BottomSheet (apps/mobile/components/ui/BottomSheet.tsx) used KeyboardAvoidingView with behavior "height" on Android. With a floating keyboard (Gboard's small toolbar when a hardware keyboard is attached, as on the emulator), the keyboard events made it shrink the sheet, the toolbar hid and re-showed, and the sheet snapped back, forever. The New Event sheet (Host) has text boxes in the same sheet, so it was affected too; the other sheets have no text boxes. Fix (da340bd, needs a new app build): on Android the sheet now pads by the keyboard height from the IME insets (0 for a floating keyboard) instead; iOS unchanged. Device check: test_yourself #54.
+How to reproduce: Android emulator with the hardware keyboard on: Dashboard > Join Event > tap the Join ID box. The sheet jumps up and down, and the dashboard tab bar shows through under it.
+Note 2026-11-03: the sheet's Android keyboard code moved to apps/mobile/hooks/use-android-keyboard-height.ts (shared with the photo viewer's comment panel, #242); the sheet behaves as before.
+Fixed in: da340bd (2026-10-12), closed 2026-11-16 after device test #54 PASS on a Pixel 8 (Android 16, EAS staging build e4b646ad, Gboard): the Join Event and New Event sheets sit still above the keyboard, drop back when it closes and reopen at the bottom; with Gboard's Floating keyboard the sheet stays at the bottom with no flicker. 0 crashes in the phone's log. iOS not checked (its code didn't change).
+
+#260
+Listed: 2026-11-11
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device tests #40 and #202 on an Android phone (2026-11-11)
+Issue: The app sometimes stops loading anything: every Supabase request times out (lib/supabase.ts gives up after 20 s with "Supabase request timed out") until the app is closed and reopened. Screens stay empty or half-loaded and uploads don't start, with no message to the user. At the same time the website, the backend and Supabase were fast, and the phone's Wi-Fi worked (ping to the Supabase host fine), so it is inside the app. Seen twice on 2026-11-11 (13:16 and 16:28, local dev build com.evebash.app on an Android 14 phone over USB; the second time about 30 s after logging out and into another account and opening an event). Cause not confirmed; a guess is a stalled HTTP connection to Supabase that keeps being reused (requests failed in groups of 3 to 5). Check whether it also happens in a release/staging build and without the USB/Metro connection.
+How to reproduce: Not reliable yet. In the app, log out, log in as another account and open an event; or leave the app open for a while and come back. If screens stop loading, the device log (adb logcat, ReactNativeJS) shows repeated "[Supabase] Network request failed: Supabase request timed out" while the website works.
+Update 2026-11-12: seen again during device test #18 (Android phone, shwetank.chauhan3@gmail.com, opening Wedding 2 to move a video): every request timed out, then the app lost its link to Metro. After a restart it worked; one more single timeout appeared when opening the gallery link, but the move still went through.
+Note 2026-11-15: cause found, fixed in eb096f18 + f55b4d38 (Android only). React Native's Android HTTP client (OkHttp, no timeouts) never checks that a pooled HTTP/2 connection is still alive. When the network path to Supabase dies silently (no reset reaches the phone, e.g. a Wi-Fi/NAT drop or the phone sleeping), every later request is sent down that dead connection and hangs until lib/supabase.ts aborts it after 20 s. The abort doesn't mark the connection broken, so this repeats until the app restarts. Reproduced on the Mac with the same library (OkHttp 4.9.2 and 4.12.0, React Native's settings) against staging Supabase, through a relay that silently drops the connection: 4 of 4 requests after the drop hung 20 s and no new connection was tried. Fix: config plugin apps/mobile/plugins/withOkHttpHealthPings.js (in app.json) gives React Native's client an HTTP/2 ping every 5 s; otherwise it is the default client (cookie jar, 10 MB cache, no timeouts). OkHttp then fails a dead connection within 10 s, inside the app's 20 s limit, and retries the request on a new one: in the same test the request in flight came back 200 in about 9.5 s (both OkHttp versions) and the next ones took about 50 ms. A 4-minute idle run with the pings kept the same connection to staging Supabase (the server doesn't mind them). Other native clients don't need the change: images (expo-image), video, audio and photo uploads (expo-file-system) use OkHttp with read timeouts, which find a dead connection by themselves (10 s; 60 s for upload chunks); only React Native's client has none. It is a native change, so it needs a new app build (an over-the-air update won't carry it). Checked: the USB dev build of EveBash Staging on the Pixel 8 has the code (dexdump, interval 5) and loads the dashboard from staging normally. Left: device test #216 on a new build.
+Note 2026-11-15: device test #216 steps 1-7 passed on the Pixel 8 USB dev build (Sarthak with Claude reading the phone's log): Wi-Fi off (mobile data) and back on, 10 min idle, 10 min locked, log out and in, and a 3-photo upload all loaded in about 1-2 s, with 0 timeouts, network failures or crashes. Left: push, a new EveBash Staging build (EAS), and #216 on it without USB or Metro; then move this issue to RECENTLY FIXED.
+Fixed in: eb096f18 + f55b4d38 (2026-11-15). React Native's Android network client now pings its HTTP/2 connections every 5 s (config plugin apps/mobile/plugins/withOkHttpHealthPings.js), so a connection that died silently is replaced within 10 s instead of being reused until the app restarts. Device test #216 PASS on the Pixel 8: USB dev build (steps 1-7) and EAS staging build e4b646ad (staging a430d44c) without USB or Metro (normal use, Wi-Fi off and on, all loaded). Android only; reaches users with the next app build.
+
+#273
+Listed: 2026-11-15
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Sarthak's chat (2026-11-15): "upload bar design and ux for app"
+Issue: The upload bar (the progress card at the bottom of a gallery in the host view, renderUploadProgressCard in apps/mobile/app/events/[id].tsx) looks unfinished and says the wrong things. (1) The count never moves: "Uploading photos (0 of 10)" counts only files marked 'completed', but an uploaded photo stays 'processing' until the whole set is done and the event's photo processing has finished (apps/mobile/lib/uploadQueue.ts), so it reads "0 of 10" the whole time. (2) The bar stops at 90% for each uploaded file (uploadQueue.ts sets progress 90 once a file is saved), so it hangs near 90% and then the card vanishes. (3) The total is the first set's batchTotal, so adding a second set while one is uploading shows "12 of 10" or more than 100% (the card part of #171). (4) The second line shows the raw file name ("photo.jpg (45%)", "IMG_4532.HEIC"), which means nothing to a host. (5) After every photo is uploaded the card says "Getting your photos ready ... 90%" with a Cancel button that asks to cancel uploads that already finished. (6) Retry and Cancel are tiny (11 pt text, about 22 pt tall; the minimum touch size is 44 pt), Retry and "Tap to see why" use fixed reds (#f87171) that are hard to read in the light theme, and there is no icon to tell uploading, waiting for connection, finishing and failed apart. (7) The bar jumps instead of moving smoothly, and screen readers aren't told about progress (no progress bar role or live region). Not in this fix: guests see no progress at all while they upload (only a pop-up at the end, and the failed one just says "Upload Failed / Upload failed" with no Retry); that changes the guest pages, so it waits for Sarthak's OK (guest themes keep their own designs). Fix idea: move the card into its own component, count uploaded files (saved or done) out of every file in the gallery's queue, weight the bar by file size, show plain text per state with an icon, bigger buttons with theme colours, and an animated bar.
+How to reproduce: On staging, open one of your galleries in the app as host, Add Photos, pick about 10. Watch the card: it says "Uploading photos (0 of 10)" until the end, the second line shows file names, and the bar stops near 90%. Then pick 10 more and, while they upload, pick 5 more: the count goes past the total.
+Fixed in: 22ec6541 (2026-11-15). New apps/mobile/components/event/UploadProgressCard.tsx replaces renderUploadProgressCard in apps/mobile/app/events/[id].tsx (host view only; guest pop-ups and the upload queue itself are unchanged). Counts saved files out of every file in the gallery's queue, bar weighted by file size and eased (still with Reduce Motion), plain text and an icon per state (uploading, waiting for connection, getting videos ready, didn't upload, finishing), failed files in their own row with See why and Retry, Hide instead of Cancel once everything is uploaded, theme colours in Light and Dark, 32 pt buttons with a 44 pt touch area. Checked on the iPhone 16e simulator with made-up queue data for all 7 states in Light and Dark (not with real uploads); tsc clean. Device test #217 (needs an over-the-air update or a new staging build). The card part of #171 (counts past the total) is fixed too; the phone notification part of #171 is still open.
+
+#270
+Listed: 2026-11-15
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Dashboard login test during issue #21 (2026-11-15)
+Issue: "Continue with Google" fails on everything that uses the staging database (staging website, analytics dashboard on Staging): Google shows "Error 400: redirect_uri_mismatch". The Google web sign-in client "EveBash Web" (project evebash-e36ae) only lists the live Supabase return address (https://sbhouirpyiyybrravvih.supabase.co/auth/v1/callback); the staging project made in todo #30 (degbveyjppkuhydwxfjq) was never added. Staging Supabase itself is fine (Google provider on, localhost and staging.evebash.com allowed). The app is not affected (native Google sign-in with an ID token, no return address).
+Fix: Google Cloud > APIs and services > Credentials > OAuth client "EveBash Web" > Authorized redirect URIs > add https://degbveyjppkuhydwxfjq.supabase.co/auth/v1/callback > Save (keep the live one). Takes a few minutes to apply.
+How to reproduce: localhost:5173 (Staging) or staging.evebash.com > Continue with Google.
+Update 2026-11-15: Shwetank added the staging return address to "EveBash Web" in Google Cloud (Clients). Checked by Claude: localhost:5173 (Staging) > Continue with Google now opens Google's account page for degbveyjppkuhydwxfjq.supabase.co instead of Error 400. The dashboard now always shows Google's account picker (prompt=select_account). Left: Shwetank logs in with an admin account to confirm.
+Update 2026-11-15: Shwetank logged in to the dashboard (Staging) with Google: works.
+Fixed in: Google Cloud setting + dashboard aa6aea94 (2026-11-15)
+
+#268
+Listed: 2026-11-12
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Found in: Device test #111, step 8 (2026-11-12)
+Issue: In the app, deleting a comment that has replies gave no warning that the replies go too. The app always asked "Are you sure you want to delete this comment?" (handleDeleteComment in apps/mobile/components/PhotoViewer.tsx), while the website adds "Its replies will be deleted too." (src/components/page-flip/PageFlipSocialBar.tsx). The delete itself works the same on both: the database removes the replies with the comment.
+How to reproduce: App, as the host, open a photo whose comment has a reply and delete that comment: the confirm box doesn't mention the replies.
+Update 2026-11-12: fixed in the app: PhotoViewer checks whether the comment has replies and then uses the website's wording. JS only, so Metro shows it after a reload; installed builds need the next EAS build.
+Fixed in: 6d1dbe5 (2026-11-12). Checked on an Android phone (dev build from staging): deleting a comment with a reply, as host and as guest A, shows "Its replies will be deleted too." and removes both. Device test #111 PASS.
+
+#267
+Listed: 2026-11-12
+Platform: Both
+Priority: Critical
+Status: Fixed
+Owner: Shwetank (with Claude)
+Found in: Device test #1, production check on www.evebash.com (2026-11-12)
+Issue: Find You failed on production for everyone with "Something went wrong during matching." The backend's search returned 500 "Modal search request failed: 401 - Unauthorized": the production backend sends INTERNAL_JOB_SECRET to Modal (header X-EveBash-Secret, apps/backend/src/routes/findYou.ts), and Modal's find_matching_photos (modal_engine/main.py, _find_you_secret_ok) refuses it unless it equals the INTERNAL_JOB_SECRET Modal was deployed with (root .env). Production's Railway value differed; staging's matched, so staging worked. Not caused by FIND_YOU_REQUIRE_ACCESS (the login and gallery-access check passed). Production Find You had likely been failing since Modal started checking the secret.
+How to reproduce: Before the fix: www.evebash.com/events/wedding-fdd8/find-you, upload a selfie; DevTools > Network > find-you > Response shows the 401 from Modal.
+Note 2026-11-12: both backends share one Modal app, so both need Modal's INTERNAL_JOB_SECRET. CRON_SECRET and QSTASH_TOKEN don't need to match. When todo #30 gives staging its own Modal environment, each backend must match its own Modal environment's secret.
+Fixed in: Railway production setting (2026-11-12): INTERNAL_JOB_SECRET set to staging's value, with FIND_YOU_REQUIRE_ACCESS=true, then Deploy. No code change. Checked: Find You finds photos on www.evebash.com (wedding-fdd8); a search without login gets 401.
 
 #97
 Listed: 2026-10-22
@@ -1636,80 +1924,6 @@ How to reproduce: Analytics Hub > User Accounts > newone@email.com: no Vault col
 Note 2026-11-10: fixed on staging in ceb0cdbb. Backend: read-only admin action vaultUsage on /api/admin/control (listVaultUsage in apps/backend/src/routes/admin.ts, platform admins only, test tests/vaultUsage.test.ts). Dashboard: User Accounts has a Vault GB column (sortable); Total GB and Cost include EB Vault; the user detail page has an EB Vault Storage card and its used/quota meter and Backblaze cost include it. Until the backend is deployed the column shows 0.00 GB.
 Fixed in: ceb0cdbb (2026-11-10). Checked on the deployed dashboard 2026-11-10: the Vault GB column shows.
 
-#257
-Listed: 2026-11-07
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Checking a gap under the Confetti Circle cover on the iPhone 17 Pro simulator (chat 2026-11-07)
-Issue: Two parts of the app's Confetti Circle gallery used dark-theme colours on its light page. (1) The Collections menu fell back to Royal Emerald's dark green with dark album names, so they were hard to read (apps/mobile/components/event/ThemeHeader.tsx only had light colours for Classic White and Sunlit Portrait). (2) The photo viewer treated Confetti as a dark theme, so its counter, close button and Like / Comment / Share / Download row were white on the light background (the light-theme list in apps/mobile/components/PhotoViewer.tsx).
-How to reproduce: In the app, open a Confetti Circle gallery with albums. Tap COLLECTIONS: the menu is dark green with hard-to-read names. Tap a photo: the buttons along the bottom are almost invisible.
-Fixed in: 6804a08b (2026-11-07). The Collections menu uses the page's paper colour, a thin ink border and a pink tint on the open album; Confetti is in the viewer's list of light themes, so its controls are dark on light. Other themes unchanged. Checked on the iPhone 17 Pro simulator (dev build on a local bundler with this commit, gallery "samarth weds Jyoti"): the menu's album names read clearly and the viewer's counter, close button and bottom row show dark. Device test #203 step 10.
-
-#256
-Listed: 2026-11-07
-Platform: Website
-Priority: Low
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Building the app's Couple sheet, todo #12 step 2 (chat 2026-11-07); found by reading the code, not yet seen in a browser
-Issue: In the website's edit mode, clearing both sides of Confetti Circle's couple and pressing Save removes the couple from the database, but the page keeps showing the old names until it is reloaded. The save stores the event's theme content as returned (without the removed "couple" block), and the page merges it over the loaded event's theme content (applyGalleryDraft in shared/guestEdit/draft.ts spreads the saved blocks over the old ones), so the old block stays. The website doesn't reload the page after Save. The app's save (apps/mobile/components/event/guestEdit/useGuestEdit.ts, step 4) names the block even when it was removed, so the app is not affected. Fix idea: do the same in saveGuestEdits (src/components/guestEdit/guestEditStore.ts): save themeContent as { ...result.content, [block]: result.content?.[block] }.
-How to reproduce: On staging (edit mode on), open a Confetti Circle gallery with a saved couple > Preview Guest Theme > Couple. Clear this side on both sides and Save. Expect: the section shows no names. Actual: the old names stay until you reload the page.
-Note 2026-11-07: the same bug was also found with device test #201 and is already fixed in 65238da8 (branch feat/guest-edit-mode, not on staging yet): move this entry to RECENTLY FIXED with "Fixed in: 65238da8" when that lands, and move Jira EB-154 to Done.
-Fixed in: 65238da8 (2026-11-07). saveGuestEdits now marks a block that is gone as undefined in the saved layer, so the page stops showing it; test in src/lib/guestEdit.test.ts. Recheck with device test #201 step 7 (RETEST).
-
-#254
-Listed: 2026-11-07
-Platform: App
-Priority: Medium
-Status: Fixed
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Testing the guest-page edit mode, todo #11 (chat 2026-11-07)
-Issue: Changing an event's theme in the app saves it on the main gallery only; the website's host page also saves it on every album. After a change in the app, the albums keep their old theme on the website (the app shows them in the new theme because it uses the main gallery's theme). Fix: handleUpdateTemplate in apps/mobile/app/events/[id].tsx now also saves the theme on every album of a main gallery, like src/app/(main)/host/page.tsx.
-How to reproduce: In the app, Host > a main gallery with albums > Design > Change Template > pick another theme. Open an album of it on the website: it still shows the old theme.
-Fixed in: 9dbddbed (2026-11-07). Device test #196.
-
-#248
-Listed: 2026-11-05
-Platform: Both
-Priority: Medium
-Status: Fixed
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Testing a transfer to shwetank.chauhan3@gmail.com (chat 2026-11-05)
-Issue: With an expired plan, Profile gives no sign of it where the user lands: the website's Overview tab and the app's Profile show the Storage card with the plan's full size and "7.2 GB free", while the backend allows only the 1 GB free allowance and refuses uploads. The notice is only on the website's Plans tab and the app's Plan & Usage page. Fix: a notice with Renew plan on Profile, and no meter or free space in the Storage card while expired.
-How to reproduce: Log in to an account with a past plan_end_date and open Profile.
-Fixed in: 7801688 (2026-11-05). Device test #190.
-
-#247
-Listed: 2026-11-05
-Platform: Website
-Priority: Low
-Status: Fixed
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Shwetank's screenshot of the Permissions list (chat 2026-11-05)
-Issue: The website's Permissions list shows "Unknown" as every member's date. src/app/(main)/host/page.tsx reads log.loginAt?.seconds, but login_at comes from the database as a date string, so seconds is always missing. All 15 guest rows checked have a login_at. Fix idea: read the string, and keep "Unknown" only when it's empty.
-How to reproduce: Host > any event with a member > Permissions. The line under the name ends in "Unknown".
-Fixed in: 9497016 (2026-11-05). Device test #189.
-
-#246
-Listed: 2026-11-05
-Platform: Both
-Priority: Medium
-Status: Fixed
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Shwetank's check of the member popup on staging (chat 2026-11-05)
-Issue: The Permissions member popup shows Username, Email ID and Phone Number as "Not set" for members with an account, even when their profile has them. getGuestProfile (src/lib/database.ts, apps/mobile/lib/database.ts) reads only name and photo from profile_cards when the guest row has a user_id, because other people's profiles won't be readable once RLS part 2 (#21) is on. Older guest rows without a user_id take the other path and still show the email. Fix idea: a backend route that returns the agreed details to the event's owner and admins only, for people on that event's guest list.
-How to reproduce: As newone@email.com open Host > wedding-fdd8 > Permissions > Shwetank Chauhan. Username and Email ID say "Not set", though the profile has both.
-Decision 2026-11-05 Shwetank: owners and admins see username and email only, never the phone.
-Fixed in: 7df379a (2026-11-05). Device test #188.
-
 #181
 Listed: 2026-10-29
 Platform: Both
@@ -1726,3 +1940,16 @@ Note 2026-11-12: LIVE on media.evebash.com (the user's OK). Deployed with the sw
 Note 2026-11-12: who this affects (checked in the code): the main case is a video that is still processing. Its photos.url is the original MP4 on media.evebash.com until the stream is ready, and both the app (apps/mobile/components/PhotoViewer.tsx, "Optimizing video quality...") and the website (HLSVideoPlayer) play that MP4 meanwhile, so iPhones could not play or seek it before this fix. All 74 processed videos use stream links and were never affected. The app has no MP4 fallback after that (nothing sets raw_url). EB Vault is NOT affected: its previews use signed B2 links, not media.evebash.com. The website shows "download the app" on phones (NEXT_PUBLIC_MOBILE_APP_GATE), so device test #211 now checks the iPhone app plus Mac Safari.
 Note 2026-11-12: checked with Apple's video engine on the Mac (AVFoundation, the same engine as the iPhone app's player): through a local copy of the worker with MEDIA_FORWARD_RANGE off, the test clip fails to load with -11850 "The server is not correctly configured" (underlying -12939), the error iPhones give; through the live worker it loads in about 4 s, plays and seeks to 18 s in about 1 s, fetching only the parts it needs. iOS Simulator Safari plays the live link. The in-app upload test (device test #211 steps 2-4) was not run: the simulator was being used by another session.
 Fixed in: 18b33116 (2026-11-12), live on media.evebash.com since 2026-11-12 (worker version 50650e04, MEDIA_FORWARD_RANGE "on", recorded in wrangler.toml in be739d4c). The worker passes the viewer's Range header to B2, allows Range in preflights and exposes Content-Range; Range requests still skip the edge cache. Checked: curl on the live worker (206 with the right bytes, 416 past the end, photos and whole files unchanged); Apple's video engine on the Mac (through the old worker the clip fails with -11850, through the live one it plays and seeks); and on the iOS Simulator (iPhone 17, staging code through local Metro, signed in as the test-face-new host): the app's player playing a video's original MP4 the way it does while a video is still processing ("Optimizing video quality..."). A real upload was refused by the host's plan storage limit (42.53 GB of 1 GB), so a temporary local code change pointed the player at the originals and was undone afterwards. The 30 s clip played to the end; the 1.94 GB, 48:40 PART-06 original opened in about 10 s, jumped to 34:15 and kept playing; normal stream playback is unchanged. Closed on the simulator result at the user's request (2026-11-12); a real iPhone and Mac Safari are not checked. Device test #211.
+
+#19
+Listed: 2026-10-09
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak
+Blocked by: -
+Found in: Access-request push work (2026-10-09)
+Issue: The EAS production build profile doesn't set EXPO_PUBLIC_API_BASE_URL (development and staging do). Uploads and the access-request push need it; confirm it's set in EAS environment settings before the first store build.
+How to reproduce: Check build.production.env in apps/mobile/eas.json and the EAS project's environment variables.
+Note 2026-11-16: the decision was made with todo #30: staging and live are fully separate and live has its own backend at https://api.evebash.com. Checked: apps/mobile/eas.json build.production.env.EXPO_PUBLIC_API_BASE_URL is that address, https://api.evebash.com/health answers 200, and the only staging fallback in apps/mobile/lib/storage.ts applies only when the variable is unset.
+Fixed in: 0703c5ec (2026-11-14). The production profile in apps/mobile/eas.json now sets EXPO_PUBLIC_API_BASE_URL to https://api.evebash.com (staging uses https://api-staging.evebash.com).

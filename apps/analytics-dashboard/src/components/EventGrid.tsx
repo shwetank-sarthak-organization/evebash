@@ -25,6 +25,7 @@ import {
   ChevronRight,
   ChevronDown,
   Layers,
+  Lock,
 } from 'lucide-react';
 
 interface Props {
@@ -32,6 +33,7 @@ interface Props {
   users: UserProfile[];
   guests: GuestLog[];
   photos: Photo[];
+  onVisibilityChange: (eventId: string, isPublic: boolean) => void;
 }
 
 interface GalleryDetailItem extends Event {
@@ -119,7 +121,7 @@ const getSubLetter = (index: number) => {
   return letter;
 };
 
-export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) => {
+export const EventGrid: React.FC<Props> = ({ events, users, guests, photos, onVisibilityChange }) => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'deleted'>('all');
   const [sortColumn, setSortColumn] = useState<SortColumn>('createdAt');
@@ -1066,10 +1068,23 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) =>
                             <span>Deleted / Ghost</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 text-emerald-300 text-[11px] font-bold">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                            <span>Active</span>
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 text-emerald-300 text-[11px] font-bold">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                              <span>Active</span>
+                            </span>
+                            {gallery.isPublic ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-sky-500/25 bg-sky-500/10 text-sky-300 text-[11px] font-bold" title="Anyone with the link can view">
+                                <Eye className="w-3 h-3 shrink-0" />
+                                <span>Public</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-slate-600/60 bg-slate-800/60 text-slate-300 text-[11px] font-bold" title="Guests need approval to view">
+                                <Lock className="w-3 h-3 shrink-0" />
+                                <span>Private</span>
+                              </span>
+                            )}
+                          </div>
                         )}
                       </td>
 
@@ -1408,6 +1423,7 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) =>
           initialGallery={viewingGallery}
           events={events}
           onClose={() => setViewingGallery(null)}
+          onVisibilityChange={onVisibilityChange}
         />
       )}
     </div>

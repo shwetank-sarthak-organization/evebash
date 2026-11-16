@@ -1225,7 +1225,12 @@ export default function PhotoViewer({
   };
 
   const handleDeleteComment = (commentId: string) => {
-    appAlert('Delete Comment', 'Are you sure you want to delete this comment?', [
+    // Same wording as the website: the database deletes a comment's replies with it
+    const hasReplies = comments.some((comment) => comment.parentId === commentId);
+    const message = hasReplies
+      ? 'Are you sure you want to delete this comment? Its replies will be deleted too.'
+      : 'Are you sure you want to delete this comment?';
+    appAlert('Delete Comment', message, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',

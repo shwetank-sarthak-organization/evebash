@@ -81,6 +81,7 @@ import {
     SlidersHorizontal,
     BookImage,
     Monitor,
+    Link2,
 } from "lucide-react";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -112,7 +113,6 @@ import {
 	    getEventFavouritePhotos,
 	    toggleEventFavouritePhoto,
 	    getFavouritePhotosForEvents,
-	    generateEventJoinId,
 	    openGallery,
 	    movePhotosToGallery,
 	    setGalleryHidden,
@@ -125,6 +125,7 @@ import {
 import { uploadEventImage, validateVideoFile } from "@/lib/storage";
 import { removeEventCover, uploadEventCover } from "@/lib/eventCoverUpload";
 import { eventDateInputValue } from "../../../../shared/text/eventDate";
+import { newEventJoinCode } from "../../../../shared/text/joinCode";
 import { comingSoonThemes, pickableThemes } from "../../../../shared/themes/activeThemes";
 import { clampCoverZoom, dragCoverFocus, focusToOffsets } from "../../../../shared/themes/coverFocus";
 import { coverImageStyle } from "@/lib/coverStyle";
@@ -1164,6 +1165,7 @@ function DashboardContent() {
     const [renamingEvent, setRenamingEvent] = useState<Event | null>(null);
     const [editDetailsMode, setEditDetailsMode] = useState<"title" | "date">("title");
     const [shareModalEvent, setShareModalEvent] = useState<Event | null>(null);
+    const [shareLinkCopied, setShareLinkCopied] = useState(false);
 
     const [showPlanDetailsModal, setShowPlanDetailsModal] = useState(false);
     const [newTitle, setNewTitle] = useState("");
@@ -1443,11 +1445,19 @@ function DashboardContent() {
         };
     }, [selectedMainEventId, selectedMainEventLegacyId, manageLevel]);
 
+    // Issue #172: counts fetchUserEvents calls so only the newest one saves its result
+    const userEventsRequestRef = useRef(0);
     const fetchUserEvents = async () => {
         if (!user || !user.uid) return;
-        setLoadingEvents(true);
         const type = (view === "main" || manageLevel === "events" || manageLevel === "event-details") ? "main" : "sub";
         const parentId = (view === "manage" && (manageLevel === "galleries" || manageLevel === "photos")) ? selectedMainEvent?.id : undefined;
+        // Issue #172: while a deep link is still opening, the event isn't known yet; asking for "sub-galleries of no
+        // event" returned an empty list that could replace the real one. Wait until the event is known.
+        if (type === "sub" && !parentId) return;
+        // Issue #172: this runs from several effects, so only the newest call may save its result
+        const requestId = ++userEventsRequestRef.current;
+        const isStale = () => requestId !== userEventsRequestRef.current;
+        setLoadingEvents(true);
 
         // Own events are always visible. Delegated owner events are scoped by roleType below.
         const ownIdentifiers = [user.uid];
@@ -1475,6 +1485,7 @@ function DashboardContent() {
             const sorted = combined.sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
 
             // Event managers only see events explicitly assigned to them.
+            if (isStale()) return;
             if (user.roleType === 'event') {
                 const assignedEvents = user.assignedEvents || [];
                 setUserEvents(sorted.filter(e =>
@@ -1493,6 +1504,7 @@ function DashboardContent() {
                     getApprovedSharedEventsForUser(ownIdentifiers, true),
                     getGuestLogs(identifiers),
                 ]);
+                if (isStale()) return;
                 setSharedEvents(approvedSharedEvents.sort((a, b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0)));
                 setTrafficLogs(logs);
             }
@@ -1511,6 +1523,7 @@ function DashboardContent() {
                 });
             }
 
+            if (isStale()) return;
             // Event managers only see events explicitly assigned to them.
             if (user.roleType === 'event') {
                 const assignedEvents = user.assignedEvents || [];
@@ -1522,7 +1535,7 @@ function DashboardContent() {
                 setUserEvents(combinedEvents);
             }
         }
-        setLoadingEvents(false);
+        if (!isStale()) setLoadingEvents(false);
     };
 
     const fetchEventPhotos = async () => {
@@ -2331,7 +2344,7 @@ function DashboardContent() {
                 createdBy: creatorUid,
                 type: isSubEvent ? "sub" : "main",
                 category: isSubEvent ? (selectedMainEvent.category || eventType) : eventType,
-                joinId: generateEventJoinId(eventId),
+                joinId: newEventJoinCode(),
                 ...(isSubEvent && { parentId: selectedMainEvent.id }),
                 templateId: isSubEvent ? (selectedMainEvent.templateId || "hero") : selectedTemplate
             };
@@ -3025,7 +3038,7 @@ function DashboardContent() {
     const ensureEventJoinId = async (eventToShare: Event) => {
         if (eventToShare.joinId) return eventToShare;
 
-        const joinId = generateEventJoinId(eventToShare.id);
+        const joinId = newEventJoinCode();
         const eventWithJoinId = { ...eventToShare, joinId };
         const saved = await updateEvent(eventToShare.id, { joinId });
         if (!saved) throw new Error("updateEvent returned false");
@@ -3055,7 +3068,7 @@ function DashboardContent() {
         if (!shareModalEvent) return;
 
         const url = getEventShareUrl(shareModalEvent.id);
-        const text = `Join our event "${shareModalEvent.title}" on EveBash!\nJoin ID: ${shareModalEvent.joinId || generateEventJoinId(shareModalEvent.id)}\nLink: ${url}`;
+        const text = `Join our event "${shareModalEvent.title}" on EveBash!\nJoin ID: ${shareModalEvent.joinId}\nLink: ${url}`;
 
         try {
             if (navigator.share) {
@@ -3075,6 +3088,24 @@ function DashboardContent() {
             }
         } catch (error) {
             console.error("Sharing failed:", error);
+        }
+    };
+
+    // Only the link, for a browser, a bio or a printed card (todo #34). Share Invitation sends the whole message.
+    const handleCopyShareLink = async () => {
+        if (!shareModalEvent) return;
+        try {
+            await navigator.clipboard.writeText(getEventShareUrl(shareModalEvent.id));
+            setShareLinkCopied(true);
+            setTimeout(() => setShareLinkCopied(false), 2000);
+        } catch (error) {
+            console.error("Copying the link failed:", error);
+            setMessage("Couldn't copy the link. Please use Share Invitation instead.");
+            setStatus("error");
+            setTimeout(() => {
+                setStatus("idle");
+                setMessage("");
+            }, 3000);
         }
     };
 
@@ -4029,7 +4060,8 @@ function DashboardContent() {
 
 
     const shareModalUrl = shareModalEvent ? getEventShareUrl(shareModalEvent.id) : "";
-    const shareModalJoinId = shareModalEvent?.joinId || (shareModalEvent ? generateEventJoinId(shareModalEvent.id) : "");
+    // handleShareEventLink saves a code before the modal opens
+    const shareModalJoinId = shareModalEvent?.joinId || "";
 
     return (
         <div className={cn(
@@ -6539,6 +6571,15 @@ function DashboardContent() {
                                 >
                                     <Share2 className="h-5 w-5" />
                                     <span>Share Invitation</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleCopyShareLink}
+                                    aria-live="polite"
+                                    className="mt-3 flex w-full items-center justify-center gap-3 rounded-full border border-[var(--site-gold)]/50 px-6 py-4 text-sm font-black uppercase tracking-wide text-[var(--site-gold-text)] transition-colors hover:bg-[var(--site-gold)]/10 active:scale-[0.98]"
+                                >
+                                    {shareLinkCopied ? <Check className="h-5 w-5" /> : <Link2 className="h-5 w-5" />}
+                                    <span>{shareLinkCopied ? "Link copied" : "Copy link"}</span>
                                 </button>
                             </motion.div>
                         </div>
