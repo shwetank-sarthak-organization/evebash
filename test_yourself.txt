@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 221
+Next test number: 222
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6389,6 +6389,38 @@ How to test:
   1. Website: sign in, open Dashboard, make the browser window about 1024 px wide. Expect: each box shows its
      label (Total Photos, Total Videos, Events Joined) and a plain number under it, nothing cut off with "...".
   2. Make the window wider (1280 px and more) and narrower (phone width). Expect: the numbers still fit.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#221 App (Android first): a phone only gets the pushes of the account signed in on it (#104)
+Status:    TODO
+Priority:  High (launch blocker, test first)
+Platform:  App (Android first, then iPhone)
+Brief:     A phone used to keep getting the pushes of every account that ever signed in on it, and an account's own
+           phone stopped getting pushes once it signed in somewhere else. Now signing in moves this phone's push
+           token to the new account and takes it off the others, and logging out takes it off the account.
+Detail:    Issue #104, commit 6d4fb5a1. App: apps/mobile/lib/notifications.ts and context/AuthContext.tsx (needs a new
+           staging build).
+           Backend: POST /api/v1/notifications/push-token on the staging API; switch PUSH_TOKEN_CLAIM=false turns it
+           off. The staging app needs its FCM V1 push key on expo.dev, or no push reaches the phone at all.
+           Use two accounts, A and B, and a third person (or the website) to make a push happen, for example a
+           request to join A's private gallery.
+How to test:
+  1. On the phone, sign in as A and allow notifications. Someone asks to join A's private gallery. Expect: the
+     "New access request" push arrives on this phone.
+  2. Log out, then sign in as B on the same phone. Someone asks to join A's private gallery again (wait 10 minutes
+     after step 1, or use another gallery). Expect: no push on this phone, because A is no longer signed in here.
+  3. Still signed in as B, someone asks to join B's private gallery. Expect: the push arrives on this phone.
+  4. Sign in as A on a second phone (or reinstall and sign in as A), then make a push for A. Expect: it arrives on
+     A's phone only, not on the phone signed in as B.
+  5. Log out and in a few times, and use the app normally. Expect: logging out is as quick as before.
 Done by:
 Device / browser:
 Build / version:
