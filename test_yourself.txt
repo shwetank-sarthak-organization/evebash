@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 223
+Next test number: 224
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6498,6 +6498,32 @@ How to test:
  10. As a guest, upload photos on a guest event page. Expect: no panel on that page (the pop-ups at the end are
      unchanged). Go to Dashboard while it uploads. Expect: the panel shows there.
  11. Switch Settings > Appearance between Light and Dark. Expect: the panel and the button are easy to read.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#223 App (Android, from Google Play): "Continue with Google" signs in (#18)
+Status:    TODO
+Priority:  High (launch blocker, test first)
+Platform:  App (Android, installed from Google Play)
+Brief:     Apps installed from Google Play are signed by Google's own key, which Google sign-in didn't know about, so
+           "Continue with Google" would fail with DEVELOPER_ERROR. That key is now registered (Firebase and Google
+           Cloud, 2026-11-16). This checks sign-in works in the real store-signed app.
+Detail:    Issue #18. Needs a release of EveBash (com.evebash.app) on a Play track, for example Internal testing (a
+           production EAS build; ask Shwetank first). This is the LIVE app and live database: use your own account.
+           USB, EAS and staging builds don't prove this; only a copy installed from Play does.
+How to test:
+  1. On an Android phone, install EveBash from the Play Store internal testing link (uninstall any other copy of
+     the live app first; EveBash Staging can stay).
+  2. Tap "Continue with Google" and pick your Google account. Expect: you are signed in and land on the Dashboard,
+     no "DEVELOPER_ERROR", "Something went wrong" or sign-in loop.
+  3. Log out and sign in with Google again. Expect: the account picker shows and sign-in works again.
 Done by:
 Device / browser:
 Build / version:

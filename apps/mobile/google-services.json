@@ -74,6 +74,14 @@
           }
         },
         {
+          "client_id": "71982315150-q878fe4n2ha5eh6mpkdout6d15b2mdln.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.evebash.app",
+            "certificate_hash": "71710525fbca729c4713153551f8b6b0e0ad8fdd"
+          }
+        },
+        {
           "client_id": "71982315150-f5rfe8cr2sido3l06v6sprlkju4siis2.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -109,6 +117,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "71982315150-eegf34jpj7rk1pfu45i4a6fm9qibuef0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.evebash.app.staging",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
         {
           "client_id": "71982315150-f5rfe8cr2sido3l06v6sprlkju4siis2.apps.googleusercontent.com",
           "client_type": 3
