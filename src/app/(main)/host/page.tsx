@@ -940,7 +940,9 @@ function DashboardContent() {
     const [, startTransition] = useTransition();
 
     // Upload queue, panel and leave warning live in UploadProvider so they survive page changes
-    const { uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady, onUploadCancelled, runDeletes, deletingIds } = useUploads();
+    const { uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady, onUploadCancelled, runDeletes, deletingIds, runUploadSet, pendingUploadBytes } = useUploads();
+    // Files still waiting or sending: the Add tile stays usable and says new files will wait their turn (issue #169)
+    const isSendingUploads = uploadQueue.some(item => item.status === "pending" || item.status === "uploading");
 
     // Helper: show loading screen briefly, then navigate
     const navigateTo = (url: string, message?: string) => {
@@ -2415,19 +2417,21 @@ function DashboardContent() {
             }
         }
 
+        const estimatedUploadSize = (file: File) => {
+            const isVideo = file.type.startsWith("video/") || ["mp4", "mov", "avi", "mkv", "webm", "m4v"].includes(file.name.split('.').pop()?.toLowerCase() || "");
+            // For videos, factor in ~35% overhead for adaptive bitrate HLS streaming chunks (.ts files)
+            return isVideo ? Math.round(file.size * 1.35) : file.size;
+        };
+        const selectedUploadSize = selectedFiles.reduce((total, file) => total + estimatedUploadSize(file), 0);
+
         // --- ROLE-BASED LIMITS: Storage Cap ---
         if (user.role !== "admin" && !user.delegatedBy) {
             const currentPlan = getPlanDetails(user.role);
             const identifiers = [user.uid];
             if (user.email) identifiers.push(user.email);
             if (user.phone) identifiers.push(user.phone);
-            const currentUsage = await getUserTotalStorage(identifiers);
-            const selectedUploadSize = selectedFiles.reduce((total, file) => {
-                const isVideo = file.type.startsWith("video/") || ["mp4", "mov", "avi", "mkv", "webm", "m4v"].includes(file.name.split('.').pop()?.toLowerCase() || "");
-                // For videos, factor in ~35% overhead for adaptive bitrate HLS streaming chunks (.ts files)
-                const estimatedSize = isVideo ? Math.round(file.size * 1.35) : file.size;
-                return total + estimatedSize;
-            }, 0);
+            // Files of earlier sets that are still waiting or sending count too (issue #169)
+            const currentUsage = await getUserTotalStorage(identifiers) + pendingUploadBytes.current;
 
             if (currentUsage >= currentPlan.storageBytes) {
                 setMessage(`You've reached your ${currentPlan.storageLabel} storage limit. Upgrade your plan for more storage.`);
@@ -2463,6 +2467,11 @@ function DashboardContent() {
         setUploadQueue(prev => [...prev, ...newQueueItems]);
         showUploadPanel();
 
+        // A set picked while another is still sending waits for it (its files show "Queued..."), issue #169
+        const uploadEventId = selectedEventId;
+        let unsentBytes = selectedUploadSize;
+        pendingUploadBytes.current += unsentBytes;
+        await runUploadSet(async () => {
         setStatus("uploading");
         setMessage(`Uploading ${selectedFiles.length} ${uploadKind === "videos" ? "videos" : "images"}...`);
         console.log(`[Dashboard] Starting auto-upload for ${selectedFiles.length} files to event ${selectedEventId}`);
@@ -2537,8 +2546,9 @@ function DashboardContent() {
                         savedItems
                             .filter(item => item.photo.mediaType === "video" || item.photo.resourceType === "video")
                             .forEach(item => options?.onVideoSaved?.(item.photo.id));
-                        // Immediately prepend new photos to grid state (videos stay hidden until backend transcode completes)
-                        setCurrentEventPhotos(prev => {
+                        // Immediately prepend new photos to grid state (videos stay hidden until backend transcode completes),
+                        // only while the host is still looking at the gallery they went to
+                        if (selectedEventIdRef.current === uploadEventId) setCurrentEventPhotos(prev => {
                             const newPhotos = savedItems
                                 .filter(item => {
                                     const isVideo = item.photo.mediaType === "video" || item.photo.resourceType === "video";
@@ -2670,6 +2680,9 @@ function DashboardContent() {
                     }
                 } finally {
                     uploadControllers.current.delete(queueItemId);
+                    const sentBytes = estimatedUploadSize(file);
+                    unsentBytes -= sentBytes;
+                    pendingUploadBytes.current = Math.max(0, pendingUploadBytes.current - sentBytes);
                     activeCount--;
                     completedCount++;
 
@@ -2723,12 +2736,17 @@ function DashboardContent() {
                 setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
             }
             fetchUserEvents();
-            fetchEventPhotos();
+            // A queued set can finish after the host moved to another gallery; don't load this one's photos over it
+            if (selectedEventIdRef.current === uploadEventId) fetchEventPhotos();
         } catch (err: any) {
             console.error("[Dashboard] Auto-upload error:", err);
             setStatus("error");
             setMessage(`Upload failed: ${err.message || 'Unknown error'}`);
+        } finally {
+            // Whatever wasn't sent (an early error) no longer waits
+            pendingUploadBytes.current = Math.max(0, pendingUploadBytes.current - Math.max(0, unsentBytes));
         }
+        });
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2741,17 +2759,13 @@ function DashboardContent() {
     const handleGalleryDrag = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.stopPropagation();
-        if (status !== "uploading") {
-            setIsDraggingPhotos(e.type === "dragenter" || e.type === "dragover");
-        }
+        setIsDraggingPhotos(e.type === "dragenter" || e.type === "dragover");
     };
 
     const handleGalleryDrop = async (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.stopPropagation();
         setIsDraggingPhotos(false);
-
-        if (status === "uploading") return;
 
         const expectedPrefix = galleryMediaTab === "videos" ? "video/" : "image/";
         const droppedFiles = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith(expectedPrefix));
@@ -5686,7 +5700,7 @@ function DashboardContent() {
                                                 layout
                                                 className={cn(
                                                     "group relative flex aspect-square cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-3 text-center transition-colors",
-                                                    status === "uploading" ? "border-[var(--site-gold)] bg-[var(--site-gold)]/5" : "border-[var(--site-gold)]/55 bg-[var(--site-surface)]/50 hover:border-[var(--site-gold)] hover:bg-[var(--site-surface)]/70"
+                                                    isSendingUploads ? "border-[var(--site-gold)] bg-[var(--site-gold)]/5" : "border-[var(--site-gold)]/55 bg-[var(--site-surface)]/50 hover:border-[var(--site-gold)] hover:bg-[var(--site-surface)]/70"
                                                 )}
                                                 title="Click to select photos to upload"
                                             >
@@ -5696,23 +5710,18 @@ function DashboardContent() {
                                                     accept={galleryMediaTab === "videos" ? "video/*" : "image/*"}
                                                     onChange={handleFileUpload}
                                                     className="hidden"
-                                                    disabled={status === "uploading"}
                                                 />
-                                                {status === "uploading" ? (
-                                                    <div className="flex flex-col items-center text-sky-400 light:text-sky-700">
-                                                        <Loader2 className="w-10 h-10 animate-spin mb-3" />
-                                                        <span className="text-sm font-semibold">Adding...</span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col items-center gap-4 text-[var(--site-text)] transition-colors group-hover:text-[var(--site-text)]">
-                                                        <span className="grid h-14 w-14 place-items-center rounded-2xl border border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10 text-[var(--site-gold-light-text)] shadow-[0_0_28px_rgba(202,156,104,0.35)] transition-all group-hover:bg-[var(--site-gold)]/20 group-hover:shadow-[0_0_36px_rgba(202,156,104,0.5)] sm:h-16 sm:w-16">
-                                                            <Plus className="h-7 w-7 sm:h-8 sm:w-8" />
-                                                        </span>
-                                                        <span className="text-sm font-medium sm:text-base">
-                                                            {galleryMediaTab === "videos" ? "Add or Drop Videos" : "Add or Drop Photos"}
-                                                        </span>
-                                                    </div>
-                                                )}
+                                                <div className="flex flex-col items-center gap-4 text-[var(--site-text)] transition-colors group-hover:text-[var(--site-text)]">
+                                                    <span className="grid h-14 w-14 place-items-center rounded-2xl border border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10 text-[var(--site-gold-light-text)] shadow-[0_0_28px_rgba(202,156,104,0.35)] transition-all group-hover:bg-[var(--site-gold)]/20 group-hover:shadow-[0_0_36px_rgba(202,156,104,0.5)] sm:h-16 sm:w-16">
+                                                        <Plus className="h-7 w-7 sm:h-8 sm:w-8" />
+                                                    </span>
+                                                    <span className="text-sm font-medium sm:text-base">
+                                                        {isSendingUploads
+                                                            ? (galleryMediaTab === "videos" ? "Add More Videos" : "Add More Photos")
+                                                            : (galleryMediaTab === "videos" ? "Add or Drop Videos" : "Add or Drop Photos")}
+                                                    </span>
+                                                    {isSendingUploads && <span className="-mt-2 text-xs text-[var(--site-muted)]">They wait until the current upload is sent</span>}
+                                                </div>
                                             </motion.label>}
 
                                             {/* Existing Photos Grid */}
@@ -5912,7 +5921,7 @@ function DashboardContent() {
                                             {!isFavouriteFilterActive && (galleryMediaTab !== "videos" || canPostVideos) && <motion.label
                                                 className={cn(
                                                     "flex items-center p-5 sm:p-6 border-2 border-dashed rounded-2xl cursor-pointer transition-colors group",
-                                                    status === "uploading" ? "border-[var(--site-gold)] bg-[var(--site-gold)]/5" : "border-[var(--site-gold)]/55 bg-[var(--site-surface)]/50 hover:border-[var(--site-gold)] hover:bg-[var(--site-surface)]/70"
+                                                    isSendingUploads ? "border-[var(--site-gold)] bg-[var(--site-gold)]/5" : "border-[var(--site-gold)]/55 bg-[var(--site-surface)]/50 hover:border-[var(--site-gold)] hover:bg-[var(--site-surface)]/70"
                                                 )}
                                             >
                                                 <input
@@ -5921,21 +5930,18 @@ function DashboardContent() {
                                                     accept={galleryMediaTab === "videos" ? "video/*" : "image/*"}
                                                     onChange={handleFileUpload}
                                                     className="hidden"
-                                                    disabled={status === "uploading"}
                                                 />
                                                 <div className="mr-5 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[var(--site-gold)]/70 bg-[var(--site-gold)]/10 text-[var(--site-gold-light-text)] shadow-[0_0_24px_rgba(202,156,104,0.3)] transition-all group-hover:bg-[var(--site-gold)]/20 sm:mr-6">
-                                                    {status === "uploading" ? (
-                                                        <Loader2 className="w-6 h-6 text-sky-400 light:text-sky-700 animate-spin" />
-                                                    ) : (
-                                                        <Plus className="w-6 h-6" />
-                                                    )}
+                                                    <Plus className="w-6 h-6" />
                                                 </div>
                                                 <div>
                                                     <p className="font-bold text-[var(--site-text)]">
                                                         {galleryMediaTab === "videos" ? "Add New Videos" : "Add New Photos"}
                                                     </p>
                                                     <p className="text-sm text-[var(--site-muted)]">
-                                                        {galleryMediaTab === "videos" ? "Click to upload videos, or drag them here" : "Click to upload memories, or drag images here"}
+                                                        {isSendingUploads
+                                                            ? "Uploading now. Files you add wait until the current upload is sent."
+                                                            : galleryMediaTab === "videos" ? "Click to upload videos, or drag them here" : "Click to upload memories, or drag images here"}
                                                     </p>
                                                 </div>
                                             </motion.label>}

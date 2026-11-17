@@ -69,6 +69,14 @@ interface UploadContextType {
     runDeletes: (items: Omit<DeleteQueueItem, "status">[], deleteOne: (id: string) => Promise<boolean>) => Promise<Set<string>>;
     /** Ids being deleted right now, so the gallery can show "Deleting..." over them */
     deletingIds: Set<string>;
+    /**
+     * Runs upload sets one after another (issue #169): a set picked while another is still sending waits its turn
+     * ("Queued..." in the panel) instead of being refused or sending next to it. Lives here, not on the host page,
+     * so leaving the page and coming back doesn't start a second line of uploads.
+     */
+    runUploadSet: (task: () => Promise<void>) => Promise<void>;
+    /** Estimated bytes of files picked but not sent yet, so the storage check of a new set counts them too */
+    pendingUploadBytes: React.MutableRefObject<number>;
 }
 
 const UploadContext = createContext<UploadContextType | undefined>(undefined);
@@ -97,6 +105,14 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     const [isUploadPanelMinimized, setIsUploadPanelMinimized] = useState(false);
     const [indexingStatus, setIndexingStatus] = useState<IndexingStatus | null>(null);
     const uploadQueueRef = useRef<UploadQueueItem[]>([]);
+    const uploadChain = useRef<Promise<void>>(Promise.resolve());
+    const pendingUploadBytes = useRef(0);
+    const runUploadSet = useCallback((task: () => Promise<void>) => {
+        const run = uploadChain.current.then(task);
+        // A set that fails must not stop the ones queued after it
+        uploadChain.current = run.catch(() => {});
+        return run;
+    }, []);
     const videoReadyListeners = useRef(new Set<VideoReadyListener>());
     const [deleteQueue, setDeleteQueue] = useState<DeleteQueueItem[]>([]);
     const [isDeletePanelMinimized, setIsDeletePanelMinimized] = useState(false);
@@ -324,7 +340,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <UploadContext.Provider value={{ uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady, onUploadCancelled, runDeletes, deletingIds }}>
+        <UploadContext.Provider value={{ uploadQueue, setUploadQueue, uploadControllers, showUploadPanel, onVideosReady, onUploadCancelled, runDeletes, deletingIds, runUploadSet, pendingUploadBytes }}>
             {children}
 
             {/* Upload and delete panels share the bottom-right corner, the delete panel above */}
