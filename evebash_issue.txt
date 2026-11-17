@@ -923,12 +923,13 @@ How to reproduce: App, pick 10 photos to upload; while they upload, tap Add Phot
 Listed: 2026-10-28
 Platform: Website
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: Device test #96 (RETEST) on staging, then the release
 Found in: Device test #96, Claude run on staging (2026-10-28)
 Issue: After deleting several photos with Filter > Select > Delete in the host gallery view, the photos disappear from the grid but the tab label keeps the old count ("Photos (3)" with 1 photo left). Test #96 step 3 expects the Photos / Videos counts to go down. The count comes from currentEventMediaCounts in src/app/(main)/host/page.tsx, which the bulk delete doesn't update. Fix idea: lower currentEventMediaCounts by the number of deleted photos and videos (or re-fetch the counts) when the bulk delete finishes.
 How to reproduce: Host -> an event -> a test sub-gallery with 3 photos -> Filter -> Select -> pick 2 -> Delete -> Delete. The grid shows 1 photo; the tab still says "Photos (3)".
+Update 2026-11-17: fixed in 22759ffb (on staging). src/app/(main)/host/page.tsx lowerMediaCounts lowers the Photos (n) / Videos (n) tab counts after the single delete, the Select > Delete bulk delete (only the items that were really deleted) and Move to another gallery (except on Home, which still lists moved items). Device test #96 set to RETEST.
 
 #174
 Listed: 2026-10-28

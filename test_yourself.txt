@@ -2324,7 +2324,7 @@ Fix ref:   913ef3ec (2026-11-12), issue #176: opening Source gallery on Home loa
 Feedback: Steps 1, 7 PASS: only a Filter button left of the grid/list toggle; panel has Source gallery, Uploaded by and Select; Escape closes it. Step 2 FAILS: Source gallery only offers "All galleries (17)" and "Home (Primary Gallery) (17)" while the tab says Photos (42); sub-galleries are missing because counts use only the photos loaded so far. Issue #176. PASS 2026-11-12 (Shwetank with Claude, retest after 913ef3ec): gallery Asha and Raj, Home, Photos tab (24 items, more than one page of 20), before scrolling: Source gallery lists All galleries (24), Home (14), Rec 1 (5), Reception 5 (3), REc 10 (2), matching the database; picking Rec 1 shows its 5 photos with a "1" badge. Steps 3-9 pass on desktop and phone browser. Note: on Home the Source gallery counts cover what Home shows (its own uploads plus favourites from sub-galleries), not each sub-gallery's full size.
 
 #96 Host gallery: delete several photos and videos at once
-Status:    FAIL
+Status:    RETEST (staging PASS 2026-11-17; live check after the release)
 Priority:  High
 Platform:  Website (desktop browser)
 Brief:     The selection bar (Filter > Select) now has a red Delete button. It asks first, then deletes every
@@ -2345,8 +2345,9 @@ Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
 Date tested: 2026-10-28
 Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
-Fix ref:
+Fix ref:   22759ffb (issue #173): the Photos/Videos tab counts now go down after a delete (one or several) and after moving items to another gallery.
 Feedback: Select all, deselect one, Delete -> "Delete 2 photos?" -> Delete: the 2 photos go away from the grid, but the tab still says "Photos (3)" with 1 photo left (step 3 expects the count to go down). Issue #173. Video, guest page and storage steps not checked.
+Retest 2026-11-17 (Shwetank, Mac Chrome, staging 22759ffb): deleted 2 with Select > Delete, then 1 on its own, moved 1 to another gallery, refreshed: the Photos (n) count went down each time and stayed right after the refresh. Pass on staging.
 
 #97 Photo pipeline v2: website bulk upload
 Status:    PASS
@@ -6562,7 +6563,7 @@ Fix ref:
 Feedback:  Steps 1-5 and 7 passed (Shwetank). Claude also checked logged out in its browser: bar on screen at once and stays, hides while zoomed, back after zoom out and on next photo, Like shows "Log in to continue". Gallery used: test-event-staging-iczui, made public for the test and set back to private afterwards. Step 6 (phones) not possible on staging (phones there get the app screen). Live after release PR #13 (853c4346): Claude saw the bar on screen after 7 s on www.evebash.com (Demo Wedding, logged out); Shwetank checked Android Chrome and iPhone Safari (private tabs, logged out) on live 2026-11-17: pass.
 
 #225 Website: Share window warns when the event is Private and can make it public
-Status:    TODO (staging steps 1-5 PASS; step 7 live + phones after the release)
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Brief:     New events start Private, so a shared link shows guests "This gallery is private". The Share
@@ -6581,9 +6582,9 @@ How to test:
      Safari), checking the box fits the screen.
 Done by:   Shwetank
 Device / browser: Mac, Chrome (host logged in) + incognito (guest)
-Build / version: staging c53ee000
+Build / version: staging c53ee000; live fdf541d8 (PR #14)
 Date tested: 2026-11-17
 Account used: staging host account; logged out for step 5
 Screenshot / recording:
 Fix ref:
-Feedback:  Steps 1-5 pass on staging (Shwetank, 2026-11-17). Step 6 not reported. Step 7 waits for the release.
+Feedback:  Steps 1-5 pass on staging (Shwetank, 2026-11-17). Step 6 not reported. Live after PR #14 (fdf541d8): Claude found the new box in the live host page code; Shwetank checked step 7 on www.evebash.com on the computer and phones (Android Chrome, iPhone Safari) 2026-11-17: pass.

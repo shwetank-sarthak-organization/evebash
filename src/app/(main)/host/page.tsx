@@ -3404,6 +3404,14 @@ function DashboardContent() {
         mediaType: (photo.mediaType === "video" || photo.resourceType === "video" ? "video" : "photo") as "photo" | "video",
     });
 
+    // The Photos (n) / Videos (n) tabs: lower them for items that left this gallery (deleted or moved out), issue #173
+    const lowerMediaCounts = (removed: { mediaType: "photo" | "video" }[]) => {
+        const videos = removed.filter(item => item.mediaType === "video").length;
+        const photos = removed.length - videos;
+        if (photos === 0 && videos === 0) return;
+        setCurrentEventMediaCounts(prev => ({ photos: Math.max(0, prev.photos - photos), videos: Math.max(0, prev.videos - videos) }));
+    };
+
     const handleDeletePhoto = async (photoId: string) => {
         const photo = currentEventPhotos.find(p => p.id === photoId);
         const entry = photo ? deleteQueueEntry(photo) : { id: photoId, name: "Photo", mediaType: "photo" as const };
@@ -3411,6 +3419,7 @@ function DashboardContent() {
             const deleted = await runDeletes([entry], deletePhoto);
             if (deleted.has(photoId)) {
                 setCurrentEventPhotos(prev => prev.filter(p => p.id !== photoId));
+                lowerMediaCounts([entry]);
                 setStatus("success");
                 setMessage(entry.mediaType === "video" ? "Video deleted." : "Photo deleted.");
                 setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
@@ -3440,6 +3449,7 @@ function DashboardContent() {
         const deletedIds = await runDeletes(entries, deletePhoto);
 
         setCurrentEventPhotos(prev => prev.filter(photo => !deletedIds.has(photo.id)));
+        lowerMediaCounts(entries.filter(entry => deletedIds.has(entry.id)));
         const failed = items.length - deletedIds.size;
         if (failed === 0) {
             setStatus("success");
@@ -3484,6 +3494,7 @@ function DashboardContent() {
         setCurrentEventPhotos(prev => isPrimaryGalleryView
             ? prev.map(item => movedIds.has(item.id) ? { ...item, eventId: targetGalleryId } : item)
             : prev.filter(item => !movedIds.has(item.id)));
+        if (!isPrimaryGalleryView) lowerMediaCounts(mediaToMove.map(deleteQueueEntry));
         setMediaToMove(null);
         exitMediaSelection();
         setStatus("success");
