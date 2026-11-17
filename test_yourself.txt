@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 224
+Next test number: 225
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6532,3 +6532,31 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback:
+--------------------------------------------------------------------------------
+#224 Website: logged-out guests see the photo viewer's action bar without moving the mouse
+Status:    PASS
+Priority:  Medium
+Platform:  Website
+Brief:     A logged-out visitor of a public gallery opened a photo and saw only play, zoom and close: the bar
+           with Like, Comments, Share, Download and Full screen appeared only while the mouse was near the
+           bottom (about 4 s), so most guests never found it (Shwetank, Safari, 2026-11-17). It now stays on
+           screen for logged-out visitors, except while zoomed or in a slideshow (PageFlipViewer.tsx).
+           Logged-in viewers are unchanged.
+How to test:
+  1. Computer, logged OUT (Chrome incognito or Safari private): open a public gallery on staging.evebash.com,
+     click a photo. Expect: the action bar is at the bottom straight away, without moving the mouse.
+  2. Click Like, Comments and Download. Expect: each asks you to log in. Share opens the share options.
+  3. Click the zoom (magnifier) button. Expect: the bar hides while zoomed and comes back after zooming out.
+  4. Start the slideshow (play). Expect: the bar hides during the slideshow.
+  5. Use the arrows to move to the next photo and to a video. Expect: the bar stays; the video still plays.
+  6. Phone (Android Chrome and iPhone Safari, logged out): same as 1-2. Expect: the bar is visible and does
+     not hide the important part of the photo.
+  7. Logged IN on the computer: open a photo. Expect: the same view as before (side panel with comments).
+Done by:   Shwetank (with Claude)
+Device / browser: Mac, Chrome incognito / Safari private (logged out), then logged in
+Build / version: staging 0198f9fb (website)
+Date tested: 2026-11-17
+Account used: logged out (guest); host account for step 7
+Screenshot / recording:
+Fix ref:
+Feedback:  Steps 1-5 and 7 passed (Shwetank). Claude also checked logged out in its browser: bar on screen at once and stays, hides while zoomed, back after zoom out and on next photo, Like shows "Log in to continue". Gallery used: test-event-staging-iczui, made public for the test and set back to private afterwards. Step 6 (phones) not possible on staging (phones there get the app screen); check it on live after the next release.

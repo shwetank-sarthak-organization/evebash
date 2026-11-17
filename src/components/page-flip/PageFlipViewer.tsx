@@ -478,7 +478,9 @@ export function PageFlipViewer({
           showDownload={showDownload}
           showFullscreen={showFullscreen}
           showFindYou={showFindYou}
-          visible={!isImmersiveCoverFlow || showImmersiveSocial}
+          // Logged-out guests keep the bar (like, comment, share, download) on screen: hidden until the mouse
+          // moves, most never found it. Zoom and slideshow still clear the photo.
+          visible={!isImmersiveCoverFlow || showImmersiveSocial || (!!onRequireLogin && !zoomed && !slideshow)}
           immersive={isImmersiveCoverFlow}
           commentsMode={commentsMode}
           zoomed={zoomed}

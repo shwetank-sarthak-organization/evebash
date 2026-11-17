@@ -496,6 +496,7 @@ Blocked by: App launch (app live on Google Play and the App Store)
 Found in: Chat with Sarthak about sending phone visitors to the app (2026-10-23)
 Issue: The phone/tablet "Get the EveBash app" screen (src/components/MobileAppGate.tsx, rules in src/lib/appGate.ts, commits 7b51ef0 and b227345) is only on for staging.evebash.com: NEXT_PUBLIC_MOBILE_APP_GATE=true is set in Vercel for Preview (staging branch) only. www.evebash.com still shows the normal website on phones, and both sites' store buttons say "coming soon" because the store links are empty. At launch: (1) in Vercel > Settings > Environment Variables, add for Production (type Config): NEXT_PUBLIC_MOBILE_APP_GATE=true, NEXT_PUBLIC_PLAY_STORE_URL=<Play Store page> and NEXT_PUBLIC_APP_STORE_URL=<App Store page>; add the two store links for Preview too. (2) Redeploy production (the values are read at build). (3) Run device test #123 on www.evebash.com (iPhone, iPad, Android phone and tablet, payment on Pricing, password reset from a phone, Google URL Inspection). Optional: NEXT_PUBLIC_OPEN_IN_APP_BANNER=true turns on the small "Get the app" bar for the pages that stay open on phones (device test #122). App Links / Universal Links stay in #67.
 How to reproduce: Open https://www.evebash.com on a phone: the normal website shows, not the download screen.
+Update 2026-11-17 (Shwetank with Claude): the issue text was out of date. The live Vercel project (evebash-production, made in todo #30) had NEXT_PUBLIC_MOBILE_APP_GATE=true for Production (set about 2026-10-23), so on live every phone/tablet page except login, pricing, profile, contact and policies (home, sample galleries, event and gallery links, Find You) showed "Get the EveBash app" with both store buttons "coming soon": guests could not see any gallery on a phone. Found while checking the Demo Wedding sample gallery on the iPhone simulator. With Shwetank's OK the setting was removed from evebash-production and live rebuilt (evebash-production-docxbyahq): iPhone pages no longer carry the gate script, and the iPhone simulator shows the sample galleries page. Staging (evebash-staging) still has it on. At app launch: set it again on evebash-production with the two store links, as in the steps above.
 
 #111
 Listed: 2026-10-23
@@ -750,20 +751,6 @@ Found in: Device test #128 on the iOS simulator (2026-10-24)
 Issue: In the app's video viewer you can't seek: the progress bar (dashboardVideoProgressTrack in apps/mobile/components/PhotoViewer.tsx) only shows progress and has no touch handling, the buttons next to play are previous/next media, and the 5-second jump (seekBy, videoControlsRef) is defined but nothing calls it. On a 48-minute wedding video, guests can only watch from the start. The website player seeks fine. There is also no manual quality choice in the app (iOS picks it), which is fine. Fix: make the progress bar draggable/tappable (player.currentTime = fraction * duration) and/or add -10 s / +10 s buttons; check on iPhone and Android.
 How to reproduce: In the app, open any video in a gallery, play it, tap or drag the progress bar: playback position doesn't change.
 Fix (app, not in a build yet): apps/mobile/components/PhotoViewer.tsx: the progress bar is now a seek bar (tap or drag; a 20 px tall touch area around the 3 px bar, a thumb shows while dragging and the time follows the finger), plus -10 s / +10 s buttons beside play (icons gobackward.10 / goforward.10 added to icon-symbol.tsx), and the bar is adjustable for VoiceOver (swipe up/down = +/-10 s). On iOS a sideways drag anywhere is the "go back" gesture, so the gallery screen's swipe-back is switched off while a video viewer with these controls is open and back on when it closes. Checked in the iOS simulator (dev build from this branch, test_5 in test-face-new-155c): tap mid-bar 0:00 -> 24:20, +10 s 24:20 -> 24:30, drag to the right 46:06 and played from there; the screen no longer slides away while dragging. Android not checked. Device test #138.
-
-#137
-Listed: 2026-10-25
-Platform: Both
-Priority: High
-Status: Open
-Owner: Shwetank (with Claude)
-Blocked by: release day (set the three switches on the live server together with the staging -> main release)
-Found in: launch-config review after #120-#124 and #121 (2026-10-25)
-Issue: The new backend switches are only set on the staging Railway service (api-staging.evebash.com). The production service (api.evebash.com, Railway qa264myg) has none of them, so after launch rotate would again keep stale copies (#123) and turn phone photos the wrong way (#124), and rotate wouldn't make grid images (#121).
-Fix: On the production Railway service set ROTATE_VERSIONED_LINKS=true (#123), ROTATE_UPRIGHT_FIRST=true (#124) and GRID_VARIANT=true (#121), after their device tests (test_yourself #130, #131, #135) pass. Already done elsewhere: Vercel Production has NEXT_PUBLIC_GRID_HIRES=true (on with the next release from main); the Cloudflare media cache and the Modal "grid" switch are shared by staging and production. Optional at the same time: delete the leftover Cloudflare DNS record media.evebash.com.evebash.com (old media-proxy custom domain, serves nothing).
-How to reproduce: Railway > production backend service > Variables: the three names are missing.
-Update 2026-11-15: owner changed from Sarthak to Shwetank (with Claude); done as part of the next release to live, after the RLS lockdown (#21).
-Update 2026-11-16: device tests #130, #131 and #135 PASS on staging (Shwetank). Ready for live: ROTATE_VERSIONED_LINKS=true, ROTATE_UPRIGHT_FIRST=true, GRID_VARIANT=true on evebash-api-production-backend, plus the live Modal switch grid (issue #281), on release day.
 
 #138
 Listed: 2026-10-25
@@ -1528,25 +1515,13 @@ Issue: Deleting an event in the app runs the B2 file cleanup twice ("[deleteEven
 Fix idea: find why deleteEvent's cleanup runs twice (double tap, or the confirm handler/effect firing twice) and run it once; treat "already deleted" from /api/media/delete as success instead of trying other endpoints; delete the guest preview picture before the event row.
 How to reproduce: Android USB build on staging, host deletes an event that has photos in a sub-gallery and the Home gallery; watch the Metro log and the screen.
 
-#281
-Listed: 2026-11-16
-Platform: Both
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Check of #101 with Sarthak (2026-11-16)
-Issue: The live Modal photo-pipeline-switch (read by modal_engine/main.py) lost its "face_filter" and "grid" keys at some point after 2026-10-24; it only held mode v2 and v2_events ['test-v2-358c']. Cause unknown (probably the Dict was reset or recreated; a Modal Dict has no key history). Effect: new photos saved every face until face_filter was set again on 2026-11-16 (#101), and the grid image (#121, "<file>-grid.webp", set for test-v2-358c on 2026-10-24) is no longer made. Staging Modal's switch (created 2026-11-14) also has only mode v2.
-Fix idea: (1) find when and why the keys went (Modal logs, anyone who ran photo_pipeline_switch.py or deleted the Dict); (2) check whether #121 was rolled out beyond test-v2-358c and whether the website still needs the grid images, then set "grid" again with `photo_pipeline_switch.py grid add <gallery id>` / `grid all` if so; (3) keep the intended switch values in a tracked note so a reset can be spotted: run `photo_pipeline_switch.py show` and compare.
-How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switch.py show (read-only); it should list a face filter and, for test-v2-358c, a grid image.
-
 #284
 Listed: 2026-11-16
 Platform: Both
 Priority: Medium
 Status: In progress
 Owner: Shwetank (with Claude)
-Blocked by: live: release day (backend + website via main, Modal with #269)
+Blocked by: live Modal publish with Sarthak (#269)
 Found in: Security review after the RLS lockdown (issue #21) and #282, 2026-11-16 (read-only; status codes only, no data downloaded)
 Issue: Four small gaps left after the October audit (none lets anyone read photos or change data):
  1. Modal process_media_batch (modal_engine/main.py) doesn't check the QStash signature, unlike every other Modal web address. Anyone with its URL and real photo ids could restart processing of photos stuck as pending/failed (cost, not data). The backend reaches it only through QStash (apps/backend/src/qstash.ts), so adding verify_qstash_signature is safe.
@@ -1559,10 +1534,44 @@ Fix idea: 1 add verify_qstash_signature (deploy staging Modal, then live with #2
 How to reproduce: curl -s -X POST https://api-staging.evebash.com/api/v1/media/process-thumbnail -H 'Content-Type: application/json' -d '{}' (200 without login).
 Update 2026-11-16: fixed on staging with Shwetank's OK. 1 Modal process_media_batch verifies the QStash signature (async, same pattern as generate_photo_preview). 2 /process-thumbnail: owner/platform admin/internal job only, via a new authorizeEventProcessing() shared with /trigger-modal-batch. 3 /indexing-status: login required; the website (UploadContext + the /api/media/indexing-status pass-through) and the app (uploadQueue) now send the login. 4 /mobile/reconcile-upload: login required (the app already sent it). CORS: an empty CORS_ORIGINS no longer allows every site. Type checks pass (backend, website, app). Live gets it on release day.
 Update 2026-11-16: checked on staging from outside: process-thumbnail, indexing-status and reconcile-upload answer 401 without a login; the staging Modal process_media_batch answers 401 without a QStash signature; staging server healthy; CORS still allows staging.evebash.com. Left: the upload progress check during Shwetank's device tests (website + app send the login to indexing-status now), then live on release day.
+Update 2026-11-16: backend + website LIVE with the release (PR #12, 83095020). Checked on api.evebash.com without a login: process-thumbnail and trigger-modal-batch 401, indexing-status 401 (also through www.evebash.com), all-photos 404; CORS allows evebash.com and not other sites. Left: item 1 (Modal process_media_batch signature) goes live with the Modal publish (#269).
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#281
+Listed: 2026-11-16
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Check of #101 with Sarthak (2026-11-16)
+Issue: The live Modal photo-pipeline-switch (read by modal_engine/main.py) lost its "face_filter" and "grid" keys at some point after 2026-10-24; it only held mode v2 and v2_events ['test-v2-358c']. Cause unknown (probably the Dict was reset or recreated; a Modal Dict has no key history). Effect: new photos saved every face until face_filter was set again on 2026-11-16 (#101), and the grid image (#121, "<file>-grid.webp", set for test-v2-358c on 2026-10-24) is no longer made. Staging Modal's switch (created 2026-11-14) also has only mode v2.
+Fix idea: (1) find when and why the keys went (Modal logs, anyone who ran photo_pipeline_switch.py or deleted the Dict); (2) check whether #121 was rolled out beyond test-v2-358c and whether the website still needs the grid images, then set "grid" again with `photo_pipeline_switch.py grid add <gallery id>` / `grid all` if so; (3) keep the intended switch values in a tracked note so a reset can be spotted: run `photo_pipeline_switch.py show` and compare.
+How to reproduce: modal_engine/venv/bin/python modal_engine/photo_pipeline_switch.py show (read-only); it should list a face filter and, for test-v2-358c, a grid image.
+Update 2026-11-16: live Modal switch now has grid "all" again (with Shwetank's OK; face_filter and mode unchanged); staging has grid "all" too. Left: (1) the live Modal publish with Sarthak (#269), so the running live Modal code is the version that makes grid copies; (2) then set NEXT_PUBLIC_GRID_HIRES=true on Vercel evebash-production and rebuild (it is not set on live), and check a new live upload has "-grid.webp".
+Update 2026-11-16: the Modal code already running on live makes grid copies: all 5 photos of Shwetank's live test upload (event images-1-05b9) have "-grid.webp" (200). So no need to wait for #269. With Shwetank's OK, NEXT_PUBLIC_GRID_HIRES=true set on Vercel evebash-production and the live website rebuilt (evebash-production-7hfhr3taw, aliased to www.evebash.com); the live grid code has the switch on. Cause of the lost keys still unknown; if it happens again, compare with: live {mode: v2, v2_events: [test-v2-358c], face_filter: {min_score 0.4, min_px 24}, grid: all}, staging {mode: v2, grid: all}.
+Fixed in: live settings, no code change (2026-11-16)
+
+
+#137
+Listed: 2026-10-25
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: launch-config review after #120-#124 and #121 (2026-10-25)
+Issue: The new backend switches are only set on the staging Railway service (api-staging.evebash.com). The production service (api.evebash.com, Railway qa264myg) has none of them, so after launch rotate would again keep stale copies (#123) and turn phone photos the wrong way (#124), and rotate wouldn't make grid images (#121).
+Fix: On the production Railway service set ROTATE_VERSIONED_LINKS=true (#123), ROTATE_UPRIGHT_FIRST=true (#124) and GRID_VARIANT=true (#121), after their device tests (test_yourself #130, #131, #135) pass. Already done elsewhere: Vercel Production has NEXT_PUBLIC_GRID_HIRES=true (on with the next release from main); the Cloudflare media cache and the Modal "grid" switch are shared by staging and production. Optional at the same time: delete the leftover Cloudflare DNS record media.evebash.com.evebash.com (old media-proxy custom domain, serves nothing).
+How to reproduce: Railway > production backend service > Variables: the three names are missing.
+Update 2026-11-15: owner changed from Sarthak to Shwetank (with Claude); done as part of the next release to live, after the RLS lockdown (#21).
+Update 2026-11-16: device tests #130, #131 and #135 PASS on staging (Shwetank). Ready for live: ROTATE_VERSIONED_LINKS=true, ROTATE_UPRIGHT_FIRST=true, GRID_VARIANT=true on evebash-api-production-backend, plus the live Modal switch grid (issue #281), on release day.
+Update 2026-11-16: LIVE. Release staging -> main merged (PR #12, 83095020); Shwetank set ROTATE_VERSIONED_LINKS=true, ROTATE_UPRIGHT_FIRST=true and GRID_VARIANT=true on evebash-api-production-backend and deployed (4a6423c1, healthy, Sentry on). Correction to the Fix text: Vercel Production does NOT have NEXT_PUBLIC_GRID_HIRES (checked 2026-11-16), so the website's sharp grid copy is still off on live; that step is tracked in #281.
+Fixed in: 83095020 (2026-11-16)
+
 
 #285
 Listed: 2026-11-16
@@ -1577,7 +1586,7 @@ Fix: one shared downloadMediaFile() in src/lib/zipDownload.ts fetches the file (
 How to reproduce: staging.evebash.com, host or member, open a photo, click Download (Chrome).
 Update 2026-11-16: Shwetank retested on staging (device test #130 step 7): Download saves the rotated photo with a normal name. Live gets it with the next release.
 Fixed in: c643074b (2026-11-16)
-
+Update 2026-11-16: LIVE with the release staging -> main (PR #12, 83095020).
 
 #172
 Listed: 2026-10-28
@@ -1592,7 +1601,7 @@ How to reproduce: Signed in as a host on staging.evebash.com, open https://stagi
 Update 2026-11-16: fixed on staging (needed for the client demo). fetchUserEvents (src/app/(main)/host/page.tsx) now keeps a request counter (userEventsRequestRef): only the newest call saves events, shared events, logs and the loading flag, so an early call that finishes last can't replace the list with an empty one. It also doesn't run while a deep link is still opening (sub-gallery list wanted but the event not known yet), which was the call that returned the empty list. Website type check passes; lint unchanged (68 old problems). Left: Shwetank reloads the deep link from the issue several times on staging and checks the events always show.
 Update 2026-11-16: Shwetank reloaded the deep link (Staging test 1 / Ashu Wedding) 10 times on staging: the events showed every time. Live gets it with the next release (staging -> main).
 Fixed in: 31821146 (2026-11-16)
-
+Update 2026-11-16: LIVE with the release staging -> main (PR #12, 83095020).
 
 #282
 Listed: 2026-11-16
