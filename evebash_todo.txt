@@ -666,6 +666,10 @@ Update 2026-11-16: Google part done (todo #37): iOS OAuth client "EveBash Stagin
               added to staging Supabase's Google Client IDs; app.config.js gives the staging variant its own
               iosUrlScheme from EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID (eas.json staging profile, apps/mobile/.env.local)
               in 560cbd71. Google login checked on a USB iPhone. Still open: Sign in with Apple, APNs, Firebase iOS.
+Update 2026-11-17: staging Supabase's Apple Client IDs now include com.evebash.app.staging (#286). The App ID
+              com.evebash.app.staging isn't registered on Apple Developer yet; EAS creates it (with the
+              capabilities the app asks for) on the first iOS staging build. The live App ID com.evebash.app now
+              has Sign In with Apple, Push Notifications and Associated Domains on. Still open: APNs, Firebase iOS.
 
 #36 Confetti Circle redesign: our own look, not a copy of the Crafto demo (copyright risk)
 Listed:       2026-11-15

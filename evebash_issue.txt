@@ -1506,12 +1506,13 @@ Update 2026-11-16: backend + website LIVE with the release (PR #12, 83095020). C
 Listed: 2026-11-17
 Platform: App
 Priority: High
-Status: Open
-Owner: Sarthak
-Blocked by: -
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device test #227 (needs an EAS iOS build on an iPhone)
 Found in: Issue #18 (2026-11-16/17); its iOS part moved here when #18 closed
 Issue: Sign-in setup for the iOS app isn't fully checked. Checked 2026-11-16: the Google iOS clients are right (live "EveBash IOS" 71982315150-e883v8... for bundle com.evebash.app, Team AM5NCNB29X; staging "EveBash Staging iOS" 71982315150-p06i28... for com.evebash.app.staging), and the live build's EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID matches the iosUrlScheme in apps/mobile/app.json. Still to check by hand: (1) developer.apple.com > Identifiers: Sign in with Apple is on for com.evebash.app (and com.evebash.app.staging, todo #35); (2) live Supabase > Authentication > Providers > Apple: Client IDs include com.evebash.app; (3) staging Supabase's Apple Client IDs are "com.evebash.app,com.anonymous.wed-albummobile", without com.evebash.app.staging, so Sign in with Apple in an iOS staging build would fail; adding it is a staging setting change (waits on Sarthak's OK; part of todo #35). If (1) or (2) is missing, "Sign in with Apple" fails in the App Store app, and App Store rule 4.8 expects a login like Sign in with Apple when Google sign-in is offered.
 How to reproduce: Not reproduced (no live iOS build installed yet). On an iPhone with the live app, tap the Apple sign-in button: if (1) or (2) is missing, sign-in fails with a provider or audience error.
+Update 2026-11-17: (1) Apple Developer, Team AM5NCNB29X, App ID com.evebash.app: Sign In with Apple and Push Notifications were OFF (only In-App Purchase was on), so Apple sign-in and pushes would have failed on iPhone. Identifiers was locked until Sarthak accepted Apple's updated Program License Agreement. With Sarthak's OK, Claude turned on Sign In with Apple (primary App ID), Push Notifications and Associated Domains (for Universal Links later); saved and re-checked after a reload. Apple says this invalidates existing provisioning profiles for the App ID; the next EAS iOS build makes new ones. No App ID com.evebash.app.staging exists yet (EAS creates it on the first iOS staging build, todo #35). (2) Live Supabase (EveBash): Apple provider on, Client IDs "com.evebash.app,com.anonymous.wed-albummobile": OK, not changed. (3) Staging Supabase (Evebash-Staging): Client IDs now "com.evebash.app,com.anonymous.wed-albummobile,com.evebash.app.staging" (Sarthak's OK; saved and re-checked). Left: device test #227 on an iPhone once an iOS build exists.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
