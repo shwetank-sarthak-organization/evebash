@@ -1215,10 +1215,11 @@ function DashboardContent() {
         selectedMainEvent.createdBy === user?.email ||
         visibilityAdminEventId === selectedMainEvent.id
     );
-    const changeEventVisibility = async (isPublic: boolean) => {
-        if (!selectedMainEvent || savingVisibility) return;
+    // Used by the Permissions tab switch and the Share window's "Make public" button
+    const changeEventVisibility = async (isPublic: boolean, target: Event | null = selectedMainEvent) => {
+        if (!target || savingVisibility) return;
         if (isPublic && !(await confirmDialog({ title: "Make event public?", message: "Anyone with the link will be able to view this event and its sub-galleries without approval.", confirmLabel: "Make public" }))) return;
-        const eventId = selectedMainEvent.id;
+        const eventId = target.id;
         setSavingVisibility(true); setVisibilityError("");
         try {
             const { error } = await supabase.rpc("set_event_public_viewing", { event_id: eventId, public_viewing: isPublic });
@@ -6563,6 +6564,31 @@ function DashboardContent() {
                                         <span className="text-3xl font-black uppercase tracking-[0.25em] text-[var(--site-gold-text)]">{shareModalJoinId}</span>
                                     </div>
                                 </div>
+
+                                {/* A private event's link only shows guests "This gallery is private", so say so before it is shared */}
+                                {!shareModalEvent.parentId && !shareModalEvent.isPublic && (
+                                    <div role="status" className="mt-8 rounded-2xl border border-amber-400/40 bg-amber-500/10 p-4 text-left">
+                                        <div className="flex items-start gap-3">
+                                            <PrivateIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-300 light:text-amber-700" />
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-bold text-[var(--site-text)]">This event is Private</p>
+                                                <p className="mt-1 text-xs text-[var(--site-muted)]">Guests who open the link must ask for access, and you approve them on the Permissions tab. Make it public to let anyone with the link see the photos.</p>
+                                            </div>
+                                        </div>
+                                        {(shareModalEvent.createdBy === user?.uid || shareModalEvent.createdBy === user?.email || visibilityAdminEventId === shareModalEvent.id) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => void changeEventVisibility(true, shareModalEvent)}
+                                                disabled={savingVisibility}
+                                                className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-[var(--site-gold)]/50 px-4 py-3 text-xs font-black uppercase tracking-wide text-[var(--site-gold-text)] transition-colors hover:bg-[var(--site-gold)]/10 disabled:opacity-60"
+                                            >
+                                                {savingVisibility ? <Loader2 className="h-4 w-4 animate-spin" /> : <PublicIcon className="h-4 w-4" />}
+                                                <span>Make public</span>
+                                            </button>
+                                        )}
+                                        {visibilityError && <p role="alert" className="mt-2 text-xs text-rose-300 light:text-rose-700">{visibilityError}</p>}
+                                    </div>
+                                )}
 
                                 <button
                                     type="button"

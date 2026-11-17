@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 225
+Next test number: 226
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6554,9 +6554,36 @@ How to test:
   7. Logged IN on the computer: open a photo. Expect: the same view as before (side panel with comments).
 Done by:   Shwetank (with Claude)
 Device / browser: Mac, Chrome incognito / Safari private (logged out), then logged in
-Build / version: staging 0198f9fb (website)
+Build / version: staging 0198f9fb (website); live 853c4346 for the phones
 Date tested: 2026-11-17
 Account used: logged out (guest); host account for step 7
 Screenshot / recording:
 Fix ref:
-Feedback:  Steps 1-5 and 7 passed (Shwetank). Claude also checked logged out in its browser: bar on screen at once and stays, hides while zoomed, back after zoom out and on next photo, Like shows "Log in to continue". Gallery used: test-event-staging-iczui, made public for the test and set back to private afterwards. Step 6 (phones) not possible on staging (phones there get the app screen); check it on live after the next release.
+Feedback:  Steps 1-5 and 7 passed (Shwetank). Claude also checked logged out in its browser: bar on screen at once and stays, hides while zoomed, back after zoom out and on next photo, Like shows "Log in to continue". Gallery used: test-event-staging-iczui, made public for the test and set back to private afterwards. Step 6 (phones) not possible on staging (phones there get the app screen). Live after release PR #13 (853c4346): Claude saw the bar on screen after 7 s on www.evebash.com (Demo Wedding, logged out); Shwetank checked Android Chrome and iPhone Safari (private tabs, logged out) on live 2026-11-17: pass.
+
+#225 Website: Share window warns when the event is Private and can make it public
+Status:    TODO (staging steps 1-5 PASS; step 7 live + phones after the release)
+Priority:  Medium
+Platform:  Website
+Brief:     New events start Private, so a shared link shows guests "This gallery is private". The Share
+           window now says "This event is Private" and has a "Make public" button (todo #43).
+How to test:
+  1. Computer, logged in as a host on staging.evebash.com/host: create a new event (it starts Private).
+  2. Open its Share window. Expect: a yellow box "This event is Private" above Share Invitation, with a
+     "Make public" button.
+  3. Click Make public. Expect: the confirm box "Make event public?". Click Cancel: nothing changes.
+  4. Click Make public again and confirm. Expect: the yellow box goes away; the Permissions tab switch
+     now says Public.
+  5. Copy link, open it in a private window (logged out). Expect: the gallery opens, no "private" message.
+  6. Open the Share window of a gallery inside the event, and of an event you only help manage (not the
+     owner, no visibility right). Expect: no "Make public" button where you can't change it.
+  7. Live, after the release: repeat 1-5 on www.evebash.com, also on a phone (Android Chrome and iPhone
+     Safari), checking the box fits the screen.
+Done by:   Shwetank
+Device / browser: Mac, Chrome (host logged in) + incognito (guest)
+Build / version: staging c53ee000
+Date tested: 2026-11-17
+Account used: staging host account; logged out for step 5
+Screenshot / recording:
+Fix ref:
+Feedback:  Steps 1-5 pass on staging (Shwetank, 2026-11-17). Step 6 not reported. Step 7 waits for the release.

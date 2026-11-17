@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 43
+Next todo number: 44
 
 Last updated: 2026-11-16
 
@@ -827,6 +827,27 @@ Brief:        Realtime has been off since 2026-09-30 (the supabase_realtime publ
               decide if the reload-on-return workaround from #48 (c42c419) stays as a fallback. Needs a device test.
 Done in:      -
 Update 2026-11-16: Shwetank checked Sentry's alerts: issue alerts are on, and each project (app, website, server; Modal reports to the server's project) has an email rule "Send a notification for high priority issues". Only the live Modal part is left (#269).
+
+#43 Share window warns when the event is Private, with a "Make public" button
+Listed:       2026-11-17
+Platform:     Website
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       In progress
+Effort:       S
+Suggested by: Shwetank (2026-11-17, live client rehearsal)
+Discussed:    Yes
+Decision:     2026-11-17 Shwetank: option B. New events stay Private by default; the Share window says so and
+              offers "Make public" (option A, Public by default, was not chosen).
+Owner:        Shwetank (with Claude)
+Depends on:   -
+Brief:        In the live rehearsal a new host copied the link of a new event and the guest saw "This gallery is
+              private", because new events start Private and nothing in the Share window says so. The website's
+              Share window (src/app/(main)/host/page.tsx) now shows "This event is Private" for a private event,
+              explains that guests must ask for access, and gives the owner (or a visibility admin) a
+              "Make public" button with the same confirm box as the Permissions switch. The app's share sheet is
+              unchanged (apps not in the stores yet). Device test #225.
+Done in:      -
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
