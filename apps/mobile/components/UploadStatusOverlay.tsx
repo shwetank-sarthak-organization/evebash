@@ -210,15 +210,19 @@ const HIDDEN_ROUTES = new Set(['index', 'login', 'forgot-password', '+not-found'
 
 let screenPlacement: { id: number; bottom: number } | null = null;
 let nextPlacementId = 1;
+// How many open viewers cover the page right now (useHideUploadStatus)
+let hideCount = 0;
 const placementListeners = new Set<() => void>();
 const subscribePlacement = (listener: () => void) => {
   placementListeners.add(listener);
   return () => { placementListeners.delete(listener); };
 };
+const notifyPlacement = () => placementListeners.forEach(listener => listener());
 const getPlacement = () => screenPlacement;
+const getHidden = () => hideCount > 0;
 const setPlacement = (next: typeof screenPlacement) => {
   screenPlacement = next;
-  placementListeners.forEach(listener => listener());
+  notifyPlacement();
 };
 
 /**
@@ -235,6 +239,16 @@ export function useUploadStatusPlacement(bottom: number | null) {
   }, [bottom]));
 }
 
+/** Hides the upload status while `hidden` is true, e.g. while a photo viewer drawn inside the page covers it */
+export function useHideUploadStatus(hidden: boolean) {
+  useEffect(() => {
+    if (!hidden) return;
+    hideCount += 1;
+    notifyPlacement();
+    return () => { hideCount -= 1; notifyPlacement(); };
+  }, [hidden]);
+}
+
 // Remembered for this app session: minimized or not, and where the floating button was dragged to
 let minimizedPref = false;
 let fabSpot: { side: 'left' | 'right'; top: number } | null = null;
@@ -249,6 +263,7 @@ export function UploadStatusOverlay() {
   const insets = useSafeAreaInsets();
   const segments = useSegments();
   const screen = useSyncExternalStore(subscribePlacement, getPlacement);
+  const coveredByViewer = useSyncExternalStore(subscribePlacement, getHidden);
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const wash = useMemo(() => getWashes(colors, isDark), [colors, isDark]);
   const [items, setItems] = useState<UploadQueueItem[]>([]);
@@ -275,7 +290,7 @@ export function UploadStatusOverlay() {
       : route === '(tabs)' ? appTabBarMetrics(insets.bottom).height + Spacing.md : insets.bottom + Spacing.lg;
 
   const { kind } = summary;
-  if (!kind || bottom === null || hiddenFor === summary.key) return null;
+  if (!kind || bottom === null || coveredByViewer || hiddenFor === summary.key) return null;
 
   const look: Record<Kind, { icon: IconSymbolName; color: string; wash: string }> = {
     uploading: { icon: 'icloud.and.arrow.up.fill', color: colors.gold, wash: wash.gold },
@@ -422,13 +437,17 @@ export function UploadStatusOverlay() {
   );
 }
 
-/** The photo itself: the copy on the phone while it uploads, then a small copy from the server; an icon for videos */
+/**
+ * The photo itself: the copy on the phone, kept on screen after it uploads (so it doesn't blink while the server
+ * makes its small copy); the server's small copy if the phone's copy can't load (already deleted); an icon for videos
+ */
 function UploadThumb({ item, styles, colors }: { item: UploadQueueItem; styles: ReturnType<typeof getStyles>; colors: typeof MidnightColors }) {
-  const uri = item.mediaType !== 'photo'
-    ? null
-    : isUploadSaved(item) ? getSmallThumbnail(getOriginalMediaUrl(item.storageKey!)) : item.fileUri;
-  const [broken, setBroken] = useState<string | null>(null);
-  if (!uri || broken === uri) {
+  const [broken, setBroken] = useState<string[]>([]);
+  const candidates = item.mediaType !== 'photo'
+    ? []
+    : [item.fileUri, isUploadSaved(item) ? getSmallThumbnail(getOriginalMediaUrl(item.storageKey!)) : null];
+  const uri = candidates.find((candidate): candidate is string => !!candidate && !broken.includes(candidate));
+  if (!uri) {
     return (
       <View style={styles.thumb}>
         <IconSymbol name={item.mediaType === 'video' ? 'video.fill' : 'photo'} size={16} color={colors.gold} />
@@ -441,7 +460,7 @@ function UploadThumb({ item, styles, colors }: { item: UploadQueueItem; styles: 
       recyclingKey={item.id}
       contentFit="cover"
       transition={150}
-      onError={() => setBroken(uri)}
+      onError={() => setBroken(previous => [...previous, uri])}
       style={styles.thumb}
       accessibilityIgnoresInvertColors
     />
