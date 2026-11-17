@@ -828,12 +828,15 @@ Brief:        Realtime has been off since 2026-09-30 (the supabase_realtime publ
 Done in:      -
 Update 2026-11-16: Shwetank checked Sentry's alerts: issue alerts are on, and each project (app, website, server; Modal reports to the server's project) has an email rule "Send a notification for high priority issues". Only the live Modal part is left (#269).
 
+=====================================================================
+DONE / DROPPED (delete after 14 days)
+=====================================================================
 #43 Share window warns when the event is Private, with a "Make public" button
 Listed:       2026-11-17
 Platform:     Website
 Priority:     Medium
 Phase:        1 (v1 launch)
-Status:       In progress
+Status:       Done
 Effort:       S
 Suggested by: Shwetank (2026-11-17, live client rehearsal)
 Discussed:    Yes
@@ -847,11 +850,8 @@ Brief:        In the live rehearsal a new host copied the link of a new event an
               explains that guests must ask for access, and gives the owner (or a visibility admin) a
               "Make public" button with the same confirm box as the Permissions switch. The app's share sheet is
               unchanged (apps not in the stores yet). Device test #225.
-Done in:      -
+Done in:      c53ee000 (2026-11-17), live with PR #14 (fdf541d8). Device test #225 PASS.
 
-=====================================================================
-DONE / DROPPED (delete after 14 days)
-=====================================================================
 #42 Upload status over the whole app, with a minimize-to-floating-button option
 Listed:       2026-11-16
 Platform:     App
