@@ -6591,7 +6591,7 @@ Fix ref:
 Feedback:  Steps 1-5 pass on staging (Shwetank, 2026-11-17). Step 6 not reported. Live after PR #14 (fdf541d8): Claude found the new box in the live host page code; Shwetank checked step 7 on www.evebash.com on the computer and phones (Android Chrome, iPhone Safari) 2026-11-17: pass.
 
 #226 Website: add a second set of photos while one is still uploading
-Status:    TODO (staging PASS 2026-11-17; live check after the release)
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Brief:     Before, the Add tile showed "Adding..." and couldn't be used, and dropped files were ignored, until
@@ -6615,9 +6615,9 @@ How to test:
   9. Live, after the release: repeat 1-3 on www.evebash.com.
 Done by:   Shwetank
 Device / browser: Mac, Chrome
-Build / version: staging c757d014
+Build / version: staging c757d014; live 6079ad46 (PR #16)
 Date tested: 2026-11-17
 Account used: staging host account
 Screenshot / recording:
 Fix ref:
-Feedback:  Staging 2026-11-17 (Shwetank): added a second set and dropped files while 15-20 photos were uploading, plus another gallery; the new files queued and uploaded after the first set, each in its own gallery; after a refresh all photos were there with the right counts. Pass on staging. Step 9 (live) after the release.
+Feedback:  Staging 2026-11-17 (Shwetank): added a second set and dropped files while 15-20 photos were uploading, plus another gallery; the new files queued and uploaded after the first set, each in its own gallery; after a refresh all photos were there with the right counts. Pass on staging. Live after PR #16 (6079ad46), Shwetank 2026-11-17: works after a hard refresh (the tab open before the release still had the old page). Pass.

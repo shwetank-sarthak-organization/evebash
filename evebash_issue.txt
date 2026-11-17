@@ -886,18 +886,6 @@ Found in: Sunlit Portrait issue review (#163, 2026-10-28)
 Issue: The app carries code for a "show welcome card" switch that doesn't exist. The events table has no show_welcome_card column, yet apps/mobile/lib/database.ts maps it (showWelcomeCard in mapSqlToEvent and in the update field map), apps/mobile/app/events/[id].tsx checks (event as any).showWelcomeCard !== false before every theme's gallery message (always true, the value is always missing), and apps/mobile/app/(tabs)/gallery.tsx has a showWelcomeCard state that is never set or saved. Nothing breaks today, but it reads like a working switch (it misled #163), and passing showWelcomeCard to updateEvent would fail on the missing column. Fix: delete the mapping, the checks and the unused state; keep "clear the welcome text" as the way to hide the message (or add the column and a real switch if hosts ask for one).
 How to reproduce: select show_welcome_card from events fails with "column does not exist"; search apps/mobile for showWelcomeCard.
 
-#169
-Listed: 2026-10-28
-Platform: Website
-Priority: Medium
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: Device test #226 on staging, then the release
-Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
-Issue: On the host page a host can't start a second set of photos or videos while one is still sending. The "Add or Drop Photos/Videos" tile is disabled (shows "Adding...") and dropped files are ignored while the page-wide status is "uploading" (src/app/(main)/host/page.tsx, the file input in the Add tile and handleGalleryDrop). The status is one value for the whole page, so an upload to one gallery also blocks every other gallery. It unlocks once all files have been sent, even while videos are still processing. The lock is also easy to get around: uploads keep running in src/context/UploadContext.tsx after leaving the page (#78), but status is page state, so going to another page and back resets it to idle and a second set starts next to the first (two sets of 3 files sending at once). The app has no such lock (it queues new sets, see #170). Fix idea: drop the page-wide lock and append new sets to the shared upload queue in UploadContext, with one shared set of upload workers, so a new set waits its turn instead of being refused or running in parallel. Note: the storage-limit check before each set doesn't count files still uploading from an earlier set.
-How to reproduce: Website, host page, pick 20 photos to upload; while they upload the Add tile shows "Adding..." and can't be clicked, and dropping files does nothing. Open another gallery: same. Now go to Dashboard and back to the host page while the upload runs: the tile works again and a second set uploads at the same time as the first.
-Update 2026-11-17: fixed in c757d014 (on staging). The page-wide lock is gone: the Add tile and drag-and-drop work while files are sending (the tile says new files wait their turn). Upload sets now run one after another through runUploadSet in src/context/UploadContext.tsx, so a new set shows "Queued..." and starts when the one before it is sent, in any gallery; because the line lives in UploadProvider, leaving the page and coming back no longer starts a second set next to the first. Still 3 files at a time. The storage check of a new set also counts files still waiting or sending (pendingUploadBytes). A set that finishes after the host moved to another gallery no longer adds its photos to, or reloads, the gallery on screen. Device test #226.
-
 #170
 Listed: 2026-10-28
 Platform: App
@@ -1531,6 +1519,19 @@ Update 2026-11-16: backend + website LIVE with the release (PR #12, 83095020). C
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#169
+Listed: 2026-10-28
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
+Issue: On the host page a host can't start a second set of photos or videos while one is still sending. The "Add or Drop Photos/Videos" tile is disabled (shows "Adding...") and dropped files are ignored while the page-wide status is "uploading" (src/app/(main)/host/page.tsx, the file input in the Add tile and handleGalleryDrop). The status is one value for the whole page, so an upload to one gallery also blocks every other gallery. It unlocks once all files have been sent, even while videos are still processing. The lock is also easy to get around: uploads keep running in src/context/UploadContext.tsx after leaving the page (#78), but status is page state, so going to another page and back resets it to idle and a second set starts next to the first (two sets of 3 files sending at once). The app has no such lock (it queues new sets, see #170). Fix idea: drop the page-wide lock and append new sets to the shared upload queue in UploadContext, with one shared set of upload workers, so a new set waits its turn instead of being refused or running in parallel. Note: the storage-limit check before each set doesn't count files still uploading from an earlier set.
+How to reproduce: Website, host page, pick 20 photos to upload; while they upload the Add tile shows "Adding..." and can't be clicked, and dropping files does nothing. Open another gallery: same. Now go to Dashboard and back to the host page while the upload runs: the tile works again and a second set uploads at the same time as the first.
+Update 2026-11-17: fixed in c757d014 (on staging). The page-wide lock is gone: the Add tile and drag-and-drop work while files are sending (the tile says new files wait their turn). Upload sets now run one after another through runUploadSet in src/context/UploadContext.tsx, so a new set shows "Queued..." and starts when the one before it is sent, in any gallery; because the line lives in UploadProvider, leaving the page and coming back no longer starts a second set next to the first. Still 3 files at a time. The storage check of a new set also counts files still waiting or sending (pendingUploadBytes). A set that finishes after the host moved to another gallery no longer adds its photos to, or reloads, the gallery on screen. Device test #226.
+Fixed in: c757d014 (2026-11-17), live with PR #16 (6079ad46); closed 2026-11-17 after device test #226 PASS on staging and live. Note: a host page already open before a release keeps the old code until a refresh (Cmd + Shift + R).
 
 #173
 Listed: 2026-10-28
