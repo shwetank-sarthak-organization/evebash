@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 226
+Next test number: 227
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6589,3 +6589,35 @@ Account used: staging host account; logged out for step 5
 Screenshot / recording:
 Fix ref:
 Feedback:  Steps 1-5 pass on staging (Shwetank, 2026-11-17). Step 6 not reported. Live after PR #14 (fdf541d8): Claude found the new box in the live host page code; Shwetank checked step 7 on www.evebash.com on the computer and phones (Android Chrome, iPhone Safari) 2026-11-17: pass.
+
+#226 Website: add a second set of photos while one is still uploading
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     Before, the Add tile showed "Adding..." and couldn't be used, and dropped files were ignored, until
+           every file of the first set was sent (issue #169). Now a new set can be added at any time: its files
+           show "Queued..." in the upload panel and start when the set before them is sent (still 3 files at a
+           time). Works across galleries and after leaving the page and coming back.
+How to test:
+  1. Computer, logged in as a host on staging.evebash.com/host. Open a test gallery. Pick 15-20 photos.
+  2. While they upload, look at the Add tile. Expect: it is not greyed out; it says "Add More Photos" and
+     "They wait until the current upload is sent".
+  3. Click it and pick 5 more photos. Expect: the 5 show "Queued..." in the upload panel, then upload after
+     the first set; no more than 3 files show "uploading" at once.
+  4. Drag 3 photos onto the gallery while the upload is still running. Expect: they are queued too.
+  5. Start another big set, open a different gallery and add photos there. Expect: they queue; each set
+     lands in its own gallery; the gallery on screen doesn't fill with the other gallery's photos.
+  6. Start a set, go to Dashboard, come back to Host and add another set. Expect: it queues (still 3 at a
+     time, not 6).
+  7. Cancel one queued file in the panel. Expect: it shows cancelled and is skipped.
+  8. When everything is done, refresh. Expect: every photo is in the right gallery, none missing, and the
+     Photos (n) counts are right.
+  9. Live, after the release: repeat 1-3 on www.evebash.com.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
