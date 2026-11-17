@@ -6562,7 +6562,7 @@ Fix ref:
 Feedback:  Steps 1-5 and 7 passed (Shwetank). Claude also checked logged out in its browser: bar on screen at once and stays, hides while zoomed, back after zoom out and on next photo, Like shows "Log in to continue". Gallery used: test-event-staging-iczui, made public for the test and set back to private afterwards. Step 6 (phones) not possible on staging (phones there get the app screen). Live after release PR #13 (853c4346): Claude saw the bar on screen after 7 s on www.evebash.com (Demo Wedding, logged out); Shwetank checked Android Chrome and iPhone Safari (private tabs, logged out) on live 2026-11-17: pass.
 
 #225 Website: Share window warns when the event is Private and can make it public
-Status:    TODO
+Status:    TODO (staging steps 1-5 PASS; step 7 live + phones after the release)
 Priority:  Medium
 Platform:  Website
 Brief:     New events start Private, so a shared link shows guests "This gallery is private". The Share
@@ -6579,11 +6579,11 @@ How to test:
      owner, no visibility right). Expect: no "Make public" button where you can't change it.
   7. Live, after the release: repeat 1-5 on www.evebash.com, also on a phone (Android Chrome and iPhone
      Safari), checking the box fits the screen.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Shwetank
+Device / browser: Mac, Chrome (host logged in) + incognito (guest)
+Build / version: staging c53ee000
+Date tested: 2026-11-17
+Account used: staging host account; logged out for step 5
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  Steps 1-5 pass on staging (Shwetank, 2026-11-17). Step 6 not reported. Step 7 waits for the release.
