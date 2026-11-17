@@ -65,6 +65,7 @@ Update 2026-10-11: decided 18+. Terms section 2 and privacy sections 4 and 23 sa
 Update 2026-10-22 (Google Play review): section 29 now says the apps sell nothing in-app (plans are bought on the website); section 12 no longer mentions a Cookie Policy; section 17 list fixed; section 28 mentions OS geocoding; release builds no longer allow plain HTTP (usesCleartextTraffic false). To do: set FIND_YOU_REQUIRE_CONSENT=true on Railway after the new app build is out (tests #104-#106); EB Vault section and an 18+ confirmation at sign-up (POLICY_VERSION bump) still open.
 Update 2026-10-22: migration 20261011000000_find_you_consent.sql applied to Supabase (shared staging/production project). Table has RLS on and no client access; the three consent functions are for logged-in users only.
 Update 2026-10-22 (after release PR #8): privacy section 20 and /delete-account said the website's Delete Account is under Profile; it moved to Settings, fixed. Their Apple/Google subscription wording now says plans are bought on the website.
+Update 2026-11-17: FIND_YOU_REQUIRE_CONSENT=true is already set on both Railway services (staging and production), checked by Shwetank in the dashboard. Live rehearsal the same day: a new guest account on the website got the Find You consent screen before the selfie, and Find You found the right photos. Still open: EB Vault section, 18+ confirmation at sign-up, and the Ossciv entity block and Grievance Officer at incorporation.
 
 #32
 Listed: 2026-10-11
