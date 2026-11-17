@@ -6554,9 +6554,9 @@ How to test:
   7. Logged IN on the computer: open a photo. Expect: the same view as before (side panel with comments).
 Done by:   Shwetank (with Claude)
 Device / browser: Mac, Chrome incognito / Safari private (logged out), then logged in
-Build / version: staging 0198f9fb (website)
+Build / version: staging 0198f9fb (website); live 853c4346 for the phones
 Date tested: 2026-11-17
 Account used: logged out (guest); host account for step 7
 Screenshot / recording:
 Fix ref:
-Feedback:  Steps 1-5 and 7 passed (Shwetank). Claude also checked logged out in its browser: bar on screen at once and stays, hides while zoomed, back after zoom out and on next photo, Like shows "Log in to continue". Gallery used: test-event-staging-iczui, made public for the test and set back to private afterwards. Step 6 (phones) not possible on staging (phones there get the app screen); check it on live after the next release.
+Feedback:  Steps 1-5 and 7 passed (Shwetank). Claude also checked logged out in its browser: bar on screen at once and stays, hides while zoomed, back after zoom out and on next photo, Like shows "Log in to continue". Gallery used: test-event-staging-iczui, made public for the test and set back to private afterwards. Step 6 (phones) not possible on staging (phones there get the app screen). Live after release PR #13 (853c4346): Claude saw the bar on screen after 7 s on www.evebash.com (Demo Wedding, logged out); Shwetank checked Android Chrome and iPhone Safari (private tabs, logged out) on live 2026-11-17: pass.
