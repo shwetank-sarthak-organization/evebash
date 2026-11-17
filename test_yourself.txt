@@ -6511,7 +6511,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #223 App (Android, from Google Play): "Continue with Google" signs in (#18)
-Status:    TODO
+Status:    PASS
 Priority:  High (launch blocker, test first)
 Platform:  App (Android, installed from Google Play)
 Brief:     Apps installed from Google Play are signed by Google's own key, which Google sign-in didn't know about, so
@@ -6526,14 +6526,19 @@ How to test:
   2. Tap "Continue with Google" and pick your Google account. Expect: you are signed in and land on the Dashboard,
      no "DEVELOPER_ERROR", "Something went wrong" or sign-in loop.
   3. Log out and sign in with Google again. Expect: the account picker shows and sign-in works again.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Sarthak with Claude (Claude read the phone's log over USB and checked the installed copy's signing key)
+Device / browser: Pixel 8, Android 16
+Build / version: EveBash 1.2.4 (versionCode 26) from Google Play Internal testing; EAS production build 131428ef (staging 3327f2e6)
+Date tested: 2026-11-17
+Account used: Sarthak's own Google account (live database)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  PASS. Play first answered "Item not found" (404); a few minutes later, with the Play Store on the tester
+           account, it showed "com.evebash.app (unreviewed)" with Install. Installed copy: from com.android.vending,
+           signed with the Play app-signing key 71:71:05:...:8F:DD (apksigner). Step 2: "Continue with Google" opened
+           the Dashboard (21:26, GoogleSignin.signIn() success, then SIGNED_IN). Step 3: logged out (SIGNED_OUT
+           21:27:33), signed in with Google again and reached the Dashboard (21:27:37). No DEVELOPER_ERROR from
+           EveBash; the only one in the log came from the Google Drive app's process. Closes #18.
 --------------------------------------------------------------------------------
 #224 Website: logged-out guests see the photo viewer's action bar without moving the mouse
 Status:    PASS
