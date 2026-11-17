@@ -34,7 +34,7 @@ Field values:
 
 Next todo number: 44
 
-Last updated: 2026-11-16
+Last updated: 2026-11-17
 
 =====================================================================
 ACTIVE TODOS
@@ -886,6 +886,11 @@ Brief:        Today the upload card (apps/mobile/components/event/UploadProgress
               file, and the worker frees its own slot.
 Done in:      d860be59 (2026-11-16); device test #222. Checked on the iPhone 16e simulator with made-up upload
               data; real uploads and the cancel itself wait on #222.
+              2026-11-17: real uploads on the simulator (staging gallery "Staging test 1") worked: rows, cancel a
+              waiting photo, delete an uploaded one, cancel a 150 MB video half way, Cancel all, minimize, the
+              tab pages. Two fixes from that run in abbbdb3e (2026-11-17): the panel hides while the host photo
+              viewer is open (it covered the viewer's buttons), and a photo's thumbnail no longer turns into the
+              icon the moment it is uploaded.
 
 #32 Analytics dashboard: switch between Live and Staging data
 Listed:       2026-11-14
