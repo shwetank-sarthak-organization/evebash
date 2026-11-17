@@ -2324,7 +2324,7 @@ Fix ref:   913ef3ec (2026-11-12), issue #176: opening Source gallery on Home loa
 Feedback: Steps 1, 7 PASS: only a Filter button left of the grid/list toggle; panel has Source gallery, Uploaded by and Select; Escape closes it. Step 2 FAILS: Source gallery only offers "All galleries (17)" and "Home (Primary Gallery) (17)" while the tab says Photos (42); sub-galleries are missing because counts use only the photos loaded so far. Issue #176. PASS 2026-11-12 (Shwetank with Claude, retest after 913ef3ec): gallery Asha and Raj, Home, Photos tab (24 items, more than one page of 20), before scrolling: Source gallery lists All galleries (24), Home (14), Rec 1 (5), Reception 5 (3), REc 10 (2), matching the database; picking Rec 1 shows its 5 photos with a "1" badge. Steps 3-9 pass on desktop and phone browser. Note: on Home the Source gallery counts cover what Home shows (its own uploads plus favourites from sub-galleries), not each sub-gallery's full size.
 
 #96 Host gallery: delete several photos and videos at once
-Status:    FAIL
+Status:    RETEST
 Priority:  High
 Platform:  Website (desktop browser)
 Brief:     The selection bar (Filter > Select) now has a red Delete button. It asks first, then deletes every
@@ -2345,7 +2345,7 @@ Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
 Date tested: 2026-10-28
 Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
 Screenshot / recording:
-Fix ref:
+Fix ref:   22759ffb (issue #173): the Photos/Videos tab counts now go down after a delete (one or several) and after moving items to another gallery.
 Feedback: Select all, deselect one, Delete -> "Delete 2 photos?" -> Delete: the 2 photos go away from the grid, but the tab still says "Photos (3)" with 1 photo left (step 3 expects the count to go down). Issue #173. Video, guest page and storage steps not checked.
 
 #97 Photo pipeline v2: website bulk upload
