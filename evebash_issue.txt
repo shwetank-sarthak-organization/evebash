@@ -682,11 +682,12 @@ Platform: Both
 Priority: Critical
 Status: Open
 Owner: Sarthak
-Blocked by: Sarthak: check the Workers plan (Cloudflare > Workers & Pages > Plans) and switch to Workers Paid ($5/month) before launch
+Blocked by: Shwetank: upgrade to Workers Paid ($5/month) before the first client, together with Supabase Pro
 Found in: Cloudflare Pro / Workers plan review (2026-10-24)
 Issue: Every photo, thumbnail, preview, cover and video chunk on media.evebash.com goes through the Cloudflare worker evebash-media-worker (route media.evebash.com/*), even when it comes from the cache (#120). On the free Workers plan the account gets about 100,000 worker requests per day. Estimate: one 200-guest wedding is ~80,000 requests on its first evening (about 300 grid photos + 30 viewer photos + ~80 video chunks per guest; a 5-minute video is 50-100 requests per viewer), website and app together. Over the limit, all photos and videos fail to load for everyone on the website and in the app (error 1027) until the daily count resets at 00:00 UTC (05:30 IST); pages, login and uploads keep working. The route is set to fail closed (request_limit_fail_open false), and fail open wouldn't help: the B2 bucket is private and only the worker signs requests and maps media.evebash.com paths to B2's /file/EveBash/ download URLs. Not happening now (pre-launch traffic). The API token can't read the account's billing, so the current Workers plan wasn't confirmed.
 Fix: Workers Paid ($5/month per account): no daily cap, 10 million requests/month included, then about $0.30 per extra million (~160 such weddings/month in the base price); same speed, no code or config change. Keep the bucket private (making it public to drop the worker would let anyone with a file path download from B2). Optional cleanup: the leftover DNS record media.evebash.com.evebash.com (old media-proxy custom domain) serves nothing.
 How to reproduce: Not safe to reproduce on live. Cloudflare dashboard > Workers & Pages > evebash-media-worker > Metrics shows daily requests; on the free plan the limit is 100,000/day.
+Update 2026-11-17 (Shwetank with Claude): checked in Cloudflare > Manage account > Billing > Subscriptions: the account is on Workers Free (Active), so the 100,000/day limit applies. Shwetank will press Upgrade to Workers Paid there (card already on file) before the first client, at the same time as Supabase Pro; not needed for the demo. Also listed there: "Images Stream Basic" (renews 2026-12-03), which EveBash doesn't seem to use (media is B2 + the worker, video by Modal): ask Sarthak whether it is needed before it renews.
 
 #133
 Listed: 2026-10-24
