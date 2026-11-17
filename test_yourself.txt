@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 228
+Next test number: 229
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6651,6 +6651,42 @@ How to test:
   3. Log out and sign in with Apple again. Expect: it works again.
   4. Allow notifications when asked. From another account (website), ask to join one of your private galleries.
      Expect: a push arrives on the iPhone.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+--------------------------------------------------------------------------------
+#228 App: "Upload N photos to <gallery>?" before uploading, failed files stay, one name for collections (#213, #170, #214)
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone + Android; Android first, it wasn't checked)
+Brief:     After picking photos or videos the app now asks which gallery they go into before anything uploads
+           (#213). A file that didn't upload keeps its row and Retry when you add more files (#170). Guests read
+           "Open a collection to add your photos." instead of "album" (#214, app and website).
+Detail:    Fix 7bbde0d1 (apps/mobile/app/events/[id].tsx, apps/mobile/lib/uploadQueue.ts; JavaScript only: reaches
+           the staging app with an over-the-air update or a new build). Checked by Claude on the iPhone 16e
+           simulator with real uploads to "Staging test 1" (steps 1, 2 and 4). Not checked: Android (the emulator
+           kept restarting; on Android the question is the app's own dialog, not the system one), steps 3 and 5,
+           and a real phone.
+How to test:
+  1. Log in as a host on staging, open a gallery (try a sub-gallery too), tap Add Photos and pick 2 photos.
+     Expect: "Upload 2 photos to <that gallery's name>?" with Cancel and Upload. Tap Cancel. Expect: nothing
+     uploads, no upload panel. Do it again and tap Upload. Expect: the upload panel and the photos in the gallery.
+  2. Pick 1 photo. Expect: "Upload 1 photo to ...?". On the Videos tab tap Add Videos and pick a video. Expect:
+     "Upload 1 video to ...?". On the Cinematic Highlight Video card tap Upload video. Expect: no question.
+     Android: press the phone's Back button while the question shows. Expect: the app doesn't get stuck (the
+     question stays or closes, and you can still use the page).
+  3. As a guest with upload permission, open the event (any theme) and add photos. Expect: the same question, with
+     the event or collection name.
+  4. Make a file fail (for example upload to a gallery that is over its storage limit), then, while its red "Didn't
+     upload" row shows, add another photo. Expect: the red row with Retry stays above the new file, and the round
+     button (minimized) still has the red number. (Before the fix the failed row disappeared.)
+  5. As a guest, open an event that has collections, on the main page where you can't upload. Expect: "Open a
+     collection to add your photos." Check the same event on staging.evebash.com.
 Done by:
 Device / browser:
 Build / version:
