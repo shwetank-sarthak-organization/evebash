@@ -373,7 +373,7 @@ export function UploadStatusOverlay() {
           <IconSymbol name={look[kind].icon} size={14} color={look[kind].color} />
         </ProgressRing>
         <View style={styles.texts}>
-          <Text style={styles.title} numberOfLines={1}>{summary.title}</Text>
+          <Text style={styles.title} numberOfLines={2}>{summary.title}</Text>
           {!!summary.subtitle && <Text style={styles.subtitle} numberOfLines={2}>{summary.subtitle}</Text>}
         </View>
         {running && openUploads(items).length > 0 && textButton('Cancel all', 'Cancel all uploads', () => cancelAll(items))}
@@ -443,6 +443,10 @@ export function UploadStatusOverlay() {
  */
 function UploadThumb({ item, styles, colors }: { item: UploadQueueItem; styles: ReturnType<typeof getStyles>; colors: typeof MidnightColors }) {
   const [broken, setBroken] = useState<string[]>([]);
+  // The server makes its small copy while the photo is being got ready: once it's done, try again
+  useEffect(() => {
+    if (item.status === 'completed') setBroken(previous => (previous.length ? [] : previous));
+  }, [item.status]);
   const candidates = item.mediaType !== 'photo'
     ? []
     : [item.fileUri, isUploadSaved(item) ? getSmallThumbnail(getOriginalMediaUrl(item.storageKey!)) : null];

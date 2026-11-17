@@ -2239,6 +2239,20 @@ function EventDetailScreen() {
           };
         });
 
+        // Say which gallery the files go into before anything uploads (issue #213). The highlight video is picked
+        // from its own card, so it doesn't ask.
+        if (!options?.highlight) {
+          const noun = files.length === 1 ? mediaType : `${mediaType}s`;
+          const galleryName = currentActiveEvent?.title?.trim();
+          const confirmed = await new Promise<boolean>(resolve => {
+            appAlert(`Upload ${files.length} ${noun}${galleryName ? ` to ${galleryName}` : ''}?`, undefined, [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Upload', onPress: () => resolve(true) },
+            ]);
+          });
+          if (!confirmed) return;
+        }
+
         if (options?.highlight) changePendingHighlightUpload({ galleryId: activeId, since: Date.now() });
         await addToUploadQueue(files, activeId, user.uid, mediaType);
       } catch (err: any) {
@@ -7007,7 +7021,7 @@ function EventDetailScreen() {
                     </TouchableOpacity>
                   ) : (
                     <Text style={{ alignSelf: 'center', marginVertical: 12, color: selectedTemplate.muted, fontSize: 12, fontWeight: '700' }}>
-                      Open an album to add your photos.
+                      Open a collection to add your photos.
                     </Text>
                   )
                 )}

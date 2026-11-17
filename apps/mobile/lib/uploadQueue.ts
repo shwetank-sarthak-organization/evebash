@@ -577,10 +577,11 @@ export async function addToUploadQueue(
   }
 
   await mutateQueue(q => {
-    // Purge any stale finished items (completed or failed) before starting a new batch
-    const activeRemaining = q.filter(item => item.status !== 'completed' && item.status !== 'failed');
+    // Drop finished files before starting a new batch, but keep failed ones so they can still be retried or
+    // dismissed (and their copies cleaned up then, by clearFinishedUploads); issue #170
+    const kept = q.filter(item => item.status !== 'completed');
     q.length = 0;
-    q.push(...activeRemaining, ...newItems);
+    q.push(...kept, ...newItems);
   });
   addingNames.forEach(name => copiesBeingAdded.delete(name));
 
