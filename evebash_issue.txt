@@ -872,17 +872,6 @@ Found in: Sunlit Portrait issue review (#163, 2026-10-28)
 Issue: The app carries code for a "show welcome card" switch that doesn't exist. The events table has no show_welcome_card column, yet apps/mobile/lib/database.ts maps it (showWelcomeCard in mapSqlToEvent and in the update field map), apps/mobile/app/events/[id].tsx checks (event as any).showWelcomeCard !== false before every theme's gallery message (always true, the value is always missing), and apps/mobile/app/(tabs)/gallery.tsx has a showWelcomeCard state that is never set or saved. Nothing breaks today, but it reads like a working switch (it misled #163), and passing showWelcomeCard to updateEvent would fail on the missing column. Fix: delete the mapping, the checks and the unused state; keep "clear the welcome text" as the way to hide the message (or add the column and a real switch if hosts ask for one).
 How to reproduce: select show_welcome_card from events fails with "column does not exist"; search apps/mobile for showWelcomeCard.
 
-#171
-Listed: 2026-10-28
-Platform: App
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
-Issue: The app's upload progress counts are wrong when a second set is added while the first is uploading. The in-app upload card (apps/mobile/app/events/[id].tsx, total = uploadQueue[0]?.batchTotal) takes its total from the first set's file count but adds up progress for every file in the queue, so it can go past 100% or show e.g. "12 of 10". The phone notification (updateProgressNotification in apps/mobile/lib/uploadQueue.ts) takes the newest set's count but adds up every file for that event, so it can show "Uploading 13 of 5" (the percent is capped at 100). The "N files uploaded" notification at the end has the same mix-up. Fix idea: count the files still in the queue (or the sum of the active sets' sizes) instead of one set's batchTotal, in both places.
-How to reproduce: App, pick 10 photos to upload; while they upload, tap Add Photo and pick 5 more. Watch the upload card and the notification: the counts don't match 15 files.
-
 #174
 Listed: 2026-10-28
 Platform: Website
@@ -961,18 +950,6 @@ Blocked by: -
 Found in: Upload flow review (chat 2026-11-02)
 Issue: The notification permission prompt appears right after someone picks photos, with no explanation: addToUploadQueue calls checkNotificationPermission first (apps/mobile/lib/uploadQueue.ts). Anyone who taps Don't Allow gets no upload progress notifications, which today are the only progress shown (see #208).
 How to reproduce: Fresh install, Add Photo, pick a photo. Not seen on 2026-11-02: the emulator had already allowed notifications.
-
-#215
-Listed: 2026-11-02
-Platform: App
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: Some numbers are stale after an upload or a lost connection. (1) The Dashboard keeps "Couldn't load your events" after the connection returns until Try again is tapped. (2) The host gallery's "Source gallery: All galleries · N" counts only the items loaded so far (selectedMediaItems in apps/mobile/app/events/[id].tsx): it showed 36, then 16, for a gallery of 44 photos. (3) Storage Usage stayed at 46.24 GB after an upload.
-How to reproduce: Seen on the Pixel 8 emulator on 2026-11-02 in test-face-new.
-Note 2026-11-12: part 2 (the Source gallery count) is fixed in 913ef3ec together with #176: opening the list loads the whole gallery, and until then the count ends in "+". Checked on the Pixel 8 emulator (dev build on a local bundler with this commit): test-face-new showed "All galleries · 16+", then All galleries 46 and Home 46 in the list, matching Photos (46); samarth weds Jyoti showed 24 / 14 / 5 / 2 / 3, matching the database. Device test #209. Parts 1 and 3 are still open.
 
 #216
 Listed: 2026-11-02
@@ -1472,6 +1449,31 @@ Update 2026-11-17: (1) Apple Developer, Team AM5NCNB29X, App ID com.evebash.app:
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#171
+Listed: 2026-10-28
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
+Issue: The app's upload progress counts are wrong when a second set is added while the first is uploading. The in-app upload card (apps/mobile/app/events/[id].tsx, total = uploadQueue[0]?.batchTotal) takes its total from the first set's file count but adds up progress for every file in the queue, so it can go past 100% or show e.g. "12 of 10". The phone notification (updateProgressNotification in apps/mobile/lib/uploadQueue.ts) takes the newest set's count but adds up every file for that event, so it can show "Uploading 13 of 5" (the percent is capped at 100). The "N files uploaded" notification at the end has the same mix-up. Fix idea: count the files still in the queue (or the sum of the active sets' sizes) instead of one set's batchTotal, in both places.
+How to reproduce: App, pick 10 photos to upload; while they upload, tap Add Photo and pick 5 more. Watch the upload card and the notification: the counts don't match 15 files.
+Fixed in: 939419be (2026-11-18). The phone notification (performNotificationUpdate in apps/mobile/lib/uploadQueue.ts) now counts every file of that gallery in the queue instead of the newest set's batchTotal, the same way the upload panel counts (finished files from before a new set drop out of both counts, as the panel already did), and the "N files uploaded" notification counts the files saved in the run. Checked on the iPhone 16e simulator (staging, Staging test 1): a 60 MB video uploading, then a second set of 1 video added: the notification said "Uploading 2 files · Uploading 1 of 2", matching the panel ("Uploading 2 videos · 0 of 2 uploaded"); before the fix it took the new set's count ("Uploading 1 file"). Not seen on screen: the final "2 files uploaded" (the slow test upload was cancelled; nothing was saved). Device test #229 step 2. The in-app card part was fixed earlier in 22ec6541.
+
+#215
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Some numbers are stale after an upload or a lost connection. (1) The Dashboard keeps "Couldn't load your events" after the connection returns until Try again is tapped. (2) The host gallery's "Source gallery: All galleries · N" counts only the items loaded so far (selectedMediaItems in apps/mobile/app/events/[id].tsx): it showed 36, then 16, for a gallery of 44 photos. (3) Storage Usage stayed at 46.24 GB after an upload.
+How to reproduce: Seen on the Pixel 8 emulator on 2026-11-02 in test-face-new.
+Note 2026-11-12: part 2 (the Source gallery count) is fixed in 913ef3ec together with #176: opening the list loads the whole gallery, and until then the count ends in "+". Checked on the Pixel 8 emulator (dev build on a local bundler with this commit): test-face-new showed "All galleries · 16+", then All galleries 46 and Home 46 in the list, matching Photos (46); samarth weds Jyoti showed 24 / 14 / 5 / 2 / 3, matching the database. Device test #209. Parts 1 and 3 are still open.
+Fixed in: 939419be (2026-11-18). Part 1: new hook apps/mobile/hooks/use-retry-when-online.ts waits with the upload queue's waitForConnection (now exported from apps/mobile/lib/uploadQueue.ts) and loads again once the backend answers, on the Dashboard, Host and Your Events screens while they show "Couldn't load your events" (Try again still works). Checked on the iPhone 16e simulator with the Dashboard's first load made to fail (temporary code, removed): the error showed, then the events appeared by themselves about 4 s later. Part 3: Storage Usage (apps/mobile/app/events/[id].tsx) also reloads when the gallery's media totals change; before, it reloaded only when the number of loaded items changed, and the page loads 20 at a time, so in test-face-new (44 photos) it never reloaded. Not seen on screen (the test upload was too slow and was cancelled). Small uploads can still look unchanged because the card shows 2 decimals of a GB. Device test #229 steps 1 and 3.
 
 #287
 Listed: 2026-11-18

@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 229
+Next test number: 230
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6689,6 +6689,40 @@ How to test:
      button (minimized) still has the red number. (Before the fix the failed row disappeared.)
   5. As a guest, open an event that has collections, on the main page where you can't upload. Expect: "Open a
      collection to add your photos." Check the same event on staging.evebash.com.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+--------------------------------------------------------------------------------
+#229 App: event lists reload when the connection comes back; upload counts in the phone notification; Storage Usage after uploads (#215, #171)
+Status:    TODO
+Priority:  Low
+Platform:  App (iPhone + Android)
+Brief:     The Dashboard, Host and Your Events screens no longer stay on "Couldn't load your events" after the
+           connection comes back; they load again by themselves (#215). The upload notification counts the same
+           files as the upload panel when you add more files mid-upload (#171). Storage Usage on the host gallery
+           page updates after an upload in a big gallery (#215).
+Detail:    Fix 939419be (apps/mobile/hooks/use-retry-when-online.ts, apps/mobile/lib/uploadQueue.ts,
+           apps/mobile/app/events/[id].tsx and the three tab screens; JavaScript only: reaches the staging app with
+           an over-the-air update or a new build). Checked by Claude on the iPhone 16e simulator: step 1 with a
+           made-up first-load failure on the Dashboard, and step 2's progress notification ("Uploading 2 files ·
+           Uploading 1 of 2"). Not checked: a real loss of connection, the "N files uploaded" notification at the
+           end, step 3.
+How to test:
+  1. Turn on airplane mode, then open the app (or pull to refresh the Dashboard). Expect: "Couldn't load your
+     events". Turn airplane mode off and wait, without tapping anything. Expect: within about 5 seconds your events
+     appear. Do the same on the Host tab and on Your Events.
+  2. As a host, upload 10 photos (or one big video); while they upload, tap Add Photos and add 5 more. Pull down
+     the phone's notifications. Expect: the notification's file count matches the upload panel ("Uploading N files",
+     "Uploading X of N") and never shows more than the total (before: "Uploading 13 of 5"). When everything is
+     done, expect "N files uploaded" with the same N as the panel.
+  3. Open a gallery with more than 20 photos and videos, note Storage Usage, and upload a video of 50 MB or more
+     without leaving the page. Expect: once it's saved, Storage Usage goes up (by about 0.05 GB) without reopening
+     the gallery. Delete the test video afterwards.
 Done by:
 Device / browser:
 Build / version:
