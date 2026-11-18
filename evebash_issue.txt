@@ -104,12 +104,13 @@ How to reproduce: Upload a photo or video to someone else's gallery: the owner's
 Listed: 2026-10-12
 Platform: Both
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: Device test #233 (staging app sign-up), then Shwetank's OK to run the migration on live
 Found in: Test #13 on the new staging app build, Pixel 8 (2026-10-12)
 Issue: Sign-up doesn't save a username. A new account (Google sign-up in the app) has no username: the app's Profile shows "not set". Neither the app (apps/mobile/context/AuthContext.tsx, the profiles insert) nor the website saves one when the profile is created. The website hides it: src/context/AuthContext.tsx shows normalizeUsername(name) when profile.username is empty (e.g. "sarthak_chauhan") but never stores it, so two people with the same name show the same username, and the app and website disagree for the same account. Users can only get one by setting it in Profile > Edit (checked with is_username_available). Fix: pick a free username at sign-up (from the name, with a suffix if taken, via is_username_available) and save it, the same on both platforms; decide whether to backfill existing accounts without one (not counted yet: the database read was blocked).
 How to reproduce: Create a new account with "Continue with Google" in the app, then open Profile: Username "not set". Open the same account's profile on the website: a username is shown, but profiles.username is empty.
+Update 2026-11-18: cause confirmed: every live profile without a username is a Google sign-up from the app (sarthak123elnino@gmail.com 2026-10-12 and the three Google Play pre-launch robots of 2026-11-17); the website already picks one in createUserProfile. Fix in c7423572: migration supabase/migrations/20261118120000_default_username.sql adds eb_private.default_username() and a BEFORE INSERT OR UPDATE trigger on profiles that picks a free username when none is sent (email name part, 3-12 chars a-z0-9._, number added if taken) and keeps a stored one when a save leaves it out; it also fills the profiles that have none. Works for app builds already in the stores, no app change. Dry run on staging in a rolled-back transaction (sample names all valid, taken name -> sarthak.cha2, existing username kept, no duplicates), then applied to staging with Shwetank's OK: 0 staging profiles without a username. Live: 4 to fill, after device test #233 and Shwetank's OK.
 
 #63
 Listed: 2026-10-12
