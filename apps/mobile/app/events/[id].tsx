@@ -6052,57 +6052,63 @@ function EventDetailScreen() {
                                       offscreen={!tileDrawn}
                                     />
                                   </TouchableOpacity>
-                                  {/* Darkens the bottom so the move and delete buttons read on light photos */}
-                                  {!isSelectingMedia && (
-                                    <LinearGradient
-                                      pointerEvents="none"
-                                      colors={['rgba(19, 25, 31,0)', 'rgba(19, 25, 31,0.7)']}
-                                      style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 56 }}
-                                    />
-                                  )}
-                                  {shouldBlurPhoto && <ExpiredMediaThumbnailNotice />}
-                                  {item.isHidden && <HiddenMediaBadge />}
-                                  {isMissingUploadedFile(item) && <FailedUploadBadge />}
-                                  {isSelectingMedia ? (
-                                    <HostTileSelectOverlay selected={selectedMediaIds.has(item.id)} onToggle={() => toggleMediaSelection(item.id)} />
-                                  ) : (
+                                  {/* A far tile is only its box: its shading, badges and buttons come back near the screen with its
+                                      photo, so scrolling past a big gallery doesn't keep every tile's buttons alive (issue #291) */}
+                                  {tileDrawn && (
                                     <>
-                                      <View style={{ position: 'absolute', top: 8, right: 8, flexDirection: 'row', gap: 6 }}>
-                                        <HostTileButton
-                                          icon={isFavouritePhoto ? 'star.fill' : 'star'}
-                                          label={isFavouritePhoto ? 'Remove from favourites' : 'Add to favourites'}
-                                          active={isFavouritePhoto}
-                                          onPress={() => handleToggleEventFavourite(item.id)}
+                                      {/* Darkens the bottom so the move and delete buttons read on light photos */}
+                                      {!isSelectingMedia && (
+                                        <LinearGradient
+                                          pointerEvents="none"
+                                          colors={['rgba(19, 25, 31,0)', 'rgba(19, 25, 31,0.7)']}
+                                          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 56 }}
                                         />
-                                        <HostTileButton icon="ellipsis" label="Photo actions" onPress={() => openGalleryPhotoActions(item)} />
-                                      </View>
-                                      {!isOrderLocked && filteredPhotoItems.length > 1 && (
-                                        <View style={{ position: 'absolute', left: 8, bottom: 8 }}>
-                                          <HostTileMoveButtons
-                                            kind="photo"
-                                            canMoveEarlier={itemIndex > 0}
-                                            canMoveLater={itemIndex >= 0 && itemIndex < filteredPhotoItems.length - 1}
-                                            onMove={(direction) => moveGalleryMedia(item.id, direction)}
-                                          />
-                                        </View>
                                       )}
-                                      <View style={{ position: 'absolute', right: 8, bottom: 8 }}>
-                                        <HostTileButton
-                                          icon="trash.fill"
-                                          label={item.mediaType === 'video' ? 'Delete video' : 'Delete photo'}
-                                          danger
-                                          onPress={() => handleDeleteGalleryPhoto(item.id)}
-                                        />
-                                      </View>
-                                      {deleteJobs.some(job => job.id === item.id && job.status === 'deleting') && (
-                                        <View
-                                          accessibilityRole="progressbar"
-                                          accessibilityLabel={`Deleting ${item.mediaType === 'video' ? 'video' : 'photo'}`}
-                                          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20, backgroundColor: 'rgba(19, 25, 31,0.72)', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                                        >
-                                          <ActivityIndicator size="small" color="#fecaca" />
-                                          <Text style={{ color: '#fecaca', fontSize: 10, fontWeight: '800', letterSpacing: 0.6 }}>DELETING...</Text>
-                                        </View>
+                                      {shouldBlurPhoto && <ExpiredMediaThumbnailNotice />}
+                                      {item.isHidden && <HiddenMediaBadge />}
+                                      {isMissingUploadedFile(item) && <FailedUploadBadge />}
+                                      {isSelectingMedia ? (
+                                        <HostTileSelectOverlay selected={selectedMediaIds.has(item.id)} onToggle={() => toggleMediaSelection(item.id)} />
+                                      ) : (
+                                        <>
+                                          <View style={{ position: 'absolute', top: 8, right: 8, flexDirection: 'row', gap: 6 }}>
+                                            <HostTileButton
+                                              icon={isFavouritePhoto ? 'star.fill' : 'star'}
+                                              label={isFavouritePhoto ? 'Remove from favourites' : 'Add to favourites'}
+                                              active={isFavouritePhoto}
+                                              onPress={() => handleToggleEventFavourite(item.id)}
+                                            />
+                                            <HostTileButton icon="ellipsis" label="Photo actions" onPress={() => openGalleryPhotoActions(item)} />
+                                          </View>
+                                          {!isOrderLocked && filteredPhotoItems.length > 1 && (
+                                            <View style={{ position: 'absolute', left: 8, bottom: 8 }}>
+                                              <HostTileMoveButtons
+                                                kind="photo"
+                                                canMoveEarlier={itemIndex > 0}
+                                                canMoveLater={itemIndex >= 0 && itemIndex < filteredPhotoItems.length - 1}
+                                                onMove={(direction) => moveGalleryMedia(item.id, direction)}
+                                              />
+                                            </View>
+                                          )}
+                                          <View style={{ position: 'absolute', right: 8, bottom: 8 }}>
+                                            <HostTileButton
+                                              icon="trash.fill"
+                                              label={item.mediaType === 'video' ? 'Delete video' : 'Delete photo'}
+                                              danger
+                                              onPress={() => handleDeleteGalleryPhoto(item.id)}
+                                            />
+                                          </View>
+                                          {deleteJobs.some(job => job.id === item.id && job.status === 'deleting') && (
+                                            <View
+                                              accessibilityRole="progressbar"
+                                              accessibilityLabel={`Deleting ${item.mediaType === 'video' ? 'video' : 'photo'}`}
+                                              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20, backgroundColor: 'rgba(19, 25, 31,0.72)', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                                            >
+                                              <ActivityIndicator size="small" color="#fecaca" />
+                                              <Text style={{ color: '#fecaca', fontSize: 10, fontWeight: '800', letterSpacing: 0.6 }}>DELETING...</Text>
+                                            </View>
+                                          )}
+                                        </>
                                       )}
                                     </>
                                   )}
