@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 45
+Next todo number: 46
 
 Last updated: 2026-11-18
 
@@ -797,6 +797,41 @@ Brief:        The dashboard counts every account as a real user, including our o
               the okhttp user agent (the dashboard can't read auth.sessions, so this needs a database rule).
               Nothing is deleted; website and app are not affected. Staging first, live with Shwetank's OK.
 Done in:      -
+
+#45 How-to demo videos with voice-over (English and Hindi)
+Listed:       2026-11-18
+Platform:     Both
+Priority:     Medium
+Phase:        1 (v1 launch)
+Status:       In progress
+Effort:       M (first video and the tools), then S per video
+Suggested by: Sarthak (2026-11-18)
+Discussed:    Yes
+Decision:     2026-11-18 Sarthak: Claude records the app and website itself, edits, and adds an AI voice. Free
+              local voice (Kokoro) first, ElevenLabs only if it isn't good enough. Every video in English and in
+              Hindi. Remotion (editing) and Playwright (website recording) are local tools only. First video: a
+              guest finds their photos with a selfie (Find You) in the app. Later the same day: the tools stay
+              out of the repo, in /Users/sarthak/EveBash-demo-videos on Sarthak's Mac; videos are made there
+              and uploaded to socials by hand.
+Owner:        Sarthak (with Claude)
+Depends on:   Demo photos of people who agreed to be shown (never real customer photos); #32 (sample galleries)
+Brief:        Short videos that show how to use one feature each, for the website, YouTube, Instagram and the
+              store listings. Steps per video: script and voice-over text (English + Hindi) -> voice generated
+              first so each scene's length is known -> screen recorded to match (iPhone simulator or Pixel 8 for
+              the app, scripted Playwright for the website) -> edited in Remotion (tap zooms, captions, phone
+              frame, logo intro/outro, music) -> exported 9:16 (Reels/Shorts/app) and 16:9 (YouTube/website).
+              Raw recordings stay out of the repo and are deleted after export (the Mac is 95% full).
+Done in:      -
+Update 2026-11-18: Tools set up outside the repo in /Users/sarthak/EveBash-demo-videos (README there):
+              Kokoro voice (tts.py), cut list + timeline (build_timeline.py), Remotion edit (src/); finished
+              videos in out/final/. Sarthak chose stock photos on staging over
+              the live "Demo Wedding" (a real couple's photos). Demo event on staging: Riya & Arjun's Wedding
+              (riya-arjun-s-wedding-00bc, account newone1), 12 Pexels photos from public/home in Haldi and
+              Wedding; the selfie is a face crop of groom-solo.jpg, and Find You finds 5 photos. First video
+              "Find your photos with a selfie" recorded on a new "EveBash Demo" iPhone simulator and rendered
+              in English and Hindi, 9:16 and 16:9 (about 46 s / 49 s), waiting for Sarthak's review. Not yet
+              done: background music, Playwright website recordings, a place to publish them. Found while
+              recording: #293, #294.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
