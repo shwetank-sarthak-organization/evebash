@@ -42,7 +42,7 @@ import { notifyVideoProcessed } from "../services/videoProcessedNotify.js";
 import { checkEventUpload, isEventUploadLimitEnabled } from "../services/eventUploadLimits.js";
 import { isEventTransferPending } from "../services/eventTransfers.js";
 import { buildRotatedLinks, isRotateVersionedLinksEnabled, previousOriginalLinks } from "../services/rotateLinks.js";
-import { isRotateUprightFirstEnabled, rotateImage } from "../services/rotateImage.js";
+import { isRotateUprightFirstEnabled, isRotateWorkerSizesEnabled, makeRotatedCopies, rotateImage } from "../services/rotateImage.js";
 import { GRID_LONG_SIDE, GRID_QUALITY, gridKey, isGridVariantEnabled } from "../services/gridVariant.js";
 import { deleteAllB2FileVersions, deleteAllB2Versions, isDeleteAllFileVersionsOn, isDeleteAllVersionsOn } from "../services/b2DeleteAllVersions.js";
 import { getStorageContext, ownerIdentifiers } from "../vault/access.js";
@@ -1871,14 +1871,8 @@ mediaRouter.post("/rotate", asyncRoute(async (request, response) => {
   const rotated = await rotateImage(originalBytes, angle, isRotateUprightFirstEnabled());
   const rotatedBuffer = rotated.data;
   const rotatedMetadata = rotated.info;
-  const thumbnailBuffer = await sharp(rotatedBuffer)
-    .resize({ width: 400, fit: "inside", withoutEnlargement: true })
-    .webp({ quality: 75 })
-    .toBuffer();
-  const previewBuffer = await sharp(rotatedBuffer)
-    .resize({ width: 900, fit: "inside", withoutEnlargement: true })
-    .webp({ quality: 75 })
-    .toBuffer();
+  // Same preview and thumbnail sizes as the photo worker with ROTATE_WORKER_SIZES=true (issue #138)
+  const { thumbnail: thumbnailBuffer, preview: previewBuffer } = await makeRotatedCopies(rotatedBuffer, isRotateWorkerSizesEnabled());
   // Grid image (issue #121): remade only with GRID_VARIANT=true, but an old one is always removed below so the
   // grid never shows the photo unrotated (without one, the website shows the thumbnail)
   const gridBuffer = isGridVariantEnabled()

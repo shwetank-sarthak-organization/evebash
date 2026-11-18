@@ -18,25 +18,11 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 286
+Next issue number: 293
 
 =====================================================================
 ACTIVE ISSUES
 =====================================================================
-
-#18
-Listed: 2026-10-09
-Platform: App
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device test #223 (Google sign-in in the app installed from Google Play)
-Found in: Store launch review (2026-10-03)
-Issue: Google sign-in will fail (DEVELOPER_ERROR) on Play and EAS-signed Android builds: Firebase only has the debug-keystore SHA-1. Add the Play app-signing and EAS upload-key SHA-1s before store release.
-How to reproduce: Install an EAS-signed or Play build and tap "Continue with Google": DEVELOPER_ERROR.
-Update 2026-10-11: for the new package com.evebash.app (#41) the debug and EAS upload-key SHA-1s are in Firebase, and their Android OAuth clients exist in Google Cloud (made by hand; Firebase did not create them). Only the Play app-signing SHA-1 is left: add it to the Firebase app com.evebash.app and as a Google Cloud Android OAuth client after the first Play upload.
-Update 2026-11-16: the Play app-signing key is set up. From Play Console > Protected with Play > Play app signing: SHA-1 71:71:05:25:FB:CA:72:9C:47:13:15:35:51:F8:B6:B0:E0:AD:8F:DD (SHA-256 7A:68:8A:41:...:19:73:13:82). Sarthak added both to the Firebase app com.evebash.app and created the Google Cloud Android OAuth client "EveBash Android Play signing (com.evebash.app)" (71982315150-q878fe4n2ha5eh6mpkdout6d15b2mdln); apps/mobile/google-services.json refreshed from Firebase (adds that client, and the staging debug client made 2026-11-14; app IDs and keys unchanged). No code change: the app signs in with the web client ID. The App signing page shows no upload key, so nothing has been uploaded to Play yet; the first upload from EAS sets it (EAS key 29:40:B3...). Its "Copy all certificate fingerprints" also lists SHA-1 80:C9:28:77:AA:9E:D8:22:67:B8:C5:F7:4C:A3:D5:F4:80:E5:07:93 and 53:1F:5F:91:CF:78:39:85:69:C0:5C:DA:A3:33:69:99:D6:2C:43:4B (SHA-256 19:7E:20:0D:...:E7:0F and 04:91:6F:D1:...:2D:D4), most likely the previous app signing key (first used 2026-09-24, 0% installs, "Quantum-ready"); not registered, as Play signs new releases with the in-use key. If Play refuses the first EAS upload with "wrong key", reset the upload key in Play Console. Not checked yet: a sign-in from a Play-installed build (device test #223, needs that first upload, a production build: Shwetank's OK). The same two fingerprints were first added by mistake to the old Firebase app com.anonymous.evebash (unused since #41; harmless; remove that app only with Shwetank's OK). iOS (same topic, no fingerprints there): the live build's Google iOS client (EAS production EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID 71982315150-e883v8...) matches the iosUrlScheme in app.json; still to check by hand: that client's bundle ID is com.evebash.app, Sign in with Apple is on for the Apple App ID com.evebash.app, and the live Supabase Apple provider lists com.evebash.app in Client IDs.
-Update 2026-11-16 (later, with Shwetank's OK): removed the old Firebase Android app "EveBash Android" (com.anonymous.evebash, unused since #41; in Firebase's "Pending delete apps" for 30 days) and its Google Cloud Android OAuth client "EveBash Android" (71982315150-82v82..., created 2026-09-30; Google showed it last used 2026-11-16; restorable for 30 days under "Restore deleted OAuth clients"). No other client was touched (EveBash Web, EveBash iOS, the com.evebash.app EAS, debug and Play signing clients, both com.evebash.app.staging Android clients, EveBash Staging iOS). apps/mobile/google-services.json re-downloaded: exactly com.evebash.app and com.evebash.app.staging, both identical to the previous file. Checked afterwards: "Continue with Google" in EveBash Staging on a Pixel 8 (EAS staging build 60443d04) signed in (phone log: GoogleSignin.signIn() success, then SIGNED_IN; 0 crashes).
 
 #20
 Listed: 2026-10-09
@@ -558,6 +544,7 @@ Checked 2026-10-24: all 69 existing videos' streams are 8-bit (57 High + 10 Main
 Fix (switch off by default): with the video switch's sdr_8bit key on (modal_engine/video_gpu_switch.py sdr-8bit on), both CPU workers probe the source and, only when it isn't 8-bit 4:2:0 SDR, put a conversion before the tier split (_sdr_8bit_filter): format=yuv420p for 10-bit / 4:2:2, and for HDR (PQ / HLG) zscale + tonemap=mobius to BT.709 SDR, with sources above 1080p shrunk to 1080p first. If the HDR conversion fails (e.g. no colour primaries tag), it retries as plain 8-bit. 8-bit SDR sources get exactly the old command.
 Tested on Modal (4-core, production image, production filter code, old vs new command): 10-bit H.264, 10-bit HEVC, 4:2:2, HLG, PQ, HLG 4K and HLG without primaries all came out H.264 High (profile 100) yuv420p bt709 in every tier (old: High 10 / High 4:2:2); 8-bit SDR unchanged. Colours vs the SDR original: SSIM 0.98 (HLG and PQ; hable was 0.96 and visibly darker). Extra time: 4K HDR ~0 (6.4 -> 6.6 s for 15 s), 1080p HDR ~3x (3.8 -> 12 s for 12 s), 10-bit/4:2:2 SDR ~0.
 2026-10-24: Modal v127 deployed (6653ffe, 18:06 IST; rollback v126). sdr_8bit is off, so every video still gets the old command until it is switched on. Checked after deploy: video endpoints reject unsigned calls (401), all four video functions present.
+Update 2026-11-18: sdr-8bit switched ON for staging Modal only (with Shwetank's and Sarthak's OK; video_gpu_switch.py with MODAL_ENVIRONMENT=staging). Live switch still off. Next: Shwetank uploads an iPhone HDR video on staging and plays it on an iPhone and an Android phone (device test #133), then a separate OK to turn it on for live.
 
 #119
 Listed: 2026-10-24
@@ -572,6 +559,7 @@ How to reproduce: Take a portrait phone video, strip its audio (ffmpeg -i in.mp4
 Fix: with the video switch's "probe_v2" key on (modal_engine/video_gpu_switch.py probe-v2 on), _transcode_video_core reads audio and height from one JSON ffprobe (_video_basics_from_probe). The height is the one the viewer sees (a video stored sideways with a 90-degree flag uses its stored width), the same as for a video recorded upright. Off = the old probes. Tested on Modal (production image and command, old vs new) on 8 clips: the old probes FAILED on all 4 rotated videos without audio (90, -90, 180 and a small 640x480 one); the new probe processed all of them upright, and the small one got only a 480p stream (360x480) instead of an enlarged 1080p one. Normal, no-audio, natively portrait and rotated-with-audio videos came out identical with old and new.
 Correction to the text above: a rotated 720p phone video was not enlarged before (its output fitted inside 1080 anyway); only rotated videos under 720p were.
 2026-10-25: Modal v130 deployed (eae06d0, 00:13 IST; rollback v129) and probe_v2 switched on for every video (video_gpu_switch.py probe-v2 off to undo). Checked: video endpoints reject unsigned calls (401), all four video functions present.
+Update 2026-11-18: probe-v2 switched ON for staging Modal only (with Shwetank's and Sarthak's OK). Live switch still off. Next: a portrait video with no sound on staging, played on an iPhone and an Android phone, then a separate OK for live.
 
 #121
 Listed: 2026-10-24
@@ -694,9 +682,9 @@ Update 2026-11-17 (Shwetank with Claude): checked in Cloudflare > Manage account
 Listed: 2026-10-24
 Platform: Both
 Priority: Low
-Status: Open
+Status: Blocked
 Owner: Sarthak (decision)
-Blocked by: Sarthak: a RunPod account with credit (min $10, non-refundable) and RUNPOD_API_KEY in the root .env
+Blocked by: RunPod is parked: Modal does all video processing for now (decision #229, 2026-11-18)
 Found in: Modal vs RunPod comparison (chat 2026-10-24); follows #117
 Issue: Long videos might convert ~30% cheaper on RunPod Serverless than on our Modal L4, but every RunPod figure so far is an estimate. Estimates for test_5 (48.7 min, 1.94 GB in, 2.88 GB HLS out), from the ~284 s Modal bills for it priced at RunPod's flex rates: L4 $0.69/h ~₹5.4, RTX 4000 Ada $0.58/h ~₹4.6 (if L4-like speed), 4090 $1.10/h ~₹7.6, A5000/3090 $0.69/h ~₹7.1-8.8 (1 NVENC, likely 1.5-2x slower), L40S $1.75/h ~₹12. Modal L4 measured ₹7.5-8.3, 16-core ₹12.7. Egress: free on RunPod (docs.runpod.io billing); free on Modal up to 1 TiB/month then $0.04/GiB, so RunPod only pulls clearly ahead above ~350 long videos/month (monthly at 1,000 test_5-size videos: Modal L4 ~₹14,500, RunPod Serverless L4 ~₹5,400). A100/H100 can't be used (0 NVENC). Unknowns: RunPod cold start with our ~2 GB ffmpeg image, B2 download/upload speed from RunPod datacentres, which GPU the 24 GB tier hands out (L4 vs A5000/3090) unless the endpoint is pinned to L4, unpublished active-worker discount.
 Plan: Serverless endpoint (flex, max 3 workers, idle timeout ~10 s) pinned to L4, then one pinned to RTX 4000 Ada; image = jrottenberg/ffmpeg:7.0-nvidia2204 + Python + the production _full_gpu_ffmpeg_cmd (no Docker on the Mac, so install Python at start or build via RunPod's GitHub integration). 3 runs each on test_5 and the 4 other long test videos from #117 (B2 bench/ prefix, deleted after). Measure per stage (GPU wait, download, transcode, upload), cost from RunPod's billing API, SSIM vs the original. Delete the endpoint and all bench files after. Expected cost of the test: under $5. Only move videos if the measured saving is worth running a second provider (lock, switch, retries and cost log would need rebuilding outside Modal).
@@ -741,6 +729,7 @@ EXACT costs from both providers' bills (2026-10-26; RunPod = each endpoint's bil
 - Short, Modal 4-core vs RunPod cpu5g 8 vCPU: 4K 50 s ₹0.62 (₹0.43 + ₹0.19 egress) vs ₹0.08; iPhone HDR ₹0.53 vs ₹0.09; 4K 25 s ₹0.18 vs ₹0.04; HEVC 60 fps ₹0.28 vs ₹0.05 -> 78-87% saving. Other CPU types per clip: cpu5c 8 ₹0.03-0.07, cpu3c 8 ₹0.03-0.07, cpu3g 8 ₹0.04-0.13, cpu5c 16 ₹0.05-0.11, cpu5c 4 ₹0.02-0.04.
 - Billed rates: RTX 4000 Ada $0.000162/s, 24 GB tier $0.000192/s, cpu5g-8-32 $0.0000203/s, cpu5c-8-16 $0.0000159/s, cpu3c-8-16 $0.0000136/s, cpu3g-8-32 $0.0000228/s, cpu5c-16-32 $0.0000316/s, cpu5c-4-8 $0.0000083/s; no egress on RunPod.
 Update 2026-10-28: the RunPod path is built behind VIDEO_RUNPOD (off) on branch feat/runpod-video (8bfc220), see todo #18. Not pushed or deployed; no RunPod endpoint created yet.
+Note 2026-11-18: Shwetank and Sarthak decided Modal does all video processing for now (≤ 10 min on the 4-core worker, > 10 min on the 16-core worker, as today); RunPod is set up later. This waits until then (decision #229).
 
 #135
 Listed: 2026-10-24
@@ -758,13 +747,15 @@ Fix (app, not in a build yet): apps/mobile/components/PhotoViewer.tsx: the progr
 Listed: 2026-10-25
 Platform: Both
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: ROTATE_WORKER_SIZES=true on staging Railway, then device test #232, then the release and the live switch
 Found in: rotate test on VIS_6191 (2026-10-24)
 Issue: After a rotate, the photo's preview and thumbnail are smaller and lower quality than the photo worker makes: the rotate route (POST /api/v1/media/rotate, apps/backend/src/routes/media.ts) remakes the preview at 900 px wide and the thumbnail at 400 px wide (sharp resize by width only, WebP q75), while PhotoProcessorV2 makes 1600 px / 480 px on the long side (q70 / q68). So a rotated photo looks softer in the viewer (VIS_6191 in Rec 1 went from a 3000 px to a 900x1350 preview), and a rotated portrait gets a 400x600 thumbnail. The grid image is already right (1000 px long side, #121).
 Fix: make the rotate route's preview and thumbnail like the photo worker's (long side 1600 / 480, same qualities), behind a backend flag per change-safety; check overhead_size and the website/app viewer after a rotate.
 How to reproduce: Rotate a photo in the host page viewer, then open it: the viewer image is 900 px wide.
+Update 2026-11-18: fixed in afc92728 (on staging, switch off). makeRotatedCopies in apps/backend/src/services/rotateImage.ts: with ROTATE_WORKER_SIZES=true the rotate route makes a 1600 px preview (WebP q70) and a 480 px thumbnail (WebP q68) on the long side, like PhotoProcessorV2; off, the old 900/400 px wide at q75. Never enlarges. Tests in apps/backend/tests/rotateImage.test.ts (3000x4500 portrait: off 900x1350 / 400x600, on 1067x1600 / 320x480).
+Update 2026-11-18: ROTATE_WORKER_SIZES=true set on staging Railway by Shwetank. A photo rotated in the Rotate test gallery got a 1600x1067 preview and a 480x320 thumbnail (device test #232 steps 1-3 pass). Next: release (backend), then ROTATE_WORKER_SIZES=true on live Railway.
 
 #139
 Listed: 2026-10-25
@@ -886,40 +877,6 @@ Found in: Sunlit Portrait issue review (#163, 2026-10-28)
 Issue: The app carries code for a "show welcome card" switch that doesn't exist. The events table has no show_welcome_card column, yet apps/mobile/lib/database.ts maps it (showWelcomeCard in mapSqlToEvent and in the update field map), apps/mobile/app/events/[id].tsx checks (event as any).showWelcomeCard !== false before every theme's gallery message (always true, the value is always missing), and apps/mobile/app/(tabs)/gallery.tsx has a showWelcomeCard state that is never set or saved. Nothing breaks today, but it reads like a working switch (it misled #163), and passing showWelcomeCard to updateEvent would fail on the missing column. Fix: delete the mapping, the checks and the unused state; keep "clear the welcome text" as the way to hide the message (or add the column and a real switch if hosts ask for one).
 How to reproduce: select show_welcome_card from events fails with "column does not exist"; search apps/mobile for showWelcomeCard.
 
-#169
-Listed: 2026-10-28
-Platform: Website
-Priority: Medium
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: Device test #226 on staging, then the release
-Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
-Issue: On the host page a host can't start a second set of photos or videos while one is still sending. The "Add or Drop Photos/Videos" tile is disabled (shows "Adding...") and dropped files are ignored while the page-wide status is "uploading" (src/app/(main)/host/page.tsx, the file input in the Add tile and handleGalleryDrop). The status is one value for the whole page, so an upload to one gallery also blocks every other gallery. It unlocks once all files have been sent, even while videos are still processing. The lock is also easy to get around: uploads keep running in src/context/UploadContext.tsx after leaving the page (#78), but status is page state, so going to another page and back resets it to idle and a second set starts next to the first (two sets of 3 files sending at once). The app has no such lock (it queues new sets, see #170). Fix idea: drop the page-wide lock and append new sets to the shared upload queue in UploadContext, with one shared set of upload workers, so a new set waits its turn instead of being refused or running in parallel. Note: the storage-limit check before each set doesn't count files still uploading from an earlier set.
-How to reproduce: Website, host page, pick 20 photos to upload; while they upload the Add tile shows "Adding..." and can't be clicked, and dropping files does nothing. Open another gallery: same. Now go to Dashboard and back to the host page while the upload runs: the tile works again and a second set uploads at the same time as the first.
-Update 2026-11-17: fixed in c757d014 (on staging). The page-wide lock is gone: the Add tile and drag-and-drop work while files are sending (the tile says new files wait their turn). Upload sets now run one after another through runUploadSet in src/context/UploadContext.tsx, so a new set shows "Queued..." and starts when the one before it is sent, in any gallery; because the line lives in UploadProvider, leaving the page and coming back no longer starts a second set next to the first. Still 3 files at a time. The storage check of a new set also counts files still waiting or sending (pendingUploadBytes). A set that finishes after the host moved to another gallery no longer adds its photos to, or reloads, the gallery on screen. Device test #226.
-
-#170
-Listed: 2026-10-28
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
-Issue: Adding a new set of photos or videos in the app while an upload is running removes failed files from the queue. addToUploadQueue in apps/mobile/lib/uploadQueue.ts drops every completed and failed item before adding the new set ("Purge any stale finished items"). A failed file from the first set disappears from the upload card, so the host loses its Retry button and may not notice it never uploaded. Its durable copy in the app's upload folder is also left behind, because cleanupDurableFile only runs in clearFinishedUploads, and a failed large file's unfinished B2 upload isn't released. Fix idea: keep failed items when adding a new set (only drop completed ones), or run the same cleanup clearFinishedUploads does.
-How to reproduce: App, upload ~10 photos and make one fail (e.g. airplane mode is no longer enough since #144; use a file the server refuses, or a plan-limit failure). While the rest upload, tap Add Photo and pick more: the failed photo is gone from the upload card and can't be retried.
-
-#171
-Listed: 2026-10-28
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
-Issue: The app's upload progress counts are wrong when a second set is added while the first is uploading. The in-app upload card (apps/mobile/app/events/[id].tsx, total = uploadQueue[0]?.batchTotal) takes its total from the first set's file count but adds up progress for every file in the queue, so it can go past 100% or show e.g. "12 of 10". The phone notification (updateProgressNotification in apps/mobile/lib/uploadQueue.ts) takes the newest set's count but adds up every file for that event, so it can show "Uploading 13 of 5" (the percent is capped at 100). The "N files uploaded" notification at the end has the same mix-up. Fix idea: count the files still in the queue (or the sum of the active sets' sizes) instead of one set's batchTotal, in both places.
-How to reproduce: App, pick 10 photos to upload; while they upload, tap Add Photo and pick 5 more. Watch the upload card and the notification: the counts don't match 15 files.
-
 #174
 Listed: 2026-10-28
 Platform: Website
@@ -965,18 +922,6 @@ Found in: Porting the video pipeline to another project (chat 2026-10-29)
 Issue: A video still "processing" more than 6 hours after upload stays "processing" forever. The watchdog (apps/backend/src/services/watchdog.ts, runMediaWatchdog) only reads processing videos uploaded between 15 minutes and 6 hours ago (.gt("uploaded_at", sixHoursAgo)), so an older one is never re-sent and never marked failed: guests never see it and the uploader sees "processing" with no error. Normally every video finishes or fails well within 6 hours (3 Modal retries, 3 watchdog re-sends), so this needs the watchdog to miss that window: the backend down for hours, MEDIA_WATCHDOG_ENABLED=false, or a long Modal outage. None today (0 videos processing for over 6 h on 2026-10-29). Fix idea: in the same run, mark videos still processing after 24 h as failed ("Transcoding did not finish within 24 hours"), behind a flag.
 How to reproduce: on a staging test gallery, set one video's status to 'processing' and uploaded_at to 7 hours ago, then POST /api/v1/media/watchdog/run: the video is not in the report and stays processing.
 
-#185
-Listed: 2026-11-01
-Platform: App
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: device test #178 (real phone)
-Found in: App crash audit (chat 2026-11-01)
-Issue: Two of the main photo grids keep every loaded photo on screen in memory, so scrolling a big gallery can run the phone out of memory, and the system then kills the app. Only Classic White and Sunlit Portrait guests get the windowed grid (apps/mobile/components/classic/ClassicPhotoRows.tsx draws only rows near the screen). Not windowed: (1) the host grid on every gallery (Sortable.Grid, apps/mobile/app/events/[id].tsx, about line 5737); (2) the guest masonry grid for Midnight Hero and Royal Emerald (same file, about line 7389; 29 of 74 galleries, including the biggest, reception-0e42 with 790 photos). Measured 2026-11-01 on the iPhone 17 Pro simulator (release bundle built 2026-10-28), gallery rec-8-3d4d (214 photos, 7 videos): the guest Portrait grid stayed at 85-94 MB all the way down; the host grid on the same photos went from 190 MB to 317 MB and was still rising, with CPU at 60-90% while scrolling. That is roughly 0.6-1 MB per photo (estimate: the exact number of photos loaded wasn't counted), so a 3,000-photo gallery would need about 2-3 GB. As a rough guide iOS stops an app at about half the phone's RAM, and low-end Android phones have less. The simulator has no memory limit, so it did not crash, and the masonry grid wasn't measured (same pattern, no windowing). The host grid also runs filteredPhotoItems.findIndex for every tile on every render, and the "Uploaded by" filter (loadAllAdminMedia) loads the whole gallery and draws every tile at once. Fix: reuse the ClassicPhotoRows windowing for the masonry grid; for hosts, show a windowed grid and only use Sortable.Grid in a separate Reorder mode (it draws every item); look up tile positions from a map instead of findIndex.
-How to reproduce: On a low-memory phone, open a gallery with 1,000+ photos in Midnight Hero or Royal Emerald (or any gallery as its host) and keep scrolling. Expect: the app gets slow, then closes.
-Note 2026-11-03: windowing pushed in eed090f. The host grid and the guest masonry grid now load only photos within a few screens of the view, through one shared hook (apps/mobile/hooks/use-scroll-window.ts, also used by ClassicPhotoRows; masonry columns in apps/mobile/components/event/MasonryPhotoColumns.tsx). Far tiles keep their place, frame and size and show an empty box, like a photo still loading. Hold-and-drag reordering is unchanged (Sortable.Grid kept), and host tiles take their position from the grid instead of findIndex. Checked on the iPhone 17 Pro simulator with release builds that logged how many photos were loaded: host grid on rec-8-3d4d held 71 photos after 20 flicks (113 without the change) and stayed between 50 and 71 down to the bottom; the Royal guest grid on test-face-new-155c held 26-36 of 46. Photos reloaded when scrolling back up, and the grids looked unchanged. The simulator's memory number did NOT change (host grid +40 MB vs +39 MB over 10 flicks; 313 vs 315 MB after a simulated memory warning): the simulator doesn't charge on-screen photos to the app, so the growth measured there (also on 2026-11-01 above) is mostly something else, likely every tile's buttons and icons (Sortable.Grid keeps every tile) and app data. Still open: (1) device test #178 on a real phone; (2) the Reorder-mode idea for the host grid, which changes how hosts reorder and needs Sarthak's decision. Note: the host grid's 3-column tile math in renderItem must change with the column count.
-
 #205
 Listed: 2026-11-02
 Platform: App
@@ -987,74 +932,6 @@ Blocked by: -
 Found in: App screen review (chat 2026-11-01)
 Issue: On iPhone, the New Event name placeholder showed wide letter spacing ("e . g .  W e d d i n g") after the Join Event sheet had been opened in the same run. Seen once on the iPhone 17 Pro simulator on 2026-11-02; the placeholder looked normal on 2026-11-01 when New Event was opened first. Neither field's style was changed. Likely cause, not confirmed: iOS reuses the text box from the Join Event code field, which has letterSpacing 4 (apps/mobile/app/(tabs)/dashboard.tsx). Not checked on a real iPhone.
 How to reproduce: Start the app, open Dashboard > Join Event and close it, then Host > + . Look at the Event Name placeholder.
-
-#212
-Listed: 2026-11-02
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: The notification permission prompt appears right after someone picks photos, with no explanation: addToUploadQueue calls checkNotificationPermission first (apps/mobile/lib/uploadQueue.ts). Anyone who taps Don't Allow gets no upload progress notifications, which today are the only progress shown (see #208).
-How to reproduce: Fresh install, Add Photo, pick a photo. Not seen on 2026-11-02: the emulator had already allowed notifications.
-
-#213
-Listed: 2026-11-02
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: Choosing photos starts the upload straight away, with no step to confirm, and nothing says which gallery they go into. The target is whichever gallery or sub-gallery is open (handleUploadGalleryMedia in apps/mobile/app/events/[id].tsx), so uploading to the wrong one is easy.
-How to reproduce: Open a sub-gallery, Add Photo, pick photos: they upload at once with no gallery name shown anywhere.
-
-#214
-Listed: 2026-11-02
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: Upload wording and naming. Progress text is technical ("Uploading Media (3/10)", "2 upload(s) failed. (Tap to view details)", "AI face indexing and thumbnail generation..."; the notification says "AI Face Indexing"), and telling guests their faces are being indexed right after they upload could alarm them. The button says "Add Photo" although several can be picked, and the empty state "No photos yet. Tap Add Photo!". The upload notification uses the yellow gold #CCA43B (see #147). Sub-galleries have three names: "Sub-Galleries" for hosts, "Collections" for guests, and the guest upload hint says "Open an album to add your photos." while "Album" is also the album proofing tab.
-How to reproduce: Read on the device and in apps/mobile/app/events/[id].tsx and apps/mobile/lib/uploadQueue.ts.
-Note 2026-11-02: Fixed in 3236073: plain progress wording in the card, notification and Dashboard entry, "Add Photos" / "Add Videos", and brand gold on the upload notification. Still open: the three names for sub-galleries.
-
-#215
-Listed: 2026-11-02
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: Some numbers are stale after an upload or a lost connection. (1) The Dashboard keeps "Couldn't load your events" after the connection returns until Try again is tapped. (2) The host gallery's "Source gallery: All galleries · N" counts only the items loaded so far (selectedMediaItems in apps/mobile/app/events/[id].tsx): it showed 36, then 16, for a gallery of 44 photos. (3) Storage Usage stayed at 46.24 GB after an upload.
-How to reproduce: Seen on the Pixel 8 emulator on 2026-11-02 in test-face-new.
-Note 2026-11-12: part 2 (the Source gallery count) is fixed in 913ef3ec together with #176: opening the list loads the whole gallery, and until then the count ends in "+". Checked on the Pixel 8 emulator (dev build on a local bundler with this commit): test-face-new showed "All galleries · 16+", then All galleries 46 and Home 46 in the list, matching Photos (46); samarth weds Jyoti showed 24 / 14 / 5 / 2 / 3, matching the database. Device test #209. Parts 1 and 3 are still open.
-
-#216
-Listed: 2026-11-02
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: Uploads go one file at a time (CONCURRENCY = 1 in apps/mobile/lib/uploadQueue.ts), so a guest sending 300 photos over venue Wi-Fi waits a long time. This may be deliberate for reliability; measure before changing.
-How to reproduce: Read in the code.
-
-#217
-Listed: 2026-11-02
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: apps/mobile/app/events/sub/[id].tsx has its own simpler copy of the photo upload code (no video checks, no shared checks), and nothing in the app seems to link to that screen any more. Remove it or route it through the event screen's upload code.
-How to reproduce: Read in the code (grep found no links to /events/sub).
 
 #218
 Listed: 2026-11-02
@@ -1084,45 +961,49 @@ Options (nothing changed yet): test again at another time of day; log the L4 wai
 Listed: 2026-11-03
 Platform: Both
 Priority: Medium
-Status: Open
+Status: Blocked
 Owner: Unassigned
-Blocked by: -
+Blocked by: RunPod is parked: Modal does all video processing for now (decision #229, 2026-11-18)
 Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: A RunPod worker that hangs is noticed very late. In apps/backend/src/services/runpodVideo.ts (checkStep) a job that is IN_PROGRESS is only moved to the next worker after its time limit plus 15 minutes. The limit is 1.5 x the video length + 10 minutes, at least 15 minutes. So a stalled 3-minute video waits about 30 minutes, a stalled 10-minute video about 40 minutes, before the next worker or Modal gets it. Modal's workers write a heartbeat (transcode_heartbeat_at, issue #157); the RunPod worker does not. Fix idea: have the RunPod worker report a heartbeat and move on when none arrives for about 3 minutes.
 How to reproduce: With VIDEO_RUNPOD on for a test gallery, make the worker stop without failing (for example block its upload) and time how long until the video moves to the next worker.
+Note 2026-11-18: Shwetank and Sarthak decided Modal does all video processing for now (≤ 10 min on the 4-core worker, > 10 min on the 16-core worker, as today); RunPod is set up later. This waits until then (decision #229).
 
 #222
 Listed: 2026-11-03
 Platform: Both
 Priority: Medium
-Status: Open
+Status: Blocked
 Owner: Unassigned
-Blocked by: -
+Blocked by: RunPod is parked: Modal does all video processing for now (decision #229, 2026-11-18)
 Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: The guard against two workers converting the same video lives in the backend's memory (claimActive in apps/backend/src/services/runpodVideo.ts, a Map; the code comment says "one backend process; best effort"). A Railway restart, or a second backend instance, forgets it, so two RunPod jobs (or a RunPod job and a Modal copy) can convert one video and upload over each other's segments. Fix idea: keep the claim in the database (a claim on the photos row, like claim_media_job for photos) instead of memory.
 How to reproduce: Send the same video's job twice, or restart the backend while a RunPod job runs and let QStash redeliver; check Railway logs for two "started on" lines for one photo id.
+Note 2026-11-18: Shwetank and Sarthak decided Modal does all video processing for now (≤ 10 min on the 4-core worker, > 10 min on the 16-core worker, as today); RunPod is set up later. This waits until then (decision #229).
 
 #223
 Listed: 2026-11-03
 Platform: Both
 Priority: Medium
-Status: Open
+Status: Blocked
 Owner: Unassigned
-Blocked by: -
+Blocked by: RunPod is parked: Modal does all video processing for now (decision #229, 2026-11-18)
 Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: With RunPod on, the Railway backend sits in the middle of every video. Before, QStash called Modal directly. Now QStash calls apps/backend/src/routes/videoWorker.ts, which starts the RunPod job and schedules a check every 30 to 60 seconds through QStash. If Railway is down or restarting, new videos and the checks of running jobs wait. Not yet confirmed: whether the backend watchdog (#157) also rescues a video that was handed to RunPod and then lost. Fix idea: read the watchdog code, test a Railway restart during a RunPod job, and make sure a lost job ends on Modal.
 How to reproduce: Redeploy or restart the Railway backend while a RunPod video is converting and watch whether it still reaches "processed".
+Note 2026-11-18: Shwetank and Sarthak decided Modal does all video processing for now (≤ 10 min on the 4-core worker, > 10 min on the 16-core worker, as today); RunPod is set up later. This waits until then (decision #229).
 
 #224
 Listed: 2026-11-03
 Platform: Both
 Priority: Medium
-Status: Open
+Status: Blocked
 Owner: Unassigned
-Blocked by: -
+Blocked by: RunPod is parked: Modal does all video processing for now (decision #229, 2026-11-18)
 Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: Every step of the RunPod backup chain downloads the original from Backblaze again (dispatchStep in apps/backend/src/services/runpodVideo.ts signs a new source_url per worker). A job that fails or times out has already downloaded the file, and the next worker downloads it again. Downloads count against Backblaze's free allowance, and the October bill already had $15.92 of extra downloads from our own video tests. Backblaze uploads also stalled once for 207 seconds in the 2026-10-27 benchmark, which doubles a video's time. Fix idea: count downloads and attempts per video, read through the Cloudflare route that was tested on 2026-11-01, and avoid fallbacks that re-run the same work.
 How to reproduce: Send a long video through the chain with the first worker forced to fail; the Backblaze download count for that file goes up by one per step.
+Note 2026-11-18: Shwetank and Sarthak decided Modal does all video processing for now (≤ 10 min on the 4-core worker, > 10 min on the 16-core worker, as today); RunPod is set up later. This waits until then (decision #229).
 
 #225
 Listed: 2026-11-03
@@ -1151,13 +1032,14 @@ Note 2026-11-04: first real pair (same two files, t159 on Modal 4-core on 2026-1
 Listed: 2026-11-03
 Platform: Both
 Priority: High
-Status: Open
+Status: Blocked
 Owner: Unassigned
-Blocked by: Device test #163 (RunPod videos play everywhere), which is BLOCKED
+Blocked by: RunPod is parked: Modal does all video processing for now (decision #229, 2026-11-18)
 Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: The RunPod path has barely been tested, so it should not be turned on for every gallery yet. It has converted a handful of test videos in wedding-2-77d4 since 2026-10-28 (first runs and the Modal fallback worked). Not tested: a chunked stream played on iOS, Android, Safari and hls.js; a burst of uploads against RunPod's limit of 10 workers across all endpoints; the planned one-week review of jobs, fallbacks, failures and the real RunPod bill (due about 2026-11-04). No real customer video has gone through it.
 How to reproduce: Check with VIDEO_RUNPOD on for a test gallery: upload 10 or more videos at once, then play each stream on a phone; read the RunPod billing API for the week.
 Note 2026-11-04: the planned test week produced almost no data. Since the first runs on 2026-10-28 (07:37 to 07:56 UTC) nobody uploaded a video to wedding-2-77d4, so the whole record is 3 RunPod jobs that finished (2-min clip and 22 s HDR clip on CPU 32, an 11.7-min video on the RTX 4000 Ada), 1 deliberate fallback to Modal, 0 failures. RunPod billed 0.0195 USD in total (CPU 32 0.00525 for 73 s, Ada 0.01428 for 89 s; the job times were 48 s and 67 s). The Blackwell endpoint was never used. The long video cost about 1.43 INR on RunPod against 1.74 to 2.09 INR on Modal's 16-core worker, so the saving against the worker that is actually live is about 20 to 30%, not the 60 to 77% measured against the Modal L4 plus egress. No row process_video_runpod_* has ever appeared in modal_cost_logs: the cost-row fix (9aeb90e, pushed 2026-10-28) has not run on a real job yet, so it is untested. Railway keeps logs only for the current deployment, so the routing lines of those first jobs are gone.
+Note 2026-11-18: Shwetank and Sarthak decided Modal does all video processing for now (≤ 10 min on the 4-core worker, > 10 min on the 16-core worker, as today); RunPod is set up later. This waits until then (decision #229).
 
 #228
 Listed: 2026-11-03
@@ -1169,17 +1051,6 @@ Blocked by: An answer from RunPod
 Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: Customers' wedding videos are processed on RunPod's machines, and it is not confirmed that serverless jobs run only in RunPod's own secure data centres (not community hosts). Each job also gets a signed link to the original that stays valid for the job's time limit plus an hour or more. The GitHub repository and worker image are public (no secrets in them). The privacy policy (issue #25, shared/legal/policies.json) may need to name RunPod as a service that processes videos. Fix idea: ask RunPod in writing, restrict the endpoints to secure cloud if it can be set, shorten the link lifetime, and update the policy.
 How to reproduce: Read the RunPod endpoint settings and the privacy policy's list of services that process uploads.
-
-#229
-Listed: 2026-11-03
-Platform: Both
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: A decision (Sarthak)
-Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
-Issue: The RunPod-first pipeline adds a lot of moving parts for a small saving today: a RunPod account, a worker image built by GitHub Actions and stored on ghcr.io, three RunPod endpoints, a backend route and a check every minute. Only 8 videos over 10 minutes have ever been uploaded, 7 of them our own tests, so the saving is a few rupees per video. The proven Modal path (4-core for short videos, 16-core for long ones, GPU mode off since 2026-11-03) is enough for launch. Decision needed: launch on Modal only and turn RunPod on later (for example when long videos reach a few hundred a month), or turn it on at launch after issues #221, #222 and #227 are done.
-How to reproduce: Not a bug; read todo #18 and reports/Final video pipeline recommendation 2026-10-27.md.
 
 #239
 Listed: 2026-11-03
@@ -1398,33 +1269,6 @@ Issue: The app's guest home pictures (events/<id>/guest-preview/app-<uuid>.jpg o
 How to reproduce: Read getReferencedB2Keys in apps/backend/src/routes/admin.ts before 520cc156: it reads only events.id, photos.storage_key and profiles.profile_image.
 Update 2026-11-12: fixed in 520cc156. The orphan scan counts events.guest_preview_picture as in use. New POST /api/media/guest-preview-picture/delete (gallery managers only; empties the column, then deletes the file, only inside events/<id>/guest-preview/) is called by deleteEvent on the website (src/lib/database.ts) and in the app (apps/mobile/lib/database.ts, which also drops the phone's own copy); admin gallery deletes and account resets remove the events/<id>/guest-preview/ folder. Backend tests added (apps/backend/tests/guestPreviewPicture.test.ts). No switch: it only adds cleanup and stops a wrong delete. Needs the staging Railway deploy; the app part needs a new build.
 
-#269
-Listed: 2026-11-13
-Platform: Both
-Priority: Medium
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: the next live Modal deploy, done together with Sarthak (it also ships 8bfc220)
-Found in: Todo #30 step 5a (Backblaze key check, chat 2026-11-13)
-Issue: Both Backblaze keys the servers use today ("evebash-media-key" for gallery media, "evebash-vault-staging-backend" for EB Vault) work on ALL buckets in the account and can also change bucket settings (writeBuckets). So the live server's media key can read and delete files in the vault and staging buckets, and a leaked key exposes everything. The new staging and live-vault keys are limited to one bucket each.
-Fix idea: during todo #30 step 5d, give the live server a new key limited to the "EveBash" bucket (Read and Write only), deploy, check uploads and deletes, then delete "evebash-media-key". Delete "evebash-vault-staging-backend" once nothing uses the old "Evebash-Vault-Staging" bucket. The local .env / .env.local B2 key is stale (rejected by Backblaze); replace it with a staging key in step 5h.
-Update 2026-11-14: new key "Live-Media-Only" (keyID ...000a, bucket EveBash only, Read and Write, no
-writeKeys/deleteBuckets) put on the live media worker (wrangler secret), live Railway
-(evebash-api-production-backend, redeployed 17:31 IST), Vercel evebash-production (B2_KEY_ID /
-B2_APPLICATION_KEY; the website code does not use them) and the root .env (used for live Modal deploys).
-Typed by Shwetank, checked with Backblaze first. Checked after: a real live thumbnail fetched fresh from
-B2 through media.evebash.com 200, missing file gives B2 not_found; live server /health, / and
-/api/v1/pricing-plans 200, no startup errors; the key stored on live Railway authorizes on EveBash and
-lists files. Staging already uses one-bucket keys (todo #30 5a-5e). Backups of the old live Railway
-values and root .env kept in the session scratchpad. Still to do: live Modal (v133, 2026-10-27, from
-d2d7be9) still has "evebash-media-key" baked in; it gets the new key at the next live Modal deploy
-(planned with Sarthak, as that deploy also ships 8bfc220). Then delete "evebash-media-key" (...0001).
-"evebash-vault-staging-backend" (...0002) was in fact limited to the old "Evebash-Vault-Staging" bucket
-(not all buckets); it was no longer used anywhere (checked: staging and live Railway, local settings
-files) and Shwetank deleted it on 2026-11-14. The emptied "Evebash-Vault-Staging" bucket can now be
-deleted too (with Shwetank's OK). Status: Testing until "evebash-media-key" is deleted.
-Note 2026-11-16: the next live Modal deploy also switches on Sentry for Modal (todo #39): the root .env now has SENTRY_DSN and SENTRY_ENVIRONMENT=production. After the deploy, check the live Modal log says "[Sentry] error reporting on".
-
 #271
 Listed: 2026-11-15
 Platform: App
@@ -1507,13 +1351,106 @@ Issue: Deleting an event in the app runs the B2 file cleanup twice ("[deleteEven
 Fix idea: find why deleteEvent's cleanup runs twice (double tap, or the confirm handler/effect firing twice) and run it once; treat "already deleted" from /api/media/delete as success instead of trying other endpoints; delete the guest preview picture before the event row.
 How to reproduce: Android USB build on staging, host deletes an event that has photos in a sub-gallery and the Home gallery; watch the Metro log and the screen.
 
+#288
+Listed: 2026-11-18
+Platform: App
+Priority: Low
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #230 step 2) on the next iOS build; move to RECENTLY FIXED once it passes
+Found in: Upload flow testing on the iPhone 16e simulator (chat 2026-11-17), cause found 2026-11-18
+Issue: On iPhone, the first time someone picks a video to upload, iOS asks "EveBash would like full access to your Photo Library" (Limit Access / Allow Full Access / Don't Allow), although the picker needs no Photos access. The expo-image-picker library causes it (version 55.0.20, ios/MediaHandler.swift handleVideo): for a video it looks the picked item up in the Photos library (PHAsset.fetchAssets) to copy it faster, and that lookup triggers the prompt. Don't Allow still uploads (it falls back to loadFileRepresentation), but the prompt is unexpected and asks for more than the app needs. No newer 55.x version changes this (checked 55.0.24). Fix: a patch-package patch that does the lookup only when the app already has Photos access.
+How to reproduce: iPhone (or simulator) where EveBash has not been asked for Photos access yet (Settings > EveBash > Photos, or xcrun simctl privacy <device> reset photos com.evebash.app), host gallery > Videos > Add Videos > pick a video: the full-access prompt appears before "Upload 1 video to ...?". Reproduced on the iPhone 16e simulator on 2026-11-18.
+Note 2026-11-18: fix in de35c7a6. New dev dependency patch-package (npm "postinstall" in apps/mobile/package.json) applies apps/mobile/patches/expo-image-picker+55.0.20.patch: handleVideo looks the video up in the Photos library only when the app already has Photos access (authorized or limited); otherwise it goes straight to loadFileRepresentation, which needs none. The patched picker compiles in a local Xcode build, but the full app failed to link on this Mac for an unrelated reason, so the missing prompt is not seen on screen yet. The patch changes native code and the app's runtime version: it reaches phones only with a new build (iOS and Android), and staging builds made before it get no over-the-air updates published after it. When expo-image-picker is upgraded, check whether the patch still applies (npm install fails loudly if not).
+
+#291
+Listed: 2026-11-18
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Device test #178 (2026-11-18, Pixel 8 and Shwetank's iPhone 11, staging gallery test-178-big-gallery-6ee0 with 300 test pictures)
+Issue: Picture memory still grows in the app's host photo grid while scrolling a big gallery, although #185's windowing works (only 20-44 tiles are mounted out of 300). Pixel 8, staging app, host view (adb dumpsys meminfo, TOTAL PSS): 420 MB at the top, 720 MB at the bottom (about 1 MB per picture seen), 685 MB back at the top, and still 675 MB after `adb shell am send-trim-memory com.evebash.app.staging RUNNING_CRITICAL` (Native Heap 261 MB, Graphics 153 MB), so a low-memory signal doesn't free it. iPhone 11, host view (Instruments, Activity Monitor): 51 MB rising to 416 MB over the first pass, then flat at about 440 MB once all 300 had been seen, also at rest. The Midnight Hero guest grid on the Pixel grew much less (360 -> 460 -> 416 MB). A 790-photo gallery could reach about 1 GB in the host view, which is risky on 3-4 GB phones. The decoded pictures (or something holding them) aren't released when tiles unmount. To check: which image size the host tiles load (thumbnail_url, preview_url or the original), expo-image cachePolicy and recyclingKey, and whether the image memory caches (Glide on Android, SDWebImage on iOS) are bounded. Files: apps/mobile/app/events/[id].tsx (host grid), apps/mobile/hooks/use-scroll-window.ts, apps/mobile/components/event/MasonryPhotoColumns.tsx.
+How to reproduce: Staging, a USB Android phone with the staging app signed in as a manager account (owner or platform admin). Open evebash-staging://events/test-178-big-gallery-6ee0?mode=admin (adb shell am start -a android.intent.action.VIEW -d <link>), open the Home gallery's photo grid and note `adb shell dumpsys meminfo com.evebash.app.staging` (TOTAL PSS). Scroll to #001 and back, note it again, then send `adb shell am send-trim-memory com.evebash.app.staging RUNNING_CRITICAL`. Count mounted tiles with `adb shell dumpsys activity top | grep -c expo.modules.image.ExpoImageViewWrapper`. Today: tiles stay at 20-44, memory climbs about 1 MB per picture and stays.
+
+#292
+Listed: 2026-11-18
+Platform: Backend only
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Running the backend tests for #138 (chat 2026-11-18)
+Issue: One backend test fails on staging code: tests/mobileMedia.test.ts "mobile media endpoints input validation without network socket" expects 400 from POST /mobile/reconcile-upload with a bad body, but gets 401, because #284 (f4c4dda9) made that route require a login first. The route is right; the test is out of date. 159 of 160 backend tests pass. Fix: send a login in that test (or expect 401 without one and test the 400 with a mocked user).
+How to reproduce: cd apps/backend && npm test (fails on HEAD with or without the #138 change).
+
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
+#185
+Listed: 2026-11-01
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App crash audit (chat 2026-11-01)
+Issue: Two of the main photo grids keep every loaded photo on screen in memory, so scrolling a big gallery can run the phone out of memory, and the system then kills the app. Only Classic White and Sunlit Portrait guests get the windowed grid (apps/mobile/components/classic/ClassicPhotoRows.tsx draws only rows near the screen). Not windowed: (1) the host grid on every gallery (Sortable.Grid, apps/mobile/app/events/[id].tsx, about line 5737); (2) the guest masonry grid for Midnight Hero and Royal Emerald (same file, about line 7389; 29 of 74 galleries, including the biggest, reception-0e42 with 790 photos). Measured 2026-11-01 on the iPhone 17 Pro simulator (release bundle built 2026-10-28), gallery rec-8-3d4d (214 photos, 7 videos): the guest Portrait grid stayed at 85-94 MB all the way down; the host grid on the same photos went from 190 MB to 317 MB and was still rising, with CPU at 60-90% while scrolling. That is roughly 0.6-1 MB per photo (estimate: the exact number of photos loaded wasn't counted), so a 3,000-photo gallery would need about 2-3 GB. As a rough guide iOS stops an app at about half the phone's RAM, and low-end Android phones have less. The simulator has no memory limit, so it did not crash, and the masonry grid wasn't measured (same pattern, no windowing). The host grid also runs filteredPhotoItems.findIndex for every tile on every render, and the "Uploaded by" filter (loadAllAdminMedia) loads the whole gallery and draws every tile at once. Fix: reuse the ClassicPhotoRows windowing for the masonry grid; for hosts, show a windowed grid and only use Sortable.Grid in a separate Reorder mode (it draws every item); look up tile positions from a map instead of findIndex.
+How to reproduce: On a low-memory phone, open a gallery with 1,000+ photos in Midnight Hero or Royal Emerald (or any gallery as its host) and keep scrolling. Expect: the app gets slow, then closes.
+Note 2026-11-03: windowing pushed in eed090f. The host grid and the guest masonry grid now load only photos within a few screens of the view, through one shared hook (apps/mobile/hooks/use-scroll-window.ts, also used by ClassicPhotoRows; masonry columns in apps/mobile/components/event/MasonryPhotoColumns.tsx). Far tiles keep their place, frame and size and show an empty box, like a photo still loading. Hold-and-drag reordering is unchanged (Sortable.Grid kept), and host tiles take their position from the grid instead of findIndex. Checked on the iPhone 17 Pro simulator with release builds that logged how many photos were loaded: host grid on rec-8-3d4d held 71 photos after 20 flicks (113 without the change) and stayed between 50 and 71 down to the bottom; the Royal guest grid on test-face-new-155c held 26-36 of 46. Photos reloaded when scrolling back up, and the grids looked unchanged. The simulator's memory number did NOT change (host grid +40 MB vs +39 MB over 10 flicks; 313 vs 315 MB after a simulated memory warning): the simulator doesn't charge on-screen photos to the app, so the growth measured there (also on 2026-11-01 above) is mostly something else, likely every tile's buttons and icons (Sortable.Grid keeps every tile) and app data. Still open: (1) device test #178 on a real phone; (2) the Reorder-mode idea for the host grid, which changes how hosts reorder and needs Sarthak's decision. Note: the host grid's 3-column tile math in renderItem must change with the column count.
+Fixed in: eed090fa, closed 2026-11-18 after device test #178 PASS (code pushed 2026-11-03). Checked with a 300-picture staging gallery (test-178-big-gallery-6ee0): on a Pixel 8 (staging app, adb dumpsys activity top) the host grid kept 20-44 picture tiles mounted out of 300 while scrolling to the end and back, and the Midnight Hero guest grid 21-42; the app didn't close. Same scrolling passed on Shwetank's iPhone 11 (EAS staging build be60ce07). Leftover: picture memory still grows in the host grid (Pixel 420 -> 720 MB), now issue #291.
+
+#269
+Listed: 2026-11-13
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Todo #30 step 5a (Backblaze key check, chat 2026-11-13)
+Issue: Both Backblaze keys the servers use today ("evebash-media-key" for gallery media, "evebash-vault-staging-backend" for EB Vault) work on ALL buckets in the account and can also change bucket settings (writeBuckets). So the live server's media key can read and delete files in the vault and staging buckets, and a leaked key exposes everything. The new staging and live-vault keys are limited to one bucket each.
+Fix idea: during todo #30 step 5d, give the live server a new key limited to the "EveBash" bucket (Read and Write only), deploy, check uploads and deletes, then delete "evebash-media-key". Delete "evebash-vault-staging-backend" once nothing uses the old "Evebash-Vault-Staging" bucket. The local .env / .env.local B2 key is stale (rejected by Backblaze); replace it with a staging key in step 5h.
+Update 2026-11-14: new key "Live-Media-Only" (keyID ...000a, bucket EveBash only, Read and Write, no
+writeKeys/deleteBuckets) put on the live media worker (wrangler secret), live Railway
+(evebash-api-production-backend, redeployed 17:31 IST), Vercel evebash-production (B2_KEY_ID /
+B2_APPLICATION_KEY; the website code does not use them) and the root .env (used for live Modal deploys).
+Typed by Shwetank, checked with Backblaze first. Checked after: a real live thumbnail fetched fresh from
+B2 through media.evebash.com 200, missing file gives B2 not_found; live server /health, / and
+/api/v1/pricing-plans 200, no startup errors; the key stored on live Railway authorizes on EveBash and
+lists files. Staging already uses one-bucket keys (todo #30 5a-5e). Backups of the old live Railway
+values and root .env kept in the session scratchpad. Still to do: live Modal (v133, 2026-10-27, from
+d2d7be9) still has "evebash-media-key" baked in; it gets the new key at the next live Modal deploy
+(planned with Sarthak, as that deploy also ships 8bfc220). Then delete "evebash-media-key" (...0001).
+"evebash-vault-staging-backend" (...0002) was in fact limited to the old "Evebash-Vault-Staging" bucket
+(not all buckets); it was no longer used anywhere (checked: staging and live Railway, local settings
+files) and Shwetank deleted it on 2026-11-14. The emptied "Evebash-Vault-Staging" bucket can now be
+deleted too (with Shwetank's OK). Status: Testing until "evebash-media-key" is deleted.
+Note 2026-11-16: the next live Modal deploy also switches on Sentry for Modal (todo #39): the root .env now has SENTRY_DSN and SENTRY_ENVIRONMENT=production. After the deploy, check the live Modal log says "[Sentry] error reporting on".
+Update 2026-11-18 (Part B, with Sarthak's OK): live Modal published from this Mac's root .env: v134 at 15:05, v135 at 15:16, v136 at 15:39 (#290 callback fix) (same code, BACKEND_API_URL added to the root .env; the first edit by hand hadn't reached the file). Checked by Shwetank and Claude before the deploy: root .env B2_KEY_ID ends 000a (Live-Media-Only); INTERNAL_JOB_SECRET matches live Railway (and correctly differs from staging's). After: Shwetank uploaded 2 photos and 2 videos to test-wedding-6dc2 on www.evebash.com; photos processed with thumbnails, videos converted in 16.5 s and 10.8 s with all streams uploaded to B2 with the new key, both play. Rollback if needed: v133. Left: delete the old key after Sarthak's .env is updated (a deploy from his machine with the old key would break processing once it is deleted).
+Update 2026-11-18: Sarthak replaced the B2 key in his own root .env with Live-Media-Only (...000a); then Shwetank deleted "evebash-media-key" (...0001) in Backblaze. Checked right after by Claude: a Demo Wedding thumbnail and the newest test video's playlist fetched fresh from B2 through media.evebash.com (cache skipped) answer 200; api.evebash.com and www.evebash.com 200. Every server now uses a one-bucket key.
+Fixed in: no code change; keys swapped 2026-11-14 (Railway, worker, Vercel) and 2026-11-18 (live Modal v134-v136), old key deleted 2026-11-18. Closed 2026-11-18.
+
+#290
+Listed: 2026-11-18
+Platform: Backend only
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Part B live Modal publish check (chat 2026-11-18)
+Issue: Live Modal's "video ready" message to the backend is blocked by Cloudflare. _notify_video_processed (modal_engine/main.py) posts to https://api.evebash.com/api/v1/media/internal/video-processed with Python's default user agent "Python-urllib/3.x", and Cloudflare in front of api.evebash.com answers 403 before the request reaches Railway. Live Modal log 2026-11-18 15:29: "Video-ready callback failed ... HTTP Error 403: Forbidden". Checked with curl: user agent Python-urllib -> 403 from Cloudflare; user agent "EveBash-Modal/1.0" -> 401 from the backend (reaches it; refused only for the missing secret). No user impact today: VIDEO_READY_PUSH is off on live Railway, so the backend announces videos at upload and doesn't wait for this callback. It matters once VIDEO_READY_PUSH is turned on. Fix: send a User-Agent header (e.g. "EveBash-Modal/1.0") on that request; staging Modal first, then live. Alternative: a Cloudflare rule that skips bot checks for /api/v1/media/internal/*.
+How to reproduce: curl -A "Python-urllib/3.11" -X POST https://api.evebash.com/api/v1/media/internal/video-processed -> 403 (Cloudflare); with -A "EveBash-Modal/1.0" -> 401.
+Fixed in: 73b46a2e (2026-11-18). The callback sends User-Agent "EveBash-Modal/1.0". Staging Modal v4: a staging video logged "Video-ready callback ... HTTP 200"; live Modal v136 (15:39): a live video on test-wedding-6dc2 logged "Video-ready callback ... HTTP 200". Closed 2026-11-18.
+
 #284
 Listed: 2026-11-16
 Platform: Both
 Priority: Medium
-Status: In progress
+Status: Fixed
 Owner: Shwetank (with Claude)
-Blocked by: live Modal publish with Sarthak (#269)
+Blocked by: -
 Found in: Security review after the RLS lockdown (issue #21) and #282, 2026-11-16 (read-only; status codes only, no data downloaded)
 Issue: Four small gaps left after the October audit (none lets anyone read photos or change data):
  1. Modal process_media_batch (modal_engine/main.py) doesn't check the QStash signature, unlike every other Modal web address. Anyone with its URL and real photo ids could restart processing of photos stuck as pending/failed (cost, not data). The backend reaches it only through QStash (apps/backend/src/qstash.ts), so adding verify_qstash_signature is safe.
@@ -1527,10 +1464,188 @@ How to reproduce: curl -s -X POST https://api-staging.evebash.com/api/v1/media/p
 Update 2026-11-16: fixed on staging with Shwetank's OK. 1 Modal process_media_batch verifies the QStash signature (async, same pattern as generate_photo_preview). 2 /process-thumbnail: owner/platform admin/internal job only, via a new authorizeEventProcessing() shared with /trigger-modal-batch. 3 /indexing-status: login required; the website (UploadContext + the /api/media/indexing-status pass-through) and the app (uploadQueue) now send the login. 4 /mobile/reconcile-upload: login required (the app already sent it). CORS: an empty CORS_ORIGINS no longer allows every site. Type checks pass (backend, website, app). Live gets it on release day.
 Update 2026-11-16: checked on staging from outside: process-thumbnail, indexing-status and reconcile-upload answer 401 without a login; the staging Modal process_media_batch answers 401 without a QStash signature; staging server healthy; CORS still allows staging.evebash.com. Left: the upload progress check during Shwetank's device tests (website + app send the login to indexing-status now), then live on release day.
 Update 2026-11-16: backend + website LIVE with the release (PR #12, 83095020). Checked on api.evebash.com without a login: process-thumbnail and trigger-modal-batch 401, indexing-status 401 (also through www.evebash.com), all-photos 404; CORS allows evebash.com and not other sites. Left: item 1 (Modal process_media_batch signature) goes live with the Modal publish (#269).
+Update 2026-11-18: item 1 LIVE with the Modal publish (v134/v135). Checked from outside: live process_media_batch without a QStash signature answered 200 before the deploy and 401 after (the first call after the deploy still reached an old v133 container; 401 from 15:07 on); real photo uploads through QStash still processed.
+Fixed in: f4c4dda9 (2026-11-16), backend and website live with PR #12 (83095020), Modal live 2026-11-18 (v134); closed 2026-11-18.
 
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+#216
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Uploads go one file at a time (CONCURRENCY = 1 in apps/mobile/lib/uploadQueue.ts), so a guest sending 300 photos over venue Wi-Fi waits a long time. This may be deliberate for reliability; measure before changing.
+How to reproduce: Read in the code.
+Note 2026-11-18: measured on the iPhone 16e simulator (staging, Mac Wi-Fi), 12 photos of about 2 MB each (25 MB): one at a time took about 128 s (about 10.5 s a photo); three at once took about 50 s, about 2.5x faster. Nothing changed yet; waiting on Sarthak's choice. Raising CONCURRENCY needs one more fix first: processQueue starts each worker before the worker marks its file as uploading (that happens after an await), so with more than one slot the same file is picked by several slots and uploaded twice (seen in the test; marking the file in processQueue before starting the worker fixed it). Risks to weigh: memory on older phones, weak venue Wi-Fi, and videos (could stay one at a time). Test uploads deleted.
+Fixed in: 75d606c3 (2026-11-18). Sarthak chose 3 at once for photos, videos one at a time. processQueue (apps/mobile/lib/uploadQueue.ts) now keeps up to 3 photo uploads going; a video waits until the files ahead of it are done and then uploads alone, as before. Each file is claimed in a Map (inFlight) as its worker starts, which fixes the double upload seen in the first test, and a worker that is waiting for the network or a retry keeps its file so no other slot starts it again. Checked on the iPhone 16e simulator (staging, Staging test 1, temporary sub-gallery EB 216 test): 12 photos (25 MB) all uploaded in about 45 s (one at a time took about 128 s) with exactly 12 in the gallery; then 6 more (18, no duplicates); then a 1-minute video followed by 3 photos: the video uploaded alone while the photos showed Waiting, and after the video was cancelled the 3 photos started together (21 photos, 0 videos, no crash report). Test gallery deleted afterwards. Not checked: a video finishing with photos queued behind it (the test video was too slow on this connection), memory on an older phone, weak venue Wi-Fi. Device test #231.
+
+#289
+Listed: 2026-11-18
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload test for #216 on the iPhone 16e simulator (chat 2026-11-18); crash report EveBash-2026-11-18-140241 (SIGABRT in __NSURLBackgroundSession _uploadTaskWithTaskForClass, called from createUploadTask)
+Issue: On iPhone the app crashed when an upload was cancelled (the ✕ on its row in the upload panel) while the app was still getting the upload address for that file. cancelUploadItem (apps/mobile/lib/uploadQueue.ts) deletes the file's local copy straight away, but uploadWorker then still called FileSystem.createUploadTask with the deleted file, and iOS's background upload throws a native exception for a missing file, which closes the app.
+How to reproduce: iPhone (the simulator works), upload one photo and tap its ✕ within about a second, before its progress starts moving. Easier on a slow connection.
+Fixed in: de35c7a6 (2026-11-18). uploadWorker checks, right before createUploadTask with nothing awaited in between, whether the file was cancelled (then it stops quietly) and whether its local copy still exists (if not, the file fails with "The file to upload is no longer on this phone." instead of crashing the app). Checked on the iPhone 16e simulator (staging, Staging test 1) with a temporary 6 s pause before the upload starts (removed afterwards): tapping ✕ during the pause removed the row, the app stayed open, no new crash report, and nothing was added to the gallery. Device test #230 step 3.
+
+#212
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: The notification permission prompt appears right after someone picks photos, with no explanation: addToUploadQueue calls checkNotificationPermission first (apps/mobile/lib/uploadQueue.ts). Anyone who taps Don't Allow gets no upload progress notifications, which today are the only progress shown (see #208).
+How to reproduce: Fresh install, Add Photo, pick a photo. Not seen on 2026-11-02: the emulator had already allowed notifications.
+Fixed in: de35c7a6 (2026-11-18). Sarthak chose to stop asking at upload: addToUploadQueue no longer asks for notification permission, and checkNotificationPermission is removed. The app still asks once at sign-in (registerDeviceForPushNotifications), and the upload panel (#208) shows progress whether notifications are allowed or not. Checked by reading the code and a type check; not seen on screen (the simulator can't reset the notification permission). Device test #230 step 1.
+
+#286
+Listed: 2026-11-17
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Issue #18 (2026-11-16/17); its iOS part moved here when #18 closed
+Issue: Sign-in setup for the iOS app isn't fully checked. Checked 2026-11-16: the Google iOS clients are right (live "EveBash IOS" 71982315150-e883v8... for bundle com.evebash.app, Team AM5NCNB29X; staging "EveBash Staging iOS" 71982315150-p06i28... for com.evebash.app.staging), and the live build's EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID matches the iosUrlScheme in apps/mobile/app.json. Still to check by hand: (1) developer.apple.com > Identifiers: Sign in with Apple is on for com.evebash.app (and com.evebash.app.staging, todo #35); (2) live Supabase > Authentication > Providers > Apple: Client IDs include com.evebash.app; (3) staging Supabase's Apple Client IDs are "com.evebash.app,com.anonymous.wed-albummobile", without com.evebash.app.staging, so Sign in with Apple in an iOS staging build would fail; adding it is a staging setting change (waits on Sarthak's OK; part of todo #35). If (1) or (2) is missing, "Sign in with Apple" fails in the App Store app, and App Store rule 4.8 expects a login like Sign in with Apple when Google sign-in is offered.
+How to reproduce: Not reproduced (no live iOS build installed yet). On an iPhone with the live app, tap the Apple sign-in button: if (1) or (2) is missing, sign-in fails with a provider or audience error.
+Update 2026-11-17: (1) Apple Developer, Team AM5NCNB29X, App ID com.evebash.app: Sign In with Apple and Push Notifications were OFF (only In-App Purchase was on), so Apple sign-in and pushes would have failed on iPhone. Identifiers was locked until Sarthak accepted Apple's updated Program License Agreement. With Sarthak's OK, Claude turned on Sign In with Apple (primary App ID), Push Notifications and Associated Domains (for Universal Links later); saved and re-checked after a reload. Apple says this invalidates existing provisioning profiles for the App ID; the next EAS iOS build makes new ones. No App ID com.evebash.app.staging exists yet (EAS creates it on the first iOS staging build, todo #35). (2) Live Supabase (EveBash): Apple provider on, Client IDs "com.evebash.app,com.anonymous.wed-albummobile": OK, not changed. (3) Staging Supabase (Evebash-Staging): Client IDs now "com.evebash.app,com.anonymous.wed-albummobile,com.evebash.app.staging" (Sarthak's OK; saved and re-checked). Left: device test #227 on an iPhone once an iOS build exists.
+Update 2026-11-18: the first EAS iOS staging build stopped before uploading: Apple wouldn't register com.evebash.app.staging for Team AM5NCNB29X. Shwetank's free Apple account (Personal Team) took that ID when Xcode signed his USB build on 2026-11-16 (todo #37 notes), and Apple has no way to release an ID or move it between teams. With Sarthak's OK the iPhone staging app now uses com.evebash.staging (apps/mobile/app.config.js; Android keeps com.evebash.app.staging). Google Cloud: the iOS client "EveBash Staging iOS" (same client ID) now has bundle ID com.evebash.staging. Staging Supabase: Apple Client IDs also include com.evebash.staging. Both were saved and re-checked after a reload. apps/mobile/app.json now sets ITSAppUsesNonExemptEncryption to false (the app only uses HTTPS), which EAS otherwise asks on every iOS build. Shwetank's iPhone 11 was registered on Apple Developer (shwetank-iphone) and imported into EAS. EAS created the App ID com.evebash.staging, an Apple Distribution Certificate, an ad hoc profile and an APNs push key (stored on expo.dev, account evebash). Build 3346b745 failed at "Configure expo-updates" (runtime version mismatch: the build copy used the main checkout's node_modules, which holds another session's uncommitted expo-image-picker patch for #288). Build be60ce07 from a clean clone with npm ci passed (Xcode 26.2, runtime 3c60ff0f).
+Fixed in: 35ca6715 (2026-11-18), built as c6911b3c. Device test #227 PASS on Shwetank's iPhone 11 with EAS staging build be60ce07: Sign in with Apple twice (Apple linked to his existing staging account), Google sign-in, and a push sent with Expo's push API (receipt ok, shown on the phone). Live app (com.evebash.app): App ID and live Supabase checked 2026-11-17, not yet run on a device (no live iOS build). Shwetank's Xcode USB builds of the staging app can no longer be signed with his free account; he needs to join the paid Apple team (App Store Connect > Users and Access) or use EAS builds.
+
+#229
+Listed: 2026-11-03
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Shwetank and Sarthak
+Blocked by: -
+Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
+Issue: The RunPod-first pipeline adds a lot of moving parts for a small saving today: a RunPod account, a worker image built by GitHub Actions and stored on ghcr.io, three RunPod endpoints, a backend route and a check every minute. Only 8 videos over 10 minutes have ever been uploaded, 7 of them our own tests, so the saving is a few rupees per video. The proven Modal path (4-core for short videos, 16-core for long ones, GPU mode off since 2026-11-03) is enough for launch. Decision needed: launch on Modal only and turn RunPod on later (for example when long videos reach a few hundred a month), or turn it on at launch after issues #221, #222 and #227 are done.
+How to reproduce: Not a bug; read todo #18 and reports/Final video pipeline recommendation 2026-10-27.md.
+Decision 2026-11-18 (Shwetank and Sarthak): option A. Modal does all video processing for now, on live and staging, with the same rule as today: videos of 10 minutes or less on the 4-core worker, longer ones on the 16-core worker (the L4 GPU stays off). RunPod is set up later. Live Railway has no VIDEO_RUNPOD (off). Staging Railway has VIDEO_RUNPOD=test for wedding-2-77d4, a gallery that exists only on live, so staging already sends every video to Modal; Shwetank removed VIDEO_RUNPOD from staging Railway on 2026-11-18 (RUNPOD_API_KEY and the endpoint ids are kept for later; they do nothing without it). Parked until RunPod comes back: #133, #221, #222, #223, #224, #227, todo #18.
+Fixed in: decision, no code change (2026-11-18).
+
+#171
+Listed: 2026-10-28
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
+Issue: The app's upload progress counts are wrong when a second set is added while the first is uploading. The in-app upload card (apps/mobile/app/events/[id].tsx, total = uploadQueue[0]?.batchTotal) takes its total from the first set's file count but adds up progress for every file in the queue, so it can go past 100% or show e.g. "12 of 10". The phone notification (updateProgressNotification in apps/mobile/lib/uploadQueue.ts) takes the newest set's count but adds up every file for that event, so it can show "Uploading 13 of 5" (the percent is capped at 100). The "N files uploaded" notification at the end has the same mix-up. Fix idea: count the files still in the queue (or the sum of the active sets' sizes) instead of one set's batchTotal, in both places.
+How to reproduce: App, pick 10 photos to upload; while they upload, tap Add Photo and pick 5 more. Watch the upload card and the notification: the counts don't match 15 files.
+Fixed in: 939419be (2026-11-18). The phone notification (performNotificationUpdate in apps/mobile/lib/uploadQueue.ts) now counts every file of that gallery in the queue instead of the newest set's batchTotal, the same way the upload panel counts (finished files from before a new set drop out of both counts, as the panel already did), and the "N files uploaded" notification counts the files saved in the run. Checked on the iPhone 16e simulator (staging, Staging test 1): a 60 MB video uploading, then a second set of 1 video added: the notification said "Uploading 2 files · Uploading 1 of 2", matching the panel ("Uploading 2 videos · 0 of 2 uploaded"); before the fix it took the new set's count ("Uploading 1 file"). Not seen on screen: the final "2 files uploaded" (the slow test upload was cancelled; nothing was saved). Device test #229 step 2. The in-app card part was fixed earlier in 22ec6541.
+
+#215
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Some numbers are stale after an upload or a lost connection. (1) The Dashboard keeps "Couldn't load your events" after the connection returns until Try again is tapped. (2) The host gallery's "Source gallery: All galleries · N" counts only the items loaded so far (selectedMediaItems in apps/mobile/app/events/[id].tsx): it showed 36, then 16, for a gallery of 44 photos. (3) Storage Usage stayed at 46.24 GB after an upload.
+How to reproduce: Seen on the Pixel 8 emulator on 2026-11-02 in test-face-new.
+Note 2026-11-12: part 2 (the Source gallery count) is fixed in 913ef3ec together with #176: opening the list loads the whole gallery, and until then the count ends in "+". Checked on the Pixel 8 emulator (dev build on a local bundler with this commit): test-face-new showed "All galleries · 16+", then All galleries 46 and Home 46 in the list, matching Photos (46); samarth weds Jyoti showed 24 / 14 / 5 / 2 / 3, matching the database. Device test #209. Parts 1 and 3 are still open.
+Fixed in: 939419be (2026-11-18). Part 1: new hook apps/mobile/hooks/use-retry-when-online.ts waits with the upload queue's waitForConnection (now exported from apps/mobile/lib/uploadQueue.ts) and loads again once the backend answers, on the Dashboard, Host and Your Events screens while they show "Couldn't load your events" (Try again still works). Checked on the iPhone 16e simulator with the Dashboard's first load made to fail (temporary code, removed): the error showed, then the events appeared by themselves about 4 s later. Part 3: Storage Usage (apps/mobile/app/events/[id].tsx) also reloads when the gallery's media totals change; before, it reloaded only when the number of loaded items changed, and the page loads 20 at a time, so in test-face-new (44 photos) it never reloaded. Not seen on screen (the test upload was too slow and was cancelled). Small uploads can still look unchanged because the card shows 2 decimals of a GB. Device test #229 steps 1 and 3.
+
+#287
+Listed: 2026-11-18
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test #228 on a Pixel 8 (chat 2026-11-18)
+Issue: The host's Cinematic Highlight Video card keeps an old video count after a video is deleted. GalleryVideoPanel (apps/mobile/components/event/GalleryVideoPanel.tsx) loads the gallery's videos itself (getGalleryVideos) and reloads only when the gallery or the chosen highlight changes, so after deleting a video in Gallery Media below it, the card still says "Choose from this gallery's videos (2)" while the Videos tab says 1, until the gallery is opened again. Not checked: whether its Choose list also still offers the deleted video. Fix idea: reload the panel's list when the gallery's video count changes (pass the count or a refresh key from apps/mobile/app/events/[id].tsx), or give it the same video list Gallery Media uses.
+How to reproduce: App as host, open a gallery with 2 videos, delete one on the Videos tab (... > Delete video). The highlight card still says "(2)". Back to Galleries and open the gallery again: it says "(1)".
+Fixed in: fc91476d (2026-11-18). GalleryVideoPanel (apps/mobile/components/event/GalleryVideoPanel.tsx) takes a new videosKey prop and loads its list again when it changes; apps/mobile/app/events/[id].tsx builds the key from the page's videos (count, ids, status, hidden), so it changes after an upload, a delete, a hide or when a video finishes processing. Checked on the iPhone 16e simulator (staging, host of Staging test 1): uploading a test video took the card from "(0)" to "(1)" once it was processed, and deleting it took the card straight back to "(0)", both without reopening the gallery (before the fix both stayed stale). Test video deleted. tsc clean, lint unchanged. Not changed: the website's host page has its own copy (src/components/GalleryVideoPanel.tsx) that loads its list the same way; not checked.
+
+#213
+Listed: 2026-11-02
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Choosing photos starts the upload straight away, with no step to confirm, and nothing says which gallery they go into. The target is whichever gallery or sub-gallery is open (handleUploadGalleryMedia in apps/mobile/app/events/[id].tsx), so uploading to the wrong one is easy.
+How to reproduce: Open a sub-gallery, Add Photo, pick photos: they upload at once with no gallery name shown anywhere.
+Note 2026-11-17: Fixed in 7bbde0d1 for the app (Sarthak chose a confirm step on the app only; the website shows the gallery you drop onto). After picking photos or videos the app asks "Upload 12 photos to <gallery>?" (Cancel / Upload); the highlight video card doesn't ask. Checked on the iPhone 16e simulator (Cancel uploads nothing, Upload starts, "1 photo" wording). The Android emulator kept restarting (Mac out of memory), so Android (the app's own dialog, appAlert) is not checked yet: device test #228 steps 1-3. Move to fixed when it passes.
+Fixed in: 7bbde0d1 (2026-11-17), Android checked 2026-11-18. Device test #228 steps 1-2 passed on a real Pixel 8 (Android 16) with EAS staging build bea51e74 (staging 96d2f913, EveBash Staging 1.2.4 (26)), signed in as the host of Test event staging: "Upload 2 photos to Test event staging?" in the app's own dialog; Cancel uploads nothing; Upload starts the upload panel (30 -> 32 photos); "Upload 1 photo" and "Upload 1 video" wording; a sub-gallery shows its own name ("Upload 2 photos to EB test?", temporary sub-gallery in Test 260, deleted afterwards); the highlight card uploads with no question; the phone's Back button closes the question like Cancel (FeedbackHost runs the Cancel button) and the page keeps working. Test uploads deleted (gallery back to 30 photos, 1 video). Not run: step 3 as a guest (same handleUploadGalleryPhoto code, needs a guest account on the phone).
+
+#170
+Listed: 2026-10-28
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
+Issue: Adding a new set of photos or videos in the app while an upload is running removes failed files from the queue. addToUploadQueue in apps/mobile/lib/uploadQueue.ts drops every completed and failed item before adding the new set ("Purge any stale finished items"). A failed file from the first set disappears from the upload card, so the host loses its Retry button and may not notice it never uploaded. Its durable copy in the app's upload folder is also left behind, because cleanupDurableFile only runs in clearFinishedUploads, and a failed large file's unfinished B2 upload isn't released. Fix idea: keep failed items when adding a new set (only drop completed ones), or run the same cleanup clearFinishedUploads does.
+How to reproduce: App, upload ~10 photos and make one fail (e.g. airplane mode is no longer enough since #144; use a file the server refuses, or a plan-limit failure). While the rest upload, tap Add Photo and pick more: the failed photo is gone from the upload card and can't be retried.
+Fixed in: 7bbde0d1 (2026-11-17). addToUploadQueue (apps/mobile/lib/uploadQueue.ts) now drops only completed files before a new set, so a failed file keeps its row, Retry and the red badge until it is retried or dismissed; clearFinishedUploads then deletes its copy and releases a large file's B2 upload. Checked on the iPhone 16e simulator: one photo of a set made to fail (temporary code, removed), a new set added; the failed row stayed, the new photo uploaded. Device test #228 step 4.
+
+#214
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Upload wording and naming. Progress text is technical ("Uploading Media (3/10)", "2 upload(s) failed. (Tap to view details)", "AI face indexing and thumbnail generation..."; the notification says "AI Face Indexing"), and telling guests their faces are being indexed right after they upload could alarm them. The button says "Add Photo" although several can be picked, and the empty state "No photos yet. Tap Add Photo!". The upload notification uses the yellow gold #CCA43B (see #147). Sub-galleries have three names: "Sub-Galleries" for hosts, "Collections" for guests, and the guest upload hint says "Open an album to add your photos." while "Album" is also the album proofing tab.
+How to reproduce: Read on the device and in apps/mobile/app/events/[id].tsx and apps/mobile/lib/uploadQueue.ts.
+Note 2026-11-02: Fixed in 3236073: plain progress wording in the card, notification and Dashboard entry, "Add Photos" / "Add Videos", and brand gold on the upload notification. Still open: the three names for sub-galleries.
+Fixed in: 7bbde0d1 (2026-11-17). Decision 2026-11-17 Sarthak: keep "Sub-Galleries" (hosts) and "Collections" (guests); the guest hint now says "Open a collection to add your photos." in the app (apps/mobile/app/events/[id].tsx) and on the website (src/app/(public)/events/[slug]/page.tsx), so guests see one name. "Album" stays the album proofing tab. Device test #228 step 5.
+
+#217
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: apps/mobile/app/events/sub/[id].tsx has its own simpler copy of the photo upload code (no video checks, no shared checks), and nothing in the app seems to link to that screen any more. Remove it or route it through the event screen's upload code.
+How to reproduce: Read in the code (grep found no links to /events/sub).
+Fixed in: 7bbde0d1 (2026-11-17). Deleted apps/mobile/app/events/sub/[id].tsx (nothing linked to it; every gallery opens through events/[id].tsx and its upload code). Checked on the iPhone 16e simulator: the app loads and uploads to a gallery still work; tsc clean.
+
+#18
+Listed: 2026-10-09
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Store launch review (2026-10-03)
+Issue: Google sign-in will fail (DEVELOPER_ERROR) on Play and EAS-signed Android builds: Firebase only has the debug-keystore SHA-1. Add the Play app-signing and EAS upload-key SHA-1s before store release.
+How to reproduce: Install an EAS-signed or Play build and tap "Continue with Google": DEVELOPER_ERROR.
+Update 2026-10-11: for the new package com.evebash.app (#41) the debug and EAS upload-key SHA-1s are in Firebase, and their Android OAuth clients exist in Google Cloud (made by hand; Firebase did not create them). Only the Play app-signing SHA-1 is left: add it to the Firebase app com.evebash.app and as a Google Cloud Android OAuth client after the first Play upload.
+Update 2026-11-16: the Play app-signing key is set up. From Play Console > Protected with Play > Play app signing: SHA-1 71:71:05:25:FB:CA:72:9C:47:13:15:35:51:F8:B6:B0:E0:AD:8F:DD (SHA-256 7A:68:8A:41:...:19:73:13:82). Sarthak added both to the Firebase app com.evebash.app and created the Google Cloud Android OAuth client "EveBash Android Play signing (com.evebash.app)" (71982315150-q878fe4n2ha5eh6mpkdout6d15b2mdln); apps/mobile/google-services.json refreshed from Firebase (adds that client, and the staging debug client made 2026-11-14; app IDs and keys unchanged). No code change: the app signs in with the web client ID. The App signing page shows no upload key, so nothing has been uploaded to Play yet; the first upload from EAS sets it (EAS key 29:40:B3...). Its "Copy all certificate fingerprints" also lists SHA-1 80:C9:28:77:AA:9E:D8:22:67:B8:C5:F7:4C:A3:D5:F4:80:E5:07:93 and 53:1F:5F:91:CF:78:39:85:69:C0:5C:DA:A3:33:69:99:D6:2C:43:4B (SHA-256 19:7E:20:0D:...:E7:0F and 04:91:6F:D1:...:2D:D4), most likely the previous app signing key (first used 2026-09-24, 0% installs, "Quantum-ready"); not registered, as Play signs new releases with the in-use key. If Play refuses the first EAS upload with "wrong key", reset the upload key in Play Console. Not checked yet: a sign-in from a Play-installed build (device test #223, needs that first upload, a production build: Shwetank's OK). The same two fingerprints were first added by mistake to the old Firebase app com.anonymous.evebash (unused since #41; harmless; remove that app only with Shwetank's OK). iOS (same topic, no fingerprints there): the live build's Google iOS client (EAS production EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID 71982315150-e883v8...) matches the iosUrlScheme in app.json; still to check by hand: that client's bundle ID is com.evebash.app, Sign in with Apple is on for the Apple App ID com.evebash.app, and the live Supabase Apple provider lists com.evebash.app in Client IDs.
+Update 2026-11-16 (later, with Shwetank's OK): removed the old Firebase Android app "EveBash Android" (com.anonymous.evebash, unused since #41; in Firebase's "Pending delete apps" for 30 days) and its Google Cloud Android OAuth client "EveBash Android" (71982315150-82v82..., created 2026-09-30; Google showed it last used 2026-11-16; restorable for 30 days under "Restore deleted OAuth clients"). No other client was touched (EveBash Web, EveBash iOS, the com.evebash.app EAS, debug and Play signing clients, both com.evebash.app.staging Android clients, EveBash Staging iOS). apps/mobile/google-services.json re-downloaded: exactly com.evebash.app and com.evebash.app.staging, both identical to the previous file. Checked afterwards: "Continue with Google" in EveBash Staging on a Pixel 8 (EAS staging build 60443d04) signed in (phone log: GoogleSignin.signIn() success, then SIGNED_IN; 0 crashes).
+Update 2026-11-17: first Play upload done. Sarthak uploaded production build 131428ef (EAS, version 1.2.4, versionCode 26, from staging 3327f2e6; Sarthak's go-ahead for the production build 2026-11-16) to Play Console > Internal testing by hand. Play accepted it, so the upload key is now the EAS key (SHA-1 29:40:B3:BD:EB:22:B7:1F:A2:E5:E6:8C:B0:92:52:2B:D2:08:30:47). The copy installed from Play is signed with the Play app-signing key 71:71:05:25:FB:CA:72:9C:47:13:15:35:51:F8:B6:B0:E0:AD:8F:DD (apksigner on the installed APK). apps/mobile/app.json versionCode raised to 26 so the next production build doesn't reuse it. The iOS checks in the 2026-11-16 note moved to issue #286.
+Fixed in: no code change; Firebase and Google Cloud setup 2026-11-16 (google-services.json in 3327f2e6), closed 2026-11-17 after device test #223 PASS on a Pixel 8 (Android 16) with EveBash 1.2.4 (26) installed from Play Internal testing: "Continue with Google" signed in and opened the Dashboard, and after logging out it signed in again (phone log: GoogleSignin.signIn() success, then SIGNED_IN, both times; no DEVELOPER_ERROR from EveBash). Not run: iPhone (see #286).
+
+#169
+Listed: 2026-10-28
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
+Issue: On the host page a host can't start a second set of photos or videos while one is still sending. The "Add or Drop Photos/Videos" tile is disabled (shows "Adding...") and dropped files are ignored while the page-wide status is "uploading" (src/app/(main)/host/page.tsx, the file input in the Add tile and handleGalleryDrop). The status is one value for the whole page, so an upload to one gallery also blocks every other gallery. It unlocks once all files have been sent, even while videos are still processing. The lock is also easy to get around: uploads keep running in src/context/UploadContext.tsx after leaving the page (#78), but status is page state, so going to another page and back resets it to idle and a second set starts next to the first (two sets of 3 files sending at once). The app has no such lock (it queues new sets, see #170). Fix idea: drop the page-wide lock and append new sets to the shared upload queue in UploadContext, with one shared set of upload workers, so a new set waits its turn instead of being refused or running in parallel. Note: the storage-limit check before each set doesn't count files still uploading from an earlier set.
+How to reproduce: Website, host page, pick 20 photos to upload; while they upload the Add tile shows "Adding..." and can't be clicked, and dropping files does nothing. Open another gallery: same. Now go to Dashboard and back to the host page while the upload runs: the tile works again and a second set uploads at the same time as the first.
+Update 2026-11-17: fixed in c757d014 (on staging). The page-wide lock is gone: the Add tile and drag-and-drop work while files are sending (the tile says new files wait their turn). Upload sets now run one after another through runUploadSet in src/context/UploadContext.tsx, so a new set shows "Queued..." and starts when the one before it is sent, in any gallery; because the line lives in UploadProvider, leaving the page and coming back no longer starts a second set next to the first. Still 3 files at a time. The storage check of a new set also counts files still waiting or sending (pendingUploadBytes). A set that finishes after the host moved to another gallery no longer adds its photos to, or reloads, the gallery on screen. Device test #226.
+Fixed in: c757d014 (2026-11-17), live with PR #16 (6079ad46); closed 2026-11-17 after device test #226 PASS on staging and live. Note: a host page already open before a release keeps the old code until a refresh (Cmd + Shift + R).
 
 #173
 Listed: 2026-10-28
@@ -1913,30 +2028,6 @@ Update 2026-11-07: the plan's event limit was also only checked on the website a
 Update 2026-11-11: device tests #40 (upload limits) and #202 (event limit in the database) PASS on staging (Android phone dev build + website). #40 first failed only because EVENT_UPLOAD_LIMITS was staged on Railway but not deployed: Redeploy does not apply staged variables, use Deploy next to "Apply changes". Left: set EVENT_UPLOAD_LIMITS=true on the production backend and Deploy, then move this issue to RECENTLY FIXED.
 Update 2026-11-12: production (api.evebash.com, main) has EVENT_UPLOAD_LIMITS=true. Checked from the Android phone dev build pointed at production, as newone@email.com (Free, about 42.5 GB): the upload was refused with "You've reached your plan's storage limit..." (a server-only message) and no upload_intents row was created.
 Fixed in: 8acf63a8 (2026-11-12), switched on in production 2026-11-12. Device tests #40 and #202.
-
-#258
-Listed: 2026-11-10
-Platform: Analytics dashboard
-Priority: Medium
-Status: Fixed
-Owner: Shwetank (with Claude)
-Found in: Chat 2026-11-10 (shwetank.chauhan3@gmail.com: Profile shows 3.72 GB, dashboard Total GB shows 2.06 GB)
-Issue: The analytics dashboard's storage numbers are smaller than what the website, app and backend count. The dashboard (userUsageMetrics in apps/analytics-dashboard/src/components/UserGrid.tsx, photos loaded in src/lib/analytics.ts) adds up only photos.size, the original files. The Profile storage card, the upload limits and the EB Vault pool use vault_event_storage_bytes, which also counts photos.overhead_size (the processed copies: video streaming versions in 1080p/720p/480p and audio, previews, thumbnails) and Album Proofs pages and voice notes. For shwetank.chauhan3: originals 0.257 GB photos + 1.800 GB videos = 2.06 GB (dashboard); processed copies 1.66 GB more, almost all from 9 videos = 3.72 GB (Profile). The extra space is real storage on Backblaze, so the dashboard under-reports what each user uses, and the gap grows with video. Fix idea: show the same total as the Profile (call vault_event_storage_bytes / vault_event_storage_by_event), and optionally keep "originals" as a second column. Check whether the dashboard's Cost column uses the same smaller number.
-How to reproduce: Compare Analytics Hub > User Accounts > Total GB for shwetank.chauhan3@gmail.com with staging.evebash.com/profile > Storage Usage on that account.
-Note 2026-11-10: fixed on staging in 7854c4b3: the dashboard counts size + overhead_size everywhere it shows storage (storedBytes in apps/analytics-dashboard/src/lib/analytics.ts): User Accounts Photos/Videos/Total GB and Cost, Galleries, Infra Cost storage, and the deleted-event archive. Video GPU checks still use the original file size. Album Proofs bytes are still not counted (none on this account).
-Fixed in: 7854c4b3 (2026-11-10). Checked on the deployed dashboard 2026-11-10: Total GB for shwetank.chauhan3@gmail.com is 3.72 GB, the same as the Profile.
-
-#259
-Listed: 2026-11-10
-Platform: Analytics dashboard
-Priority: Medium
-Status: Fixed
-Owner: Shwetank (with Claude)
-Found in: Chat 2026-11-10 (does User Accounts show EB Vault storage?)
-Issue: The analytics dashboard doesn't show EB Vault storage anywhere. User Accounts' Photos/Videos/Total GB and Cost count only event media, and the user detail page has no EB Vault figure, but events and EB Vault share one storage pool: the Profile total and the upload limits add EB Vault (vault_accounts.used_bytes + reserved_bytes). So the dashboard shows less than the Profile for anyone using EB Vault (today only newone@email.com, 0.12 GB). The dashboard can't read vault_accounts itself (each user may read only their own row), so it needs a backend admin action. Fix: a read-only admin action that returns each user's EB Vault bytes; a Vault GB column in User Accounts; Total GB and Cost include it; the user detail page shows it.
-How to reproduce: Analytics Hub > User Accounts > newone@email.com: no Vault column, and Total GB is 0.12 GB less than staging.evebash.com/profile > Storage Usage on that account.
-Note 2026-11-10: fixed on staging in ceb0cdbb. Backend: read-only admin action vaultUsage on /api/admin/control (listVaultUsage in apps/backend/src/routes/admin.ts, platform admins only, test tests/vaultUsage.test.ts). Dashboard: User Accounts has a Vault GB column (sortable); Total GB and Cost include EB Vault; the user detail page has an EB Vault Storage card and its used/quota meter and Backblaze cost include it. Until the backend is deployed the column shows 0.00 GB.
-Fixed in: ceb0cdbb (2026-11-10). Checked on the deployed dashboard 2026-11-10: the Vault GB column shows.
 
 #181
 Listed: 2026-10-29

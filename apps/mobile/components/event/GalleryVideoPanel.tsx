@@ -111,12 +111,14 @@ function GalleryVideoChooser({ videos, currentId, onChoose, onClose }: {
   );
 }
 
-export function GalleryVideoPanel({ gallery, canUpload, uploading, onUpload, onChange }: {
+export function GalleryVideoPanel({ gallery, canUpload, uploading, videosKey, onUpload, onChange }: {
   gallery: Event;
   /** Event owner and event admins only, like the rest of video uploading */
   canUpload: boolean;
   /** A video picked here is still uploading into this gallery; it becomes the highlight video once it's saved */
   uploading: boolean;
+  /** Changes when the page's videos are added, deleted, hidden or finish processing, so this list loads again */
+  videosKey?: string;
   onUpload: () => void;
   onChange: (videoId: string | null) => Promise<void>;
 }) {
@@ -134,7 +136,7 @@ export function GalleryVideoPanel({ gallery, canUpload, uploading, onUpload, onC
       if (!cancelled) setLoaded({ galleryId: gallery.id, videos });
     });
     return () => { cancelled = true; };
-  }, [gallery.id, gallery.legacyId, chosenId, refreshTick]);
+  }, [gallery.id, gallery.legacyId, chosenId, refreshTick, videosKey]);
 
   useEffect(() => { setPlaying(false); }, [chosenId]);
 

@@ -1427,7 +1427,7 @@ export async function getEventPhotos(eventId: string, legacyId?: string): Promis
             .in('event_id', ids);
 
         if (error) throw error;
-        // Guest screen (events/sub): leaves out photos whose file never reached storage
+        // Leaves out photos whose file never reached storage
         const photos = (data || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery).filter((photo) => !isMissingUploadedFile(photo));
         const visiblePhotos = await filterPhotosForPlanExpiry(photos, ids);
         return visiblePhotos.sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));

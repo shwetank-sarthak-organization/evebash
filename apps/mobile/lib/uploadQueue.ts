@@ -17,7 +17,7 @@ function isNetworkError(err: any) {
 }
 
 /** Resolves once the backend answers again (any HTTP reply counts); every waiting upload shares one check. */
-function waitForConnection(): Promise<void> {
+export function waitForConnection(): Promise<void> {
   if (connectionWait) return connectionWait;
   const healthUrl = getEndpointsForPath('/health')[0];
   connectionWait = (async () => {
@@ -103,7 +103,8 @@ const PROGRESS_NOTIFICATION_ID = 'media-upload-progress';
 const CHANNEL_PROGRESS = 'upload-progress';
 const CHANNEL_COMPLETE = 'upload-completion';
 
-const CONCURRENCY = 1;
+// Photos upload 3 at a time (about 2.5x faster than one at a time, issue #216); a video always uploads alone
+const PHOTO_CONCURRENCY = 3;
 const MAX_UPLOAD_RETRIES = 3;
 const UPLOAD_DIR_NAME = 'evebash_uploads/';
 
@@ -142,7 +143,9 @@ export interface UploadQueueItem {
 type QueueListener = (items: UploadQueueItem[]) => void;
 
 let queue: UploadQueueItem[] = [];
-let activeSlots = 0;
+// Files a worker has, by media type. A worker keeps its file while it waits for the network or a retry (the file
+// shows as 'pending' then), so other slots must not start it again
+const inFlight = new Map<string, UploadQueueItem['mediaType']>();
 // Files cancelled while a worker still has them: the worker stops quietly instead of retrying or failing
 const cancelledIds = new Set<string>();
 // The single-part transfer in flight per file, so a cancel can stop it
@@ -242,7 +245,7 @@ function deleteLeftoverCopies(): Promise<void> {
   });
 }
 
-// ── 2. Notification Channels & Permissions ──────────────────────────────────
+// ── 2. Notification Channels ────────────────────────────────────────────────
 async function ensureNotificationChannels() {
   if (!Notifications) return;
   try {
@@ -260,22 +263,6 @@ async function ensureNotificationChannels() {
     }
   } catch (err) {
     console.warn('[UploadQueue] Failed to set notification channels:', err);
-  }
-}
-
-async function checkNotificationPermission() {
-  if (!Notifications) return false;
-  try {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    return finalStatus === 'granted';
-  } catch (err) {
-    console.warn('[UploadQueue] Failed to check notification permissions:', err);
-    return false;
   }
 }
 
@@ -480,7 +467,8 @@ export async function addToUploadQueue(
   userId: string,
   mediaType: 'photo' | 'video'
 ) {
-  await checkNotificationPermission();
+  // No notification permission prompt here: the app asks once at sign-in (registerDeviceForPushNotifications), and
+  // the upload panel shows progress either way (issue #212)
 
   // 1. Calculate total batch size & check disk space
   let totalBatchBytes = 0;
@@ -577,10 +565,11 @@ export async function addToUploadQueue(
   }
 
   await mutateQueue(q => {
-    // Purge any stale finished items (completed or failed) before starting a new batch
-    const activeRemaining = q.filter(item => item.status !== 'completed' && item.status !== 'failed');
+    // Drop finished files before starting a new batch, but keep failed ones so they can still be retried or
+    // dismissed (and their copies cleaned up then, by clearFinishedUploads); issue #170
+    const kept = q.filter(item => item.status !== 'completed');
     q.length = 0;
-    q.push(...activeRemaining, ...newItems);
+    q.push(...kept, ...newItems);
   });
   addingNames.forEach(name => copiesBeingAdded.delete(name));
 
@@ -744,6 +733,11 @@ async function uploadWorker(item: UploadQueueItem) {
     });
 
     // 2. Upload file binary directly to Backblaze B2 via background task
+    const fileInfo = await FileSystem.getInfoAsync(item.fileUri).catch(() => null);
+    // Cancelled while the upload URL was fetched: its file is already deleted, and a background upload of a missing
+    // file crashes the app on iOS (issue #289). Nothing may be awaited between this check and createUploadTask.
+    if (cancelledIds.delete(item.id)) return;
+    if (!fileInfo?.exists) throw new Error('The file to upload is no longer on this phone.');
     console.log(`[UploadQueue] Uploading directly to B2 (single-part, up to 5GB): ${storageKey}`);
     const uploadTask = FileSystem.createUploadTask(
       uploadUrl,
@@ -846,7 +840,7 @@ async function uploadWorker(item: UploadQueueItem) {
     }
   } finally {
     uploadTasks.delete(item.id);
-    activeSlots = Math.max(0, activeSlots - 1);
+    inFlight.delete(item.id);
     void updateProgressNotification(true);
     processQueue();
   }
@@ -1287,11 +1281,11 @@ export function triggerAndTrackProcessing(eventId: string) {
 
 // ── 7. Concurrent Queue Dispatcher ──────────────────────────────────────────
 async function processQueue() {
-  while (activeSlots < CONCURRENCY) {
-    const nextItem = queue.find(item => item.status === 'pending');
+  while (inFlight.size < PHOTO_CONCURRENCY && ![...inFlight.values()].includes('video')) {
+    const nextItem = queue.find(item => item.status === 'pending' && !inFlight.has(item.id));
 
     if (!nextItem) {
-      if (activeSlots === 0) {
+      if (inFlight.size === 0) {
         const allSettled = queue.every(
           item => item.status === 'completed' || item.status === 'failed'
         );
@@ -1301,8 +1295,12 @@ async function processQueue() {
       }
       break;
     }
+    // A video waits until the files ahead of it are done, then uploads alone
+    if (nextItem.mediaType === 'video' && inFlight.size > 0) break;
 
-    activeSlots++;
+    // Claimed here, not when uploadWorker marks it 'uploading' (after an await): otherwise the next pass of this
+    // loop picks the same file again and it uploads twice
+    inFlight.set(nextItem.id, nextItem.mediaType);
     uploadWorker(nextItem);
   }
 }
@@ -1441,7 +1439,7 @@ export async function resetUploadQueue() {
     await cleanupDurableFile(item.fileUri);
   }
 
-  activeSlots = 0;
+  inFlight.clear();
   await mutateQueue(() => {
     queue = [];
   });
@@ -1524,15 +1522,16 @@ async function performNotificationUpdate() {
   const sortedActive = [...activeItems].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
   const currentEventId = sortedActive[0]?.eventId;
   const currentBatchItems = queue.filter(item => item.eventId === currentEventId);
-  const batchTotal = sortedActive[0]?.batchTotal || currentBatchItems.length;
+  // Every file of this gallery in the queue, like the upload panel: a set added mid-upload joins the count (issue #171)
+  const total = currentBatchItems.length;
 
-  if (batchTotal === 0) return;
+  if (total === 0) return;
 
   const totalProgressSum = currentBatchItems.reduce((sum, item) => {
     if (item.status === 'completed' || item.status === 'failed') return sum + 100;
     return sum + (item.progress || 0);
   }, 0);
-  const overallPercentage = Math.min(100, Math.max(0, Math.round(totalProgressSum / batchTotal)));
+  const overallPercentage = Math.min(100, Math.max(0, Math.round(totalProgressSum / total)));
 
   // Are any files still uploading binary to B2?
   const isUploadingBinary = currentBatchItems.some(
@@ -1545,12 +1544,12 @@ async function performNotificationUpdate() {
 
   if (isUploadingBinary) {
     // ── UPLOADING PHASE (Google Drive style) ──
-    title = batchTotal > 1 ? `Uploading ${batchTotal} files` : 'Uploading 1 file';
+    title = total > 1 ? `Uploading ${total} files` : 'Uploading 1 file';
     const uploadedCount = currentBatchItems.filter(
       i => i.status === 'uploaded_pending_metadata' || i.status === 'processing' || i.status === 'completed'
     ).length;
     const failedCount = currentBatchItems.filter(i => i.status === 'failed').length;
-    const currentIndex = Math.min(batchTotal, uploadedCount + failedCount + 1);
+    const currentIndex = Math.min(total, uploadedCount + failedCount + 1);
 
     const currentItem = currentBatchItems.find(i => i.status === 'uploading') ||
       currentBatchItems.find(i => i.status === 'pending');
@@ -1560,17 +1559,17 @@ async function performNotificationUpdate() {
     const filePercent = Math.round(currentItem?.progress || 0);
 
     if (currentItem?.error === WAITING_FOR_CONNECTION) {
-      bodyText = batchTotal > 1
-        ? `Waiting for connection • ${uploadedCount} of ${batchTotal} uploaded`
+      bodyText = total > 1
+        ? `Waiting for connection • ${uploadedCount} of ${total} uploaded`
         : 'Waiting for connection';
-    } else if (batchTotal > 1) {
-      bodyText = `Uploading ${currentIndex} of ${batchTotal} • ${displayName} (${filePercent}%)`;
+    } else if (total > 1) {
+      bodyText = `Uploading ${currentIndex} of ${total} • ${displayName} (${filePercent}%)`;
     } else {
       bodyText = `${displayName} (${filePercent}%)`;
     }
   } else {
     // ── PROCESSING & AI INDEXING PHASE (Google Drive style) ──
-    title = batchTotal > 1 ? `Preparing ${batchTotal} files` : 'Preparing 1 file';
+    title = total > 1 ? `Preparing ${total} files` : 'Preparing 1 file';
     const indexingData = lastIndexingStatus.get(currentEventId);
     const processingItems = currentBatchItems.filter(i => i.status === 'processing');
 
@@ -1627,7 +1626,6 @@ async function notifyQueueDrained() {
 
   if (Notifications) {
     try {
-      const batchTotal = succeeded[0]?.batchTotal || succeeded.length;
       if (failed.length > 0) {
         await Notifications.scheduleNotificationAsync({
           identifier: PROGRESS_NOTIFICATION_ID,
@@ -1646,7 +1644,8 @@ async function notifyQueueDrained() {
           trigger: null,
         });
       } else {
-        const title = batchTotal > 1 ? `${batchTotal} files uploaded` : '1 file uploaded';
+        // The files saved in this run, from every set (one set's size was wrong when a set was added mid-upload)
+        const title = succeeded.length > 1 ? `${succeeded.length} files uploaded` : '1 file uploaded';
         const bodyText = 'Upload finished successfully.';
 
         await Notifications.scheduleNotificationAsync({
