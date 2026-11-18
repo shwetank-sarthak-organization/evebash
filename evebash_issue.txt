@@ -1429,21 +1429,23 @@ Update 2026-11-16: fixed on staging with Shwetank's OK. 1 Modal process_media_ba
 Update 2026-11-16: checked on staging from outside: process-thumbnail, indexing-status and reconcile-upload answer 401 without a login; the staging Modal process_media_batch answers 401 without a QStash signature; staging server healthy; CORS still allows staging.evebash.com. Left: the upload progress check during Shwetank's device tests (website + app send the login to indexing-status now), then live on release day.
 Update 2026-11-16: backend + website LIVE with the release (PR #12, 83095020). Checked on api.evebash.com without a login: process-thumbnail and trigger-modal-batch 401, indexing-status 401 (also through www.evebash.com), all-photos 404; CORS allows evebash.com and not other sites. Left: item 1 (Modal process_media_batch signature) goes live with the Modal publish (#269).
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #286
 Listed: 2026-11-17
 Platform: App
 Priority: High
-Status: In progress
+Status: Fixed
 Owner: Sarthak (with Claude)
-Blocked by: Device test #227 (needs an EAS iOS build on an iPhone)
+Blocked by: -
 Found in: Issue #18 (2026-11-16/17); its iOS part moved here when #18 closed
 Issue: Sign-in setup for the iOS app isn't fully checked. Checked 2026-11-16: the Google iOS clients are right (live "EveBash IOS" 71982315150-e883v8... for bundle com.evebash.app, Team AM5NCNB29X; staging "EveBash Staging iOS" 71982315150-p06i28... for com.evebash.app.staging), and the live build's EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID matches the iosUrlScheme in apps/mobile/app.json. Still to check by hand: (1) developer.apple.com > Identifiers: Sign in with Apple is on for com.evebash.app (and com.evebash.app.staging, todo #35); (2) live Supabase > Authentication > Providers > Apple: Client IDs include com.evebash.app; (3) staging Supabase's Apple Client IDs are "com.evebash.app,com.anonymous.wed-albummobile", without com.evebash.app.staging, so Sign in with Apple in an iOS staging build would fail; adding it is a staging setting change (waits on Sarthak's OK; part of todo #35). If (1) or (2) is missing, "Sign in with Apple" fails in the App Store app, and App Store rule 4.8 expects a login like Sign in with Apple when Google sign-in is offered.
 How to reproduce: Not reproduced (no live iOS build installed yet). On an iPhone with the live app, tap the Apple sign-in button: if (1) or (2) is missing, sign-in fails with a provider or audience error.
 Update 2026-11-17: (1) Apple Developer, Team AM5NCNB29X, App ID com.evebash.app: Sign In with Apple and Push Notifications were OFF (only In-App Purchase was on), so Apple sign-in and pushes would have failed on iPhone. Identifiers was locked until Sarthak accepted Apple's updated Program License Agreement. With Sarthak's OK, Claude turned on Sign In with Apple (primary App ID), Push Notifications and Associated Domains (for Universal Links later); saved and re-checked after a reload. Apple says this invalidates existing provisioning profiles for the App ID; the next EAS iOS build makes new ones. No App ID com.evebash.app.staging exists yet (EAS creates it on the first iOS staging build, todo #35). (2) Live Supabase (EveBash): Apple provider on, Client IDs "com.evebash.app,com.anonymous.wed-albummobile": OK, not changed. (3) Staging Supabase (Evebash-Staging): Client IDs now "com.evebash.app,com.anonymous.wed-albummobile,com.evebash.app.staging" (Sarthak's OK; saved and re-checked). Left: device test #227 on an iPhone once an iOS build exists.
-
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+Update 2026-11-18: the first EAS iOS staging build stopped before uploading: Apple wouldn't register com.evebash.app.staging for Team AM5NCNB29X. Shwetank's free Apple account (Personal Team) took that ID when Xcode signed his USB build on 2026-11-16 (todo #37 notes), and Apple has no way to release an ID or move it between teams. With Sarthak's OK the iPhone staging app now uses com.evebash.staging (apps/mobile/app.config.js; Android keeps com.evebash.app.staging). Google Cloud: the iOS client "EveBash Staging iOS" (same client ID) now has bundle ID com.evebash.staging. Staging Supabase: Apple Client IDs also include com.evebash.staging. Both were saved and re-checked after a reload. apps/mobile/app.json now sets ITSAppUsesNonExemptEncryption to false (the app only uses HTTPS), which EAS otherwise asks on every iOS build. Shwetank's iPhone 11 was registered on Apple Developer (shwetank-iphone) and imported into EAS. EAS created the App ID com.evebash.staging, an Apple Distribution Certificate, an ad hoc profile and an APNs push key (stored on expo.dev, account evebash). Build 3346b745 failed at "Configure expo-updates" (runtime version mismatch: the build copy used the main checkout's node_modules, which holds another session's uncommitted expo-image-picker patch for #288). Build be60ce07 from a clean clone with npm ci passed (Xcode 26.2, runtime 3c60ff0f).
+Fixed in: 35ca6715 (2026-11-18), built as c6911b3c. Device test #227 PASS on Shwetank's iPhone 11 with EAS staging build be60ce07: Sign in with Apple twice (Apple linked to his existing staging account), Google sign-in, and a push sent with Expo's push API (receipt ok, shown on the phone). Live app (com.evebash.app): App ID and live Supabase checked 2026-11-17, not yet run on a device (no live iOS build). Shwetank's Xcode USB builds of the staging app can no longer be signed with his free account; he needs to join the paid Apple team (App Store Connect > Users and Access) or use EAS builds.
 
 #229
 Listed: 2026-11-03

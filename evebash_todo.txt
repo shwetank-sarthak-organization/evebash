@@ -34,7 +34,7 @@ Field values:
 
 Next todo number: 44
 
-Last updated: 2026-11-17
+Last updated: 2026-11-18
 
 =====================================================================
 ACTIVE TODOS
@@ -644,34 +644,6 @@ Brief:        Today Modal (modal_engine/) and database changes (supabase/migrati
               with a harmless change, then one release to live. (4) Document the release order (database
               first if the new code needs it, then merge, then Modal) in the release notes.
 
-#35 iOS: set up the EveBash Staging app (com.evebash.app.staging) before the first iOS staging build
-Listed:       2026-11-15
-Platform:     App
-Priority:     Medium
-Phase:        TBD (before the first iOS build)
-Status:       Idea
-Effort:       S
-Suggested by: Sarthak's Claude (review of todo #30, 2026-11-15)
-Discussed:    No
-Decision:     -
-Owner:        Unassigned
-Depends on:   Todo #30 (done); an Apple developer account (company account, see the legal-entity plan).
-Brief:        apps/mobile/app.config.js gives staging builds the iOS bundle ID com.evebash.app.staging too, but
-              only Android is set up for it (Firebase app, Google sign-in clients, EAS keystore). Before the
-              first iOS staging build: a Google iOS sign-in client for com.evebash.app.staging (and its URL
-              scheme in the google-signin plugin, or per-variant), Sign in with Apple enabled for that app ID
-              and added to Supabase's Apple settings on the staging project, iOS push (APNs key on EAS for that
-              app ID), and the Firebase iOS app if push or Firebase is used on iOS. Production iOS
-              (com.evebash.app) is unchanged.
-Update 2026-11-16: Google part done (todo #37): iOS OAuth client "EveBash Staging iOS" for com.evebash.app.staging,
-              added to staging Supabase's Google Client IDs; app.config.js gives the staging variant its own
-              iosUrlScheme from EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID (eas.json staging profile, apps/mobile/.env.local)
-              in 560cbd71. Google login checked on a USB iPhone. Still open: Sign in with Apple, APNs, Firebase iOS.
-Update 2026-11-17: staging Supabase's Apple Client IDs now include com.evebash.app.staging (#286). The App ID
-              com.evebash.app.staging isn't registered on Apple Developer yet; EAS creates it (with the
-              capabilities the app asks for) on the first iOS staging build. The live App ID com.evebash.app now
-              has Sign In with Apple, Push Notifications and Associated Domains on. Still open: APNs, Firebase iOS.
-
 #36 Confetti Circle redesign: our own look, not a copy of the Crafto demo (copyright risk)
 Listed:       2026-11-15
 Platform:     Both
@@ -836,6 +808,41 @@ Update 2026-11-16: Shwetank checked Sentry's alerts: issue alerts are on, and ea
 =====================================================================
 DONE / DROPPED (delete after 14 days)
 =====================================================================
+#35 iOS: set up the EveBash Staging app (com.evebash.app.staging) before the first iOS staging build
+Listed:       2026-11-15
+Platform:     App
+Priority:     Medium
+Phase:        TBD (before the first iOS build)
+Status:       Done
+Effort:       S
+Suggested by: Sarthak's Claude (review of todo #30, 2026-11-15)
+Discussed:    No
+Decision:     -
+Owner:        Sarthak (with Claude)
+Depends on:   Todo #30 (done); an Apple developer account (company account, see the legal-entity plan).
+Brief:        apps/mobile/app.config.js gives staging builds the iOS bundle ID com.evebash.app.staging too, but
+              only Android is set up for it (Firebase app, Google sign-in clients, EAS keystore). Before the
+              first iOS staging build: a Google iOS sign-in client for com.evebash.app.staging (and its URL
+              scheme in the google-signin plugin, or per-variant), Sign in with Apple enabled for that app ID
+              and added to Supabase's Apple settings on the staging project, iOS push (APNs key on EAS for that
+              app ID), and the Firebase iOS app if push or Firebase is used on iOS. Production iOS
+              (com.evebash.app) is unchanged.
+Update 2026-11-16: Google part done (todo #37): iOS OAuth client "EveBash Staging iOS" for com.evebash.app.staging,
+              added to staging Supabase's Google Client IDs; app.config.js gives the staging variant its own
+              iosUrlScheme from EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID (eas.json staging profile, apps/mobile/.env.local)
+              in 560cbd71. Google login checked on a USB iPhone. Still open: Sign in with Apple, APNs, Firebase iOS.
+Update 2026-11-17: staging Supabase's Apple Client IDs now include com.evebash.app.staging (#286). The App ID
+              com.evebash.app.staging isn't registered on Apple Developer yet; EAS creates it (with the
+              capabilities the app asks for) on the first iOS staging build. The live App ID com.evebash.app now
+              has Sign In with Apple, Push Notifications and Associated Domains on. Still open: APNs, Firebase iOS.
+Update 2026-11-18: the iPhone staging app's bundle ID is now com.evebash.staging, not com.evebash.app.staging:
+              Shwetank's free Apple account holds that ID since his Xcode USB build (#286). Google iOS client
+              and staging Supabase's Apple Client IDs updated to match. EAS created the App ID, distribution
+              certificate, ad hoc profile (Shwetank's iPhone 11) and the APNs push key on the first iOS staging
+              build (be60ce07). No Firebase iOS app is needed: the app doesn't use Firebase on iOS, and pushes
+              go through Expo to APNs. Android is unchanged.
+Done in:      35ca6715 (2026-11-18), EAS iOS staging build be60ce07. Device test #227 PASS.
+
 #43 Share window warns when the event is Private, with a "Make public" button
 Listed:       2026-11-17
 Platform:     Website

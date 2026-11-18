@@ -24,7 +24,7 @@ Next test number: 230
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-17
+Last updated: 2026-11-18
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -6633,7 +6633,7 @@ Fix ref:
 Feedback:  Staging 2026-11-17 (Shwetank): added a second set and dropped files while 15-20 photos were uploading, plus another gallery; the new files queued and uploaded after the first set, each in its own gallery; after a refresh all photos were there with the right counts. Pass on staging. Live after PR #16 (6079ad46), Shwetank 2026-11-17: works after a hard refresh (the tab open before the release still had the old page). Pass.
 --------------------------------------------------------------------------------
 #227 App (iPhone): Sign in with Apple and pushes work (#286)
-Status:    TODO
+Status:    PASS
 Priority:  High (launch blocker, test first)
 Platform:  App (iPhone)
 Brief:     Sign in with Apple and Push Notifications were off for the iPhone app (App ID com.evebash.app) on
@@ -6651,14 +6651,22 @@ How to test:
   3. Log out and sign in with Apple again. Expect: it works again.
   4. Allow notifications when asked. From another account (website), ask to join one of your private galleries.
      Expect: a push arrives on the iPhone.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Sarthak on Shwetank's iPhone, with Claude (Claude checked staging Supabase and sent the push)
+Device / browser: iPhone 11 (Shwetank's), iOS 26
+Build / version: EveBash Staging 1.2.4 (1), EAS internal build be60ce07 (staging profile, bundle ID
+           com.evebash.staging, commit c6911b3c = 35ca6715 on staging), Xcode 26.2
+Date tested: 2026-11-18
+Account used: Shwetank's Apple ID. Apple shared shwetank.chauhan17@gmail.com, so staging Supabase linked Apple to
+           his existing staging account (providers now Apple, Email, Google)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  PASS. Step 1: installed from the EAS install link. Step 2: "Continue with Apple" opened the Dashboard
+           (staging sign-in 14:31). Step 3: logged out, signed in with Google, logged out, signed in with Apple
+           again: Dashboard each time. Step 4: allowed notifications; the account's push token (on no other
+           profile) got a push sent with Expo's push API at 14:34:47 IST (ticket and receipt ok), and "EveBash
+           test push" showed on the iPhone. The join-request push from the website wasn't run; it uses the same
+           server push path already checked on Android (#221). The staging iPhone app's bundle ID is now
+           com.evebash.staging (#286).
 --------------------------------------------------------------------------------
 #228 App: "Upload N photos to <gallery>?" before uploading, failed files stay, one name for collections (#213, #170, #214)
 Status:    TODO
