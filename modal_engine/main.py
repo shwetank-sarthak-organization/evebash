@@ -1841,7 +1841,9 @@ def _notify_video_processed(photo_id: str):
         req = urllib.request.Request(
             f"{backend_url}/api/v1/media/internal/video-processed",
             data=json.dumps({"photoId": photo_id}).encode("utf-8"),
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {secret}"},
+            # Our own User-Agent: Cloudflare in front of api.evebash.com answers 403 to Python's default
+            # "Python-urllib/3.x" before the request reaches the backend (issue #290)
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {secret}", "User-Agent": "EveBash-Modal/1.0"},
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
