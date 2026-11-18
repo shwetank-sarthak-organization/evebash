@@ -5082,7 +5082,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #178 Big galleries: photos load only near the screen (app, issue #185)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  App (iPhone and Android)
 Brief:     The host photo grid and the guest grid of Midnight Hero, Royal Emerald and most other themes now load only
@@ -5114,15 +5114,30 @@ How to test:
   5. Open a Classic White or Sunlit Portrait gallery as a guest and scroll. Expect: unchanged.
   6. Optional, iPhone connected to Xcode: watch the memory gauge during step 4. Expect: memory levels off instead of
      rising all the way down.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Sarthak on Shwetank's iPhone, with Claude (Claude made the test gallery, recorded memory with
+           Instruments over USB and repeated the scroll checks on the Pixel 8 with adb)
+Device / browser: iPhone 11 (Shwetank's), iOS 26.7; Pixel 8, Android 16
+Build / version: iPhone: EveBash Staging 1.2.4 (1), EAS internal build be60ce07 (staging c6911b3c). Pixel: staging
+           app 1.2.4 (versionCode 26), installed 2026-11-18 12:13. Both include eed090fa.
+Date tested: 2026-11-18
+Account used: iPhone: Shwetank's staging account (a platform admin, so a join code opens galleries without a join
+           record): host view via evebash-staging://events/test-178-big-gallery-6ee0?mode=admin, guest view via
+           ?mode=visitor. Pixel: its staging account (also a manager). Gallery: "Test 178 big gallery"
+           (test-178-big-gallery-6ee0, a sub-gallery of newone1's "Staging test 1"), 300 made-up numbered pictures
+           uploaded through the staging website as newone1 (reception-0e42 is on live since the 2026-11-14 split).
 Screenshot / recording:
 Fix ref:
-Feedback:
-
+Feedback:  PASS. iPhone: (1) fast scroll to #300 and back in the host view: pictures showed where we stopped, no
+           freeze or close. (2) Dragged order kept after reopening; the dots, star and up/down buttons worked; trash
+           then Cancel deleted nothing. (3) "Uploaded by" lists Everyone and Unknown (newone1 has no name); Unknown
+           showed the pictures, back to Everyone fine. (4) Midnight Hero (set on this gallery only) guest view
+           scrolled to #300 and back with the normal look. (5) Not run on its own: the first, accidental scroll was
+           in this gallery's Classic White guest view and showed no problem. (6) Memory, Instruments Activity
+           Monitor on the iPhone during step 1 (host view): 51 MB rising to 416 MB over the first pass, then flat at
+           about 440 MB while scrolling again and at rest. Pixel 8 (adb): mounted picture tiles, host 20 / 44 / 24
+           (top / scrolling / bottom), Midnight Hero guest 21 / 42 / 23, so the windowing works; memory (PSS) host
+           420 -> 720 MB and not freed by a low-memory signal, guest 360 -> 460 -> 416 MB. The leftover host
+           memory growth is issue #291.
 --------------------------------------------------------------------------------
 #179 App host Gallery Media: 2 tiles per row, bigger tile buttons
 Status:    TODO
