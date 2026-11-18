@@ -750,38 +750,6 @@ Brief:        Let people report a photo or video in an event gallery, and report
               hosts also get a "block this guest" option.
 Done in:      -
 
-#39 Sentry error reporting on every platform that needs it (live website, live server, Modal)
-Listed:       2026-11-16
-Platform:     Both
-Priority:     High
-Phase:        1 (v1 launch)
-Status:       In progress
-Effort:       S
-Suggested by: Shwetank (2026-11-16: "set up sentry for each platform where it is needed")
-Discussed:    Yes
-Decision:     2026-11-16 Shwetank: switch Sentry on now for the live website and live server, and add it to Modal
-              (staging first, live with the next live Modal deploy, issue #269). Cloudflare worker later if needed;
-              Supabase, QStash and the analytics dashboard don't need it; RunPod only if it's switched on.
-Owner:        Shwetank (with Claude)
-Depends on:   Live Modal part: issue #269 (the next live Modal deploy, with Sarthak).
-Brief:        Sentry code was already on live (main has src/lib/sentry.ts, src/instrumentation*.ts,
-              apps/backend/src/sentry.ts) but switched off there: only staging had the settings. The app's
-              production profile already has EXPO_PUBLIC_SENTRY_DSN (issue #186 tracks proving crashes arrive).
-Update 2026-11-16: live server (Railway evebash-api-production-backend): SENTRY_DSN (same as staging's server) and
-              SENTRY_ENVIRONMENT=production set, redeployed; log says "[EveBashBackend] Sentry error reporting on";
-              /health 200. Backup of the old variables in the session scratchpad.
-Update 2026-11-16: live website (Vercel evebash-production): NEXT_PUBLIC_SENTRY_DSN (same as staging's website)
-              and NEXT_PUBLIC_SENTRY_ENVIRONMENT=production, current production build (main) rebuilt; www.evebash.com
-              and /pricing 200, the Sentry address is in the live JavaScript.
-Update 2026-11-16: Modal: sentry-sdk in every image; _sentry() / _report_error() in modal_engine/main.py report
-              the failures that mark a photo or video "failed" (fast preview, face index, V2 preview, V2 face index,
-              video transcode), tagged service=modal and where=...; off unless SENTRY_DSN is in the deploy's settings
-              file. SENTRY_DSN (the server's Sentry project) + SENTRY_ENVIRONMENT added to .env.modal-staging
-              (staging) and the root .env (production, used at the next live Modal deploy, #269). Staging deploy
-              started.
-Update 2026-11-16: staging Modal deployed with it (all functions, same URLs); the staging Modal log shows "[Sentry] error reporting on" at 14:00:06 IST. Left: the live Modal deploy (#269) and a check that a real failure appears in Sentry (service=modal).
-Update 2026-11-18: live Modal published with Sentry (v134/v135); the live Modal log shows "[Sentry] error reporting on" in the photo and video workers. Left: check that a real failure shows up in Sentry with service=modal.
-
 #40 Turn on Realtime (live updates) for the v1 launch
 Listed:       2026-11-16
 Platform:     Both
@@ -809,6 +777,40 @@ Update 2026-11-16: Shwetank checked Sentry's alerts: issue alerts are on, and ea
 =====================================================================
 DONE / DROPPED (delete after 14 days)
 =====================================================================
+#39 Sentry error reporting on every platform that needs it (live website, live server, Modal)
+Listed:       2026-11-16
+Platform:     Both
+Priority:     High
+Phase:        1 (v1 launch)
+Status:       Done
+Effort:       S
+Suggested by: Shwetank (2026-11-16: "set up sentry for each platform where it is needed")
+Discussed:    Yes
+Decision:     2026-11-16 Shwetank: switch Sentry on now for the live website and live server, and add it to Modal
+              (staging first, live with the next live Modal deploy, issue #269). Cloudflare worker later if needed;
+              Supabase, QStash and the analytics dashboard don't need it; RunPod only if it's switched on.
+Owner:        Shwetank (with Claude)
+Depends on:   Live Modal part: issue #269 (the next live Modal deploy, with Sarthak).
+Brief:        Sentry code was already on live (main has src/lib/sentry.ts, src/instrumentation*.ts,
+              apps/backend/src/sentry.ts) but switched off there: only staging had the settings. The app's
+              production profile already has EXPO_PUBLIC_SENTRY_DSN (issue #186 tracks proving crashes arrive).
+Update 2026-11-16: live server (Railway evebash-api-production-backend): SENTRY_DSN (same as staging's server) and
+              SENTRY_ENVIRONMENT=production set, redeployed; log says "[EveBashBackend] Sentry error reporting on";
+              /health 200. Backup of the old variables in the session scratchpad.
+Update 2026-11-16: live website (Vercel evebash-production): NEXT_PUBLIC_SENTRY_DSN (same as staging's website)
+              and NEXT_PUBLIC_SENTRY_ENVIRONMENT=production, current production build (main) rebuilt; www.evebash.com
+              and /pricing 200, the Sentry address is in the live JavaScript.
+Update 2026-11-16: Modal: sentry-sdk in every image; _sentry() / _report_error() in modal_engine/main.py report
+              the failures that mark a photo or video "failed" (fast preview, face index, V2 preview, V2 face index,
+              video transcode), tagged service=modal and where=...; off unless SENTRY_DSN is in the deploy's settings
+              file. SENTRY_DSN (the server's Sentry project) + SENTRY_ENVIRONMENT added to .env.modal-staging
+              (staging) and the root .env (production, used at the next live Modal deploy, #269). Staging deploy
+              started.
+Update 2026-11-16: staging Modal deployed with it (all functions, same URLs); the staging Modal log shows "[Sentry] error reporting on" at 14:00:06 IST. Left: the live Modal deploy (#269) and a check that a real failure appears in Sentry (service=modal).
+Update 2026-11-18: live Modal published with Sentry (v134/v135); the live Modal log shows "[Sentry] error reporting on" in the photo and video workers. Left: check that a real failure shows up in Sentry with service=modal.
+Done in:      68587cab (2026-11-16, Modal), live Modal v134-v136 (2026-11-18). Website and server on live since 2026-11-16.
+Update 2026-11-18: real failure checked end to end on staging: Shwetank uploaded a deliberately broken "video" (2 MB of random data named .mp4) to staging-test-1-sub-gallery; Modal marked it failed ("Invalid data found when processing input") and Sentry shows a new issue "RuntimeError: FFmpeg failed ..." in project evebash-backend (EVEBASH-BACKEND-3, in _transcode_video_core, environment staging, 4 events = first try + Modal's 3 retries). Live Modal runs the same code. Done.
+
 #35 iOS: set up the EveBash Staging app (com.evebash.app.staging) before the first iOS staging build
 Listed:       2026-11-15
 Platform:     App
