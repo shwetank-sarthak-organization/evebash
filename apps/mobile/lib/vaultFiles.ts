@@ -1,13 +1,12 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
+import { formatStorageSize } from './planLimits';
 import { vaultApi, VaultApiError, type VaultItem } from './vaultApi';
 
+// One size formatter for the whole app (issue #274): Vault reads sizes exactly like the upload panel and Storage card
 export function formatBytes(bytes: number) {
-  if (!bytes) return '0 KB';
-  const units = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${parseFloat((bytes / Math.pow(1024, index)).toFixed(2))} ${units[index]}`;
+  return formatStorageSize(bytes || 0);
 }
 
 export function formatDate(value: string | null | undefined) {
