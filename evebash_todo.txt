@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 44
+Next todo number: 45
 
 Last updated: 2026-11-18
 
@@ -773,6 +773,30 @@ Brief:        Realtime has been off since 2026-09-30 (the supabase_realtime publ
               decide if the reload-on-return workaround from #48 (c42c419) stays as a fallback. Needs a device test.
 Done in:      -
 Update 2026-11-16: Shwetank checked Sentry's alerts: issue alerts are on, and each project (app, website, server; Modal reports to the server's project) has an email rule "Send a notification for high priority issues". Only the live Modal part is left (#269).
+
+#44 Analytics dashboard: leave test accounts and Google Play robots out of user counts
+Listed:       2026-11-18
+Platform:     Analytics dashboard
+Priority:     Low
+Phase:        TBD (when real users grow or numbers are shared)
+Status:       Idea
+Effort:       S (simple) / M (with automatic marking)
+Suggested by: Shwetank (2026-11-18, reviewing the dashboard)
+Discussed:    Yes
+Decision:     2026-11-18 Shwetank: not needed yet (15 live accounts, easy to tell apart by eye); do it later.
+Owner:        Unassigned
+Depends on:   -
+Brief:        The dashboard counts every account as a real user, including our own test accounts and the
+              Google Play pre-launch robots that sign up after every Play upload (3 on 2026-11-17:
+              deannadoyle.81713, domitilareardon.24017, thelmapark.62393 @gmail.com; Google sign-in from the
+              Android app, okhttp, Google IPs 66.102.x / 66.249.x / 192.178.x, no photos). Plan: (1) an admin-only
+              "test account" flag on profiles (kept by protect_profile_columns for non-admins); (2) the dashboard
+              hides flagged accounts from counts and lists, with a "Show test accounts" switch and a
+              "Mark as test / Not a test" button on the user page; (3) flag the current robots and our test
+              accounts. Optional (full): mark automatically when a login comes from Google's robot IP ranges with
+              the okhttp user agent (the dashboard can't read auth.sessions, so this needs a database rule).
+              Nothing is deleted; website and app are not affected. Staging first, live with Shwetank's OK.
+Done in:      -
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
