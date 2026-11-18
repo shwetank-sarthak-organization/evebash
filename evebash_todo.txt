@@ -380,7 +380,7 @@ Listed:       2026-10-27
 Platform:     Backend only
 Priority:     High
 Phase:        TBD (decide after discussion)
-Status:       In progress
+Status:       Agreed
 Effort:       L
 Suggested by: Burst-load review of the video pipeline (chat 2026-10-27); final pipeline in
               reports/Final video pipeline recommendation 2026-10-27.md
@@ -449,6 +449,7 @@ Update:      2026-10-28: ON for the test gallery wedding-2-77d4 (Railway: RUNPOD
               iPhone HDR on RunPod CPU 32 vCPU (16.6 s, 31 s), 11.7-min 1080p on RTX 4000 Ada (67.4 s, GPU decode);
               all processed, pushed, complete and playable; fallback to Modal verified with a wrong endpoint id.
               Cost log fixed in 9aeb90e (cpu_cores/memory_gb are NOT NULL). Device test #163 (phones still to do).
+Update 2026-11-18: parked. Shwetank and Sarthak decided Modal does all video processing for now (same 10-minute rule; decision in issue #229). The RunPod code stays in, behind VIDEO_RUNPOD (off on live; staging's test setting points at a live-only gallery, so it does nothing, and is being removed). To restart: VIDEO_RUNPOD=test with a staging gallery in VIDEO_RUNPOD_TEST_EVENTS, then issues #221, #222, #227.
 
 #19 Research where Cloudflare (CF) could help EveBash (cost, speed, safety)
 Listed:       2026-10-28

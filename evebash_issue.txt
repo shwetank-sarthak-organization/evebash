@@ -694,9 +694,9 @@ Update 2026-11-17 (Shwetank with Claude): checked in Cloudflare > Manage account
 Listed: 2026-10-24
 Platform: Both
 Priority: Low
-Status: Open
+Status: Blocked
 Owner: Sarthak (decision)
-Blocked by: Sarthak: a RunPod account with credit (min $10, non-refundable) and RUNPOD_API_KEY in the root .env
+Blocked by: RunPod is parked: Modal does all video processing for now (decision #229, 2026-11-18)
 Found in: Modal vs RunPod comparison (chat 2026-10-24); follows #117
 Issue: Long videos might convert ~30% cheaper on RunPod Serverless than on our Modal L4, but every RunPod figure so far is an estimate. Estimates for test_5 (48.7 min, 1.94 GB in, 2.88 GB HLS out), from the ~284 s Modal bills for it priced at RunPod's flex rates: L4 $0.69/h ~₹5.4, RTX 4000 Ada $0.58/h ~₹4.6 (if L4-like speed), 4090 $1.10/h ~₹7.6, A5000/3090 $0.69/h ~₹7.1-8.8 (1 NVENC, likely 1.5-2x slower), L40S $1.75/h ~₹12. Modal L4 measured ₹7.5-8.3, 16-core ₹12.7. Egress: free on RunPod (docs.runpod.io billing); free on Modal up to 1 TiB/month then $0.04/GiB, so RunPod only pulls clearly ahead above ~350 long videos/month (monthly at 1,000 test_5-size videos: Modal L4 ~₹14,500, RunPod Serverless L4 ~₹5,400). A100/H100 can't be used (0 NVENC). Unknowns: RunPod cold start with our ~2 GB ffmpeg image, B2 download/upload speed from RunPod datacentres, which GPU the 24 GB tier hands out (L4 vs A5000/3090) unless the endpoint is pinned to L4, unpublished active-worker discount.
 Plan: Serverless endpoint (flex, max 3 workers, idle timeout ~10 s) pinned to L4, then one pinned to RTX 4000 Ada; image = jrottenberg/ffmpeg:7.0-nvidia2204 + Python + the production _full_gpu_ffmpeg_cmd (no Docker on the Mac, so install Python at start or build via RunPod's GitHub integration). 3 runs each on test_5 and the 4 other long test videos from #117 (B2 bench/ prefix, deleted after). Measure per stage (GPU wait, download, transcode, upload), cost from RunPod's billing API, SSIM vs the original. Delete the endpoint and all bench files after. Expected cost of the test: under $5. Only move videos if the measured saving is worth running a second provider (lock, switch, retries and cost log would need rebuilding outside Modal).
@@ -741,6 +741,7 @@ EXACT costs from both providers' bills (2026-10-26; RunPod = each endpoint's bil
 - Short, Modal 4-core vs RunPod cpu5g 8 vCPU: 4K 50 s ₹0.62 (₹0.43 + ₹0.19 egress) vs ₹0.08; iPhone HDR ₹0.53 vs ₹0.09; 4K 25 s ₹0.18 vs ₹0.04; HEVC 60 fps ₹0.28 vs ₹0.05 -> 78-87% saving. Other CPU types per clip: cpu5c 8 ₹0.03-0.07, cpu3c 8 ₹0.03-0.07, cpu3g 8 ₹0.04-0.13, cpu5c 16 ₹0.05-0.11, cpu5c 4 ₹0.02-0.04.
 - Billed rates: RTX 4000 Ada $0.000162/s, 24 GB tier $0.000192/s, cpu5g-8-32 $0.0000203/s, cpu5c-8-16 $0.0000159/s, cpu3c-8-16 $0.0000136/s, cpu3g-8-32 $0.0000228/s, cpu5c-16-32 $0.0000316/s, cpu5c-4-8 $0.0000083/s; no egress on RunPod.
 Update 2026-10-28: the RunPod path is built behind VIDEO_RUNPOD (off) on branch feat/runpod-video (8bfc220), see todo #18. Not pushed or deployed; no RunPod endpoint created yet.
+Note 2026-11-18: Shwetank and Sarthak decided Modal does all video processing for now (≤ 10 min on the 4-core worker, > 10 min on the 16-core worker, as today); RunPod is set up later. This waits until then (decision #229).
 
 #135
 Listed: 2026-10-24
@@ -1072,45 +1073,49 @@ Options (nothing changed yet): test again at another time of day; log the L4 wai
 Listed: 2026-11-03
 Platform: Both
 Priority: Medium
-Status: Open
+Status: Blocked
 Owner: Unassigned
-Blocked by: -
+Blocked by: RunPod is parked: Modal does all video processing for now (decision #229, 2026-11-18)
 Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: A RunPod worker that hangs is noticed very late. In apps/backend/src/services/runpodVideo.ts (checkStep) a job that is IN_PROGRESS is only moved to the next worker after its time limit plus 15 minutes. The limit is 1.5 x the video length + 10 minutes, at least 15 minutes. So a stalled 3-minute video waits about 30 minutes, a stalled 10-minute video about 40 minutes, before the next worker or Modal gets it. Modal's workers write a heartbeat (transcode_heartbeat_at, issue #157); the RunPod worker does not. Fix idea: have the RunPod worker report a heartbeat and move on when none arrives for about 3 minutes.
 How to reproduce: With VIDEO_RUNPOD on for a test gallery, make the worker stop without failing (for example block its upload) and time how long until the video moves to the next worker.
+Note 2026-11-18: Shwetank and Sarthak decided Modal does all video processing for now (≤ 10 min on the 4-core worker, > 10 min on the 16-core worker, as today); RunPod is set up later. This waits until then (decision #229).
 
 #222
 Listed: 2026-11-03
 Platform: Both
 Priority: Medium
-Status: Open
+Status: Blocked
 Owner: Unassigned
-Blocked by: -
+Blocked by: RunPod is parked: Modal does all video processing for now (decision #229, 2026-11-18)
 Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: The guard against two workers converting the same video lives in the backend's memory (claimActive in apps/backend/src/services/runpodVideo.ts, a Map; the code comment says "one backend process; best effort"). A Railway restart, or a second backend instance, forgets it, so two RunPod jobs (or a RunPod job and a Modal copy) can convert one video and upload over each other's segments. Fix idea: keep the claim in the database (a claim on the photos row, like claim_media_job for photos) instead of memory.
 How to reproduce: Send the same video's job twice, or restart the backend while a RunPod job runs and let QStash redeliver; check Railway logs for two "started on" lines for one photo id.
+Note 2026-11-18: Shwetank and Sarthak decided Modal does all video processing for now (≤ 10 min on the 4-core worker, > 10 min on the 16-core worker, as today); RunPod is set up later. This waits until then (decision #229).
 
 #223
 Listed: 2026-11-03
 Platform: Both
 Priority: Medium
-Status: Open
+Status: Blocked
 Owner: Unassigned
-Blocked by: -
+Blocked by: RunPod is parked: Modal does all video processing for now (decision #229, 2026-11-18)
 Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: With RunPod on, the Railway backend sits in the middle of every video. Before, QStash called Modal directly. Now QStash calls apps/backend/src/routes/videoWorker.ts, which starts the RunPod job and schedules a check every 30 to 60 seconds through QStash. If Railway is down or restarting, new videos and the checks of running jobs wait. Not yet confirmed: whether the backend watchdog (#157) also rescues a video that was handed to RunPod and then lost. Fix idea: read the watchdog code, test a Railway restart during a RunPod job, and make sure a lost job ends on Modal.
 How to reproduce: Redeploy or restart the Railway backend while a RunPod video is converting and watch whether it still reaches "processed".
+Note 2026-11-18: Shwetank and Sarthak decided Modal does all video processing for now (≤ 10 min on the 4-core worker, > 10 min on the 16-core worker, as today); RunPod is set up later. This waits until then (decision #229).
 
 #224
 Listed: 2026-11-03
 Platform: Both
 Priority: Medium
-Status: Open
+Status: Blocked
 Owner: Unassigned
-Blocked by: -
+Blocked by: RunPod is parked: Modal does all video processing for now (decision #229, 2026-11-18)
 Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: Every step of the RunPod backup chain downloads the original from Backblaze again (dispatchStep in apps/backend/src/services/runpodVideo.ts signs a new source_url per worker). A job that fails or times out has already downloaded the file, and the next worker downloads it again. Downloads count against Backblaze's free allowance, and the October bill already had $15.92 of extra downloads from our own video tests. Backblaze uploads also stalled once for 207 seconds in the 2026-10-27 benchmark, which doubles a video's time. Fix idea: count downloads and attempts per video, read through the Cloudflare route that was tested on 2026-11-01, and avoid fallbacks that re-run the same work.
 How to reproduce: Send a long video through the chain with the first worker forced to fail; the Backblaze download count for that file goes up by one per step.
+Note 2026-11-18: Shwetank and Sarthak decided Modal does all video processing for now (≤ 10 min on the 4-core worker, > 10 min on the 16-core worker, as today); RunPod is set up later. This waits until then (decision #229).
 
 #225
 Listed: 2026-11-03
@@ -1139,13 +1144,14 @@ Note 2026-11-04: first real pair (same two files, t159 on Modal 4-core on 2026-1
 Listed: 2026-11-03
 Platform: Both
 Priority: High
-Status: Open
+Status: Blocked
 Owner: Unassigned
-Blocked by: Device test #163 (RunPod videos play everywhere), which is BLOCKED
+Blocked by: RunPod is parked: Modal does all video processing for now (decision #229, 2026-11-18)
 Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: The RunPod path has barely been tested, so it should not be turned on for every gallery yet. It has converted a handful of test videos in wedding-2-77d4 since 2026-10-28 (first runs and the Modal fallback worked). Not tested: a chunked stream played on iOS, Android, Safari and hls.js; a burst of uploads against RunPod's limit of 10 workers across all endpoints; the planned one-week review of jobs, fallbacks, failures and the real RunPod bill (due about 2026-11-04). No real customer video has gone through it.
 How to reproduce: Check with VIDEO_RUNPOD on for a test gallery: upload 10 or more videos at once, then play each stream on a phone; read the RunPod billing API for the week.
 Note 2026-11-04: the planned test week produced almost no data. Since the first runs on 2026-10-28 (07:37 to 07:56 UTC) nobody uploaded a video to wedding-2-77d4, so the whole record is 3 RunPod jobs that finished (2-min clip and 22 s HDR clip on CPU 32, an 11.7-min video on the RTX 4000 Ada), 1 deliberate fallback to Modal, 0 failures. RunPod billed 0.0195 USD in total (CPU 32 0.00525 for 73 s, Ada 0.01428 for 89 s; the job times were 48 s and 67 s). The Blackwell endpoint was never used. The long video cost about 1.43 INR on RunPod against 1.74 to 2.09 INR on Modal's 16-core worker, so the saving against the worker that is actually live is about 20 to 30%, not the 60 to 77% measured against the Modal L4 plus egress. No row process_video_runpod_* has ever appeared in modal_cost_logs: the cost-row fix (9aeb90e, pushed 2026-10-28) has not run on a real job yet, so it is untested. Railway keeps logs only for the current deployment, so the routing lines of those first jobs are gone.
+Note 2026-11-18: Shwetank and Sarthak decided Modal does all video processing for now (≤ 10 min on the 4-core worker, > 10 min on the 16-core worker, as today); RunPod is set up later. This waits until then (decision #229).
 
 #228
 Listed: 2026-11-03
@@ -1157,17 +1163,6 @@ Blocked by: An answer from RunPod
 Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: Customers' wedding videos are processed on RunPod's machines, and it is not confirmed that serverless jobs run only in RunPod's own secure data centres (not community hosts). Each job also gets a signed link to the original that stays valid for the job's time limit plus an hour or more. The GitHub repository and worker image are public (no secrets in them). The privacy policy (issue #25, shared/legal/policies.json) may need to name RunPod as a service that processes videos. Fix idea: ask RunPod in writing, restrict the endpoints to secure cloud if it can be set, shorten the link lifetime, and update the policy.
 How to reproduce: Read the RunPod endpoint settings and the privacy policy's list of services that process uploads.
-
-#229
-Listed: 2026-11-03
-Platform: Both
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: A decision (Sarthak)
-Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
-Issue: The RunPod-first pipeline adds a lot of moving parts for a small saving today: a RunPod account, a worker image built by GitHub Actions and stored on ghcr.io, three RunPod endpoints, a backend route and a check every minute. Only 8 videos over 10 minutes have ever been uploaded, 7 of them our own tests, so the saving is a few rupees per video. The proven Modal path (4-core for short videos, 16-core for long ones, GPU mode off since 2026-11-03) is enough for launch. Decision needed: launch on Modal only and turn RunPod on later (for example when long videos reach a few hundred a month), or turn it on at launch after issues #221, #222 and #227 are done.
-How to reproduce: Not a bug; read todo #18 and reports/Final video pipeline recommendation 2026-10-27.md.
 
 #239
 Listed: 2026-11-03
@@ -1519,6 +1514,19 @@ Update 2026-11-16: backend + website LIVE with the release (PR #12, 83095020). C
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#229
+Listed: 2026-11-03
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Shwetank and Sarthak
+Blocked by: -
+Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
+Issue: The RunPod-first pipeline adds a lot of moving parts for a small saving today: a RunPod account, a worker image built by GitHub Actions and stored on ghcr.io, three RunPod endpoints, a backend route and a check every minute. Only 8 videos over 10 minutes have ever been uploaded, 7 of them our own tests, so the saving is a few rupees per video. The proven Modal path (4-core for short videos, 16-core for long ones, GPU mode off since 2026-11-03) is enough for launch. Decision needed: launch on Modal only and turn RunPod on later (for example when long videos reach a few hundred a month), or turn it on at launch after issues #221, #222 and #227 are done.
+How to reproduce: Not a bug; read todo #18 and reports/Final video pipeline recommendation 2026-10-27.md.
+Decision 2026-11-18 (Shwetank and Sarthak): option A. Modal does all video processing for now, on live and staging, with the same rule as today: videos of 10 minutes or less on the 4-core worker, longer ones on the 16-core worker (the L4 GPU stays off). RunPod is set up later. Live Railway has no VIDEO_RUNPOD (off). Staging Railway has VIDEO_RUNPOD=test for wedding-2-77d4, a gallery that exists only on live, so staging already sends every video to Modal; Shwetank removes VIDEO_RUNPOD from staging Railway. Parked until RunPod comes back: #133, #221, #222, #223, #224, #227, todo #18.
+Fixed in: decision, no code change (2026-11-18).
 
 #169
 Listed: 2026-10-28
