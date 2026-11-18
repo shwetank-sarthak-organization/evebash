@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 232
+Next test number: 233
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6813,6 +6813,32 @@ How to test:
      "Waiting for connection", then the upload carries on by itself and every photo arrives once.
   4. On an older phone, upload 50 photos while scrolling the gallery. Expect: no crash and no freezing.
      Delete the test sub-gallery afterwards.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#232 Website and app: a rotated photo stays as sharp as the others (preview 1600 px, thumbnail 480 px)
+Status:    TODO
+Priority:  Medium
+Platform:  Both
+Brief:     The rotate tool remade a photo's preview at 900 px wide and its thumbnail at 400 px wide, so a
+           rotated photo looked softer in the viewer than its neighbours (issue #138). With
+           ROTATE_WORKER_SIZES=true on Railway it makes the same sizes as the photo worker (1600 px / 480 px
+           on the long side). Fix in afc92728.
+How to test:
+  1. Staging Railway has ROTATE_WORKER_SIZES=true. On staging.evebash.com, logged in as a host, open a gallery
+     with a big photo (at least 2000 px; most phone photos are). Open it and note how sharp it looks.
+  2. Rotate it right (host viewer, rotate button), wait a few seconds, close and open it again.
+     Expect: upright, and as sharp as before the rotate (not softer); zoom in to compare with a neighbour.
+  3. Tell Claude the photo; Claude checks its preview is 1600 px on the long side and the thumbnail 480 px.
+  4. Rotate it back (left). Expect: the same sharpness again.
+  5. App (Android and iPhone, EveBash Staging app): open the same photo. Expect: sharp, upright.
+  6. Live, after the release and ROTATE_WORKER_SIZES=true on live Railway: repeat 1-3 on www.evebash.com.
 Done by:
 Device / browser:
 Build / version:
