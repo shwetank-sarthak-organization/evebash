@@ -755,6 +755,7 @@ Issue: After a rotate, the photo's preview and thumbnail are smaller and lower q
 Fix: make the rotate route's preview and thumbnail like the photo worker's (long side 1600 / 480, same qualities), behind a backend flag per change-safety; check overhead_size and the website/app viewer after a rotate.
 How to reproduce: Rotate a photo in the host page viewer, then open it: the viewer image is 900 px wide.
 Update 2026-11-18: fixed in afc92728 (on staging, switch off). makeRotatedCopies in apps/backend/src/services/rotateImage.ts: with ROTATE_WORKER_SIZES=true the rotate route makes a 1600 px preview (WebP q70) and a 480 px thumbnail (WebP q68) on the long side, like PhotoProcessorV2; off, the old 900/400 px wide at q75. Never enlarges. Tests in apps/backend/tests/rotateImage.test.ts (3000x4500 portrait: off 900x1350 / 400x600, on 1067x1600 / 320x480).
+Update 2026-11-18: ROTATE_WORKER_SIZES=true set on staging Railway by Shwetank. A photo rotated in the Rotate test gallery got a 1600x1067 preview and a 480x320 thumbnail (device test #232 steps 1-3 pass). Next: release (backend), then ROTATE_WORKER_SIZES=true on live Railway.
 
 #139
 Listed: 2026-10-25
