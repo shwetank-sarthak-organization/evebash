@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 287
+Next issue number: 288
 
 =====================================================================
 ACTIVE ISSUES
@@ -962,18 +962,6 @@ Found in: Upload flow review (chat 2026-11-02)
 Issue: The notification permission prompt appears right after someone picks photos, with no explanation: addToUploadQueue calls checkNotificationPermission first (apps/mobile/lib/uploadQueue.ts). Anyone who taps Don't Allow gets no upload progress notifications, which today are the only progress shown (see #208).
 How to reproduce: Fresh install, Add Photo, pick a photo. Not seen on 2026-11-02: the emulator had already allowed notifications.
 
-#213
-Listed: 2026-11-02
-Platform: App
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: Choosing photos starts the upload straight away, with no step to confirm, and nothing says which gallery they go into. The target is whichever gallery or sub-gallery is open (handleUploadGalleryMedia in apps/mobile/app/events/[id].tsx), so uploading to the wrong one is easy.
-How to reproduce: Open a sub-gallery, Add Photo, pick photos: they upload at once with no gallery name shown anywhere.
-Note 2026-11-17: Fixed in 7bbde0d1 for the app (Sarthak chose a confirm step on the app only; the website shows the gallery you drop onto). After picking photos or videos the app asks "Upload 12 photos to <gallery>?" (Cancel / Upload); the highlight video card doesn't ask. Checked on the iPhone 16e simulator (Cancel uploads nothing, Upload starts, "1 photo" wording). The Android emulator kept restarting (Mac out of memory), so Android (the app's own dialog, appAlert) is not checked yet: device test #228 steps 1-3. Move to fixed when it passes.
-
 #215
 Listed: 2026-11-02
 Platform: App
@@ -1481,9 +1469,33 @@ Issue: Sign-in setup for the iOS app isn't fully checked. Checked 2026-11-16: th
 How to reproduce: Not reproduced (no live iOS build installed yet). On an iPhone with the live app, tap the Apple sign-in button: if (1) or (2) is missing, sign-in fails with a provider or audience error.
 Update 2026-11-17: (1) Apple Developer, Team AM5NCNB29X, App ID com.evebash.app: Sign In with Apple and Push Notifications were OFF (only In-App Purchase was on), so Apple sign-in and pushes would have failed on iPhone. Identifiers was locked until Sarthak accepted Apple's updated Program License Agreement. With Sarthak's OK, Claude turned on Sign In with Apple (primary App ID), Push Notifications and Associated Domains (for Universal Links later); saved and re-checked after a reload. Apple says this invalidates existing provisioning profiles for the App ID; the next EAS iOS build makes new ones. No App ID com.evebash.app.staging exists yet (EAS creates it on the first iOS staging build, todo #35). (2) Live Supabase (EveBash): Apple provider on, Client IDs "com.evebash.app,com.anonymous.wed-albummobile": OK, not changed. (3) Staging Supabase (Evebash-Staging): Client IDs now "com.evebash.app,com.anonymous.wed-albummobile,com.evebash.app.staging" (Sarthak's OK; saved and re-checked). Left: device test #227 on an iPhone once an iOS build exists.
 
+#287
+Listed: 2026-11-18
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Device test #228 on a Pixel 8 (chat 2026-11-18)
+Issue: The host's Cinematic Highlight Video card keeps an old video count after a video is deleted. GalleryVideoPanel (apps/mobile/components/event/GalleryVideoPanel.tsx) loads the gallery's videos itself (getGalleryVideos) and reloads only when the gallery or the chosen highlight changes, so after deleting a video in Gallery Media below it, the card still says "Choose from this gallery's videos (2)" while the Videos tab says 1, until the gallery is opened again. Not checked: whether its Choose list also still offers the deleted video. Fix idea: reload the panel's list when the gallery's video count changes (pass the count or a refresh key from apps/mobile/app/events/[id].tsx), or give it the same video list Gallery Media uses.
+How to reproduce: App as host, open a gallery with 2 videos, delete one on the Videos tab (... > Delete video). The highlight card still says "(2)". Back to Galleries and open the gallery again: it says "(1)".
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#213
+Listed: 2026-11-02
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Choosing photos starts the upload straight away, with no step to confirm, and nothing says which gallery they go into. The target is whichever gallery or sub-gallery is open (handleUploadGalleryMedia in apps/mobile/app/events/[id].tsx), so uploading to the wrong one is easy.
+How to reproduce: Open a sub-gallery, Add Photo, pick photos: they upload at once with no gallery name shown anywhere.
+Note 2026-11-17: Fixed in 7bbde0d1 for the app (Sarthak chose a confirm step on the app only; the website shows the gallery you drop onto). After picking photos or videos the app asks "Upload 12 photos to <gallery>?" (Cancel / Upload); the highlight video card doesn't ask. Checked on the iPhone 16e simulator (Cancel uploads nothing, Upload starts, "1 photo" wording). The Android emulator kept restarting (Mac out of memory), so Android (the app's own dialog, appAlert) is not checked yet: device test #228 steps 1-3. Move to fixed when it passes.
+Fixed in: 7bbde0d1 (2026-11-17), Android checked 2026-11-18. Device test #228 steps 1-2 passed on a real Pixel 8 (Android 16) with EAS staging build bea51e74 (staging 96d2f913, EveBash Staging 1.2.4 (26)), signed in as the host of Test event staging: "Upload 2 photos to Test event staging?" in the app's own dialog; Cancel uploads nothing; Upload starts the upload panel (30 -> 32 photos); "Upload 1 photo" and "Upload 1 video" wording; a sub-gallery shows its own name ("Upload 2 photos to EB test?", temporary sub-gallery in Test 260, deleted afterwards); the highlight card uploads with no question; the phone's Back button closes the question like Cancel (FeedbackHost runs the Cancel button) and the page keeps working. Test uploads deleted (gallery back to 30 photos, 1 video). Not run: step 3 as a guest (same handleUploadGalleryPhoto code, needs a guest account on the phone).
 
 #170
 Listed: 2026-10-28
@@ -1932,30 +1944,6 @@ Update 2026-11-07: the plan's event limit was also only checked on the website a
 Update 2026-11-11: device tests #40 (upload limits) and #202 (event limit in the database) PASS on staging (Android phone dev build + website). #40 first failed only because EVENT_UPLOAD_LIMITS was staged on Railway but not deployed: Redeploy does not apply staged variables, use Deploy next to "Apply changes". Left: set EVENT_UPLOAD_LIMITS=true on the production backend and Deploy, then move this issue to RECENTLY FIXED.
 Update 2026-11-12: production (api.evebash.com, main) has EVENT_UPLOAD_LIMITS=true. Checked from the Android phone dev build pointed at production, as newone@email.com (Free, about 42.5 GB): the upload was refused with "You've reached your plan's storage limit..." (a server-only message) and no upload_intents row was created.
 Fixed in: 8acf63a8 (2026-11-12), switched on in production 2026-11-12. Device tests #40 and #202.
-
-#258
-Listed: 2026-11-10
-Platform: Analytics dashboard
-Priority: Medium
-Status: Fixed
-Owner: Shwetank (with Claude)
-Found in: Chat 2026-11-10 (shwetank.chauhan3@gmail.com: Profile shows 3.72 GB, dashboard Total GB shows 2.06 GB)
-Issue: The analytics dashboard's storage numbers are smaller than what the website, app and backend count. The dashboard (userUsageMetrics in apps/analytics-dashboard/src/components/UserGrid.tsx, photos loaded in src/lib/analytics.ts) adds up only photos.size, the original files. The Profile storage card, the upload limits and the EB Vault pool use vault_event_storage_bytes, which also counts photos.overhead_size (the processed copies: video streaming versions in 1080p/720p/480p and audio, previews, thumbnails) and Album Proofs pages and voice notes. For shwetank.chauhan3: originals 0.257 GB photos + 1.800 GB videos = 2.06 GB (dashboard); processed copies 1.66 GB more, almost all from 9 videos = 3.72 GB (Profile). The extra space is real storage on Backblaze, so the dashboard under-reports what each user uses, and the gap grows with video. Fix idea: show the same total as the Profile (call vault_event_storage_bytes / vault_event_storage_by_event), and optionally keep "originals" as a second column. Check whether the dashboard's Cost column uses the same smaller number.
-How to reproduce: Compare Analytics Hub > User Accounts > Total GB for shwetank.chauhan3@gmail.com with staging.evebash.com/profile > Storage Usage on that account.
-Note 2026-11-10: fixed on staging in 7854c4b3: the dashboard counts size + overhead_size everywhere it shows storage (storedBytes in apps/analytics-dashboard/src/lib/analytics.ts): User Accounts Photos/Videos/Total GB and Cost, Galleries, Infra Cost storage, and the deleted-event archive. Video GPU checks still use the original file size. Album Proofs bytes are still not counted (none on this account).
-Fixed in: 7854c4b3 (2026-11-10). Checked on the deployed dashboard 2026-11-10: Total GB for shwetank.chauhan3@gmail.com is 3.72 GB, the same as the Profile.
-
-#259
-Listed: 2026-11-10
-Platform: Analytics dashboard
-Priority: Medium
-Status: Fixed
-Owner: Shwetank (with Claude)
-Found in: Chat 2026-11-10 (does User Accounts show EB Vault storage?)
-Issue: The analytics dashboard doesn't show EB Vault storage anywhere. User Accounts' Photos/Videos/Total GB and Cost count only event media, and the user detail page has no EB Vault figure, but events and EB Vault share one storage pool: the Profile total and the upload limits add EB Vault (vault_accounts.used_bytes + reserved_bytes). So the dashboard shows less than the Profile for anyone using EB Vault (today only newone@email.com, 0.12 GB). The dashboard can't read vault_accounts itself (each user may read only their own row), so it needs a backend admin action. Fix: a read-only admin action that returns each user's EB Vault bytes; a Vault GB column in User Accounts; Total GB and Cost include it; the user detail page shows it.
-How to reproduce: Analytics Hub > User Accounts > newone@email.com: no Vault column, and Total GB is 0.12 GB less than staging.evebash.com/profile > Storage Usage on that account.
-Note 2026-11-10: fixed on staging in ceb0cdbb. Backend: read-only admin action vaultUsage on /api/admin/control (listVaultUsage in apps/backend/src/routes/admin.ts, platform admins only, test tests/vaultUsage.test.ts). Dashboard: User Accounts has a Vault GB column (sortable); Total GB and Cost include EB Vault; the user detail page has an EB Vault Storage card and its used/quota meter and Backblaze cost include it. Until the backend is deployed the column shows 0.00 GB.
-Fixed in: ceb0cdbb (2026-11-10). Checked on the deployed dashboard 2026-11-10: the Vault GB column shows.
 
 #181
 Listed: 2026-10-29

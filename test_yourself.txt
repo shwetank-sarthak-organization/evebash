@@ -6663,15 +6663,17 @@ Feedback:
 #228 App: "Upload N photos to <gallery>?" before uploading, failed files stay, one name for collections (#213, #170, #214)
 Status:    TODO
 Priority:  Medium
-Platform:  App (iPhone + Android; Android first, it wasn't checked)
+Platform:  App (iPhone + Android)
 Brief:     After picking photos or videos the app now asks which gallery they go into before anything uploads
            (#213). A file that didn't upload keeps its row and Retry when you add more files (#170). Guests read
            "Open a collection to add your photos." instead of "album" (#214, app and website).
 Detail:    Fix 7bbde0d1 (apps/mobile/app/events/[id].tsx, apps/mobile/lib/uploadQueue.ts; JavaScript only: reaches
            the staging app with an over-the-air update or a new build). Checked by Claude on the iPhone 16e
-           simulator with real uploads to "Staging test 1" (steps 1, 2 and 4). Not checked: Android (the emulator
-           kept restarting; on Android the question is the app's own dialog, not the system one), steps 3 and 5,
-           and a real phone.
+           simulator with real uploads to "Staging test 1" (steps 1, 2 and 4). Steps 1 and 2 checked by Claude on
+           2026-11-18 on a real Pixel 8 (Android 16, USB) with EAS staging build bea51e74 (staging 96d2f913,
+           EveBash Staging 1.2.4 (26)), host of "Test event staging": all as expected, including a sub-gallery's
+           name (temporary "EB test" in Test 260, deleted) and the Back button (closes the question like Cancel).
+           Test uploads deleted. Still to test: step 3 (guest), step 4 on a real phone, step 5.
 How to test:
   1. Log in as a host on staging, open a gallery (try a sub-gallery too), tap Add Photos and pick 2 photos.
      Expect: "Upload 2 photos to <that gallery's name>?" with Cancel and Upload. Tap Cancel. Expect: nothing
