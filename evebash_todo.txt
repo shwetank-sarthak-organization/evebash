@@ -780,6 +780,7 @@ Update 2026-11-16: Modal: sentry-sdk in every image; _sentry() / _report_error()
               (staging) and the root .env (production, used at the next live Modal deploy, #269). Staging deploy
               started.
 Update 2026-11-16: staging Modal deployed with it (all functions, same URLs); the staging Modal log shows "[Sentry] error reporting on" at 14:00:06 IST. Left: the live Modal deploy (#269) and a check that a real failure appears in Sentry (service=modal).
+Update 2026-11-18: live Modal published with Sentry (v134/v135); the live Modal log shows "[Sentry] error reporting on" in the photo and video workers. Left: check that a real failure shows up in Sentry with service=modal.
 
 #40 Turn on Realtime (live updates) for the v1 launch
 Listed:       2026-11-16

@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 290
+Next issue number: 291
 
 =====================================================================
 ACTIVE ISSUES
@@ -1283,7 +1283,7 @@ Platform: Both
 Priority: Medium
 Status: In progress
 Owner: Shwetank (with Claude)
-Blocked by: the next live Modal deploy, done together with Sarthak (it also ships 8bfc220)
+Blocked by: Sarthak: replace the old B2 key in his own root .env with Live-Media-Only (...000a), then Shwetank deletes "evebash-media-key" (...0001) in Backblaze
 Found in: Todo #30 step 5a (Backblaze key check, chat 2026-11-13)
 Issue: Both Backblaze keys the servers use today ("evebash-media-key" for gallery media, "evebash-vault-staging-backend" for EB Vault) work on ALL buckets in the account and can also change bucket settings (writeBuckets). So the live server's media key can read and delete files in the vault and staging buckets, and a leaked key exposes everything. The new staging and live-vault keys are limited to one bucket each.
 Fix idea: during todo #30 step 5d, give the live server a new key limited to the "EveBash" bucket (Read and Write only), deploy, check uploads and deletes, then delete "evebash-media-key". Delete "evebash-vault-staging-backend" once nothing uses the old "Evebash-Vault-Staging" bucket. The local .env / .env.local B2 key is stale (rejected by Backblaze); replace it with a staging key in step 5h.
@@ -1303,6 +1303,7 @@ d2d7be9) still has "evebash-media-key" baked in; it gets the new key at the next
 files) and Shwetank deleted it on 2026-11-14. The emptied "Evebash-Vault-Staging" bucket can now be
 deleted too (with Shwetank's OK). Status: Testing until "evebash-media-key" is deleted.
 Note 2026-11-16: the next live Modal deploy also switches on Sentry for Modal (todo #39): the root .env now has SENTRY_DSN and SENTRY_ENVIRONMENT=production. After the deploy, check the live Modal log says "[Sentry] error reporting on".
+Update 2026-11-18 (Part B, with Sarthak's OK): live Modal published from this Mac's root .env: v134 at 15:05, v135 at 15:16 (same code, BACKEND_API_URL added to the root .env; the first edit by hand hadn't reached the file). Checked by Shwetank and Claude before the deploy: root .env B2_KEY_ID ends 000a (Live-Media-Only); INTERNAL_JOB_SECRET matches live Railway (and correctly differs from staging's). After: Shwetank uploaded 2 photos and 2 videos to test-wedding-6dc2 on www.evebash.com; photos processed with thumbnails, videos converted in 16.5 s and 10.8 s with all streams uploaded to B2 with the new key, both play. Rollback if needed: v133. Left: delete the old key after Sarthak's .env is updated (a deploy from his machine with the old key would break processing once it is deleted).
 
 #271
 Listed: 2026-11-15
@@ -1386,13 +1387,40 @@ Issue: Deleting an event in the app runs the B2 file cleanup twice ("[deleteEven
 Fix idea: find why deleteEvent's cleanup runs twice (double tap, or the confirm handler/effect firing twice) and run it once; treat "already deleted" from /api/media/delete as success instead of trying other endpoints; delete the guest preview picture before the event row.
 How to reproduce: Android USB build on staging, host deletes an event that has photos in a sub-gallery and the Home gallery; watch the Metro log and the screen.
 
+#288
+Listed: 2026-11-18
+Platform: App
+Priority: Low
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #230 step 2) on the next iOS build; move to RECENTLY FIXED once it passes
+Found in: Upload flow testing on the iPhone 16e simulator (chat 2026-11-17), cause found 2026-11-18
+Issue: On iPhone, the first time someone picks a video to upload, iOS asks "EveBash would like full access to your Photo Library" (Limit Access / Allow Full Access / Don't Allow), although the picker needs no Photos access. The expo-image-picker library causes it (version 55.0.20, ios/MediaHandler.swift handleVideo): for a video it looks the picked item up in the Photos library (PHAsset.fetchAssets) to copy it faster, and that lookup triggers the prompt. Don't Allow still uploads (it falls back to loadFileRepresentation), but the prompt is unexpected and asks for more than the app needs. No newer 55.x version changes this (checked 55.0.24). Fix: a patch-package patch that does the lookup only when the app already has Photos access.
+How to reproduce: iPhone (or simulator) where EveBash has not been asked for Photos access yet (Settings > EveBash > Photos, or xcrun simctl privacy <device> reset photos com.evebash.app), host gallery > Videos > Add Videos > pick a video: the full-access prompt appears before "Upload 1 video to ...?". Reproduced on the iPhone 16e simulator on 2026-11-18.
+Note 2026-11-18: fix in de35c7a6. New dev dependency patch-package (npm "postinstall" in apps/mobile/package.json) applies apps/mobile/patches/expo-image-picker+55.0.20.patch: handleVideo looks the video up in the Photos library only when the app already has Photos access (authorized or limited); otherwise it goes straight to loadFileRepresentation, which needs none. The patched picker compiles in a local Xcode build, but the full app failed to link on this Mac for an unrelated reason, so the missing prompt is not seen on screen yet. The patch changes native code and the app's runtime version: it reaches phones only with a new build (iOS and Android), and staging builds made before it get no over-the-air updates published after it. When expo-image-picker is upgraded, check whether the patch still applies (npm install fails loudly if not).
+
+#290
+Listed: 2026-11-18
+Platform: Backend only
+Priority: Low
+Status: Open
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Part B live Modal publish check (chat 2026-11-18)
+Issue: Live Modal's "video ready" message to the backend is blocked by Cloudflare. _notify_video_processed (modal_engine/main.py) posts to https://api.evebash.com/api/v1/media/internal/video-processed with Python's default user agent "Python-urllib/3.x", and Cloudflare in front of api.evebash.com answers 403 before the request reaches Railway. Live Modal log 2026-11-18 15:29: "Video-ready callback failed ... HTTP Error 403: Forbidden". Checked with curl: user agent Python-urllib -> 403 from Cloudflare; user agent "EveBash-Modal/1.0" -> 401 from the backend (reaches it; refused only for the missing secret). No user impact today: VIDEO_READY_PUSH is off on live Railway, so the backend announces videos at upload and doesn't wait for this callback. It matters once VIDEO_READY_PUSH is turned on. Fix: send a User-Agent header (e.g. "EveBash-Modal/1.0") on that request; staging Modal first, then live. Alternative: a Cloudflare rule that skips bot checks for /api/v1/media/internal/*.
+How to reproduce: curl -A "Python-urllib/3.11" -X POST https://api.evebash.com/api/v1/media/internal/video-processed -> 403 (Cloudflare); with -A "EveBash-Modal/1.0" -> 401.
+
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #284
 Listed: 2026-11-16
 Platform: Both
 Priority: Medium
-Status: In progress
+Status: Fixed
 Owner: Shwetank (with Claude)
-Blocked by: live Modal publish with Sarthak (#269)
+Blocked by: -
 Found in: Security review after the RLS lockdown (issue #21) and #282, 2026-11-16 (read-only; status codes only, no data downloaded)
 Issue: Four small gaps left after the October audit (none lets anyone read photos or change data):
  1. Modal process_media_batch (modal_engine/main.py) doesn't check the QStash signature, unlike every other Modal web address. Anyone with its URL and real photo ids could restart processing of photos stuck as pending/failed (cost, not data). The backend reaches it only through QStash (apps/backend/src/qstash.ts), so adding verify_qstash_signature is safe.
@@ -1406,22 +1434,8 @@ How to reproduce: curl -s -X POST https://api-staging.evebash.com/api/v1/media/p
 Update 2026-11-16: fixed on staging with Shwetank's OK. 1 Modal process_media_batch verifies the QStash signature (async, same pattern as generate_photo_preview). 2 /process-thumbnail: owner/platform admin/internal job only, via a new authorizeEventProcessing() shared with /trigger-modal-batch. 3 /indexing-status: login required; the website (UploadContext + the /api/media/indexing-status pass-through) and the app (uploadQueue) now send the login. 4 /mobile/reconcile-upload: login required (the app already sent it). CORS: an empty CORS_ORIGINS no longer allows every site. Type checks pass (backend, website, app). Live gets it on release day.
 Update 2026-11-16: checked on staging from outside: process-thumbnail, indexing-status and reconcile-upload answer 401 without a login; the staging Modal process_media_batch answers 401 without a QStash signature; staging server healthy; CORS still allows staging.evebash.com. Left: the upload progress check during Shwetank's device tests (website + app send the login to indexing-status now), then live on release day.
 Update 2026-11-16: backend + website LIVE with the release (PR #12, 83095020). Checked on api.evebash.com without a login: process-thumbnail and trigger-modal-batch 401, indexing-status 401 (also through www.evebash.com), all-photos 404; CORS allows evebash.com and not other sites. Left: item 1 (Modal process_media_batch signature) goes live with the Modal publish (#269).
-
-#288
-Listed: 2026-11-18
-Platform: App
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #230 step 2) on the next iOS build; move to RECENTLY FIXED once it passes
-Found in: Upload flow testing on the iPhone 16e simulator (chat 2026-11-17), cause found 2026-11-18
-Issue: On iPhone, the first time someone picks a video to upload, iOS asks "EveBash would like full access to your Photo Library" (Limit Access / Allow Full Access / Don't Allow), although the picker needs no Photos access. The expo-image-picker library causes it (version 55.0.20, ios/MediaHandler.swift handleVideo): for a video it looks the picked item up in the Photos library (PHAsset.fetchAssets) to copy it faster, and that lookup triggers the prompt. Don't Allow still uploads (it falls back to loadFileRepresentation), but the prompt is unexpected and asks for more than the app needs. No newer 55.x version changes this (checked 55.0.24). Fix: a patch-package patch that does the lookup only when the app already has Photos access.
-How to reproduce: iPhone (or simulator) where EveBash has not been asked for Photos access yet (Settings > EveBash > Photos, or xcrun simctl privacy <device> reset photos com.evebash.app), host gallery > Videos > Add Videos > pick a video: the full-access prompt appears before "Upload 1 video to ...?". Reproduced on the iPhone 16e simulator on 2026-11-18.
-Note 2026-11-18: fix in de35c7a6. New dev dependency patch-package (npm "postinstall" in apps/mobile/package.json) applies apps/mobile/patches/expo-image-picker+55.0.20.patch: handleVideo looks the video up in the Photos library only when the app already has Photos access (authorized or limited); otherwise it goes straight to loadFileRepresentation, which needs none. The patched picker compiles in a local Xcode build, but the full app failed to link on this Mac for an unrelated reason, so the missing prompt is not seen on screen yet. The patch changes native code and the app's runtime version: it reaches phones only with a new build (iOS and Android), and staging builds made before it get no over-the-air updates published after it. When expo-image-picker is upgraded, check whether the patch still applies (npm install fails loudly if not).
-
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+Update 2026-11-18: item 1 LIVE with the Modal publish (v134/v135). Checked from outside: live process_media_batch without a QStash signature answered 200 before the deploy and 401 after (the first call after the deploy still reached an old v133 container; 401 from 15:07 on); real photo uploads through QStash still processed.
+Fixed in: f4c4dda9 (2026-11-16), backend and website live with PR #12 (83095020), Modal live 2026-11-18 (v134); closed 2026-11-18.
 
 #216
 Listed: 2026-11-02
