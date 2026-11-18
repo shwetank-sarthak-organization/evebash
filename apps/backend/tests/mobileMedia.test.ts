@@ -50,11 +50,11 @@ test("mobile media endpoints input validation without network socket", async () 
   assert.equal(ctx1.getStatus(), 400);
   assert.equal(ctx1.getData()?.error, "Missing eventId");
 
-  // 2. /reconcile-upload rejects missing clientUploadId
+  // 2. /reconcile-upload needs a login before it looks at the body (issue #284); without one it answers 401
+  // (it used to check the body first and answer 400, which is what this test expected before, issue #292)
   const ctx2 = mockRequestResponse("/mobile/reconcile-upload", {});
   await reconcileHandler(ctx2.req, ctx2.res, () => {});
-  assert.equal(ctx2.getStatus(), 400);
-  assert.equal(ctx2.getData()?.error, "Missing clientUploadId or storageKey");
+  assert.equal(ctx2.getStatus(), 401);
 
   // 3. /save-photo-batch rejects missing photos
   const ctx3 = mockRequestResponse("/mobile/save-photo-batch", {});
