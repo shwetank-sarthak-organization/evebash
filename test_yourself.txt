@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 231
+Next test number: 232
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6765,6 +6765,39 @@ How to test:
   3. Add Photos, pick 1 photo, tap Upload, and tap the ✕ on its row in the upload panel within a second or two.
      Expect: the row goes away, the app stays open, and the photo is not added. Try it 3 times. Then upload 1
      photo without cancelling. Expect: it uploads normally. Delete the test photo afterwards.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#231 App: photos upload 3 at a time; a video uploads alone (#216)
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone + Android)
+Brief:     The app now uploads 3 photos at once instead of one at a time (about 2.5x faster on the simulator).
+           Videos still upload one at a time and alone. This checks it is faster, never uploads a photo twice,
+           and behaves on a real phone and on weak Wi-Fi.
+Detail:    Fix 75d606c3 (apps/mobile/lib/uploadQueue.ts; JavaScript only, but staging builds older than de35c7a6
+           can't get it over the air: test on the new staging build from #230). Checked by Claude on the iPhone
+           16e simulator: 12 photos in about 45 s (one at a time took about 128 s), counts right with no
+           duplicates, a video upload alone with photos waiting. Not checked: a real phone, weak Wi-Fi, a video
+           finishing with photos queued behind it.
+How to test:
+  1. As a host, open a test sub-gallery, Add Photos, pick 30 photos and tap Upload. Expect: the upload panel
+     shows 3 rows uploading at the same time and the rest "Waiting". When it finishes, the gallery has exactly 30
+     more photos (no photo twice). Note the time it took.
+  2. Add 1 short video (under 1 minute) on the Videos tab, and straight after it Add Photos with 3 photos.
+     Expect: the video uploads alone while the 3 photos show "Waiting"; once the video is done the 3 photos
+     start together. The video plays after processing.
+  3. On weak or patchy Wi-Fi (or turn Wi-Fi off for 10 s in the middle of an upload of 10 photos), expect:
+     "Waiting for connection", then the upload carries on by itself and every photo arrives once.
+  4. On an older phone, upload 50 photos while scrolling the gallery. Expect: no crash and no freezing.
+     Delete the test sub-gallery afterwards.
 Done by:
 Device / browser:
 Build / version:
