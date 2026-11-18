@@ -1,0 +1,18 @@
+diff --git a/node_modules/expo-image-picker/ios/MediaHandler.swift b/node_modules/expo-image-picker/ios/MediaHandler.swift
+index a0e3a44..086f867 100644
+--- a/node_modules/expo-image-picker/ios/MediaHandler.swift
++++ b/node_modules/expo-image-picker/ios/MediaHandler.swift
+@@ -396,7 +396,12 @@ internal struct MediaHandler {
+     // asset as *adjusted* and will re-render a temporary file for us. Copying the resource bytes
+     // ourselves is dramatically faster because it just streams the already-existing file.
+ 
+-    if options.videoExportPreset == .passthrough, let assetId = selectedVideo.assetIdentifier {
++    // EveBash patch (issue #288): only look the video up when the app already has Photos access. Without it,
++    // `PHAsset.fetchAssets` makes iOS ask for full Photos library access; `loadFileRepresentation` below needs none.
++    let photoAccess = PHPhotoLibrary.authorizationStatus(for: .readWrite)
++    let canReadLibrary = photoAccess == .authorized || photoAccess == .limited
++
++    if options.videoExportPreset == .passthrough, canReadLibrary, let assetId = selectedVideo.assetIdentifier {
+       let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [assetId], options: nil)
+       if let asset = fetchResult.firstObject {
+         // Prefer the full-size resource when available, otherwise fall back to the default `.video`.

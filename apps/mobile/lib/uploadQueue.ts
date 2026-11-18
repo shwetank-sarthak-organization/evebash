@@ -242,7 +242,7 @@ function deleteLeftoverCopies(): Promise<void> {
   });
 }
 
-// ── 2. Notification Channels & Permissions ──────────────────────────────────
+// ── 2. Notification Channels ────────────────────────────────────────────────
 async function ensureNotificationChannels() {
   if (!Notifications) return;
   try {
@@ -260,22 +260,6 @@ async function ensureNotificationChannels() {
     }
   } catch (err) {
     console.warn('[UploadQueue] Failed to set notification channels:', err);
-  }
-}
-
-async function checkNotificationPermission() {
-  if (!Notifications) return false;
-  try {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    return finalStatus === 'granted';
-  } catch (err) {
-    console.warn('[UploadQueue] Failed to check notification permissions:', err);
-    return false;
   }
 }
 
@@ -480,7 +464,8 @@ export async function addToUploadQueue(
   userId: string,
   mediaType: 'photo' | 'video'
 ) {
-  await checkNotificationPermission();
+  // No notification permission prompt here: the app asks once at sign-in (registerDeviceForPushNotifications), and
+  // the upload panel shows progress either way (issue #212)
 
   // 1. Calculate total batch size & check disk space
   let totalBatchBytes = 0;
@@ -745,6 +730,11 @@ async function uploadWorker(item: UploadQueueItem) {
     });
 
     // 2. Upload file binary directly to Backblaze B2 via background task
+    const fileInfo = await FileSystem.getInfoAsync(item.fileUri).catch(() => null);
+    // Cancelled while the upload URL was fetched: its file is already deleted, and a background upload of a missing
+    // file crashes the app on iOS (issue #289). Nothing may be awaited between this check and createUploadTask.
+    if (cancelledIds.delete(item.id)) return;
+    if (!fileInfo?.exists) throw new Error('The file to upload is no longer on this phone.');
     console.log(`[UploadQueue] Uploading directly to B2 (single-part, up to 5GB): ${storageKey}`);
     const uploadTask = FileSystem.createUploadTask(
       uploadUrl,
