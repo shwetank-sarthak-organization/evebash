@@ -29,7 +29,7 @@
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
       ],
       "package": "com.evebash.app",
-      "versionCode": 25,
+      "versionCode": 26,
       "usesCleartextTraffic": false,
       "googleServicesFile": "./google-services.json"
     },

@@ -33,6 +33,7 @@ import {
 } from '@/lib/database';
 import { subscribeToUploadQueue, UploadQueueItem, WAITING_FOR_CONNECTION } from '@/lib/uploadQueue';
 import { markStartup } from '@/lib/startupTiming';
+import { useRetryWhenOnline } from '@/hooks/use-retry-when-online';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { EventGridCard, EVENT_PLACEHOLDER_ASSET } from '@/components/ui/EventGridCard';
@@ -468,6 +469,7 @@ export default function DashboardScreen() {
   // Keyed on the identifiers fetchData uses: AuthContext replaces the user object several times
   // at startup (placeholder, then full profile), which used to refetch and re-show the spinner.
   useEffect(() => { fetchData(); }, [user?.uid, user?.email, user?.phone]);
+  useRetryWhenOnline(loadError && events.length === 0, fetchData);
 
   useEffect(() => {
     const unsubscribe = subscribeToUploadQueue((queueItems) => {

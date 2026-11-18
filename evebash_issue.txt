@@ -18,25 +18,11 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 286
+Next issue number: 288
 
 =====================================================================
 ACTIVE ISSUES
 =====================================================================
-
-#18
-Listed: 2026-10-09
-Platform: App
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device test #223 (Google sign-in in the app installed from Google Play)
-Found in: Store launch review (2026-10-03)
-Issue: Google sign-in will fail (DEVELOPER_ERROR) on Play and EAS-signed Android builds: Firebase only has the debug-keystore SHA-1. Add the Play app-signing and EAS upload-key SHA-1s before store release.
-How to reproduce: Install an EAS-signed or Play build and tap "Continue with Google": DEVELOPER_ERROR.
-Update 2026-10-11: for the new package com.evebash.app (#41) the debug and EAS upload-key SHA-1s are in Firebase, and their Android OAuth clients exist in Google Cloud (made by hand; Firebase did not create them). Only the Play app-signing SHA-1 is left: add it to the Firebase app com.evebash.app and as a Google Cloud Android OAuth client after the first Play upload.
-Update 2026-11-16: the Play app-signing key is set up. From Play Console > Protected with Play > Play app signing: SHA-1 71:71:05:25:FB:CA:72:9C:47:13:15:35:51:F8:B6:B0:E0:AD:8F:DD (SHA-256 7A:68:8A:41:...:19:73:13:82). Sarthak added both to the Firebase app com.evebash.app and created the Google Cloud Android OAuth client "EveBash Android Play signing (com.evebash.app)" (71982315150-q878fe4n2ha5eh6mpkdout6d15b2mdln); apps/mobile/google-services.json refreshed from Firebase (adds that client, and the staging debug client made 2026-11-14; app IDs and keys unchanged). No code change: the app signs in with the web client ID. The App signing page shows no upload key, so nothing has been uploaded to Play yet; the first upload from EAS sets it (EAS key 29:40:B3...). Its "Copy all certificate fingerprints" also lists SHA-1 80:C9:28:77:AA:9E:D8:22:67:B8:C5:F7:4C:A3:D5:F4:80:E5:07:93 and 53:1F:5F:91:CF:78:39:85:69:C0:5C:DA:A3:33:69:99:D6:2C:43:4B (SHA-256 19:7E:20:0D:...:E7:0F and 04:91:6F:D1:...:2D:D4), most likely the previous app signing key (first used 2026-09-24, 0% installs, "Quantum-ready"); not registered, as Play signs new releases with the in-use key. If Play refuses the first EAS upload with "wrong key", reset the upload key in Play Console. Not checked yet: a sign-in from a Play-installed build (device test #223, needs that first upload, a production build: Shwetank's OK). The same two fingerprints were first added by mistake to the old Firebase app com.anonymous.evebash (unused since #41; harmless; remove that app only with Shwetank's OK). iOS (same topic, no fingerprints there): the live build's Google iOS client (EAS production EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID 71982315150-e883v8...) matches the iosUrlScheme in app.json; still to check by hand: that client's bundle ID is com.evebash.app, Sign in with Apple is on for the Apple App ID com.evebash.app, and the live Supabase Apple provider lists com.evebash.app in Client IDs.
-Update 2026-11-16 (later, with Shwetank's OK): removed the old Firebase Android app "EveBash Android" (com.anonymous.evebash, unused since #41; in Firebase's "Pending delete apps" for 30 days) and its Google Cloud Android OAuth client "EveBash Android" (71982315150-82v82..., created 2026-09-30; Google showed it last used 2026-11-16; restorable for 30 days under "Restore deleted OAuth clients"). No other client was touched (EveBash Web, EveBash iOS, the com.evebash.app EAS, debug and Play signing clients, both com.evebash.app.staging Android clients, EveBash Staging iOS). apps/mobile/google-services.json re-downloaded: exactly com.evebash.app and com.evebash.app.staging, both identical to the previous file. Checked afterwards: "Continue with Google" in EveBash Staging on a Pixel 8 (EAS staging build 60443d04) signed in (phone log: GoogleSignin.signIn() success, then SIGNED_IN; 0 crashes).
 
 #20
 Listed: 2026-10-09
@@ -887,28 +873,6 @@ Found in: Sunlit Portrait issue review (#163, 2026-10-28)
 Issue: The app carries code for a "show welcome card" switch that doesn't exist. The events table has no show_welcome_card column, yet apps/mobile/lib/database.ts maps it (showWelcomeCard in mapSqlToEvent and in the update field map), apps/mobile/app/events/[id].tsx checks (event as any).showWelcomeCard !== false before every theme's gallery message (always true, the value is always missing), and apps/mobile/app/(tabs)/gallery.tsx has a showWelcomeCard state that is never set or saved. Nothing breaks today, but it reads like a working switch (it misled #163), and passing showWelcomeCard to updateEvent would fail on the missing column. Fix: delete the mapping, the checks and the unused state; keep "clear the welcome text" as the way to hide the message (or add the column and a real switch if hosts ask for one).
 How to reproduce: select show_welcome_card from events fails with "column does not exist"; search apps/mobile for showWelcomeCard.
 
-#170
-Listed: 2026-10-28
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
-Issue: Adding a new set of photos or videos in the app while an upload is running removes failed files from the queue. addToUploadQueue in apps/mobile/lib/uploadQueue.ts drops every completed and failed item before adding the new set ("Purge any stale finished items"). A failed file from the first set disappears from the upload card, so the host loses its Retry button and may not notice it never uploaded. Its durable copy in the app's upload folder is also left behind, because cleanupDurableFile only runs in clearFinishedUploads, and a failed large file's unfinished B2 upload isn't released. Fix idea: keep failed items when adding a new set (only drop completed ones), or run the same cleanup clearFinishedUploads does.
-How to reproduce: App, upload ~10 photos and make one fail (e.g. airplane mode is no longer enough since #144; use a file the server refuses, or a plan-limit failure). While the rest upload, tap Add Photo and pick more: the failed photo is gone from the upload card and can't be retried.
-
-#171
-Listed: 2026-10-28
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
-Issue: The app's upload progress counts are wrong when a second set is added while the first is uploading. The in-app upload card (apps/mobile/app/events/[id].tsx, total = uploadQueue[0]?.batchTotal) takes its total from the first set's file count but adds up progress for every file in the queue, so it can go past 100% or show e.g. "12 of 10". The phone notification (updateProgressNotification in apps/mobile/lib/uploadQueue.ts) takes the newest set's count but adds up every file for that event, so it can show "Uploading 13 of 5" (the percent is capped at 100). The "N files uploaded" notification at the end has the same mix-up. Fix idea: count the files still in the queue (or the sum of the active sets' sizes) instead of one set's batchTotal, in both places.
-How to reproduce: App, pick 10 photos to upload; while they upload, tap Add Photo and pick 5 more. Watch the upload card and the notification: the counts don't match 15 files.
-
 #174
 Listed: 2026-10-28
 Platform: Website
@@ -988,41 +952,6 @@ Found in: Upload flow review (chat 2026-11-02)
 Issue: The notification permission prompt appears right after someone picks photos, with no explanation: addToUploadQueue calls checkNotificationPermission first (apps/mobile/lib/uploadQueue.ts). Anyone who taps Don't Allow gets no upload progress notifications, which today are the only progress shown (see #208).
 How to reproduce: Fresh install, Add Photo, pick a photo. Not seen on 2026-11-02: the emulator had already allowed notifications.
 
-#213
-Listed: 2026-11-02
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: Choosing photos starts the upload straight away, with no step to confirm, and nothing says which gallery they go into. The target is whichever gallery or sub-gallery is open (handleUploadGalleryMedia in apps/mobile/app/events/[id].tsx), so uploading to the wrong one is easy.
-How to reproduce: Open a sub-gallery, Add Photo, pick photos: they upload at once with no gallery name shown anywhere.
-
-#214
-Listed: 2026-11-02
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: Upload wording and naming. Progress text is technical ("Uploading Media (3/10)", "2 upload(s) failed. (Tap to view details)", "AI face indexing and thumbnail generation..."; the notification says "AI Face Indexing"), and telling guests their faces are being indexed right after they upload could alarm them. The button says "Add Photo" although several can be picked, and the empty state "No photos yet. Tap Add Photo!". The upload notification uses the yellow gold #CCA43B (see #147). Sub-galleries have three names: "Sub-Galleries" for hosts, "Collections" for guests, and the guest upload hint says "Open an album to add your photos." while "Album" is also the album proofing tab.
-How to reproduce: Read on the device and in apps/mobile/app/events/[id].tsx and apps/mobile/lib/uploadQueue.ts.
-Note 2026-11-02: Fixed in 3236073: plain progress wording in the card, notification and Dashboard entry, "Add Photos" / "Add Videos", and brand gold on the upload notification. Still open: the three names for sub-galleries.
-
-#215
-Listed: 2026-11-02
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: Some numbers are stale after an upload or a lost connection. (1) The Dashboard keeps "Couldn't load your events" after the connection returns until Try again is tapped. (2) The host gallery's "Source gallery: All galleries · N" counts only the items loaded so far (selectedMediaItems in apps/mobile/app/events/[id].tsx): it showed 36, then 16, for a gallery of 44 photos. (3) Storage Usage stayed at 46.24 GB after an upload.
-How to reproduce: Seen on the Pixel 8 emulator on 2026-11-02 in test-face-new.
-Note 2026-11-12: part 2 (the Source gallery count) is fixed in 913ef3ec together with #176: opening the list loads the whole gallery, and until then the count ends in "+". Checked on the Pixel 8 emulator (dev build on a local bundler with this commit): test-face-new showed "All galleries · 16+", then All galleries 46 and Home 46 in the list, matching Photos (46); samarth weds Jyoti showed 24 / 14 / 5 / 2 / 3, matching the database. Device test #209. Parts 1 and 3 are still open.
-
 #216
 Listed: 2026-11-02
 Platform: App
@@ -1033,17 +962,6 @@ Blocked by: -
 Found in: Upload flow review (chat 2026-11-02)
 Issue: Uploads go one file at a time (CONCURRENCY = 1 in apps/mobile/lib/uploadQueue.ts), so a guest sending 300 photos over venue Wi-Fi waits a long time. This may be deliberate for reliability; measure before changing.
 How to reproduce: Read in the code.
-
-#217
-Listed: 2026-11-02
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: apps/mobile/app/events/sub/[id].tsx has its own simpler copy of the photo upload code (no video checks, no shared checks), and nothing in the app seems to link to that screen any more. Remove it or route it through the event screen's upload code.
-How to reproduce: Read in the code (grep found no links to /events/sub).
 
 #218
 Listed: 2026-11-02
@@ -1511,6 +1429,18 @@ Update 2026-11-16: fixed on staging with Shwetank's OK. 1 Modal process_media_ba
 Update 2026-11-16: checked on staging from outside: process-thumbnail, indexing-status and reconcile-upload answer 401 without a login; the staging Modal process_media_batch answers 401 without a QStash signature; staging server healthy; CORS still allows staging.evebash.com. Left: the upload progress check during Shwetank's device tests (website + app send the login to indexing-status now), then live on release day.
 Update 2026-11-16: backend + website LIVE with the release (PR #12, 83095020). Checked on api.evebash.com without a login: process-thumbnail and trigger-modal-batch 401, indexing-status 401 (also through www.evebash.com), all-photos 404; CORS allows evebash.com and not other sites. Left: item 1 (Modal process_media_batch signature) goes live with the Modal publish (#269).
 
+#286
+Listed: 2026-11-17
+Platform: App
+Priority: High
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device test #227 (needs an EAS iOS build on an iPhone)
+Found in: Issue #18 (2026-11-16/17); its iOS part moved here when #18 closed
+Issue: Sign-in setup for the iOS app isn't fully checked. Checked 2026-11-16: the Google iOS clients are right (live "EveBash IOS" 71982315150-e883v8... for bundle com.evebash.app, Team AM5NCNB29X; staging "EveBash Staging iOS" 71982315150-p06i28... for com.evebash.app.staging), and the live build's EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID matches the iosUrlScheme in apps/mobile/app.json. Still to check by hand: (1) developer.apple.com > Identifiers: Sign in with Apple is on for com.evebash.app (and com.evebash.app.staging, todo #35); (2) live Supabase > Authentication > Providers > Apple: Client IDs include com.evebash.app; (3) staging Supabase's Apple Client IDs are "com.evebash.app,com.anonymous.wed-albummobile", without com.evebash.app.staging, so Sign in with Apple in an iOS staging build would fail; adding it is a staging setting change (waits on Sarthak's OK; part of todo #35). If (1) or (2) is missing, "Sign in with Apple" fails in the App Store app, and App Store rule 4.8 expects a login like Sign in with Apple when Google sign-in is offered.
+How to reproduce: Not reproduced (no live iOS build installed yet). On an iPhone with the live app, tap the Apple sign-in button: if (1) or (2) is missing, sign-in fails with a provider or audience error.
+Update 2026-11-17: (1) Apple Developer, Team AM5NCNB29X, App ID com.evebash.app: Sign In with Apple and Push Notifications were OFF (only In-App Purchase was on), so Apple sign-in and pushes would have failed on iPhone. Identifiers was locked until Sarthak accepted Apple's updated Program License Agreement. With Sarthak's OK, Claude turned on Sign In with Apple (primary App ID), Push Notifications and Associated Domains (for Universal Links later); saved and re-checked after a reload. Apple says this invalidates existing provisioning profiles for the App ID; the next EAS iOS build makes new ones. No App ID com.evebash.app.staging exists yet (EAS creates it on the first iOS staging build, todo #35). (2) Live Supabase (EveBash): Apple provider on, Client IDs "com.evebash.app,com.anonymous.wed-albummobile": OK, not changed. (3) Staging Supabase (Evebash-Staging): Client IDs now "com.evebash.app,com.anonymous.wed-albummobile,com.evebash.app.staging" (Sarthak's OK; saved and re-checked). Left: device test #227 on an iPhone once an iOS build exists.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
@@ -1527,6 +1457,109 @@ Issue: The RunPod-first pipeline adds a lot of moving parts for a small saving t
 How to reproduce: Not a bug; read todo #18 and reports/Final video pipeline recommendation 2026-10-27.md.
 Decision 2026-11-18 (Shwetank and Sarthak): option A. Modal does all video processing for now, on live and staging, with the same rule as today: videos of 10 minutes or less on the 4-core worker, longer ones on the 16-core worker (the L4 GPU stays off). RunPod is set up later. Live Railway has no VIDEO_RUNPOD (off). Staging Railway has VIDEO_RUNPOD=test for wedding-2-77d4, a gallery that exists only on live, so staging already sends every video to Modal; Shwetank removes VIDEO_RUNPOD from staging Railway. Parked until RunPod comes back: #133, #221, #222, #223, #224, #227, todo #18.
 Fixed in: decision, no code change (2026-11-18).
+
+#171
+Listed: 2026-10-28
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
+Issue: The app's upload progress counts are wrong when a second set is added while the first is uploading. The in-app upload card (apps/mobile/app/events/[id].tsx, total = uploadQueue[0]?.batchTotal) takes its total from the first set's file count but adds up progress for every file in the queue, so it can go past 100% or show e.g. "12 of 10". The phone notification (updateProgressNotification in apps/mobile/lib/uploadQueue.ts) takes the newest set's count but adds up every file for that event, so it can show "Uploading 13 of 5" (the percent is capped at 100). The "N files uploaded" notification at the end has the same mix-up. Fix idea: count the files still in the queue (or the sum of the active sets' sizes) instead of one set's batchTotal, in both places.
+How to reproduce: App, pick 10 photos to upload; while they upload, tap Add Photo and pick 5 more. Watch the upload card and the notification: the counts don't match 15 files.
+Fixed in: 939419be (2026-11-18). The phone notification (performNotificationUpdate in apps/mobile/lib/uploadQueue.ts) now counts every file of that gallery in the queue instead of the newest set's batchTotal, the same way the upload panel counts (finished files from before a new set drop out of both counts, as the panel already did), and the "N files uploaded" notification counts the files saved in the run. Checked on the iPhone 16e simulator (staging, Staging test 1): a 60 MB video uploading, then a second set of 1 video added: the notification said "Uploading 2 files · Uploading 1 of 2", matching the panel ("Uploading 2 videos · 0 of 2 uploaded"); before the fix it took the new set's count ("Uploading 1 file"). Not seen on screen: the final "2 files uploaded" (the slow test upload was cancelled; nothing was saved). Device test #229 step 2. The in-app card part was fixed earlier in 22ec6541.
+
+#215
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Some numbers are stale after an upload or a lost connection. (1) The Dashboard keeps "Couldn't load your events" after the connection returns until Try again is tapped. (2) The host gallery's "Source gallery: All galleries · N" counts only the items loaded so far (selectedMediaItems in apps/mobile/app/events/[id].tsx): it showed 36, then 16, for a gallery of 44 photos. (3) Storage Usage stayed at 46.24 GB after an upload.
+How to reproduce: Seen on the Pixel 8 emulator on 2026-11-02 in test-face-new.
+Note 2026-11-12: part 2 (the Source gallery count) is fixed in 913ef3ec together with #176: opening the list loads the whole gallery, and until then the count ends in "+". Checked on the Pixel 8 emulator (dev build on a local bundler with this commit): test-face-new showed "All galleries · 16+", then All galleries 46 and Home 46 in the list, matching Photos (46); samarth weds Jyoti showed 24 / 14 / 5 / 2 / 3, matching the database. Device test #209. Parts 1 and 3 are still open.
+Fixed in: 939419be (2026-11-18). Part 1: new hook apps/mobile/hooks/use-retry-when-online.ts waits with the upload queue's waitForConnection (now exported from apps/mobile/lib/uploadQueue.ts) and loads again once the backend answers, on the Dashboard, Host and Your Events screens while they show "Couldn't load your events" (Try again still works). Checked on the iPhone 16e simulator with the Dashboard's first load made to fail (temporary code, removed): the error showed, then the events appeared by themselves about 4 s later. Part 3: Storage Usage (apps/mobile/app/events/[id].tsx) also reloads when the gallery's media totals change; before, it reloaded only when the number of loaded items changed, and the page loads 20 at a time, so in test-face-new (44 photos) it never reloaded. Not seen on screen (the test upload was too slow and was cancelled). Small uploads can still look unchanged because the card shows 2 decimals of a GB. Device test #229 steps 1 and 3.
+
+#287
+Listed: 2026-11-18
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test #228 on a Pixel 8 (chat 2026-11-18)
+Issue: The host's Cinematic Highlight Video card keeps an old video count after a video is deleted. GalleryVideoPanel (apps/mobile/components/event/GalleryVideoPanel.tsx) loads the gallery's videos itself (getGalleryVideos) and reloads only when the gallery or the chosen highlight changes, so after deleting a video in Gallery Media below it, the card still says "Choose from this gallery's videos (2)" while the Videos tab says 1, until the gallery is opened again. Not checked: whether its Choose list also still offers the deleted video. Fix idea: reload the panel's list when the gallery's video count changes (pass the count or a refresh key from apps/mobile/app/events/[id].tsx), or give it the same video list Gallery Media uses.
+How to reproduce: App as host, open a gallery with 2 videos, delete one on the Videos tab (... > Delete video). The highlight card still says "(2)". Back to Galleries and open the gallery again: it says "(1)".
+Fixed in: fc91476d (2026-11-18). GalleryVideoPanel (apps/mobile/components/event/GalleryVideoPanel.tsx) takes a new videosKey prop and loads its list again when it changes; apps/mobile/app/events/[id].tsx builds the key from the page's videos (count, ids, status, hidden), so it changes after an upload, a delete, a hide or when a video finishes processing. Checked on the iPhone 16e simulator (staging, host of Staging test 1): uploading a test video took the card from "(0)" to "(1)" once it was processed, and deleting it took the card straight back to "(0)", both without reopening the gallery (before the fix both stayed stale). Test video deleted. tsc clean, lint unchanged. Not changed: the website's host page has its own copy (src/components/GalleryVideoPanel.tsx) that loads its list the same way; not checked.
+
+#213
+Listed: 2026-11-02
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Choosing photos starts the upload straight away, with no step to confirm, and nothing says which gallery they go into. The target is whichever gallery or sub-gallery is open (handleUploadGalleryMedia in apps/mobile/app/events/[id].tsx), so uploading to the wrong one is easy.
+How to reproduce: Open a sub-gallery, Add Photo, pick photos: they upload at once with no gallery name shown anywhere.
+Note 2026-11-17: Fixed in 7bbde0d1 for the app (Sarthak chose a confirm step on the app only; the website shows the gallery you drop onto). After picking photos or videos the app asks "Upload 12 photos to <gallery>?" (Cancel / Upload); the highlight video card doesn't ask. Checked on the iPhone 16e simulator (Cancel uploads nothing, Upload starts, "1 photo" wording). The Android emulator kept restarting (Mac out of memory), so Android (the app's own dialog, appAlert) is not checked yet: device test #228 steps 1-3. Move to fixed when it passes.
+Fixed in: 7bbde0d1 (2026-11-17), Android checked 2026-11-18. Device test #228 steps 1-2 passed on a real Pixel 8 (Android 16) with EAS staging build bea51e74 (staging 96d2f913, EveBash Staging 1.2.4 (26)), signed in as the host of Test event staging: "Upload 2 photos to Test event staging?" in the app's own dialog; Cancel uploads nothing; Upload starts the upload panel (30 -> 32 photos); "Upload 1 photo" and "Upload 1 video" wording; a sub-gallery shows its own name ("Upload 2 photos to EB test?", temporary sub-gallery in Test 260, deleted afterwards); the highlight card uploads with no question; the phone's Back button closes the question like Cancel (FeedbackHost runs the Cancel button) and the page keeps working. Test uploads deleted (gallery back to 30 photos, 1 video). Not run: step 3 as a guest (same handleUploadGalleryPhoto code, needs a guest account on the phone).
+
+#170
+Listed: 2026-10-28
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Chat 2026-10-28 (can a host start a new upload set while one is uploading?)
+Issue: Adding a new set of photos or videos in the app while an upload is running removes failed files from the queue. addToUploadQueue in apps/mobile/lib/uploadQueue.ts drops every completed and failed item before adding the new set ("Purge any stale finished items"). A failed file from the first set disappears from the upload card, so the host loses its Retry button and may not notice it never uploaded. Its durable copy in the app's upload folder is also left behind, because cleanupDurableFile only runs in clearFinishedUploads, and a failed large file's unfinished B2 upload isn't released. Fix idea: keep failed items when adding a new set (only drop completed ones), or run the same cleanup clearFinishedUploads does.
+How to reproduce: App, upload ~10 photos and make one fail (e.g. airplane mode is no longer enough since #144; use a file the server refuses, or a plan-limit failure). While the rest upload, tap Add Photo and pick more: the failed photo is gone from the upload card and can't be retried.
+Fixed in: 7bbde0d1 (2026-11-17). addToUploadQueue (apps/mobile/lib/uploadQueue.ts) now drops only completed files before a new set, so a failed file keeps its row, Retry and the red badge until it is retried or dismissed; clearFinishedUploads then deletes its copy and releases a large file's B2 upload. Checked on the iPhone 16e simulator: one photo of a set made to fail (temporary code, removed), a new set added; the failed row stayed, the new photo uploaded. Device test #228 step 4.
+
+#214
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: Upload wording and naming. Progress text is technical ("Uploading Media (3/10)", "2 upload(s) failed. (Tap to view details)", "AI face indexing and thumbnail generation..."; the notification says "AI Face Indexing"), and telling guests their faces are being indexed right after they upload could alarm them. The button says "Add Photo" although several can be picked, and the empty state "No photos yet. Tap Add Photo!". The upload notification uses the yellow gold #CCA43B (see #147). Sub-galleries have three names: "Sub-Galleries" for hosts, "Collections" for guests, and the guest upload hint says "Open an album to add your photos." while "Album" is also the album proofing tab.
+How to reproduce: Read on the device and in apps/mobile/app/events/[id].tsx and apps/mobile/lib/uploadQueue.ts.
+Note 2026-11-02: Fixed in 3236073: plain progress wording in the card, notification and Dashboard entry, "Add Photos" / "Add Videos", and brand gold on the upload notification. Still open: the three names for sub-galleries.
+Fixed in: 7bbde0d1 (2026-11-17). Decision 2026-11-17 Sarthak: keep "Sub-Galleries" (hosts) and "Collections" (guests); the guest hint now says "Open a collection to add your photos." in the app (apps/mobile/app/events/[id].tsx) and on the website (src/app/(public)/events/[slug]/page.tsx), so guests see one name. "Album" stays the album proofing tab. Device test #228 step 5.
+
+#217
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: apps/mobile/app/events/sub/[id].tsx has its own simpler copy of the photo upload code (no video checks, no shared checks), and nothing in the app seems to link to that screen any more. Remove it or route it through the event screen's upload code.
+How to reproduce: Read in the code (grep found no links to /events/sub).
+Fixed in: 7bbde0d1 (2026-11-17). Deleted apps/mobile/app/events/sub/[id].tsx (nothing linked to it; every gallery opens through events/[id].tsx and its upload code). Checked on the iPhone 16e simulator: the app loads and uploads to a gallery still work; tsc clean.
+
+#18
+Listed: 2026-10-09
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Store launch review (2026-10-03)
+Issue: Google sign-in will fail (DEVELOPER_ERROR) on Play and EAS-signed Android builds: Firebase only has the debug-keystore SHA-1. Add the Play app-signing and EAS upload-key SHA-1s before store release.
+How to reproduce: Install an EAS-signed or Play build and tap "Continue with Google": DEVELOPER_ERROR.
+Update 2026-10-11: for the new package com.evebash.app (#41) the debug and EAS upload-key SHA-1s are in Firebase, and their Android OAuth clients exist in Google Cloud (made by hand; Firebase did not create them). Only the Play app-signing SHA-1 is left: add it to the Firebase app com.evebash.app and as a Google Cloud Android OAuth client after the first Play upload.
+Update 2026-11-16: the Play app-signing key is set up. From Play Console > Protected with Play > Play app signing: SHA-1 71:71:05:25:FB:CA:72:9C:47:13:15:35:51:F8:B6:B0:E0:AD:8F:DD (SHA-256 7A:68:8A:41:...:19:73:13:82). Sarthak added both to the Firebase app com.evebash.app and created the Google Cloud Android OAuth client "EveBash Android Play signing (com.evebash.app)" (71982315150-q878fe4n2ha5eh6mpkdout6d15b2mdln); apps/mobile/google-services.json refreshed from Firebase (adds that client, and the staging debug client made 2026-11-14; app IDs and keys unchanged). No code change: the app signs in with the web client ID. The App signing page shows no upload key, so nothing has been uploaded to Play yet; the first upload from EAS sets it (EAS key 29:40:B3...). Its "Copy all certificate fingerprints" also lists SHA-1 80:C9:28:77:AA:9E:D8:22:67:B8:C5:F7:4C:A3:D5:F4:80:E5:07:93 and 53:1F:5F:91:CF:78:39:85:69:C0:5C:DA:A3:33:69:99:D6:2C:43:4B (SHA-256 19:7E:20:0D:...:E7:0F and 04:91:6F:D1:...:2D:D4), most likely the previous app signing key (first used 2026-09-24, 0% installs, "Quantum-ready"); not registered, as Play signs new releases with the in-use key. If Play refuses the first EAS upload with "wrong key", reset the upload key in Play Console. Not checked yet: a sign-in from a Play-installed build (device test #223, needs that first upload, a production build: Shwetank's OK). The same two fingerprints were first added by mistake to the old Firebase app com.anonymous.evebash (unused since #41; harmless; remove that app only with Shwetank's OK). iOS (same topic, no fingerprints there): the live build's Google iOS client (EAS production EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID 71982315150-e883v8...) matches the iosUrlScheme in app.json; still to check by hand: that client's bundle ID is com.evebash.app, Sign in with Apple is on for the Apple App ID com.evebash.app, and the live Supabase Apple provider lists com.evebash.app in Client IDs.
+Update 2026-11-16 (later, with Shwetank's OK): removed the old Firebase Android app "EveBash Android" (com.anonymous.evebash, unused since #41; in Firebase's "Pending delete apps" for 30 days) and its Google Cloud Android OAuth client "EveBash Android" (71982315150-82v82..., created 2026-09-30; Google showed it last used 2026-11-16; restorable for 30 days under "Restore deleted OAuth clients"). No other client was touched (EveBash Web, EveBash iOS, the com.evebash.app EAS, debug and Play signing clients, both com.evebash.app.staging Android clients, EveBash Staging iOS). apps/mobile/google-services.json re-downloaded: exactly com.evebash.app and com.evebash.app.staging, both identical to the previous file. Checked afterwards: "Continue with Google" in EveBash Staging on a Pixel 8 (EAS staging build 60443d04) signed in (phone log: GoogleSignin.signIn() success, then SIGNED_IN; 0 crashes).
+Update 2026-11-17: first Play upload done. Sarthak uploaded production build 131428ef (EAS, version 1.2.4, versionCode 26, from staging 3327f2e6; Sarthak's go-ahead for the production build 2026-11-16) to Play Console > Internal testing by hand. Play accepted it, so the upload key is now the EAS key (SHA-1 29:40:B3:BD:EB:22:B7:1F:A2:E5:E6:8C:B0:92:52:2B:D2:08:30:47). The copy installed from Play is signed with the Play app-signing key 71:71:05:25:FB:CA:72:9C:47:13:15:35:51:F8:B6:B0:E0:AD:8F:DD (apksigner on the installed APK). apps/mobile/app.json versionCode raised to 26 so the next production build doesn't reuse it. The iOS checks in the 2026-11-16 note moved to issue #286.
+Fixed in: no code change; Firebase and Google Cloud setup 2026-11-16 (google-services.json in 3327f2e6), closed 2026-11-17 after device test #223 PASS on a Pixel 8 (Android 16) with EveBash 1.2.4 (26) installed from Play Internal testing: "Continue with Google" signed in and opened the Dashboard, and after logging out it signed in again (phone log: GoogleSignin.signIn() success, then SIGNED_IN, both times; no DEVELOPER_ERROR from EveBash). Not run: iPhone (see #286).
 
 #169
 Listed: 2026-10-28
@@ -1922,30 +1955,6 @@ Update 2026-11-07: the plan's event limit was also only checked on the website a
 Update 2026-11-11: device tests #40 (upload limits) and #202 (event limit in the database) PASS on staging (Android phone dev build + website). #40 first failed only because EVENT_UPLOAD_LIMITS was staged on Railway but not deployed: Redeploy does not apply staged variables, use Deploy next to "Apply changes". Left: set EVENT_UPLOAD_LIMITS=true on the production backend and Deploy, then move this issue to RECENTLY FIXED.
 Update 2026-11-12: production (api.evebash.com, main) has EVENT_UPLOAD_LIMITS=true. Checked from the Android phone dev build pointed at production, as newone@email.com (Free, about 42.5 GB): the upload was refused with "You've reached your plan's storage limit..." (a server-only message) and no upload_intents row was created.
 Fixed in: 8acf63a8 (2026-11-12), switched on in production 2026-11-12. Device tests #40 and #202.
-
-#258
-Listed: 2026-11-10
-Platform: Analytics dashboard
-Priority: Medium
-Status: Fixed
-Owner: Shwetank (with Claude)
-Found in: Chat 2026-11-10 (shwetank.chauhan3@gmail.com: Profile shows 3.72 GB, dashboard Total GB shows 2.06 GB)
-Issue: The analytics dashboard's storage numbers are smaller than what the website, app and backend count. The dashboard (userUsageMetrics in apps/analytics-dashboard/src/components/UserGrid.tsx, photos loaded in src/lib/analytics.ts) adds up only photos.size, the original files. The Profile storage card, the upload limits and the EB Vault pool use vault_event_storage_bytes, which also counts photos.overhead_size (the processed copies: video streaming versions in 1080p/720p/480p and audio, previews, thumbnails) and Album Proofs pages and voice notes. For shwetank.chauhan3: originals 0.257 GB photos + 1.800 GB videos = 2.06 GB (dashboard); processed copies 1.66 GB more, almost all from 9 videos = 3.72 GB (Profile). The extra space is real storage on Backblaze, so the dashboard under-reports what each user uses, and the gap grows with video. Fix idea: show the same total as the Profile (call vault_event_storage_bytes / vault_event_storage_by_event), and optionally keep "originals" as a second column. Check whether the dashboard's Cost column uses the same smaller number.
-How to reproduce: Compare Analytics Hub > User Accounts > Total GB for shwetank.chauhan3@gmail.com with staging.evebash.com/profile > Storage Usage on that account.
-Note 2026-11-10: fixed on staging in 7854c4b3: the dashboard counts size + overhead_size everywhere it shows storage (storedBytes in apps/analytics-dashboard/src/lib/analytics.ts): User Accounts Photos/Videos/Total GB and Cost, Galleries, Infra Cost storage, and the deleted-event archive. Video GPU checks still use the original file size. Album Proofs bytes are still not counted (none on this account).
-Fixed in: 7854c4b3 (2026-11-10). Checked on the deployed dashboard 2026-11-10: Total GB for shwetank.chauhan3@gmail.com is 3.72 GB, the same as the Profile.
-
-#259
-Listed: 2026-11-10
-Platform: Analytics dashboard
-Priority: Medium
-Status: Fixed
-Owner: Shwetank (with Claude)
-Found in: Chat 2026-11-10 (does User Accounts show EB Vault storage?)
-Issue: The analytics dashboard doesn't show EB Vault storage anywhere. User Accounts' Photos/Videos/Total GB and Cost count only event media, and the user detail page has no EB Vault figure, but events and EB Vault share one storage pool: the Profile total and the upload limits add EB Vault (vault_accounts.used_bytes + reserved_bytes). So the dashboard shows less than the Profile for anyone using EB Vault (today only newone@email.com, 0.12 GB). The dashboard can't read vault_accounts itself (each user may read only their own row), so it needs a backend admin action. Fix: a read-only admin action that returns each user's EB Vault bytes; a Vault GB column in User Accounts; Total GB and Cost include it; the user detail page shows it.
-How to reproduce: Analytics Hub > User Accounts > newone@email.com: no Vault column, and Total GB is 0.12 GB less than staging.evebash.com/profile > Storage Usage on that account.
-Note 2026-11-10: fixed on staging in ceb0cdbb. Backend: read-only admin action vaultUsage on /api/admin/control (listVaultUsage in apps/backend/src/routes/admin.ts, platform admins only, test tests/vaultUsage.test.ts). Dashboard: User Accounts has a Vault GB column (sortable); Total GB and Cost include EB Vault; the user detail page has an EB Vault Storage card and its used/quota meter and Backblaze cost include it. Until the backend is deployed the column shows 0.00 GB.
-Fixed in: ceb0cdbb (2026-11-10). Checked on the deployed dashboard 2026-11-10: the Vault GB column shows.
 
 #181
 Listed: 2026-10-29

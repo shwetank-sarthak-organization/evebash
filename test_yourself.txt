@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 227
+Next test number: 230
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-16
+Last updated: 2026-11-17
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -6471,8 +6471,13 @@ Detail:    Fix d860be59 (apps/mobile/components/UploadStatusOverlay.tsx, mounted
            cancel in apps/mobile/lib/uploadQueue.ts and chunkUpload.ts). JavaScript only: reaches the staging app
            with an over-the-air update or a new build. Replaces test #217. Checked by Claude on the iPhone 16e
            simulator with made-up upload data (rows, thumbnails, the cancel questions, minimize, drag, Light and
-           Dark). Not checked: real uploads, the cancel itself (that a cancelled file really stops or is
-           deleted), and the tab pages (not signed in).
+           Dark). 2026-11-17 Claude ran steps 1-6 on the iPhone 16e simulator (not a real phone) with real
+           uploads to the staging gallery "Staging test 1": all passed (a 150 MB video cancelled at 47% left
+           nothing in the gallery; Cancel all deleted the 6 uploaded photos). Two fixes from that run in
+           abbbdb3e, also checked there: the panel and the round button hide while a photo is open in the host
+           view (they covered the viewer's buttons), and a photo's thumbnail stays after it uploads (it used to
+           turn into an icon). Not checked yet: step 7 (photos stayed on "Getting ready" because that checkout
+           lacked the #284 login fix for the progress check), steps 8-10, and a real phone.
 How to test:
   1. Log in as a host on staging, open one of your galleries, tap Add Photos and pick about 10. Expect: a panel
      above the bottom bar: a gold ring, "Uploading 10 photos", "3 of 10 uploaded · 34%", Cancel all and a down
@@ -6511,7 +6516,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #223 App (Android, from Google Play): "Continue with Google" signs in (#18)
-Status:    TODO
+Status:    PASS
 Priority:  High (launch blocker, test first)
 Platform:  App (Android, installed from Google Play)
 Brief:     Apps installed from Google Play are signed by Google's own key, which Google sign-in didn't know about, so
@@ -6526,14 +6531,19 @@ How to test:
   2. Tap "Continue with Google" and pick your Google account. Expect: you are signed in and land on the Dashboard,
      no "DEVELOPER_ERROR", "Something went wrong" or sign-in loop.
   3. Log out and sign in with Google again. Expect: the account picker shows and sign-in works again.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Sarthak with Claude (Claude read the phone's log over USB and checked the installed copy's signing key)
+Device / browser: Pixel 8, Android 16
+Build / version: EveBash 1.2.4 (versionCode 26) from Google Play Internal testing; EAS production build 131428ef (staging 3327f2e6)
+Date tested: 2026-11-17
+Account used: Sarthak's own Google account (live database)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  PASS. Play first answered "Item not found" (404); a few minutes later, with the Play Store on the tester
+           account, it showed "com.evebash.app (unreviewed)" with Install. Installed copy: from com.android.vending,
+           signed with the Play app-signing key 71:71:05:...:8F:DD (apksigner). Step 2: "Continue with Google" opened
+           the Dashboard (21:26, GoogleSignin.signIn() success, then SIGNED_IN). Step 3: logged out (SIGNED_OUT
+           21:27:33), signed in with Google again and reached the Dashboard (21:27:37). No DEVELOPER_ERROR from
+           EveBash; the only one in the log came from the Google Drive app's process. Closes #18.
 --------------------------------------------------------------------------------
 #224 Website: logged-out guests see the photo viewer's action bar without moving the mouse
 Status:    PASS
@@ -6621,3 +6631,103 @@ Account used: staging host account
 Screenshot / recording:
 Fix ref:
 Feedback:  Staging 2026-11-17 (Shwetank): added a second set and dropped files while 15-20 photos were uploading, plus another gallery; the new files queued and uploaded after the first set, each in its own gallery; after a refresh all photos were there with the right counts. Pass on staging. Live after PR #16 (6079ad46), Shwetank 2026-11-17: works after a hard refresh (the tab open before the release still had the old page). Pass.
+--------------------------------------------------------------------------------
+#227 App (iPhone): Sign in with Apple and pushes work (#286)
+Status:    TODO
+Priority:  High (launch blocker, test first)
+Platform:  App (iPhone)
+Brief:     Sign in with Apple and Push Notifications were off for the iPhone app (App ID com.evebash.app) on
+           Apple Developer. They are on since 2026-11-17, with Associated Domains for later "open in app" links.
+           Staging Supabase now also accepts Apple sign-in from the staging app (com.evebash.app.staging). This
+           checks Apple sign-in and pushes on a real iPhone.
+Detail:    Issue #286. Needs an EAS iOS build: live (com.evebash.app; a production iOS build needs Shwetank's OK)
+           or staging (com.evebash.app.staging; todo #35: EAS creates its App ID and push key on the first
+           build). The live app uses the live database: sign in with your own Apple ID only. A simulator can't
+           check pushes.
+How to test:
+  1. Install the iOS build on an iPhone (TestFlight or the EAS install link).
+  2. On the sign-in screen tap the Apple button and sign in with your Apple ID. Expect: you land on the
+     Dashboard, no "Something went wrong" or sign-in loop.
+  3. Log out and sign in with Apple again. Expect: it works again.
+  4. Allow notifications when asked. From another account (website), ask to join one of your private galleries.
+     Expect: a push arrives on the iPhone.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+--------------------------------------------------------------------------------
+#228 App: "Upload N photos to <gallery>?" before uploading, failed files stay, one name for collections (#213, #170, #214)
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone + Android)
+Brief:     After picking photos or videos the app now asks which gallery they go into before anything uploads
+           (#213). A file that didn't upload keeps its row and Retry when you add more files (#170). Guests read
+           "Open a collection to add your photos." instead of "album" (#214, app and website).
+Detail:    Fix 7bbde0d1 (apps/mobile/app/events/[id].tsx, apps/mobile/lib/uploadQueue.ts; JavaScript only: reaches
+           the staging app with an over-the-air update or a new build). Checked by Claude on the iPhone 16e
+           simulator with real uploads to "Staging test 1" (steps 1, 2 and 4). Steps 1 and 2 checked by Claude on
+           2026-11-18 on a real Pixel 8 (Android 16, USB) with EAS staging build bea51e74 (staging 96d2f913,
+           EveBash Staging 1.2.4 (26)), host of "Test event staging": all as expected, including a sub-gallery's
+           name (temporary "EB test" in Test 260, deleted) and the Back button (closes the question like Cancel).
+           Test uploads deleted. Still to test: step 3 (guest), step 4 on a real phone, step 5.
+How to test:
+  1. Log in as a host on staging, open a gallery (try a sub-gallery too), tap Add Photos and pick 2 photos.
+     Expect: "Upload 2 photos to <that gallery's name>?" with Cancel and Upload. Tap Cancel. Expect: nothing
+     uploads, no upload panel. Do it again and tap Upload. Expect: the upload panel and the photos in the gallery.
+  2. Pick 1 photo. Expect: "Upload 1 photo to ...?". On the Videos tab tap Add Videos and pick a video. Expect:
+     "Upload 1 video to ...?". On the Cinematic Highlight Video card tap Upload video. Expect: no question.
+     Android: press the phone's Back button while the question shows. Expect: the app doesn't get stuck (the
+     question stays or closes, and you can still use the page).
+  3. As a guest with upload permission, open the event (any theme) and add photos. Expect: the same question, with
+     the event or collection name.
+  4. Make a file fail (for example upload to a gallery that is over its storage limit), then, while its red "Didn't
+     upload" row shows, add another photo. Expect: the red row with Retry stays above the new file, and the round
+     button (minimized) still has the red number. (Before the fix the failed row disappeared.)
+  5. As a guest, open an event that has collections, on the main page where you can't upload. Expect: "Open a
+     collection to add your photos." Check the same event on staging.evebash.com.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+--------------------------------------------------------------------------------
+#229 App: event lists reload when the connection comes back; upload counts in the phone notification; Storage Usage after uploads (#215, #171)
+Status:    TODO
+Priority:  Low
+Platform:  App (iPhone + Android)
+Brief:     The Dashboard, Host and Your Events screens no longer stay on "Couldn't load your events" after the
+           connection comes back; they load again by themselves (#215). The upload notification counts the same
+           files as the upload panel when you add more files mid-upload (#171). Storage Usage on the host gallery
+           page updates after an upload in a big gallery (#215).
+Detail:    Fix 939419be (apps/mobile/hooks/use-retry-when-online.ts, apps/mobile/lib/uploadQueue.ts,
+           apps/mobile/app/events/[id].tsx and the three tab screens; JavaScript only: reaches the staging app with
+           an over-the-air update or a new build). Checked by Claude on the iPhone 16e simulator: step 1 with a
+           made-up first-load failure on the Dashboard, and step 2's progress notification ("Uploading 2 files ·
+           Uploading 1 of 2"). Not checked: a real loss of connection, the "N files uploaded" notification at the
+           end, step 3.
+How to test:
+  1. Turn on airplane mode, then open the app (or pull to refresh the Dashboard). Expect: "Couldn't load your
+     events". Turn airplane mode off and wait, without tapping anything. Expect: within about 5 seconds your events
+     appear. Do the same on the Host tab and on Your Events.
+  2. As a host, upload 10 photos (or one big video); while they upload, tap Add Photos and add 5 more. Pull down
+     the phone's notifications. Expect: the notification's file count matches the upload panel ("Uploading N files",
+     "Uploading X of N") and never shows more than the total (before: "Uploading 13 of 5"). When everything is
+     done, expect "N files uploaded" with the same N as the panel.
+  3. Open a gallery with more than 20 photos and videos, note Storage Usage, and upload a video of 50 MB or more
+     without leaving the page. Expect: once it's saved, Storage Usage goes up (by about 0.05 GB) without reopening
+     the gallery. Delete the test video afterwards.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

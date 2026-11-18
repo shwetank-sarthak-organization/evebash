@@ -1418,9 +1418,10 @@ function EventDetailScreen() {
     }
   }, [user?.uid, user?.role, showAdminView]);
 
+  // `photos` holds only the loaded pages, so its length can stay the same after an upload: the totals change (#215)
   useEffect(() => {
     fetchStorage();
-  }, [fetchStorage, photos.length]);
+  }, [fetchStorage, photos.length, mediaTotals.photos, mediaTotals.videos]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [photoPage, setPhotoPage] = useState(0);
   const photoPageRef = React.useRef(0);
@@ -1447,6 +1448,11 @@ function EventDetailScreen() {
   }, [photos, showAdminView, subEvents]);
   const photoItems = React.useMemo(() => viewerPhotos.filter(item => isPhotoMedia(item) && item?.status !== 'uploading'), [viewerPhotos]);
   const videoItems = React.useMemo(() => viewerPhotos.filter(item => isVideoMedia(item) && item?.status === 'processed'), [viewerPhotos]);
+  // The highlight video card loads the gallery's videos itself: this changes when the page's videos change (issue #287)
+  const galleryVideosKey = React.useMemo(
+    () => `${mediaTotals.videos}|${photos.filter(isVideoMedia).map(item => `${item.id}:${item.status}:${item.isHidden ? 1 : 0}`).join(',')}`,
+    [mediaTotals.videos, photos],
+  );
   const selectedMediaItems = galleryMediaTab === 'photos' ? photoItems : videoItems;
   const isPrimaryGalleryView = showAdminView ? selectedAdminGallery === null : !activeSubEvent;
   // Home's own uploads load in pages: its count shows "N+" until the list is opened, which loads the whole gallery
@@ -2238,6 +2244,20 @@ function EventDetailScreen() {
             duration: asset.duration || undefined,
           };
         });
+
+        // Say which gallery the files go into before anything uploads (issue #213). The highlight video is picked
+        // from its own card, so it doesn't ask.
+        if (!options?.highlight) {
+          const noun = files.length === 1 ? mediaType : `${mediaType}s`;
+          const galleryName = currentActiveEvent?.title?.trim();
+          const confirmed = await new Promise<boolean>(resolve => {
+            appAlert(`Upload ${files.length} ${noun}${galleryName ? ` to ${galleryName}` : ''}?`, undefined, [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Upload', onPress: () => resolve(true) },
+            ]);
+          });
+          if (!confirmed) return;
+        }
 
         if (options?.highlight) changePendingHighlightUpload({ galleryId: activeId, since: Date.now() });
         await addToUploadQueue(files, activeId, user.uid, mediaType);
@@ -5690,6 +5710,7 @@ function EventDetailScreen() {
                             gallery={gallery}
                             canUpload={canManageEvent || isOwner}
                             uploading={pendingHighlightUpload?.galleryId === gallery.id}
+                            videosKey={galleryVideosKey}
                             onUpload={() => void handleUploadGalleryMedia('video', { highlight: true })}
                             onChange={async (videoId) => { await saveGalleryVideo(gallery.id, videoId); }}
                           />
@@ -7007,7 +7028,7 @@ function EventDetailScreen() {
                     </TouchableOpacity>
                   ) : (
                     <Text style={{ alignSelf: 'center', marginVertical: 12, color: selectedTemplate.muted, fontSize: 12, fontWeight: '700' }}>
-                      Open an album to add your photos.
+                      Open a collection to add your photos.
                     </Text>
                   )
                 )}

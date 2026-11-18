@@ -869,7 +869,7 @@ function EventPageContent() {
                         {guestUploadError && <p className={cn("max-w-md text-center text-xs font-semibold", isRoyalGallery ? "royal-error" : "text-rose-600")}>{guestUploadError}</p>}
                     </div>
                 ) : (
-                    <p className={cn("mt-6 text-xs font-semibold", isClassicGallery ? "text-left" : "text-center", isRoyalGallery ? "royal-muted" : "text-stone-500")}>Open an album to add your photos.</p>
+                    <p className={cn("mt-6 text-xs font-semibold", isClassicGallery ? "text-left" : "text-center", isRoyalGallery ? "royal-muted" : "text-stone-500")}>Open a collection to add your photos.</p>
                 ))}
 
                 {/* Photos / Videos on the left; Favourites only (in albums, for logged-in guests) on the right, below on phones */}

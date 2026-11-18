@@ -60,6 +60,7 @@ import { appAlert, showToast } from '@/lib/feedback';
 import { getGalleryWebUrl } from '@/lib/webLinks';
 import { confirmDenyRequest } from '@/lib/denyRequest';
 import { useReloadOnReturn } from '@/hooks/use-reload-on-return';
+import { useRetryWhenOnline } from '@/hooks/use-retry-when-online';
 import { newEventJoinCode } from '../../../../shared/text/joinCode';
 
 // Approve / reject a guest with a confirming haptic
@@ -225,6 +226,7 @@ export default function PortfolioTabScreen() {
 
   // New access requests (push) and coming back to the app: no Realtime, so reload (#48)
   useReloadOnReturn(() => { fetchData(true); });
+  useRetryWhenOnline(loadError && events.length === 0 && sharedEvents.length === 0, () => { fetchData(); });
 
   useEffect(() => {
     let isMounted = true;

@@ -23,6 +23,7 @@ import { ZoomablePhoto } from './ZoomablePhoto';
 import { appAlert, showToast } from '@/lib/feedback';
 import { haptic } from '@/lib/haptics';
 import { FeedbackHost } from '@/components/feedback/FeedbackHost';
+import { useHideUploadStatus } from '@/components/UploadStatusOverlay';
 
 interface PhotoViewerProps {
   visible: boolean;
@@ -891,6 +892,8 @@ export default function PhotoViewer({
   const guarded = (action: () => void) => () => (asksToLogIn ? onRequireLogin?.() : action());
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const viewerInsets = useSafeAreaInsets();
+  // The host viewer is drawn inside the page, under the app-wide upload panel, which would cover its buttons
+  useHideUploadStatus(visible);
   // Leave room under the photo so Like / Comment / Share / Download are visible without scrolling
   const revealFrameHeight = Math.max(320, viewportHeight - 150 - viewerInsets.bottom);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(initialIndex);

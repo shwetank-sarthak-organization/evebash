@@ -34,7 +34,7 @@ Field values:
 
 Next todo number: 44
 
-Last updated: 2026-11-16
+Last updated: 2026-11-17
 
 =====================================================================
 ACTIVE TODOS
@@ -667,6 +667,10 @@ Update 2026-11-16: Google part done (todo #37): iOS OAuth client "EveBash Stagin
               added to staging Supabase's Google Client IDs; app.config.js gives the staging variant its own
               iosUrlScheme from EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID (eas.json staging profile, apps/mobile/.env.local)
               in 560cbd71. Google login checked on a USB iPhone. Still open: Sign in with Apple, APNs, Firebase iOS.
+Update 2026-11-17: staging Supabase's Apple Client IDs now include com.evebash.app.staging (#286). The App ID
+              com.evebash.app.staging isn't registered on Apple Developer yet; EAS creates it (with the
+              capabilities the app asks for) on the first iOS staging build. The live App ID com.evebash.app now
+              has Sign In with Apple, Push Notifications and Associated Domains on. Still open: APNs, Firebase iOS.
 
 #36 Confetti Circle redesign: our own look, not a copy of the Crafto demo (copyright risk)
 Listed:       2026-11-15
@@ -883,6 +887,11 @@ Brief:        Today the upload card (apps/mobile/components/event/UploadProgress
               file, and the worker frees its own slot.
 Done in:      d860be59 (2026-11-16); device test #222. Checked on the iPhone 16e simulator with made-up upload
               data; real uploads and the cancel itself wait on #222.
+              2026-11-17: real uploads on the simulator (staging gallery "Staging test 1") worked: rows, cancel a
+              waiting photo, delete an uploaded one, cancel a 150 MB video half way, Cancel all, minimize, the
+              tab pages. Two fixes from that run in abbbdb3e (2026-11-17): the panel hides while the host photo
+              viewer is open (it covered the viewer's buttons), and a photo's thumbnail no longer turns into the
+              icon the moment it is uploaded.
 
 #32 Analytics dashboard: switch between Live and Staging data
 Listed:       2026-11-14
