@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 230
+Next test number: 231
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6731,6 +6731,40 @@ How to test:
   3. Open a gallery with more than 20 photos and videos, note Storage Usage, and upload a video of 50 MB or more
      without leaving the page. Expect: once it's saved, Storage Usage goes up (by about 0.05 GB) without reopening
      the gallery. Delete the test video afterwards.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#230 App: no questions at upload (notifications, full Photos access on iPhone); cancelling an upload right away doesn't crash (#212, #288, #289)
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone + Android; step 2 is iPhone only)
+Brief:     Picking photos no longer asks for notification permission; the app asks once around sign-in (#212).
+           On iPhone, picking a video no longer makes iOS ask for full access to your Photo Library (#288).
+           Tapping the ✕ on an upload in its first second no longer closes the app on iPhone (#289).
+Detail:    Fix de35c7a6 (apps/mobile/lib/uploadQueue.ts; apps/mobile/patches/expo-image-picker+55.0.20.patch,
+           applied by patch-package on npm install). NEEDS A NEW APP BUILD (iOS and Android): the patch changes
+           native code and the app's runtime version, so older staging builds get no over-the-air update with it.
+           Checked by Claude on the iPhone 16e simulator: step 3 (with a temporary 6 s pause before the upload
+           starts, removed afterwards). Not checked: step 1 (the simulator can't reset the notification
+           permission) and step 2 on screen (the local iOS build failed to link for an unrelated reason).
+How to test:
+  1. Delete the app, install the new staging build and sign in. Expect: the notification question comes once,
+     around sign-in (Allow or Don't Allow, either is fine). As a host, open a gallery, Add Photos, pick 2 photos,
+     tap Upload. Expect: no notification question; the upload panel shows the progress.
+  2. iPhone only, on a fresh install (EveBash has never asked for Photos access): host gallery > Videos tab >
+     Add Videos, pick a video. Expect: no "EveBash would like full access to your Photo Library" question;
+     "Upload 1 video to <gallery>?" comes straight away, and the video uploads and plays. Add Photos the same
+     way. Expect: no Photos question either.
+  3. Add Photos, pick 1 photo, tap Upload, and tap the ✕ on its row in the upload panel within a second or two.
+     Expect: the row goes away, the app stays open, and the photo is not added. Try it 3 times. Then upload 1
+     photo without cancelling. Expect: it uploads normally. Delete the test photo afterwards.
 Done by:
 Device / browser:
 Build / version:

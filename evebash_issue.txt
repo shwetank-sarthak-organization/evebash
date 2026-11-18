@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 288
+Next issue number: 290
 
 =====================================================================
 ACTIVE ISSUES
@@ -941,27 +941,17 @@ Found in: App screen review (chat 2026-11-01)
 Issue: On iPhone, the New Event name placeholder showed wide letter spacing ("e . g .  W e d d i n g") after the Join Event sheet had been opened in the same run. Seen once on the iPhone 17 Pro simulator on 2026-11-02; the placeholder looked normal on 2026-11-01 when New Event was opened first. Neither field's style was changed. Likely cause, not confirmed: iOS reuses the text box from the Join Event code field, which has letterSpacing 4 (apps/mobile/app/(tabs)/dashboard.tsx). Not checked on a real iPhone.
 How to reproduce: Start the app, open Dashboard > Join Event and close it, then Host > + . Look at the Event Name placeholder.
 
-#212
-Listed: 2026-11-02
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload flow review (chat 2026-11-02)
-Issue: The notification permission prompt appears right after someone picks photos, with no explanation: addToUploadQueue calls checkNotificationPermission first (apps/mobile/lib/uploadQueue.ts). Anyone who taps Don't Allow gets no upload progress notifications, which today are the only progress shown (see #208).
-How to reproduce: Fresh install, Add Photo, pick a photo. Not seen on 2026-11-02: the emulator had already allowed notifications.
-
 #216
 Listed: 2026-11-02
 Platform: App
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Upload flow review (chat 2026-11-02)
 Issue: Uploads go one file at a time (CONCURRENCY = 1 in apps/mobile/lib/uploadQueue.ts), so a guest sending 300 photos over venue Wi-Fi waits a long time. This may be deliberate for reliability; measure before changing.
 How to reproduce: Read in the code.
+Note 2026-11-18: measured on the iPhone 16e simulator (staging, Mac Wi-Fi), 12 photos of about 2 MB each (25 MB): one at a time took about 128 s (about 10.5 s a photo); three at once took about 50 s, about 2.5x faster. Nothing changed yet; waiting on Sarthak's choice. Raising CONCURRENCY needs one more fix first: processQueue starts each worker before the worker marks its file as uploading (that happens after an await), so with more than one slot the same file is picked by several slots and uploaded twice (seen in the test; marking the file in processQueue before starting the worker fixed it). Risks to weigh: memory on older phones, weak venue Wi-Fi, and videos (could stay one at a time). Test uploads deleted.
 
 #218
 Listed: 2026-11-02
@@ -1429,9 +1419,45 @@ Update 2026-11-16: fixed on staging with Shwetank's OK. 1 Modal process_media_ba
 Update 2026-11-16: checked on staging from outside: process-thumbnail, indexing-status and reconcile-upload answer 401 without a login; the staging Modal process_media_batch answers 401 without a QStash signature; staging server healthy; CORS still allows staging.evebash.com. Left: the upload progress check during Shwetank's device tests (website + app send the login to indexing-status now), then live on release day.
 Update 2026-11-16: backend + website LIVE with the release (PR #12, 83095020). Checked on api.evebash.com without a login: process-thumbnail and trigger-modal-batch 401, indexing-status 401 (also through www.evebash.com), all-photos 404; CORS allows evebash.com and not other sites. Left: item 1 (Modal process_media_batch signature) goes live with the Modal publish (#269).
 
+#288
+Listed: 2026-11-18
+Platform: App
+Priority: Low
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Device check (test_yourself #230 step 2) on the next iOS build; move to RECENTLY FIXED once it passes
+Found in: Upload flow testing on the iPhone 16e simulator (chat 2026-11-17), cause found 2026-11-18
+Issue: On iPhone, the first time someone picks a video to upload, iOS asks "EveBash would like full access to your Photo Library" (Limit Access / Allow Full Access / Don't Allow), although the picker needs no Photos access. The expo-image-picker library causes it (version 55.0.20, ios/MediaHandler.swift handleVideo): for a video it looks the picked item up in the Photos library (PHAsset.fetchAssets) to copy it faster, and that lookup triggers the prompt. Don't Allow still uploads (it falls back to loadFileRepresentation), but the prompt is unexpected and asks for more than the app needs. No newer 55.x version changes this (checked 55.0.24). Fix: a patch-package patch that does the lookup only when the app already has Photos access.
+How to reproduce: iPhone (or simulator) where EveBash has not been asked for Photos access yet (Settings > EveBash > Photos, or xcrun simctl privacy <device> reset photos com.evebash.app), host gallery > Videos > Add Videos > pick a video: the full-access prompt appears before "Upload 1 video to ...?". Reproduced on the iPhone 16e simulator on 2026-11-18.
+Note 2026-11-18: fix in de35c7a6. New dev dependency patch-package (npm "postinstall" in apps/mobile/package.json) applies apps/mobile/patches/expo-image-picker+55.0.20.patch: handleVideo looks the video up in the Photos library only when the app already has Photos access (authorized or limited); otherwise it goes straight to loadFileRepresentation, which needs none. The patched picker compiles in a local Xcode build, but the full app failed to link on this Mac for an unrelated reason, so the missing prompt is not seen on screen yet. The patch changes native code and the app's runtime version: it reaches phones only with a new build (iOS and Android), and staging builds made before it get no over-the-air updates published after it. When expo-image-picker is upgraded, check whether the patch still applies (npm install fails loudly if not).
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#289
+Listed: 2026-11-18
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload test for #216 on the iPhone 16e simulator (chat 2026-11-18); crash report EveBash-2026-11-18-140241 (SIGABRT in __NSURLBackgroundSession _uploadTaskWithTaskForClass, called from createUploadTask)
+Issue: On iPhone the app crashed when an upload was cancelled (the ✕ on its row in the upload panel) while the app was still getting the upload address for that file. cancelUploadItem (apps/mobile/lib/uploadQueue.ts) deletes the file's local copy straight away, but uploadWorker then still called FileSystem.createUploadTask with the deleted file, and iOS's background upload throws a native exception for a missing file, which closes the app.
+How to reproduce: iPhone (the simulator works), upload one photo and tap its ✕ within about a second, before its progress starts moving. Easier on a slow connection.
+Fixed in: de35c7a6 (2026-11-18). uploadWorker checks, right before createUploadTask with nothing awaited in between, whether the file was cancelled (then it stops quietly) and whether its local copy still exists (if not, the file fails with "The file to upload is no longer on this phone." instead of crashing the app). Checked on the iPhone 16e simulator (staging, Staging test 1) with a temporary 6 s pause before the upload starts (removed afterwards): tapping ✕ during the pause removed the row, the app stayed open, no new crash report, and nothing was added to the gallery. Device test #230 step 3.
+
+#212
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow review (chat 2026-11-02)
+Issue: The notification permission prompt appears right after someone picks photos, with no explanation: addToUploadQueue calls checkNotificationPermission first (apps/mobile/lib/uploadQueue.ts). Anyone who taps Don't Allow gets no upload progress notifications, which today are the only progress shown (see #208).
+How to reproduce: Fresh install, Add Photo, pick a photo. Not seen on 2026-11-02: the emulator had already allowed notifications.
+Fixed in: de35c7a6 (2026-11-18). Sarthak chose to stop asking at upload: addToUploadQueue no longer asks for notification permission, and checkNotificationPermission is removed. The app still asks once at sign-in (registerDeviceForPushNotifications), and the upload panel (#208) shows progress whether notifications are allowed or not. Checked by reading the code and a type check; not seen on screen (the simulator can't reset the notification permission). Device test #230 step 1.
 
 #286
 Listed: 2026-11-17
