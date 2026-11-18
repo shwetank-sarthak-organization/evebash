@@ -1326,18 +1326,6 @@ Issue: Deleting an event in the app runs the B2 file cleanup twice ("[deleteEven
 Fix idea: find why deleteEvent's cleanup runs twice (double tap, or the confirm handler/effect firing twice) and run it once; treat "already deleted" from /api/media/delete as success instead of trying other endpoints; delete the guest preview picture before the event row.
 How to reproduce: Android USB build on staging, host deletes an event that has photos in a sub-gallery and the Home gallery; watch the Metro log and the screen.
 
-#288
-Listed: 2026-11-18
-Platform: App
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #230 step 2) on the next iOS build; move to RECENTLY FIXED once it passes
-Found in: Upload flow testing on the iPhone 16e simulator (chat 2026-11-17), cause found 2026-11-18
-Issue: On iPhone, the first time someone picks a video to upload, iOS asks "EveBash would like full access to your Photo Library" (Limit Access / Allow Full Access / Don't Allow), although the picker needs no Photos access. The expo-image-picker library causes it (version 55.0.20, ios/MediaHandler.swift handleVideo): for a video it looks the picked item up in the Photos library (PHAsset.fetchAssets) to copy it faster, and that lookup triggers the prompt. Don't Allow still uploads (it falls back to loadFileRepresentation), but the prompt is unexpected and asks for more than the app needs. No newer 55.x version changes this (checked 55.0.24). Fix: a patch-package patch that does the lookup only when the app already has Photos access.
-How to reproduce: iPhone (or simulator) where EveBash has not been asked for Photos access yet (Settings > EveBash > Photos, or xcrun simctl privacy <device> reset photos com.evebash.app), host gallery > Videos > Add Videos > pick a video: the full-access prompt appears before "Upload 1 video to ...?". Reproduced on the iPhone 16e simulator on 2026-11-18.
-Note 2026-11-18: fix in de35c7a6. New dev dependency patch-package (npm "postinstall" in apps/mobile/package.json) applies apps/mobile/patches/expo-image-picker+55.0.20.patch: handleVideo looks the video up in the Photos library only when the app already has Photos access (authorized or limited); otherwise it goes straight to loadFileRepresentation, which needs none. The patched picker compiles in a local Xcode build, but the full app failed to link on this Mac for an unrelated reason, so the missing prompt is not seen on screen yet. The patch changes native code and the app's runtime version: it reaches phones only with a new build (iOS and Android), and staging builds made before it get no over-the-air updates published after it. When expo-image-picker is upgraded, check whether the patch still applies (npm install fails loudly if not).
-
 #291
 Listed: 2026-11-18
 Platform: App
@@ -1352,6 +1340,19 @@ How to reproduce: Staging, a USB Android phone with the staging app signed in as
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#288
+Listed: 2026-11-18
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow testing on the iPhone 16e simulator (chat 2026-11-17), cause found 2026-11-18
+Issue: On iPhone, the first time someone picks a video to upload, iOS asks "EveBash would like full access to your Photo Library" (Limit Access / Allow Full Access / Don't Allow), although the picker needs no Photos access. The expo-image-picker library causes it (version 55.0.20, ios/MediaHandler.swift handleVideo): for a video it looks the picked item up in the Photos library (PHAsset.fetchAssets) to copy it faster, and that lookup triggers the prompt. Don't Allow still uploads (it falls back to loadFileRepresentation), but the prompt is unexpected and asks for more than the app needs. No newer 55.x version changes this (checked 55.0.24). Fix: a patch-package patch that does the lookup only when the app already has Photos access.
+How to reproduce: iPhone (or simulator) where EveBash has not been asked for Photos access yet (Settings > EveBash > Photos, or xcrun simctl privacy <device> reset photos com.evebash.app), host gallery > Videos > Add Videos > pick a video: the full-access prompt appears before "Upload 1 video to ...?". Reproduced on the iPhone 16e simulator on 2026-11-18.
+Note 2026-11-18: fix in de35c7a6. New dev dependency patch-package (npm "postinstall" in apps/mobile/package.json) applies apps/mobile/patches/expo-image-picker+55.0.20.patch: handleVideo looks the video up in the Photos library only when the app already has Photos access (authorized or limited); otherwise it goes straight to loadFileRepresentation, which needs none. The patched picker compiles in a local Xcode build, but the full app failed to link on this Mac for an unrelated reason, so the missing prompt is not seen on screen yet. The patch changes native code and the app's runtime version: it reaches phones only with a new build (iOS and Android), and staging builds made before it get no over-the-air updates published after it. When expo-image-picker is upgraded, check whether the patch still applies (npm install fails loudly if not).
+Fixed in: de35c7a6 (2026-11-18), checked 2026-11-18 on the iPhone 16e simulator with EAS simulator build 6a889fbb (new staging-simulator profile in apps/mobile/eas.json, 782a9ee8; same app code as staging 5c5e8b75), EveBash Staging installed fresh and its Photos access reset to never asked: host gallery > Videos > Add Videos, picked a 1-minute and then a 3-second test video: both went straight to "Upload 1 video to Staging test 1?" with no full Photos access question. The 3-second one then uploaded without Photos access (the loadFileRepresentation path), processed and played; it was deleted afterwards. Photos access was reset to never asked before the check (a grant made by mistake was undone first). Not run on a real iPhone yet (build 3dd46e77, Shwetank's iPhone 11). Device test #230 step 2.
 
 #61
 Listed: 2026-10-12
