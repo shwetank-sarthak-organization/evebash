@@ -6,7 +6,11 @@ const VARIANTS = ['staging', 'production'];
 const GOOGLE_SIGNIN_PLUGIN = '@react-native-google-signin/google-signin';
 const GOOGLE_IOS_CLIENT_ID_SUFFIX = '.apps.googleusercontent.com';
 
-// The staging app has its own Google iOS client (bundle ID com.evebash.app.staging). Google's URL scheme is the
+// The iPhone staging app's bundle ID is com.evebash.staging, not com.evebash.app.staging like Android: that one is
+// held by a free Apple account (Xcode USB build, 2026-11-16) and Apple IDs can't be moved between teams (#286).
+const STAGING_IOS_BUNDLE_ID = 'com.evebash.staging';
+
+// The staging app has its own Google iOS client (bundle ID com.evebash.staging). Google's URL scheme is the
 // client ID reversed, so it follows EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID (eas.json staging profile, apps/mobile/.env.local).
 const withStagingGoogleIosScheme = (plugins = []) => {
   const clientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
@@ -27,7 +31,7 @@ module.exports = ({ config }) => {
     ...config,
     name: 'EveBash Staging',
     scheme: 'evebash-staging',
-    ios: { ...config.ios, bundleIdentifier: 'com.evebash.app.staging' },
+    ios: { ...config.ios, bundleIdentifier: STAGING_IOS_BUNDLE_ID },
     android: { ...config.android, package: 'com.evebash.app.staging' },
     plugins: withStagingGoogleIosScheme(config.plugins),
   };
