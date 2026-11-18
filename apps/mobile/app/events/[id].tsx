@@ -1418,9 +1418,10 @@ function EventDetailScreen() {
     }
   }, [user?.uid, user?.role, showAdminView]);
 
+  // `photos` holds only the loaded pages, so its length can stay the same after an upload: the totals change (#215)
   useEffect(() => {
     fetchStorage();
-  }, [fetchStorage, photos.length]);
+  }, [fetchStorage, photos.length, mediaTotals.photos, mediaTotals.videos]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [photoPage, setPhotoPage] = useState(0);
   const photoPageRef = React.useRef(0);

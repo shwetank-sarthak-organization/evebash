@@ -17,7 +17,7 @@ function isNetworkError(err: any) {
 }
 
 /** Resolves once the backend answers again (any HTTP reply counts); every waiting upload shares one check. */
-function waitForConnection(): Promise<void> {
+export function waitForConnection(): Promise<void> {
   if (connectionWait) return connectionWait;
   const healthUrl = getEndpointsForPath('/health')[0];
   connectionWait = (async () => {
@@ -1525,15 +1525,16 @@ async function performNotificationUpdate() {
   const sortedActive = [...activeItems].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
   const currentEventId = sortedActive[0]?.eventId;
   const currentBatchItems = queue.filter(item => item.eventId === currentEventId);
-  const batchTotal = sortedActive[0]?.batchTotal || currentBatchItems.length;
+  // Every file of this gallery in the queue, like the upload panel: a set added mid-upload joins the count (issue #171)
+  const total = currentBatchItems.length;
 
-  if (batchTotal === 0) return;
+  if (total === 0) return;
 
   const totalProgressSum = currentBatchItems.reduce((sum, item) => {
     if (item.status === 'completed' || item.status === 'failed') return sum + 100;
     return sum + (item.progress || 0);
   }, 0);
-  const overallPercentage = Math.min(100, Math.max(0, Math.round(totalProgressSum / batchTotal)));
+  const overallPercentage = Math.min(100, Math.max(0, Math.round(totalProgressSum / total)));
 
   // Are any files still uploading binary to B2?
   const isUploadingBinary = currentBatchItems.some(
@@ -1546,12 +1547,12 @@ async function performNotificationUpdate() {
 
   if (isUploadingBinary) {
     // ── UPLOADING PHASE (Google Drive style) ──
-    title = batchTotal > 1 ? `Uploading ${batchTotal} files` : 'Uploading 1 file';
+    title = total > 1 ? `Uploading ${total} files` : 'Uploading 1 file';
     const uploadedCount = currentBatchItems.filter(
       i => i.status === 'uploaded_pending_metadata' || i.status === 'processing' || i.status === 'completed'
     ).length;
     const failedCount = currentBatchItems.filter(i => i.status === 'failed').length;
-    const currentIndex = Math.min(batchTotal, uploadedCount + failedCount + 1);
+    const currentIndex = Math.min(total, uploadedCount + failedCount + 1);
 
     const currentItem = currentBatchItems.find(i => i.status === 'uploading') ||
       currentBatchItems.find(i => i.status === 'pending');
@@ -1561,17 +1562,17 @@ async function performNotificationUpdate() {
     const filePercent = Math.round(currentItem?.progress || 0);
 
     if (currentItem?.error === WAITING_FOR_CONNECTION) {
-      bodyText = batchTotal > 1
-        ? `Waiting for connection • ${uploadedCount} of ${batchTotal} uploaded`
+      bodyText = total > 1
+        ? `Waiting for connection • ${uploadedCount} of ${total} uploaded`
         : 'Waiting for connection';
-    } else if (batchTotal > 1) {
-      bodyText = `Uploading ${currentIndex} of ${batchTotal} • ${displayName} (${filePercent}%)`;
+    } else if (total > 1) {
+      bodyText = `Uploading ${currentIndex} of ${total} • ${displayName} (${filePercent}%)`;
     } else {
       bodyText = `${displayName} (${filePercent}%)`;
     }
   } else {
     // ── PROCESSING & AI INDEXING PHASE (Google Drive style) ──
-    title = batchTotal > 1 ? `Preparing ${batchTotal} files` : 'Preparing 1 file';
+    title = total > 1 ? `Preparing ${total} files` : 'Preparing 1 file';
     const indexingData = lastIndexingStatus.get(currentEventId);
     const processingItems = currentBatchItems.filter(i => i.status === 'processing');
 
@@ -1628,7 +1629,6 @@ async function notifyQueueDrained() {
 
   if (Notifications) {
     try {
-      const batchTotal = succeeded[0]?.batchTotal || succeeded.length;
       if (failed.length > 0) {
         await Notifications.scheduleNotificationAsync({
           identifier: PROGRESS_NOTIFICATION_ID,
@@ -1647,7 +1647,8 @@ async function notifyQueueDrained() {
           trigger: null,
         });
       } else {
-        const title = batchTotal > 1 ? `${batchTotal} files uploaded` : '1 file uploaded';
+        // The files saved in this run, from every set (one set's size was wrong when a set was added mid-upload)
+        const title = succeeded.length > 1 ? `${succeeded.length} files uploaded` : '1 file uploaded';
         const bodyText = 'Upload finished successfully.';
 
         await Notifications.scheduleNotificationAsync({

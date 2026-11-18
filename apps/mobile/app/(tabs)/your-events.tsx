@@ -26,6 +26,7 @@ import { EventGrid, getEventGridCardWidth } from '@/constants/layout';
 import { getUserEvents, getApprovedSharedEventsForUser, Event as DatabaseEvent } from '@/lib/database';
 import { eventDateValue } from '../../../../shared/text/eventDate';
 import { withPhoneCover } from '@/lib/eventCovers';
+import { useRetryWhenOnline } from '@/hooks/use-retry-when-online';
 
 const { width } = Dimensions.get('window');
 
@@ -148,6 +149,7 @@ export default function YourEventsScreen() {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+  useRetryWhenOnline(loadError && events.length === 0, fetchData);
 
   const onRefresh = () => {
     setRefreshing(true);
