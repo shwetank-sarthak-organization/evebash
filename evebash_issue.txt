@@ -559,7 +559,7 @@ How to reproduce: Take a portrait phone video, strip its audio (ffmpeg -i in.mp4
 Fix: with the video switch's "probe_v2" key on (modal_engine/video_gpu_switch.py probe-v2 on), _transcode_video_core reads audio and height from one JSON ffprobe (_video_basics_from_probe). The height is the one the viewer sees (a video stored sideways with a 90-degree flag uses its stored width), the same as for a video recorded upright. Off = the old probes. Tested on Modal (production image and command, old vs new) on 8 clips: the old probes FAILED on all 4 rotated videos without audio (90, -90, 180 and a small 640x480 one); the new probe processed all of them upright, and the small one got only a 480p stream (360x480) instead of an enlarged 1080p one. Normal, no-audio, natively portrait and rotated-with-audio videos came out identical with old and new.
 Correction to the text above: a rotated 720p phone video was not enlarged before (its output fitted inside 1080 anyway); only rotated videos under 720p were.
 2026-10-25: Modal v130 deployed (eae06d0, 00:13 IST; rollback v129) and probe_v2 switched on for every video (video_gpu_switch.py probe-v2 off to undo). Checked: video endpoints reject unsigned calls (401), all four video functions present.
-Update 2026-11-18: probe-v2 switched ON for staging Modal only (with Shwetank's and Sarthak's OK). Live switch still off. Next: a portrait video with no sound on staging (device test #128), then a separate OK for live.
+Update 2026-11-18: probe-v2 switched ON for staging Modal only (with Shwetank's and Sarthak's OK). Live switch still off. Next: a portrait video with no sound on staging, played on an iPhone and an Android phone, then a separate OK for live.
 
 #121
 Listed: 2026-10-24
