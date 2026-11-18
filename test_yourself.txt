@@ -6871,7 +6871,7 @@ Fix ref:
 Feedback:  Staging 2026-11-18: Shwetank rotated a photo in the Rotate test gallery at 16:37; Claude fetched the new copies: preview 1600x1067, thumbnail 480x320 WebP (long side 1600 / 480, as the photo worker). Live 2026-11-18 after PR #17 (b8f90417), ROTATE_WORKER_SIZES=true on live Railway: Shwetank rotated a photo in Test Wedding (shwetank.chauhan17@hotmail.com) at 16:44; Claude measured preview 1600x1067, thumbnail 480x320. Steps 4 (rotate back) and 5 (the apps) still to do.
 
 #233 App: a new account gets a username straight away (Google and email sign-up)
-Status:    TODO (staging step 1 PASS on iPhone 2026-11-18; step 5 live after the migration)
+Status:    TODO (staging step 1 PASS on iPhone, live step 5 old accounts PASS 2026-11-18; Android and a new live sign-up still to check)
 Priority:  Medium
 Platform:  Both
 Brief:     Accounts made in the app had no username ("Username: not set" in Profile), issue #61. The database
@@ -6891,4 +6891,4 @@ Date tested: 2026-11-18
 Account used: newone3@email.com, newone4@email.com (made in Supabase staging with Auto Confirm, no profile until the first app login)
 Screenshot / recording:
 Fix ref:
-Feedback:  Staging 2026-11-18: first app login of newone3 and newone4 on the iPhone; Profile showed usernames newone3 and newone4 (Claude checked profiles.username in the staging database, newone4's session from EveBashStaging iOS). Android not tested: the EveBash Staging app isn't installed on Shwetank's iQOO; same code as iOS and the fix is in the database. Staging: 0 profiles without a username.
+Feedback:  Staging 2026-11-18: first app login of newone3 and newone4 on the iPhone; Profile showed usernames newone3 and newone4 (Claude checked profiles.username in the staging database, newone4's session from EveBashStaging iOS). Android not tested: the EveBash Staging app isn't installed on Shwetank's iQOO; same code as iOS and the fix is in the database. Staging: 0 profiles without a username. Live 2026-11-18 after the migration: the 4 accounts without one got sarthak123el, deannadoyle, domitilarear, thelmapark.6; 0 live profiles without a username.
