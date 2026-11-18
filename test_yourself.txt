@@ -6697,6 +6697,14 @@ Detail:    Fix 7bbde0d1 (apps/mobile/app/events/[id].tsx, apps/mobile/lib/upload
            EveBash Staging 1.2.4 (26)), host of "Test event staging": all as expected, including a sub-gallery's
            name (temporary "EB test" in Test 260, deleted) and the Back button (closes the question like Cancel).
            Test uploads deleted. Still to test: step 3 (guest), step 4 on a real phone, step 5.
+           Steps 3 and 5 checked on 2026-11-18 on the iPhone 16e simulator (simulator build 6a889fbb, staging
+           5c5e8b75 app code), signed in as the test guest newone1 in Test event staging (Royal Emerald theme); the
+           host (Pixel 8) temporarily gave newone1 Allow Photo Uploads and added a sub-gallery "EB 228 test", both
+           undone afterwards (newone1 back to Can view, no sub-galleries). Step 3: ADD PHOTOS showed for the guest,
+           and picking 2 photos asked "Upload 2 photos to Test event staging?"; Cancel uploaded nothing. Step 5: with
+           the collection there, the guest's main page showed a COLLECTIONS tab and "Open a collection to add your
+           photos." instead of ADD PHOTOS. Not checked: other themes, step 5 on staging.evebash.com, a real phone,
+           step 4 on a real phone.
 How to test:
   1. Log in as a host on staging, open a gallery (try a sub-gallery too), tap Add Photos and pick 2 photos.
      Expect: "Upload 2 photos to <that gallery's name>?" with Cancel and Upload. Tap Cancel. Expect: nothing
