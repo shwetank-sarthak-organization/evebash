@@ -103,7 +103,8 @@ const PROGRESS_NOTIFICATION_ID = 'media-upload-progress';
 const CHANNEL_PROGRESS = 'upload-progress';
 const CHANNEL_COMPLETE = 'upload-completion';
 
-const CONCURRENCY = 1;
+// Photos upload 3 at a time (about 2.5x faster than one at a time, issue #216); a video always uploads alone
+const PHOTO_CONCURRENCY = 3;
 const MAX_UPLOAD_RETRIES = 3;
 const UPLOAD_DIR_NAME = 'evebash_uploads/';
 
@@ -142,7 +143,9 @@ export interface UploadQueueItem {
 type QueueListener = (items: UploadQueueItem[]) => void;
 
 let queue: UploadQueueItem[] = [];
-let activeSlots = 0;
+// Files a worker has, by media type. A worker keeps its file while it waits for the network or a retry (the file
+// shows as 'pending' then), so other slots must not start it again
+const inFlight = new Map<string, UploadQueueItem['mediaType']>();
 // Files cancelled while a worker still has them: the worker stops quietly instead of retrying or failing
 const cancelledIds = new Set<string>();
 // The single-part transfer in flight per file, so a cancel can stop it
@@ -837,7 +840,7 @@ async function uploadWorker(item: UploadQueueItem) {
     }
   } finally {
     uploadTasks.delete(item.id);
-    activeSlots = Math.max(0, activeSlots - 1);
+    inFlight.delete(item.id);
     void updateProgressNotification(true);
     processQueue();
   }
@@ -1278,11 +1281,11 @@ export function triggerAndTrackProcessing(eventId: string) {
 
 // ── 7. Concurrent Queue Dispatcher ──────────────────────────────────────────
 async function processQueue() {
-  while (activeSlots < CONCURRENCY) {
-    const nextItem = queue.find(item => item.status === 'pending');
+  while (inFlight.size < PHOTO_CONCURRENCY && ![...inFlight.values()].includes('video')) {
+    const nextItem = queue.find(item => item.status === 'pending' && !inFlight.has(item.id));
 
     if (!nextItem) {
-      if (activeSlots === 0) {
+      if (inFlight.size === 0) {
         const allSettled = queue.every(
           item => item.status === 'completed' || item.status === 'failed'
         );
@@ -1292,8 +1295,12 @@ async function processQueue() {
       }
       break;
     }
+    // A video waits until the files ahead of it are done, then uploads alone
+    if (nextItem.mediaType === 'video' && inFlight.size > 0) break;
 
-    activeSlots++;
+    // Claimed here, not when uploadWorker marks it 'uploading' (after an await): otherwise the next pass of this
+    // loop picks the same file again and it uploads twice
+    inFlight.set(nextItem.id, nextItem.mediaType);
     uploadWorker(nextItem);
   }
 }
@@ -1432,7 +1439,7 @@ export async function resetUploadQueue() {
     await cleanupDurableFile(item.fileUri);
   }
 
-  activeSlots = 0;
+  inFlight.clear();
   await mutateQueue(() => {
     queue = [];
   });
