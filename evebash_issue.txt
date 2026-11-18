@@ -743,20 +743,6 @@ Issue: In the app's video viewer you can't seek: the progress bar (dashboardVide
 How to reproduce: In the app, open any video in a gallery, play it, tap or drag the progress bar: playback position doesn't change.
 Fix (app, not in a build yet): apps/mobile/components/PhotoViewer.tsx: the progress bar is now a seek bar (tap or drag; a 20 px tall touch area around the 3 px bar, a thumb shows while dragging and the time follows the finger), plus -10 s / +10 s buttons beside play (icons gobackward.10 / goforward.10 added to icon-symbol.tsx), and the bar is adjustable for VoiceOver (swipe up/down = +/-10 s). On iOS a sideways drag anywhere is the "go back" gesture, so the gallery screen's swipe-back is switched off while a video viewer with these controls is open and back on when it closes. Checked in the iOS simulator (dev build from this branch, test_5 in test-face-new-155c): tap mid-bar 0:00 -> 24:20, +10 s 24:20 -> 24:30, drag to the right 46:06 and played from there; the screen no longer slides away while dragging. Android not checked. Device test #138.
 
-#138
-Listed: 2026-10-25
-Platform: Both
-Priority: Medium
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: ROTATE_WORKER_SIZES=true on staging Railway, then device test #232, then the release and the live switch
-Found in: rotate test on VIS_6191 (2026-10-24)
-Issue: After a rotate, the photo's preview and thumbnail are smaller and lower quality than the photo worker makes: the rotate route (POST /api/v1/media/rotate, apps/backend/src/routes/media.ts) remakes the preview at 900 px wide and the thumbnail at 400 px wide (sharp resize by width only, WebP q75), while PhotoProcessorV2 makes 1600 px / 480 px on the long side (q70 / q68). So a rotated photo looks softer in the viewer (VIS_6191 in Rec 1 went from a 3000 px to a 900x1350 preview), and a rotated portrait gets a 400x600 thumbnail. The grid image is already right (1000 px long side, #121).
-Fix: make the rotate route's preview and thumbnail like the photo worker's (long side 1600 / 480, same qualities), behind a backend flag per change-safety; check overhead_size and the website/app viewer after a rotate.
-How to reproduce: Rotate a photo in the host page viewer, then open it: the viewer image is 900 px wide.
-Update 2026-11-18: fixed in afc92728 (on staging, switch off). makeRotatedCopies in apps/backend/src/services/rotateImage.ts: with ROTATE_WORKER_SIZES=true the rotate route makes a 1600 px preview (WebP q70) and a 480 px thumbnail (WebP q68) on the long side, like PhotoProcessorV2; off, the old 900/400 px wide at q75. Never enlarges. Tests in apps/backend/tests/rotateImage.test.ts (3000x4500 portrait: off 900x1350 / 400x600, on 1067x1600 / 320x480).
-Update 2026-11-18: ROTATE_WORKER_SIZES=true set on staging Railway by Shwetank. A photo rotated in the Rotate test gallery got a 1600x1067 preview and a 480x320 thumbnail (device test #232 steps 1-3 pass). Next: release (backend), then ROTATE_WORKER_SIZES=true on live Railway.
-
 #139
 Listed: 2026-10-25
 Platform: Both
@@ -1388,6 +1374,22 @@ How to reproduce: cd apps/backend && npm test (fails on HEAD with or without the
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#138
+Listed: 2026-10-25
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: rotate test on VIS_6191 (2026-10-24)
+Issue: After a rotate, the photo's preview and thumbnail are smaller and lower quality than the photo worker makes: the rotate route (POST /api/v1/media/rotate, apps/backend/src/routes/media.ts) remakes the preview at 900 px wide and the thumbnail at 400 px wide (sharp resize by width only, WebP q75), while PhotoProcessorV2 makes 1600 px / 480 px on the long side (q70 / q68). So a rotated photo looks softer in the viewer (VIS_6191 in Rec 1 went from a 3000 px to a 900x1350 preview), and a rotated portrait gets a 400x600 thumbnail. The grid image is already right (1000 px long side, #121).
+Fix: make the rotate route's preview and thumbnail like the photo worker's (long side 1600 / 480, same qualities), behind a backend flag per change-safety; check overhead_size and the website/app viewer after a rotate.
+How to reproduce: Rotate a photo in the host page viewer, then open it: the viewer image is 900 px wide.
+Update 2026-11-18: fixed in afc92728 (on staging, switch off). makeRotatedCopies in apps/backend/src/services/rotateImage.ts: with ROTATE_WORKER_SIZES=true the rotate route makes a 1600 px preview (WebP q70) and a 480 px thumbnail (WebP q68) on the long side, like PhotoProcessorV2; off, the old 900/400 px wide at q75. Never enlarges. Tests in apps/backend/tests/rotateImage.test.ts (3000x4500 portrait: off 900x1350 / 400x600, on 1067x1600 / 320x480).
+Update 2026-11-18: ROTATE_WORKER_SIZES=true set on staging Railway by Shwetank. A photo rotated in the Rotate test gallery got a 1600x1067 preview and a 480x320 thumbnail (device test #232 steps 1-3 pass). Next: release (backend), then ROTATE_WORKER_SIZES=true on live Railway.
+Update 2026-11-18: LIVE with the release (PR #17, b8f90417; live server restarted 16:43). Shwetank set ROTATE_WORKER_SIZES=true on live Railway; a photo rotated on www.evebash.com (test-wedding-6dc2) at 16:44 got a 1600x1067 preview and a 480x320 thumbnail.
+Fixed in: afc92728 (2026-11-18), live with PR #17 (b8f90417); closed 2026-11-18. The app step of device test #232 (step 5) is still to check.
 
 #185
 Listed: 2026-11-01

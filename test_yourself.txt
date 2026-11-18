@@ -6845,7 +6845,7 @@ Fix ref:
 Feedback:
 
 #232 Website and app: a rotated photo stays as sharp as the others (preview 1600 px, thumbnail 480 px)
-Status:    TODO (staging steps 1-3 PASS 2026-11-18; app and live after the release)
+Status:    TODO (website PASS on staging and live 2026-11-18; step 5, the apps, still to check)
 Priority:  Medium
 Platform:  Both
 Brief:     The rotate tool remade a photo's preview at 900 px wide and its thumbnail at 400 px wide, so a
@@ -6868,4 +6868,4 @@ Date tested: 2026-11-18
 Account used: newone1@email.com (staging)
 Screenshot / recording:
 Fix ref:
-Feedback:  Staging 2026-11-18: Shwetank rotated a photo in the Rotate test gallery at 16:37; Claude fetched the new copies: preview 1600x1067, thumbnail 480x320 WebP (long side 1600 / 480, as the photo worker). Steps 4-6 still to do.
+Feedback:  Staging 2026-11-18: Shwetank rotated a photo in the Rotate test gallery at 16:37; Claude fetched the new copies: preview 1600x1067, thumbnail 480x320 WebP (long side 1600 / 480, as the photo worker). Live 2026-11-18 after PR #17 (b8f90417), ROTATE_WORKER_SIZES=true on live Railway: Shwetank rotated a photo in Test Wedding (shwetank.chauhan17@hotmail.com) at 16:44; Claude measured preview 1600x1067, thumbnail 480x320. Steps 4 (rotate back) and 5 (the apps) still to do.
