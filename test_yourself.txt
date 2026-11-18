@@ -6735,6 +6735,13 @@ Detail:    Fix 939419be (apps/mobile/hooks/use-retry-when-online.ts, apps/mobile
            made-up first-load failure on the Dashboard, and step 2's progress notification ("Uploading 2 files ·
            Uploading 1 of 2"). Not checked: a real loss of connection, the "N files uploaded" notification at the
            end, step 3.
+           Steps 2 and 3 checked by Claude on 2026-11-18 on a real Pixel 8 (Android 16, USB, mobile data) with EAS
+           staging build b11b8d1a (staging 5c5e8b75, EveBash Staging 1.2.4 (26)), host of Test 260, temporary
+           sub-gallery "EB 231 test" and made-up test pictures (both deleted afterwards): 10 photos, then 5 more
+           while they uploaded: the notification said "Uploading 15 files · Uploading 4 of 15" and at the end "15
+           files uploaded"; the gallery went from 33 to 48. Storage Usage moved 0.11 -> 0.12 -> 0.13 GB during the
+           uploads without reopening the gallery (30+ items; small test files instead of a 50 MB video). Still to
+           test: step 1 (airplane mode), iPhone.
 How to test:
   1. Turn on airplane mode, then open the app (or pull to refresh the Dashboard). Expect: "Couldn't load your
      events". Turn airplane mode off and wait, without tapping anything. Expect: within about 5 seconds your events
@@ -6769,6 +6776,13 @@ Detail:    Fix de35c7a6 (apps/mobile/lib/uploadQueue.ts; apps/mobile/patches/exp
            Checked by Claude on the iPhone 16e simulator: step 3 (with a temporary 6 s pause before the upload
            starts, removed afterwards). Not checked: step 1 (the simulator can't reset the notification
            permission) and step 2 on screen (the local iOS build failed to link for an unrelated reason).
+           Builds: Android b11b8d1a, iOS 3dd46e77 (ad hoc: installs only on registered iPhones, today only Shwetank's
+           iPhone 11). Step 3 checked by Claude on 2026-11-18 on a real Pixel 8 (Android 16, USB, mobile data) with
+           EAS staging build b11b8d1a (staging 5c5e8b75, EveBash Staging 1.2.4 (26)), host of Test 260, temporary
+           sub-gallery "EB 231 test" and made-up test pictures (both deleted afterwards): X tapped about 0.5 s after
+           Upload, 3 times: the row went away, the app stayed open (same process), nothing was added (33 photos
+           stayed 33); later uploads worked. Still to test: step 1 (needs a fresh install and sign-in), step 2
+           (iPhone), step 3 on an iPhone.
 How to test:
   1. Delete the app, install the new staging build and sign in. Expect: the notification question comes once,
      around sign-in (Allow or Don't Allow, either is fine). As a host, open a gallery, Add Photos, pick 2 photos,
@@ -6802,6 +6816,14 @@ Detail:    Fix 75d606c3 (apps/mobile/lib/uploadQueue.ts; JavaScript only, but st
            16e simulator: 12 photos in about 45 s (one at a time took about 128 s), counts right with no
            duplicates, a video upload alone with photos waiting. Not checked: a real phone, weak Wi-Fi, a video
            finishing with photos queued behind it.
+           Steps 1 and 2 checked by Claude on 2026-11-18 on a real Pixel 8 (Android 16, USB, mobile data) with EAS
+           staging build b11b8d1a (staging 5c5e8b75, EveBash Staging 1.2.4 (26)), host of Test 260, temporary
+           sub-gallery "EB 231 test" and made-up test pictures (both deleted afterwards): 30 photos (about 110 KB
+           each): 3 uploading at once and the rest Waiting, all done in about 48 s, exactly 30 in the gallery; a 15 s
+           test video (7.3 MB) uploaded and played after processing; 3 photos added after it uploaded together; with
+           #229's 15 the gallery reached 48, no duplicates. Not seen on the phone: photos waiting behind a video that
+           is still uploading (the video finished first on 5G; seen on the simulator). Still to test: steps 3 and 4,
+           iPhone.
 How to test:
   1. As a host, open a test sub-gallery, Add Photos, pick 30 photos and tap Upload. Expect: the upload panel
      shows 3 rows uploading at the same time and the rest "Waiting". When it finishes, the gallery has exactly 30
