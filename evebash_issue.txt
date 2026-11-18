@@ -1268,17 +1268,6 @@ Found in: Sarthak's chat (2026-11-15): "the photo viewer design issue"
 Issue: The app's photo viewer (apps/mobile/components/PhotoViewer.tsx, styles in apps/mobile/components/eventStyles/visitorImmersiveStyles.ts) has a design problem. Placeholder: Sarthak will look at the viewer and write down what is wrong here. Viewer problems already listed on their own: #239 (empty "Quality: Auto" gear in the video player), #240 (comment panel), #242 (Android keyboard covers the comment box), #251 (Sunlit Portrait action row too tall). Part of the app design pass (#271).
 How to reproduce: On staging, open a gallery in the app and tap a photo. Steps to be added by Sarthak.
 
-#274
-Listed: 2026-11-15
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload bar fix #273 (chat 2026-11-15)
-Issue: Two copies of the same file-size formatter in the app: formatBytes in apps/mobile/lib/vaultFiles.ts (EB Vault) and formatStorageSize in apps/mobile/lib/planLimits.ts. Same code, except an empty size reads "0 KB" in one and "0 MB" in the other, so they will drift. Fix idea: keep formatStorageSize and have vaultFiles.ts import it (change only with the Vault owner's OK; Vault is Shwetank's area).
-How to reproduce: Compare the two functions in the files above.
-
 #276
 Listed: 2026-11-16
 Platform: App
@@ -1340,6 +1329,18 @@ How to reproduce: Staging, a USB Android phone with the staging app signed in as
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#274
+Listed: 2026-11-15
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload bar fix #273 (chat 2026-11-15)
+Issue: Two copies of the same file-size formatter in the app: formatBytes in apps/mobile/lib/vaultFiles.ts (EB Vault) and formatStorageSize in apps/mobile/lib/planLimits.ts. Same code, except an empty size reads "0 KB" in one and "0 MB" in the other, so they will drift. Fix idea: keep formatStorageSize and have vaultFiles.ts import it (change only with the Vault owner's OK; Vault is Shwetank's area).
+How to reproduce: Compare the two functions in the files above.
+Fixed in: 458b13b4 (2026-11-18). Sarthak's OK to touch the Vault file and to show "0 MB" for an empty size everywhere. formatBytes in apps/mobile/lib/vaultFiles.ts now calls formatStorageSize from apps/mobile/lib/planLimits.ts (it keeps its name, so the Vault screens are unchanged), so there is one formatter. Only visible change: an empty size in EB Vault reads "0 MB" instead of "0 KB", as the upload panel and Storage card already did. Checked: tsc clean, lint clean; EB Vault on the iPhone 16e simulator (dev build on Metro) shows the same sizes as before (939.39 MB of 10 GB used, Vault 1.46 MB, files 178.29 KB and 126.97 KB). No device test needed.
 
 #288
 Listed: 2026-11-18
