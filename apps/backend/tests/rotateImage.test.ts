@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import { isRotateUprightFirstEnabled, rotateImage } from '../src/services/rotateImage.js';
+import { isRotateUprightFirstEnabled, isRotateWorkerSizesEnabled, makeRotatedCopies, rotateImage } from '../src/services/rotateImage.js';
 
 // A 60x40 stored image with a red block in its stored top-left corner, marked with the given EXIF orientation
 async function photo(orientation: number) {
@@ -60,4 +60,30 @@ test('switch on: a photo without an EXIF mark rotates exactly as before', async 
   for (const angle of [90, -90, 180]) {
     assert.deepEqual(await shown((await rotateImage(original, angle, true)).data), await shown((await rotateImage(original, angle, false)).data));
   }
+});
+
+// Issue #138: the rotate tool's preview and thumbnail match the photo worker's sizes when the switch is on
+test('ROTATE_WORKER_SIZES switch reads true only', () => {
+  assert.equal(isRotateWorkerSizesEnabled({ ROTATE_WORKER_SIZES: 'true' } as NodeJS.ProcessEnv), true);
+  assert.equal(isRotateWorkerSizesEnabled({ ROTATE_WORKER_SIZES: ' TRUE ' } as NodeJS.ProcessEnv), true);
+  assert.equal(isRotateWorkerSizesEnabled({} as NodeJS.ProcessEnv), false);
+  assert.equal(isRotateWorkerSizesEnabled({ ROTATE_WORKER_SIZES: 'false' } as NodeJS.ProcessEnv), false);
+});
+
+test('rotated copies: old sizes when off, worker sizes (long side) when on', async () => {
+  const portrait = await sharp({ create: { width: 3000, height: 4500, channels: 3, background: '#808080' } }).jpeg().toBuffer();
+  const size = async (b: Buffer) => { const m = await sharp(b).metadata(); return `${m.width}x${m.height}:${m.format}`; };
+
+  const off = await makeRotatedCopies(portrait, false);
+  assert.equal(await size(off.preview), '900x1350:webp');
+  assert.equal(await size(off.thumbnail), '400x600:webp');
+
+  const on = await makeRotatedCopies(portrait, true);
+  assert.equal(await size(on.preview), '1067x1600:webp');
+  assert.equal(await size(on.thumbnail), '320x480:webp');
+
+  // A small photo is never enlarged
+  const small = await sharp({ create: { width: 300, height: 200, channels: 3, background: '#808080' } }).jpeg().toBuffer();
+  const smallOn = await makeRotatedCopies(small, true);
+  assert.equal(await size(smallOn.preview), '300x200:webp');
 });
