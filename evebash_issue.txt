@@ -1473,8 +1473,8 @@ Update 2026-11-17: (1) Apple Developer, Team AM5NCNB29X, App ID com.evebash.app:
 Listed: 2026-11-18
 Platform: App
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Device test #228 on a Pixel 8 (chat 2026-11-18)
 Issue: The host's Cinematic Highlight Video card keeps an old video count after a video is deleted. GalleryVideoPanel (apps/mobile/components/event/GalleryVideoPanel.tsx) loads the gallery's videos itself (getGalleryVideos) and reloads only when the gallery or the chosen highlight changes, so after deleting a video in Gallery Media below it, the card still says "Choose from this gallery's videos (2)" while the Videos tab says 1, until the gallery is opened again. Not checked: whether its Choose list also still offers the deleted video. Fix idea: reload the panel's list when the gallery's video count changes (pass the count or a refresh key from apps/mobile/app/events/[id].tsx), or give it the same video list Gallery Media uses.

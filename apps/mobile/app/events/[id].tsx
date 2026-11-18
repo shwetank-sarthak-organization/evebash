@@ -1447,6 +1447,11 @@ function EventDetailScreen() {
   }, [photos, showAdminView, subEvents]);
   const photoItems = React.useMemo(() => viewerPhotos.filter(item => isPhotoMedia(item) && item?.status !== 'uploading'), [viewerPhotos]);
   const videoItems = React.useMemo(() => viewerPhotos.filter(item => isVideoMedia(item) && item?.status === 'processed'), [viewerPhotos]);
+  // The highlight video card loads the gallery's videos itself: this changes when the page's videos change (issue #287)
+  const galleryVideosKey = React.useMemo(
+    () => `${mediaTotals.videos}|${photos.filter(isVideoMedia).map(item => `${item.id}:${item.status}:${item.isHidden ? 1 : 0}`).join(',')}`,
+    [mediaTotals.videos, photos],
+  );
   const selectedMediaItems = galleryMediaTab === 'photos' ? photoItems : videoItems;
   const isPrimaryGalleryView = showAdminView ? selectedAdminGallery === null : !activeSubEvent;
   // Home's own uploads load in pages: its count shows "N+" until the list is opened, which loads the whole gallery
@@ -5704,6 +5709,7 @@ function EventDetailScreen() {
                             gallery={gallery}
                             canUpload={canManageEvent || isOwner}
                             uploading={pendingHighlightUpload?.galleryId === gallery.id}
+                            videosKey={galleryVideosKey}
                             onUpload={() => void handleUploadGalleryMedia('video', { highlight: true })}
                             onChange={async (videoId) => { await saveGalleryVideo(gallery.id, videoId); }}
                           />
