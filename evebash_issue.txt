@@ -1469,20 +1469,21 @@ Issue: Sign-in setup for the iOS app isn't fully checked. Checked 2026-11-16: th
 How to reproduce: Not reproduced (no live iOS build installed yet). On an iPhone with the live app, tap the Apple sign-in button: if (1) or (2) is missing, sign-in fails with a provider or audience error.
 Update 2026-11-17: (1) Apple Developer, Team AM5NCNB29X, App ID com.evebash.app: Sign In with Apple and Push Notifications were OFF (only In-App Purchase was on), so Apple sign-in and pushes would have failed on iPhone. Identifiers was locked until Sarthak accepted Apple's updated Program License Agreement. With Sarthak's OK, Claude turned on Sign In with Apple (primary App ID), Push Notifications and Associated Domains (for Universal Links later); saved and re-checked after a reload. Apple says this invalidates existing provisioning profiles for the App ID; the next EAS iOS build makes new ones. No App ID com.evebash.app.staging exists yet (EAS creates it on the first iOS staging build, todo #35). (2) Live Supabase (EveBash): Apple provider on, Client IDs "com.evebash.app,com.anonymous.wed-albummobile": OK, not changed. (3) Staging Supabase (Evebash-Staging): Client IDs now "com.evebash.app,com.anonymous.wed-albummobile,com.evebash.app.staging" (Sarthak's OK; saved and re-checked). Left: device test #227 on an iPhone once an iOS build exists.
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #287
 Listed: 2026-11-18
 Platform: App
 Priority: Low
-Status: In progress
+Status: Fixed
 Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Device test #228 on a Pixel 8 (chat 2026-11-18)
 Issue: The host's Cinematic Highlight Video card keeps an old video count after a video is deleted. GalleryVideoPanel (apps/mobile/components/event/GalleryVideoPanel.tsx) loads the gallery's videos itself (getGalleryVideos) and reloads only when the gallery or the chosen highlight changes, so after deleting a video in Gallery Media below it, the card still says "Choose from this gallery's videos (2)" while the Videos tab says 1, until the gallery is opened again. Not checked: whether its Choose list also still offers the deleted video. Fix idea: reload the panel's list when the gallery's video count changes (pass the count or a refresh key from apps/mobile/app/events/[id].tsx), or give it the same video list Gallery Media uses.
 How to reproduce: App as host, open a gallery with 2 videos, delete one on the Videos tab (... > Delete video). The highlight card still says "(2)". Back to Galleries and open the gallery again: it says "(1)".
-
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+Fixed in: fc91476d (2026-11-18). GalleryVideoPanel (apps/mobile/components/event/GalleryVideoPanel.tsx) takes a new videosKey prop and loads its list again when it changes; apps/mobile/app/events/[id].tsx builds the key from the page's videos (count, ids, status, hidden), so it changes after an upload, a delete, a hide or when a video finishes processing. Checked on the iPhone 16e simulator (staging, host of Staging test 1): uploading a test video took the card from "(0)" to "(1)" once it was processed, and deleting it took the card straight back to "(0)", both without reopening the gallery (before the fix both stayed stale). Test video deleted. tsc clean, lint unchanged. Not changed: the website's host page has its own copy (src/components/GalleryVideoPanel.tsx) that loads its list the same way; not checked.
 
 #213
 Listed: 2026-11-02
