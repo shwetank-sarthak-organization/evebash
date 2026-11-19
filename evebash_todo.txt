@@ -32,9 +32,9 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 46
+Next todo number: 48
 
-Last updated: 2026-11-18
+Last updated: 2026-11-19
 
 =====================================================================
 ACTIVE TODOS
@@ -844,6 +844,25 @@ Update 2026-11-18: Tools set up outside the repo in /Users/sarthak/EveBash-demo-
               in English and Hindi, 9:16 and 16:9 (about 46 s / 49 s), waiting for Sarthak's review. Not yet
               done: background music, Playwright website recordings, a place to publish them. Found while
               recording: #293, #294.
+
+#47  Homepage social proof (counts, host quotes, studio logos)
+Listed:       2026-11-19
+Platform:     Website
+Priority:     Low
+Phase:        2 (after launch, incl. business features)
+Status:       Idea
+Effort:       S (a few hours)
+Suggested by: Website UI re-check 2026-10-11 (was issue #33)
+Discussed:    Yes
+Decision:     2026-11-19 Sarthak: not a v1 bug. Closed issue #33 and moved it here as Phase 2.
+Owner:        Unassigned
+Depends on:   Real customers after launch (real counts, host quotes, studio logos; never made-up ones)
+Brief:        The homepage has no proof: no event or photo counts, host quotes or studio logos. This was the
+              lowest-scoring factor (3/10) in the UI rating against Samaro. Before launch there are no real
+              customers, so there is nothing true to show. Add it once real numbers and quotes exist (ask
+              early hosts for a quote and permission). Honest proof possible at launch: the Google Play badge
+              once the app is public. How to check: scroll the homepage for a numbers or testimonials section.
+Done in:      -
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)

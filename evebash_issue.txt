@@ -66,17 +66,6 @@ How to reproduce: Open /sample-galleries/wedding-fdd8 and look at the album card
 Note 2026-10-28: On staging there are now no sample galleries at all: /sample-galleries says "No sample galleries are available yet." and /sample-galleries/wedding-fdd8 shows the 404 page (Claude test run, tests #12 and #53 blocked).
 Note 2026-11-16 (client demo check): live has NO sample galleries either (read-only query: 0 events with is_sample_gallery), while the live home page and /pricing link to /sample-galleries, which then shows "No sample galleries are available yet." The album order part is already fixed in code (getSubEvents sorts with numeric: true). Plan for the demo: Shwetank builds a polished demo event on live and marks it as a sample gallery in the analytics dashboard (Live > Galleries > sample toggle), so the home page link shows it.
 
-#33
-Listed: 2026-10-11
-Platform: Website
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: Real numbers and host quotes (Sarthak)
-Found in: Website UI re-check (2026-10-11)
-Issue: The homepage has no proof: no event or photo counts, host quotes or studio logos. This is now the lowest-scoring factor in the UI rating (3/10).
-How to reproduce: Scroll the homepage: no testimonials or numbers section.
-
 #48
 Listed: 2026-10-12
 Platform: App
@@ -1298,6 +1287,18 @@ How to reproduce: Staging app, account A, host view of a gallery where account B
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#33
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Unassigned
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: The homepage has no proof: no event or photo counts, host quotes or studio logos. This is now the lowest-scoring factor in the UI rating (3/10).
+How to reproduce: Scroll the homepage: no testimonials or numbers section.
+Fixed in: closed, not a bug (2026-11-19). Moved to todo #47 (Phase 2): needs real customers, real numbers and host quotes first. Sarthak's decision.
+
 Update 2026-11-19: the branch was never merged (it sat 4 weeks). Brought onto today's code for todo #38 (10 files clashed: kept today's code and added the Report buttons to it, e.g. the new comment-reply layout on the website's photo book). Device tests renumbered #241-#244.
 
 #293
