@@ -845,6 +845,32 @@ Update 2026-11-18: Tools set up outside the repo in /Users/sarthak/EveBash-demo-
               done: background music, Playwright website recordings, a place to publish them. Found while
               recording: #293, #294.
 
+#46 App: host photo grid scrolls with a recycling list (FlashList); drag-to-reorder behind a Reorder button
+Listed:       2026-11-19
+Platform:     App
+Priority:     Medium
+Phase:        2 (after launch, incl. business features)
+Status:       Idea
+Effort:       M (1-3 days)
+Suggested by: Claude, while working on issue #291; Sarthak put it in Phase 2 (2026-11-19)
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   OK to add a new library (@shopify/flash-list); agreeing on the Reorder button
+Brief:        The host photo grid (apps/mobile/app/events/[id].tsx, Sortable.Grid from react-native-sortables)
+              keeps a tile for every photo in the gallery: the library is made for short lists. #185 and #291
+              step 1 (08bb4814) empty the tiles far from the screen, but every photo still keeps a box, so
+              memory settles higher the bigger the gallery (Pixel 8, 300 photos: about 600 MB, flat once
+              scrolled through; a 790-photo gallery likely more). Big photo apps use a recycling list instead:
+              about 40 tiles are reused as you scroll, so memory stays about the same for any gallery size.
+              Plan: browse the host grid with @shopify/flash-list (Shopify's recycling list, the usual choice
+              for React Native; not in the app yet, so it needs an OK), and keep drag-to-reorder in the current
+              sortable grid, opened from a "Reorder" button. Hosts see the same grid, photos and buttons;
+              reordering takes one extra tap. To decide: where the Reorder button goes, and whether the guest
+              grids should use the recycling list too. Check it the same way as #291 (adb dumpsys meminfo on a
+              Pixel, staging gallery test-178-big-gallery-6ee0, 300 photos) and on an iPhone.
+Done in:      -
+
 #47  Homepage social proof (counts, host quotes, studio logos)
 Listed:       2026-11-19
 Platform:     Website
