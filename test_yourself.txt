@@ -6959,6 +6959,8 @@ Detail:    Live since 2026-11-19: Modal v137 with switch find_you_profile on; ba
            Website already checked 2026-11-19 by Shwetank on evebash.com (Chrome): Ashish & Sejal, Sanju's photo,
            343 photos, no error.
            2026-11-19 Shwetank, Android (iQOO I2012) Chrome on evebash.com, same event and photo: 343 photos, no error.
+           2026-11-19 Shwetank, iPhone Safari on evebash.com: 341 photos, no error (same search; the iPhone's copy of the
+           photo is compressed slightly differently, so 2 borderline photos fall just under the line).
            Not possible yet: the live iPhone app isn't installed (not on the App Store yet; only EveBash Staging on
            the iPhone), and the "EveBash" app on the iQOO is a development build that loads staging settings from
            apps/mobile/.env.local. Do steps 1-3 once a live app build is on the phones.
@@ -6979,7 +6981,7 @@ Fix ref:
 Feedback:
 
 #236 Website: the Collections menu scrolls on a big event (#296)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website (laptop, iPhone Safari, Android Chrome)
 Brief:     On an event with many collections, the Collections list now scrolls on its own, so every collection
@@ -6993,17 +6995,17 @@ How to test:
   3. iPhone (Safari): open the same link, tap the menu button (three lines, top right). Swipe up on the menu.
      Expect: the menu scrolls to the last collection and Find You below it; tapping one opens it.
   4. Android (Chrome): do step 3 again.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank
+Device / browser: laptop, iPhone, Android
+Build / version: evebash.com live, 2026-11-19
+Date tested: 2026-11-19
+Account used: shwetank.sarthak@gmail.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: All steps passed.
 
 #237 Website: Google login on iPhone (#297)
-Status:    TODO
+Status:    PASS
 Priority:  Critical
 Platform:  Website (iPhone Safari, iPhone Chrome; Android Chrome and laptop once more)
 Brief:     "Continue with Google" on the website now opens Google's page on iPhones. Before, the page only reloaded.
@@ -7016,11 +7018,11 @@ How to test:
   4. Android Chrome and the laptop: do steps 1-2 once each. Expect: the same (they worked before; check nothing broke).
   5. On the login page, tap Continue with Google, then press Back on Google's page. Expect: the login page with
      the Google button usable again (not stuck spinning).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank
+Device / browser: iPhone Safari, iPhone Chrome, Android Chrome, laptop
+Build / version: evebash.com live, 2026-11-19
+Date tested: 2026-11-19
+Account used: shwetank.sarthak@gmail.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: All steps passed.
