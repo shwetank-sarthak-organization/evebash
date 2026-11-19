@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 300
+Next issue number: 304
 
 =====================================================================
 ACTIVE ISSUES
@@ -1250,6 +1250,50 @@ Issue: No way to report objectionable content or users. Google Play's User Gener
 How to reproduce: On staging (website or app), open a gallery photo, a comment, a chat message, a business or a user profile: there is no Report option.
 Fix (branch feat/content-reporting): content_reports table (RLS on, no client access) and file_content_report() for logged-in users (fixed reasons, optional note, one open report per person and item, 20 an hour). "Report" with a reason picker on photos and videos (website Lightbox and gallery viewer, app viewer), comments, app chat messages (press and hold) and business profiles; "Report user" on comments, chat, business owners, public profiles and the host's guest list. Confirms "Thanks, we'll review this within 24 hours." Analytics dashboard > Reports lists reports (open over 24 h highlighted) with Remove content (photos and videos through the existing media delete; comments and chat messages), Mark actioned, Dismiss and Suspend account (Supabase ban, can be lifted). Terms section 10 now has "Reporting and enforcement"; the Settings legal text was corrected. After it ships: update the Play questionnaire to say users can report content and users.
 Not covered yet: business reviews and announcements have no Report of their own (report the business or the user instead); a report doesn't email anyone yet, so someone must check the Reports tab daily to keep the 24-hour promise.
+
+#300
+Listed: 2026-11-19
+Platform: Both
+Priority: Critical
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: The backend accepts gallery uploads with no login, and never checks that the uploader belongs to the gallery. In apps/backend/src/routes/media.ts, getUploadUserId (about line 208) returns "anonymous" when the login is missing or no longer valid, and validateAnonymousEvent (about line 229) only checks that the gallery exists. So /get-upload-url, /mobile/get-upload-url, /upload/chunk/initiate, /upload/chunk/complete, /save-photo-batch and /mobile/save-photo-batch all go ahead for anyone who knows a gallery's id, private galleries included, and the row is saved with user_id "anonymous" (photos.user_id is text, so it saves without error). /upload/chunk/part-url checks no login at all. A logged-in person who is not the owner, an admin or a guest of that gallery is not refused either. The gallery id is not a secret: the gallery page itself loads it. Why it matters: a stranger could put files into any gallery, including private ones, and use up the owner's storage; it is also the reason #301 and #302 save photos as "anonymous". No screen uses this today: every upload screen in the app and on the website asks for a login first, and there were 0 "anonymous" rows in photos on 2026-11-16. The rule seems to date from the move of the media routes to the Railway backend (09b8c758, 2026-08-06). Fix idea, behind a switch: refuse every upload step with no valid login (401), and accept only the gallery's owner, its admins and its approved guests (403 for anyone else); /upload/chunk/part-url should also check that the large file belongs to the person asking.
+How to reproduce: Log out of the website. Send POST <staging API>/api/media/get-upload-url with no Authorization header and the body {"eventId":"<any staging gallery id>","fileName":"x.jpg","fileSize":1000,"resourceType":"image"}. Today it answers with an upload link instead of 401.
+
+#301
+Listed: 2026-11-19
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: On the website, logging out during an upload doesn't stop it, and the rest of the files are saved as "anonymous". logout() in src/context/AuthContext.tsx (about line 532) only signs out and goes to /login without a page reload, so the upload loop of the host page and the upload panel (src/context/UploadContext.tsx, in the (main) layout) keep running. Each next file finds no login, and the backend saves it as "anonymous" (#300), so the person can't find or delete those photos as their own. The "uploads in progress" warning (handleBeforeUnload, about line 217) only shows when the tab is closed or reloaded, not on logout. If the same or another person logs in in that tab before the batch ends, the rest go under that account. Fix idea: on logout while uploads are running, ask "Photos are still uploading. Log out and stop them?" and, on yes, cancel them with the panel's existing cancelAllUploads (about line 146) before signing out. Fixing #300 also makes any leftover file fail instead of being saved as "anonymous".
+How to reproduce: Staging website, host page, upload 30 photos to a gallery. While the upload panel is still counting, log out from the navbar. Today: no warning, the panel keeps counting on the login page, and the photos reach the gallery with "Anonymous" as the uploader.
+
+#302
+Listed: 2026-11-19
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: In the app, logging out during an upload leaves the upload list half-running. logout() in apps/mobile/context/AuthContext.tsx (about line 587) doesn't touch the upload list (apps/mobile/lib/uploadQueue.ts), which is saved on the phone and keeps going. (1) Files not started yet fail with "Authorization required." (about line 606) after 3 tries each. (2) A photo already being sent reaches storage, but saving it to the gallery is skipped without a message (flushMetadataBatchesInternal returns when there is no login, about line 878), so it stays on "saving" and isn't in the gallery until someone logs in and another upload finishes or the app restarts. (3) A video of 20 MB or more already being sent keeps going to the end (chunkUpload.ts sends an empty login, which /upload/chunk/part-url and /upload/chunk/complete accept, #300) and is saved as "anonymous". There is no warning before logout. Fix idea: on logout, ask "X photos haven't uploaded yet. Log out anyway? They'll carry on when you log back in.", then pause the list (stop the file in flight like cancelUploadItem does, and start nothing new until a login), instead of letting files fail or finish as "anonymous". See #303 for whose files resume.
+How to reproduce: Staging app, host view of a gallery, pick 20 photos and a video over 20 MB. While the upload status still shows progress, go to Profile > Sign Out. Today: no warning; photos not started turn failed, one photo stays on "saving", and the video appears in the gallery with "Anonymous" as the uploader.
+
+#303
+Listed: 2026-11-19
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: On a shared phone, one person's photos can be uploaded under another person's account. The upload list in apps/mobile/lib/uploadQueue.ts is saved on the phone, not per account, and every step uses whoever is logged in at that moment. Each item already stores who added it (userId, about line 128), but nothing uses it. Example: Riya picks 100 photos and logs out halfway; Arjun logs in on the same phone; the photos not yet sent, the ones stuck on "saving" (#302) and any failed ones he taps Retry on go up as Arjun's. Riya then can't find or delete them as her own, and Arjun can. Fix idea: only upload or save an item while the person who added it (item.userId) is logged in; items of another account wait until that person logs back in and can be removed from the list.
+How to reproduce: Staging app, account A, host view of a gallery where account B is also a guest or admin. Pick 30 photos, then right away Profile > Sign Out and log in as account B. Open the gallery: today the photos that were still waiting appear with account B as the uploader.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
