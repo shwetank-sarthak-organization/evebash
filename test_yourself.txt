@@ -6958,6 +6958,10 @@ Brief:     Find You now uses a smarter search (it also finds photos where the pe
 Detail:    Live since 2026-11-19: Modal v137 with switch find_you_profile on; backend c9862c79. No app update needed.
            Website already checked 2026-11-19 by Shwetank on evebash.com (Chrome): Ashish & Sejal, Sanju's photo,
            343 photos, no error.
+           2026-11-19 Shwetank, Android (iQOO I2012) Chrome on evebash.com, same event and photo: 343 photos, no error.
+           Not possible yet: the live iPhone app isn't installed (not on the App Store yet; only EveBash Staging on
+           the iPhone), and the "EveBash" app on the iQOO is a development build that loads staging settings from
+           apps/mobile/.env.local. Do steps 1-3 once a live app build is on the phones.
 How to test:
   1. Log in on the live app (iPhone), open Ashish & Sejal wedding (shwetank.sarthak@gmail.com's event,
      32 collections), tap Find You and upload a clear photo of Sanju or the groom.
