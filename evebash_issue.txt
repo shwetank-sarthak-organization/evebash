@@ -840,18 +840,6 @@ Found in: Porting the video pipeline to another project (chat 2026-10-29)
 Issue: Videos shorter than 1 second get a broken thumbnail. Both video workers take the poster frame at 1 s (modal_engine/main.py _transcode_video_core: ffmpeg -ss 00:00:01 -vframes 1; runpod_worker/handler.py make_poster: the same). For a shorter video ffmpeg writes nothing ("Conversion failed!", checked 2026-10-29 with that exact command on a 0.5 s clip), so no poster.jpg is uploaded. But thumbnail_url is still set to hls/<storage_key>/poster.jpg (main.py, the update after the uploads; apps/backend/src/routes/videoWorker.ts line 159 for RunPod), so the gallery shows a broken image. No such video exists yet (0 processed videos under 1 s on 2026-10-29). Fix idea: if the 1 s frame gives nothing, take the first frame (-ss 0); set thumbnail_url only when a poster was really uploaded. Behind a video-gpu-switch key (Modal) and the RunPod options, like poster_sdr.
 How to reproduce: make a 0.5 s clip (ffmpeg -i any.mp4 -t 0.5 -an short.mp4), upload it to a test gallery: once processed, its tile has a broken thumbnail and B2 has no hls/<storage_key>/poster.jpg.
 
-#183
-Listed: 2026-10-29
-Platform: Both
-Priority: Low
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: Release to live (staging -> main)
-Found in: Porting the video pipeline to another project (chat 2026-10-29)
-Issue: A video still "processing" more than 6 hours after upload stays "processing" forever. The watchdog (apps/backend/src/services/watchdog.ts, runMediaWatchdog) only reads processing videos uploaded between 15 minutes and 6 hours ago (.gt("uploaded_at", sixHoursAgo)), so an older one is never re-sent and never marked failed: guests never see it and the uploader sees "processing" with no error. Normally every video finishes or fails well within 6 hours (3 Modal retries, 3 watchdog re-sends), so this needs the watchdog to miss that window: the backend down for hours, MEDIA_WATCHDOG_ENABLED=false, or a long Modal outage. None today (0 videos processing for over 6 h on 2026-10-29). Fix idea: in the same run, mark videos still processing after 24 h as failed ("Transcoding did not finish within 24 hours"), behind a flag.
-How to reproduce: on a staging test gallery, set one video's status to 'processing' and uploaded_at to 7 hours ago, then POST /api/v1/media/watchdog/run: the video is not in the report and stays processing.
-Update 2026-11-19 (Shwetank asked to fix it): apps/backend/src/services/watchdog.ts, step 1b of runMediaWatchdog: a video still 'processing' 24 h or more after upload is marked failed with "Transcoding did not finish within 24 hours of upload. Please upload the video again." (only while still 'processing'; skipped if a worker sent a heartbeat in the last 10 min). On by default; MEDIA_WATCHDOG_FAIL_AFTER_24H=false turns it off. Tests: apps/backend/tests/watchdogStale.test.ts (165 backend tests pass). Staging test: the Rotate test video (uploaded 2026-11-18 10:08 UTC) set to 'processing' at 19:05; the staging watchdog's startup run after the deploy marked it failed with the new message at 19:06; set back to 'processed'. Live 2026-11-19: 0 videos processing for over 6 h, so the release changes no existing video.
-
 #205
 Listed: 2026-11-02
 Platform: App
@@ -1285,6 +1273,19 @@ How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#183
+Listed: 2026-10-29
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Porting the video pipeline to another project (chat 2026-10-29)
+Issue: A video still "processing" more than 6 hours after upload stays "processing" forever. The watchdog (apps/backend/src/services/watchdog.ts, runMediaWatchdog) only reads processing videos uploaded between 15 minutes and 6 hours ago (.gt("uploaded_at", sixHoursAgo)), so an older one is never re-sent and never marked failed: guests never see it and the uploader sees "processing" with no error. Normally every video finishes or fails well within 6 hours (3 Modal retries, 3 watchdog re-sends), so this needs the watchdog to miss that window: the backend down for hours, MEDIA_WATCHDOG_ENABLED=false, or a long Modal outage. None today (0 videos processing for over 6 h on 2026-10-29). Fix idea: in the same run, mark videos still processing after 24 h as failed ("Transcoding did not finish within 24 hours"), behind a flag.
+How to reproduce: on a staging test gallery, set one video's status to 'processing' and uploaded_at to 7 hours ago, then POST /api/v1/media/watchdog/run: the video is not in the report and stays processing.
+Update 2026-11-19 (Shwetank asked to fix it): apps/backend/src/services/watchdog.ts, step 1b of runMediaWatchdog: a video still 'processing' 24 h or more after upload is marked failed with "Transcoding did not finish within 24 hours of upload. Please upload the video again." (only while still 'processing'; skipped if a worker sent a heartbeat in the last 10 min). On by default; MEDIA_WATCHDOG_FAIL_AFTER_24H=false turns it off. Tests: apps/backend/tests/watchdogStale.test.ts (165 backend tests pass). Staging test: the Rotate test video (uploaded 2026-11-18 10:08 UTC) set to 'processing' at 19:05; the staging watchdog's startup run after the deploy marked it failed with the new message at 19:06; set back to 'processed'. Live 2026-11-19: 0 videos processing for over 6 h, so the release changes no existing video.
+Fixed in: 9642f509 (2026-11-19). Released to live the same day; the live backend restarted at 19:10 IST with it (health check up). No video was stuck, so none changed. No device test needed (backend only).
 
 #252
 Listed: 2026-11-04
