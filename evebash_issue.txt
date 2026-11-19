@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 295
+Next issue number: 296
 
 =====================================================================
 ACTIVE ISSUES
@@ -1354,6 +1354,17 @@ Blocked by: -
 Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simulator, staging app build 1.2.4)
 Issue: In the app's Find You results ("Your Photos - N matches found in this event"), the photo grid isn't centred: its two columns sit on the left with an empty strip about a third of a column wide on the right (iPhone 17 Pro size, Cinematic wedding theme). Fix idea: check the matched-photos grid's width and gaps in apps/mobile/components/event/FindYouPanel.tsx (matchedPhotos.map, about line 454).
 How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc), Find You > Upload Photo > a picture of the groom (a crop of public/home/groom-solo.jpg): 5 matches, grid left of centre.
+
+#295
+Listed: 2026-11-19
+Platform: Both
+Priority: High
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: Release to live (staging -> main), then a Find You check on Ashish & Sejal
+Found in: #111 live test (2026-11-19, evebash.com, Chrome)
+Issue: Find You on a big event failed with "Something went wrong during matching" (api.evebash.com/api/find-you answered 400 "Search at most 25 galleries at a time."). The website sends the main gallery plus every collection's id and old id; Ashish & Sejal (ashish-sejal-wedding-c8bc) has 32 collections, so 33 ids, and the backend (with FIND_YOU_REQUIRE_ACCESS on) refused more than 25. Any event with more than about 24 collections could not use Find You. Not caused by the #111 switch (the request never reached Modal). Fix: apps/backend/src/routes/findYou.ts allows up to 100 different gallery ids (counted once each); every id is still access-checked with open_gallery.
+How to reproduce: evebash.com/events/ashish-sejal-wedding-c8bc/find-you, logged in, upload a selfie: 400 in the console.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
