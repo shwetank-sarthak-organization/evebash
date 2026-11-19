@@ -70,6 +70,31 @@ export function decideStuckVideo(video: StuckVideoState, nowMs: number): StuckVi
   return { action: "resend", reason: why };
 }
 
+/**
+ * Issue #183: the stuck-video check above only looks at videos uploaded 15 min to 6 h ago, so a video still
+ * 'processing' after that (backend down for hours, the watchdog off, a long Modal outage) stayed 'processing'
+ * forever: guests never saw it and the uploader got no error. A video still processing 24 h after upload is now
+ * marked failed so the uploader can see it and upload again, unless a worker sent a heartbeat in the last 10 min.
+ * On by default; MEDIA_WATCHDOG_FAIL_AFTER_24H=false turns it off.
+ */
+export const STALE_PROCESSING_MS = 24 * 60 * 60 * 1000;
+export const STALE_PROCESSING_REASON = "Transcoding did not finish within 24 hours of upload. Please upload the video again.";
+
+export function failStaleVideosEnabled(setting = process.env.MEDIA_WATCHDOG_FAIL_AFTER_24H): boolean {
+  return setting?.trim().toLowerCase() !== "false";
+}
+
+/** Whether a video uploaded at uploadedAt and still 'processing' is given up on (true) or left alone (false). */
+export function isStaleProcessingVideo(
+  video: { uploaded_at?: string | null; transcode_heartbeat_at?: string | null },
+  nowMs: number,
+): boolean {
+  const uploaded = parseTime(video.uploaded_at);
+  if (uploaded === null || nowMs - uploaded < STALE_PROCESSING_MS) return false;
+  const beat = parseTime(video.transcode_heartbeat_at);
+  return !(beat !== null && nowMs - beat < HEARTBEAT_STALE_MS);
+}
+
 function isMissingColumnError(error: { code?: string; message?: string } | null | undefined): boolean {
   return Boolean(error && (error.code === "42703" || error.code === "PGRST204" || error.message?.includes("column")));
 }
@@ -188,6 +213,49 @@ export async function runMediaWatchdog(): Promise<WatchdogReport> {
     }
   } catch (err: any) {
     report.errors.push(`Stuck videos recovery failed: ${err?.message || err}`);
+  }
+
+  // ── 1b. Give Up On Videos Still 'processing' 24+ Hours After Upload (issue #183) ──
+  if (failStaleVideosEnabled()) {
+    try {
+      const selectStale = (columns: string) => supabase
+        .from("photos")
+        .select(columns)
+        .eq("resource_type", "video")
+        .eq("status", "processing")
+        .lt("uploaded_at", twentyFourHoursAgo)
+        .order("uploaded_at", { ascending: true })
+        .limit(50);
+
+      let { data: staleVideos, error: staleError } = await selectStale("id, storage_key, uploaded_at, transcode_heartbeat_at");
+      if (isMissingColumnError(staleError)) {
+        // Without the heartbeat column (migration 20261027000000 not applied) the upload time alone decides
+        ({ data: staleVideos, error: staleError } = await selectStale("id, storage_key, uploaded_at"));
+      }
+
+      if (staleError) {
+        report.errors.push(`Failed to query videos processing for over 24 hours: ${staleError.message}`);
+      } else {
+        const nowMs = Date.now();
+        for (const video of (staleVideos || []) as any[]) {
+          if (!isStaleProcessingVideo(video, nowMs)) continue;
+          // Only if it is still 'processing', so a video that finished a moment ago is not overwritten
+          const { error: failError } = await supabase
+            .from("photos")
+            .update({ status: "failed", processing_error: STALE_PROCESSING_REASON })
+            .eq("id", video.id)
+            .eq("status", "processing");
+          if (failError) {
+            report.errors.push(`Could not mark ${video.id} as failed: ${failError.message}`);
+            continue;
+          }
+          report.failedVideos.push({ id: video.id, storageKey: video.storage_key, reason: STALE_PROCESSING_REASON });
+          console.warn(`[Watchdog] Video ${video.id} marked as 'failed': still processing 24 h after upload`);
+        }
+      }
+    } catch (err: any) {
+      report.errors.push(`Videos processing for over 24 hours check failed: ${err?.message || err}`);
+    }
   }
 
   // ── 2. Clean Up Abandoned 'uploading' Sessions > 24 Hours ─────────────────
