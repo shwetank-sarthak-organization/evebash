@@ -22,6 +22,7 @@ const columns = [
         title: "Product",
         links: [
             { label: "Find You", href: "/#find-you" },
+            { label: "Create an event", href: "/host" },
             { label: "Album proofing", href: "/#album-proofing" },
             { label: "Gallery designs", href: "/#features" },
             { label: "Sample galleries", href: "/sample-galleries" },
@@ -42,6 +43,7 @@ const columns = [
             { label: "Terms and conditions", href: "/terms-and-conditions" },
             { label: "Cancellation and refund", href: "/cancellation-refund-policy" },
             { label: "Digital service delivery", href: "/digital-service-delivery-policy" },
+            { label: "Delete account", href: "/delete-account" },
         ],
     },
 ];
@@ -141,7 +143,7 @@ export default function Footer() {
                     </div>
                 </div>
 
-                <div className="mt-10 flex flex-col items-center justify-between gap-2 border-t border-[var(--site-border)] pt-6 text-sm md:flex-row">
+                <div className="mt-10 flex flex-col items-start justify-between gap-2 border-t border-[var(--site-border)] pt-6 text-sm md:flex-row md:items-center">
                     <p>&copy; {new Date().getFullYear()} EveBash. All rights reserved.</p>
                     <p>Made in India</p>
                 </div>

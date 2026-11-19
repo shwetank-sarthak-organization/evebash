@@ -502,6 +502,7 @@ Update:       2026-11-19 (Shwetank): first part built, commit on staging. "Book 
               The footer social icons are hidden until each account's URL is added to the socials list in
               src/components/Footer.tsx (the whole row is hidden while none has a URL). Checked locally: the button
               opens "Get in Touch", the footer shows no icons. Left: add the four URLs when the accounts exist.
+              Released to live 2026-11-19; Shwetank checked on evebash.com (laptop, iPhone Safari, Android Chrome).
 
 
 #23 WhatsApp integration

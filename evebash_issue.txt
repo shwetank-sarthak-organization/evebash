@@ -190,13 +190,14 @@ How to reproduce: With an account that had Private on before the switch was remo
 Listed: 2026-10-13
 Platform: Website
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Footer review vs Samaro (2026-10-13)
 Issue: The website footer (src/components/Footer.tsx) leaves out key pages and wastes space on phones. (1) No link to Find You or Host / create an event, the product's main features. (2) No page on the site links to /delete-account (only the privacy policy text names it). (3) The YouTube channel listed in the site's structured data (src/app/(main)/layout.tsx, sameAs @EveBashApp) has no footer link. (4) On a 375 px phone the footer is 1110 px tall (taller than the screen) for 12 links, because every column stacks one under another. Samaro fits 36 links in 1257 px with two columns. (5) On phones the copyright line is centred while everything above it is left-aligned. (6) The right side of the bottom bar only says "Designed with ♥".
 How to reproduce: Open www.evebash.com on a phone (or 375 px wide) and scroll to the bottom. Look for Find You, Host, Delete account and YouTube links: none.
 Note 2026-10-23: the phone-layout part matters less once the phone/tablet download screen is on for www.evebash.com (#109): phones only see contact-us and the policy pages then. The missing links still matter on computers.
+Update 2026-11-19 (Shwetank asked to fix it): src/components/Footer.tsx: added "Create an event" (/host) under Product and "Delete account" (/delete-account) under Legal; the copyright line is left-aligned on phones. Already done earlier: Find You link, two columns on phones, "Made in India". The YouTube sameAs in src/app/(main)/layout.tsx is removed: @EveBashApp is a 404 (the accounts don't exist yet, todo #21). Checked locally at 375 px: footer 1042 px tall, 14 links, page 375 px wide. Waiting for the check on staging (device test #239).
 
 #78
 Listed: 2026-10-21
@@ -833,12 +834,13 @@ How to reproduce: select show_welcome_card from events fails with "column does n
 Listed: 2026-10-28
 Platform: Website
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Claude device-test run on staging (2026-10-28)
 Issue: Creating a sub-gallery from Host -> event -> Galleries -> Create Sub-Gallery shows the toast "Your event has been created! ✨". It should say the sub-gallery (gallery) was created, since no event was made.
 How to reproduce: Host -> any event -> Galleries -> Create Sub-Gallery, type a name, Create Sub-Gallery. Read the toast.
+Update 2026-11-19 (Shwetank asked to fix it): src/app/(main)/host/page.tsx: after creating a sub-gallery the message and the Success box say "Your sub-gallery has been created! ✨"; a main event still gets "Your event has been created! ✨". Waiting for the check on staging (device test #239).
 
 #179
 Listed: 2026-10-28
@@ -1108,12 +1110,13 @@ How to reproduce: Open a Sunlit Portrait gallery as a guest on an iPhone and ope
 Listed: 2026-11-04
 Platform: Website
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: light theme check of the host page (chat 2026-11-04)
 Issue: On a phone-width screen, the host event page (Host -> an event) scrolls sideways by about 180 px. The "Home (Primary Gallery) and sub-galleries" info popover (src/components/GalleryTypesInfo.tsx) is only hidden (invisible + opacity 0), so its 22rem-wide box still sticks out past the right edge (page 554 px wide at 375 px). Same in the dark and light look. Fix idea: keep the popover inside the screen (right-0 on small screens, or max-w from the button's position), or take it out of the layout while closed (display none).
 How to reproduce: Open Host -> any event on a 375 px wide screen (or a phone) and swipe sideways: the page moves right; empty space appears on the right.
+Update 2026-11-19 (Shwetank asked to fix it): src/components/GalleryTypesInfo.tsx: the closed box is out of the layout (display none) instead of only invisible, and when it opens on a narrow screen it moves left so it stays 16 px inside the screen. Waiting for the check on staging (device test #239).
 
 #253
 Listed: 2026-11-06
@@ -1269,17 +1272,6 @@ Decision (Claude, 2026-11-16, asked to decide): 8 characters, shown as XXXX-XXXX
 How to reproduce: App: Dashboard > Join Event, type an existing code without its dash (e.g. WEDD77D4): "Invalid Code". Compare the boxes' examples: website A1B2-C3D4, app A1B2C3. Create one event on the website and one in the app: their codes have different lengths.
 Note 2026-11-16: fixed in 3dbb3083 (on staging 2026-11-16). New shared/text/joinCode.ts (website and app) replaces both copies of generateEventJoinId: newEventJoinCode makes the 8-character code, normalizeJoinCode reads what was typed (capitals; a code of 8 or more letters and digits typed without its dash, or with a space, gets the dash back after the 4th character; anything shorter is only capitalised, so old 6-character codes still match). Used by the Join Event box on the website (src/app/(main)/dashboard/page.tsx) and in the app (apps/mobile/app/(tabs)/dashboard.tsx, also for scanned QR text that isn't a link); both show K7MP-Q4RX as the example and take up to 12 characters. New codes are made when an event or sub-gallery is created (website host page; app Host tab and Add Sub-Gallery, which before got a code only when first opened) and when an event without a code is shared or opened. The website share window no longer makes up an unsaved code. No database change; existing codes are untouched. Checked: npx tsx --test shared/text/joinCode.test.ts 3/3 (2,000 new codes all XXXX-XXXX and different; typing variants; old codes), app tsc 0 errors, website tsc 0 errors in src and shared (reports/ left out). Not clicked in a browser or on a phone: device test #219.
 
-#278
-Listed: 2026-11-16
-Platform: Both
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: #277 (chat 2026-11-16)
-Issue: Nothing in the database stops two events from having the same join code: events has no unique index on join_id. On live one pair of sub-galleries already shares a code (checked 2026-11-16, neither is the other's parent). open_gallery (supabase/migrations/20261007000000_rls_part1_gallery_link_functions.sql) then picks one of the two, so a guest who types that code can land in the wrong gallery. Since #277 new codes are random 8-character codes, so a new clash is very unlikely, but nothing prevents one. Fix idea (database change, staging first): give one of the two sub-galleries a new code, check staging for clashes the same way, then add a unique index on join_id where join_id is not null; when saving a code hits the index, make a new code and save again.
-How to reproduce: select join_id, count(*) from events where join_id is not null group by join_id having count(*) > 1;
-
 #280
 Listed: 2026-11-16
 Platform: App
@@ -1329,6 +1321,19 @@ How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#278
+Listed: 2026-11-16
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: #277 (chat 2026-11-16)
+Issue: Nothing in the database stops two events from having the same join code: events has no unique index on join_id. On live one pair of sub-galleries already shares a code (checked 2026-11-16, neither is the other's parent). open_gallery (supabase/migrations/20261007000000_rls_part1_gallery_link_functions.sql) then picks one of the two, so a guest who types that code can land in the wrong gallery. Since #277 new codes are random 8-character codes, so a new clash is very unlikely, but nothing prevents one. Fix idea (database change, staging first): give one of the two sub-galleries a new code, check staging for clashes the same way, then add a unique index on join_id where join_id is not null; when saving a code hits the index, make a new code and save again.
+How to reproduce: select join_id, count(*) from events where join_id is not null group by join_id having count(*) > 1;
+Update 2026-11-19 (Shwetank asked to fix it; priority raised to High: a guest could open someone else's gallery): migration supabase/migrations/20261119180000_unique_join_id.sql. (1) Where a code is shared, a main event keeps it, then the event with the most photos, then the lower id; the others get a new random XXXX-XXXX code (same alphabet as shared/text/joinCode.ts). (2) Unique index events_join_id_unique on join_id (empty codes left out). Checked 2026-11-19: all 90 live and 11 staging codes are capitals with no spaces; live has one clash, "REC-2-" on Rec 2 (rec-2-6a72, 99 photos) and Rec 3 (rec-2-750e, 11 photos), both sub-galleries of wedding-fdd8 (newone@email.com); staging none. Staging test in a rolled-back transaction: a made-up clash between Staging test 1 and its Rotate test collection was fixed (the main event kept STAG-FC5B, the collection got a new code), 0 clashes left, and a new duplicate was refused by the index. Applied on staging (index only; no code changed). On live it will give Rec 3 a new code; Rec 2 keeps REC-2-. No website or app change: new codes are random 8-character codes, so a clash when saving is about 1 in 10^10; if one ever happens the save fails and the host tries again.
+Fixed in: b0d8632d (2026-11-19). Applied on live with Shwetank's OK: Rec 3 (rec-2-750e) got the new code FJX5-S6F8, Rec 2 (rec-2-6a72) keeps REC-2-; index events_join_id_unique in place; 0 shared codes on live and staging. No device test needed (database only).
 
 #298
 Listed: 2026-11-19

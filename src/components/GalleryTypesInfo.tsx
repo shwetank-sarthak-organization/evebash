@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +12,18 @@ export function GalleryTypesInfo() {
     const [open, setOpen] = useState(false);
     const panelId = useId();
     const rootRef = useRef<HTMLDivElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
+    // Moves the open box left so it stays on a narrow screen (issue #252); set on the element, it never re-renders
+    useLayoutEffect(() => {
+        const panel = panelRef.current;
+        if (!panel) return;
+        panel.style.left = "";
+        if (!open) return;
+        const rect = panel.getBoundingClientRect();
+        const margin = 16;
+        const overflow = rect.right - (window.innerWidth - margin);
+        if (overflow > 0) panel.style.left = `${-Math.min(overflow, Math.max(0, rect.left - margin))}px`;
+    }, [open]);
 
     useEffect(() => {
         if (!open) return;
@@ -39,11 +51,14 @@ export function GalleryTypesInfo() {
                 <Info className="h-4 w-4" aria-hidden="true" />
             </button>
             <div
+                ref={panelRef}
                 id={panelId}
                 role="note"
                 className={cn(
                     "absolute left-0 top-full z-[100] mt-2 w-[min(22rem,calc(100vw-3rem))] rounded-2xl border border-[var(--site-gold)]/30 bg-[var(--site-bg)] p-4 text-left text-sm leading-6 text-[var(--site-subtle)] shadow-2xl shadow-black/50 light:shadow-(color:--home-shadow-strong) transition-opacity duration-200",
-                    open ? "visible opacity-100" : "invisible opacity-0 group-hover/info:visible group-hover/info:opacity-100 group-focus-within/info:visible group-focus-within/info:opacity-100"
+                    // Closed, it is out of the layout (display none), not only invisible: an invisible 22rem box still
+                    // made the host page scroll sideways on phones (issue #252)
+                    open ? "block opacity-100" : "hidden group-hover/info:block group-focus-within/info:block"
                 )}
             >
                 <p className="font-semibold text-[var(--site-gold-light-text)]">Home (Primary Gallery)</p>
