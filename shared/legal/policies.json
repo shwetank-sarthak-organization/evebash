@@ -1590,7 +1590,7 @@
   },
   "terms-and-conditions": {
     "title": "Terms & Conditions",
-    "lastUpdated": "October 22, 2026",
+    "lastUpdated": "October 23, 2026",
     "description": "These Terms & Conditions govern your access to and use of EveBash websites, applications, accounts, galleries, event-management features, media-upload and sharing services, business features, subscriptions, find You features, and other services provided through EveBash. By creating an account, accessing EveBash, purchasing a plan, uploading content, creating or joining an event or gallery, or otherwise using the Services, you agree to these Terms & Conditions. If you do not agree to these Terms, you should not use the Services.",
     "sections": [
       {
@@ -2048,6 +2048,18 @@
           {
             "kind": "paragraph",
             "text": "Automated systems may make mistakes. Where EveBash provides an appeal or review process, users may use that process to request reconsideration."
+          },
+          {
+            "kind": "heading",
+            "text": "Reporting and enforcement"
+          },
+          {
+            "kind": "paragraph",
+            "text": "You can report a photo, video, comment, chat message, business profile or user from inside EveBash: tap Report in the photo viewer, next to a comment, or on a business or user profile, or press and hold a chat message in the app. You can also email support@evebash.com. Reports are confidential: the person reported is not told who reported them."
+          },
+          {
+            "kind": "paragraph",
+            "text": "EveBash reviews every report, aiming to do so within 24 hours, and may remove the content, restrict features, or suspend or terminate the accounts involved, as described in this section and in section 32 (Suspension). Reports about child safety are handled first and may be referred to the relevant authorities."
           }
         ]
       },

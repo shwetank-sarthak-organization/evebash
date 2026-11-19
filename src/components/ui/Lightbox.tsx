@@ -6,11 +6,12 @@ import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, canCom
 import { useAuth } from "@/context/AuthContext";
 import { getImageUrl } from "@/lib/imageUrl";
 import { downloadMediaFile } from "@/lib/zipDownload";
-import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2, Loader2, Image as ImageIcon, RotateCcw, RotateCw, Star } from "lucide-react";
+import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2, Loader2, Image as ImageIcon, RotateCcw, RotateCw, Star, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HLSVideoPlayer } from "@/components/ui/HLSVideoPlayer";
 import { confirmDialog, isDialogOpen } from "@/components/ui/Modal";
 import { formatCommentTime } from "../../../shared/text/commentTime";
+import { reportContent } from "@/components/ui/ReportDialog";
 
 export interface LightboxTheme {
     background?: string;
@@ -587,6 +588,14 @@ export function Lightbox({
                                     <MessageCircle size={32} className="drop-shadow-lg transition-colors" style={{ color: viewerTheme.text }} />
                                     <span className="text-[10px] font-bold drop-shadow-md" style={{ color: viewerTheme.text }}>{comments.length}</span>
                                 </button>
+                                <button
+                                    onClick={() => reportContent({ targetType: "media", targetId: photo.id })}
+                                    className="flex flex-col items-center space-y-1"
+                                    aria-label="Report this photo or video"
+                                >
+                                    <Flag size={28} className="drop-shadow-lg" style={{ color: viewerTheme.text }} />
+                                    <span className="text-[10px] font-bold drop-shadow-md" style={{ color: viewerTheme.text }}>Report</span>
+                                </button>
                             </div>
 
                         {/* DESKTOP BOTTOM ACTIONS */}
@@ -621,6 +630,19 @@ export function Lightbox({
                                         style={{ color: viewerTheme.text }}
                                     />
                                     <span className="text-[10px] font-bold tracking-[0.18em] drop-shadow-md" style={{ color: viewerTheme.muted }}>{comments.length} COMMENTS</span>
+                                </button>
+
+                                <button
+                                    onClick={() => reportContent({ targetType: "media", targetId: photo.id })}
+                                    className="group flex flex-col items-center space-y-1.5 pointer-events-auto px-2 py-1 transition-transform active:scale-95"
+                                    aria-label="Report this photo or video"
+                                >
+                                    <Flag
+                                        size={20}
+                                        className="drop-shadow-md transition-all duration-300 group-hover:scale-110"
+                                        style={{ color: viewerTheme.muted }}
+                                    />
+                                    <span className="text-[10px] font-bold tracking-[0.18em] drop-shadow-md" style={{ color: viewerTheme.muted }}>REPORT</span>
                                 </button>
                             </div>
 
@@ -688,7 +710,7 @@ export function Lightbox({
                                                                 </div>
                                                                 <div className="p-4 rounded-2xl rounded-tl-none border shadow-sm group" style={{ backgroundColor: viewerTheme.tile, borderColor: viewerTheme.border }}>
                                                                     <p className="text-[13px] leading-relaxed font-sans" style={{ color: viewerTheme.muted }}>{comment.text}</p>
-                                                                    <div className="mt-2 flex items-center space-x-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <div className="mt-2 flex items-center space-x-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                                                         {canPostComment && (
                                                                             <button
                                                                                 onClick={() => {
@@ -709,6 +731,25 @@ export function Lightbox({
                                                                                 <Trash2 size={10} className="mr-1" />
                                                                                 Delete
                                                                             </button>
+                                                                        )}
+                                                                        {user && comment.userId !== identity.id && (
+                                                                            <>
+                                                                                <button
+                                                                                    onClick={() => reportContent({ targetType: "comment", targetId: comment.id })}
+                                                                                    className="text-[10px] font-bold uppercase tracking-widest flex items-center"
+                                                                                    style={{ color: viewerTheme.muted }}
+                                                                                >
+                                                                                    <Flag size={10} className="mr-1" />
+                                                                                    Report
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => reportContent({ targetType: "user", targetId: comment.userId })}
+                                                                                    className="text-[10px] font-bold uppercase tracking-widest"
+                                                                                    style={{ color: viewerTheme.muted }}
+                                                                                >
+                                                                                    Report user
+                                                                                </button>
+                                                                            </>
                                                                         )}
                                                                     </div>
                                                                 </div>
@@ -736,14 +777,32 @@ export function Lightbox({
                                                                     </div>
                                                                     <div className="p-3 rounded-xl rounded-tl-none border shadow-sm group" style={{ backgroundColor: viewerTheme.tile, borderColor: viewerTheme.border }}>
                                                                         <p className="text-[12px] leading-relaxed font-sans italic" style={{ color: viewerTheme.muted }}>{reply.text}</p>
-                                                                        {reply.userId === identity.id && (
+                                                                        {reply.userId === identity.id ? (
                                                                             <button
                                                                                 onClick={() => handleDeleteComment(reply.id)}
-                                                                                className="mt-1 text-[8px] font-bold text-rose-400 uppercase tracking-widest hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center"
+                                                                                className="mt-1 text-[8px] font-bold text-rose-400 uppercase tracking-widest hover:text-rose-600 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center"
                                                                             >
                                                                                 <Trash2 size={8} className="mr-1" />
                                                                                 Delete
                                                                             </button>
+                                                                        ) : user && (
+                                                                            <div className="mt-1 flex items-center space-x-3 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                                                                <button
+                                                                                    onClick={() => reportContent({ targetType: "comment", targetId: reply.id })}
+                                                                                    className="text-[8px] font-bold uppercase tracking-widest flex items-center"
+                                                                                    style={{ color: viewerTheme.muted }}
+                                                                                >
+                                                                                    <Flag size={8} className="mr-1" />
+                                                                                    Report
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => reportContent({ targetType: "user", targetId: reply.userId })}
+                                                                                    className="text-[8px] font-bold uppercase tracking-widest"
+                                                                                    style={{ color: viewerTheme.muted }}
+                                                                                >
+                                                                                    Report user
+                                                                                </button>
+                                                                            </div>
                                                                         )}
                                                                     </div>
                                                                 </div>

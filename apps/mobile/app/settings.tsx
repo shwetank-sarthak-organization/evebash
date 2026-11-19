@@ -768,9 +768,9 @@ export default function SettingsScreen() {
                 We prioritize protecting your personal information. Your profile details, email addresses, and phone numbers are encrypted. Local business listings will only receive your enquiry contact info if you explicitly request a service quotation or check out their vendor profile matching.
               </Text>
 
-              <Text style={styles.legalHeading}>4. Content Standards & Blocking Policy</Text>
+              <Text style={styles.legalHeading}>4. Content Standards, Reporting & Enforcement</Text>
               <Text style={styles.legalText}>
-                You agree not to upload any offensive, prohibited, or copyrighted media. The event hosts and moderators retain absolute authority to block accounts, remove inappropriate comments, or report abuse directly to EveBash administrators. Wiped accounts will have all records deleted permanently.
+                You agree not to upload any offensive, prohibited, or copyrighted media. Event hosts can remove guests and media from their galleries. Anyone logged in can report a photo, video, comment, chat message, business profile or user: tap Report in the photo viewer, next to a comment, or on a profile, or press and hold a chat message. You can also email support@evebash.com. EveBash reviews reports, aiming to do so within 24 hours, and may remove content or suspend accounts. Wiped accounts will have all records deleted permanently.
               </Text>
             </ScrollView>
 

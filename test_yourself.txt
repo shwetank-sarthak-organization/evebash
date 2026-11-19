@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 241
+Next test number: 245
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7102,3 +7102,107 @@ Account used: newone1@email.com (staging)
 Screenshot / recording:
 Fix ref:
 Feedback: Welcome message ends cleanly (no ? box, no heart); Premium 1 Month Rs 750 as on the server.
+
+#241 Report a photo, video and comment on the website
+Status:    TODO
+Priority:  High
+Platform:  Website
+Brief:     Issue #299 (Google Play UGC policy). Needs migration 20261023000000 applied. Use two
+           accounts: A uploads and comments, B reports.
+How to test:
+  1. As A, upload a photo and a video to a test gallery and comment on the photo. Let B join it.
+  2. As B, open the photo full screen (guest gallery view). Tap Report (flag) in the bottom bar.
+     Expect: a list of 8 reasons and an optional note; Send report is greyed out until you pick one.
+  3. Pick "Spam, scam or fake", type a note, send. Expect: "Thanks, we'll review this within 24 hours."
+  4. Report the same photo again. Expect: "You've already reported this..." (no second report).
+  5. Open the comments. Under A's comment tap Report, then Report user. Expect: same dialog for each.
+     Your own comments show Delete, not Report.
+  6. Do step 2 for the video, and once from the host page's photo viewer (log in as A, open another
+     account's upload).
+  7. Log out and open a public gallery photo, tap Report. Expect: "Please log in to report" with a
+     Log in button that brings you back to the gallery.
+  8. Phone browser (narrow screen): Report and Report user under comments are visible without hover.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#242 Report content, chat messages and users in the app
+Status:    TODO
+Priority:  High
+Platform:  App (Android + iOS)
+Brief:     Issue #299. Needs migration 20261023000000 and an app build or over-the-air update with
+           this change (JavaScript only). Two accounts as in #241.
+How to test:
+  1. As B, open A's photo in the gallery viewer. Tap Report (flag) next to Download. Expect: a sheet
+     with 8 reasons + note; sending shows "Thanks, we'll review this within 24 hours." Reporting it
+     again says you've already reported it.
+  2. Open the comments: A's comment and reply show REPORT and REPORT USER. Yours show DELETE.
+  3. Open a vendor chat (EB Business) with A. Press and hold one of A's messages: "Report message"
+     and "Report user" appear. The flag in the chat header reports the other person.
+  4. Open A's business page: flag next to Share reports the business; "Report user" in the
+     Created by card reports the owner. On your own business neither shows.
+  5. Open a public profile (/profile/<id>, e.g. from Created by): "Report user" at the top right.
+  6. As host, open the gallery's member list, tap a member: "Report user" under Save Permissions.
+  7. Logged out, open a public gallery photo and tap Report: the log-in prompt appears.
+  8. Settings > Terms of Service: section 4 now explains how to report (no more "report abuse
+     directly to EveBash administrators").
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#243 Review reports in the analytics dashboard
+Status:    TODO
+Priority:  High
+Platform:  Analytics dashboard
+Brief:     Issue #299. Needs the backend deployed with the Reports actions. Use the reports filed in
+           #241 / #242. Do steps 3-5 on test content only.
+How to test:
+  1. Open the dashboard > Reports. Expect: open reports, newest first, each with reason, type, the
+     reporter, the reported account, a preview (photo/video thumbnail, or comment / message text),
+     the gallery name, and "Open on website" (not for chat messages). Repeat reports of one item show
+     "N open reports"; anything open over 24 h is red.
+  2. Dismiss one (add a note). Expect: it leaves the Open list; the Dismissed filter shows it with the
+     note; Reopen puts it back.
+  3. Remove content on a reported comment. Expect: the comment is gone on the website and app, and
+     every open report about it becomes Actioned.
+  4. Remove content on a reported test photo. Expect: gone from the gallery (and its thumbnail).
+  5. Suspend account on a test account's report. Expect: that account can't log in on website or app
+     (within about an hour for sessions already open); the report shows Suspended. Lift suspension:
+     they can log in again.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#244 Terms show "Reporting and enforcement"
+Status:    TODO
+Priority:  Low
+Platform:  Website + App
+Brief:     Issue #299. Terms & Conditions section 10 (Content Moderation) has a new subheading.
+How to test:
+  1. Website /terms-and-conditions and the app's Terms & Conditions screen (the Terms link on the
+     login screen or the home screen footer, not Settings): section 10 ends with "Reporting and
+     enforcement", two short paragraphs; support@evebash.com is a link.
+  2. "Last updated" shows October 23, 2026. No new "accept the terms" prompt appears on login.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 299
+Next issue number: 300
 
 =====================================================================
 ACTIVE ISSUES
@@ -1237,9 +1237,23 @@ Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simula
 Issue: In the app's Find You results ("Your Photos - N matches found in this event"), the photo grid isn't centred: its two columns sit on the left with an empty strip about a third of a column wide on the right (iPhone 17 Pro size, Cinematic wedding theme). Fix idea: check the matched-photos grid's width and gaps in apps/mobile/components/event/FindYouPanel.tsx (matchedPhotos.map, about line 454).
 How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc), Find You > Upload Photo > a picture of the groom (a crop of public/home/groom-solo.jpg): 5 matches, grid left of centre.
 
+#299
+Listed: 2026-10-23 (as #102 on the unmerged branch; renumbered #299 on 2026-11-19, #102 had been reused)
+Platform: Both
+Priority: Critical
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: Staging check (migration on staging, backend, website, analytics dashboard, a new staging app build), then Shwetank's OK for live; device tests #241-#244
+Found in: Google Play content-rating questionnaire (2026-10-23)
+Issue: No way to report objectionable content or users. Google Play's User Generated Content policy requires an in-app way to report UGC and users and that we act on reports; the questionnaire says UGC is the app's main content and that there is no reporting, so the review is likely to be rejected. The only "report" was Settings > Report a Bug (which also loses the message, #71 item 1), and the app's Settings legal text claimed hosts can "report abuse directly to EveBash administrators", which wasn't possible.
+How to reproduce: On staging (website or app), open a gallery photo, a comment, a chat message, a business or a user profile: there is no Report option.
+Fix (branch feat/content-reporting): content_reports table (RLS on, no client access) and file_content_report() for logged-in users (fixed reasons, optional note, one open report per person and item, 20 an hour). "Report" with a reason picker on photos and videos (website Lightbox and gallery viewer, app viewer), comments, app chat messages (press and hold) and business profiles; "Report user" on comments, chat, business owners, public profiles and the host's guest list. Confirms "Thanks, we'll review this within 24 hours." Analytics dashboard > Reports lists reports (open over 24 h highlighted) with Remove content (photos and videos through the existing media delete; comments and chat messages), Mark actioned, Dismiss and Suspend account (Supabase ban, can be lifted). Terms section 10 now has "Reporting and enforcement"; the Settings legal text was corrected. After it ships: update the Play questionnaire to say users can report content and users.
+Not covered yet: business reviews and announcements have no Report of their own (report the business or the user instead); a report doesn't email anyone yet, so someone must check the Reports tab daily to keep the 24-hour promise.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+Update 2026-11-19: the branch was never merged (it sat 4 weeks). Brought onto today's code for todo #38 (10 files clashed: kept today's code and added the Report buttons to it, e.g. the new comment-reply layout on the website's photo book). Device tests renumbered #241-#244.
 
 #293
 Listed: 2026-11-18

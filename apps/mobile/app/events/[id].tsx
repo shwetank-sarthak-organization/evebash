@@ -88,6 +88,7 @@ import DesignIcon from '../../components/icons/DesignIcon';
 import PartnersIcon from '../../components/icons/PartnersIcon';
 import { haptic } from '@/lib/haptics';
 import { appAlert, showToast } from '@/lib/feedback';
+import { ReportSheet, type ReportTarget } from '@/components/ReportSheet';
 import { FolderPicker } from '@/components/vault/VaultModals';
 import { getGalleryWebUrl } from '@/lib/webLinks';
 import { GuestPagePreview } from '@/components/event/GuestPagePreview';
@@ -856,6 +857,7 @@ function EventDetailScreen() {
   const applyGuestEdit = guestEdit.apply;
   const event = React.useMemo(() => isEditingGuestView ? applyGuestEdit(loadedEvent) : loadedEvent, [applyGuestEdit, isEditingGuestView, loadedEvent]);
   const [selectedGuest, setSelectedGuest] = useState<GuestLog | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<GuestLog | null>(null);
   const [selectedGuestProfile, setSelectedGuestProfile] = useState<GuestProfile | null>(null);
   const [loadingGuestProfile, setLoadingGuestProfile] = useState(false);
@@ -6390,9 +6392,21 @@ function EventDetailScreen() {
                           <Text style={styles.premiumDoneText}>Save Permissions</Text>
                         </LinearGradient>
                       </TouchableOpacity>
+                      {!!selectedGuest?.userId && selectedGuest.userId !== user?.uid && (
+                        <TouchableOpacity
+                          accessibilityRole="button"
+                          accessibilityLabel={`Report ${selectedGuest.name || 'this guest'}`}
+                          onPress={() => setReportTarget({ targetType: 'user', targetId: selectedGuest.userId as string })}
+                          style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, marginTop: 4 }}
+                        >
+                          <IconSymbol name="flag" size={14} color={MidnightColors.slate400} />
+                          <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>Report user</Text>
+                        </TouchableOpacity>
+                      )}
                     </LinearGradient>
                   </View>
                 </View>
+                <ReportSheet target={reportTarget} onClose={() => setReportTarget(null)} />
               </Modal>
 
               {/* ── PREMIUM REQUEST DETAIL MODAL ── */}

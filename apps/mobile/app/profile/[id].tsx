@@ -5,6 +5,8 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getUserById, UserProfile } from '@/lib/database';
+import { useAuth } from '@/context/AuthContext';
+import { ReportSheet, type ReportTarget } from '@/components/ReportSheet';
 
 function formatJoinedDate(value: any) {
   if (!value) return 'Not available';
@@ -33,6 +35,8 @@ export default function PublicProfileScreen() {
   const userId = Array.isArray(params.id) ? params.id[0] : params.id;
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,6 +94,17 @@ export default function PublicProfileScreen() {
         <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" style={styles.backButton} onPress={goBack}>
           <IconSymbol name="chevron.left" size={20} color="#ffffff" />
         </TouchableOpacity>
+        {user?.uid !== profile.id && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Report user"
+            style={styles.reportButton}
+            onPress={() => setReportTarget({ targetType: 'user', targetId: profile.id })}
+          >
+            <IconSymbol name="flag" size={16} color="#CDB89E" />
+            <Text style={styles.reportText}>Report user</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.card}>
@@ -118,6 +133,7 @@ export default function PublicProfileScreen() {
           </View>
         )}
       </View>
+      <ReportSheet target={reportTarget} onClose={() => setReportTarget(null)} />
     </SafeAreaView>
   );
 }
@@ -146,6 +162,25 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  reportButton: {
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    borderRadius: 22,
+    backgroundColor: '#1B211F',
+    borderWidth: 1,
+    borderColor: '#1f2937',
+  },
+  reportText: {
+    color: '#CDB89E',
+    fontSize: 13,
+    fontFamily: 'Inter_700Bold',
   },
   backButton: {
     height: 44,

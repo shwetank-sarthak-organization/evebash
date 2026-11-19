@@ -82,8 +82,10 @@ import {
     BookImage,
     Monitor,
     Link2,
+    Flag,
 } from "lucide-react";
 import { cn, formatEventDate } from "@/lib/utils";
+import { reportContent } from "@/components/ui/ReportDialog";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     createEvent,
@@ -722,6 +724,7 @@ type EventDetailLog = {
     canAdmin?: boolean;
     canUpload?: boolean;
     canComment?: boolean;
+    userId?: string;
 };
 
 // A dropdown for the gallery Filter panel. Its list opens below the button, lined up with the right edge
@@ -3863,6 +3866,17 @@ function DashboardContent() {
                                     )}
                                     {/* Members only: a pending request is turned down with Deny. Plain title, not <Tooltip>: its
                                         hidden bubble pokes past the table's clipped right edge */}
+                                    {log.userId && log.userId !== user?.uid && (
+                                        <button
+                                            type="button"
+                                            onClick={() => void reportContent({ targetType: "user", targetId: log.userId! })}
+                                            aria-label={`Report ${guestName}`}
+                                            title="Report user"
+                                            className="rounded-xl border border-slate-700 bg-slate-800 p-2.5 text-slate-400 transition-colors hover:border-amber-400/30 hover:bg-amber-500/10 hover:text-amber-300"
+                                        >
+                                            <Flag className="h-4 w-4" />
+                                        </button>
+                                    )}
                                     {!isPending && (
                                         <button
                                             type="button"
