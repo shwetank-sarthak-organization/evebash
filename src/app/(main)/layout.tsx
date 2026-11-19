@@ -26,7 +26,7 @@ const organizationJsonLd = {
       url: siteUrl,
       logo: `${siteUrl}/evebash-logo-gold.png`,
       email: "support@evebash.com",
-      sameAs: ["https://www.youtube.com/@EveBashApp"],
+      // sameAs (the social accounts) is left out until they exist: @EveBashApp on YouTube was a 404 (issue #73, todo #21)
     },
     {
       "@type": "WebSite",

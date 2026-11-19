@@ -190,13 +190,14 @@ How to reproduce: With an account that had Private on before the switch was remo
 Listed: 2026-10-13
 Platform: Website
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Footer review vs Samaro (2026-10-13)
 Issue: The website footer (src/components/Footer.tsx) leaves out key pages and wastes space on phones. (1) No link to Find You or Host / create an event, the product's main features. (2) No page on the site links to /delete-account (only the privacy policy text names it). (3) The YouTube channel listed in the site's structured data (src/app/(main)/layout.tsx, sameAs @EveBashApp) has no footer link. (4) On a 375 px phone the footer is 1110 px tall (taller than the screen) for 12 links, because every column stacks one under another. Samaro fits 36 links in 1257 px with two columns. (5) On phones the copyright line is centred while everything above it is left-aligned. (6) The right side of the bottom bar only says "Designed with ♥".
 How to reproduce: Open www.evebash.com on a phone (or 375 px wide) and scroll to the bottom. Look for Find You, Host, Delete account and YouTube links: none.
 Note 2026-10-23: the phone-layout part matters less once the phone/tablet download screen is on for www.evebash.com (#109): phones only see contact-us and the policy pages then. The missing links still matter on computers.
+Update 2026-11-19 (Shwetank asked to fix it): src/components/Footer.tsx: added "Create an event" (/host) under Product and "Delete account" (/delete-account) under Legal; the copyright line is left-aligned on phones. Already done earlier: Find You link, two columns on phones, "Made in India". The YouTube sameAs in src/app/(main)/layout.tsx is removed: @EveBashApp is a 404 (the accounts don't exist yet, todo #21). Checked locally at 375 px: footer 1042 px tall, 14 links, page 375 px wide. Waiting for the check on staging (device test #239).
 
 #78
 Listed: 2026-10-21
@@ -833,12 +834,13 @@ How to reproduce: select show_welcome_card from events fails with "column does n
 Listed: 2026-10-28
 Platform: Website
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Claude device-test run on staging (2026-10-28)
 Issue: Creating a sub-gallery from Host -> event -> Galleries -> Create Sub-Gallery shows the toast "Your event has been created! ✨". It should say the sub-gallery (gallery) was created, since no event was made.
 How to reproduce: Host -> any event -> Galleries -> Create Sub-Gallery, type a name, Create Sub-Gallery. Read the toast.
+Update 2026-11-19 (Shwetank asked to fix it): src/app/(main)/host/page.tsx: after creating a sub-gallery the message and the Success box say "Your sub-gallery has been created! ✨"; a main event still gets "Your event has been created! ✨". Waiting for the check on staging (device test #239).
 
 #179
 Listed: 2026-10-28
@@ -1108,12 +1110,13 @@ How to reproduce: Open a Sunlit Portrait gallery as a guest on an iPhone and ope
 Listed: 2026-11-04
 Platform: Website
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: light theme check of the host page (chat 2026-11-04)
 Issue: On a phone-width screen, the host event page (Host -> an event) scrolls sideways by about 180 px. The "Home (Primary Gallery) and sub-galleries" info popover (src/components/GalleryTypesInfo.tsx) is only hidden (invisible + opacity 0), so its 22rem-wide box still sticks out past the right edge (page 554 px wide at 375 px). Same in the dark and light look. Fix idea: keep the popover inside the screen (right-0 on small screens, or max-w from the button's position), or take it out of the layout while closed (display none).
 How to reproduce: Open Host -> any event on a 375 px wide screen (or a phone) and swipe sideways: the page moves right; empty space appears on the right.
+Update 2026-11-19 (Shwetank asked to fix it): src/components/GalleryTypesInfo.tsx: the closed box is out of the layout (display none) instead of only invisible, and when it opens on a narrow screen it moves left so it stays 16 px inside the screen. Waiting for the check on staging (device test #239).
 
 #253
 Listed: 2026-11-06

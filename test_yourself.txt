@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 239
+Next test number: 240
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7050,3 +7050,28 @@ Account used: shwetank.sarthak@gmail.com
 Screenshot / recording:
 Fix ref:
 Feedback: All steps passed.
+
+#239 Website: host page on phones, sub-gallery message, footer links (#252, #174, #73)
+Status:    TODO
+Priority:  Medium
+Platform:  Website (laptop, iPhone Safari, Android Chrome)
+Brief:     Three small website fixes: the host's event page no longer slides sideways on phones, creating a
+           sub-gallery says "sub-gallery" (not "event"), and the footer has Create an event and Delete account links.
+Detail:    Issues #252, #174, #73 (GalleryTypesInfo.tsx, host/page.tsx, Footer.tsx, (main)/layout.tsx).
+How to test:
+  1. Phone (iPhone Safari, then Android Chrome), logged in as a host: open Host -> any event. Swipe left and
+     right on the page. Expect: the page doesn't move sideways and there is no empty strip on the right.
+  2. On that page, tap the round "i" next to Galleries. Expect: the info box opens fully inside the screen;
+     tap outside it to close.
+  3. Laptop: Host -> an event -> Galleries -> Create Sub-Gallery, type a name, create it. Expect: "Your
+     sub-gallery has been created! ✨". Delete that test sub-gallery afterwards if you don't need it.
+  4. Any page, scroll to the bottom: Product has "Create an event", Legal has "Delete account"; both open
+     their pages. On a phone the copyright line is on the left like the rest.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

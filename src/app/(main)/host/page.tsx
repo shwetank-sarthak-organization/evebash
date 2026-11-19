@@ -1150,6 +1150,8 @@ function DashboardContent() {
     // Goes up after a template or event type is saved, so the Design tab's Guest Home Preview loads the page again
     const [designPreviewVersion, setDesignPreviewVersion] = useState(0);
     const [showCreateSuccessModal, setShowCreateSuccessModal] = useState(false);
+    // What was just created: a main event or a sub-gallery (issue #174: the success message said "event" for both)
+    const [createdSubGallery, setCreatedSubGallery] = useState(false);
     const [eventType, setEventType] = useState("Wedding");
     const [coverPositionEvent, setCoverPositionEvent] = useState<Event | null>(null);
     const [coverDraft, setCoverDraft] = useState({ coverOffset: 0, coverOffsetX: 0, coverScale: 1 });
@@ -2361,10 +2363,11 @@ function DashboardContent() {
 
             setStatus("success");
             setIsCreateModalOpen(false);
+            setCreatedSubGallery(Boolean(isSubEvent));
             if (!skipSuccessModal) {
                 setShowCreateSuccessModal(true);
             }
-            setMessage("Your event has been created! ✨");
+            setMessage(isSubEvent ? "Your sub-gallery has been created! ✨" : "Your event has been created! ✨");
             if (isSubEvent) {
                 setEventDetailGalleries(prev => [...prev, newEvent].sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" })));
             }
@@ -7112,7 +7115,7 @@ function DashboardContent() {
                                     <Check className="h-7 w-7" />
                                 </div>
                                 <h2 className={modalStyles.title}>Success</h2>
-                                <p className={cn(modalStyles.body, "mt-3")}>Your event has been created! ✨</p>
+                                <p className={cn(modalStyles.body, "mt-3")}>{createdSubGallery ? "Your sub-gallery has been created! ✨" : "Your event has been created! ✨"}</p>
                                 <button
                                     type="button"
                                     onClick={closeCreateSuccessModal}
