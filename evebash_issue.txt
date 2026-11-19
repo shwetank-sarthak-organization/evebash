@@ -478,9 +478,9 @@ Update 2026-11-17 (Shwetank with Claude): the issue text was out of date. The li
 Listed: 2026-10-23
 Platform: Both
 Priority: High
-Status: Open
-Owner: Sarthak (decision)
-Blocked by: Sarthak: after the current photo/video work is finished
+Status: In progress
+Owner: Shwetank (with Claude); decision Sarthak
+Blocked by: Shwetank's and Sarthak's OK to build the smarter search behind a switch (staging first)
 Found in: Find You accuracy check on wedding-fdd8 (+9 sub-galleries: 522 photos, 4,031 faces), 2026-10-23
 Issue: Find You returns many wrong people for some guests and misses side profiles. Checked by eye (every match plus near-misses 0.25-0.40) for 3 selfies, at today's cut-off 0.40 (find_matching_photos -> match_faces, AuraFace):
   - Sarthak (a guest): 44 returned, 15 certainly him + 3 likely, 26 wrong (59%), 25 of them the groom (scores 0.40-0.48); hit ~85-95%, ~1-3 missed.
@@ -496,6 +496,12 @@ Recommendation (in this order):
   4. Later, if side-profile misses still matter: ask for 2-3 selfies (front, slightly left, slightly right) and average them.
   Not recommended: only changing the 0.40 cut-off; a stronger model (buffalo_l/antelopev2 are non-commercial; re-index everything).
 How to reproduce: Find You on wedding-fdd8 with Sarthak's selfie: 44 results, most of the lower-scoring ones are the groom.
+Update 2026-11-18/19 (offline test, Sarthak's OK "test offline first, build only if clearly better"): run read-only inside the live database on ashish-sejal-wedding-c8bc (shwetank.sarthak@gmail.com, 32 galleries, 3,048 photos, 18,250 faces); nothing copied off the database except thumbnails for judging. Smarter search = today's match (>= 0.40) OR a profile match (>= 0.45), profile = l2_normalize(selfie + mean of faces >= 0.55), repeated for 2 rounds. Results (judged by Shwetank and Sarthak, blind where possible):
+  - Groom (probe: one gallery portrait): today 421 photos; round 1 ~770; round 2 ~1,350. Samples: 20 of today's weakest, 20 round-1-only, 30 round-2-only: 70/70 really the groom. 30 frequent groom portraits in other looks (haldi, turban, reception) scored < 0.35 today and were all reached only in round 2.
+  - Bride: today 748, smarter ~750 (no change worth having).
+  - Sanju (groom's brother, real selfie run through the same AuraFace model on staging Modal with a one-off script): today 252, round 1 317, round 2 345. Sample: 15 of today's weakest + 15 round-only: 30/30 Sanju; no matched face resembled the groom's profile.
+  - Maya (groom's sister): today 106, rounds 107, all 5 check photos found, no groom-like matches (not judged by eye).
+  Conclusion: in this wedding the big problem is MISSED photos (today misses up to two thirds of a person's photos when their look changes); the 2-round search fixes most of it with no wrong photo in 100 judged. The wrong-person problem seen on wedding-fdd8 (Sarthak getting the groom) did not show here and the smarter search neither fixes nor worsens it. Next: build it behind a switch (staging first), then the "You / Maybe you" sections later if wrong matches show up in real use. Thresholds: the profile score scale differs from the selfie scale; 0.40 on the profile found 820 extra groom photos (too many, not judged), 0.45 is the tested value.
 
 #117
 Listed: 2026-10-24
