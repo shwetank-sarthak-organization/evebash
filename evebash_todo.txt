@@ -727,12 +727,12 @@ Listed:       2026-11-15
 Platform:     Both
 Priority:     High
 Phase:        1 (v1 launch)
-Status:       Idea
+Status:       In progress
 Effort:       L
 Suggested by: Sarthak (2026-11-15)
 Discussed:    No
 Decision:     -
-Owner:        Unassigned
+Owner:        Shwetank (with Claude)
 Depends on:   -
 Brief:        Let people report a photo or video in an event gallery, and report the person who uploaded it,
               when it is bad (nudity, violence, hate, illegal), unwanted (for example "I'm in this and want it
@@ -756,6 +756,11 @@ Brief:        Let people report a photo or video in an event gallery, and report
               at once; whether the uploader is told (never who reported); a target response time; and whether
               hosts also get a "block this guest" option.
 Done in:      -
+Update:       2026-11-19 (Shwetank): found unmerged work from 2026-10-23 on branch feat/content-reporting (commit
+              4ee39628, never on staging): content_reports table + file_content_report(), Report on photos,
+              videos, comments, chat messages, business profiles, Report user, backend admin actions and an
+              analytics Reports tab. Bringing it onto today's code (10 files clash), renumbering its issue (#102
+              was reused) and device tests, then staging tests on website, iPhone and Android.
 
 #40 Turn on Realtime (live updates) for the v1 launch
 Listed:       2026-11-16
