@@ -32,6 +32,7 @@ import { EditChip, GuestEditSpots } from '../../components/event/guestEdit/EditC
 import { coverContentPosition, coverZoomStyle } from '@/lib/coverStyle';
 import { focusToOffsets } from '../../../../shared/themes/coverFocus';
 import { newEventJoinCode } from '../../../../shared/text/joinCode';
+import { editableMessage } from '../../../../shared/guestEdit/draft';
 import { subscribeToUploadQueue, addToUploadQueue, clearFinishedUploads, onUploadCancelled, UploadQueueItem } from '@/lib/uploadQueue';
 import { validateVideoAsset } from '@/lib/videoValidation';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -2694,6 +2695,9 @@ function EventDetailScreen() {
   // (Find You and Event partners are pages, not galleries: no video there)
   const onGalleryPage = activeSubEvent?.id !== 'find-you' && activeSubEvent?.id !== 'event-partners';
   const shownGallery = activeSubEvent || event;
+  // The welcome message guests see. A new main gallery's automatic "Main Event: <title>" isn't a message for guests,
+  // so it is left out, as on the website (issue #293)
+  const guestWelcomeMessage = editableMessage(activeSubEvent ? activeSubEvent.description : event?.description, event?.title);
   const shownGalleryId = shownGallery?.id;
   const shownGalleryVideoId = shownGallery?.galleryVideoId;
   const wantsGalleryVideo = onGalleryPage && !!shownGalleryId && shownGalleryVideoId !== null;
@@ -6601,7 +6605,7 @@ function EventDetailScreen() {
                 {isRoyalGuest && onGalleryPage && (
                   <RoyalGalleryHeader
                     title={activeSubEvent ? activeSubEvent.title : 'Highlights'}
-                    message={(event as any).showWelcomeCard !== false ? (activeSubEvent ? activeSubEvent.description : event.description) : undefined}
+                    message={(event as any).showWelcomeCard !== false ? guestWelcomeMessage : undefined}
                     coupleTitle={activeSubEvent ? undefined : event.title}
                     video={galleryVideo}
                     selectedTemplate={selectedTemplate}
@@ -6619,7 +6623,7 @@ function EventDetailScreen() {
                     // The gallery's own name; the event's title is on the cover
                     title={activeSubEvent ? activeSubEvent.title : event.parentId ? event.title || 'Home' : 'Home'}
                     details={(shownGallery?.date || event.date || '').trim()}
-                    message={(event as any).showWelcomeCard !== false ? (activeSubEvent ? activeSubEvent.description : event.description) : undefined}
+                    message={(event as any).showWelcomeCard !== false ? guestWelcomeMessage : undefined}
                     video={galleryVideo}
                     selectedTemplate={selectedTemplate}
                     fonts={classicFonts}
@@ -6635,7 +6639,7 @@ function EventDetailScreen() {
                     // The gallery's own name; the event's title is on the cover
                     title={activeSubEvent ? activeSubEvent.title : event.parentId ? event.title || 'Home' : 'Home'}
                     details={(shownGallery?.date || event.date || '').trim()}
-                    message={(event as any).showWelcomeCard !== false ? (activeSubEvent ? activeSubEvent.description : event.description) : undefined}
+                    message={(event as any).showWelcomeCard !== false ? guestWelcomeMessage : undefined}
                     video={galleryVideo}
                     fonts={portraitFonts}
                     width={windowWidth}
@@ -6668,7 +6672,7 @@ function EventDetailScreen() {
                     <ConfettiGalleryHeader
                       // The gallery's own name (the album's, or the main gallery's)
                       title={activeSubEvent ? activeSubEvent.title : event.title}
-                      message={(event as any).showWelcomeCard !== false ? (activeSubEvent ? activeSubEvent.description : event.description) : undefined}
+                      message={(event as any).showWelcomeCard !== false ? guestWelcomeMessage : undefined}
                       fonts={confettiFonts}
                       backLabel={event.parentId ? 'Back to Event' : 'Back to Gallery'}
                       onBack={handleEventBack}
@@ -6681,7 +6685,8 @@ function EventDetailScreen() {
                   </>
                 )}
 
-                {!isRoyalGuest && !isClassicGuest && !isPortraitGuest && !isConfettiGuest && (event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
+                {/* No message to show (e.g. only "Main Event: <title>", #293): no empty card, except for a host editing it */}
+                {!isRoyalGuest && !isClassicGuest && !isPortraitGuest && !isConfettiGuest && (event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (guestWelcomeMessage.trim() || isEditingGuestView) && (
                   <View style={[
                     styles.mainInfoBox,
                     {
@@ -6988,7 +6993,7 @@ function EventDetailScreen() {
                           lineHeight: isGardenTemplate ? 24 : 26,
                           textAlign: 'center',
                         }
-                      ]}>{activeSubEvent ? activeSubEvent.description : event.description}{(isSportsTemplate || isCyberTechTemplate || isRetroArcadeTemplate || isNeonCarnivalTemplate || isMuseumTemplate || isBrutalistTemplate || isTechSleekTemplate || isExecutiveTemplate) ? '' : ' 🤍'}</Text>
+                      ]}>{/* No 🤍 after it any more: many phones can't draw it in the theme fonts and showed a boxed "?" (issue #293) */}{guestWelcomeMessage}</Text>
                       {/* Edit mode (todo #11), Midnight Hero: a pencil on the message */}
                       {event.templateId === 'hero' && (
                         <EditChip

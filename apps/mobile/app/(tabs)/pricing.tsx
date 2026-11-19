@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
@@ -7,6 +7,21 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
 import { useAppTheme } from '@/context/ThemeContext';
 import { MidnightColors } from '@/constants/theme';
+import { readPricingPlans, serverPlanPrice, type ServerPricingPlan } from '../../../../shared/pricing/planPrices';
+
+// The prices below are the fallback (no connection, or the server has no number for a plan). The server's prices
+// (/api/v1/pricing-plans, the pricing_plans table the website reads) replace them when they load (issue #244).
+/** This screen's plan ids -> the pricing_plans ids */
+const SERVER_PLAN_IDS: Record<string, string> = {
+  tier_1gb: 'free',
+  tier_10gb: 'starter',
+  tier_25gb: 'basic',
+  tier_50gb: 'standard',
+  tier_100gb: 'premium',
+  tier_200gb: 'pro',
+  tier_500gb: 'elite',
+  tier_1tb: 'ultimate',
+};
 
 const packages = [
   {
@@ -238,7 +253,28 @@ export default function PricingScreen() {
   const activePackage = packages[selectedTierIndex];
   // The tick colours are bright, made for the dark look; the light look uses a deeper shade of each (todo #1)
   const checkColor = isDark ? activePackage.checkColor : LIGHT_CHECK_COLORS[activePackage.checkColor] ?? activePackage.checkColor;
-  const activePlanData = activePackage.prices[billingCycle];
+  const [serverPlans, setServerPlans] = useState<ServerPricingPlan[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const base = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, '');
+    if (!base) return;
+    fetch(`${base}/api/v1/pricing-plans`)
+      .then((response) => response.json())
+      .then((body) => {
+        if (active) setServerPlans(readPricingPlans(body));
+      })
+      .catch(() => {
+        // Offline or the server is down: the prices written in this file stay
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const fallbackPlanData = activePackage.prices[billingCycle];
+  const serverPrice = serverPlanPrice(serverPlans, SERVER_PLAN_IDS[activePackage.id] ?? '', billingCycle);
+  const activePlanData = serverPrice ? { ...fallbackPlanData, price: serverPrice } : fallbackPlanData;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>

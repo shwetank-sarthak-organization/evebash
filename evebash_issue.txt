@@ -1019,12 +1019,13 @@ How to reproduce: Device test #180 on an Android phone with its normal on-screen
 Listed: 2026-11-04
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: Next app build (EAS) and a check on phones
 Found in: Applying the 10/15/30 discount prices (chat 2026-11-04)
 Issue: The app's Upgrade Plan page (apps/mobile/app/(tabs)/pricing.tsx) has its prices written into the code, while the website reads them from pricing_plans. A price change in the database or the admin dashboard doesn't reach the app, so it shows old prices until someone edits the file and ships an app update. The 3/6/12-month numbers were edited by hand for the 2026-11-04 prices. Fix idea: read them from /api/v1/pricing-plans, as the website does, with these as the fallback.
 How to reproduce: Change a price in pricing_plans; the website shows it and the app doesn't.
+Update 2026-11-19 (Shwetank asked to fix it): new shared/pricing/planPrices.ts (formatRupees with Indian grouping, serverPlanPrice, readPricingPlans; tests shared/pricing/planPrices.test.ts pass with npx tsx --test). apps/mobile/app/(tabs)/pricing.tsx fetches EXPO_PUBLIC_API_BASE_URL/api/v1/pricing-plans and shows the server price for the chosen plan and cycle; the written prices stay as the fallback. Live prices equal the written ones today. Checked: Premium monthly set to 751 on staging for a minute; the simulator's Upgrade Plan showed ₹751 (Shwetank); set back to 750. Reaches phones with the next app build. The website's pricing page still formats its own prices (could use formatRupees later).
 
 #249
 Listed: 2026-11-06
@@ -1241,12 +1242,13 @@ Note 2026-11-18: step 1 on staging 08bb4814 (app only, apps/mobile/app/events/[i
 Listed: 2026-11-18
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: Next app build (EAS) and a check on phones
 Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simulator, staging app build 1.2.4)
 Issue: In the guest view of the app's "Cinematic Editions - Wed Album" wedding theme, every gallery welcome message ends with a "?" in a small box: a character or icon the app can't draw (seen on Home and on the Haldi and Wedding albums, with any text). The app also shows guests the Home gallery's default welcome text "Main Event: <event title>", which the website hides because it isn't a message for guests (src/app/(public)/events/[slug]/page.tsx:660, src/components/TemplatePeriwinkle.tsx:35): a website/app mismatch. Both make a new event look unfinished to guests. Fix idea: find what the theme's welcome card draws after the message in apps/mobile/app/events/[id].tsx and fix or remove it; hide "Main Event: <title>" in the app the same way as the website, with the check moved to shared/ so both use one copy.
 How to reproduce: Staging app, any wedding event with the Cinematic theme, guest view (e.g. Dashboard > Riya & Arjun's Wedding, account newone1): Enter Gallery. The welcome card ends with the boxed "?"; on a new event it reads "Main Event: <title>".
+Update 2026-11-19 (Shwetank asked to fix it): apps/mobile/app/events/[id].tsx. The boxed "?" was a 🤍 emoji added after every welcome message (all themes except a few), which phones can't always draw in the theme fonts; removed (the website never had it). Guests no longer see the automatic "Main Event: <title>" message: one value guestWelcomeMessage = editableMessage(...) from shared/guestEdit/draft.ts (the website's rule) feeds the Royal, Classic, Portrait and Confetti headers and the welcome card; with no message the card is hidden for guests (still shown to a host in edit mode). Checked on the iPhone 18 Pro simulator (EveBash Staging dev build, newone1, Riya & Arjun's Wedding, Cinematic theme): the card ends "...every photo you're in." with no heart. Reaches phones with the next app build. Not done: shared/themes/confettiCircle.ts confettiMessage and src TemplatePeriwinkle still use their own startsWith check (a third copy).
 
 #294
 Listed: 2026-11-18
