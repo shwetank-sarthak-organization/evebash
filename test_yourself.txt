@@ -6927,8 +6927,10 @@ Brief:     In the host photo grid, tiles far from the screen now leave out their
 Detail:    Commit 08bb4814 on staging (app only; needs a new staging app build or update). File:
            apps/mobile/app/events/[id].tsx. Issue #291 stays open for the rest of the memory growth.
            2026-11-18 check by Claude (not a tester PASS): Pixel 8, EAS staging Android build 241accd8 (same app
-           code), steps 1-4 passed in "Test 178 big gallery"; views at the bottom 5,806 -> 2,143. Step 5 and the
-           iPhone not checked yet.
+           code), steps 1-4 passed in "Test 178 big gallery"; views at the bottom 5,806 -> 2,143.
+           2026-11-19 check by Claude (not a tester PASS): same Pixel and build, step 5 passed: picture #300 hidden
+           from Photo actions showed HIDDEN, still showed it after scrolling down to photo 131 and back, then was
+           shown to guests again (label gone). Android steps 1-5 all passed; the iPhone is not checked yet.
 How to test:
   1. As the host of a gallery with lots of photos (300+ is best; staging "Test 178 big gallery" has 300), open its
      photo grid and scroll quickly to the bottom and back to the top. Expect: every tile you stop on shows its
