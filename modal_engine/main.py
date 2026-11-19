@@ -2528,6 +2528,7 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
     hls_prefix = f"hls/{storage_key}"
     hls_master_url = f"https://{media_domain}/{hls_prefix}/master.m3u8"
     poster_url = f"https://{media_domain}/{hls_prefix}/poster.jpg"
+    poster_uploaded = False
     raw_url = f"https://{media_domain}/{storage_key}"
 
     print(f"[TranscodeVideo-{hardware.upper()}] Processing video {storage_key}")
@@ -2685,8 +2686,16 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
                     poster_vf = ""
             if not poster_vf:
                 subprocess.run(poster_cmd, capture_output=True, text=True)
+            if not poster_path.exists() or poster_path.stat().st_size == 0:
+                # Shorter than 1 s: there is no frame at 1.0 s, so ffmpeg wrote nothing (issue #182). Use the first frame.
+                print(f"[TranscodeVideo-{hardware.upper()}] No frame at 1 s (video shorter than 1 s?), using the first frame")
+                first_cmd = [arg if arg != "00:00:01" else "0" for arg in poster_cmd]
+                if poster_vf:
+                    first_cmd = first_cmd[:-1] + ["-vf", poster_vf, str(poster_path)]
+                subprocess.run(first_cmd, capture_output=True, text=True)
 
             if poster_path.exists() and poster_path.stat().st_size > 0:
+                poster_uploaded = True
                 b2_client.upload_file(
                     str(poster_path),
                     bucket_name,
@@ -2873,7 +2882,9 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
             update_data["duration"] = round(video_duration_seconds, 2)
         # A retry must preserve a frame explicitly chosen by the video owner.
         # Atomic null check also protects a concurrent custom-thumbnail save.
-        supabase.table("photos").update({"thumbnail_url": poster_url}).eq("id", photo_id).is_("thumbnail_url", "null").execute()
+        # Only when a poster was really uploaded: pointing at a poster.jpg that isn't there showed a broken image (#182)
+        if poster_uploaded:
+            supabase.table("photos").update({"thumbnail_url": poster_url}).eq("id", photo_id).is_("thumbnail_url", "null").execute()
         saved = supabase.table("photos").update(update_data).eq("id", photo_id).execute()
         if not saved.data:
             # The video was deleted (or its upload cancelled) while it was being converted: the delete already
