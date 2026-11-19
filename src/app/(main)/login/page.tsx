@@ -166,6 +166,15 @@ function LoginContent() {
         }
     };
 
+    // Back from Google's page can restore this page from the browser's memory with the button still busy
+    React.useEffect(() => {
+        const onPageShow = (event: PageTransitionEvent) => {
+            if (event.persisted) setStatus("idle");
+        };
+        window.addEventListener("pageshow", onPageShow);
+        return () => window.removeEventListener("pageshow", onPageShow);
+    }, []);
+
     const handleGoogleLogin = async () => {
         if (status === "loading") return;
         setStatus("loading");
@@ -173,16 +182,17 @@ function LoginContent() {
         try {
             const success = await loginWithGoogle();
             if (success) {
-                router.push(returnTo || "/dashboard");
-            } else {
-                setError("Google login failed.");
+                // The browser is already on its way to Google, and Google brings it back (to /profile). Moving the
+                // page here too cancelled that trip on iPhones (Safari and Chrome, both WebKit): the page reloaded
+                // and nothing happened (issue #297). Keep the button busy while the page leaves.
+                return;
             }
+            setError("Google login failed.");
         } catch (err) {
             console.error(err);
             setError("Something went wrong with Google Login.");
-        } finally {
-            setStatus("idle");
         }
+        setStatus("idle");
     };
 
     return (

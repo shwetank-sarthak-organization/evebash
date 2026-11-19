@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 237
+Next test number: 238
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6993,6 +6993,29 @@ How to test:
   3. iPhone (Safari): open the same link, tap the menu button (three lines, top right). Swipe up on the menu.
      Expect: the menu scrolls to the last collection and Find You below it; tapping one opens it.
   4. Android (Chrome): do step 3 again.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#237 Website: Google login on iPhone (#297)
+Status:    TODO
+Priority:  Critical
+Platform:  Website (iPhone Safari, iPhone Chrome; Android Chrome and laptop once more)
+Brief:     "Continue with Google" on the website now opens Google's page on iPhones. Before, the page only reloaded.
+Detail:    Fix in src/app/(main)/login/page.tsx (issue #297). After Google, the website opens the Profile page.
+How to test:
+  1. iPhone, Safari: if logged in, log out (Profile > Log out). Open evebash.com/login, press reload once.
+  2. Tap Continue with Google. Expect: Google's account page opens. Pick shwetank.sarthak@gmail.com.
+     Expect: back on EveBash, on the Profile page, logged in.
+  3. Do steps 1-2 in Chrome on the iPhone.
+  4. Android Chrome and the laptop: do steps 1-2 once each. Expect: the same (they worked before; check nothing broke).
+  5. On the login page, tap Continue with Google, then press Back on Google's page. Expect: the login page with
+     the Google button usable again (not stuck spinning).
 Done by:
 Device / browser:
 Build / version:

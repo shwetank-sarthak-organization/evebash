@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 297
+Next issue number: 298
 
 =====================================================================
 ACTIVE ISSUES
@@ -1336,6 +1336,17 @@ Blocked by: Release to live (staging -> main), then device test #236
 Found in: Shwetank, Ashish & Sejal (32 collections) on evebash.com, laptop and phone (2026-11-19)
 Issue: On an event page, the Collections menu showed only the collections that fit on the screen; the rest went below the bottom edge, and scrolling moved the page behind instead of the list, so the lower collections (Candid 19 and later on Ashish & Sejal) could not be reached from the menu. The phone menu (the menu button on small screens) was a fixed full-screen panel without its own scroll, so the same happened there. Fix: src/components/EventNavbar.tsx: the desktop Collections list is at most the screen height minus the top bar and scrolls on its own (overscroll-contain, so the page behind doesn't move); the phone menu scrolls on its own too. Checked in the browser on staging data (Staging test 1, 5 collections, short window): desktop list scrolled to its last item with the page still at the top; phone menu (375 px wide) scrolled to its end, page unmoved.
 How to reproduce: evebash.com/events/ashish-sejal-wedding-c8bc, click Collections, try to reach the last collection.
+
+#297
+Listed: 2026-11-19
+Platform: Website
+Priority: Critical
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: Release to live (staging -> main), then device test #237
+Found in: Shwetank, evebash.com on his iPhone, Safari and Chrome (2026-11-19); Android Chrome worked
+Issue: "Continue with Google" on the website did nothing on iPhones: the page reloaded and stayed logged out. No iPhone login reached live Supabase (auth.sessions had his Mac and Android logins only). Cause: src/app/(main)/login/page.tsx called router.push(returnTo || "/dashboard") as soon as signInWithOAuth returned, but by then the browser had already started going to Google; WebKit (all iPhone browsers) let the in-page move cancel the trip to Google, Android Chrome didn't. Fix: after a successful start the login page leaves the page alone (Google brings the user back to /profile) and keeps the button busy; Back from Google's page resets the button (pageshow). Checked on the iPhone 18 Pro simulator (iOS 27.2, Safari): live evebash.com/login reloaded the page and stayed (bug reproduced); the fixed page on localhost opened Google's "Sign in" page. Not checked: the full sign-in (needs the Google password).
+How to reproduce: iPhone, Safari or Chrome, evebash.com/login > Continue with Google: the page reloads, no Google page.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
