@@ -1272,13 +1272,14 @@ Note 2026-11-16: fixed in 3dbb3083 (on staging 2026-11-16). New shared/text/join
 #278
 Listed: 2026-11-16
 Platform: Both
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Priority: High
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: Shwetank's OK to apply the migration on live
 Found in: #277 (chat 2026-11-16)
 Issue: Nothing in the database stops two events from having the same join code: events has no unique index on join_id. On live one pair of sub-galleries already shares a code (checked 2026-11-16, neither is the other's parent). open_gallery (supabase/migrations/20261007000000_rls_part1_gallery_link_functions.sql) then picks one of the two, so a guest who types that code can land in the wrong gallery. Since #277 new codes are random 8-character codes, so a new clash is very unlikely, but nothing prevents one. Fix idea (database change, staging first): give one of the two sub-galleries a new code, check staging for clashes the same way, then add a unique index on join_id where join_id is not null; when saving a code hits the index, make a new code and save again.
 How to reproduce: select join_id, count(*) from events where join_id is not null group by join_id having count(*) > 1;
+Update 2026-11-19 (Shwetank asked to fix it; priority raised to High: a guest could open someone else's gallery): migration supabase/migrations/20261119180000_unique_join_id.sql. (1) Where a code is shared, a main event keeps it, then the event with the most photos, then the lower id; the others get a new random XXXX-XXXX code (same alphabet as shared/text/joinCode.ts). (2) Unique index events_join_id_unique on join_id (empty codes left out). Checked 2026-11-19: all 90 live and 11 staging codes are capitals with no spaces; live has one clash, "REC-2-" on Rec 2 (rec-2-6a72, 99 photos) and Rec 3 (rec-2-750e, 11 photos), both sub-galleries of wedding-fdd8 (newone@email.com); staging none. Staging test in a rolled-back transaction: a made-up clash between Staging test 1 and its Rotate test collection was fixed (the main event kept STAG-FC5B, the collection got a new code), 0 clashes left, and a new duplicate was refused by the index. Applied on staging (index only; no code changed). On live it will give Rec 3 a new code; Rec 2 keeps REC-2-. No website or app change: new codes are random 8-character codes, so a clash when saving is about 1 in 10^10; if one ever happens the save fails and the host tries again.
 
 #280
 Listed: 2026-11-16
