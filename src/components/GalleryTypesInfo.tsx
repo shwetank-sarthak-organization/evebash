@@ -1,34 +1,61 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const PANEL_CLASS =
+    "z-[100] rounded-2xl border border-[var(--site-gold)]/30 bg-[var(--site-bg)] p-4 text-left text-sm leading-6 text-[var(--site-subtle)] shadow-2xl shadow-black/50 light:shadow-(color:--home-shadow-strong)";
+
+function PanelText() {
+    return (
+        <>
+            <p className="font-semibold text-[var(--site-gold-light-text)]">Home (Primary Gallery)</p>
+            <p>
+                Your event&apos;s home page, and the first thing guests see. It shows the photos and videos you
+                mark as favourites (⭐) from any gallery, followed by anything you upload to Home itself. Every
+                event has one, and it can&apos;t be deleted.
+            </p>
+            <p className="mt-3 font-semibold text-[var(--site-gold-light-text)]">Sub-galleries</p>
+            <p>
+                Chapters of your event, such as Haldi, Wedding or Reception. Each has its own photos, videos,
+                cover and message, and guests find them under Collections in the event menu. You can add as many
+                as you like, and delete them.
+            </p>
+        </>
+    );
+}
 
 /**
  * "i" next to the host's Galleries heading: what the Primary Gallery is and how it differs from sub-galleries.
  * Opens on hover or keyboard focus, and on tap for touch screens (tap again or outside to close).
+ *
+ * Issue #252: on phone-size screens (under 640 px) the box opened from the button ran off the right edge, and while
+ * closed it still made the page scroll sideways. Now, closed, it is out of the layout (display none); opened on a
+ * phone it is drawn at the top of the page (a portal into <body>, which holds the site colours) and pinned to the
+ * screen, 16 px from each side, just under the button. Scrolling closes it. Larger screens keep the box under the
+ * button. (Measuring and shifting the box did not work on Android Chrome, which widens the page to fit whatever
+ * sticks out, so the box seemed to fit.)
  */
 export function GalleryTypesInfo() {
     const [open, setOpen] = useState(false);
+    // Screen position for the phone box, taken when it is tapped open; null = the box opens under the button
+    const [pinnedTop, setPinnedTop] = useState<number | null>(null);
     const panelId = useId();
     const rootRef = useRef<HTMLDivElement>(null);
-    const panelRef = useRef<HTMLDivElement>(null);
-    // Moves the open box left so it stays on a narrow screen (issue #252); set on the element, it never re-renders
-    useLayoutEffect(() => {
-        const panel = panelRef.current;
-        if (!panel) return;
-        panel.style.left = "";
-        if (!open) return;
-        const rect = panel.getBoundingClientRect();
-        const margin = 16;
-        const overflow = rect.right - (window.innerWidth - margin);
-        if (overflow > 0) panel.style.left = `${-Math.min(overflow, Math.max(0, rect.left - margin))}px`;
-    }, [open]);
+    const pinnedRef = useRef<HTMLDivElement>(null);
+    const pinned = open && pinnedTop !== null;
 
     useEffect(() => {
         if (!open) return;
         const close = (event: Event) => {
-            if (event instanceof KeyboardEvent ? event.key === "Escape" : !rootRef.current?.contains(event.target as Node)) setOpen(false);
+            if (event instanceof KeyboardEvent) {
+                if (event.key === "Escape") setOpen(false);
+                return;
+            }
+            const target = event.target as Node;
+            if (!rootRef.current?.contains(target) && !pinnedRef.current?.contains(target)) setOpen(false);
         };
         document.addEventListener("pointerdown", close);
         document.addEventListener("keydown", close);
@@ -38,11 +65,33 @@ export function GalleryTypesInfo() {
         };
     }, [open]);
 
+    // A box pinned to the screen would stay put while the page moves under it, so scrolling closes it
+    useEffect(() => {
+        if (!pinned) return;
+        const close = () => setOpen(false);
+        window.addEventListener("scroll", close, { passive: true });
+        window.addEventListener("resize", close);
+        return () => {
+            window.removeEventListener("scroll", close);
+            window.removeEventListener("resize", close);
+        };
+    }, [pinned]);
+
+    const toggle = (button: HTMLButtonElement) => {
+        if (open) {
+            setOpen(false);
+            return;
+        }
+        const onPhone = window.matchMedia("(max-width: 639px)").matches;
+        setPinnedTop(onPhone ? Math.round(button.getBoundingClientRect().bottom + 8) : null);
+        setOpen(true);
+    };
+
     return (
         <div ref={rootRef} className="group/info relative inline-flex">
             <button
                 type="button"
-                onClick={() => setOpen(value => !value)}
+                onClick={event => toggle(event.currentTarget)}
                 aria-label="Home (Primary Gallery) and sub-galleries: what's the difference?"
                 aria-expanded={open}
                 aria-controls={panelId}
@@ -50,30 +99,32 @@ export function GalleryTypesInfo() {
             >
                 <Info className="h-4 w-4" aria-hidden="true" />
             </button>
+            {/* Under the button: larger screens, on hover, focus or click. Never shown on phones (it would stick out). */}
             <div
-                ref={panelRef}
-                id={panelId}
+                id={pinned ? undefined : panelId}
                 role="note"
                 className={cn(
-                    "absolute left-0 top-full z-[100] mt-2 w-[min(22rem,calc(100vw-3rem))] rounded-2xl border border-[var(--site-gold)]/30 bg-[var(--site-bg)] p-4 text-left text-sm leading-6 text-[var(--site-subtle)] shadow-2xl shadow-black/50 light:shadow-(color:--home-shadow-strong) transition-opacity duration-200",
-                    // Closed, it is out of the layout (display none), not only invisible: an invisible 22rem box still
-                    // made the host page scroll sideways on phones (issue #252)
-                    open ? "block opacity-100" : "hidden group-hover/info:block group-focus-within/info:block"
+                    PANEL_CLASS,
+                    "absolute left-0 top-full mt-2 w-[min(22rem,calc(100vw-3rem))]",
+                    open && !pinned
+                        ? "block"
+                        : "hidden sm:group-hover/info:block sm:group-focus-within/info:block"
                 )}
             >
-                <p className="font-semibold text-[var(--site-gold-light-text)]">Home (Primary Gallery)</p>
-                <p>
-                    Your event&apos;s home page, and the first thing guests see. It shows the photos and videos you
-                    mark as favourites (⭐) from any gallery, followed by anything you upload to Home itself. Every
-                    event has one, and it can&apos;t be deleted.
-                </p>
-                <p className="mt-3 font-semibold text-[var(--site-gold-light-text)]">Sub-galleries</p>
-                <p>
-                    Chapters of your event, such as Haldi, Wedding or Reception. Each has its own photos, videos,
-                    cover and message, and guests find them under Collections in the event menu. You can add as many
-                    as you like, and delete them.
-                </p>
+                <PanelText />
             </div>
+            {pinned && createPortal(
+                <div
+                    ref={pinnedRef}
+                    id={panelId}
+                    role="note"
+                    className={cn(PANEL_CLASS, "fixed left-4 right-4 overflow-y-auto")}
+                    style={{ top: pinnedTop ?? 0, maxHeight: `calc(100dvh - ${(pinnedTop ?? 0) + 16}px)` }}
+                >
+                    <PanelText />
+                </div>,
+                document.body
+            )}
         </div>
     );
 }
