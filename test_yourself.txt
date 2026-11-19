@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 235
+Next test number: 236
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6939,6 +6939,32 @@ How to test:
   4. Hold and drag a tile one place, then drag it back. Expect: they swap, then swap back.
   5. Hide a photo (dots > Hide from guests), scroll far away and back. Expect: its HIDDEN label is still there.
      Unhide it again.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#235 App + website: Find You on a big event (smarter search #111, many-collections fix #295)
+Status:    TODO
+Priority:  High
+Platform:  App (iPhone and Android, separately) + website
+Brief:     Find You now uses a smarter search (it also finds photos where the person looks different: haldi,
+           turban, side views) and works on events with many collections (before, events with more than about 24
+           collections showed "Something went wrong during matching").
+Detail:    Live since 2026-11-19: Modal v137 with switch find_you_profile on; backend c9862c79. No app update needed.
+           Website already checked 2026-11-19 by Shwetank on evebash.com (Chrome): Ashish & Sejal, Sanju's photo,
+           343 photos, no error.
+How to test:
+  1. Log in on the live app (iPhone), open Ashish & Sejal wedding (shwetank.sarthak@gmail.com's event,
+     32 collections), tap Find You and upload a clear photo of Sanju or the groom.
+     Expect: results within about 10 seconds, no error; Sanju about 340 photos, the groom about 1,300.
+  2. Scroll through the results. Expect: every photo shows that person.
+  3. Do steps 1-2 again on Android.
+  4. On a small event (a few collections), Find You with your own selfie. Expect: your photos, no error.
 Done by:
 Device / browser:
 Build / version:

@@ -474,35 +474,6 @@ Issue: The phone/tablet "Get the EveBash app" screen (src/components/MobileAppGa
 How to reproduce: Open https://www.evebash.com on a phone: the normal website shows, not the download screen.
 Update 2026-11-17 (Shwetank with Claude): the issue text was out of date. The live Vercel project (evebash-production, made in todo #30) had NEXT_PUBLIC_MOBILE_APP_GATE=true for Production (set about 2026-10-23), so on live every phone/tablet page except login, pricing, profile, contact and policies (home, sample galleries, event and gallery links, Find You) showed "Get the EveBash app" with both store buttons "coming soon": guests could not see any gallery on a phone. Found while checking the Demo Wedding sample gallery on the iPhone simulator. With Shwetank's OK the setting was removed from evebash-production and live rebuilt (evebash-production-docxbyahq): iPhone pages no longer carry the gate script, and the iPhone simulator shows the sample galleries page. Staging (evebash-staging) still has it on. At app launch: set it again on evebash-production with the two store links, as in the steps above.
 
-#111
-Listed: 2026-10-23
-Platform: Both
-Priority: High
-Status: In progress
-Owner: Shwetank (with Claude); decision Sarthak
-Blocked by: Shwetank's and Sarthak's OK to build the smarter search behind a switch (staging first)
-Found in: Find You accuracy check on wedding-fdd8 (+9 sub-galleries: 522 photos, 4,031 faces), 2026-10-23
-Issue: Find You returns many wrong people for some guests and misses side profiles. Checked by eye (every match plus near-misses 0.25-0.40) for 3 selfies, at today's cut-off 0.40 (find_matching_photos -> match_faces, AuraFace):
-  - Sarthak (a guest): 44 returned, 15 certainly him + 3 likely, 26 wrong (59%), 25 of them the groom (scores 0.40-0.48); hit ~85-95%, ~1-3 missed.
-  - Groom: 80 returned, 78 correct, ~2 wrong (2.5%); ~2 side views missed (hit ~97%).
-  - Bride: 72 returned, 72 correct (0% wrong); ~7 backlit side profiles missed at 0.29-0.395 (hit ~91%).
-  Someone in many photos (the groom) scores 0.40-0.48 against similar-looking guests, so those guests get his photos. Misses are side profiles and hard light. One cut-off can't fix both: 0.50 removes all of Sarthak's wrong matches but costs the groom ~16% of his real photos; lowering it lets in other women already scoring 0.31-0.34 against the bride. Results also count the same photo once per gallery it is in (duplicates across sub-galleries).
-Recommendation (in this order):
-  1. Test offline, on the 3 eye-checked searches above (200+ judged photos), with before/after hit, miss and wrong rates; nothing live changes:
-     A. Two-step search: take the strong matches (>= 0.55), average them with the selfie into the person's profile, rescore all faces against it. Targets both wrong matches (Sarthak's profile is 15 photos of him, so the groom drops) and misses (bride/groom profiles include side views).
-     B. If A isn't enough, an "is this someone else?" check: group a gallery's faces into people; drop a face that fits another person's group better than the searcher's.
-  2. Ship the winner behind a switch (like the face filter), check, keep or turn off within a minute.
-  3. Either way: show results in two sections, "You" (>= 0.55) and "Maybe you" (0.40-0.55) with a "Not me" button (website + app), and list each photo once even if it is in several sub-galleries.
-  4. Later, if side-profile misses still matter: ask for 2-3 selfies (front, slightly left, slightly right) and average them.
-  Not recommended: only changing the 0.40 cut-off; a stronger model (buffalo_l/antelopev2 are non-commercial; re-index everything).
-How to reproduce: Find You on wedding-fdd8 with Sarthak's selfie: 44 results, most of the lower-scoring ones are the groom.
-Update 2026-11-18/19 (offline test, Sarthak's OK "test offline first, build only if clearly better"): run read-only inside the live database on ashish-sejal-wedding-c8bc (shwetank.sarthak@gmail.com, 32 galleries, 3,048 photos, 18,250 faces); nothing copied off the database except thumbnails for judging. Smarter search = today's match (>= 0.40) OR a profile match (>= 0.45), profile = l2_normalize(selfie + mean of faces >= 0.55), repeated for 2 rounds. Results (judged by Shwetank and Sarthak, blind where possible):
-  - Groom (probe: one gallery portrait): today 421 photos; round 1 ~770; round 2 ~1,350. Samples: 20 of today's weakest, 20 round-1-only, 30 round-2-only: 70/70 really the groom. 30 frequent groom portraits in other looks (haldi, turban, reception) scored < 0.35 today and were all reached only in round 2.
-  - Bride: today 748, smarter ~750 (no change worth having).
-  - Sanju (groom's brother, real selfie run through the same AuraFace model on staging Modal with a one-off script): today 252, round 1 317, round 2 345. Sample: 15 of today's weakest + 15 round-only: 30/30 Sanju; no matched face resembled the groom's profile.
-  - Maya (groom's sister): today 106, rounds 107, all 5 check photos found, no groom-like matches (not judged by eye).
-  Conclusion: in this wedding the big problem is MISSED photos (today misses up to two thirds of a person's photos when their look changes); the 2-round search fixes most of it with no wrong photo in 100 judged. The wrong-person problem seen on wedding-fdd8 (Sarthak getting the groom) did not show here and the smarter search neither fixes nor worsens it. Next: build it behind a switch (staging first), then the "You / Maybe you" sections later if wrong matches show up in real use. Thresholds: the profile score scale differs from the selfie scale; 0.40 on the profile found 820 extra groom photos (too many, not judged), 0.45 is the tested value.
-
 #117
 Listed: 2026-10-24
 Platform: Both
@@ -1355,20 +1326,51 @@ Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simula
 Issue: In the app's Find You results ("Your Photos - N matches found in this event"), the photo grid isn't centred: its two columns sit on the left with an empty strip about a third of a column wide on the right (iPhone 17 Pro size, Cinematic wedding theme). Fix idea: check the matched-photos grid's width and gaps in apps/mobile/components/event/FindYouPanel.tsx (matchedPhotos.map, about line 454).
 How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc), Find You > Upload Photo > a picture of the groom (a crop of public/home/groom-solo.jpg): 5 matches, grid left of centre.
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #295
 Listed: 2026-11-19
 Platform: Both
 Priority: High
-Status: In progress
+Status: Fixed
 Owner: Shwetank (with Claude)
-Blocked by: Release to live (staging -> main), then a Find You check on Ashish & Sejal
+Blocked by: -
 Found in: #111 live test (2026-11-19, evebash.com, Chrome)
 Issue: Find You on a big event failed with "Something went wrong during matching" (api.evebash.com/api/find-you answered 400 "Search at most 25 galleries at a time."). The website sends the main gallery plus every collection's id and old id; Ashish & Sejal (ashish-sejal-wedding-c8bc) has 32 collections, so 33 ids, and the backend (with FIND_YOU_REQUIRE_ACCESS on) refused more than 25. Any event with more than about 24 collections could not use Find You. Not caused by the #111 switch (the request never reached Modal). Fix: apps/backend/src/routes/findYou.ts allows up to 100 different gallery ids (counted once each); every id is still access-checked with open_gallery.
 How to reproduce: evebash.com/events/ashish-sejal-wedding-c8bc/find-you, logged in, upload a selfie: 400 in the console.
+Fixed in: c9862c79 (2026-11-19). Released to live the same day; Shwetank's check on evebash.com, Ashish & Sejal: Find You works (343 photos for Sanju). Apps use the same backend: device test #235.
 
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+#111
+Listed: 2026-10-23
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude); decision Sarthak
+Blocked by: -
+Found in: Find You accuracy check on wedding-fdd8 (+9 sub-galleries: 522 photos, 4,031 faces), 2026-10-23
+Issue: Find You returns many wrong people for some guests and misses side profiles. Checked by eye (every match plus near-misses 0.25-0.40) for 3 selfies, at today's cut-off 0.40 (find_matching_photos -> match_faces, AuraFace):
+  - Sarthak (a guest): 44 returned, 15 certainly him + 3 likely, 26 wrong (59%), 25 of them the groom (scores 0.40-0.48); hit ~85-95%, ~1-3 missed.
+  - Groom: 80 returned, 78 correct, ~2 wrong (2.5%); ~2 side views missed (hit ~97%).
+  - Bride: 72 returned, 72 correct (0% wrong); ~7 backlit side profiles missed at 0.29-0.395 (hit ~91%).
+  Someone in many photos (the groom) scores 0.40-0.48 against similar-looking guests, so those guests get his photos. Misses are side profiles and hard light. One cut-off can't fix both: 0.50 removes all of Sarthak's wrong matches but costs the groom ~16% of his real photos; lowering it lets in other women already scoring 0.31-0.34 against the bride. Results also count the same photo once per gallery it is in (duplicates across sub-galleries).
+Recommendation (in this order):
+  1. Test offline, on the 3 eye-checked searches above (200+ judged photos), with before/after hit, miss and wrong rates; nothing live changes:
+     A. Two-step search: take the strong matches (>= 0.55), average them with the selfie into the person's profile, rescore all faces against it. Targets both wrong matches (Sarthak's profile is 15 photos of him, so the groom drops) and misses (bride/groom profiles include side views).
+     B. If A isn't enough, an "is this someone else?" check: group a gallery's faces into people; drop a face that fits another person's group better than the searcher's.
+  2. Ship the winner behind a switch (like the face filter), check, keep or turn off within a minute.
+  3. Either way: show results in two sections, "You" (>= 0.55) and "Maybe you" (0.40-0.55) with a "Not me" button (website + app), and list each photo once even if it is in several sub-galleries.
+  4. Later, if side-profile misses still matter: ask for 2-3 selfies (front, slightly left, slightly right) and average them.
+  Not recommended: only changing the 0.40 cut-off; a stronger model (buffalo_l/antelopev2 are non-commercial; re-index everything).
+How to reproduce: Find You on wedding-fdd8 with Sarthak's selfie: 44 results, most of the lower-scoring ones are the groom.
+Update 2026-11-18/19 (offline test, Sarthak's OK "test offline first, build only if clearly better"): run read-only inside the live database on ashish-sejal-wedding-c8bc (shwetank.sarthak@gmail.com, 32 galleries, 3,048 photos, 18,250 faces); nothing copied off the database except thumbnails for judging. Smarter search = today's match (>= 0.40) OR a profile match (>= 0.45), profile = l2_normalize(selfie + mean of faces >= 0.55), repeated for 2 rounds. Results (judged by Shwetank and Sarthak, blind where possible):
+  - Groom (probe: one gallery portrait): today 421 photos; round 1 ~770; round 2 ~1,350. Samples: 20 of today's weakest, 20 round-1-only, 30 round-2-only: 70/70 really the groom. 30 frequent groom portraits in other looks (haldi, turban, reception) scored < 0.35 today and were all reached only in round 2.
+  - Bride: today 748, smarter ~750 (no change worth having).
+  - Sanju (groom's brother, real selfie run through the same AuraFace model on staging Modal with a one-off script): today 252, round 1 317, round 2 345. Sample: 15 of today's weakest + 15 round-only: 30/30 Sanju; no matched face resembled the groom's profile.
+  - Maya (groom's sister): today 106, rounds 107, all 5 check photos found, no groom-like matches (not judged by eye).
+  Conclusion: in this wedding the big problem is MISSED photos (today misses up to two thirds of a person's photos when their look changes); the 2-round search fixes most of it with no wrong photo in 100 judged. The wrong-person problem seen on wedding-fdd8 (Sarthak getting the groom) did not show here and the smarter search neither fixes nor worsens it. Next: build it behind a switch (staging first), then the "You / Maybe you" sections later if wrong matches show up in real use. Thresholds: the profile score scale differs from the selfie scale; 0.40 on the profile found 820 extra groom photos (too many, not judged), 0.45 is the tested value.
+Fixed in: 05dd4058 (2026-11-19). New database function match_faces_profile (supabase/migrations/20261119120000_match_faces_profile.sql, on staging and live; match_faces unchanged) and modal_engine/main.py uses it while the Modal switch photo-pipeline-switch["find_you_profile"] is on (True = 2 rounds, profile 0.45, strong 0.55; a dict overrides; anything else = today's search; on any error it falls back to match_faces). Staging: Modal v5, switch on, Find You on "Test event staging" 12 matches, 2 rounds. Live: Modal v137 (rollback v136), switch on 2026-11-19; Shwetank's test on evebash.com, Ashish & Sejal, Sanju's photo: 343 photos (today's search 252), 18,250 faces compared, 7.0 s. Turn off: set find_you_profile to False in the live Dict (takes effect within a minute). The live test first hit #295. Device test #235 for the apps.
 
 #274
 Listed: 2026-11-15
@@ -1723,7 +1725,6 @@ Update 2026-11-16: live Modal switch now has grid "all" again (with Shwetank's O
 Update 2026-11-16: the Modal code already running on live makes grid copies: all 5 photos of Shwetank's live test upload (event images-1-05b9) have "-grid.webp" (200). So no need to wait for #269. With Shwetank's OK, NEXT_PUBLIC_GRID_HIRES=true set on Vercel evebash-production and the live website rebuilt (evebash-production-7hfhr3taw, aliased to www.evebash.com); the live grid code has the switch on. Cause of the lost keys still unknown; if it happens again, compare with: live {mode: v2, v2_events: [test-v2-358c], face_filter: {min_score 0.4, min_px 24}, grid: all}, staging {mode: v2, grid: all}.
 Fixed in: live settings, no code change (2026-11-16)
 
-
 #137
 Listed: 2026-10-25
 Platform: Both
@@ -1739,7 +1740,6 @@ Update 2026-11-15: owner changed from Sarthak to Shwetank (with Claude); done as
 Update 2026-11-16: device tests #130, #131 and #135 PASS on staging (Shwetank). Ready for live: ROTATE_VERSIONED_LINKS=true, ROTATE_UPRIGHT_FIRST=true, GRID_VARIANT=true on evebash-api-production-backend, plus the live Modal switch grid (issue #281), on release day.
 Update 2026-11-16: LIVE. Release staging -> main merged (PR #12, 83095020); Shwetank set ROTATE_VERSIONED_LINKS=true, ROTATE_UPRIGHT_FIRST=true and GRID_VARIANT=true on evebash-api-production-backend and deployed (4a6423c1, healthy, Sentry on). Correction to the Fix text: Vercel Production does NOT have NEXT_PUBLIC_GRID_HIRES (checked 2026-11-16), so the website's sharp grid copy is still off on live; that step is tracked in #281.
 Fixed in: 83095020 (2026-11-16)
-
 
 #285
 Listed: 2026-11-16
@@ -1784,7 +1784,6 @@ Fix: route removed in apps/backend/src/routes/media.ts (backend type check passe
 How to reproduce: curl -s -o /dev/null -w '%{http_code}' https://api.evebash.com/api/media/all-photos (200 = still open; 404 = fixed).
 Update 2026-11-16: hotfix to main with Shwetank's OK (branch hotfix/remove-all-photos, PR #11, merged 48dc066f); the live server redeployed by itself. Checked: api.evebash.com /api/media/all-photos and /api/v1/media/all-photos 404, /health and /api/v1/pricing-plans 200, www.evebash.com 200. Staging already had it (336c5453).
 Fixed in: 25b930fe on main, 336c5453 on staging (2026-11-16)
-
 
 #120
 Listed: 2026-10-24
@@ -1873,7 +1872,6 @@ Update 2026-11-16: staging tests D and E PASSED. D (Android app, USB build): hos
 Update 2026-11-16: APPLIED ON LIVE (sbhouirpyiyybrravvih) at 14:46 IST with Shwetank's OK, after a live dry run (part 2 + tests in one rolled-back transaction: 183/183, nothing saved, live unchanged before/after). Live now: 0 tables without RLS, 47 policies, no anon writes. Checked from outside with the live public key: profiles, events, photos, guests, faces return nothing; claim_media_job not callable; a public gallery still returns its media; www.evebash.com /, /pricing, /login and a public event page 200; api.evebash.com/health 200. Live code (main, 82 commits behind staging) makes the same database calls as staging, so the staging tests cover it. Left: Shwetank's own check on www.evebash.com (log in, open a gallery, upload a photo) and watching Sentry; undo if needed: rls-lockdown-part2-rollback.sql only.
 Update 2026-11-16: Shwetank checked live www.evebash.com after the lockdown: log in, galleries, upload (the photo processed with its preview ready in the live database), like and unlike, all working; his profile's last_login updated (the profile save that failed on staging before the fix). No errors.
 Fixed in: c743db4b (part 2 script; applied on live 2026-11-16)
-
 
 #184
 Listed: 2026-11-01
