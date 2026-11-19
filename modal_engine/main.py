@@ -773,6 +773,29 @@ def _read_face_filter():
         return None
 
 
+def _read_find_you_profile():
+    """The smarter Find You search (issue #111), from the switch's "find_you_profile" key: true, or
+    {"rounds": 2, "profile_threshold": 0.45, "strong": 0.55} to change the tested values. Missing, false or
+    unreadable = off, so Find You uses match_faces as before."""
+    try:
+        value = modal.Dict.from_name(PHOTO_PIPELINE_SWITCH, create_if_missing=True).get("find_you_profile")
+    except Exception as err:
+        print(f"[Selfie] Could not read the find_you_profile switch, using match_faces: {err}")
+        return None
+    if value is True:
+        value = {}
+    if not isinstance(value, dict):
+        return None
+    try:
+        return {
+            "rounds": max(0, min(2, int(value.get("rounds", 2)))),
+            "profile_threshold": float(value.get("profile_threshold", 0.45)),
+            "strong": float(value.get("strong", 0.55)),
+        }
+    except (TypeError, ValueError):
+        return None
+
+
 GRID_SUFFIX = "-grid.webp"  # same name the backend deletes and the website grid loads
 
 
@@ -1664,12 +1687,31 @@ def _find_matching_photos_core(request: dict):
         # Returns only the matching photos instead of downloading every descriptor (about 18 MB for
         # 1,751 faces). Falls back to comparing here if the function is missing or fails.
         matches, compared = None, 0
+        # Issue #111: with the "find_you_profile" switch on, the smarter search (public.match_faces_profile) keeps
+        # everything above and also finds the person's other looks; on any problem it falls back to match_faces
+        profile = _read_find_you_profile()
+        rpc = None
+        if profile:
+            try:
+                rpc = supabase.rpc("match_faces_profile", {
+                    "p_event_ids":         event_ids,
+                    "p_embedding":         [float(x) for x in selfie_vec],
+                    "p_threshold":         THRESHOLD,
+                    "p_profile_threshold": profile["profile_threshold"],
+                    "p_strong":            profile["strong"],
+                    "p_rounds":            profile["rounds"],
+                }).execute()
+                print(f"[Selfie] Profile search on: {profile}, rounds used {(rpc.data or {}).get('rounds_used')}.")
+            except Exception as profile_err:
+                print(f"[Selfie] Profile search failed, using match_faces: {profile_err}")
+                rpc = None
         try:
-            rpc = supabase.rpc("match_faces", {
-                "p_event_ids":   event_ids,
-                "p_embedding":   [float(x) for x in selfie_vec],
-                "p_threshold":   THRESHOLD,
-            }).execute()
+            if rpc is None:
+                rpc = supabase.rpc("match_faces", {
+                    "p_event_ids":   event_ids,
+                    "p_embedding":   [float(x) for x in selfie_vec],
+                    "p_threshold":   THRESHOLD,
+                }).execute()
             result = rpc.data or {}
             compared = int(result.get("compared") or 0)
             matches = [{

@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 293
+Next issue number: 296
 
 =====================================================================
 ACTIVE ISSUES
@@ -99,17 +99,6 @@ Blocked by: A decision: add the profiles.notification_preferences column (databa
 Found in: #47 investigation (2026-10-12)
 Issue: profiles has no notification_preferences column (checked 2026-10-12), but several places use it. (1) Host upload pushes never send: apps/backend/src/uploadNotifications.ts asks for push_token, notification_preferences, the lookup fails and it returns quietly, so "New photo(s) uploaded" and "New video uploaded" (including VIDEO_READY_PUSH=true from Modal's callback) never reach the host. test_yourself #51 step 5 uses the video push, so it will fail until this is fixed (use a join request instead). (2) The app's Settings > Notifications switches don't save: updateUserProfile (apps/mobile/lib/database.ts) drops columns the profile doesn't have and still reports success, so the switch flips back on the next login and nobody can turn pushes off. (3) Client-side pushes fail the same way: the app's sendPushNotificationDirectly (enquiries and vendor chat, Phase 2, see #20) and the website's sendPushNotification (old approval path). #47 fixed only the access-request, approval and deny pushes in apps/backend/src/routes/notifications.ts (select "*"). Fix options: add the column (jsonb, nullable) so settings save and count, and for (1) read the profile the way notifications.ts does; the photo-upload push has no kill switch, so put it behind a flag first, because fixing it starts a push to every host on every upload.
 How to reproduce: Upload a photo or video to someone else's gallery: the owner's phone gets nothing, and Railway logs show nothing. In the app, turn off Event invites in Settings, log out and in: it's on again.
-
-#61
-Listed: 2026-10-12
-Platform: Both
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Test #13 on the new staging app build, Pixel 8 (2026-10-12)
-Issue: Sign-up doesn't save a username. A new account (Google sign-up in the app) has no username: the app's Profile shows "not set". Neither the app (apps/mobile/context/AuthContext.tsx, the profiles insert) nor the website saves one when the profile is created. The website hides it: src/context/AuthContext.tsx shows normalizeUsername(name) when profile.username is empty (e.g. "sarthak_chauhan") but never stores it, so two people with the same name show the same username, and the app and website disagree for the same account. Users can only get one by setting it in Profile > Edit (checked with is_username_available). Fix: pick a free username at sign-up (from the name, with a suffix if taken, via is_username_available) and save it, the same on both platforms; decide whether to backfill existing accounts without one (not counted yet: the database read was blocked).
-How to reproduce: Create a new account with "Continue with Google" in the app, then open Profile: Username "not set". Open the same account's profile on the website: a username is shown, but profiles.username is empty.
 
 #63
 Listed: 2026-10-12
@@ -489,9 +478,9 @@ Update 2026-11-17 (Shwetank with Claude): the issue text was out of date. The li
 Listed: 2026-10-23
 Platform: Both
 Priority: High
-Status: Open
-Owner: Sarthak (decision)
-Blocked by: Sarthak: after the current photo/video work is finished
+Status: In progress
+Owner: Shwetank (with Claude); decision Sarthak
+Blocked by: Shwetank's and Sarthak's OK to build the smarter search behind a switch (staging first)
 Found in: Find You accuracy check on wedding-fdd8 (+9 sub-galleries: 522 photos, 4,031 faces), 2026-10-23
 Issue: Find You returns many wrong people for some guests and misses side profiles. Checked by eye (every match plus near-misses 0.25-0.40) for 3 selfies, at today's cut-off 0.40 (find_matching_photos -> match_faces, AuraFace):
   - Sarthak (a guest): 44 returned, 15 certainly him + 3 likely, 26 wrong (59%), 25 of them the groom (scores 0.40-0.48); hit ~85-95%, ~1-3 missed.
@@ -507,6 +496,12 @@ Recommendation (in this order):
   4. Later, if side-profile misses still matter: ask for 2-3 selfies (front, slightly left, slightly right) and average them.
   Not recommended: only changing the 0.40 cut-off; a stronger model (buffalo_l/antelopev2 are non-commercial; re-index everything).
 How to reproduce: Find You on wedding-fdd8 with Sarthak's selfie: 44 results, most of the lower-scoring ones are the groom.
+Update 2026-11-18/19 (offline test, Sarthak's OK "test offline first, build only if clearly better"): run read-only inside the live database on ashish-sejal-wedding-c8bc (shwetank.sarthak@gmail.com, 32 galleries, 3,048 photos, 18,250 faces); nothing copied off the database except thumbnails for judging. Smarter search = today's match (>= 0.40) OR a profile match (>= 0.45), profile = l2_normalize(selfie + mean of faces >= 0.55), repeated for 2 rounds. Results (judged by Shwetank and Sarthak, blind where possible):
+  - Groom (probe: one gallery portrait): today 421 photos; round 1 ~770; round 2 ~1,350. Samples: 20 of today's weakest, 20 round-1-only, 30 round-2-only: 70/70 really the groom. 30 frequent groom portraits in other looks (haldi, turban, reception) scored < 0.35 today and were all reached only in round 2.
+  - Bride: today 748, smarter ~750 (no change worth having).
+  - Sanju (groom's brother, real selfie run through the same AuraFace model on staging Modal with a one-off script): today 252, round 1 317, round 2 345. Sample: 15 of today's weakest + 15 round-only: 30/30 Sanju; no matched face resembled the groom's profile.
+  - Maya (groom's sister): today 106, rounds 107, all 5 check photos found, no groom-like matches (not judged by eye).
+  Conclusion: in this wedding the big problem is MISSED photos (today misses up to two thirds of a person's photos when their look changes); the 2-round search fixes most of it with no wrong photo in 100 judged. The wrong-person problem seen on wedding-fdd8 (Sarthak getting the groom) did not show here and the smarter search neither fixes nor worsens it. Next: build it behind a switch (staging first), then the "You / Maybe you" sections later if wrong matches show up in real use. Thresholds: the profile score scale differs from the selfie scale; 0.40 on the profile found 820 extra groom photos (too many, not judged), 0.45 is the tested value.
 
 #117
 Listed: 2026-10-24
@@ -742,20 +737,6 @@ Found in: Device test #128 on the iOS simulator (2026-10-24)
 Issue: In the app's video viewer you can't seek: the progress bar (dashboardVideoProgressTrack in apps/mobile/components/PhotoViewer.tsx) only shows progress and has no touch handling, the buttons next to play are previous/next media, and the 5-second jump (seekBy, videoControlsRef) is defined but nothing calls it. On a 48-minute wedding video, guests can only watch from the start. The website player seeks fine. There is also no manual quality choice in the app (iOS picks it), which is fine. Fix: make the progress bar draggable/tappable (player.currentTime = fraction * duration) and/or add -10 s / +10 s buttons; check on iPhone and Android.
 How to reproduce: In the app, open any video in a gallery, play it, tap or drag the progress bar: playback position doesn't change.
 Fix (app, not in a build yet): apps/mobile/components/PhotoViewer.tsx: the progress bar is now a seek bar (tap or drag; a 20 px tall touch area around the 3 px bar, a thumb shows while dragging and the time follows the finger), plus -10 s / +10 s buttons beside play (icons gobackward.10 / goforward.10 added to icon-symbol.tsx), and the bar is adjustable for VoiceOver (swipe up/down = +/-10 s). On iOS a sideways drag anywhere is the "go back" gesture, so the gallery screen's swipe-back is switched off while a video viewer with these controls is open and back on when it closes. Checked in the iOS simulator (dev build from this branch, test_5 in test-face-new-155c): tap mid-bar 0:00 -> 24:20, +10 s 24:20 -> 24:30, drag to the right 46:06 and played from there; the screen no longer slides away while dragging. Android not checked. Device test #138.
-
-#138
-Listed: 2026-10-25
-Platform: Both
-Priority: Medium
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: ROTATE_WORKER_SIZES=true on staging Railway, then device test #232, then the release and the live switch
-Found in: rotate test on VIS_6191 (2026-10-24)
-Issue: After a rotate, the photo's preview and thumbnail are smaller and lower quality than the photo worker makes: the rotate route (POST /api/v1/media/rotate, apps/backend/src/routes/media.ts) remakes the preview at 900 px wide and the thumbnail at 400 px wide (sharp resize by width only, WebP q75), while PhotoProcessorV2 makes 1600 px / 480 px on the long side (q70 / q68). So a rotated photo looks softer in the viewer (VIS_6191 in Rec 1 went from a 3000 px to a 900x1350 preview), and a rotated portrait gets a 400x600 thumbnail. The grid image is already right (1000 px long side, #121).
-Fix: make the rotate route's preview and thumbnail like the photo worker's (long side 1600 / 480, same qualities), behind a backend flag per change-safety; check overhead_size and the website/app viewer after a rotate.
-How to reproduce: Rotate a photo in the host page viewer, then open it: the viewer image is 900 px wide.
-Update 2026-11-18: fixed in afc92728 (on staging, switch off). makeRotatedCopies in apps/backend/src/services/rotateImage.ts: with ROTATE_WORKER_SIZES=true the rotate route makes a 1600 px preview (WebP q70) and a 480 px thumbnail (WebP q68) on the long side, like PhotoProcessorV2; off, the old 900/400 px wide at q75. Never enlarges. Tests in apps/backend/tests/rotateImage.test.ts (3000x4500 portrait: off 900x1350 / 400x600, on 1067x1600 / 320x480).
-Update 2026-11-18: ROTATE_WORKER_SIZES=true set on staging Railway by Shwetank. A photo rotated in the Rotate test gallery got a 1600x1067 preview and a 480x320 thumbnail (device test #232 steps 1-3 pass). Next: release (backend), then ROTATE_WORKER_SIZES=true on live Railway.
 
 #139
 Listed: 2026-10-25
@@ -1293,17 +1274,6 @@ Found in: Sarthak's chat (2026-11-15): "the photo viewer design issue"
 Issue: The app's photo viewer (apps/mobile/components/PhotoViewer.tsx, styles in apps/mobile/components/eventStyles/visitorImmersiveStyles.ts) has a design problem. Placeholder: Sarthak will look at the viewer and write down what is wrong here. Viewer problems already listed on their own: #239 (empty "Quality: Auto" gear in the video player), #240 (comment panel), #242 (Android keyboard covers the comment box), #251 (Sunlit Portrait action row too tall). Part of the app design pass (#271).
 How to reproduce: On staging, open a gallery in the app and tap a photo. Steps to be added by Sarthak.
 
-#274
-Listed: 2026-11-15
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Upload bar fix #273 (chat 2026-11-15)
-Issue: Two copies of the same file-size formatter in the app: formatBytes in apps/mobile/lib/vaultFiles.ts (EB Vault) and formatStorageSize in apps/mobile/lib/planLimits.ts. Same code, except an empty size reads "0 KB" in one and "0 MB" in the other, so they will drift. Fix idea: keep formatStorageSize and have vaultFiles.ts import it (change only with the Vault owner's OK; Vault is Shwetank's area).
-How to reproduce: Compare the two functions in the files above.
-
 #276
 Listed: 2026-11-16
 Platform: App
@@ -1351,43 +1321,121 @@ Issue: Deleting an event in the app runs the B2 file cleanup twice ("[deleteEven
 Fix idea: find why deleteEvent's cleanup runs twice (double tap, or the confirm handler/effect firing twice) and run it once; treat "already deleted" from /api/media/delete as success instead of trying other endpoints; delete the guest preview picture before the event row.
 How to reproduce: Android USB build on staging, host deletes an event that has photos in a sub-gallery and the Home gallery; watch the Metro log and the screen.
 
-#288
+#291
 Listed: 2026-11-18
 Platform: App
-Priority: Low
+Priority: Medium
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #230 step 2) on the next iOS build; move to RECENTLY FIXED once it passes
-Found in: Upload flow testing on the iPhone 16e simulator (chat 2026-11-17), cause found 2026-11-18
-Issue: On iPhone, the first time someone picks a video to upload, iOS asks "EveBash would like full access to your Photo Library" (Limit Access / Allow Full Access / Don't Allow), although the picker needs no Photos access. The expo-image-picker library causes it (version 55.0.20, ios/MediaHandler.swift handleVideo): for a video it looks the picked item up in the Photos library (PHAsset.fetchAssets) to copy it faster, and that lookup triggers the prompt. Don't Allow still uploads (it falls back to loadFileRepresentation), but the prompt is unexpected and asks for more than the app needs. No newer 55.x version changes this (checked 55.0.24). Fix: a patch-package patch that does the lookup only when the app already has Photos access.
-How to reproduce: iPhone (or simulator) where EveBash has not been asked for Photos access yet (Settings > EveBash > Photos, or xcrun simctl privacy <device> reset photos com.evebash.app), host gallery > Videos > Add Videos > pick a video: the full-access prompt appears before "Upload 1 video to ...?". Reproduced on the iPhone 16e simulator on 2026-11-18.
-Note 2026-11-18: fix in de35c7a6. New dev dependency patch-package (npm "postinstall" in apps/mobile/package.json) applies apps/mobile/patches/expo-image-picker+55.0.20.patch: handleVideo looks the video up in the Photos library only when the app already has Photos access (authorized or limited); otherwise it goes straight to loadFileRepresentation, which needs none. The patched picker compiles in a local Xcode build, but the full app failed to link on this Mac for an unrelated reason, so the missing prompt is not seen on screen yet. The patch changes native code and the app's runtime version: it reaches phones only with a new build (iOS and Android), and staging builds made before it get no over-the-air updates published after it. When expo-image-picker is upgraded, check whether the patch still applies (npm install fails loudly if not).
+Blocked by: -
+Found in: Device test #178 (2026-11-18, Pixel 8 and Shwetank's iPhone 11, staging gallery test-178-big-gallery-6ee0 with 300 test pictures)
+Issue: Picture memory still grows in the app's host photo grid while scrolling a big gallery, although #185's windowing works (only 20-44 tiles are mounted out of 300). Pixel 8, staging app, host view (adb dumpsys meminfo, TOTAL PSS): 420 MB at the top, 720 MB at the bottom (about 1 MB per picture seen), 685 MB back at the top, and still 675 MB after `adb shell am send-trim-memory com.evebash.app.staging RUNNING_CRITICAL` (Native Heap 261 MB, Graphics 153 MB), so a low-memory signal doesn't free it. iPhone 11, host view (Instruments, Activity Monitor): 51 MB rising to 416 MB over the first pass, then flat at about 440 MB once all 300 had been seen, also at rest. The Midnight Hero guest grid on the Pixel grew much less (360 -> 460 -> 416 MB). A 790-photo gallery could reach about 1 GB in the host view, which is risky on 3-4 GB phones. The decoded pictures (or something holding them) aren't released when tiles unmount. To check: which image size the host tiles load (thumbnail_url, preview_url or the original), expo-image cachePolicy and recyclingKey, and whether the image memory caches (Glide on Android, SDWebImage on iOS) are bounded. Files: apps/mobile/app/events/[id].tsx (host grid), apps/mobile/hooks/use-scroll-window.ts, apps/mobile/components/event/MasonryPhotoColumns.tsx.
+How to reproduce: Staging, a USB Android phone with the staging app signed in as a manager account (owner or platform admin). Open evebash-staging://events/test-178-big-gallery-6ee0?mode=admin (adb shell am start -a android.intent.action.VIEW -d <link>), open the Home gallery's photo grid and note `adb shell dumpsys meminfo com.evebash.app.staging` (TOTAL PSS). Scroll to #001 and back, note it again, then send `adb shell am send-trim-memory com.evebash.app.staging RUNNING_CRITICAL`. Count mounted tiles with `adb shell dumpsys activity top | grep -c expo.modules.image.ExpoImageViewWrapper`. Today: tiles stay at 20-44, memory climbs about 1 MB per picture and stays.
+Note 2026-11-18: step 1 on staging 08bb4814 (app only, apps/mobile/app/events/[id].tsx): tiles far from the screen now also leave out their dark shading, badges and buttons; they come back with the photo near the screen. Cause found on the Pixel 8 (adb dumpsys activity top, views by type at the bottom of the 300-picture gallery): every tile kept its shading layer (302 in all) and its button icons (about 1,557 icon texts), 5,806 views in all, although only 20-44 photos were mounted. Measured with EAS staging Android build 241accd8 on the Pixel 8, same steps as above, before -> after: views at the bottom 5,806 -> 2,143, shading layers 302 -> 26, icon texts about 1,557 -> 177; Native Heap top -> bottom 86 -> 266 MB before, 81 -> 208 MB now; TOTAL PSS 437 -> 690 MB before, 416 -> 589 MB now; back at the top after RUNNING_CRITICAL 675 -> 591 MB. Buttons, the dots menu, delete then Cancel, and drag reordering still work (device test #234). Still open: memory still grows about 170 MB over the 300 pictures. Each far tile still keeps its empty box (about 1,400 plain views at the bottom), and decoded pictures may add to it. Next: find which of the two the rest is.
 
-#291
+#293
 Listed: 2026-11-18
 Platform: App
 Priority: Medium
 Status: Open
 Owner: Unassigned
 Blocked by: -
-Found in: Device test #178 (2026-11-18, Pixel 8 and Shwetank's iPhone 11, staging gallery test-178-big-gallery-6ee0 with 300 test pictures)
-Issue: Picture memory still grows in the app's host photo grid while scrolling a big gallery, although #185's windowing works (only 20-44 tiles are mounted out of 300). Pixel 8, staging app, host view (adb dumpsys meminfo, TOTAL PSS): 420 MB at the top, 720 MB at the bottom (about 1 MB per picture seen), 685 MB back at the top, and still 675 MB after `adb shell am send-trim-memory com.evebash.app.staging RUNNING_CRITICAL` (Native Heap 261 MB, Graphics 153 MB), so a low-memory signal doesn't free it. iPhone 11, host view (Instruments, Activity Monitor): 51 MB rising to 416 MB over the first pass, then flat at about 440 MB once all 300 had been seen, also at rest. The Midnight Hero guest grid on the Pixel grew much less (360 -> 460 -> 416 MB). A 790-photo gallery could reach about 1 GB in the host view, which is risky on 3-4 GB phones. The decoded pictures (or something holding them) aren't released when tiles unmount. To check: which image size the host tiles load (thumbnail_url, preview_url or the original), expo-image cachePolicy and recyclingKey, and whether the image memory caches (Glide on Android, SDWebImage on iOS) are bounded. Files: apps/mobile/app/events/[id].tsx (host grid), apps/mobile/hooks/use-scroll-window.ts, apps/mobile/components/event/MasonryPhotoColumns.tsx.
-How to reproduce: Staging, a USB Android phone with the staging app signed in as a manager account (owner or platform admin). Open evebash-staging://events/test-178-big-gallery-6ee0?mode=admin (adb shell am start -a android.intent.action.VIEW -d <link>), open the Home gallery's photo grid and note `adb shell dumpsys meminfo com.evebash.app.staging` (TOTAL PSS). Scroll to #001 and back, note it again, then send `adb shell am send-trim-memory com.evebash.app.staging RUNNING_CRITICAL`. Count mounted tiles with `adb shell dumpsys activity top | grep -c expo.modules.image.ExpoImageViewWrapper`. Today: tiles stay at 20-44, memory climbs about 1 MB per picture and stays.
+Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simulator, staging app build 1.2.4)
+Issue: In the guest view of the app's "Cinematic Editions - Wed Album" wedding theme, every gallery welcome message ends with a "?" in a small box: a character or icon the app can't draw (seen on Home and on the Haldi and Wedding albums, with any text). The app also shows guests the Home gallery's default welcome text "Main Event: <event title>", which the website hides because it isn't a message for guests (src/app/(public)/events/[slug]/page.tsx:660, src/components/TemplatePeriwinkle.tsx:35): a website/app mismatch. Both make a new event look unfinished to guests. Fix idea: find what the theme's welcome card draws after the message in apps/mobile/app/events/[id].tsx and fix or remove it; hide "Main Event: <title>" in the app the same way as the website, with the check moved to shared/ so both use one copy.
+How to reproduce: Staging app, any wedding event with the Cinematic theme, guest view (e.g. Dashboard > Riya & Arjun's Wedding, account newone1): Enter Gallery. The welcome card ends with the boxed "?"; on a new event it reads "Main Event: <title>".
+
+#294
+Listed: 2026-11-18
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simulator, staging app build 1.2.4)
+Issue: In the app's Find You results ("Your Photos - N matches found in this event"), the photo grid isn't centred: its two columns sit on the left with an empty strip about a third of a column wide on the right (iPhone 17 Pro size, Cinematic wedding theme). Fix idea: check the matched-photos grid's width and gaps in apps/mobile/components/event/FindYouPanel.tsx (matchedPhotos.map, about line 454).
+How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc), Find You > Upload Photo > a picture of the groom (a crop of public/home/groom-solo.jpg): 5 matches, grid left of centre.
+
+#295
+Listed: 2026-11-19
+Platform: Both
+Priority: High
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: Release to live (staging -> main), then a Find You check on Ashish & Sejal
+Found in: #111 live test (2026-11-19, evebash.com, Chrome)
+Issue: Find You on a big event failed with "Something went wrong during matching" (api.evebash.com/api/find-you answered 400 "Search at most 25 galleries at a time."). The website sends the main gallery plus every collection's id and old id; Ashish & Sejal (ashish-sejal-wedding-c8bc) has 32 collections, so 33 ids, and the backend (with FIND_YOU_REQUIRE_ACCESS on) refused more than 25. Any event with more than about 24 collections could not use Find You. Not caused by the #111 switch (the request never reached Modal). Fix: apps/backend/src/routes/findYou.ts allows up to 100 different gallery ids (counted once each); every id is still access-checked with open_gallery.
+How to reproduce: evebash.com/events/ashish-sejal-wedding-c8bc/find-you, logged in, upload a selfie: 400 in the console.
+
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
+#274
+Listed: 2026-11-15
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload bar fix #273 (chat 2026-11-15)
+Issue: Two copies of the same file-size formatter in the app: formatBytes in apps/mobile/lib/vaultFiles.ts (EB Vault) and formatStorageSize in apps/mobile/lib/planLimits.ts. Same code, except an empty size reads "0 KB" in one and "0 MB" in the other, so they will drift. Fix idea: keep formatStorageSize and have vaultFiles.ts import it (change only with the Vault owner's OK; Vault is Shwetank's area).
+How to reproduce: Compare the two functions in the files above.
+Fixed in: 458b13b4 (2026-11-18). Sarthak's OK to touch the Vault file and to show "0 MB" for an empty size everywhere. formatBytes in apps/mobile/lib/vaultFiles.ts now calls formatStorageSize from apps/mobile/lib/planLimits.ts (it keeps its name, so the Vault screens are unchanged), so there is one formatter. Only visible change: an empty size in EB Vault reads "0 MB" instead of "0 KB", as the upload panel and Storage card already did. Checked: tsc clean, lint clean; EB Vault on the iPhone 16e simulator (dev build on Metro) shows the same sizes as before (939.39 MB of 10 GB used, Vault 1.46 MB, files 178.29 KB and 126.97 KB). No device test needed.
+
+#288
+Listed: 2026-11-18
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Upload flow testing on the iPhone 16e simulator (chat 2026-11-17), cause found 2026-11-18
+Issue: On iPhone, the first time someone picks a video to upload, iOS asks "EveBash would like full access to your Photo Library" (Limit Access / Allow Full Access / Don't Allow), although the picker needs no Photos access. The expo-image-picker library causes it (version 55.0.20, ios/MediaHandler.swift handleVideo): for a video it looks the picked item up in the Photos library (PHAsset.fetchAssets) to copy it faster, and that lookup triggers the prompt. Don't Allow still uploads (it falls back to loadFileRepresentation), but the prompt is unexpected and asks for more than the app needs. No newer 55.x version changes this (checked 55.0.24). Fix: a patch-package patch that does the lookup only when the app already has Photos access.
+How to reproduce: iPhone (or simulator) where EveBash has not been asked for Photos access yet (Settings > EveBash > Photos, or xcrun simctl privacy <device> reset photos com.evebash.app), host gallery > Videos > Add Videos > pick a video: the full-access prompt appears before "Upload 1 video to ...?". Reproduced on the iPhone 16e simulator on 2026-11-18.
+Note 2026-11-18: fix in de35c7a6. New dev dependency patch-package (npm "postinstall" in apps/mobile/package.json) applies apps/mobile/patches/expo-image-picker+55.0.20.patch: handleVideo looks the video up in the Photos library only when the app already has Photos access (authorized or limited); otherwise it goes straight to loadFileRepresentation, which needs none. The patched picker compiles in a local Xcode build, but the full app failed to link on this Mac for an unrelated reason, so the missing prompt is not seen on screen yet. The patch changes native code and the app's runtime version: it reaches phones only with a new build (iOS and Android), and staging builds made before it get no over-the-air updates published after it. When expo-image-picker is upgraded, check whether the patch still applies (npm install fails loudly if not).
+Fixed in: de35c7a6 (2026-11-18), checked 2026-11-18 on the iPhone 16e simulator with EAS simulator build 6a889fbb (new staging-simulator profile in apps/mobile/eas.json, 782a9ee8; same app code as staging 5c5e8b75), EveBash Staging installed fresh and its Photos access reset to never asked: host gallery > Videos > Add Videos, picked a 1-minute and then a 3-second test video: both went straight to "Upload 1 video to Staging test 1?" with no full Photos access question. The 3-second one then uploaded without Photos access (the loadFileRepresentation path), processed and played; it was deleted afterwards. Photos access was reset to never asked before the check (a grant made by mistake was undone first). Not run on a real iPhone yet (build 3dd46e77, Shwetank's iPhone 11). Device test #230 step 2.
+
+#61
+Listed: 2026-10-12
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Test #13 on the new staging app build, Pixel 8 (2026-10-12)
+Issue: Sign-up doesn't save a username. A new account (Google sign-up in the app) has no username: the app's Profile shows "not set". Neither the app (apps/mobile/context/AuthContext.tsx, the profiles insert) nor the website saves one when the profile is created. The website hides it: src/context/AuthContext.tsx shows normalizeUsername(name) when profile.username is empty (e.g. "sarthak_chauhan") but never stores it, so two people with the same name show the same username, and the app and website disagree for the same account. Users can only get one by setting it in Profile > Edit (checked with is_username_available). Fix: pick a free username at sign-up (from the name, with a suffix if taken, via is_username_available) and save it, the same on both platforms; decide whether to backfill existing accounts without one (not counted yet: the database read was blocked).
+How to reproduce: Create a new account with "Continue with Google" in the app, then open Profile: Username "not set". Open the same account's profile on the website: a username is shown, but profiles.username is empty.
+Update 2026-11-18: cause confirmed: every live profile without a username is a Google sign-up from the app (sarthak123elnino@gmail.com 2026-10-12 and the three Google Play pre-launch robots of 2026-11-17); the website already picks one in createUserProfile. Fix in c7423572: migration supabase/migrations/20261118120000_default_username.sql adds eb_private.default_username() and a BEFORE INSERT OR UPDATE trigger on profiles that picks a free username when none is sent (email name part, 3-12 chars a-z0-9._, number added if taken) and keeps a stored one when a save leaves it out; it also fills the profiles that have none. Works for app builds already in the stores, no app change. Dry run on staging in a rolled-back transaction (sample names all valid, taken name -> sarthak.cha2, existing username kept, no duplicates), then applied to staging with Shwetank's OK: 0 staging profiles without a username. Live: 4 to fill, after device test #233 and Shwetank's OK.
+Update 2026-11-18: device test #233 passed on staging (newone3/newone4, first login in the iPhone staging app -> usernames newone3/newone4). Live, with Shwetank's OK: dry run in a rolled-back transaction (4 valid names, 0 existing usernames changed, 0 duplicates), then applied: sarthak123elnino@gmail.com -> sarthak123el, deannadoyle.81713@gmail.com -> deannadoyle, domitilareardon.24017@gmail.com -> domitilarear, thelmapark.62393@gmail.com -> thelmapark.6. Live: 15 profiles, 0 without a username, 0 duplicates; www and api 200.
+Fixed in: c7423572 (2026-11-18), migration applied to staging and live the same day; closed 2026-11-18. Not covered by a device test: Android (staging app not on Shwetank's phone) and a brand-new live app sign-up.
 
 #292
 Listed: 2026-11-18
 Platform: Backend only
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: Fixed
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Running the backend tests for #138 (chat 2026-11-18)
 Issue: One backend test fails on staging code: tests/mobileMedia.test.ts "mobile media endpoints input validation without network socket" expects 400 from POST /mobile/reconcile-upload with a bad body, but gets 401, because #284 (f4c4dda9) made that route require a login first. The route is right; the test is out of date. 159 of 160 backend tests pass. Fix: send a login in that test (or expect 401 without one and test the 400 with a mocked user).
 How to reproduce: cd apps/backend && npm test (fails on HEAD with or without the #138 change).
+Fixed in: 41087515 (2026-11-18). The test now expects 401 for /mobile/reconcile-upload without a login, which also guards the #284 fix. Backend tests: 160 of 160 pass. Test only, nothing to release. Closed 2026-11-18.
 
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+#138
+Listed: 2026-10-25
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: rotate test on VIS_6191 (2026-10-24)
+Issue: After a rotate, the photo's preview and thumbnail are smaller and lower quality than the photo worker makes: the rotate route (POST /api/v1/media/rotate, apps/backend/src/routes/media.ts) remakes the preview at 900 px wide and the thumbnail at 400 px wide (sharp resize by width only, WebP q75), while PhotoProcessorV2 makes 1600 px / 480 px on the long side (q70 / q68). So a rotated photo looks softer in the viewer (VIS_6191 in Rec 1 went from a 3000 px to a 900x1350 preview), and a rotated portrait gets a 400x600 thumbnail. The grid image is already right (1000 px long side, #121).
+Fix: make the rotate route's preview and thumbnail like the photo worker's (long side 1600 / 480, same qualities), behind a backend flag per change-safety; check overhead_size and the website/app viewer after a rotate.
+How to reproduce: Rotate a photo in the host page viewer, then open it: the viewer image is 900 px wide.
+Update 2026-11-18: fixed in afc92728 (on staging, switch off). makeRotatedCopies in apps/backend/src/services/rotateImage.ts: with ROTATE_WORKER_SIZES=true the rotate route makes a 1600 px preview (WebP q70) and a 480 px thumbnail (WebP q68) on the long side, like PhotoProcessorV2; off, the old 900/400 px wide at q75. Never enlarges. Tests in apps/backend/tests/rotateImage.test.ts (3000x4500 portrait: off 900x1350 / 400x600, on 1067x1600 / 320x480).
+Update 2026-11-18: ROTATE_WORKER_SIZES=true set on staging Railway by Shwetank. A photo rotated in the Rotate test gallery got a 1600x1067 preview and a 480x320 thumbnail (device test #232 steps 1-3 pass). Next: release (backend), then ROTATE_WORKER_SIZES=true on live Railway.
+Update 2026-11-18: LIVE with the release (PR #17, b8f90417; live server restarted 16:43). Shwetank set ROTATE_WORKER_SIZES=true on live Railway; a photo rotated on www.evebash.com (test-wedding-6dc2) at 16:44 got a 1600x1067 preview and a 480x320 thumbnail.
+Fixed in: afc92728 (2026-11-18), live with PR #17 (b8f90417); closed 2026-11-18. The app step of device test #232 (step 5) is still to check.
 
 #185
 Listed: 2026-11-01

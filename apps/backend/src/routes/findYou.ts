@@ -7,7 +7,9 @@ import { getSupabaseAdminClient, getSupabaseUserClient } from "../supabase.js";
 export const findYouRouter = Router();
 
 const MAX_SELFIE_BYTES = 8 * 1024 * 1024;
-const MAX_FIND_YOU_EVENTS = 25;
+// A big wedding sends its main gallery plus every collection (each by id and old id), so 25 was too few: an event
+// with 32 collections answered 400 (issue #295). Each one is still access-checked.
+const MAX_FIND_YOU_EVENTS = 100;
 
 // Returns open_gallery's access for one gallery reference, as the signed-in user
 export type OpenGalleryAccess = (eventRef: string) => Promise<string | null>;
@@ -194,7 +196,7 @@ findYouRouter.post("/", async (request, response) => {
       }
     }
     if (requireAccess) {
-      if (eventIds.length > MAX_FIND_YOU_EVENTS) {
+      if (new Set(eventIds.map((id) => id.trim())).size > MAX_FIND_YOU_EVENTS) {
         response.status(400).json({ error: `Search at most ${MAX_FIND_YOU_EVENTS} galleries at a time.` });
         return;
       }
