@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 240
+Next test number: 241
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7075,3 +7075,28 @@ Account used: shwetank.sarthak@gmail.com
 Screenshot / recording:
 Fix ref:
 Feedback: All steps passed; the test sub-gallery was deleted again (Ashish & Sejal back to 32 collections).
+
+#240 App: welcome message without a "?" box, and Upgrade Plan prices from the server (#293, #244)
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone and Android, separately)
+Brief:     Guest welcome messages no longer end with a boxed "?" and guests don't see "Main Event: <title>".
+           The Upgrade Plan page shows the prices from the server (same as the website).
+Detail:    Commit ae445d4b; needs the next app build (EAS staging, then the store build). Checked 2026-11-19 on the
+           iPhone 18 Pro simulator with the staging dev build: no heart after the message; staging Premium set to
+           751 for a minute showed Rs 751.
+How to test:
+  1. iPhone, EveBash Staging app (new build), any wedding event as a guest (e.g. Riya & Arjun's Wedding,
+     newone1), Enter Gallery. Expect: the welcome message ends with its last word; no "?" box or heart.
+  2. A brand-new event with no welcome message written: as a guest, no "Main Event: <title>" text and no empty
+     welcome box.
+  3. Profile > Usage & Plan > Upgrade Plan: prices match staging.evebash.com/pricing for each tier and period.
+  4. Do steps 1-3 on Android.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
