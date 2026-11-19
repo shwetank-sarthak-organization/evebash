@@ -829,18 +829,6 @@ Issue: apps/backend/tests/albums.test.ts fails now and then when the whole suite
 How to reproduce: cd apps/backend && npm test several times; look for a failing album test.
 Fix idea: look for shared state or timing in albums.test.ts (environment variables set by one test and read by another, or real timers), and isolate it.
 
-#182
-Listed: 2026-10-29
-Platform: Both
-Priority: Low
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: Shwetank's OK to publish live Modal
-Found in: Porting the video pipeline to another project (chat 2026-10-29)
-Issue: Videos shorter than 1 second get a broken thumbnail. Both video workers take the poster frame at 1 s (modal_engine/main.py _transcode_video_core: ffmpeg -ss 00:00:01 -vframes 1; runpod_worker/handler.py make_poster: the same). For a shorter video ffmpeg writes nothing ("Conversion failed!", checked 2026-10-29 with that exact command on a 0.5 s clip), so no poster.jpg is uploaded. But thumbnail_url is still set to hls/<storage_key>/poster.jpg (main.py, the update after the uploads; apps/backend/src/routes/videoWorker.ts line 159 for RunPod), so the gallery shows a broken image. No such video exists yet (0 processed videos under 1 s on 2026-10-29). Fix idea: if the 1 s frame gives nothing, take the first frame (-ss 0); set thumbnail_url only when a poster was really uploaded. Behind a video-gpu-switch key (Modal) and the RunPod options, like poster_sdr.
-How to reproduce: make a 0.5 s clip (ffmpeg -i any.mp4 -t 0.5 -an short.mp4), upload it to a test gallery: once processed, its tile has a broken thumbnail and B2 has no hls/<storage_key>/poster.jpg.
-Update 2026-11-19 (Shwetank asked to fix it): modal_engine/main.py _transcode_video_core: if the 1 s frame gives no poster, the first frame is taken (-ss 0, with the poster_sdr filter when that is on); thumbnail_url is set only when a poster was really uploaded (poster_uploaded). No switch: the fallback only runs when the 1 s frame made nothing, so videos of 1 s and longer are unchanged. Checked in a throwaway Modal run with ffmpeg on generated clips: 0.5 s clip, 1 s command wrote nothing (the bug), first-frame fallback wrote a 13 KB poster; 3 s clip, 1 s frame as before. Published to staging Modal. Not changed: the RunPod worker (runpod_worker/handler.py make_poster, apps/backend/src/routes/videoWorker.ts) has the same 1 s rule, but RunPod is parked (all video on Modal); fix it there before RunPod is turned on.
-
 #205
 Listed: 2026-11-02
 Platform: App
@@ -1274,6 +1262,19 @@ How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#182
+Listed: 2026-10-29
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Porting the video pipeline to another project (chat 2026-10-29)
+Issue: Videos shorter than 1 second get a broken thumbnail. Both video workers take the poster frame at 1 s (modal_engine/main.py _transcode_video_core: ffmpeg -ss 00:00:01 -vframes 1; runpod_worker/handler.py make_poster: the same). For a shorter video ffmpeg writes nothing ("Conversion failed!", checked 2026-10-29 with that exact command on a 0.5 s clip), so no poster.jpg is uploaded. But thumbnail_url is still set to hls/<storage_key>/poster.jpg (main.py, the update after the uploads; apps/backend/src/routes/videoWorker.ts line 159 for RunPod), so the gallery shows a broken image. No such video exists yet (0 processed videos under 1 s on 2026-10-29). Fix idea: if the 1 s frame gives nothing, take the first frame (-ss 0); set thumbnail_url only when a poster was really uploaded. Behind a video-gpu-switch key (Modal) and the RunPod options, like poster_sdr.
+How to reproduce: make a 0.5 s clip (ffmpeg -i any.mp4 -t 0.5 -an short.mp4), upload it to a test gallery: once processed, its tile has a broken thumbnail and B2 has no hls/<storage_key>/poster.jpg.
+Update 2026-11-19 (Shwetank asked to fix it): modal_engine/main.py _transcode_video_core: if the 1 s frame gives no poster, the first frame is taken (-ss 0, with the poster_sdr filter when that is on); thumbnail_url is set only when a poster was really uploaded (poster_uploaded). No switch: the fallback only runs when the 1 s frame made nothing, so videos of 1 s and longer are unchanged. Checked in a throwaway Modal run with ffmpeg on generated clips: 0.5 s clip, 1 s command wrote nothing (the bug), first-frame fallback wrote a 13 KB poster; 3 s clip, 1 s frame as before. Published to staging Modal. Not changed: the RunPod worker (runpod_worker/handler.py make_poster, apps/backend/src/routes/videoWorker.ts) has the same 1 s rule, but RunPod is parked (all video on Modal); fix it there before RunPod is turned on.
+Fixed in: 8e04b232 (2026-11-19). Live Modal v138 published with Shwetank's OK (rollback: v137). No live video is shorter than 1 s, so nothing to re-process. No device test needed.
 
 #183
 Listed: 2026-10-29
