@@ -1326,20 +1326,21 @@ Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simula
 Issue: In the app's Find You results ("Your Photos - N matches found in this event"), the photo grid isn't centred: its two columns sit on the left with an empty strip about a third of a column wide on the right (iPhone 17 Pro size, Cinematic wedding theme). Fix idea: check the matched-photos grid's width and gaps in apps/mobile/components/event/FindYouPanel.tsx (matchedPhotos.map, about line 454).
 How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc), Find You > Upload Photo > a picture of the groom (a crop of public/home/groom-solo.jpg): 5 matches, grid left of centre.
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #298
 Listed: 2026-11-19
 Platform: Website
 Priority: High
-Status: In progress
+Status: Fixed
 Owner: Shwetank (with Claude)
-Blocked by: Release to live (staging -> main), then device test #238
+Blocked by: -
 Found in: Shwetank, evebash.com on laptop and phones after the #297 fix (2026-11-19)
 Issue: After "Continue with Google" the website always opened the Profile page (redirectTo was fixed to /profile in src/context/AuthContext.tsx), while email login opens the page the visitor came from or the Dashboard. A guest sent to log in from a gallery's Find You page landed on Profile and had to find the gallery again. Also, the login page's returnTo was used as given, so a crafted link like /login?returnTo=//other.site could send people off EveBash after an email login. Fix: loginWithGoogle(returnPath) goes back to returnTo, else /dashboard; the login page only accepts returnTo that is a path on this site (starts with one "/"). Checked which return addresses Supabase accepts (from the auth.flow_state rows a sign-in start creates, read-only, nobody logged in): live allows any path on https://www.evebash.com (where evebash.com sends everyone) and only /profile on https://evebash.com; staging allows staging.evebash.com and localhost:3000. Local test against staging: login from /events/staging-test-1-fc5b/find-you -> return address that Find You page; plain /login -> /dashboard; returnTo=//example.org/x -> /dashboard.
 How to reproduce: evebash.com, log out, open a private gallery's Find You page, tap the login link, Continue with Google: lands on Profile.
-
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+Fixed in: 19d243d7 (2026-11-19). Released to live the same day; live start of a Google login from the Ashish & Sejal Find You page recorded that page as the return address. Device test #238 PASS (Shwetank: staging, laptop, iPhone Safari, Android Chrome).
 
 #297
 Listed: 2026-11-19

@@ -7028,14 +7028,13 @@ Fix ref:
 Feedback: All steps passed.
 
 #238 Website: after Google login you go back to where you were (#298)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website (laptop, iPhone Safari, Android Chrome)
 Brief:     "Continue with Google" now brings you back to the page you came from (for example a gallery's Find You
            page), or to the Dashboard. Before, it always opened the Profile page.
 Detail:    Fix in src/context/AuthContext.tsx and src/app/(main)/login/page.tsx (issue #298).
            2026-11-19 Shwetank on staging.evebash.com: works (back to the Find You page; plain login -> Dashboard).
-           Live still to test after the release.
 How to test:
   1. Laptop: log out (Profile > Log out). Open evebash.com/events/ashish-sejal-wedding-c8bc/find-you.
      Tap the login link on that page, then Continue with Google, pick shwetank.sarthak@gmail.com.
@@ -7043,11 +7042,11 @@ How to test:
   2. Log out again. Open evebash.com/login directly, Continue with Google.
      Expect: the Dashboard opens.
   3. Do steps 1-2 on the iPhone (Safari) and on Android (Chrome).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank
+Device / browser: laptop Chrome, iPhone Safari, Android Chrome
+Build / version: evebash.com live, 2026-11-19 (19d243d7)
+Date tested: 2026-11-19
+Account used: shwetank.sarthak@gmail.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: All steps passed.

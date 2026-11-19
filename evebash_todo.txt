@@ -484,19 +484,25 @@ Listed:       2026-11-02
 Platform:     Website
 Priority:     Low
 Phase:        1 (v1 launch)
-Status:       Idea
+Status:       In progress
 Effort:       S (a few hours)
 Suggested by: Sarthak (homepage redesign, 2026-11-02)
 Discussed:    Yes
 Decision:     2026-11-02 Sarthak asked for both as placeholders for now ("we'll integrate later").
-Owner:        Unassigned
-Depends on:   The account URLs and where "Book a demo" should go (Sarthak)
+Owner:        Shwetank (with Claude)
+Depends on:   The four account URLs (accounts not made yet, 2026-11-19)
 Brief:        The homepage "Made for everyone at the event" tabs have a "Book a demo" button that does nothing
               yet (src/components/home/Audiences.tsx, title "Coming soon"). The footer shows Instagram,
               YouTube, Facebook and LinkedIn icons that aren't links yet (src/components/Footer.tsx, the
               socials list: add each href and it becomes a link that opens in a new tab). Decide the demo
               destination (booking page, form, WhatsApp or calendar link) and send the four account URLs.
 Done in:      -
+Update:       2026-11-19 (Shwetank): first part built, commit on staging. "Book a demo" now opens the Contact Us page
+              (/contact-us, src/components/home/Audiences.tsx); it can become WhatsApp or a booking calendar later.
+              The footer social icons are hidden until each account's URL is added to the socials list in
+              src/components/Footer.tsx (the whole row is hidden while none has a URL). Checked locally: the button
+              opens "Get in Touch", the footer shows no icons. Left: add the four URLs when the accounts exist.
+
 
 #23 WhatsApp integration
 Listed:       2026-11-03
