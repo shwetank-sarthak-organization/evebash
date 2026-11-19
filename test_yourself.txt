@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 238
+Next test number: 239
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7026,3 +7026,26 @@ Account used: shwetank.sarthak@gmail.com
 Screenshot / recording:
 Fix ref:
 Feedback: All steps passed.
+
+#238 Website: after Google login you go back to where you were (#298)
+Status:    TODO
+Priority:  High
+Platform:  Website (laptop, iPhone Safari, Android Chrome)
+Brief:     "Continue with Google" now brings you back to the page you came from (for example a gallery's Find You
+           page), or to the Dashboard. Before, it always opened the Profile page.
+Detail:    Fix in src/context/AuthContext.tsx and src/app/(main)/login/page.tsx (issue #298).
+How to test:
+  1. Laptop: log out (Profile > Log out). Open evebash.com/events/ashish-sejal-wedding-c8bc/find-you.
+     Tap the login link on that page, then Continue with Google, pick shwetank.sarthak@gmail.com.
+     Expect: back on the Ashish & Sejal Find You page, logged in (not the Profile page).
+  2. Log out again. Open evebash.com/login directly, Continue with Google.
+     Expect: the Dashboard opens.
+  3. Do steps 1-2 on the iPhone (Safari) and on Android (Chrome).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

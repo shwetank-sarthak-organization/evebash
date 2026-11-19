@@ -34,7 +34,11 @@ function LoginContent() {
 
     const { login, signup, authWithPhone, loginWithGoogle, user, loading } = useAuth();
     const router = useRouter();
-    const returnTo = searchParams.get("returnTo");
+    // Only a page on this site: "//other.site" or a full address would send people off EveBash
+    const requestedReturn = searchParams.get("returnTo");
+    const returnTo = requestedReturn && requestedReturn.startsWith("/") && !requestedReturn.startsWith("//") && !requestedReturn.startsWith("/\\")
+        ? requestedReturn
+        : null;
     const isPhoneAuth = authMethod === "phone";
     const normalizedEmail = email.trim().toLowerCase();
     const isGmailSignup = isSignUp && !isPhoneAuth && normalizedEmail.endsWith("@gmail.com");
@@ -180,9 +184,9 @@ function LoginContent() {
         setStatus("loading");
         setError("");
         try {
-            const success = await loginWithGoogle();
+            const success = await loginWithGoogle(returnTo || "/dashboard");
             if (success) {
-                // The browser is already on its way to Google, and Google brings it back (to /profile). Moving the
+                // The browser is already on its way to Google, and Google brings it back (to returnTo or the Dashboard). Moving the
                 // page here too cancelled that trip on iPhones (Safari and Chrome, both WebKit): the page reloaded
                 // and nothing happened (issue #297). Keep the button busy while the page leaves.
                 return;
