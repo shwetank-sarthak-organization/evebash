@@ -47,7 +47,7 @@ interface AuthContextType {
     user: AppUser | null;
     login: (email: string, password: string) => Promise<{success: boolean, error?: string}>;
     signup: (email: string, password: string, name: string) => Promise<{success: boolean, error?: string, needsEmailVerification?: boolean}>;
-    loginWithGoogle: () => Promise<boolean>;
+    loginWithGoogle: (returnPath?: string) => Promise<boolean>;
     resetPassword: (email: string) => Promise<boolean>;
     authWithPhone: (name: string, phone: string, password: string) => Promise<{success: boolean, error?: string}>;
     authWithEmail: (name: string, email: string, password: string) => Promise<{success: boolean, error?: string}>;
@@ -435,12 +435,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const loginWithGoogle = async () => {
+    // returnPath: a page on this site to come back to after Google (issue #298); Supabase allows any path on
+    // www.evebash.com and staging.evebash.com. Anything else, or nothing, goes to the Dashboard.
+    const loginWithGoogle = async (returnPath?: string) => {
+        const path = returnPath && returnPath.startsWith("/") && !returnPath.startsWith("//") && !returnPath.startsWith("/\\")
+            ? returnPath
+            : "/dashboard";
         try {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: "google",
                 options: {
-                    redirectTo: `${window.location.origin}/profile`,
+                    redirectTo: `${window.location.origin}${path}`,
                 },
             });
             if (error) throw error;
