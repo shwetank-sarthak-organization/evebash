@@ -7077,7 +7077,7 @@ Fix ref:
 Feedback: All steps passed; the test sub-gallery was deleted again (Ashish & Sejal back to 32 collections).
 
 #240 App: welcome message without a "?" box, and Upgrade Plan prices from the server (#293, #244)
-Status:    TODO
+Status:    TODO (iPhone PASS 2026-11-19; Android waiting for its staging build)
 Priority:  Medium
 Platform:  App (iPhone and Android, separately)
 Brief:     Guest welcome messages no longer end with a boxed "?" and guests don't see "Main Event: <title>".
@@ -7085,6 +7085,7 @@ Brief:     Guest welcome messages no longer end with a boxed "?" and guests don'
 Detail:    Commit ae445d4b; needs the next app build (EAS staging, then the store build). Checked 2026-11-19 on the
            iPhone 18 Pro simulator with the staging dev build: no heart after the message; staging Premium set to
            751 for a minute showed Rs 751.
+           2026-11-19 iPhone PASS (Shwetank): EAS staging build 20dd0d20 (git 603402e5, built from a clean copy), steps 1 and 3.
 How to test:
   1. iPhone, EveBash Staging app (new build), any wedding event as a guest (e.g. Riya & Arjun's Wedding,
      newone1), Enter Gallery. Expect: the welcome message ends with its last word; no "?" box or heart.
