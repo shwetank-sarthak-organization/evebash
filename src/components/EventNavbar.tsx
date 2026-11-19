@@ -344,7 +344,8 @@ export function EventNavbar({
                                             transition={{ duration: 0.16 }}
                                             onClick={(event) => event.stopPropagation()}
                                             className={cn(
-                                                "absolute right-0 top-full mt-3 w-64 overflow-hidden rounded-2xl border p-2 shadow-xl backdrop-blur-md",
+                                                // Scrolls on its own when a big event has more collections than fit on the screen (issue #296)
+                                                "absolute right-0 top-full mt-3 w-64 max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain rounded-2xl border p-2 shadow-xl backdrop-blur-md",
                                                 hasTemplateChrome ? "" : "border-stone-200 bg-white/95"
                                             )}
                                             style={hasTemplateChrome ? {
@@ -481,7 +482,7 @@ export function EventNavbar({
                         exit={{ opacity: 0, x: "100%" }}
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         className={cn(
-                            "fixed inset-0 z-40 backdrop-blur-xl md:hidden flex flex-col pt-24 px-8",
+                            "fixed inset-0 z-40 backdrop-blur-xl md:hidden flex flex-col pt-24 pb-12 px-8 overflow-y-auto overscroll-contain",
                             hasTemplateChrome ? "" : "bg-white/95",
                             isClassic && "classic-nav__menu",
                             // Sunlit Portrait: the menu's titles and items in the cover's serif (sunlit-portrait.css)

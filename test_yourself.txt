@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 236
+Next test number: 237
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6965,6 +6965,30 @@ How to test:
   2. Scroll through the results. Expect: every photo shows that person.
   3. Do steps 1-2 again on Android.
   4. On a small event (a few collections), Find You with your own selfie. Expect: your photos, no error.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#236 Website: the Collections menu scrolls on a big event (#296)
+Status:    TODO
+Priority:  High
+Platform:  Website (laptop, iPhone Safari, Android Chrome)
+Brief:     On an event with many collections, the Collections list now scrolls on its own, so every collection
+           can be reached. Before, the lower ones went off the screen and scrolling moved the page instead.
+Detail:    Fix in src/components/EventNavbar.tsx (issue #296). Website only; the app is not changed.
+How to test:
+  1. Laptop: open evebash.com/events/ashish-sejal-wedding-c8bc (32 collections), press Cmd+Shift+R once.
+     Click Collections. Expect: the list ends above the bottom of the screen, with a scrollbar.
+  2. With the mouse over the list, scroll down. Expect: the list scrolls down to the last collection; the page
+     behind does not move. Click the last collection. Expect: it opens.
+  3. iPhone (Safari): open the same link, tap the menu button (three lines, top right). Swipe up on the menu.
+     Expect: the menu scrolls to the last collection and Find You below it; tapping one opens it.
+  4. Android (Chrome): do step 3 again.
 Done by:
 Device / browser:
 Build / version:

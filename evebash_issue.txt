@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 296
+Next issue number: 297
 
 =====================================================================
 ACTIVE ISSUES
@@ -1325,6 +1325,17 @@ Blocked by: -
 Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simulator, staging app build 1.2.4)
 Issue: In the app's Find You results ("Your Photos - N matches found in this event"), the photo grid isn't centred: its two columns sit on the left with an empty strip about a third of a column wide on the right (iPhone 17 Pro size, Cinematic wedding theme). Fix idea: check the matched-photos grid's width and gaps in apps/mobile/components/event/FindYouPanel.tsx (matchedPhotos.map, about line 454).
 How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc), Find You > Upload Photo > a picture of the groom (a crop of public/home/groom-solo.jpg): 5 matches, grid left of centre.
+
+#296
+Listed: 2026-11-19
+Platform: Website
+Priority: High
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: Release to live (staging -> main), then device test #236
+Found in: Shwetank, Ashish & Sejal (32 collections) on evebash.com, laptop and phone (2026-11-19)
+Issue: On an event page, the Collections menu showed only the collections that fit on the screen; the rest went below the bottom edge, and scrolling moved the page behind instead of the list, so the lower collections (Candid 19 and later on Ashish & Sejal) could not be reached from the menu. The phone menu (the menu button on small screens) was a fixed full-screen panel without its own scroll, so the same happened there. Fix: src/components/EventNavbar.tsx: the desktop Collections list is at most the screen height minus the top bar and scrolls on its own (overscroll-contain, so the page behind doesn't move); the phone menu scrolls on its own too. Checked in the browser on staging data (Staging test 1, 5 collections, short window): desktop list scrolled to its last item with the page still at the top; phone menu (375 px wide) scrolled to its end, page unmoved.
+How to reproduce: evebash.com/events/ashish-sejal-wedding-c8bc, click Collections, try to reach the last collection.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
