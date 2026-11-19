@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { AnimatePresence, m } from "framer-motion";
 import { Camera, CalendarCheck, Check, Users } from "lucide-react";
 import { displayFont, homeEase, PrimaryButton, Reveal, SectionHeader } from "./HomeUI";
@@ -128,14 +129,13 @@ export default function Audiences() {
                         </ul>
                         <div className="mt-8 flex flex-wrap gap-3">
                             <PrimaryButton href={audience.cta.href}>{audience.cta.label}</PrimaryButton>
-                            {/* Not wired up yet */}
-                            <button
-                                type="button"
-                                title="Coming soon"
+                            {/* The Contact Us form for now (todo #21); can become WhatsApp or a booking calendar later */}
+                            <Link
+                                href="/contact-us"
                                 className="home-btn-glass inline-flex items-center justify-center whitespace-nowrap rounded-full px-6 py-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--home-accent)]"
                             >
                                 Book a demo
-                            </button>
+                            </Link>
                         </div>
                     </div>
                 </div>

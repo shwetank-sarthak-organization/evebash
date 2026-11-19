@@ -7,13 +7,15 @@ import { playfair } from "@/app/fonts";
 import { EveBashLogo } from "@/components/EveBashLogo";
 import { cn } from "@/lib/utils";
 
-// Add each account's URL when it's ready; until then the icon shows but isn't a link.
+// Add each account's URL when it's ready; until then its icon is hidden (todo #21: icons that did nothing looked
+// unfinished). With no URLs at all the row isn't shown.
 const socials: { label: string; icon: typeof Instagram; href?: string }[] = [
     { label: "Instagram", icon: Instagram },
     { label: "YouTube", icon: Youtube },
     { label: "Facebook", icon: Facebook },
     { label: "LinkedIn", icon: Linkedin },
 ];
+const liveSocials = socials.filter((social): social is typeof social & { href: string } => Boolean(social.href));
 
 const columns = [
     {
@@ -92,20 +94,15 @@ export default function Footer() {
                         <p className={cn(playfair.className, "mt-4 max-w-xs text-base leading-snug text-[var(--site-text)]")}>
                             One gallery for every moment of every event.
                         </p>
-                        <div className="mt-5 flex gap-2.5">
-                            {socials.map(({ label, icon: Icon, href }) => {
-                                const className = "flex h-9 w-9 items-center justify-center rounded-full border border-[var(--site-brand-mark)]/30 text-[var(--site-brand-text)] transition-colors";
-                                return href ? (
-                                    <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={`EveBash on ${label}`} className={cn(className, "hover:border-[var(--site-brand-text)] hover:bg-[var(--site-brand-mark)]/10")}>
+                        {liveSocials.length > 0 && (
+                            <div className="mt-5 flex gap-2.5">
+                                {liveSocials.map(({ label, icon: Icon, href }) => (
+                                    <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={`EveBash on ${label}`} className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--site-brand-mark)]/30 text-[var(--site-brand-text)] transition-colors hover:border-[var(--site-brand-text)] hover:bg-[var(--site-brand-mark)]/10">
                                         <Icon className="h-4 w-4" aria-hidden />
                                     </a>
-                                ) : (
-                                    <span key={label} title={`${label} coming soon`} aria-label={`${label}, coming soon`} role="img" className={className}>
-                                        <Icon className="h-4 w-4" aria-hidden />
-                                    </span>
-                                );
-                            })}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {columns.map(({ title, links }) => (
