@@ -1318,13 +1318,13 @@ Platform: Website
 Priority: Low
 Status: In progress
 Owner: Shwetank (with Claude)
-Blocked by: Android check on staging, then the release
+Blocked by: Release to live (staging -> main)
 Found in: light theme check of the host page (chat 2026-11-04)
 Issue: On a phone-width screen, the host event page (Host -> an event) scrolls sideways by about 180 px. The "Home (Primary Gallery) and sub-galleries" info popover (src/components/GalleryTypesInfo.tsx) is only hidden (invisible + opacity 0), so its 22rem-wide box still sticks out past the right edge (page 554 px wide at 375 px). Same in the dark and light look. Fix idea: keep the popover inside the screen (right-0 on small screens, or max-w from the button's position), or take it out of the layout while closed (display none).
 How to reproduce: Open Host -> any event on a 375 px wide screen (or a phone) and swipe sideways: the page moves right; empty space appears on the right.
 Update 2026-11-19 (Shwetank asked to fix it): src/components/GalleryTypesInfo.tsx: the closed box is out of the layout (display none) instead of only invisible, and when it opens on a narrow screen it moves left so it stays 16 px inside the screen. Waiting for the check on staging (device test #239).
 Fixed in: 9c176401 (2026-11-19). Released to live the same day. The sideways scroll is gone, but Shwetank found on Android Chrome (iQOO) that the opened "i" box still ran off the right edge: the measure-and-shift fix doesn't work there, because Android Chrome widens the page to fit what sticks out, so the box seemed to fit.
-Update 2026-11-19: second fix in src/components/GalleryTypesInfo.tsx: on screens under 640 px the opened box is drawn at the top of the page (portal into <body>, which holds the site colours) and pinned 16 px from each side just under the button; scrolling or resizing closes it; larger screens unchanged. Waiting for the Android check on staging, then the release.
+Update 2026-11-19: second fix in src/components/GalleryTypesInfo.tsx: on screens under 640 px the opened box is drawn at the top of the page (portal into <body>, which holds the site colours) and pinned 16 px from each side just under the button; scrolling or resizing closes it; larger screens unchanged. Checked 2026-11-19 on Shwetank's Android (iQOO, Chrome) with the local build over USB (staging data; staging itself shows phones the get-the-app screen): the box opens fully inside the screen, 16 px from each side, text in the site's sans font. Waiting for the release, then a look on evebash.com.
 
 #278
 Listed: 2026-11-16
