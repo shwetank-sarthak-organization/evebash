@@ -7052,7 +7052,7 @@ Fix ref:
 Feedback: All steps passed.
 
 #239 Website: host page on phones, sub-gallery message, footer links (#252, #174, #73)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website (laptop, iPhone Safari, Android Chrome)
 Brief:     Three small website fixes: the host's event page no longer slides sideways on phones, creating a
@@ -7067,11 +7067,11 @@ How to test:
      sub-gallery has been created! ✨". Delete that test sub-gallery afterwards if you don't need it.
   4. Any page, scroll to the bottom: Product has "Create an event", Legal has "Delete account"; both open
      their pages. On a phone the copyright line is on the left like the rest.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank
+Device / browser: iPhone Safari, Android Chrome, laptop
+Build / version: evebash.com live, 2026-11-19 (9c176401)
+Date tested: 2026-11-19
+Account used: shwetank.sarthak@gmail.com
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: All steps passed; the test sub-gallery was deleted again (Ashish & Sejal back to 32 collections).

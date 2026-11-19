@@ -186,19 +186,6 @@ Found in: Removing the public/private profile switch (2026-10-13)
 Issue: The public/private profile switch was removed from the website profile and the app Settings (2026-10-13), but profiles.is_private is still read by the public profile view (src/app/(main)/profile/[id]/page.tsx, apps/mobile/app/profile/[id].tsx). Anyone who turned it on before stays "This profile is private." with no way to turn it off. Today that view is only linked from Phase 2 business pages, so nobody sees it at launch. How many profiles have is_private = true wasn't checked (database read blocked). Fix before Phase 2: stop reading is_private in the public view, or set it back to false for everyone.
 How to reproduce: With an account that had Private on before the switch was removed, open its /profile/<id> page: "This profile is private." and no switch on the profile or in Settings.
 
-#73
-Listed: 2026-10-13
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Footer review vs Samaro (2026-10-13)
-Issue: The website footer (src/components/Footer.tsx) leaves out key pages and wastes space on phones. (1) No link to Find You or Host / create an event, the product's main features. (2) No page on the site links to /delete-account (only the privacy policy text names it). (3) The YouTube channel listed in the site's structured data (src/app/(main)/layout.tsx, sameAs @EveBashApp) has no footer link. (4) On a 375 px phone the footer is 1110 px tall (taller than the screen) for 12 links, because every column stacks one under another. Samaro fits 36 links in 1257 px with two columns. (5) On phones the copyright line is centred while everything above it is left-aligned. (6) The right side of the bottom bar only says "Designed with ♥".
-How to reproduce: Open www.evebash.com on a phone (or 375 px wide) and scroll to the bottom. Look for Find You, Host, Delete account and YouTube links: none.
-Note 2026-10-23: the phone-layout part matters less once the phone/tablet download screen is on for www.evebash.com (#109): phones only see contact-us and the policy pages then. The missing links still matter on computers.
-Update 2026-11-19 (Shwetank asked to fix it): src/components/Footer.tsx: added "Create an event" (/host) under Product and "Delete account" (/delete-account) under Legal; the copyright line is left-aligned on phones. Already done earlier: Find You link, two columns on phones, "Made in India". The YouTube sameAs in src/app/(main)/layout.tsx is removed: @EveBashApp is a 404 (the accounts don't exist yet, todo #21). Checked locally at 375 px: footer 1042 px tall, 14 links, page 375 px wide. Waiting for the check on staging (device test #239).
-
 #78
 Listed: 2026-10-21
 Platform: Website
@@ -830,18 +817,6 @@ Found in: Sunlit Portrait issue review (#163, 2026-10-28)
 Issue: The app carries code for a "show welcome card" switch that doesn't exist. The events table has no show_welcome_card column, yet apps/mobile/lib/database.ts maps it (showWelcomeCard in mapSqlToEvent and in the update field map), apps/mobile/app/events/[id].tsx checks (event as any).showWelcomeCard !== false before every theme's gallery message (always true, the value is always missing), and apps/mobile/app/(tabs)/gallery.tsx has a showWelcomeCard state that is never set or saved. Nothing breaks today, but it reads like a working switch (it misled #163), and passing showWelcomeCard to updateEvent would fail on the missing column. Fix: delete the mapping, the checks and the unused state; keep "clear the welcome text" as the way to hide the message (or add the column and a real switch if hosts ask for one).
 How to reproduce: select show_welcome_card from events fails with "column does not exist"; search apps/mobile for showWelcomeCard.
 
-#174
-Listed: 2026-10-28
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Claude device-test run on staging (2026-10-28)
-Issue: Creating a sub-gallery from Host -> event -> Galleries -> Create Sub-Gallery shows the toast "Your event has been created! ✨". It should say the sub-gallery (gallery) was created, since no event was made.
-How to reproduce: Host -> any event -> Galleries -> Create Sub-Gallery, type a name, Create Sub-Gallery. Read the toast.
-Update 2026-11-19 (Shwetank asked to fix it): src/app/(main)/host/page.tsx: after creating a sub-gallery the message and the Success box say "Your sub-gallery has been created! ✨"; a main event still gets "Your event has been created! ✨". Waiting for the check on staging (device test #239).
-
 #179
 Listed: 2026-10-28
 Platform: Backend only
@@ -1106,18 +1081,6 @@ Found in: App screen review, item 20 (chat 2026-11-01); left out of that batch b
 Issue: In the Sunlit Portrait photo viewer, the area under the photo (Like / Comment / Share / Download, apps/mobile/components/PhotoViewer.tsx viewerActions with viewerActionsDocked in apps/mobile/components/eventStyles/visitorImmersiveStyles.ts) was about 185 pt tall and half empty on the iPhone 17 Pro, so the photo gets less room than it could. Seen before 40a55ee (#237) changed how that row hides behind the comment panel, so check it again first. Fix idea: size that area to the buttons, or let the photo use the space.
 How to reproduce: Open a Sunlit Portrait gallery as a guest on an iPhone and open a photo. Look at the empty space around the Like / Comment / Share / Download row.
 
-#252
-Listed: 2026-11-04
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: light theme check of the host page (chat 2026-11-04)
-Issue: On a phone-width screen, the host event page (Host -> an event) scrolls sideways by about 180 px. The "Home (Primary Gallery) and sub-galleries" info popover (src/components/GalleryTypesInfo.tsx) is only hidden (invisible + opacity 0), so its 22rem-wide box still sticks out past the right edge (page 554 px wide at 375 px). Same in the dark and light look. Fix idea: keep the popover inside the screen (right-0 on small screens, or max-w from the button's position), or take it out of the layout while closed (display none).
-How to reproduce: Open Host -> any event on a 375 px wide screen (or a phone) and swipe sideways: the page moves right; empty space appears on the right.
-Update 2026-11-19 (Shwetank asked to fix it): src/components/GalleryTypesInfo.tsx: the closed box is out of the layout (display none) instead of only invisible, and when it opens on a narrow screen it moves left so it stays 16 px inside the screen. Waiting for the check on staging (device test #239).
-
 #253
 Listed: 2026-11-06
 Platform: App
@@ -1321,6 +1284,47 @@ How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#73
+Listed: 2026-10-13
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Footer review vs Samaro (2026-10-13)
+Issue: The website footer (src/components/Footer.tsx) leaves out key pages and wastes space on phones. (1) No link to Find You or Host / create an event, the product's main features. (2) No page on the site links to /delete-account (only the privacy policy text names it). (3) The YouTube channel listed in the site's structured data (src/app/(main)/layout.tsx, sameAs @EveBashApp) has no footer link. (4) On a 375 px phone the footer is 1110 px tall (taller than the screen) for 12 links, because every column stacks one under another. Samaro fits 36 links in 1257 px with two columns. (5) On phones the copyright line is centred while everything above it is left-aligned. (6) The right side of the bottom bar only says "Designed with ♥".
+How to reproduce: Open www.evebash.com on a phone (or 375 px wide) and scroll to the bottom. Look for Find You, Host, Delete account and YouTube links: none.
+Note 2026-10-23: the phone-layout part matters less once the phone/tablet download screen is on for www.evebash.com (#109): phones only see contact-us and the policy pages then. The missing links still matter on computers.
+Update 2026-11-19 (Shwetank asked to fix it): src/components/Footer.tsx: added "Create an event" (/host) under Product and "Delete account" (/delete-account) under Legal; the copyright line is left-aligned on phones. Already done earlier: Find You link, two columns on phones, "Made in India". The YouTube sameAs in src/app/(main)/layout.tsx is removed: @EveBashApp is a 404 (the accounts don't exist yet, todo #21). Checked locally at 375 px: footer 1042 px tall, 14 links, page 375 px wide. Waiting for the check on staging (device test #239).
+Fixed in: 9c176401 (2026-11-19). Released to live the same day. Device test #239 PASS (Shwetank: iPhone Safari, Android Chrome, laptop; shwetank.sarthak@gmail.com).
+
+#174
+Listed: 2026-10-28
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Claude device-test run on staging (2026-10-28)
+Issue: Creating a sub-gallery from Host -> event -> Galleries -> Create Sub-Gallery shows the toast "Your event has been created! ✨". It should say the sub-gallery (gallery) was created, since no event was made.
+How to reproduce: Host -> any event -> Galleries -> Create Sub-Gallery, type a name, Create Sub-Gallery. Read the toast.
+Update 2026-11-19 (Shwetank asked to fix it): src/app/(main)/host/page.tsx: after creating a sub-gallery the message and the Success box say "Your sub-gallery has been created! ✨"; a main event still gets "Your event has been created! ✨". Waiting for the check on staging (device test #239).
+Fixed in: 9c176401 (2026-11-19). Released to live the same day. Device test #239 PASS (Shwetank: iPhone Safari, Android Chrome, laptop; shwetank.sarthak@gmail.com).
+
+#252
+Listed: 2026-11-04
+Platform: Website
+Priority: Low
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: Release to live (staging -> main)
+Found in: light theme check of the host page (chat 2026-11-04)
+Issue: On a phone-width screen, the host event page (Host -> an event) scrolls sideways by about 180 px. The "Home (Primary Gallery) and sub-galleries" info popover (src/components/GalleryTypesInfo.tsx) is only hidden (invisible + opacity 0), so its 22rem-wide box still sticks out past the right edge (page 554 px wide at 375 px). Same in the dark and light look. Fix idea: keep the popover inside the screen (right-0 on small screens, or max-w from the button's position), or take it out of the layout while closed (display none).
+How to reproduce: Open Host -> any event on a 375 px wide screen (or a phone) and swipe sideways: the page moves right; empty space appears on the right.
+Update 2026-11-19 (Shwetank asked to fix it): src/components/GalleryTypesInfo.tsx: the closed box is out of the layout (display none) instead of only invisible, and when it opens on a narrow screen it moves left so it stays 16 px inside the screen. Waiting for the check on staging (device test #239).
+Fixed in: 9c176401 (2026-11-19). Released to live the same day. The sideways scroll is gone, but Shwetank found on Android Chrome (iQOO) that the opened "i" box still ran off the right edge: the measure-and-shift fix doesn't work there, because Android Chrome widens the page to fit what sticks out, so the box seemed to fit.
+Update 2026-11-19: second fix in src/components/GalleryTypesInfo.tsx: on screens under 640 px the opened box is drawn at the top of the page (portal into <body>, which holds the site colours) and pinned 16 px from each side just under the button; scrolling or resizing closes it; larger screens unchanged. Checked 2026-11-19 on Shwetank's Android (iQOO, Chrome) with the local build over USB (staging data; staging itself shows phones the get-the-app screen): the box opens fully inside the screen, 16 px from each side, text in the site's sans font. Waiting for the release, then a look on evebash.com.
 
 #278
 Listed: 2026-11-16
