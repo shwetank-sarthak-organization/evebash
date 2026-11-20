@@ -1258,21 +1258,23 @@ Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happen
 Issue: On a shared phone, one person's photos can be uploaded under another person's account. The upload list in apps/mobile/lib/uploadQueue.ts is saved on the phone, not per account, and every step uses whoever is logged in at that moment. Each item already stores who added it (userId, about line 128), but nothing uses it. Example: Riya picks 100 photos and logs out halfway; Arjun logs in on the same phone; the photos not yet sent, the ones stuck on "saving" (#302) and any failed ones he taps Retry on go up as Arjun's. Riya then can't find or delete them as her own, and Arjun can. Fix idea: only upload or save an item while the person who added it (item.userId) is logged in; items of another account wait until that person logs back in and can be removed from the list.
 How to reproduce: Staging app, account A, host view of a gallery where account B is also a guest or admin. Pick 30 photos, then right away Profile > Sign Out and log in as account B. Open the gallery: today the photos that were still waiting appear with account B as the uploader.
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #304
 Listed: 2026-11-20
 Platform: App
 Priority: High
-Status: Open
-Owner: Unassigned
+Status: Fixed
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Device test #234 on the iPhone (2026-11-20, EAS staging build 038ebba3, newone1, Test 178 big gallery)
 Issue: Deleting a photo from the app's host photo grid failed on staging: after Delete the tile showed "Deleting..." for about a minute, then an error ("could not delete", exact text not noted); the photo stayed (still 300 photos in test-178-big-gallery-6ee0). The app calls POST /api/media/delete (apps/backend/src/routes/media.ts, about line 1624), which deletes the B2 files first and the database row last, so a failure in the B2 step leaves the row. Checked: the photo's 4 files exist in EveBash-Staging-Media, and the staging Modal B2 key (.env.modal-staging) can log in and delete; newone1 owns the gallery (created_by), so the 403 path doesn't apply. The staging backend's own B2 key on Railway (changed 2026-11-18) wasn't checked, and the Railway logs weren't read. The ~1 minute wait suggests a timeout rather than a quick refusal.
 How to reproduce: Staging app as the owner, any gallery's host photo grid, trash on a test photo you don't need, Delete: "Deleting..." then an error after about a minute. Also try the same on staging.evebash.com (host page) and on live with a throwaway photo, to see whether it is staging-only. Then read the Railway staging logs for POST /api/media/delete.
 Note 2026-11-20: deleting a whole sub-gallery from the same iPhone app (Upload Test, 23 photos + 2 videos, newone1) worked: the gallery, its rows and all its files in EveBash-Staging-Media are gone. So the staging backend can delete from B2; the single-photo delete (POST /api/media/delete) fails for another reason. Next: retry a single-photo delete on a throwaway photo and read the Railway staging logs for that request.
-
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+Note 2026-11-20 (later): could not reproduce. All 300 Test 178 photos still have all 4 files in B2 (1,201 files), so the failed request never reached the B2 step; nothing in the database blocks a photo delete (every table pointing at photos cascades or sets null; no delete triggers, live and staging). The same single-photo delete worked 25 times (deleting the Upload Test sub-gallery calls it per photo) and once more on purpose (Delete test sub-gallery, 1 photo, then the sub-gallery). Most likely the request hit the staging backend while Railway was restarting it after a push (it restarts on every push to staging; several pushes that afternoon). Idea, not done: give the app's delete a shorter timeout and a clearer "couldn't reach the server, try again" message.
+Fixed in: no code change (2026-11-20): not reproducible; a one-off during a staging backend restart.
 
 #291
 Listed: 2026-11-18
