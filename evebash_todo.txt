@@ -576,12 +576,12 @@ Listed:       2026-11-06
 Platform:     App
 Priority:     Medium
 Phase:        1
-Status:       Idea
+Status:       In progress
 Effort:       S
 Suggested by: Sarthak
 Discussed:    No
 Decision:     -
-Owner:        Unassigned
+Owner:        Shwetank (with Claude)
 Depends on:   -
 Brief:        Shrink the app's login screen (apps/mobile/app/login.tsx) so everything shows on one
               phone screen without scrolling: the EveBash name and tagline, the "Welcome Back" card,
@@ -594,6 +594,13 @@ Brief:        Shrink the app's login screen (apps/mobile/app/login.tsx) so every
               and whether the brand block can shrink or move. Leave guest event themes alone. Add a
               device test when it ships.
 Done in:      -
+Update:       2026-11-20 (Shwetank asked to build it): apps/mobile/app/login.tsx: on screens under 800 pt tall
+              (compact) the brand (34 pt name, 15 pt tagline), screen and card padding, field, button and divider
+              gaps are tighter; nothing removed; Google and Apple buttons keep their standard size; taller
+              phones unchanged. Checked on an iPhone SE (3rd gen) simulator, 375 x 667 pt: before, it showed
+              down to Continue with Google (Apple, Sign Up and the Terms line below the screen); now the whole
+              sign-in screen fits, Terms line included. Create Account still scrolls (more fields). Keyboard not
+              checked (the simulator used the Mac keyboard). Device test #245.
 
 #27 Event change log: who changed what in an event, and when (seen in the analytics dashboard)
 Listed:       2026-11-07

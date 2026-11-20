@@ -28,6 +28,9 @@ const LINK = '#8C6434';
 const MUTED = '#7C6C58';
 
 const { height } = Dimensions.get('window');
+// Small phones (iPhone SE 667 pt, small Androids): tighter sizes and gaps so the sign-in screen fits without
+// scrolling, Google and Apple buttons included (todo #26). Bigger phones keep the roomier sizes.
+const compact = height < 800;
 
 export default function LoginScreen() {
   const { login, signup, authWithPhone, loginWithGoogle, loginWithApple } = useAuth();
@@ -326,7 +329,7 @@ export default function LoginScreen() {
               )}
 
               <View style={styles.fieldGroup}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: compact ? 6 : 8 }}>
                   <Text style={[styles.label, { marginBottom: 0 }]}>Password</Text>
                   {isSignUp && (
                     <TouchableOpacity onPress={generateStrongPassword} hitSlop={12} accessibilityRole="button">
@@ -379,7 +382,7 @@ export default function LoginScreen() {
               )}
 
               {!isSignUp && !isPhoneAuth && (
-                <TouchableOpacity onPress={() => router.push('/forgot-password')} style={{ alignSelf: 'flex-end', marginTop: -8, marginBottom: 12 }} hitSlop={12} accessibilityRole="button">
+                <TouchableOpacity onPress={() => router.push('/forgot-password')} style={{ alignSelf: 'flex-end', marginTop: compact ? -4 : -8, marginBottom: compact ? 8 : 12 }} hitSlop={12} accessibilityRole="button">
                   <Text style={{ color: LINK, fontSize: 13, fontWeight: '600' }}>Forgot Password?</Text>
                 </TouchableOpacity>
               )}
@@ -481,31 +484,31 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 32,
+    paddingHorizontal: compact ? 18 : 24,
+    paddingTop: compact ? 8 : 32,
     // Extra bottom padding lifts the centred brand + card group
-    paddingBottom: 88,
+    paddingBottom: compact ? 16 : 88,
     minHeight: height,
   },
 
   // Brand
   brandContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: compact ? 12 : 24,
   },
   brandName: {
     fontFamily: 'AkayaKanadakaHeader_400Regular',
-    fontSize: 44,
-    lineHeight: 54,
+    fontSize: compact ? 34 : 44,
+    lineHeight: compact ? 42 : 54,
     includeFontPadding: false,
     color: MidnightColors.gold,
     letterSpacing: 0.5,
-    marginBottom: 6,
+    marginBottom: compact ? 2 : 6,
   },
   brandTagline: {
     fontFamily: 'AkayaKanadakaHeader_400Regular',
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: compact ? 15 : 18,
+    lineHeight: compact ? 20 : 24,
     includeFontPadding: false,
     color: '#CDB89E',
     letterSpacing: 0.3,
@@ -515,8 +518,8 @@ const styles = StyleSheet.create({
   // Card
   card: {
     backgroundColor: '#ffffff',
-    borderRadius: 28,
-    padding: 28,
+    borderRadius: compact ? 24 : 28,
+    padding: compact ? 20 : 28,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.3,
@@ -524,7 +527,7 @@ const styles = StyleSheet.create({
     elevation: 15,
   },
   cardTitle: {
-    fontSize: 24,
+    fontSize: compact ? 22 : 24,
     fontWeight: '700',
     color: '#1B211F',
     marginBottom: 4,
@@ -532,7 +535,7 @@ const styles = StyleSheet.create({
   cardSubtitle: {
     fontSize: 14,
     color: '#64748b',
-    marginBottom: 28,
+    marginBottom: compact ? 14 : 28,
   },
   segmentedControl: {
     flexDirection: 'row',
@@ -563,7 +566,7 @@ const styles = StyleSheet.create({
 
   // Fields
   fieldGroup: {
-    marginBottom: 20,
+    marginBottom: compact ? 12 : 20,
   },
   label: {
     fontSize: 12,
@@ -571,7 +574,7 @@ const styles = StyleSheet.create({
     color: '#475569',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginBottom: 8,
+    marginBottom: compact ? 6 : 8,
   },
   input: {
     backgroundColor: '#FFF7EB',
@@ -579,7 +582,7 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     borderRadius: 14,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: compact ? 11 : 14,
     fontSize: 15,
     color: '#1B211F',
     flex: 1,
@@ -599,7 +602,7 @@ const styles = StyleSheet.create({
   },
   eyeBtn: {
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingVertical: compact ? 11 : 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -654,7 +657,7 @@ const styles = StyleSheet.create({
   submitBtn: {
     backgroundColor: '#1B211F',
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: compact ? 13 : 16,
     alignItems: 'center',
     marginTop: 4,
     shadowColor: '#1B211F',
@@ -677,7 +680,7 @@ const styles = StyleSheet.create({
   toggleRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: compact ? 12 : 20,
     flexWrap: 'wrap',
   },
   toggleLabel: {
@@ -694,8 +697,8 @@ const styles = StyleSheet.create({
   socialDivider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 28,
-    marginBottom: 20,
+    marginTop: compact ? 16 : 28,
+    marginBottom: compact ? 12 : 20,
   },
   // Google and Apple above it already leave 12pt below them
   socialDividerAfterSocial: {
@@ -714,7 +717,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   appleBtnWrap: {
-    marginBottom: 12,
+    marginBottom: compact ? 8 : 12,
   },
   appleBtn: {
     width: '100%',
@@ -733,7 +736,7 @@ const styles = StyleSheet.create({
     color: '#E6D8C3',
     fontSize: 13,
     lineHeight: 20,
-    marginTop: 28,
+    marginTop: compact ? 14 : 28,
     paddingHorizontal: 12,
   },
   footerLink: {

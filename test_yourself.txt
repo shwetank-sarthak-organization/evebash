@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 245
+Next test number: 246
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7208,3 +7208,27 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback: 2026-11-20 website (Claude, staging.evebash.com/terms-and-conditions): section 10 ends with "Reporting and enforcement", two paragraphs, support@evebash.com links; Last updated shows October 23, 2026 (was October 22). Re-accept prompts are driven by POLICY_VERSION (shared/legal/acceptance.ts, unchanged), not this date. Before the live release: set lastUpdated in shared/legal/policies.json to the release date (Shwetank's call). App: the app's own Terms screen (Settings > Terms of Service) has the reporting text in section 4, checked on Android and iPhone 2026-11-20.
+
+#245 App: the sign-in screen fits on one screen on small phones (todo #26)
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone and Android, separately)
+Brief:     On phones under 800 pt tall (iPhone SE, 13 mini-size and small Androids) the sign-in screen is
+           tighter so it fits without scrolling. Taller phones look exactly as before.
+Detail:    apps/mobile/app/login.tsx (todo #26). Needs a new staging app build. Checked on the iPhone SE simulator
+           2026-11-20: everything visible, Terms line included.
+How to test:
+  1. Small phone (iPhone SE or a small Android), logged out: open the app. Expect: EveBash name, Welcome Back,
+     email, password, Forgot Password, Sign In, Continue with Google, Continue with Apple (iPhone) and
+     "Don't have an account? Sign Up" all visible without scrolling; nothing cut off or overlapping.
+  2. Tap the email field. Expect: the keyboard opens and the field stays visible; you can still reach Sign In.
+  3. Tap Sign Up. Expect: Create Account works (it may scroll; it has more fields).
+  4. A normal-size phone (your iPhone 11, the iQOO): the sign-in screen looks as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
