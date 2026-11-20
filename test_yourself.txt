@@ -7106,7 +7106,7 @@ Fix ref:
 Feedback: Welcome message ends cleanly (no ? box, no heart); Premium 1 Month Rs 750 as on the server.
 
 #241 Report a photo, video and comment on the website
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website
 Brief:     Issue #299 (Google Play UGC policy). Needs migration 20261119210000 applied (on staging since 2026-11-19). Use two
@@ -7124,14 +7124,14 @@ How to test:
   7. Log out and open a public gallery photo, tap Report. Expect: "Please log in to report" with a
      Log in button that brings you back to the gallery.
   8. Phone browser (narrow screen): Report and Report user under comments are visible without hover.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank
+Device / browser: laptop Chrome (A normal window, B Incognito)
+Build / version: staging.evebash.com, commit 1e52a0f3
+Date tested: 2026-11-20
+Account used: A newone1, B newone5 (staging)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Steps 2-5, 7 passed (reason list, thanks message, duplicate blocked, Report/Report user on others' comments, Delete on own, log-in prompt when logged out). Claude checked content_reports on staging: newone5's photo report (spam, web, open).
 
 #242 Report content, chat messages and users in the app
 Status:    TODO
