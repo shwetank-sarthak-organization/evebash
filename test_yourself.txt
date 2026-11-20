@@ -2835,7 +2835,7 @@ Status:    TODO
 Priority:  High
 Platform:  Website + App
 Brief:     New Album tab on the event page (next to Design), behind ALBUM_PROOFING on Railway (off by
-           default). Needs migrations 20261022010000_album_proofing.sql and 20261023000000_album_proof_roles.sql.
+           default). Needs migrations 20261022010000_album_proofing.sql and 20261119210000_album_proof_roles.sql.
 How to test:
   1. With ALBUM_PROOFING off: open one of your events on the host page (website) and in the app.
      Expect: tabs are Galleries / Permissions / Design only, nothing else changed.
@@ -7107,7 +7107,7 @@ Feedback: Welcome message ends cleanly (no ? box, no heart); Premium 1 Month Rs 
 Status:    TODO
 Priority:  High
 Platform:  Website
-Brief:     Issue #299 (Google Play UGC policy). Needs migration 20261023000000 applied. Use two
+Brief:     Issue #299 (Google Play UGC policy). Needs migration 20261119210000 applied (on staging since 2026-11-19). Use two
            accounts: A uploads and comments, B reports.
 How to test:
   1. As A, upload a photo and a video to a test gallery and comment on the photo. Let B join it.
@@ -7135,7 +7135,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  App (Android + iOS)
-Brief:     Issue #299. Needs migration 20261023000000 and an app build or over-the-air update with
+Brief:     Issue #299. Needs migration 20261119210000 and an app build or over-the-air update with
            this change (JavaScript only). Two accounts as in #241.
 How to test:
   1. As B, open A's photo in the gallery viewer. Tap Report (flag) next to Download. Expect: a sheet
