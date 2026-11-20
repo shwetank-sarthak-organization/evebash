@@ -981,22 +981,6 @@ Found in: App screen review, EB Vault (chat 2026-11-03)
 Issue: EB Vault (apps/mobile/components/vault/VaultScreen.tsx, VaultPreview.tsx, VaultModals.tsx, VaultUploads.tsx) uses its own colours, not the app palette: a #0E1318 page background (the app uses MidnightColors.background, #13191F), cool blue-grey text and boxes (#E2E8F0, #F1F5F9, #141B22, white see-through borders) and Tailwind amber and red banners. Next to Profile and Plan & Usage it looks darker and colder, the same kind of mismatch as #230. Its header also differs from the sibling Plan & Usage page, which uses TabScreenHeader. Long file names are cut at the end, so the extension is hidden ("SU0710…265404 …") in the list, the actions sheet title and the preview header; cutting in the middle (ellipsizeMode="middle") keeps ".pdf" visible. Smaller: the Profile row says "Usage & Plan" but that page's title says "Plan & Usage". Keep the Vault green (#7FA38C), which the Profile card uses too. Fix idea: swap the hard-coded colours for MidnightColors tokens, cut file names in the middle, and use one name for Usage & Plan. Also check on a phone: a 195 KB PDF took about 15-20 s to show in the preview on the emulator, with only "Loading PDF..." on screen.
 How to reproduce: Android emulator, Profile > EB Vault; compare with Profile > Usage & Plan.
 
-#242
-Listed: 2026-11-03
-Platform: App
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: - (iPhone fix needed: device test #181 step 7 FAIL)
-Found in: Testing the #235 fix on the Android emulator (chat 2026-11-03)
-Issue: On Android, the keyboard covers the comment box in the photo viewer, so you can't see what you are typing or the send button. The Guestbook panel (renderGuestbookPanel in apps/mobile/components/PhotoViewer.tsx) uses KeyboardAvoidingView only on iOS (behavior is undefined on Android), and inside the viewer's Modal the screen doesn't shrink for the keyboard. Fix idea: give Android a behavior too (or move the panel up by the keyboard height from Keyboard events), then check typing a comment and a reply on Android and iPhone.
-How to reproduce: Android emulator, test-face-new-155c guest view, open a photo, tap the comment icon, tap "Share a wish...": the keyboard opens over the whole panel.
-Note 2026-11-03: fix on staging in 40a55ee. On Android the bottom-pinned comment panel moves up by the keyboard height (and gets shorter if space is tight), and the host viewer scrolls its panel above the keyboard. The keyboard listener now lives in apps/mobile/hooks/use-android-keyboard-height.ts, shared with BottomSheet. Checked on the emulator only with Gboard's floating keyboard (the panel correctly stays put); the normal docked keyboard isn't checked yet. Move to RECENTLY FIXED once device test #181 passes on an Android phone. Other places with the same risk: #243.
-Note 2026-11-20: device test #181 step 3 PASS on a real Android phone (iQOO, normal docked Gboard keyboard, EveBash Staging app, newone1@email.com, Staging test 1): "Share a wish..." and Send stay just above the keyboard, a long line stays visible, the comment sends. Left: step 5 (host's photo viewer) and step 7 (iPhone), then move this to RECENTLY FIXED.
-Note 2026-11-20: step 5 PASS on the iQOO (host's photo viewer: box and Send well above the keyboard). Left: step 7 (iPhone). Found while testing: #305 (crowded top buttons in the host viewer).
-Note 2026-11-20: step 7 FAIL on iPhone 11 (iOS 26.7, EveBash Staging app, newone1@email.com, Staging test 1): after tapping "Share a wish..." the keyboard covers the whole Guestbook panel; the box and Send are hidden and the panel does not move up (two screenshots a few seconds apart). So Android is fixed, iPhone is not. Next: check the iOS KeyboardAvoidingView in renderGuestbookPanel (apps/mobile/components/PhotoViewer.tsx) inside the viewer's Modal, maybe use the same keyboard-height lift as Android on iOS too.
-Note 2026-11-20: iPhone fix: the photo viewer now lifts the comment panel by the keyboard height on iOS too (useKeyboardHeight in apps/mobile/hooks/use-android-keyboard-height.ts, iOS uses keyboardWillShow/Hide); the KeyboardAvoidingView that did nothing is gone. BottomSheet is unchanged (Android only). Sent to the staging app as an over-the-air update. Next: device test #181 step 7 (and 3) again on the iPhone.
-
 #243
 Listed: 2026-11-03
 Platform: App
@@ -1272,9 +1256,28 @@ Blocked by: -
 Found in: Device test #181 step 5 on an Android phone (iQOO, EveBash Staging app, host's photo viewer), 2026-11-20
 Issue: In the app's host photo viewer, the top row of buttons is too crowded on Android: the star (favourite) icon overlaps the icon next to it, and the download icon covers the "R" of the REPORT label. Most likely the Report button added for todo #38 gave the row one more button than fits on a phone this wide (1080 px). Looks only; the buttons still work. Fix idea: give the row less space per button, drop the text labels under the icons, or move less-used actions (rotate, report) into a "..." menu.
 How to reproduce: Android phone, EveBash Staging app, newone1@email.com > Staging test 1 host page > open a photo > look at the top row.
+Note 2026-11-20: on iPhone the top row doesn't overlap (Report sits in the Likes/Comments row), but when the host page scrolls up (keyboard open) the floating star/rotate/download buttons sit on top of the Likes/Comments/Report row.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
+#242
+Listed: 2026-11-03
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Testing the #235 fix on the Android emulator (chat 2026-11-03)
+Issue: On Android, the keyboard covers the comment box in the photo viewer, so you can't see what you are typing or the send button. The Guestbook panel (renderGuestbookPanel in apps/mobile/components/PhotoViewer.tsx) uses KeyboardAvoidingView only on iOS (behavior is undefined on Android), and inside the viewer's Modal the screen doesn't shrink for the keyboard. Fix idea: give Android a behavior too (or move the panel up by the keyboard height from Keyboard events), then check typing a comment and a reply on Android and iPhone.
+How to reproduce: Android emulator, test-face-new-155c guest view, open a photo, tap the comment icon, tap "Share a wish...": the keyboard opens over the whole panel.
+Note 2026-11-03: fix on staging in 40a55ee. On Android the bottom-pinned comment panel moves up by the keyboard height (and gets shorter if space is tight), and the host viewer scrolls its panel above the keyboard. The keyboard listener now lives in apps/mobile/hooks/use-android-keyboard-height.ts, shared with BottomSheet. Checked on the emulator only with Gboard's floating keyboard (the panel correctly stays put); the normal docked keyboard isn't checked yet. Move to RECENTLY FIXED once device test #181 passes on an Android phone. Other places with the same risk: #243.
+Note 2026-11-20: device test #181 step 3 PASS on a real Android phone (iQOO, normal docked Gboard keyboard, EveBash Staging app, newone1@email.com, Staging test 1): "Share a wish..." and Send stay just above the keyboard, a long line stays visible, the comment sends. Left: step 5 (host's photo viewer) and step 7 (iPhone), then move this to RECENTLY FIXED.
+Note 2026-11-20: step 5 PASS on the iQOO (host's photo viewer: box and Send well above the keyboard). Left: step 7 (iPhone). Found while testing: #305 (crowded top buttons in the host viewer).
+Note 2026-11-20: step 7 FAIL on iPhone 11 (iOS 26.7, EveBash Staging app, newone1@email.com, Staging test 1): after tapping "Share a wish..." the keyboard covers the whole Guestbook panel; the box and Send are hidden and the panel does not move up (two screenshots a few seconds apart). So Android is fixed, iPhone is not. Next: check the iOS KeyboardAvoidingView in renderGuestbookPanel (apps/mobile/components/PhotoViewer.tsx) inside the viewer's Modal, maybe use the same keyboard-height lift as Android on iOS too.
+Note 2026-11-20: iPhone fix: the photo viewer now lifts the comment panel by the keyboard height on iOS too (useKeyboardHeight in apps/mobile/hooks/use-android-keyboard-height.ts, iOS uses keyboardWillShow/Hide); the KeyboardAvoidingView that did nothing is gone. BottomSheet is unchanged (Android only). Sent to the staging app as an over-the-air update. Next: device test #181 step 7 (and 3) again on the iPhone.
+Note 2026-11-20: iPhone retest PASS on the new staging build (iPhone 11, iOS 26.7, newone1@email.com, Staging test 1): guest viewer and host viewer both keep the comment box and Send above the keyboard; a comment sends. Small looks-only point: in the host viewer on iPhone there is a larger empty gap than needed between the panel and the keyboard.
+Fixed in: 6f5b7025 (2026-11-20)
+
 =====================================================================
 
 #304
