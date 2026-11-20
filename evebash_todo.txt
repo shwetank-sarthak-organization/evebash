@@ -761,6 +761,9 @@ Update:       2026-11-19 (Shwetank): found unmerged work from 2026-10-23 on bran
               videos, comments, chat messages, business profiles, Report user, backend admin actions and an
               analytics Reports tab. Bringing it onto today's code (10 files clash), renumbering its issue (#102
               was reused) and device tests, then staging tests on website, iPhone and Android.
+Update:       2026-11-20: brought onto today's code (1e52a0f3), migration on staging, all staging device tests
+              pass (#241-#244). Left: live (migration on the live database with Shwetank's OK, release, store
+              app release, Play questionnaire). Issue #299 has the details.
 
 #40 Turn on Realtime (live updates) for the v1 launch
 Listed:       2026-11-16

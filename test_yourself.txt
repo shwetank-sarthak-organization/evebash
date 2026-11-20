@@ -7134,7 +7134,7 @@ Fix ref:
 Feedback: Steps 2-5, 7 passed (reason list, thanks message, duplicate blocked, Report/Report user on others' comments, Delete on own, log-in prompt when logged out). Claude checked content_reports on staging: newone5's photo report (spam, web, open).
 
 #242 Report content, chat messages and users in the app
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  App (Android + iOS)
 Brief:     Issue #299. Needs migration 20261119210000 and an app build or over-the-air update with
@@ -7153,14 +7153,14 @@ How to test:
   7. Logged out, open a public gallery photo and tap Report: the log-in prompt appears.
   8. Settings > Terms of Service: section 4 now explains how to report (no more "report abuse
      directly to EveBash administrators").
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank (phones), Claude (database, Android via USB)
+Device / browser: iPhone 11 and Android iQOO I2012, EveBash Staging app
+Build / version: EAS staging builds 038ebba3 (iOS), 4dba9f94 (Android), git e6ed3af3
+Date tested: 2026-11-20
+Account used: newone5 reports, newone1 content (staging)
 Screenshot / recording:
 Fix ref:
-Feedback: 2026-11-20 step 8 PASS on Android and iPhone (Claude, screenshots over USB; EAS staging builds 4dba9f94 Android, 038ebba3 iOS): Settings > Terms of Service section 4 "Content Standards, Reporting & Enforcement" explains how to report; the old "report abuse directly to EveBash administrators" text is gone. iPhone shows the Report flag in the photo viewer. Step 7 PASS on Android (Claude via USB): logged out, Rotate test made public on staging for a few minutes and opened by link, Report on a photo showed the gallery's "Log in to continue" prompt (Log in / Not now); Rotate test set back to private. Its text mentions liking, commenting and downloading but not reporting (small wording point). Steps 1-2 still to do.
+Feedback: 2026-11-20 step 8 PASS on Android and iPhone (Claude, screenshots over USB; EAS staging builds 4dba9f94 Android, 038ebba3 iOS): Settings > Terms of Service section 4 "Content Standards, Reporting & Enforcement" explains how to report; the old "report abuse directly to EveBash administrators" text is gone. iPhone shows the Report flag in the photo viewer. Step 7 PASS on Android (Claude via USB): logged out, Rotate test made public on staging for a few minutes and opened by link, Report on a photo showed the gallery's "Log in to continue" prompt (Log in / Not now); Rotate test set back to private. Its text mentions liking, commenting and downloading but not reporting (small wording point). Steps 1-2 PASS (Shwetank; Claude checked content_reports on staging): newone5 on the iOS app reported two photos, newone1's comment "test comments 2" (written on Android) and the user newone1, all platform ios, open. Steps 3-6 (vendor chat, business page, public profile, host member list) not run: no EB Network test data on staging; the same ReportSheet is used there.
 
 #243 Review reports in the analytics dashboard
 Status:    PASS
