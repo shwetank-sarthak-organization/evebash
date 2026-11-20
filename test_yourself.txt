@@ -6730,7 +6730,7 @@ Fix ref:
 Feedback:
 --------------------------------------------------------------------------------
 #229 App: event lists reload when the connection comes back; upload counts in the phone notification; Storage Usage after uploads (#215, #171)
-Status:    TODO
+Status:    PASS
 Priority:  Low
 Platform:  App (iPhone + Android)
 Brief:     The Dashboard, Host and Your Events screens no longer stay on "Couldn't load your events" after the
@@ -6767,18 +6767,18 @@ How to test:
   3. Open a gallery with more than 20 photos and videos, note Storage Usage, and upload a video of 50 MB or more
      without leaving the page. Expect: once it's saved, Storage Usage goes up (by about 0.05 GB) without reopening
      the gallery. Delete the test video afterwards.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank (iPhone), Claude (database check)
+Device / browser: iPhone 11, iOS 26.7, EveBash Staging app (deleted and reinstalled first)
+Build / version: EAS staging build 038ebba3 (git e6ed3af3; newer than 3dd46e77 and includes #212, #215, #216, #288, #289, #171)
+Date tested: 2026-11-20
+Account used: newone1@email.com, sub-gallery Upload Test (upload-test-azks) in Staging test 1
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Pass: 10 photos then 5 more while uploading; the notification showed Uploading 15 files / X of 15, then 15 files uploaded; Storage Usage rose without reopening the gallery; airplane mode + reopen showed Couldn't load your events, and the events came back by themselves within about 5 s after airplane mode off.
 
 --------------------------------------------------------------------------------
 #230 App: no questions at upload (notifications, full Photos access on iPhone); cancelling an upload right away doesn't crash (#212, #288, #289)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (iPhone + Android; step 2 is iPhone only)
 Brief:     Picking photos no longer asks for notification permission; the app asks once around sign-in (#212).
@@ -6817,18 +6817,18 @@ How to test:
   3. Add Photos, pick 1 photo, tap Upload, and tap the ✕ on its row in the upload panel within a second or two.
      Expect: the row goes away, the app stays open, and the photo is not added. Try it 3 times. Then upload 1
      photo without cancelling. Expect: it uploads normally. Delete the test photo afterwards.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank (iPhone), Claude (database check)
+Device / browser: iPhone 11, iOS 26.7, EveBash Staging app (deleted and reinstalled first)
+Build / version: EAS staging build 038ebba3 (git e6ed3af3; newer than 3dd46e77 and includes #212, #215, #216, #288, #289, #171)
+Date tested: 2026-11-20
+Account used: newone1@email.com, sub-gallery Upload Test (upload-test-azks) in Staging test 1
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Pass: one notification question at sign-in only; Add Photos (2) and Add Videos (1) went straight to Upload ... ? with no notification or full Photo Library question; the video uploaded and plays. Cancel right after Upload (X on the row), 3 times: row gone, app stayed open, no photo added.
 
 --------------------------------------------------------------------------------
 #231 App: photos upload 3 at a time; a video uploads alone (#216)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (iPhone + Android)
 Brief:     The app now uploads 3 photos at once instead of one at a time (about 2.5x faster on the simulator).
@@ -6858,14 +6858,14 @@ How to test:
      "Waiting for connection", then the upload carries on by itself and every photo arrives once.
   4. On an older phone, upload 50 photos while scrolling the gallery. Expect: no crash and no freezing.
      Delete the test sub-gallery afterwards.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank (iPhone), Claude (database check)
+Device / browser: iPhone 11, iOS 26.7, EveBash Staging app (deleted and reinstalled first)
+Build / version: EAS staging build 038ebba3 (git e6ed3af3; newer than 3dd46e77 and includes #212, #215, #216, #288, #289, #171)
+Date tested: 2026-11-20
+Account used: newone1@email.com, sub-gallery Upload Test (upload-test-azks) in Staging test 1
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Pass: 6 photos showed 3 Uploading and the rest Waiting; a video then 3 photos: the video uploaded alone with the photos Waiting. Claude checked the database: Upload Test has 23 photos (2 + 6 + 15) and 2 videos, all processed, 0 uploaded twice. (Tested with 6 photos, not 30.)
 
 #232 Website and app: a rotated photo stays as sharp as the others (preview 1600 px, thumbnail 480 px)
 Status:    PASS
