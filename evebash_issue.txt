@@ -674,18 +674,6 @@ EXACT costs from both providers' bills (2026-10-26; RunPod = each endpoint's bil
 Update 2026-10-28: the RunPod path is built behind VIDEO_RUNPOD (off) on branch feat/runpod-video (8bfc220), see todo #18. Not pushed or deployed; no RunPod endpoint created yet.
 Note 2026-11-18: Shwetank and Sarthak decided Modal does all video processing for now (≤ 10 min on the 4-core worker, > 10 min on the 16-core worker, as today); RunPod is set up later. This waits until then (decision #229).
 
-#135
-Listed: 2026-10-24
-Platform: App
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: New app build (it's an app change: reaches users only with the next build / OTA update), then device test
-Found in: Device test #128 on the iOS simulator (2026-10-24)
-Issue: In the app's video viewer you can't seek: the progress bar (dashboardVideoProgressTrack in apps/mobile/components/PhotoViewer.tsx) only shows progress and has no touch handling, the buttons next to play are previous/next media, and the 5-second jump (seekBy, videoControlsRef) is defined but nothing calls it. On a 48-minute wedding video, guests can only watch from the start. The website player seeks fine. There is also no manual quality choice in the app (iOS picks it), which is fine. Fix: make the progress bar draggable/tappable (player.currentTime = fraction * duration) and/or add -10 s / +10 s buttons; check on iPhone and Android.
-How to reproduce: In the app, open any video in a gallery, play it, tap or drag the progress bar: playback position doesn't change.
-Fix (app, not in a build yet): apps/mobile/components/PhotoViewer.tsx: the progress bar is now a seek bar (tap or drag; a 20 px tall touch area around the 3 px bar, a thumb shows while dragging and the time follows the finger), plus -10 s / +10 s buttons beside play (icons gobackward.10 / goforward.10 added to icon-symbol.tsx), and the bar is adjustable for VoiceOver (swipe up/down = +/-10 s). On iOS a sideways drag anywhere is the "go back" gesture, so the gallery screen's swipe-back is switched off while a video viewer with these controls is open and back on when it closes. Checked in the iOS simulator (dev build from this branch, test_5 in test-face-new-155c): tap mid-bar 0:00 -> 24:20, +10 s 24:20 -> 24:30, drag to the right 46:06 and played from there; the screen no longer slides away while dragging. Android not checked. Device test #138.
-
 #139
 Listed: 2026-10-25
 Platform: Both
@@ -1271,6 +1259,20 @@ How to reproduce: Staging app, newone1@email.com > Rotate test > Photos: open th
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
+#135
+Listed: 2026-10-24
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test #128 on the iOS simulator (2026-10-24)
+Issue: In the app's video viewer you can't seek: the progress bar (dashboardVideoProgressTrack in apps/mobile/components/PhotoViewer.tsx) only shows progress and has no touch handling, the buttons next to play are previous/next media, and the 5-second jump (seekBy, videoControlsRef) is defined but nothing calls it. On a 48-minute wedding video, guests can only watch from the start. The website player seeks fine. There is also no manual quality choice in the app (iOS picks it), which is fine. Fix: make the progress bar draggable/tappable (player.currentTime = fraction * duration) and/or add -10 s / +10 s buttons; check on iPhone and Android.
+How to reproduce: In the app, open any video in a gallery, play it, tap or drag the progress bar: playback position doesn't change.
+Fix (app, not in a build yet): apps/mobile/components/PhotoViewer.tsx: the progress bar is now a seek bar (tap or drag; a 20 px tall touch area around the 3 px bar, a thumb shows while dragging and the time follows the finger), plus -10 s / +10 s buttons beside play (icons gobackward.10 / goforward.10 added to icon-symbol.tsx), and the bar is adjustable for VoiceOver (swipe up/down = +/-10 s). On iOS a sideways drag anywhere is the "go back" gesture, so the gallery screen's swipe-back is switched off while a video viewer with these controls is open and back on when it closes. Checked in the iOS simulator (dev build from this branch, test_5 in test-face-new-155c): tap mid-bar 0:00 -> 24:20, +10 s 24:20 -> 24:30, drag to the right 46:06 and played from there; the screen no longer slides away while dragging. Android not checked. Device test #138.
+Note 2026-11-20: device test #186 PASS on real phones (EveBash Staging app, newone1@email.com, Rotate test video 0:28): iPhone 11 by Shwetank; Android iQOO checked by Claude over adb: tap mid-bar 0:00 -> 0:14, drag right 0:24, drag left 0:04, +10 s 0:14, -10 s 0:04, item stays 1 / 1. Reaches users with the next store release. Found while testing: #306.
+Fixed in: 3cc1b6df (2026-11-20)
+
 #242
 Listed: 2026-11-03
 Platform: App

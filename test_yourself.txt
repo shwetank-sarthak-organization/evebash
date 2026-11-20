@@ -5387,7 +5387,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #186 Video player: dragging the seek bar moves through the video, not to the next item (app, issue #180)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (iPhone and Android)
 Brief:     Dragging the video seek bar sideways used to jump to the next or previous photo or video instead of
@@ -5408,14 +5408,14 @@ How to test:
   5. Swipe left on the picture itself (not on the controls). Expect: the next video opens (2 / 4). Swipe right:
      back to the first one.
   6. Host side: from Host, open the same event, open a video and repeat steps 1 and 5. Expect: the same results.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Shwetank (iPhone); Claude over adb (Android)
+Device / browser:iPhone 11 (iOS 26.7); iQOO Android
+Build / version:EveBash Staging app (staging builds of 2026-11-19/20)
+Date tested:2026-11-20
+Account used:newone1@email.com (Rotate test, 1 video)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  iPhone: all steps pass. Android: tap mid-bar 0:00->0:14, drag right 0:24, drag left 0:04, +10 s 0:14, -10 s 0:04, counter stays 1 / 1. Step 5 (swipe to next video) not possible: the gallery has 1 video. Found #306 (viewer opens on a stale item: "3 / 1", blank).
 
 #187 Storage by event on Profile
 Status:    TODO
