@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 300
+Next issue number: 304
 
 =====================================================================
 ACTIVE ISSUES
@@ -65,17 +65,6 @@ Issue: Sample galleries still show test data: one sample ("Wedding") whose album
 How to reproduce: Open /sample-galleries/wedding-fdd8 and look at the album cards.
 Note 2026-10-28: On staging there are now no sample galleries at all: /sample-galleries says "No sample galleries are available yet." and /sample-galleries/wedding-fdd8 shows the 404 page (Claude test run, tests #12 and #53 blocked).
 Note 2026-11-16 (client demo check): live has NO sample galleries either (read-only query: 0 events with is_sample_gallery), while the live home page and /pricing link to /sample-galleries, which then shows "No sample galleries are available yet." The album order part is already fixed in code (getSubEvents sorts with numeric: true). Plan for the demo: Shwetank builds a polished demo event on live and marks it as a sample gallery in the analytics dashboard (Live > Galleries > sample toggle), so the home page link shows it.
-
-#33
-Listed: 2026-10-11
-Platform: Website
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: Real numbers and host quotes (Sarthak)
-Found in: Website UI re-check (2026-10-11)
-Issue: The homepage has no proof: no event or photo counts, host quotes or studio logos. This is now the lowest-scoring factor in the UI rating (3/10).
-How to reproduce: Scroll the homepage: no testimonials or numbers section.
 
 #48
 Listed: 2026-10-12
@@ -1225,6 +1214,8 @@ Found in: Device test #178 (2026-11-18, Pixel 8 and Shwetank's iPhone 11, stagin
 Issue: Picture memory still grows in the app's host photo grid while scrolling a big gallery, although #185's windowing works (only 20-44 tiles are mounted out of 300). Pixel 8, staging app, host view (adb dumpsys meminfo, TOTAL PSS): 420 MB at the top, 720 MB at the bottom (about 1 MB per picture seen), 685 MB back at the top, and still 675 MB after `adb shell am send-trim-memory com.evebash.app.staging RUNNING_CRITICAL` (Native Heap 261 MB, Graphics 153 MB), so a low-memory signal doesn't free it. iPhone 11, host view (Instruments, Activity Monitor): 51 MB rising to 416 MB over the first pass, then flat at about 440 MB once all 300 had been seen, also at rest. The Midnight Hero guest grid on the Pixel grew much less (360 -> 460 -> 416 MB). A 790-photo gallery could reach about 1 GB in the host view, which is risky on 3-4 GB phones. The decoded pictures (or something holding them) aren't released when tiles unmount. To check: which image size the host tiles load (thumbnail_url, preview_url or the original), expo-image cachePolicy and recyclingKey, and whether the image memory caches (Glide on Android, SDWebImage on iOS) are bounded. Files: apps/mobile/app/events/[id].tsx (host grid), apps/mobile/hooks/use-scroll-window.ts, apps/mobile/components/event/MasonryPhotoColumns.tsx.
 How to reproduce: Staging, a USB Android phone with the staging app signed in as a manager account (owner or platform admin). Open evebash-staging://events/test-178-big-gallery-6ee0?mode=admin (adb shell am start -a android.intent.action.VIEW -d <link>), open the Home gallery's photo grid and note `adb shell dumpsys meminfo com.evebash.app.staging` (TOTAL PSS). Scroll to #001 and back, note it again, then send `adb shell am send-trim-memory com.evebash.app.staging RUNNING_CRITICAL`. Count mounted tiles with `adb shell dumpsys activity top | grep -c expo.modules.image.ExpoImageViewWrapper`. Today: tiles stay at 20-44, memory climbs about 1 MB per picture and stays.
 Note 2026-11-18: step 1 on staging 08bb4814 (app only, apps/mobile/app/events/[id].tsx): tiles far from the screen now also leave out their dark shading, badges and buttons; they come back with the photo near the screen. Cause found on the Pixel 8 (adb dumpsys activity top, views by type at the bottom of the 300-picture gallery): every tile kept its shading layer (302 in all) and its button icons (about 1,557 icon texts), 5,806 views in all, although only 20-44 photos were mounted. Measured with EAS staging Android build 241accd8 on the Pixel 8, same steps as above, before -> after: views at the bottom 5,806 -> 2,143, shading layers 302 -> 26, icon texts about 1,557 -> 177; Native Heap top -> bottom 86 -> 266 MB before, 81 -> 208 MB now; TOTAL PSS 437 -> 690 MB before, 416 -> 589 MB now; back at the top after RUNNING_CRITICAL 675 -> 591 MB. Buttons, the dots menu, delete then Cancel, and drag reordering still work (device test #234). Still open: memory still grows about 170 MB over the 300 pictures. Each far tile still keeps its empty box (about 1,400 plain views at the bottom), and decoded pictures may add to it. Next: find which of the two the rest is.
+Note 2026-11-19: tried and ruled out: keeping the host grid's tile renderer the same between scroll steps (react-native-sortables redraws every tile when its renderItem changes, and the event screen re-renders at every 200 pt of scrolling). Local branch fix/291-stable-tiles, not pushed. Same scroll test on the Pixel 8 (4 up-and-down cycles, then a full pass over all 300 and back), EAS staging build 687181d5 (with it) vs 241accd8 (without): no change. TOTAL PSS 422 -> 640-680 MB with it, 438 -> 620-650 MB without; JS memory (dumpsys "Unknown") 27 -> 126 MB with it, 28 -> 109 MB without. Picture memory stays 17-37 MB in both, so it isn't the decoded pictures that grow. In both builds memory stopped climbing at about 620-680 MB after the second cycle, and the full pass over all 300 pictures didn't raise it, so since step 1 it looks like a ceiling rather than growth per picture. Next: a longer run to confirm the ceiling, then a debuggable build to see what fills the JS memory.
+Note 2026-11-19 (long test): memory no longer keeps growing. Pixel 8, EAS staging build 241accd8 (step 1, the code staging has), 10 full passes over all 300 pictures and back: TOTAL PSS 431 MB when the grid opens, 612 MB after pass 1, then 579-623 MB for passes 2-10 (619 MB after pass 10, 617 MB after a 30 s rest). JS memory (dumpsys "Unknown") rose to 117 MB by pass 7, then the app's own clean-up brought it back to 102-106 MB, so it isn't a leak. After a low-memory signal (RUNNING_CRITICAL) 596 MB (before step 1 it stayed at 675 MB). So since step 1 the host grid settles at about 600 MB for 300 photos instead of growing with every picture seen. What's left: every photo still keeps an empty box in the grid (react-native-sortables builds one per photo), so a bigger gallery probably settles higher. The real fix for that is todo #46 (recycling list, Phase 2, EB-224). Still to check: device test #234 (buttons after step 1) and the iPhone's memory with a staging build that has step 1.
 
 #294
 Listed: 2026-11-18
@@ -1250,9 +1241,65 @@ How to reproduce: On staging (website or app), open a gallery photo, a comment, 
 Fix (branch feat/content-reporting): content_reports table (RLS on, no client access) and file_content_report() for logged-in users (fixed reasons, optional note, one open report per person and item, 20 an hour). "Report" with a reason picker on photos and videos (website Lightbox and gallery viewer, app viewer), comments, app chat messages (press and hold) and business profiles; "Report user" on comments, chat, business owners, public profiles and the host's guest list. Confirms "Thanks, we'll review this within 24 hours." Analytics dashboard > Reports lists reports (open over 24 h highlighted) with Remove content (photos and videos through the existing media delete; comments and chat messages), Mark actioned, Dismiss and Suspend account (Supabase ban, can be lifted). Terms section 10 now has "Reporting and enforcement"; the Settings legal text was corrected. After it ships: update the Play questionnaire to say users can report content and users.
 Not covered yet: business reviews and announcements have no Report of their own (report the business or the user instead); a report doesn't email anyone yet, so someone must check the Reports tab daily to keep the 24-hour promise.
 
+#300
+Listed: 2026-11-19
+Platform: Both
+Priority: Critical
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: The backend accepts gallery uploads with no login, and never checks that the uploader belongs to the gallery. In apps/backend/src/routes/media.ts, getUploadUserId (about line 208) returns "anonymous" when the login is missing or no longer valid, and validateAnonymousEvent (about line 229) only checks that the gallery exists. So /get-upload-url, /mobile/get-upload-url, /upload/chunk/initiate, /upload/chunk/complete, /save-photo-batch and /mobile/save-photo-batch all go ahead for anyone who knows a gallery's id, private galleries included, and the row is saved with user_id "anonymous" (photos.user_id is text, so it saves without error). /upload/chunk/part-url checks no login at all. A logged-in person who is not the owner, an admin or a guest of that gallery is not refused either. The gallery id is not a secret: the gallery page itself loads it. Why it matters: a stranger could put files into any gallery, including private ones, and use up the owner's storage; it is also the reason #301 and #302 save photos as "anonymous". No screen uses this today: every upload screen in the app and on the website asks for a login first, and there were 0 "anonymous" rows in photos on 2026-11-16. The rule seems to date from the move of the media routes to the Railway backend (09b8c758, 2026-08-06). Fix idea, behind a switch: refuse every upload step with no valid login (401), and accept only the gallery's owner, its admins and its approved guests (403 for anyone else); /upload/chunk/part-url should also check that the large file belongs to the person asking.
+How to reproduce: Log out of the website. Send POST <staging API>/api/media/get-upload-url with no Authorization header and the body {"eventId":"<any staging gallery id>","fileName":"x.jpg","fileSize":1000,"resourceType":"image"}. Today it answers with an upload link instead of 401.
+
+#301
+Listed: 2026-11-19
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: On the website, logging out during an upload doesn't stop it, and the rest of the files are saved as "anonymous". logout() in src/context/AuthContext.tsx (about line 532) only signs out and goes to /login without a page reload, so the upload loop of the host page and the upload panel (src/context/UploadContext.tsx, in the (main) layout) keep running. Each next file finds no login, and the backend saves it as "anonymous" (#300), so the person can't find or delete those photos as their own. The "uploads in progress" warning (handleBeforeUnload, about line 217) only shows when the tab is closed or reloaded, not on logout. If the same or another person logs in in that tab before the batch ends, the rest go under that account. Fix idea: on logout while uploads are running, ask "Photos are still uploading. Log out and stop them?" and, on yes, cancel them with the panel's existing cancelAllUploads (about line 146) before signing out. Fixing #300 also makes any leftover file fail instead of being saved as "anonymous".
+How to reproduce: Staging website, host page, upload 30 photos to a gallery. While the upload panel is still counting, log out from the navbar. Today: no warning, the panel keeps counting on the login page, and the photos reach the gallery with "Anonymous" as the uploader.
+
+#302
+Listed: 2026-11-19
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: In the app, logging out during an upload leaves the upload list half-running. logout() in apps/mobile/context/AuthContext.tsx (about line 587) doesn't touch the upload list (apps/mobile/lib/uploadQueue.ts), which is saved on the phone and keeps going. (1) Files not started yet fail with "Authorization required." (about line 606) after 3 tries each. (2) A photo already being sent reaches storage, but saving it to the gallery is skipped without a message (flushMetadataBatchesInternal returns when there is no login, about line 878), so it stays on "saving" and isn't in the gallery until someone logs in and another upload finishes or the app restarts. (3) A video of 20 MB or more already being sent keeps going to the end (chunkUpload.ts sends an empty login, which /upload/chunk/part-url and /upload/chunk/complete accept, #300) and is saved as "anonymous". There is no warning before logout. Fix idea: on logout, ask "X photos haven't uploaded yet. Log out anyway? They'll carry on when you log back in.", then pause the list (stop the file in flight like cancelUploadItem does, and start nothing new until a login), instead of letting files fail or finish as "anonymous". See #303 for whose files resume.
+How to reproduce: Staging app, host view of a gallery, pick 20 photos and a video over 20 MB. While the upload status still shows progress, go to Profile > Sign Out. Today: no warning; photos not started turn failed, one photo stays on "saving", and the video appears in the gallery with "Anonymous" as the uploader.
+
+#303
+Listed: 2026-11-19
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: On a shared phone, one person's photos can be uploaded under another person's account. The upload list in apps/mobile/lib/uploadQueue.ts is saved on the phone, not per account, and every step uses whoever is logged in at that moment. Each item already stores who added it (userId, about line 128), but nothing uses it. Example: Riya picks 100 photos and logs out halfway; Arjun logs in on the same phone; the photos not yet sent, the ones stuck on "saving" (#302) and any failed ones he taps Retry on go up as Arjun's. Riya then can't find or delete them as her own, and Arjun can. Fix idea: only upload or save an item while the person who added it (item.userId) is logged in; items of another account wait until that person logs back in and can be removed from the list.
+How to reproduce: Staging app, account A, host view of a gallery where account B is also a guest or admin. Pick 30 photos, then right away Profile > Sign Out and log in as account B. Open the gallery: today the photos that were still waiting appear with account B as the uploader.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#33
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Unassigned
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: The homepage has no proof: no event or photo counts, host quotes or studio logos. This is now the lowest-scoring factor in the UI rating (3/10).
+How to reproduce: Scroll the homepage: no testimonials or numbers section.
+Fixed in: closed, not a bug (2026-11-19). Moved to todo #47 (Phase 2): needs real customers, real numbers and host quotes first. Sarthak's decision.
+
 Update 2026-11-19: the branch was never merged (it sat 4 weeks). Brought onto today's code for todo #38 (10 files clashed: kept today's code and added the Report buttons to it, e.g. the new comment-reply layout on the website's photo book). Device tests renumbered #241-#244.
 
 #293
