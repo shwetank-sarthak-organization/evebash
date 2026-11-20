@@ -987,13 +987,14 @@ Platform: App
 Priority: Medium
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: Device test #181 (normal Android keyboard on a phone)
+Blocked by: - (iPhone fix needed: device test #181 step 7 FAIL)
 Found in: Testing the #235 fix on the Android emulator (chat 2026-11-03)
 Issue: On Android, the keyboard covers the comment box in the photo viewer, so you can't see what you are typing or the send button. The Guestbook panel (renderGuestbookPanel in apps/mobile/components/PhotoViewer.tsx) uses KeyboardAvoidingView only on iOS (behavior is undefined on Android), and inside the viewer's Modal the screen doesn't shrink for the keyboard. Fix idea: give Android a behavior too (or move the panel up by the keyboard height from Keyboard events), then check typing a comment and a reply on Android and iPhone.
 How to reproduce: Android emulator, test-face-new-155c guest view, open a photo, tap the comment icon, tap "Share a wish...": the keyboard opens over the whole panel.
 Note 2026-11-03: fix on staging in 40a55ee. On Android the bottom-pinned comment panel moves up by the keyboard height (and gets shorter if space is tight), and the host viewer scrolls its panel above the keyboard. The keyboard listener now lives in apps/mobile/hooks/use-android-keyboard-height.ts, shared with BottomSheet. Checked on the emulator only with Gboard's floating keyboard (the panel correctly stays put); the normal docked keyboard isn't checked yet. Move to RECENTLY FIXED once device test #181 passes on an Android phone. Other places with the same risk: #243.
 Note 2026-11-20: device test #181 step 3 PASS on a real Android phone (iQOO, normal docked Gboard keyboard, EveBash Staging app, newone1@email.com, Staging test 1): "Share a wish..." and Send stay just above the keyboard, a long line stays visible, the comment sends. Left: step 5 (host's photo viewer) and step 7 (iPhone), then move this to RECENTLY FIXED.
 Note 2026-11-20: step 5 PASS on the iQOO (host's photo viewer: box and Send well above the keyboard). Left: step 7 (iPhone). Found while testing: #305 (crowded top buttons in the host viewer).
+Note 2026-11-20: step 7 FAIL on iPhone 11 (iOS 26.7, EveBash Staging app, newone1@email.com, Staging test 1): after tapping "Share a wish..." the keyboard covers the whole Guestbook panel; the box and Send are hidden and the panel does not move up (two screenshots a few seconds apart). So Android is fixed, iPhone is not. Next: check the iOS KeyboardAvoidingView in renderGuestbookPanel (apps/mobile/components/PhotoViewer.tsx) inside the viewer's Modal, maybe use the same keyboard-height lift as Android on iOS too.
 
 #243
 Listed: 2026-11-03

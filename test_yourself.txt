@@ -5211,7 +5211,7 @@ Fix ref:
 Feedback:
 --------------------------------------------------------------------------------
 #181 App photo viewer comments: nothing behind the panel; Android keyboard doesn't hide the comment box
-Status:    TODO
+Status:    FAIL
 Priority:  Medium
 Platform:  App (Android phone + iPhone)
 Brief:     In guest galleries the Like / Comment / Share / Download row showed through the comment panel and
@@ -5243,7 +5243,7 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:  2026-11-20 Shwetank, iQOO Android (staging app, newone1@email.com): step 3 PASS (box, typing and Send stay above the docked keyboard; long text visible; comment sent). Step 5 PASS too (host's photo viewer). Steps 1, 2, 4, 6, 7 not done yet. Found #305 (crowded top buttons in the host viewer).
+Feedback:  2026-11-20 Shwetank, iQOO Android (staging app, newone1@email.com): step 3 PASS (box, typing and Send stay above the docked keyboard; long text visible; comment sent). Step 5 PASS too (host's photo viewer). Steps 1, 2, 4, 6, 7 not done yet. Found #305 (crowded top buttons in the host viewer). Step 7 FAIL on iPhone 11 (iOS 26.7, staging app): the keyboard covers the whole Guestbook panel; box and Send hidden, panel doesn't move up. Issue #242.
 
 --------------------------------------------------------------------------------
 #182 Pricing, Contact us and EB Network in the Noir homepage look (website)
