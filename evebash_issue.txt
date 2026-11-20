@@ -1250,12 +1250,13 @@ Note 2026-11-20: on iPhone the top row doesn't overlap (Report sits in the Likes
 Listed: 2026-11-20
 Platform: App
 Priority: High
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Device test #186 on the iQOO Android phone (EveBash Staging app, newone1@email.com, Rotate test), 2026-11-20
 Issue: The app's photo viewer keeps the last item number when it is opened again, so it can open on the wrong item or on nothing. In apps/mobile/components/PhotoViewer.tsx the shown item (currentPhotoIndex) is only reset when the initialIndex prop changes (the useEffect at about line 932). Opening photo 1, swiping to photo 3, closing, then opening the only video on the Videos tab passes initialIndex 0 again, so nothing resets: the viewer shows "3 / 1" and a blank white screen (no video, no controls). Closing and opening the video again gives the same. A guest who looks at photos and then taps a video sees an empty screen. Probably also opens the wrong photo when you swipe, close, and tap the first photo again. Fix idea: reset to initialIndex whenever the viewer opens (effect on [initialIndex, visible], only when visible) and clamp the index to the list length.
 How to reproduce: Staging app, newone1@email.com > Rotate test > Photos: open the first photo, swipe to 3 / 11, close. Tap Videos (1) and open the video: "3 / 1" and a blank screen.
+Note 2026-11-20: fix on staging: PhotoViewer resets to the tapped item every time it opens (effect on [initialIndex, visible]) and clamps the index to the list length. Needs new staging app builds (iPhone + Android), then the reproduce steps on both phones.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

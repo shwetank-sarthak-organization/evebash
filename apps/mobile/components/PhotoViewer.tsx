@@ -928,10 +928,16 @@ export default function PhotoViewer({
   const dashboardImageScrollRef = useRef<ScrollView | null>(null);
   const dashboardVideoControlsRef = useRef<ViewerVideoControls | null>(null);
 
-  // Sync index when initialIndex changes
+  // Start from the tapped item every time the viewer opens, not only when initialIndex changes: reopening with the
+  // same initialIndex used to keep the last swiped-to item, e.g. "3 / 1" and a blank screen on a 1-video list (#306)
   useEffect(() => {
-    setCurrentPhotoIndex(initialIndex);
-  }, [initialIndex]);
+    if (visible) setCurrentPhotoIndex(initialIndex);
+  }, [initialIndex, visible]);
+
+  // Never point past the end of the list (it can shrink while open, e.g. after a delete)
+  useEffect(() => {
+    if (photos.length > 0 && currentPhotoIndex > photos.length - 1) setCurrentPhotoIndex(photos.length - 1);
+  }, [photos.length, currentPhotoIndex]);
 
   const currentPhoto = photos[currentPhotoIndex];
   const currentPhotoKey = String(currentPhoto?.id || currentPhoto?.url || currentPhotoIndex);
