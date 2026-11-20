@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Calendar,
+  Flag,
   Loader2,
   Mail,
   MapPin,
@@ -16,6 +17,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { Business, getBusinessById, getBusinessTypeColor, getUserById, UserProfile } from "@/lib/database";
+import { reportContent } from "@/components/ui/ReportDialog";
 
 const DEFAULT_BUSINESS_COVER = "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1200";
 
@@ -102,9 +104,19 @@ export default function MarketplaceBusinessDetailPage() {
             <h1 className="truncate text-2xl font-black text-white light:text-[var(--site-text)]">{business.name}</h1>
             <p className="mt-1 text-sm font-bold text-slate-400 light:text-[var(--site-muted)]">EB Network Business</p>
           </div>
-          <button onClick={handleShare} className="flex h-11 w-11 items-center justify-center rounded-full bg-[#101010] light:bg-[var(--site-card)] text-slate-200 light:text-[var(--site-subtle)]">
-            <Share2 className="h-5 w-5" />
-          </button>
+          <div className="flex gap-2">
+            <button onClick={handleShare} aria-label="Share business" className="flex h-11 w-11 items-center justify-center rounded-full bg-[#101010] light:bg-[var(--site-card)] text-slate-200 light:text-[var(--site-subtle)]">
+              <Share2 className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => reportContent({ targetType: "business", targetId: business.id })}
+              aria-label="Report business"
+              title="Report business"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#101010] light:bg-[var(--site-card)] text-slate-200 light:text-[var(--site-subtle)]"
+            >
+              <Flag className="h-5 w-5" />
+            </button>
+          </div>
         </header>
 
         <section className="overflow-hidden rounded-[2rem] border border-[#1f2937] light:border-[var(--site-line)] bg-[#101010] light:bg-[var(--site-card)]">
@@ -159,6 +171,15 @@ export default function MarketplaceBusinessDetailPage() {
                 {creatorUsername}
               </button>
             </div>
+            {business.createdBy && (
+              <button
+                type="button"
+                onClick={() => reportContent({ targetType: "user", targetId: business.createdBy as string })}
+                className="shrink-0 rounded-full border border-[#1f2937] px-3 py-2 text-xs font-black text-slate-400 transition hover:text-white"
+              >
+                Report user
+              </button>
+            )}
           </div>
         </section>
 

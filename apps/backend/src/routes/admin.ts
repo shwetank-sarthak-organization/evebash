@@ -6,6 +6,13 @@ import { getCachedBackblazeAuth, type BackblazeAuth } from "../backblaze.js";
 import { GRID_SUFFIX, gridKey } from "../services/gridVariant.js";
 import { guestPreviewFolder } from "../services/guestPreviewPicture.js";
 import { adminAuthStatus, getAdminClient, verifySuperAdmin } from "../adminAuth.js";
+import {
+  ContentReportError,
+  listContentReports,
+  removeReportedContent,
+  reviewContentReport,
+  setReportedUserSuspended,
+} from "../contentReports.js";
 
 export const adminRouter = Router();
 
@@ -1553,13 +1560,30 @@ adminRouter.post("/", async (request: Request, response: ExpressResponse) => {
         await deletePayment(supabaseAdmin, payload);
         return jsonResponse(response, { success: true });
       }
+      case "listContentReports": {
+        response.setHeader("Cache-Control", "no-store");
+        const reports = await listContentReports(supabaseAdmin, payload);
+        return jsonResponse(response, { success: true, reports });
+      }
+      case "reviewContentReport": {
+        await reviewContentReport(supabaseAdmin, user.id, payload);
+        return jsonResponse(response, { success: true });
+      }
+      case "removeReportedContent": {
+        await removeReportedContent(supabaseAdmin, user.id, payload);
+        return jsonResponse(response, { success: true });
+      }
+      case "setReportedUserSuspended": {
+        await setReportedUserSuspended(supabaseAdmin, user.id, payload);
+        return jsonResponse(response, { success: true });
+      }
       default:
         return jsonResponse(response, { success: false, error: "Unsupported admin action" }, 400);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Admin action failed";
     console.error("[admin/control]", message);
-    const status = error instanceof AdminActionError ? error.status : 500;
+    const status = error instanceof AdminActionError || error instanceof ContentReportError ? error.status : 500;
     return jsonResponse(response, { success: false, error: message }, status);
   }
 });

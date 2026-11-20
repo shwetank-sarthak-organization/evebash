@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Calendar, Lock, MapPin, UserRound } from "lucide-react";
+import { ArrowLeft, Calendar, Flag, Lock, MapPin, UserRound } from "lucide-react";
 import { getUserById, UserProfile } from "@/lib/database";
+import { useAuth } from "@/context/AuthContext";
+import { reportContent } from "@/components/ui/ReportDialog";
 
 function formatJoinedDate(value: any) {
   if (!value) return "Not available";
@@ -29,6 +31,7 @@ function getPersonaLabel(value: any) {
 export default function PublicProfilePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -73,9 +76,20 @@ export default function PublicProfilePage() {
   return (
     <div className="min-h-screen bg-[var(--site-bg)] px-4 py-6 text-[var(--site-text)] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl space-y-6">
-        <button onClick={() => router.back()} className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--site-surface)] text-[var(--site-text)]">
-          <ArrowLeft className="h-5 w-5" />
-        </button>
+        <div className="flex items-center justify-between">
+          <button onClick={() => router.back()} className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--site-surface)] text-[var(--site-text)]">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          {user?.uid !== profile.id && (
+            <button
+              onClick={() => reportContent({ targetType: "user", targetId: profile.id })}
+              className="flex items-center gap-2 rounded-full bg-[var(--site-surface)] px-4 py-3 text-xs font-black text-[var(--site-muted)] transition hover:text-[var(--site-text)]"
+            >
+              <Flag className="h-4 w-4" />
+              Report user
+            </button>
+          )}
+        </div>
 
         <section className="overflow-hidden rounded-[2rem] border border-[var(--site-border)] bg-[var(--site-surface)] p-6 text-center">
           <div className="mx-auto flex h-28 w-28 items-center justify-center overflow-hidden rounded-[2rem] border border-indigo-400/20 bg-indigo-400/10">

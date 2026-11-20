@@ -2,10 +2,11 @@
 
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Download, Heart, Info, Loader2, Maximize2, MessageCircle, Pause, Play, Reply, Search, Send, Share2, Trash2, UserSearch, X } from "lucide-react";
+import { Check, Download, Flag, Heart, Info, Loader2, Maximize2, MessageCircle, Pause, Play, Reply, Search, Send, Share2, Trash2, UserSearch, X } from "lucide-react";
 import { addComment, canCommentOnPhoto, deletePhotoComment, onPhotoInteractions, toggleLike } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
 import { confirmDialog, isDialogOpen } from "@/components/ui/Modal";
+import { reportContent } from "@/components/ui/ReportDialog";
 import { cn } from "@/lib/utils";
 import { formatCommentTime } from "../../../shared/text/commentTime";
 import type { GalleryMediaItem, PageFlipThemeConfig } from "./types";
@@ -269,6 +270,8 @@ export function PageFlipSocialBar({
     const saved = !comment.id.startsWith("optimistic-");
     const canReply = saved && !isReply && canPostComment;
     const canDelete = saved && comment.userId === identity.id;
+    // Someone else's comment, for a logged-in viewer: Report it or its author (todo #38)
+    const canReport = saved && Boolean(user) && comment.userId !== identity.id;
     return (
       <div className="flex gap-3">
         <button
@@ -295,7 +298,7 @@ export function PageFlipSocialBar({
             <span className="shrink-0 text-xs opacity-55">{formatCommentTime(comment.createdAt)}</span>
           </div>
           <p className="whitespace-pre-wrap break-words text-sm leading-relaxed opacity-80">{comment.text}</p>
-          {(canReply || canDelete) && (
+          {(canReply || canDelete || canReport) && (
             <div className="mt-3 flex items-center gap-5">
               {canReply && (
                 <button
@@ -316,6 +319,17 @@ export function PageFlipSocialBar({
                   <Trash2 className="h-3.5 w-3.5" />
                   Delete
                 </button>
+              )}
+              {canReport && (
+                <>
+                  <button type="button" onClick={() => reportContent({ targetType: "comment", targetId: comment.id })} className="flex items-center gap-1 text-xs font-black uppercase tracking-widest opacity-60 transition hover:opacity-100">
+                    <Flag className="h-3.5 w-3.5" />
+                    Report
+                  </button>
+                  <button type="button" onClick={() => reportContent({ targetType: "user", targetId: comment.userId })} className="text-xs font-black uppercase tracking-widest opacity-60 transition hover:opacity-100">
+                    Report user
+                  </button>
+                </>
               )}
             </div>
           )}
@@ -384,6 +398,10 @@ export function PageFlipSocialBar({
               <span className="hidden sm:inline">Find You</span>
             </button>
           )}
+          <button type="button" onClick={() => reportContent({ targetType: "media", targetId: item.id })} className={actionClass} aria-label="Report this photo or video" title="Report">
+            <Flag className="h-4 w-4" />
+            <span className="hidden sm:inline">Report</span>
+          </button>
           <div className="hidden min-h-11 items-center gap-2 rounded-full px-3 text-xs font-bold uppercase tracking-[0.14em] opacity-70 md:flex">
             <Info className="h-4 w-4" />
             {positionLabel}
@@ -451,6 +469,9 @@ export function PageFlipSocialBar({
                     <UserSearch className="h-4 w-4" />
                   </button>
                 )}
+                <button type="button" onClick={() => reportContent({ targetType: "media", targetId: item.id })} className={panelActionClass} aria-label="Report this photo or video" title="Report">
+                  <Flag className="h-4 w-4" />
+                </button>
               </div>
             )}
 

@@ -16,6 +16,8 @@ import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { onChatMessages, sendMessage, ChatMessage, closeChatRoom, ChatRoom } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { appAlert } from '@/lib/feedback';
+import { ReportSheet, type ReportTarget } from '@/components/ReportSheet';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -26,6 +28,7 @@ export default function ChatScreen() {
   const [chatRoom, setChatRoom] = useState<ChatRoom | null>(null);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   
   const flatListRef = useRef<FlatList>(null);
 
@@ -143,6 +146,17 @@ export default function ChatScreen() {
   const isClosed = chatRoom?.status === 'closed';
   const isClient = user && chatRoom && chatRoom.clientUid === user.uid;
   const canSend = !isClosed && !isExpired;
+  const otherUid = user && chatRoom ? (chatRoom.clientUid === user.uid ? chatRoom.vendorUid : chatRoom.clientUid) : '';
+
+  // Long-press someone else's message to report it or them
+  const handleMessageLongPress = (item: ChatMessage) => {
+    if (!item.id || item.senderId === user?.uid) return;
+    appAlert('Report', 'What would you like to report?', [
+      { text: 'Report message', onPress: () => setReportTarget({ targetType: 'chat_message', targetId: String(item.id) }) },
+      ...(item.senderId ? [{ text: 'Report user', onPress: () => setReportTarget({ targetType: 'user', targetId: item.senderId }) }] : []),
+      { text: 'Cancel', style: 'cancel' as const },
+    ]);
+  };
 
   const handleEndChat = async () => {
     if (!roomId || !user) return;
@@ -182,7 +196,13 @@ export default function ChatScreen() {
     }
 
     return (
-      <View style={[styles.messageRow, isMe ? styles.myRow : styles.otherRow]}>
+      <TouchableOpacity
+        activeOpacity={1}
+        disabled={isMe}
+        onLongPress={() => handleMessageLongPress(item)}
+        accessibilityHint={isMe ? undefined : 'Long press to report'}
+        style={[styles.messageRow, isMe ? styles.myRow : styles.otherRow]}
+      >
         {!isMe && (
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
@@ -198,7 +218,7 @@ export default function ChatScreen() {
             {dateStr}
           </Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -223,13 +243,23 @@ export default function ChatScreen() {
           )}
         </View>
 
-        {isClient && !isClosed && !isExpired ? (
-          <TouchableOpacity onPress={handleEndChat} style={styles.endChatBtn}>
-            <Text style={styles.endChatBtnText}>End Chat</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 40 }} />
-        )}
+        <View style={styles.headerActions}>
+          {!!otherUid && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`Report ${otherUserName || 'this user'}`}
+              onPress={() => setReportTarget({ targetType: 'user', targetId: otherUid })}
+              style={styles.backBtn}
+            >
+              <IconSymbol name="flag" size={20} color="#ffffff" />
+            </TouchableOpacity>
+          )}
+          {isClient && !isClosed && !isExpired && (
+            <TouchableOpacity onPress={handleEndChat} style={styles.endChatBtn}>
+              <Text style={styles.endChatBtnText}>End Chat</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* ── MESSAGES LIST ── */}
@@ -288,6 +318,7 @@ export default function ChatScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
+      <ReportSheet target={reportTarget} onClose={() => setReportTarget(null)} />
     </SafeAreaView>
   );
 }
@@ -318,6 +349,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 40,
   },
   headerInfo: {
     alignItems: 'center',

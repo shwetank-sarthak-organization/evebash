@@ -25,6 +25,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getBusinessById, updateBusiness, getEventsCountForVendor, Business, addEnquiry, getAnnouncementsForBusiness, getUserRatingForBusiness, saveUserRating, getReviewsForBusiness, getBusinessTypeColor, incrementBusinessViewCount, getBusinessShortlistStatus, toggleBusinessShortlist, getUserById, UserProfile } from '@/lib/database';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/context/AuthContext';
+import { ReportSheet, type ReportTarget } from '@/components/ReportSheet';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { getBusinessWebUrl, getWebBaseUrl } from '@/lib/webLinks';
 
@@ -71,6 +72,7 @@ export default function BusinessDetailScreen() {
   const [showContactOptions, setShowContactOptions] = useState(false);
   const [showEnquiryForm, setShowEnquiryForm] = useState(false);
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [locality, setLocality] = useState<string | null>(null);
   const [hasSeenAnnouncements, setHasSeenAnnouncements] = useState(false);
   const [eventsLikedCount, setEventsLikedCount] = useState<number>(0);
@@ -482,6 +484,16 @@ export default function BusinessDetailScreen() {
             <TouchableOpacity style={styles.glassBtn} onPress={handleShare}>
               <IconSymbol name="square.and.arrow.up" size={18} color="#ffffff" />
             </TouchableOpacity>
+            {user?.uid !== business.createdBy && (
+              <TouchableOpacity
+                style={styles.glassBtn}
+                onPress={() => setReportTarget({ targetType: 'business', targetId: business.id })}
+                accessibilityRole="button"
+                accessibilityLabel="Report business"
+              >
+                <IconSymbol name="flag" size={18} color="#ffffff" />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={[styles.glassBtn, isFavorited && styles.glassBtnActive]}
               disabled={isShortlisting || !user?.uid}
@@ -581,6 +593,16 @@ export default function BusinessDetailScreen() {
                 <Text style={styles.creatorUsername} numberOfLines={1} ellipsizeMode="tail">{creatorUsername}</Text>
               </TouchableOpacity>
             </View>
+            {!!business.createdBy && user?.uid !== business.createdBy && (
+              <TouchableOpacity
+                onPress={() => setReportTarget({ targetType: 'user', targetId: business.createdBy as string })}
+                style={styles.creatorReportBtn}
+                accessibilityRole="button"
+                accessibilityLabel={`Report ${creatorName}`}
+              >
+                <Text style={styles.creatorReportText}>Report user</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
 
@@ -1198,6 +1220,7 @@ export default function BusinessDetailScreen() {
           </View>
         </View>
       </Modal>
+      <ReportSheet target={reportTarget} onClose={() => setReportTarget(null)} />
     </View>
   );
 }
@@ -1405,6 +1428,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#ffffff',
     fontFamily: 'Outfit_800ExtraBold',
+  },
+  creatorReportBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  creatorReportText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontFamily: 'Inter_700Bold',
   },
   creatorUsername: {
     marginTop: 2,

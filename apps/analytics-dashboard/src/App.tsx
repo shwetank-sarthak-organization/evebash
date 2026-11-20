@@ -35,9 +35,10 @@ import { InfraCostGrid } from './components/InfraCostGrid';
 import { SuperAdminPanel } from './components/SuperAdminPanel';
 import { ContactMessagesGrid } from './components/ContactMessagesGrid';
 import { PaymentsGrid } from './components/PaymentsGrid';
+import { ReportsGrid } from './components/ReportsGrid';
 import { runAdminAction, type AdminAction } from './lib/adminApi';
 import { EnvironmentSwitch, LiveWarningStrip } from './components/EnvironmentSwitch';
-import { BarChart3, Users, Folder, LogOut, Key, Mail, AlertTriangle, ShieldCheck, Layers, DollarSign, Settings2, CheckCircle2, ArrowLeft, CreditCard } from 'lucide-react';
+import { BarChart3, Users, Folder, LogOut, Key, Mail, AlertTriangle, ShieldCheck, Layers, DollarSign, Settings2, CheckCircle2, ArrowLeft, CreditCard, Flag } from 'lucide-react';
 
 const isPasswordRecoveryUrl = () => {
   if (typeof window === 'undefined') return false;
@@ -73,12 +74,12 @@ export default function App() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'events' | 'plans' | 'pricing' | 'infra' | 'payments' | 'messages' | 'superadmin'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'events' | 'plans' | 'pricing' | 'infra' | 'payments' | 'messages' | 'reports' | 'superadmin'>('overview');
   const [usersResetTrigger, setUsersResetTrigger] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const mainScrollRef = useRef<HTMLDivElement>(null);
 
-  const handleNavClick = (tab: 'overview' | 'users' | 'events' | 'plans' | 'pricing' | 'infra' | 'payments' | 'messages' | 'superadmin') => {
+  const handleNavClick = (tab: 'overview' | 'users' | 'events' | 'plans' | 'pricing' | 'infra' | 'payments' | 'messages' | 'reports' | 'superadmin') => {
     setActiveTab(tab);
     if (tab === 'users') {
       setUsersResetTrigger(prev => prev + 1);
@@ -667,6 +668,7 @@ export default function App() {
               { tab: 'infra'      as const, Icon: DollarSign,   label: 'Infra Cost'        },
               { tab: 'payments'   as const, Icon: CreditCard,   label: 'Payments'          },
               { tab: 'messages'   as const, Icon: Mail,         label: 'Contact Messages'  },
+              { tab: 'reports'    as const, Icon: Flag,         label: 'Reports'           },
               { tab: 'superadmin' as const, Icon: ShieldCheck,  label: 'Super Admin'       },
             ].map(({ tab, Icon, label }) => (
               <button
@@ -760,6 +762,7 @@ export default function App() {
                activeTab === 'infra' ? 'Infrastructure Cost Hub' :
                activeTab === 'payments' ? 'Customer Payments & Ledger' :
                activeTab === 'messages' ? 'Contact Messages' :
+               activeTab === 'reports' ? 'Reported Content' :
                'Super Admin Control'}
             </h2>
           </div>
@@ -884,6 +887,7 @@ export default function App() {
                   onStatusChange={handleContactMessageStatusChange}
                 />
               )}
+              {activeTab === 'reports' && <ReportsGrid />}
               {activeTab === 'superadmin' && (
                 <SuperAdminPanel
                   users={users}

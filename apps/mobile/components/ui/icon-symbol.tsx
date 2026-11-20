@@ -131,6 +131,7 @@ const MAPPING = {
   'building.2': 'business',
   'line.3.horizontal.decrease.circle': 'filter-list',
   'icloud.and.arrow.up.fill': 'cloud-upload',
+  'flag': 'outlined-flag',
 } as const;
 
 export type IconSymbolName = keyof typeof MAPPING;

@@ -32,9 +32,9 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 46
+Next todo number: 48
 
-Last updated: 2026-11-18
+Last updated: 2026-11-19
 
 =====================================================================
 ACTIVE TODOS
@@ -727,12 +727,12 @@ Listed:       2026-11-15
 Platform:     Both
 Priority:     High
 Phase:        1 (v1 launch)
-Status:       Idea
+Status:       In progress
 Effort:       L
 Suggested by: Sarthak (2026-11-15)
 Discussed:    No
 Decision:     -
-Owner:        Unassigned
+Owner:        Shwetank (with Claude)
 Depends on:   -
 Brief:        Let people report a photo or video in an event gallery, and report the person who uploaded it,
               when it is bad (nudity, violence, hate, illegal), unwanted (for example "I'm in this and want it
@@ -756,6 +756,14 @@ Brief:        Let people report a photo or video in an event gallery, and report
               at once; whether the uploader is told (never who reported); a target response time; and whether
               hosts also get a "block this guest" option.
 Done in:      -
+Update:       2026-11-19 (Shwetank): found unmerged work from 2026-10-23 on branch feat/content-reporting (commit
+              4ee39628, never on staging): content_reports table + file_content_report(), Report on photos,
+              videos, comments, chat messages, business profiles, Report user, backend admin actions and an
+              analytics Reports tab. Bringing it onto today's code (10 files clash), renumbering its issue (#102
+              was reused) and device tests, then staging tests on website, iPhone and Android.
+Update:       2026-11-20: brought onto today's code (1e52a0f3), migration on staging, all staging device tests
+              pass (#241-#244). Left: live (migration on the live database with Shwetank's OK, release, store
+              app release, Play questionnaire). Issue #299 has the details.
 
 #40 Turn on Realtime (live updates) for the v1 launch
 Listed:       2026-11-16
@@ -839,6 +847,51 @@ Update 2026-11-18: Tools set up outside the repo in /Users/sarthak/EveBash-demo-
               in English and Hindi, 9:16 and 16:9 (about 46 s / 49 s), waiting for Sarthak's review. Not yet
               done: background music, Playwright website recordings, a place to publish them. Found while
               recording: #293, #294.
+
+#46 App: host photo grid scrolls with a recycling list (FlashList); drag-to-reorder behind a Reorder button
+Listed:       2026-11-19
+Platform:     App
+Priority:     Medium
+Phase:        2 (after launch, incl. business features)
+Status:       Idea
+Effort:       M (1-3 days)
+Suggested by: Claude, while working on issue #291; Sarthak put it in Phase 2 (2026-11-19)
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   OK to add a new library (@shopify/flash-list); agreeing on the Reorder button
+Brief:        The host photo grid (apps/mobile/app/events/[id].tsx, Sortable.Grid from react-native-sortables)
+              keeps a tile for every photo in the gallery: the library is made for short lists. #185 and #291
+              step 1 (08bb4814) empty the tiles far from the screen, but every photo still keeps a box, so
+              memory settles higher the bigger the gallery (Pixel 8, 300 photos: about 600 MB, flat once
+              scrolled through; a 790-photo gallery likely more). Big photo apps use a recycling list instead:
+              about 40 tiles are reused as you scroll, so memory stays about the same for any gallery size.
+              Plan: browse the host grid with @shopify/flash-list (Shopify's recycling list, the usual choice
+              for React Native; not in the app yet, so it needs an OK), and keep drag-to-reorder in the current
+              sortable grid, opened from a "Reorder" button. Hosts see the same grid, photos and buttons;
+              reordering takes one extra tap. To decide: where the Reorder button goes, and whether the guest
+              grids should use the recycling list too. Check it the same way as #291 (adb dumpsys meminfo on a
+              Pixel, staging gallery test-178-big-gallery-6ee0, 300 photos) and on an iPhone.
+Done in:      -
+
+#47  Homepage social proof (counts, host quotes, studio logos)
+Listed:       2026-11-19
+Platform:     Website
+Priority:     Low
+Phase:        2 (after launch, incl. business features)
+Status:       Idea
+Effort:       S (a few hours)
+Suggested by: Website UI re-check 2026-10-11 (was issue #33)
+Discussed:    Yes
+Decision:     2026-11-19 Sarthak: not a v1 bug. Closed issue #33 and moved it here as Phase 2.
+Owner:        Unassigned
+Depends on:   Real customers after launch (real counts, host quotes, studio logos; never made-up ones)
+Brief:        The homepage has no proof: no event or photo counts, host quotes or studio logos. This was the
+              lowest-scoring factor (3/10) in the UI rating against Samaro. Before launch there are no real
+              customers, so there is nothing true to show. Add it once real numbers and quotes exist (ask
+              early hosts for a quote and permission). Honest proof possible at launch: the Google Play badge
+              once the app is public. How to check: scroll the homepage for a numbers or testimonials section.
+Done in:      -
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)

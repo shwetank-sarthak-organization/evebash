@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 299
+Next issue number: 304
 
 =====================================================================
 ACTIVE ISSUES
@@ -65,17 +65,6 @@ Issue: Sample galleries still show test data: one sample ("Wedding") whose album
 How to reproduce: Open /sample-galleries/wedding-fdd8 and look at the album cards.
 Note 2026-10-28: On staging there are now no sample galleries at all: /sample-galleries says "No sample galleries are available yet." and /sample-galleries/wedding-fdd8 shows the 404 page (Claude test run, tests #12 and #53 blocked).
 Note 2026-11-16 (client demo check): live has NO sample galleries either (read-only query: 0 events with is_sample_gallery), while the live home page and /pricing link to /sample-galleries, which then shows "No sample galleries are available yet." The album order part is already fixed in code (getSubEvents sorts with numeric: true). Plan for the demo: Shwetank builds a polished demo event on live and marks it as a sample gallery in the analytics dashboard (Live > Galleries > sample toggle), so the home page link shows it.
-
-#33
-Listed: 2026-10-11
-Platform: Website
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: Real numbers and host quotes (Sarthak)
-Found in: Website UI re-check (2026-10-11)
-Issue: The homepage has no proof: no event or photo counts, host quotes or studio logos. This is now the lowest-scoring factor in the UI rating (3/10).
-How to reproduce: Scroll the homepage: no testimonials or numbers section.
 
 #48
 Listed: 2026-10-12
@@ -829,29 +818,6 @@ Issue: apps/backend/tests/albums.test.ts fails now and then when the whole suite
 How to reproduce: cd apps/backend && npm test several times; look for a failing album test.
 Fix idea: look for shared state or timing in albums.test.ts (environment variables set by one test and read by another, or real timers), and isolate it.
 
-#182
-Listed: 2026-10-29
-Platform: Both
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Porting the video pipeline to another project (chat 2026-10-29)
-Issue: Videos shorter than 1 second get a broken thumbnail. Both video workers take the poster frame at 1 s (modal_engine/main.py _transcode_video_core: ffmpeg -ss 00:00:01 -vframes 1; runpod_worker/handler.py make_poster: the same). For a shorter video ffmpeg writes nothing ("Conversion failed!", checked 2026-10-29 with that exact command on a 0.5 s clip), so no poster.jpg is uploaded. But thumbnail_url is still set to hls/<storage_key>/poster.jpg (main.py, the update after the uploads; apps/backend/src/routes/videoWorker.ts line 159 for RunPod), so the gallery shows a broken image. No such video exists yet (0 processed videos under 1 s on 2026-10-29). Fix idea: if the 1 s frame gives nothing, take the first frame (-ss 0); set thumbnail_url only when a poster was really uploaded. Behind a video-gpu-switch key (Modal) and the RunPod options, like poster_sdr.
-How to reproduce: make a 0.5 s clip (ffmpeg -i any.mp4 -t 0.5 -an short.mp4), upload it to a test gallery: once processed, its tile has a broken thumbnail and B2 has no hls/<storage_key>/poster.jpg.
-
-#183
-Listed: 2026-10-29
-Platform: Both
-Priority: Low
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: Release to live (staging -> main)
-Found in: Porting the video pipeline to another project (chat 2026-10-29)
-Issue: A video still "processing" more than 6 hours after upload stays "processing" forever. The watchdog (apps/backend/src/services/watchdog.ts, runMediaWatchdog) only reads processing videos uploaded between 15 minutes and 6 hours ago (.gt("uploaded_at", sixHoursAgo)), so an older one is never re-sent and never marked failed: guests never see it and the uploader sees "processing" with no error. Normally every video finishes or fails well within 6 hours (3 Modal retries, 3 watchdog re-sends), so this needs the watchdog to miss that window: the backend down for hours, MEDIA_WATCHDOG_ENABLED=false, or a long Modal outage. None today (0 videos processing for over 6 h on 2026-10-29). Fix idea: in the same run, mark videos still processing after 24 h as failed ("Transcoding did not finish within 24 hours"), behind a flag.
-How to reproduce: on a staging test gallery, set one video's status to 'processing' and uploaded_at to 7 hours ago, then POST /api/v1/media/watchdog/run: the video is not in the report and stays processing.
-Update 2026-11-19 (Shwetank asked to fix it): apps/backend/src/services/watchdog.ts, step 1b of runMediaWatchdog: a video still 'processing' 24 h or more after upload is marked failed with "Transcoding did not finish within 24 hours of upload. Please upload the video again." (only while still 'processing'; skipped if a worker sent a heartbeat in the last 10 min). On by default; MEDIA_WATCHDOG_FAIL_AFTER_24H=false turns it off. Tests: apps/backend/tests/watchdogStale.test.ts (165 backend tests pass). Staging test: the Rotate test video (uploaded 2026-11-18 10:08 UTC) set to 'processing' at 19:05; the staging watchdog's startup run after the deploy marked it failed with the new message at 19:06; set back to 'processed'. Live 2026-11-19: 0 videos processing for over 6 h, so the release changes no existing video.
-
 #205
 Listed: 2026-11-02
 Platform: App
@@ -1037,17 +1003,6 @@ Blocked by: Device test #180 (which places really break on a phone)
 Found in: Searching the app for the #242 pattern (chat 2026-11-03)
 Issue: Other places where the Android keyboard may cover a text box or its button, like #242. Not checked on a phone yet: the emulator here only shows Gboard's floating keyboard. Same pattern as #242 (keyboard handling only on iOS, inside a pop-up): (1) album page review, "Write a reply" and "Describe the change (optional)" (apps/mobile/components/album/PageReviewer.tsx, about line 416); (2) host page > Add Sub-Gallery (apps/mobile/components/event/modals/SubEventModal.tsx); (3) EB Vault > New folder and Rename (NamePrompt in apps/mobile/components/vault/VaultModals.tsx). No keyboard handling at all, in a pop-up in the middle of the screen, so the keyboard may hide its lower half and the Save button: (4) Host tab > an event's options > Rename Event (apps/mobile/app/(tabs)/gallery.tsx, about line 1186); (5) host event page > pencil next to the title, "Edit Event Title" (apps/mobile/components/event/modals/RenameEventModal.tsx). Full screens with no keyboard handling, fine if Android shrinks the screen for the keyboard: (6) Profile > Edit (the lowest boxes, location and birthday); (7) Contact us (the message box, apps/mobile/app/contact.tsx); (8) the host page's welcome message editor (apps/mobile/app/events/[id].tsx, about line 5413). Not listed: the business screens (Phase 2: chat, vendors, manage business) use the same iOS-only pattern. Fix idea: for each place that fails device test #180, lift the pop-up by the keyboard height with apps/mobile/hooks/use-android-keyboard-height.ts (added for #242; the bottom sheets use it too).
 How to reproduce: Device test #180 on an Android phone with its normal on-screen keyboard.
-
-#244
-Listed: 2026-11-04
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Applying the 10/15/30 discount prices (chat 2026-11-04)
-Issue: The app's Upgrade Plan page (apps/mobile/app/(tabs)/pricing.tsx) has its prices written into the code, while the website reads them from pricing_plans. A price change in the database or the admin dashboard doesn't reach the app, so it shows old prices until someone edits the file and ships an app update. The 3/6/12-month numbers were edited by hand for the 2026-11-04 prices. Fix idea: read them from /api/v1/pricing-plans, as the website does, with these as the fallback.
-How to reproduce: Change a price in pricing_plans; the website shows it and the app doesn't.
 
 #249
 Listed: 2026-11-06
@@ -1259,17 +1214,8 @@ Found in: Device test #178 (2026-11-18, Pixel 8 and Shwetank's iPhone 11, stagin
 Issue: Picture memory still grows in the app's host photo grid while scrolling a big gallery, although #185's windowing works (only 20-44 tiles are mounted out of 300). Pixel 8, staging app, host view (adb dumpsys meminfo, TOTAL PSS): 420 MB at the top, 720 MB at the bottom (about 1 MB per picture seen), 685 MB back at the top, and still 675 MB after `adb shell am send-trim-memory com.evebash.app.staging RUNNING_CRITICAL` (Native Heap 261 MB, Graphics 153 MB), so a low-memory signal doesn't free it. iPhone 11, host view (Instruments, Activity Monitor): 51 MB rising to 416 MB over the first pass, then flat at about 440 MB once all 300 had been seen, also at rest. The Midnight Hero guest grid on the Pixel grew much less (360 -> 460 -> 416 MB). A 790-photo gallery could reach about 1 GB in the host view, which is risky on 3-4 GB phones. The decoded pictures (or something holding them) aren't released when tiles unmount. To check: which image size the host tiles load (thumbnail_url, preview_url or the original), expo-image cachePolicy and recyclingKey, and whether the image memory caches (Glide on Android, SDWebImage on iOS) are bounded. Files: apps/mobile/app/events/[id].tsx (host grid), apps/mobile/hooks/use-scroll-window.ts, apps/mobile/components/event/MasonryPhotoColumns.tsx.
 How to reproduce: Staging, a USB Android phone with the staging app signed in as a manager account (owner or platform admin). Open evebash-staging://events/test-178-big-gallery-6ee0?mode=admin (adb shell am start -a android.intent.action.VIEW -d <link>), open the Home gallery's photo grid and note `adb shell dumpsys meminfo com.evebash.app.staging` (TOTAL PSS). Scroll to #001 and back, note it again, then send `adb shell am send-trim-memory com.evebash.app.staging RUNNING_CRITICAL`. Count mounted tiles with `adb shell dumpsys activity top | grep -c expo.modules.image.ExpoImageViewWrapper`. Today: tiles stay at 20-44, memory climbs about 1 MB per picture and stays.
 Note 2026-11-18: step 1 on staging 08bb4814 (app only, apps/mobile/app/events/[id].tsx): tiles far from the screen now also leave out their dark shading, badges and buttons; they come back with the photo near the screen. Cause found on the Pixel 8 (adb dumpsys activity top, views by type at the bottom of the 300-picture gallery): every tile kept its shading layer (302 in all) and its button icons (about 1,557 icon texts), 5,806 views in all, although only 20-44 photos were mounted. Measured with EAS staging Android build 241accd8 on the Pixel 8, same steps as above, before -> after: views at the bottom 5,806 -> 2,143, shading layers 302 -> 26, icon texts about 1,557 -> 177; Native Heap top -> bottom 86 -> 266 MB before, 81 -> 208 MB now; TOTAL PSS 437 -> 690 MB before, 416 -> 589 MB now; back at the top after RUNNING_CRITICAL 675 -> 591 MB. Buttons, the dots menu, delete then Cancel, and drag reordering still work (device test #234). Still open: memory still grows about 170 MB over the 300 pictures. Each far tile still keeps its empty box (about 1,400 plain views at the bottom), and decoded pictures may add to it. Next: find which of the two the rest is.
-
-#293
-Listed: 2026-11-18
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simulator, staging app build 1.2.4)
-Issue: In the guest view of the app's "Cinematic Editions - Wed Album" wedding theme, every gallery welcome message ends with a "?" in a small box: a character or icon the app can't draw (seen on Home and on the Haldi and Wedding albums, with any text). The app also shows guests the Home gallery's default welcome text "Main Event: <event title>", which the website hides because it isn't a message for guests (src/app/(public)/events/[slug]/page.tsx:660, src/components/TemplatePeriwinkle.tsx:35): a website/app mismatch. Both make a new event look unfinished to guests. Fix idea: find what the theme's welcome card draws after the message in apps/mobile/app/events/[id].tsx and fix or remove it; hide "Main Event: <title>" in the app the same way as the website, with the check moved to shared/ so both use one copy.
-How to reproduce: Staging app, any wedding event with the Cinematic theme, guest view (e.g. Dashboard > Riya & Arjun's Wedding, account newone1): Enter Gallery. The welcome card ends with the boxed "?"; on a new event it reads "Main Event: <title>".
+Note 2026-11-19: tried and ruled out: keeping the host grid's tile renderer the same between scroll steps (react-native-sortables redraws every tile when its renderItem changes, and the event screen re-renders at every 200 pt of scrolling). Local branch fix/291-stable-tiles, not pushed. Same scroll test on the Pixel 8 (4 up-and-down cycles, then a full pass over all 300 and back), EAS staging build 687181d5 (with it) vs 241accd8 (without): no change. TOTAL PSS 422 -> 640-680 MB with it, 438 -> 620-650 MB without; JS memory (dumpsys "Unknown") 27 -> 126 MB with it, 28 -> 109 MB without. Picture memory stays 17-37 MB in both, so it isn't the decoded pictures that grow. In both builds memory stopped climbing at about 620-680 MB after the second cycle, and the full pass over all 300 pictures didn't raise it, so since step 1 it looks like a ceiling rather than growth per picture. Next: a longer run to confirm the ceiling, then a debuggable build to see what fills the JS memory.
+Note 2026-11-19 (long test): memory no longer keeps growing. Pixel 8, EAS staging build 241accd8 (step 1, the code staging has), 10 full passes over all 300 pictures and back: TOTAL PSS 431 MB when the grid opens, 612 MB after pass 1, then 579-623 MB for passes 2-10 (619 MB after pass 10, 617 MB after a 30 s rest). JS memory (dumpsys "Unknown") rose to 117 MB by pass 7, then the app's own clean-up brought it back to 102-106 MB, so it isn't a leak. After a low-memory signal (RUNNING_CRITICAL) 596 MB (before step 1 it stayed at 675 MB). So since step 1 the host grid settles at about 600 MB for 300 photos instead of growing with every picture seen. What's left: every photo still keeps an empty box in the grid (react-native-sortables builds one per photo), so a bigger gallery probably settles higher. The real fix for that is todo #46 (recycling list, Phase 2, EB-224). Still to check: device test #234 (buttons after step 1) and the iPhone's memory with a staging build that has step 1.
 
 #294
 Listed: 2026-11-18
@@ -1282,9 +1228,133 @@ Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simula
 Issue: In the app's Find You results ("Your Photos - N matches found in this event"), the photo grid isn't centred: its two columns sit on the left with an empty strip about a third of a column wide on the right (iPhone 17 Pro size, Cinematic wedding theme). Fix idea: check the matched-photos grid's width and gaps in apps/mobile/components/event/FindYouPanel.tsx (matchedPhotos.map, about line 454).
 How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc), Find You > Upload Photo > a picture of the groom (a crop of public/home/groom-solo.jpg): 5 matches, grid left of centre.
 
+#299
+Listed: 2026-10-23 (as #102 on the unmerged branch; renumbered #299 on 2026-11-19, #102 had been reused)
+Platform: Both
+Priority: Critical
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: the website/backend release (staging -> main), the analytics dashboard against live, the next store app release; then update the Google Play content-rating answers (users can report content and users)
+Found in: Google Play content-rating questionnaire (2026-10-23)
+Issue: No way to report objectionable content or users. Google Play's User Generated Content policy requires an in-app way to report UGC and users and that we act on reports; the questionnaire says UGC is the app's main content and that there is no reporting, so the review is likely to be rejected. The only "report" was Settings > Report a Bug (which also loses the message, #71 item 1), and the app's Settings legal text claimed hosts can "report abuse directly to EveBash administrators", which wasn't possible.
+How to reproduce: On staging (website or app), open a gallery photo, a comment, a chat message, a business or a user profile: there is no Report option.
+Fix (branch feat/content-reporting): content_reports table (RLS on, no client access) and file_content_report() for logged-in users (fixed reasons, optional note, one open report per person and item, 20 an hour). "Report" with a reason picker on photos and videos (website Lightbox and gallery viewer, app viewer), comments, app chat messages (press and hold) and business profiles; "Report user" on comments, chat, business owners, public profiles and the host's guest list. Confirms "Thanks, we'll review this within 24 hours." Analytics dashboard > Reports lists reports (open over 24 h highlighted) with Remove content (photos and videos through the existing media delete; comments and chat messages), Mark actioned, Dismiss and Suspend account (Supabase ban, can be lifted). Terms section 10 now has "Reporting and enforcement"; the Settings legal text was corrected. After it ships: update the Play questionnaire to say users can report content and users.
+Not covered yet: business reviews and announcements have no Report of their own (report the business or the user instead); a report doesn't email anyone yet, so someone must check the Reports tab daily to keep the 24-hour promise.
+Update 2026-11-20: staging tests PASS: #241 website, #242 app (iPhone and Android), #243 dashboard Reports tab (dismiss, remove a comment, suspend and lift), #244 Terms on website and app. Ideas noted: show the report type more prominently in the Reports tab; the app's logged-out prompt doesn't mention reporting; no email to admins on a new report yet (check the Reports tab daily to keep the 24-hour promise).
+Update 2026-11-20 (Shwetank: "OK live #38"): migration 20261119210000 applied on the live database (content_reports with RLS, 0 rows; file_content_report callable by logged-in users only). Terms "Last updated" set to November 20, 2026 (POLICY_VERSION unchanged, so no re-accept prompt).
+
+#300
+Listed: 2026-11-19
+Platform: Both
+Priority: Critical
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: The backend accepts gallery uploads with no login, and never checks that the uploader belongs to the gallery. In apps/backend/src/routes/media.ts, getUploadUserId (about line 208) returns "anonymous" when the login is missing or no longer valid, and validateAnonymousEvent (about line 229) only checks that the gallery exists. So /get-upload-url, /mobile/get-upload-url, /upload/chunk/initiate, /upload/chunk/complete, /save-photo-batch and /mobile/save-photo-batch all go ahead for anyone who knows a gallery's id, private galleries included, and the row is saved with user_id "anonymous" (photos.user_id is text, so it saves without error). /upload/chunk/part-url checks no login at all. A logged-in person who is not the owner, an admin or a guest of that gallery is not refused either. The gallery id is not a secret: the gallery page itself loads it. Why it matters: a stranger could put files into any gallery, including private ones, and use up the owner's storage; it is also the reason #301 and #302 save photos as "anonymous". No screen uses this today: every upload screen in the app and on the website asks for a login first, and there were 0 "anonymous" rows in photos on 2026-11-16. The rule seems to date from the move of the media routes to the Railway backend (09b8c758, 2026-08-06). Fix idea, behind a switch: refuse every upload step with no valid login (401), and accept only the gallery's owner, its admins and its approved guests (403 for anyone else); /upload/chunk/part-url should also check that the large file belongs to the person asking.
+How to reproduce: Log out of the website. Send POST <staging API>/api/media/get-upload-url with no Authorization header and the body {"eventId":"<any staging gallery id>","fileName":"x.jpg","fileSize":1000,"resourceType":"image"}. Today it answers with an upload link instead of 401.
+
+#301
+Listed: 2026-11-19
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: On the website, logging out during an upload doesn't stop it, and the rest of the files are saved as "anonymous". logout() in src/context/AuthContext.tsx (about line 532) only signs out and goes to /login without a page reload, so the upload loop of the host page and the upload panel (src/context/UploadContext.tsx, in the (main) layout) keep running. Each next file finds no login, and the backend saves it as "anonymous" (#300), so the person can't find or delete those photos as their own. The "uploads in progress" warning (handleBeforeUnload, about line 217) only shows when the tab is closed or reloaded, not on logout. If the same or another person logs in in that tab before the batch ends, the rest go under that account. Fix idea: on logout while uploads are running, ask "Photos are still uploading. Log out and stop them?" and, on yes, cancel them with the panel's existing cancelAllUploads (about line 146) before signing out. Fixing #300 also makes any leftover file fail instead of being saved as "anonymous".
+How to reproduce: Staging website, host page, upload 30 photos to a gallery. While the upload panel is still counting, log out from the navbar. Today: no warning, the panel keeps counting on the login page, and the photos reach the gallery with "Anonymous" as the uploader.
+
+#302
+Listed: 2026-11-19
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: In the app, logging out during an upload leaves the upload list half-running. logout() in apps/mobile/context/AuthContext.tsx (about line 587) doesn't touch the upload list (apps/mobile/lib/uploadQueue.ts), which is saved on the phone and keeps going. (1) Files not started yet fail with "Authorization required." (about line 606) after 3 tries each. (2) A photo already being sent reaches storage, but saving it to the gallery is skipped without a message (flushMetadataBatchesInternal returns when there is no login, about line 878), so it stays on "saving" and isn't in the gallery until someone logs in and another upload finishes or the app restarts. (3) A video of 20 MB or more already being sent keeps going to the end (chunkUpload.ts sends an empty login, which /upload/chunk/part-url and /upload/chunk/complete accept, #300) and is saved as "anonymous". There is no warning before logout. Fix idea: on logout, ask "X photos haven't uploaded yet. Log out anyway? They'll carry on when you log back in.", then pause the list (stop the file in flight like cancelUploadItem does, and start nothing new until a login), instead of letting files fail or finish as "anonymous". See #303 for whose files resume.
+How to reproduce: Staging app, host view of a gallery, pick 20 photos and a video over 20 MB. While the upload status still shows progress, go to Profile > Sign Out. Today: no warning; photos not started turn failed, one photo stays on "saving", and the video appears in the gallery with "Anonymous" as the uploader.
+
+#303
+Listed: 2026-11-19
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: On a shared phone, one person's photos can be uploaded under another person's account. The upload list in apps/mobile/lib/uploadQueue.ts is saved on the phone, not per account, and every step uses whoever is logged in at that moment. Each item already stores who added it (userId, about line 128), but nothing uses it. Example: Riya picks 100 photos and logs out halfway; Arjun logs in on the same phone; the photos not yet sent, the ones stuck on "saving" (#302) and any failed ones he taps Retry on go up as Arjun's. Riya then can't find or delete them as her own, and Arjun can. Fix idea: only upload or save an item while the person who added it (item.userId) is logged in; items of another account wait until that person logs back in and can be removed from the list.
+How to reproduce: Staging app, account A, host view of a gallery where account B is also a guest or admin. Pick 30 photos, then right away Profile > Sign Out and log in as account B. Open the gallery: today the photos that were still waiting appear with account B as the uploader.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+#33
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Unassigned
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: The homepage has no proof: no event or photo counts, host quotes or studio logos. This is now the lowest-scoring factor in the UI rating (3/10).
+How to reproduce: Scroll the homepage: no testimonials or numbers section.
+Fixed in: closed, not a bug (2026-11-19). Moved to todo #47 (Phase 2): needs real customers, real numbers and host quotes first. Sarthak's decision.
+
+Update 2026-11-19: the branch was never merged (it sat 4 weeks). Brought onto today's code for todo #38 (10 files clashed: kept today's code and added the Report buttons to it, e.g. the new comment-reply layout on the website's photo book). Device tests renumbered #241-#244.
+
+#293
+Listed: 2026-11-18
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simulator, staging app build 1.2.4)
+Issue: In the guest view of the app's "Cinematic Editions - Wed Album" wedding theme, every gallery welcome message ends with a "?" in a small box: a character or icon the app can't draw (seen on Home and on the Haldi and Wedding albums, with any text). The app also shows guests the Home gallery's default welcome text "Main Event: <event title>", which the website hides because it isn't a message for guests (src/app/(public)/events/[slug]/page.tsx:660, src/components/TemplatePeriwinkle.tsx:35): a website/app mismatch. Both make a new event look unfinished to guests. Fix idea: find what the theme's welcome card draws after the message in apps/mobile/app/events/[id].tsx and fix or remove it; hide "Main Event: <title>" in the app the same way as the website, with the check moved to shared/ so both use one copy.
+How to reproduce: Staging app, any wedding event with the Cinematic theme, guest view (e.g. Dashboard > Riya & Arjun's Wedding, account newone1): Enter Gallery. The welcome card ends with the boxed "?"; on a new event it reads "Main Event: <title>".
+Update 2026-11-19 (Shwetank asked to fix it): apps/mobile/app/events/[id].tsx. The boxed "?" was a 🤍 emoji added after every welcome message (all themes except a few), which phones can't always draw in the theme fonts; removed (the website never had it). Guests no longer see the automatic "Main Event: <title>" message: one value guestWelcomeMessage = editableMessage(...) from shared/guestEdit/draft.ts (the website's rule) feeds the Royal, Classic, Portrait and Confetti headers and the welcome card; with no message the card is hidden for guests (still shown to a host in edit mode). Checked on the iPhone 18 Pro simulator (EveBash Staging dev build, newone1, Riya & Arjun's Wedding, Cinematic theme): the card ends "...every photo you're in." with no heart. Reaches phones with the next app build. Not done: shared/themes/confettiCircle.ts confettiMessage and src TemplatePeriwinkle still use their own startsWith check (a third copy).
+Fixed in: ae445d4b (2026-11-19). Device test #240 PASS on iPhone and Android with new EAS staging builds (20dd0d20 iOS, 49fdf710 Android). Reaches users with the next store release (or an over-the-air update published from a clean copy).
+
+#244
+Listed: 2026-11-04
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Applying the 10/15/30 discount prices (chat 2026-11-04)
+Issue: The app's Upgrade Plan page (apps/mobile/app/(tabs)/pricing.tsx) has its prices written into the code, while the website reads them from pricing_plans. A price change in the database or the admin dashboard doesn't reach the app, so it shows old prices until someone edits the file and ships an app update. The 3/6/12-month numbers were edited by hand for the 2026-11-04 prices. Fix idea: read them from /api/v1/pricing-plans, as the website does, with these as the fallback.
+How to reproduce: Change a price in pricing_plans; the website shows it and the app doesn't.
+Update 2026-11-19 (Shwetank asked to fix it): new shared/pricing/planPrices.ts (formatRupees with Indian grouping, serverPlanPrice, readPricingPlans; tests shared/pricing/planPrices.test.ts pass with npx tsx --test). apps/mobile/app/(tabs)/pricing.tsx fetches EXPO_PUBLIC_API_BASE_URL/api/v1/pricing-plans and shows the server price for the chosen plan and cycle; the written prices stay as the fallback. Live prices equal the written ones today. Checked: Premium monthly set to 751 on staging for a minute; the simulator's Upgrade Plan showed ₹751 (Shwetank); set back to 750. Reaches phones with the next app build. The website's pricing page still formats its own prices (could use formatRupees later).
+Fixed in: ae445d4b (2026-11-19). Device test #240 PASS on iPhone and Android with new EAS staging builds (20dd0d20 iOS, 49fdf710 Android). Reaches users with the next store release (or an over-the-air update published from a clean copy).
+
+#182
+Listed: 2026-10-29
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Porting the video pipeline to another project (chat 2026-10-29)
+Issue: Videos shorter than 1 second get a broken thumbnail. Both video workers take the poster frame at 1 s (modal_engine/main.py _transcode_video_core: ffmpeg -ss 00:00:01 -vframes 1; runpod_worker/handler.py make_poster: the same). For a shorter video ffmpeg writes nothing ("Conversion failed!", checked 2026-10-29 with that exact command on a 0.5 s clip), so no poster.jpg is uploaded. But thumbnail_url is still set to hls/<storage_key>/poster.jpg (main.py, the update after the uploads; apps/backend/src/routes/videoWorker.ts line 159 for RunPod), so the gallery shows a broken image. No such video exists yet (0 processed videos under 1 s on 2026-10-29). Fix idea: if the 1 s frame gives nothing, take the first frame (-ss 0); set thumbnail_url only when a poster was really uploaded. Behind a video-gpu-switch key (Modal) and the RunPod options, like poster_sdr.
+How to reproduce: make a 0.5 s clip (ffmpeg -i any.mp4 -t 0.5 -an short.mp4), upload it to a test gallery: once processed, its tile has a broken thumbnail and B2 has no hls/<storage_key>/poster.jpg.
+Update 2026-11-19 (Shwetank asked to fix it): modal_engine/main.py _transcode_video_core: if the 1 s frame gives no poster, the first frame is taken (-ss 0, with the poster_sdr filter when that is on); thumbnail_url is set only when a poster was really uploaded (poster_uploaded). No switch: the fallback only runs when the 1 s frame made nothing, so videos of 1 s and longer are unchanged. Checked in a throwaway Modal run with ffmpeg on generated clips: 0.5 s clip, 1 s command wrote nothing (the bug), first-frame fallback wrote a 13 KB poster; 3 s clip, 1 s frame as before. Published to staging Modal. Not changed: the RunPod worker (runpod_worker/handler.py make_poster, apps/backend/src/routes/videoWorker.ts) has the same 1 s rule, but RunPod is parked (all video on Modal); fix it there before RunPod is turned on.
+Fixed in: 8e04b232 (2026-11-19). Live Modal v138 published with Shwetank's OK (rollback: v137). No live video is shorter than 1 s, so nothing to re-process. No device test needed.
+
+#183
+Listed: 2026-10-29
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Porting the video pipeline to another project (chat 2026-10-29)
+Issue: A video still "processing" more than 6 hours after upload stays "processing" forever. The watchdog (apps/backend/src/services/watchdog.ts, runMediaWatchdog) only reads processing videos uploaded between 15 minutes and 6 hours ago (.gt("uploaded_at", sixHoursAgo)), so an older one is never re-sent and never marked failed: guests never see it and the uploader sees "processing" with no error. Normally every video finishes or fails well within 6 hours (3 Modal retries, 3 watchdog re-sends), so this needs the watchdog to miss that window: the backend down for hours, MEDIA_WATCHDOG_ENABLED=false, or a long Modal outage. None today (0 videos processing for over 6 h on 2026-10-29). Fix idea: in the same run, mark videos still processing after 24 h as failed ("Transcoding did not finish within 24 hours"), behind a flag.
+How to reproduce: on a staging test gallery, set one video's status to 'processing' and uploaded_at to 7 hours ago, then POST /api/v1/media/watchdog/run: the video is not in the report and stays processing.
+Update 2026-11-19 (Shwetank asked to fix it): apps/backend/src/services/watchdog.ts, step 1b of runMediaWatchdog: a video still 'processing' 24 h or more after upload is marked failed with "Transcoding did not finish within 24 hours of upload. Please upload the video again." (only while still 'processing'; skipped if a worker sent a heartbeat in the last 10 min). On by default; MEDIA_WATCHDOG_FAIL_AFTER_24H=false turns it off. Tests: apps/backend/tests/watchdogStale.test.ts (165 backend tests pass). Staging test: the Rotate test video (uploaded 2026-11-18 10:08 UTC) set to 'processing' at 19:05; the staging watchdog's startup run after the deploy marked it failed with the new message at 19:06; set back to 'processed'. Live 2026-11-19: 0 videos processing for over 6 h, so the release changes no existing video.
+Fixed in: 9642f509 (2026-11-19). Released to live the same day; the live backend restarted at 19:10 IST with it (health check up). No video was stuck, so none changed. No device test needed (backend only).
 
 #252
 Listed: 2026-11-04

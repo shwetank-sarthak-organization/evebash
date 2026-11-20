@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 240
+Next test number: 245
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -6927,8 +6927,10 @@ Brief:     In the host photo grid, tiles far from the screen now leave out their
 Detail:    Commit 08bb4814 on staging (app only; needs a new staging app build or update). File:
            apps/mobile/app/events/[id].tsx. Issue #291 stays open for the rest of the memory growth.
            2026-11-18 check by Claude (not a tester PASS): Pixel 8, EAS staging Android build 241accd8 (same app
-           code), steps 1-4 passed in "Test 178 big gallery"; views at the bottom 5,806 -> 2,143. Step 5 and the
-           iPhone not checked yet.
+           code), steps 1-4 passed in "Test 178 big gallery"; views at the bottom 5,806 -> 2,143.
+           2026-11-19 check by Claude (not a tester PASS): same Pixel and build, step 5 passed: picture #300 hidden
+           from Photo actions showed HIDDEN, still showed it after scrolling down to photo 131 and back, then was
+           shown to guests again (label gone). Android steps 1-5 all passed; the iPhone is not checked yet.
 How to test:
   1. As the host of a gallery with lots of photos (300+ is best; staging "Test 178 big gallery" has 300), open its
      photo grid and scroll quickly to the bottom and back to the top. Expect: every tile you stop on shows its
@@ -7075,3 +7077,134 @@ Account used: shwetank.sarthak@gmail.com
 Screenshot / recording:
 Fix ref:
 Feedback: All steps passed; the test sub-gallery was deleted again (Ashish & Sejal back to 32 collections).
+
+#240 App: welcome message without a "?" box, and Upgrade Plan prices from the server (#293, #244)
+Status:    PASS
+Priority:  Medium
+Platform:  App (iPhone and Android, separately)
+Brief:     Guest welcome messages no longer end with a boxed "?" and guests don't see "Main Event: <title>".
+           The Upgrade Plan page shows the prices from the server (same as the website).
+Detail:    Commit ae445d4b; needs the next app build (EAS staging, then the store build). Checked 2026-11-19 on the
+           iPhone 18 Pro simulator with the staging dev build: no heart after the message; staging Premium set to
+           751 for a minute showed Rs 751.
+           2026-11-19 iPhone PASS (Shwetank): EAS staging build 20dd0d20 (git 603402e5, built from a clean copy), steps 1 and 3.
+           2026-11-19 Android PASS (Shwetank, iQOO): EAS staging build 49fdf710, steps 1 and 3.
+How to test:
+  1. iPhone, EveBash Staging app (new build), any wedding event as a guest (e.g. Riya & Arjun's Wedding,
+     newone1), Enter Gallery. Expect: the welcome message ends with its last word; no "?" box or heart.
+  2. A brand-new event with no welcome message written: as a guest, no "Main Event: <title>" text and no empty
+     welcome box.
+  3. Profile > Usage & Plan > Upgrade Plan: prices match staging.evebash.com/pricing for each tier and period.
+  4. Do steps 1-3 on Android.
+Done by: Shwetank
+Device / browser: iPhone 11 and Android iQOO I2012, EveBash Staging app
+Build / version: EAS staging builds 20dd0d20 (iOS) and 49fdf710 (Android), git 603402e5
+Date tested: 2026-11-19
+Account used: newone1@email.com (staging)
+Screenshot / recording:
+Fix ref:
+Feedback: Welcome message ends cleanly (no ? box, no heart); Premium 1 Month Rs 750 as on the server.
+
+#241 Report a photo, video and comment on the website
+Status:    PASS
+Priority:  High
+Platform:  Website
+Brief:     Issue #299 (Google Play UGC policy). Needs migration 20261119210000 applied (on staging since 2026-11-19). Use two
+           accounts: A uploads and comments, B reports.
+How to test:
+  1. As A, upload a photo and a video to a test gallery and comment on the photo. Let B join it.
+  2. As B, open the photo full screen (guest gallery view). Tap Report (flag) in the bottom bar.
+     Expect: a list of 8 reasons and an optional note; Send report is greyed out until you pick one.
+  3. Pick "Spam, scam or fake", type a note, send. Expect: "Thanks, we'll review this within 24 hours."
+  4. Report the same photo again. Expect: "You've already reported this..." (no second report).
+  5. Open the comments. Under A's comment tap Report, then Report user. Expect: same dialog for each.
+     Your own comments show Delete, not Report.
+  6. Do step 2 for the video, and once from the host page's photo viewer (log in as A, open another
+     account's upload).
+  7. Log out and open a public gallery photo, tap Report. Expect: "Please log in to report" with a
+     Log in button that brings you back to the gallery.
+  8. Phone browser (narrow screen): Report and Report user under comments are visible without hover.
+Done by: Shwetank
+Device / browser: laptop Chrome (A normal window, B Incognito)
+Build / version: staging.evebash.com, commit 1e52a0f3
+Date tested: 2026-11-20
+Account used: A newone1, B newone5 (staging)
+Screenshot / recording:
+Fix ref:
+Feedback: Steps 2-5, 7 passed (reason list, thanks message, duplicate blocked, Report/Report user on others' comments, Delete on own, log-in prompt when logged out). Claude checked content_reports on staging: newone5's photo report (spam, web, open).
+
+#242 Report content, chat messages and users in the app
+Status:    PASS
+Priority:  High
+Platform:  App (Android + iOS)
+Brief:     Issue #299. Needs migration 20261119210000 and an app build or over-the-air update with
+           this change (JavaScript only). Two accounts as in #241.
+How to test:
+  1. As B, open A's photo in the gallery viewer. Tap Report (flag) next to Download. Expect: a sheet
+     with 8 reasons + note; sending shows "Thanks, we'll review this within 24 hours." Reporting it
+     again says you've already reported it.
+  2. Open the comments: A's comment and reply show REPORT and REPORT USER. Yours show DELETE.
+  3. Open a vendor chat (EB Business) with A. Press and hold one of A's messages: "Report message"
+     and "Report user" appear. The flag in the chat header reports the other person.
+  4. Open A's business page: flag next to Share reports the business; "Report user" in the
+     Created by card reports the owner. On your own business neither shows.
+  5. Open a public profile (/profile/<id>, e.g. from Created by): "Report user" at the top right.
+  6. As host, open the gallery's member list, tap a member: "Report user" under Save Permissions.
+  7. Logged out, open a public gallery photo and tap Report: the log-in prompt appears.
+  8. Settings > Terms of Service: section 4 now explains how to report (no more "report abuse
+     directly to EveBash administrators").
+Done by: Shwetank (phones), Claude (database, Android via USB)
+Device / browser: iPhone 11 and Android iQOO I2012, EveBash Staging app
+Build / version: EAS staging builds 038ebba3 (iOS), 4dba9f94 (Android), git e6ed3af3
+Date tested: 2026-11-20
+Account used: newone5 reports, newone1 content (staging)
+Screenshot / recording:
+Fix ref:
+Feedback: 2026-11-20 step 8 PASS on Android and iPhone (Claude, screenshots over USB; EAS staging builds 4dba9f94 Android, 038ebba3 iOS): Settings > Terms of Service section 4 "Content Standards, Reporting & Enforcement" explains how to report; the old "report abuse directly to EveBash administrators" text is gone. iPhone shows the Report flag in the photo viewer. Step 7 PASS on Android (Claude via USB): logged out, Rotate test made public on staging for a few minutes and opened by link, Report on a photo showed the gallery's "Log in to continue" prompt (Log in / Not now); Rotate test set back to private. Its text mentions liking, commenting and downloading but not reporting (small wording point). Steps 1-2 PASS (Shwetank; Claude checked content_reports on staging): newone5 on the iOS app reported two photos, newone1's comment "test comments 2" (written on Android) and the user newone1, all platform ios, open. Steps 3-6 (vendor chat, business page, public profile, host member list) not run: no EB Network test data on staging; the same ReportSheet is used there.
+
+#243 Review reports in the analytics dashboard
+Status:    PASS
+Priority:  High
+Platform:  Analytics dashboard
+Brief:     Issue #299. Needs the backend deployed with the Reports actions. Use the reports filed in
+           #241 / #242. Do steps 3-5 on test content only.
+How to test:
+  1. Open the dashboard > Reports. Expect: open reports, newest first, each with reason, type, the
+     reporter, the reported account, a preview (photo/video thumbnail, or comment / message text),
+     the gallery name, and "Open on website" (not for chat messages). Repeat reports of one item show
+     "N open reports"; anything open over 24 h is red.
+  2. Dismiss one (add a note). Expect: it leaves the Open list; the Dismissed filter shows it with the
+     note; Reopen puts it back.
+  3. Remove content on a reported comment. Expect: the comment is gone on the website and app, and
+     every open report about it becomes Actioned.
+  4. Remove content on a reported test photo. Expect: gone from the gallery (and its thumbnail).
+  5. Suspend account on a test account's report. Expect: that account can't log in on website or app
+     (within about an hour for sessions already open); the report shows Suspended. Lift suspension:
+     they can log in again.
+Done by: Shwetank
+Device / browser: analytics dashboard (localhost:5173, Staging), laptop Chrome
+Build / version: commit 1e52a0f3, staging backend
+Date tested: 2026-11-20
+Account used: reports by newone5 about newone1 (staging)
+Screenshot / recording:
+Fix ref:
+Feedback: Steps 1, 2, 3, 5 passed: 3 reports listed with previews; Dismiss with note, Dismissed filter; Remove content removed the comment (0 left in the database); Suspend set a ban on newone1, Lift suspension cleared it and newone1 logged in again (Claude checked auth.users). Step 4 (remove a photo) skipped: the test photos are real wedding photos. Note: a suspended user's report moves to Actioned, so Lift suspension is under the Actioned filter. Idea: show the report type (user / comment / photo) more prominently.
+
+#244 Terms show "Reporting and enforcement"
+Status:    PASS
+Priority:  Low
+Platform:  Website + App
+Brief:     Issue #299. Terms & Conditions section 10 (Content Moderation) has a new subheading.
+How to test:
+  1. Website /terms-and-conditions and the app's Terms & Conditions screen (the Terms link on the
+     login screen or the home screen footer, not Settings): section 10 ends with "Reporting and
+     enforcement", two short paragraphs; support@evebash.com is a link.
+  2. "Last updated" shows October 23, 2026. No new "accept the terms" prompt appears on login.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback: 2026-11-20 website (Claude, staging.evebash.com/terms-and-conditions): section 10 ends with "Reporting and enforcement", two paragraphs, support@evebash.com links; Last updated shows October 23, 2026 (was October 22). Re-accept prompts are driven by POLICY_VERSION (shared/legal/acceptance.ts, unchanged), not this date. Before the live release: set lastUpdated in shared/legal/policies.json to the release date (Shwetank's call). App: the app's own Terms screen (Settings > Terms of Service) has the reporting text in section 4, checked on Android and iPhone 2026-11-20.

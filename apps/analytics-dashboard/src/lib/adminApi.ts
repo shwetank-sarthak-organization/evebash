@@ -20,7 +20,39 @@ export type AdminAction =
   | 'updatePricingPlans'
   | 'recordPayment'
   | 'deletePayment'
-  | 'vaultUsage';
+  | 'vaultUsage'
+  | 'listContentReports'
+  | 'reviewContentReport'
+  | 'removeReportedContent'
+  | 'setReportedUserSuspended';
+
+export type ContentReportStatus = 'open' | 'actioned' | 'dismissed';
+
+// A report from file_content_report(), with names and previews added by the backend
+export interface ContentReport {
+  id: string;
+  reporter_id: string | null;
+  target_type: 'media' | 'comment' | 'chat_message' | 'business' | 'user';
+  target_id: string;
+  event_id: string | null;
+  reported_user_id: string | null;
+  target_snapshot: string | null;
+  reason: string;
+  note: string | null;
+  platform: string | null;
+  status: ContentReportStatus;
+  admin_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  reporter_name: string | null;
+  reporter_email: string | null;
+  reported_user_name: string | null;
+  reported_user_email: string | null;
+  reported_user_suspended: boolean | null;
+  event_title: string | null;
+  media: { url: string | null; thumbnail_url: string | null; is_video: boolean } | null;
+}
 
 export interface GalleryMedia {
   id: string;
@@ -35,6 +67,7 @@ export interface AdminActionResult {
   appliedMediaType?: 'images' | 'videos' | null;
   gallery?: { id: string; title: string; parent_id?: string | null };
   media?: GalleryMedia[];
+  reports?: ContentReport[];
   hasMore?: boolean;
   success: boolean;
   error?: string;

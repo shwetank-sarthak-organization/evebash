@@ -24,6 +24,7 @@ import { appAlert, showToast } from '@/lib/feedback';
 import { haptic } from '@/lib/haptics';
 import { FeedbackHost } from '@/components/feedback/FeedbackHost';
 import { useHideUploadStatus } from '@/components/UploadStatusOverlay';
+import { ReportSheet, type ReportTarget } from '@/components/ReportSheet';
 
 interface PhotoViewerProps {
   visible: boolean;
@@ -913,6 +914,7 @@ export default function PhotoViewer({
   const [isTogglingFavourite, setIsTogglingFavourite] = useState(false);
   const [rotatingDirection, setRotatingDirection] = useState<'left' | 'right' | null>(null);
   const [expandedProfileImage, setExpandedProfileImage] = useState<{ src: string; name: string } | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [loadedImageSizes, setLoadedImageSizes] = useState<Record<string, { width: number; height: number }>>({});
   const swipeStartXRef = useRef<number | null>(null);
   const [hostZoomed, setHostZoomed] = useState(false);
@@ -1458,10 +1460,21 @@ export default function PhotoViewer({
                               <Text style={[styles.replyBtnText, { color: viewerTheme.text }]}>REPLY</Text>
                             </TouchableOpacity>
                           )}
-                          {comment.userId === viewerIdentity.id && (
+                          {comment.userId === viewerIdentity.id ? (
                             <TouchableOpacity onPress={() => handleDeleteComment(comment.id)}>
                               <Text style={[styles.deleteBtnText, { color: viewerTheme.text }]}>DELETE</Text>
                             </TouchableOpacity>
+                          ) : (
+                            <>
+                              <TouchableOpacity onPress={() => setReportTarget({ targetType: 'comment', targetId: String(comment.id) })} accessibilityRole="button" accessibilityLabel={`Report comment by ${commentName}`}>
+                                <Text style={[styles.replyBtnText, { color: viewerTheme.muted }]}>REPORT</Text>
+                              </TouchableOpacity>
+                              {!!comment.userId && (
+                                <TouchableOpacity onPress={() => setReportTarget({ targetType: 'user', targetId: String(comment.userId) })} accessibilityRole="button" accessibilityLabel={`Report ${commentName}`}>
+                                  <Text style={[styles.replyBtnText, { color: viewerTheme.muted }]}>REPORT USER</Text>
+                                </TouchableOpacity>
+                              )}
+                            </>
                           )}
                         </View>
                       </View>
@@ -1513,10 +1526,21 @@ export default function PhotoViewer({
                                 selectedTemplate.id === 'royal' && { color: selectedTemplate.text, fontFamily: Fonts.serif },
                                 { color: viewerTheme.text }
                               ]}>{reply.text}</Text>
-                              {reply.userId === viewerIdentity.id && (
+                              {reply.userId === viewerIdentity.id ? (
                                 <TouchableOpacity onPress={() => handleDeleteComment(reply.id)}>
                                   <Text style={[styles.deleteBtnText, styles.replyDeleteText, { color: viewerTheme.text }]}>DELETE</Text>
                                 </TouchableOpacity>
+                              ) : (
+                                <View style={{ flexDirection: 'row', gap: 14 }}>
+                                  <TouchableOpacity onPress={() => setReportTarget({ targetType: 'comment', targetId: String(reply.id) })} accessibilityRole="button" accessibilityLabel={`Report reply by ${replyName}`}>
+                                    <Text style={[styles.deleteBtnText, styles.replyDeleteText, { color: viewerTheme.muted }]}>REPORT</Text>
+                                  </TouchableOpacity>
+                                  {!!reply.userId && (
+                                    <TouchableOpacity onPress={() => setReportTarget({ targetType: 'user', targetId: String(reply.userId) })} accessibilityRole="button" accessibilityLabel={`Report ${replyName}`}>
+                                      <Text style={[styles.deleteBtnText, styles.replyDeleteText, { color: viewerTheme.muted }]}>REPORT USER</Text>
+                                    </TouchableOpacity>
+                                  )}
+                                </View>
                               )}
                             </View>
                           </View>
@@ -1747,6 +1771,12 @@ export default function PhotoViewer({
                 <LucideMessageCircleIcon size={20} color={viewerTheme.controlText} />
                 <Text style={[localStyles.hostViewerActionLabel, { color: viewerTheme.muted }]}>{comments.length} COMMENTS</Text>
               </TouchableOpacity>
+              {currentPhoto?.id && (
+                <TouchableOpacity style={localStyles.hostViewerAction} onPress={() => setReportTarget({ targetType: 'media', targetId: String(currentPhoto.id) })} accessibilityRole="button" accessibilityLabel="Report this photo or video">
+                  <IconSymbol name="flag" size={20} color={viewerTheme.controlText} />
+                  <Text style={[localStyles.hostViewerActionLabel, { color: viewerTheme.muted }]}>REPORT</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {showComments ? (
@@ -1878,6 +1908,12 @@ export default function PhotoViewer({
                     <LucideDownloadIcon size={30} color={viewerTheme.controlText} strokeWidth={2} />
                     <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Download</Text>
                   </TouchableOpacity>
+                  {currentPhoto?.id && (
+                    <TouchableOpacity style={styles.viewerAction} onPress={guarded(() => setReportTarget({ targetType: 'media', targetId: String(currentPhoto.id) }))} accessibilityRole="button" accessibilityLabel="Report this photo or video">
+                      <IconSymbol name="flag" size={28} color={viewerTheme.controlText} />
+                      <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Report</Text>
+                    </TouchableOpacity>
+                  )}
                   </>)}
                 </View>
 
@@ -1957,6 +1993,12 @@ export default function PhotoViewer({
                 <IconSymbol name="arrow.down.to.line.compact" size={30} color={viewerTheme.controlText} />
                 <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Download</Text>
               </TouchableOpacity>
+              {currentPhoto?.id && (
+                <TouchableOpacity style={styles.viewerAction} onPress={guarded(() => setReportTarget({ targetType: 'media', targetId: String(currentPhoto.id) }))} accessibilityRole="button" accessibilityLabel="Report this photo or video">
+                  <IconSymbol name="flag" size={28} color={viewerTheme.controlText} />
+                  <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Report</Text>
+                </TouchableOpacity>
+              )}
               </>)}
             </View>
 
@@ -1989,6 +2031,7 @@ export default function PhotoViewer({
             )}
           </View>
         </Modal>
+        <ReportSheet target={reportTarget} onClose={() => setReportTarget(null)} />
       </View>
   );
 
