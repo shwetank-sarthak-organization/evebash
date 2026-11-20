@@ -7160,7 +7160,7 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback: 2026-11-20 step 8 PASS on Android and iPhone (Claude, screenshots over USB; EAS staging builds 4dba9f94 Android, 038ebba3 iOS): Settings > Terms of Service section 4 "Content Standards, Reporting & Enforcement" explains how to report; the old "report abuse directly to EveBash administrators" text is gone. iPhone shows the Report flag in the photo viewer. Steps 1-2, 7 still to do.
+Feedback: 2026-11-20 step 8 PASS on Android and iPhone (Claude, screenshots over USB; EAS staging builds 4dba9f94 Android, 038ebba3 iOS): Settings > Terms of Service section 4 "Content Standards, Reporting & Enforcement" explains how to report; the old "report abuse directly to EveBash administrators" text is gone. iPhone shows the Report flag in the photo viewer. Step 7 PASS on Android (Claude via USB): logged out, Rotate test made public on staging for a few minutes and opened by link, Report on a photo showed the gallery's "Log in to continue" prompt (Log in / Not now); Rotate test set back to private. Its text mentions liking, commenting and downloading but not reporting (small wording point). Steps 1-2 still to do.
 
 #243 Review reports in the analytics dashboard
 Status:    PASS
