@@ -727,7 +727,7 @@ Listed:       2026-11-15
 Platform:     Both
 Priority:     High
 Phase:        1 (v1 launch)
-Status:       In progress
+Status:       Done
 Effort:       L
 Suggested by: Sarthak (2026-11-15)
 Discussed:    No
@@ -755,7 +755,7 @@ Brief:        Let people report a photo or video in an event gallery, and report
               or only EveBash admins; whether an item is hidden for everyone after N reports or for some reasons
               at once; whether the uploader is told (never who reported); a target response time; and whether
               hosts also get a "block this guest" option.
-Done in:      -
+Done in:      1e52a0f3 (2026-11-20)
 Update:       2026-11-19 (Shwetank): found unmerged work from 2026-10-23 on branch feat/content-reporting (commit
               4ee39628, never on staging): content_reports table + file_content_report(), Report on photos,
               videos, comments, chat messages, business profiles, Report user, backend admin actions and an
@@ -764,6 +764,10 @@ Update:       2026-11-19 (Shwetank): found unmerged work from 2026-10-23 on bran
 Update:       2026-11-20: brought onto today's code (1e52a0f3), migration on staging, all staging device tests
               pass (#241-#244). Left: live (migration on the live database with Shwetank's OK, release, store
               app release, Play questionnaire). Issue #299 has the details.
+Update:       2026-11-20: live on the website and backend (live database migration with Shwetank's OK; release
+              merged). Apps: in the next store release. Follow-ups: update the Google Play content-rating
+              answers after that release; check the Reports tab daily; ideas in issue #299 (report type shown
+              more prominently, an email to admins on new reports).
 
 #40 Turn on Realtime (live updates) for the v1 launch
 Listed:       2026-11-16
