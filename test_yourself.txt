@@ -4476,7 +4476,7 @@ How to test:
 
 --------------------------------------------------------------------------------
 #161 App Settings: feedback reaches the team, dead items gone, FAQ up to date
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App
 Brief:     Report a Bug / Send Feedback used to say "Feedback Sent" and throw the message away. It now
@@ -4496,14 +4496,14 @@ How to test:
      Clear Media Cache). Withdraw Find You Consent is still under Privacy.
   6. Open each FAQ. Expect: no "250 photos", no "Register Business", no "5-character event code";
      free plan says 1 GB and one event.
-Done by: Claude (for Sarthak)
-Device / browser: iOS Simulator, iPhone 17 Pro, iOS 26.3 (local Release build); not a real iPhone
-Build / version: App 1.2.4 local Release simulator build from staging e79333c
-Date tested: 2026-10-28
-Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
+Done by:   Shwetank
+Device / browser:iPhone 11 (iOS 26.7); iQOO Android
+Build / version:EveBash Staging app (staging builds of 2026-11-19/20)
+Date tested:2026-11-20
+Account used:newone1@email.com
 Screenshot / recording:
 Fix ref:
-Feedback: iOS simulator: step 1 shows "Feedback Sent" (message "Test #161 email (Claude simulator run 2026-10-28)", Bug) - someone must check contact_messages for the row. Steps 5-6 PASS: no Discoverable Profile, no Storage & Quality, Withdraw Find You Consent under Privacy; FAQ has no 250 photos / Register Business / 5-character code, free plan says 1 GB and one event. Steps 2-4 not checked.
+Feedback:  Both phones pass. Claude checked staging contact_messages: "[App Bug] Test 161" and "[App Bug] Test 161 android", source mobile, newone1. Step 2 (phone-number account) not done.
 
 #162 App: new access requests show without reopening the screen
 Status:    TODO

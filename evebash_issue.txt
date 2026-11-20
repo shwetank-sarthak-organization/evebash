@@ -152,18 +152,6 @@ Found in: Checking signing fingerprints for #67 (2026-10-13)
 Issue: The locally built Android APKs in the repo root (app-release-v1.apk, app-release-v1.2.4.apk) are signed with the Android debug key (apps/mobile/android/app/debug.keystore, "CN=Android Debug", SHA-1 5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25, SHA-256 FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C), even though they are named "release". EAS builds use the EAS Android keystore (SHA-1 29:40:B3:BD:EB:22:B7:1F:A2:E5:E6:8C:B0:92:52:2B:D2:08:30:47; Firebase also lists SHA-256 b5:2b:a8:a5:85:66:3d:5f:1d:d4:10:37:f7:ff:67:02:1d:49:7d:f1:2c:8c:11:8b:ac:09:fd:41:a9:39:1e:13, probably the same key). Impact: testers can't install an EAS build over a local APK (or the other way round) without uninstalling, because the signatures differ; and the debug key is public, so it must never go into the live assetlinks.json (#67). Fix: make store and tester builds only through EAS, and list only the EAS key's and Google Play's app-signing key's SHA-256 in assetlinks.json and Firebase (#18).
 How to reproduce: ~/Library/Android/sdk/build-tools/36.1.0/apksigner verify --print-certs app-release-v1.2.4.apk shows "CN=Android Debug".
 
-#71
-Listed: 2026-10-13
-Platform: App
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #161); move to RECENTLY FIXED once it passes
-Found in: Website Settings page work (2026-10-13)
-Issue: Several items in the app's Settings (apps/mobile/app/settings.tsx) look like they work but do nothing. (1) Report a Bug / Send Feedback: submitFeedback (apps/mobile/lib/database.ts) only writes to the phone's console and returns true, so the app says "Feedback Sent" and the message is lost. (2) Upload Quality (Speed / High-Res) is saved on the phone (@high_quality_uploads) but no upload code reads it. (3) Clear Media Cache runs a fake progress bar and always says "cleared 24.2 MB"; nothing is cleared. (4) Discoverable Profile saves profiles.discoverable, which nothing reads (there is no Explore feed). (5) The FAQ answers are out of date: "250 photos per event", "Register Business" (Phase 2), "5-character event code". The notification switches are #58 and #63. These were left out of the new website Settings page. Fix: send app feedback to the backend's /api/v1/contact-messages (what the website's Contact Us uses), and hide or remove the others until they work.
-How to reproduce: In the app, Settings > Report a Bug: send a message, then look for it anywhere the team reads (contact messages, email): it isn't there. Tap Clear Media Cache twice: "24.2 MB" both times.
-Fix: 02e0848 (2026-10-27). Report a Bug / Send Feedback now posts to /api/v1/contact-messages (source "mobile") through sendContactMessage in apps/mobile/lib/database.ts, which apps/mobile/app/contact.tsx also uses now; the message carries the category, user ID and email or phone. Discoverable Profile, Upload Quality and Clear Media Cache are removed from Settings (the Storage & Quality section is gone). FAQ answers follow the website's FAQ (src/components/home/HomeFaq.tsx). Checked: tsc has no errors in these files. Needs a new app build; device test #161.
-
 #72
 Listed: 2026-10-13
 Platform: Both
@@ -1260,6 +1248,20 @@ Note 2026-11-20: fix on staging: PhotoViewer resets to the tapped item every tim
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
+#71
+Listed: 2026-10-13
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website Settings page work (2026-10-13)
+Issue: Several items in the app's Settings (apps/mobile/app/settings.tsx) look like they work but do nothing. (1) Report a Bug / Send Feedback: submitFeedback (apps/mobile/lib/database.ts) only writes to the phone's console and returns true, so the app says "Feedback Sent" and the message is lost. (2) Upload Quality (Speed / High-Res) is saved on the phone (@high_quality_uploads) but no upload code reads it. (3) Clear Media Cache runs a fake progress bar and always says "cleared 24.2 MB"; nothing is cleared. (4) Discoverable Profile saves profiles.discoverable, which nothing reads (there is no Explore feed). (5) The FAQ answers are out of date: "250 photos per event", "Register Business" (Phase 2), "5-character event code". The notification switches are #58 and #63. These were left out of the new website Settings page. Fix: send app feedback to the backend's /api/v1/contact-messages (what the website's Contact Us uses), and hide or remove the others until they work.
+How to reproduce: In the app, Settings > Report a Bug: send a message, then look for it anywhere the team reads (contact messages, email): it isn't there. Tap Clear Media Cache twice: "24.2 MB" both times.
+Fix: 02e0848 (2026-10-27). Report a Bug / Send Feedback now posts to /api/v1/contact-messages (source "mobile") through sendContactMessage in apps/mobile/lib/database.ts, which apps/mobile/app/contact.tsx also uses now; the message carries the category, user ID and email or phone. Discoverable Profile, Upload Quality and Clear Media Cache are removed from Settings (the Storage & Quality section is gone). FAQ answers follow the website's FAQ (src/components/home/HomeFaq.tsx). Checked: tsc has no errors in these files. Needs a new app build; device test #161.
+Note 2026-11-20: device test #161 PASS on iPhone 11 and Android iQOO (EveBash Staging app, newone1@email.com). Both feedback messages are in staging contact_messages with source "mobile" ([App Bug] Test 161 / Test 161 android). Reaches users with the next store release.
+Fixed in: 02e0848 (2026-11-20)
+
 #135
 Listed: 2026-10-24
 Platform: App
