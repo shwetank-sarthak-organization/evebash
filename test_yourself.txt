@@ -7160,7 +7160,7 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: 2026-11-20 step 8 PASS on Android and iPhone (Claude, screenshots over USB; EAS staging builds 4dba9f94 Android, 038ebba3 iOS): Settings > Terms of Service section 4 "Content Standards, Reporting & Enforcement" explains how to report; the old "report abuse directly to EveBash administrators" text is gone. iPhone shows the Report flag in the photo viewer. Steps 1-2, 7 still to do.
 
 #243 Review reports in the analytics dashboard
 Status:    PASS
@@ -7191,7 +7191,7 @@ Fix ref:
 Feedback: Steps 1, 2, 3, 5 passed: 3 reports listed with previews; Dismiss with note, Dismissed filter; Remove content removed the comment (0 left in the database); Suspend set a ban on newone1, Lift suspension cleared it and newone1 logged in again (Claude checked auth.users). Step 4 (remove a photo) skipped: the test photos are real wedding photos. Note: a suspended user's report moves to Actioned, so Lift suspension is under the Actioned filter. Idea: show the report type (user / comment / photo) more prominently.
 
 #244 Terms show "Reporting and enforcement"
-Status:    TODO (website PASS 2026-11-20; app part with the next staging app build)
+Status:    PASS
 Priority:  Low
 Platform:  Website + App
 Brief:     Issue #299. Terms & Conditions section 10 (Content Moderation) has a new subheading.
@@ -7207,4 +7207,4 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback: 2026-11-20 website (Claude, staging.evebash.com/terms-and-conditions): section 10 ends with "Reporting and enforcement", two paragraphs, support@evebash.com links; Last updated shows October 23, 2026 (was October 22). Re-accept prompts are driven by POLICY_VERSION (shared/legal/acceptance.ts, unchanged), not this date. Before the live release: set lastUpdated in shared/legal/policies.json to the release date (Shwetank's call).
+Feedback: 2026-11-20 website (Claude, staging.evebash.com/terms-and-conditions): section 10 ends with "Reporting and enforcement", two paragraphs, support@evebash.com links; Last updated shows October 23, 2026 (was October 22). Re-accept prompts are driven by POLICY_VERSION (shared/legal/acceptance.ts, unchanged), not this date. Before the live release: set lastUpdated in shared/legal/policies.json to the release date (Shwetank's call). App: the app's own Terms screen (Settings > Terms of Service) has the reporting text in section 4, checked on Android and iPhone 2026-11-20.
