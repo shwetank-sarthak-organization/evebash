@@ -7163,7 +7163,7 @@ Fix ref:
 Feedback:
 
 #243 Review reports in the analytics dashboard
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Analytics dashboard
 Brief:     Issue #299. Needs the backend deployed with the Reports actions. Use the reports filed in
@@ -7181,14 +7181,14 @@ How to test:
   5. Suspend account on a test account's report. Expect: that account can't log in on website or app
      (within about an hour for sessions already open); the report shows Suspended. Lift suspension:
      they can log in again.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank
+Device / browser: analytics dashboard (localhost:5173, Staging), laptop Chrome
+Build / version: commit 1e52a0f3, staging backend
+Date tested: 2026-11-20
+Account used: reports by newone5 about newone1 (staging)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Steps 1, 2, 3, 5 passed: 3 reports listed with previews; Dismiss with note, Dismissed filter; Remove content removed the comment (0 left in the database); Suspend set a ban on newone1, Lift suspension cleared it and newone1 logged in again (Claude checked auth.users). Step 4 (remove a photo) skipped: the test photos are real wedding photos. Note: a suspended user's report moves to Actioned, so Lift suspension is under the Actioned filter. Idea: show the report type (user / comment / photo) more prominently.
 
 #244 Terms show "Reporting and enforcement"
 Status:    TODO
