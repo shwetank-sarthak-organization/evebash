@@ -6918,7 +6918,7 @@ Feedback:  Staging 2026-11-18: first app login of newone3 and newone4 on the iPh
 
 --------------------------------------------------------------------------------
 #234 App: host photo grid buttons still work after the big-gallery memory fix (#291 step 1)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (iPhone and Android)
 Brief:     In the host photo grid, tiles far from the screen now leave out their dark shading, labels and buttons
@@ -6941,14 +6941,14 @@ How to test:
   4. Hold and drag a tile one place, then drag it back. Expect: they swap, then swap back.
   5. Hide a photo (dots > Hide from guests), scroll far away and back. Expect: its HIDDEN label is still there.
      Unhide it again.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank (iPhone), Claude (memory, screenshots)
+Device / browser: iPhone 11, iOS 26.7, EveBash Staging app
+Build / version: EAS staging build 038ebba3 (git e6ed3af3, newer than 20dd0d20; includes 08bb4814)
+Date tested: 2026-11-20
+Account used: newone1@email.com (owner of Test 178 big gallery, staging)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: iPhone: steps 1-5 pass (tiles show photo, star, dots, arrows, trash when stopped; Photo Actions opens; trash > Cancel deletes nothing; drag swaps and swaps back; HIDDEN stays after scrolling, unhidden again: 0 hidden in the database). Memory (Instruments Activity Monitor over USB, physical footprint of EveBashStaging, 8 s recordings back to back because longer ones stopped after ~10 s): 119-120 MB with the gallery open, 219 MB during trip 1, 361 MB and 362 MB after 5 trips to #300 and back, 378 MB at 15:58 and 16:04 (stable). Before the fix: about 416 MB after trip 1, then about 440 MB. The app never closed or froze. Separate finding: pressing Delete (instead of Cancel) on a tile showed Deleting... and after about a minute an error; the photo stayed (300 photos in the database). Logged as issue #304; not part of this test.
 
 #235 App + website: Find You on a big event (smarter search #111, many-collections fix #295)
 Status:    TODO
