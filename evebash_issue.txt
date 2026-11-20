@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 305
+Next issue number: 306
 
 =====================================================================
 ACTIVE ISSUES
@@ -993,6 +993,7 @@ Issue: On Android, the keyboard covers the comment box in the photo viewer, so y
 How to reproduce: Android emulator, test-face-new-155c guest view, open a photo, tap the comment icon, tap "Share a wish...": the keyboard opens over the whole panel.
 Note 2026-11-03: fix on staging in 40a55ee. On Android the bottom-pinned comment panel moves up by the keyboard height (and gets shorter if space is tight), and the host viewer scrolls its panel above the keyboard. The keyboard listener now lives in apps/mobile/hooks/use-android-keyboard-height.ts, shared with BottomSheet. Checked on the emulator only with Gboard's floating keyboard (the panel correctly stays put); the normal docked keyboard isn't checked yet. Move to RECENTLY FIXED once device test #181 passes on an Android phone. Other places with the same risk: #243.
 Note 2026-11-20: device test #181 step 3 PASS on a real Android phone (iQOO, normal docked Gboard keyboard, EveBash Staging app, newone1@email.com, Staging test 1): "Share a wish..." and Send stay just above the keyboard, a long line stays visible, the comment sends. Left: step 5 (host's photo viewer) and step 7 (iPhone), then move this to RECENTLY FIXED.
+Note 2026-11-20: step 5 PASS on the iQOO (host's photo viewer: box and Send well above the keyboard). Left: step 7 (iPhone). Found while testing: #305 (crowded top buttons in the host viewer).
 
 #243
 Listed: 2026-11-03
@@ -1258,6 +1259,17 @@ Blocked by: -
 Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
 Issue: On a shared phone, one person's photos can be uploaded under another person's account. The upload list in apps/mobile/lib/uploadQueue.ts is saved on the phone, not per account, and every step uses whoever is logged in at that moment. Each item already stores who added it (userId, about line 128), but nothing uses it. Example: Riya picks 100 photos and logs out halfway; Arjun logs in on the same phone; the photos not yet sent, the ones stuck on "saving" (#302) and any failed ones he taps Retry on go up as Arjun's. Riya then can't find or delete them as her own, and Arjun can. Fix idea: only upload or save an item while the person who added it (item.userId) is logged in; items of another account wait until that person logs back in and can be removed from the list.
 How to reproduce: Staging app, account A, host view of a gallery where account B is also a guest or admin. Pick 30 photos, then right away Profile > Sign Out and log in as account B. Open the gallery: today the photos that were still waiting appear with account B as the uploader.
+
+#305
+Listed: 2026-11-20
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Device test #181 step 5 on an Android phone (iQOO, EveBash Staging app, host's photo viewer), 2026-11-20
+Issue: In the app's host photo viewer, the top row of buttons is too crowded on Android: the star (favourite) icon overlaps the icon next to it, and the download icon covers the "R" of the REPORT label. Most likely the Report button added for todo #38 gave the row one more button than fits on a phone this wide (1080 px). Looks only; the buttons still work. Fix idea: give the row less space per button, drop the text labels under the icons, or move less-used actions (rotate, report) into a "..." menu.
+How to reproduce: Android phone, EveBash Staging app, newone1@email.com > Staging test 1 host page > open a photo > look at the top row.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

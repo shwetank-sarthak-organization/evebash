@@ -5243,7 +5243,7 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:  2026-11-20 Shwetank, iQOO Android (staging app, newone1@email.com): step 3 PASS (box, typing and Send stay above the docked keyboard; long text visible; comment sent). Steps 1, 2, 4-7 not done yet.
+Feedback:  2026-11-20 Shwetank, iQOO Android (staging app, newone1@email.com): step 3 PASS (box, typing and Send stay above the docked keyboard; long text visible; comment sent). Step 5 PASS too (host's photo viewer). Steps 1, 2, 4, 6, 7 not done yet. Found #305 (crowded top buttons in the host viewer).
 
 --------------------------------------------------------------------------------
 #182 Pricing, Contact us and EB Network in the Noir homepage look (website)
