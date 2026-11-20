@@ -2835,7 +2835,7 @@ Status:    TODO
 Priority:  High
 Platform:  Website + App
 Brief:     New Album tab on the event page (next to Design), behind ALBUM_PROOFING on Railway (off by
-           default). Needs migrations 20261022010000_album_proofing.sql and 20261119210000_album_proof_roles.sql.
+           default). Needs migrations 20261022010000_album_proofing.sql and 20261023000000_album_proof_roles.sql.
 How to test:
   1. With ALBUM_PROOFING off: open one of your events on the host page (website) and in the app.
      Expect: tabs are Galleries / Permissions / Design only, nothing else changed.
