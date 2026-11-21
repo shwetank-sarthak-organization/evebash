@@ -5211,7 +5211,7 @@ Fix ref:
 Feedback:
 --------------------------------------------------------------------------------
 #181 App photo viewer comments: nothing behind the panel; Android keyboard doesn't hide the comment box
-Status:    RETEST
+Status:    PASS
 Priority:  Medium
 Platform:  App (Android phone + iPhone)
 Brief:     In guest galleries the Like / Comment / Share / Download row showed through the comment panel and
@@ -5236,14 +5236,14 @@ How to test:
   6. Android: Dashboard > Join Event > tap the Join ID box. Expect: the sheet sits above the keyboard and
      doesn't flicker (same as before).
   7. iPhone: steps 1 to 3. Expect: the panel still moves up for the keyboard as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Shwetank; Claude over adb (Android screenshots)
+Device / browser:iQOO Android; iPhone 11 (iOS 26.7)
+Build / version:EveBash Staging app, builds of 2026-11-20/21
+Date tested:2026-11-20 to 2026-11-21
+Account used:newone1@email.com (Staging test 1)
 Screenshot / recording:
 Fix ref:   6f5b7025 (iPhone keyboard lift, #242)
-Feedback:  2026-11-20 Shwetank, iQOO Android (staging app, newone1@email.com): step 3 PASS (box, typing and Send stay above the docked keyboard; long text visible; comment sent). Step 5 PASS too (host's photo viewer). Steps 1, 2, 4, 6, 7 not done yet. Found #305 (crowded top buttons in the host viewer). Step 7 FAIL on iPhone 11 (iOS 26.7, staging app): the keyboard covers the whole Guestbook panel; box and Send hidden, panel doesn't move up. Issue #242. RETEST 2026-11-20 on the new iPhone staging build (fix 6f5b7025): step 7 PASS (guest viewer) and the host viewer PASS on iPhone 11; a comment sends; nothing shows through the panel (steps 1-2 seen). Left: step 6 (Android Join Event sheet) and step 4 (Reply) to confirm, then PASS.
+Feedback:  2026-11-20 Shwetank, iQOO Android (staging app, newone1@email.com): step 3 PASS (box, typing and Send stay above the docked keyboard; long text visible; comment sent). Step 5 PASS too (host's photo viewer). Steps 1, 2, 4, 6, 7 not done yet. Found #305 (crowded top buttons in the host viewer). Step 7 FAIL on iPhone 11 (iOS 26.7, staging app): the keyboard covers the whole Guestbook panel; box and Send hidden, panel doesn't move up. Issue #242. RETEST 2026-11-20 on the new iPhone staging build (fix 6f5b7025): step 7 PASS (guest viewer) and the host viewer PASS on iPhone 11; a comment sends; nothing shows through the panel (steps 1-2 seen). Left: step 6 (Android Join Event sheet) and step 4 (Reply) to confirm, then PASS. 2026-11-21: step 6 PASS (Join Event sheet above the keyboard, no flicker) and step 4 PASS (Reply shows "Replying to newone1"; box and Send above the keyboard), Android. All steps now pass. Small looks point: with the keyboard closed, the bottom of the reply box slightly overlaps the Android navigation bar.
 
 --------------------------------------------------------------------------------
 #182 Pricing, Contact us and EB Network in the Noir homepage look (website)
