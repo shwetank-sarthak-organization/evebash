@@ -300,7 +300,8 @@
 /* One footer: EveBash links on the left, crown + title + "Made with EveBash" in the middle, help and legal on the right */
 .royal-footer {
   position: relative;
-  z-index: 10;
+  /* Below the gallery section (z-10), which holds the full-screen photo viewer (#314). */
+  z-index: 9;
   padding: 34px 24px;
   border-top: 1px solid #ca9c6933;
   background: #021a15;

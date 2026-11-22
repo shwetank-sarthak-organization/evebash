@@ -1168,7 +1168,7 @@ Fixed in: 3b45d9f9 (2026-11-22)
 Listed: 2026-11-22
 Platform: Website
 Priority: Medium
-Status: Dropped
+Status: In progress
 Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Royal Emerald check 2026-11-22 (Claude in the built-in browser, staging.evebash.com, about 800 px wide)
@@ -1178,7 +1178,7 @@ Note 2026-11-22 (later): could not reproduce (Claude, built-in browser, signed i
 
 =====================================================================
 Note 2026-11-22: not seen by Shwetank either (Mac, Chrome, staging, normal view and the viewer's Fullscreen button). Closed as can't reproduce; reopen with a screenshot if it shows again.
-Fixed in: - (dropped, can't reproduce) (2026-11-22)
+Update 2026-11-22 (later): reproduced by Shwetank (staging, event sample-7edd: opening a photo while the footer is on screen shows the footer across the bottom). Cause: the viewer (fixed, z-index 9999) sits inside the gallery section <main> (relative z-10, TemplateRoyal.tsx), so its 9999 only counts inside that section; the footer (.royal-footer, z-index 10 since 85f86d99) comes later in the page at the same level and paints on top. Earlier checks missed it because the test page was long and the footer was off screen. Fix: .royal-footer z-index 10 -> 9 (src/app/royal-emerald.css), so the gallery section and its viewer sit above it. Status back to In progress until checked.
 
 #313
 Listed: 2026-11-22
