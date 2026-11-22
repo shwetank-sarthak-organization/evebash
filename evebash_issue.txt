@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 307
+Next issue number: 313
 
 =====================================================================
 ACTIVE ISSUES
@@ -1233,6 +1233,72 @@ Found in: Device test #181 step 5 on an Android phone (iQOO, EveBash Staging app
 Issue: In the app's host photo viewer, the top row of buttons is too crowded on Android: the star (favourite) icon overlaps the icon next to it, and the download icon covers the "R" of the REPORT label. Most likely the Report button added for todo #38 gave the row one more button than fits on a phone this wide (1080 px). Looks only; the buttons still work. Fix idea: give the row less space per button, drop the text labels under the icons, or move less-used actions (rotate, report) into a "..." menu.
 How to reproduce: Android phone, EveBash Staging app, newone1@email.com > Staging test 1 host page > open a photo > look at the top row.
 Note 2026-11-20: on iPhone the top row doesn't overlap (Report sits in the Likes/Comments row), but when the host page scrolls up (keyboard open) the floating star/rotate/download buttons sit on top of the Likes/Comments/Report row.
+
+#307
+Listed: 2026-11-22
+Platform: Website
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: Website framework Next.js 16.1.1 (package.json) has a known security hole that npm audit rates critical; a fixed version exists. The website's packages show 38 known holes in all (3 critical, 20 high, mostly through Next.js, sharp and @tensorflow/tfjs-node). Fix: update Next.js to the fixed release (and sharp / tfjs-node where possible), run the build and the website checks on staging, then release.
+How to reproduce: npm audit --omit=dev at the repo root.
+
+#308
+Listed: 2026-11-22
+Platform: Backend only
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: Backend packages have known security holes: sharp (^0.35.3) and zod (^4.4.3) are rated high, and one critical hole sits deeper in the package tree (12 in all: 1 critical, 5 high, 6 moderate). Fixes exist. Fix: update sharp and zod (npm audit fix where safe), run the backend tests, deploy to staging and check uploads, image processing and the API, then release.
+How to reproduce: cd apps/backend && npm audit --omit=dev.
+
+#309
+Listed: 2026-11-22
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: Photo and video links on media.evebash.com need no login and never expire, also for private galleries. The Cloudflare worker (cloudflare-worker/evebash-media-worker/worker.js) serves any file whose address it is given. The addresses contain long random parts (UUIDs), so they can't be guessed, but a forwarded or leaked link works forever, even after the guest loses access. Many photo sites work this way; this needs a decision, not a quick fix. Options: keep as is; or give private galleries short-lived signed links (the worker checks a signature and an expiry time), which affects caching and costs.
+How to reproduce: Open a photo from a private gallery, copy its address, open it in a logged-out browser: it loads.
+
+#310
+Listed: 2026-11-22
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: Android: app backup is on (allowBackup="true" in the Android manifest). Android backup can copy the app's data, including the saved login session, to another device. Apps that keep a login usually turn this off. Fix: set android.allowBackup to false in apps/mobile/app.json (Expo config) so the next build turns it off; check that sign-in still works after a reinstall.
+How to reproduce: Look at allowBackup in the built AndroidManifest.xml.
+
+#311
+Listed: 2026-11-22
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: App login session is kept in normal app storage (AsyncStorage in apps/mobile/lib/supabase.ts), not the phone's secure storage (iPhone Keychain / Android Keystore). Phones protect app storage well, so the risk is mainly on hacked (jailbroken or rooted) phones, or with #310 backups. Fix: store the Supabase session with expo-secure-store (large sessions may need splitting or an encrypted wrapper), then test sign-in, staying signed in after a restart and sign-out on iPhone and Android.
+How to reproduce: Read apps/mobile/lib/supabase.ts (storage: AsyncStorage).
+
+#312
+Listed: 2026-11-22
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: App packages have known security holes: expo-router (~55.0.16) is rated high; the app shows 36 in all (1 critical, 18 high, mostly in build tools). Fixes exist. Fix: update expo-router and the affected Expo packages (expo install --fix), make a staging build, and check sign-in, navigation, deep links and uploads on iPhone and Android. Reaches users with the next store release.
+How to reproduce: cd apps/mobile && npm audit --omit=dev.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
