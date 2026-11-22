@@ -6317,7 +6317,7 @@ function DashboardContent() {
                                                     <div className="flex-1 mr-2">
                                                         <div
                                                             className="text-sm font-bold font-outfit"
-                                                            style={{ color: isActive ? template.accent : '#fff' }}
+                                                            style={{ color: isActive ? template.accent : 'var(--site-text)' }}
                                                         >
                                                             {template.label}
                                                         </div>

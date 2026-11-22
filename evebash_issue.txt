@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 304
+Next issue number: 315
 
 =====================================================================
 ACTIVE ISSUES
@@ -152,18 +152,6 @@ Found in: Checking signing fingerprints for #67 (2026-10-13)
 Issue: The locally built Android APKs in the repo root (app-release-v1.apk, app-release-v1.2.4.apk) are signed with the Android debug key (apps/mobile/android/app/debug.keystore, "CN=Android Debug", SHA-1 5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25, SHA-256 FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C), even though they are named "release". EAS builds use the EAS Android keystore (SHA-1 29:40:B3:BD:EB:22:B7:1F:A2:E5:E6:8C:B0:92:52:2B:D2:08:30:47; Firebase also lists SHA-256 b5:2b:a8:a5:85:66:3d:5f:1d:d4:10:37:f7:ff:67:02:1d:49:7d:f1:2c:8c:11:8b:ac:09:fd:41:a9:39:1e:13, probably the same key). Impact: testers can't install an EAS build over a local APK (or the other way round) without uninstalling, because the signatures differ; and the debug key is public, so it must never go into the live assetlinks.json (#67). Fix: make store and tester builds only through EAS, and list only the EAS key's and Google Play's app-signing key's SHA-256 in assetlinks.json and Firebase (#18).
 How to reproduce: ~/Library/Android/sdk/build-tools/36.1.0/apksigner verify --print-certs app-release-v1.2.4.apk shows "CN=Android Debug".
 
-#71
-Listed: 2026-10-13
-Platform: App
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #161); move to RECENTLY FIXED once it passes
-Found in: Website Settings page work (2026-10-13)
-Issue: Several items in the app's Settings (apps/mobile/app/settings.tsx) look like they work but do nothing. (1) Report a Bug / Send Feedback: submitFeedback (apps/mobile/lib/database.ts) only writes to the phone's console and returns true, so the app says "Feedback Sent" and the message is lost. (2) Upload Quality (Speed / High-Res) is saved on the phone (@high_quality_uploads) but no upload code reads it. (3) Clear Media Cache runs a fake progress bar and always says "cleared 24.2 MB"; nothing is cleared. (4) Discoverable Profile saves profiles.discoverable, which nothing reads (there is no Explore feed). (5) The FAQ answers are out of date: "250 photos per event", "Register Business" (Phase 2), "5-character event code". The notification switches are #58 and #63. These were left out of the new website Settings page. Fix: send app feedback to the backend's /api/v1/contact-messages (what the website's Contact Us uses), and hide or remove the others until they work.
-How to reproduce: In the app, Settings > Report a Bug: send a message, then look for it anywhere the team reads (contact messages, email): it isn't there. Tap Clear Media Cache twice: "24.2 MB" both times.
-Fix: 02e0848 (2026-10-27). Report a Bug / Send Feedback now posts to /api/v1/contact-messages (source "mobile") through sendContactMessage in apps/mobile/lib/database.ts, which apps/mobile/app/contact.tsx also uses now; the message carries the category, user ID and email or phone. Discoverable Profile, Upload Quality and Clear Media Cache are removed from Settings (the Storage & Quality section is gone). FAQ answers follow the website's FAQ (src/components/home/HomeFaq.tsx). Checked: tsc has no errors in these files. Needs a new app build; device test #161.
-
 #72
 Listed: 2026-10-13
 Platform: Both
@@ -186,58 +174,6 @@ Found in: Chat about uploads and page switching (2026-10-21)
 Issue: On the host page, going to another page of the website (Dashboard, Profile, Home...) while photos or videos upload hid the upload panel. The files kept uploading in the background, but the host couldn't see progress or cancel, and the "active uploads" warning was gone, so a refresh or close on the other page silently lost the rest. Coming back to the host page showed no panel. Fix (2026-10-21, on staging; move to fixed once test #94 passes): the upload queue, panel, Cancel buttons, video-ready and face-indexing polls and the leave warning moved from src/app/(main)/host/page.tsx into src/context/UploadContext.tsx, mounted in src/app/(main)/layout.tsx, so they stay on every website page. The face-indexing poll now follows the event the files were uploaded to, not the event open on the host page.
 How to reproduce: Host -> a gallery -> upload 20 photos -> click Dashboard in the navbar while they upload: the panel disappears and pressing refresh shows no warning.
 
-#81
-Listed: 2026-10-22
-Platform: Website
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: The Royal Emerald guest page shows a typo when the gallery has no date: the line above the title falls back to "NITES • LUXURY WEDDING & CELEBRATION" (src/components/TemplateRoyal.tsx). When there is a date, it shows twice: in that line and again in the date pill below.
-How to reproduce: Open a Royal Emerald gallery with no date: the line above the title reads "NITES • LUXURY WEDDING & CELEBRATION". Add a date: it appears both above the title and in the pill.
-Update 2026-10-22: fixed in the new hero (src/components/TemplateRoyal.tsx (ornaments in src/components/royal/, styles in src/app/royal-emerald.css)). The card shows the date once and nothing when there is no date; the "NITES" fallback is gone.
-Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): the date shows once ("29 SEPTEMBER 2026" on 29 sep) and there is no "NITES" text. A gallery with no date wasn't available to check. Device test #101 is FAIL only for step 7 (#92); this part passes.
-
-#82
-Listed: 2026-10-22
-Platform: Website
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: Royal Emerald shows made-up text to guests when the host leaves fields empty: title "An Elegant & Timeless Wedding" and a description about "a monumental union of love, heritage, and royal celebrations" (src/components/TemplateRoyal.tsx). It should show nothing (or the gallery name) instead.
-How to reproduce: Open a Royal Emerald gallery with no description: the made-up paragraph appears under the title.
-Update 2026-10-22: fixed in the new hero. No made-up title or description: the card shows the gallery title, and the description stays in the gallery section below (where it was already shown).
-Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): no made-up title or description; the card shows the gallery's own title and the plaque its own description. Device test #101 is FAIL only for step 7 (#92); this part passes.
-
-#83
-Listed: 2026-10-22
-Platform: Website
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: Royal Emerald has wedding-only text fixed in the design: "The Wedding Collection", "Imperial Album" and the footer "Elegantly Captured • Royal Emerald Edition" (src/components/TemplateRoyal.tsx). Anniversary events pre-select this theme, so they also say "Wedding", and the footer shows the theme's name to guests.
-How to reproduce: Create an Anniversary event with Royal Emerald and open it as a guest: it says "The Wedding Collection".
-Update 2026-10-22: fixed in the new hero. "The Wedding Collection" and "Imperial Album" are gone; the line above the names follows the category (The Wedding of / The Anniversary of / The Engagement of / Celebrating) and only shows for "Name & Name" titles on the main gallery; the footer shows the gallery title instead of "Royal Emerald Edition".
-Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): no "The Wedding Collection", "Imperial Album" or "Royal Emerald Edition"; the footer shows the gallery title. The Anniversary wording wasn't checked. Device test #101 is FAIL only for step 7 (#92); this part passes.
-
-#84
-Listed: 2026-10-22
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: Royal Emerald stacks two section headings: "Treasured Moments / The Wedding Collection" (src/components/TemplateRoyal.tsx) sits right above the shared "Home Gallery · N Photos" heading (src/app/(public)/events/[slug]/page.tsx), with two gold dividers in a row.
-How to reproduce: Open any Royal Emerald gallery and scroll past the hero: two headings in a row.
-Update 2026-10-22: fixed. The theme's own "Treasured Moments / The Wedding Collection" heading was removed; only the shared gallery heading remains.
-Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): no "Treasured Moments" heading; only the crest and "Home Gallery" between gold lines. Device test #101 is FAIL only for step 7 (#92); this part passes.
-
 #86
 Listed: 2026-10-22
 Platform: Website
@@ -250,6 +186,7 @@ Issue: In Royal Emerald, "Load More Media" and the guest "Add photos" button sta
 How to reproduce: Open a Royal Emerald gallery with more than one page of photos (Load More appears), or as a guest with Allow Photo Uploads on (Add photos appears).
 Update 2026-10-22: fixed in 3b40188 (on staging). In Royal Emerald both are gold buttons (royal-button in src/app/royal-emerald.css, set by the event page). Device test #113.
 Note 2026-11-12: not seen yet when Claude checked staging in the built-in browser: no gallery has a second page for a signed-in host (all 66 photos of the biggest album load at once), and Add photos shows only for guests who may upload. The code gives Royal Emerald the gold royal-button. Device test #113 steps 2-3.
+Note 2026-11-22: not checked in the 2026-11-22 Royal Emerald check: needs a signed-in guest (Add photos, Favourites), more photos (Load More) or a location (#96).
 
 #87
 Listed: 2026-10-22
@@ -263,61 +200,7 @@ Issue: In Royal Emerald, the Favourites switch on the gallery page keeps a light
 How to reproduce: Open a Royal Emerald gallery and toggle Favourites on and off.
 Update 2026-10-22: fixed in 3b40188 (on staging). Royal Emerald gives the switch its own classes (royal-switch): emerald box with a gold star, count and track when off; gold star box and gold track when on. Device test #113.
 Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): off is emerald with a gold thumb, on has a gold star box and a gold track (device test #113 step 4 PASS).
-
-#88
-Listed: 2026-10-22
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: In Royal Emerald some text is hard to read on the dark green: "Link Copied!" (text-green-600), the guest upload error (text-rose-600) and the empty-gallery message (muted text at opacity-50) (src/app/(public)/events/[slug]/page.tsx).
-How to reproduce: Open a Royal Emerald gallery, press Share Event (green text), and open an empty Royal Emerald gallery (faint message).
-Update 2026-10-22: "Link copied" is now gold in Royal Emerald (new gallery header, test_yourself #102). The guest upload error and the empty-gallery message are still hard to read.
-Update 2026-10-22: fixed in 3b40188 (on staging). The guest upload error is a light rose (royal-error) and the empty-gallery message is ivory and sage at full strength (royal-empty, no opacity-50). Device test #113.
-Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): "Link copied" is pale gold and the empty-gallery text is ivory and sage at full opacity (device test #113 step 5 PASS). The guest upload error is not checked yet (needs a guest who can upload).
-
-#89
-Listed: 2026-10-22
-Platform: Website
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: Guests can see a developer message on the empty gallery state: "Owner: Check Supabase database rules to enable shared access." (src/app/(public)/events/[slug]/page.tsx). Affects every theme, not only Royal Emerald.
-How to reproduce: Open a gallery the visitor can't load photos for (restricted state): the Supabase message shows under "Moments restricted...".
-Update 2026-10-22: fixed in 3b40188 (on staging), every theme: guests now read "You don't have access to these photos yet. Ask the host to share the gallery with you." Device test #113.
-Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): the empty gallery has no developer message, and a private gallery shows "This gallery is private / Request access" with no Supabase mention (device test #113 step 6).
-
-#90
-Listed: 2026-10-22
-Platform: Website
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: On phones the Royal Emerald hero is at least one screen tall: text first, then a tall 4:5 framed image (src/components/TemplateRoyal.tsx), so guests scroll about two screens before the first photo.
-How to reproduce: Open a Royal Emerald gallery on a phone (or 375 px wide): count the scrolls before the first photo.
-Update 2026-10-22: the new hero (card, then framed photo, then button) is still about 1,200 px tall on a 390 px phone before the first photo, so this stays open.
-Update 2026-10-22 (later): fixed in 3b40188 (on staging). Phones now use the app's layout: framed photo first, a narrower card under it with the names on one line, smaller seal, no Explore Gallery button. About 807 px tall at 390x844, so the hero fits one screen. Desktop unchanged. Device test #113.
-Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
-Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): at 390x844 the frame comes first, the card under it, no Explore Gallery, and the hero ends at 828 px (device test #113 step 1 PASS). On staging real phones get the "Get the EveBash app" screen, so this was seen with that screen turned off in the page.
-
-#91
-Listed: 2026-10-22
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: The Royal Emerald hero crops images badly. The default palace image (public/royal_emerald_palace_hero.jpg) is landscape 1376x768 and 1 MB, shown in a portrait 4:5 frame, so most of it is cut off. Host cover photos are always cropped from the centre with no way to pick the focus point (src/components/TemplateRoyal.tsx). Related: #64.
-How to reproduce: Open a Royal Emerald gallery with no cover photo: the palace image is cut down to a narrow middle strip.
-Update 2026-10-22: the hero now applies the host's cover focus point, zoom and fit (Host page cover position), so the host picks which part shows. Decision (Sarthak, 2026-10-22): the gold frame stays portrait (4:5) for every cover, so landscape covers are cropped to portrait around that focus point; the default palace image crops to its centred doorway. next/image already serves it resized. Move to fixed with #101.
-Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): the portrait frame follows the cover's focus point and zoom. Device test #101 is FAIL only for step 7 (#92); this part passes.
+Note 2026-11-22: not checked in the 2026-11-22 Royal Emerald check: needs a signed-in guest (Add photos, Favourites), more photos (Load More) or a location (#96).
 
 #92
 Listed: 2026-10-22
@@ -333,47 +216,8 @@ Update 2026-10-22: fixed. Names in gold script get smaller for long names (two s
 Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
 Note 2026-11-12: device test #101 step 7 FAILS at phone width (checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone)). "Rajyalakshmi & Venkatanarayanaswamy" is fine on a computer (royal-card__names--xlong, 34 px, three lines), but at 390 px the card shows the names on one line at 26 px and splits the word: "Rajyalakshmi & Venkatan / arayanaswamy" (the h1 has overflow-wrap: anywhere). The 2026-10-22 fix was checked before the phone hero changed to names on one line (device test #113), so that change probably brought it back. Fix idea: on phones put the long name on its own line or step the size down further, and break only between words. Screenshot: reports/device-tests/test-101-step7-390px.jpg (local).
 Update 2026-11-12: fixed in 6109d44b (staging). Cause: no spaces around the inline "&" on phones, so the title was one unbreakable string. Now spaces surround it, and on phones the font size follows the longest word (container width / letters) and wraps only at spaces; the laptop look is unchanged. Checked in the built-in browser at 375, 390 and 1366 px. Waiting on device test #101 step 7 (RETEST).
-
-#93
-Listed: 2026-10-22
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: The Royal Emerald double gold frame is fixed at z-40 (src/components/TemplateRoyal.tsx), so it stays on top of photos, the navbar and popups with a lower z-index while scrolling, and takes space at the edges on phones.
-How to reproduce: Open a Royal Emerald gallery and scroll: the gold frame lines cross photos and the navbar.
-Update 2026-10-22: fixed. The fixed double frame is gone; the new gold corners sit inside the hero only and scroll away with it.
-Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
-Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): no fixed gold frame; the corners stay in the hero and nothing gold covers the photos after scrolling. Device test #101 is FAIL only for step 7 (#92); this part passes.
-
-#94
-Listed: 2026-10-22
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: The Royal Emerald gallery area is always at least one screen tall (min-h-screen in src/components/TemplateRoyal.tsx), so a gallery with few photos has a big empty green block before the footer.
-How to reproduce: Open a Royal Emerald gallery with 1-3 photos: large empty space before the footer.
-Update 2026-10-22: fixed in 3b40188 (on staging). The gallery area no longer has min-h-screen (src/components/TemplateRoyal.tsx), so a small gallery goes straight to the footer. Device test #113.
-Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): on an empty gallery the footer sits 160 px under the empty message (device test #113 step 7).
-
-#95
-Listed: 2026-10-22
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: Royal Emerald hover effects (hero image zoom, button grow) only work with a mouse, so phones get no feedback (src/components/TemplateRoyal.tsx).
-How to reproduce: Open a Royal Emerald gallery on a phone and tap the hero image and Explore Gallery: no visual response before scrolling.
-Update 2026-10-22: fixed. The hover-only image zoom and button grow are gone; the button has a pressed state that works on touch.
-Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
-Note 2026-11-12: not checked; the built-in browser has no touch screen. Needs a real phone (device test #101).
+Note 2026-11-22: FAIL in part: the invitation card and the top bar handle a 98-character title well, but the guest page footer does not: the long title in the middle squeezes the side links, so "Create your own event free" breaks one word per line and "Contact Us" / "Cancellation & Refund" wrap (seen at 1920 px and about 800 px). Fix idea: limit the footer title to 1-2 lines (line-clamp) or give the side columns a minimum width. Phone width not checked.
+Note 2026-11-22: phone width (390 px frame, Claude): the footer is fine there: the title sits on its own lines above, the links are in two short columns and only "Create your own event free" wraps to 2 lines. So the squeeze is a computer-width problem only.
 
 #96
 Listed: 2026-10-22
@@ -388,6 +232,8 @@ How to reproduce: Open a Royal Emerald gallery and compare the fonts of the hero
 Update 2026-10-22: hero fonts are now one set (Great Vibes for names, Cinzel for date and button, Cormorant Garamond for "&" and place), loaded only on this page (src/components/royal/royalFonts.ts); the fixed blur-3xl glows were replaced by a plain gradient. Still open: the [class*="text-stone-"] overrides in royal-emerald.css (cause of #86-#88).
 Update 2026-10-22 (later): fixed in 3b40188 (on staging). Royal Emerald no longer recolours shared controls by matching class names: its [class*="text-stone-"] and [role="switch"] overrides are gone, and the event page gives the Royal controls named classes (royal-button, royal-switch, royal-error, royal-muted, royal-empty). Shared text colours still come from the theme colours in gallery-refinements.css, like every theme. Device test #113.
 Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): the date and the Explore Gallery button are both Cinzel; only the names are in script, by design. Device test #101 is FAIL only for step 7 (#92); this part passes.
+Note 2026-11-22: not checked in the 2026-11-22 Royal Emerald check: needs a signed-in guest (Add photos, Favourites), more photos (Load More) or a location (#96).
+Note 2026-11-22: parked: Shwetank to decide with Sarthak whether events should have a location at all. If not, this issue can be dropped.
 
 #99
 Listed: 2026-10-22
@@ -673,18 +519,6 @@ EXACT costs from both providers' bills (2026-10-26; RunPod = each endpoint's bil
 - Billed rates: RTX 4000 Ada $0.000162/s, 24 GB tier $0.000192/s, cpu5g-8-32 $0.0000203/s, cpu5c-8-16 $0.0000159/s, cpu3c-8-16 $0.0000136/s, cpu3g-8-32 $0.0000228/s, cpu5c-16-32 $0.0000316/s, cpu5c-4-8 $0.0000083/s; no egress on RunPod.
 Update 2026-10-28: the RunPod path is built behind VIDEO_RUNPOD (off) on branch feat/runpod-video (8bfc220), see todo #18. Not pushed or deployed; no RunPod endpoint created yet.
 Note 2026-11-18: Shwetank and Sarthak decided Modal does all video processing for now (≤ 10 min on the 4-core worker, > 10 min on the 16-core worker, as today); RunPod is set up later. This waits until then (decision #229).
-
-#135
-Listed: 2026-10-24
-Platform: App
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: New app build (it's an app change: reaches users only with the next build / OTA update), then device test
-Found in: Device test #128 on the iOS simulator (2026-10-24)
-Issue: In the app's video viewer you can't seek: the progress bar (dashboardVideoProgressTrack in apps/mobile/components/PhotoViewer.tsx) only shows progress and has no touch handling, the buttons next to play are previous/next media, and the 5-second jump (seekBy, videoControlsRef) is defined but nothing calls it. On a 48-minute wedding video, guests can only watch from the start. The website player seeks fine. There is also no manual quality choice in the app (iOS picks it), which is fine. Fix: make the progress bar draggable/tappable (player.currentTime = fraction * duration) and/or add -10 s / +10 s buttons; check on iPhone and Android.
-How to reproduce: In the app, open any video in a gallery, play it, tap or drag the progress bar: playback position doesn't change.
-Fix (app, not in a build yet): apps/mobile/components/PhotoViewer.tsx: the progress bar is now a seek bar (tap or drag; a 20 px tall touch area around the 3 px bar, a thumb shows while dragging and the time follows the finger), plus -10 s / +10 s buttons beside play (icons gobackward.10 / goforward.10 added to icon-symbol.tsx), and the bar is adjustable for VoiceOver (swipe up/down = +/-10 s). On iOS a sideways drag anywhere is the "go back" gesture, so the gallery screen's swipe-back is switched off while a video viewer with these controls is open and back on when it closes. Checked in the iOS simulator (dev build from this branch, test_5 in test-face-new-155c): tap mid-bar 0:00 -> 24:20, +10 s 24:20 -> 24:30, drag to the right 46:06 and played from there; the screen no longer slides away while dragging. Android not checked. Device test #138.
 
 #139
 Listed: 2026-10-25
@@ -981,18 +815,6 @@ Found in: App screen review, EB Vault (chat 2026-11-03)
 Issue: EB Vault (apps/mobile/components/vault/VaultScreen.tsx, VaultPreview.tsx, VaultModals.tsx, VaultUploads.tsx) uses its own colours, not the app palette: a #0E1318 page background (the app uses MidnightColors.background, #13191F), cool blue-grey text and boxes (#E2E8F0, #F1F5F9, #141B22, white see-through borders) and Tailwind amber and red banners. Next to Profile and Plan & Usage it looks darker and colder, the same kind of mismatch as #230. Its header also differs from the sibling Plan & Usage page, which uses TabScreenHeader. Long file names are cut at the end, so the extension is hidden ("SU0710…265404 …") in the list, the actions sheet title and the preview header; cutting in the middle (ellipsizeMode="middle") keeps ".pdf" visible. Smaller: the Profile row says "Usage & Plan" but that page's title says "Plan & Usage". Keep the Vault green (#7FA38C), which the Profile card uses too. Fix idea: swap the hard-coded colours for MidnightColors tokens, cut file names in the middle, and use one name for Usage & Plan. Also check on a phone: a 195 KB PDF took about 15-20 s to show in the preview on the emulator, with only "Loading PDF..." on screen.
 How to reproduce: Android emulator, Profile > EB Vault; compare with Profile > Usage & Plan.
 
-#242
-Listed: 2026-11-03
-Platform: App
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device test #181 (normal Android keyboard on a phone)
-Found in: Testing the #235 fix on the Android emulator (chat 2026-11-03)
-Issue: On Android, the keyboard covers the comment box in the photo viewer, so you can't see what you are typing or the send button. The Guestbook panel (renderGuestbookPanel in apps/mobile/components/PhotoViewer.tsx) uses KeyboardAvoidingView only on iOS (behavior is undefined on Android), and inside the viewer's Modal the screen doesn't shrink for the keyboard. Fix idea: give Android a behavior too (or move the panel up by the keyboard height from Keyboard events), then check typing a comment and a reply on Android and iPhone.
-How to reproduce: Android emulator, test-face-new-155c guest view, open a photo, tap the comment icon, tap "Share a wish...": the keyboard opens over the whole panel.
-Note 2026-11-03: fix on staging in 40a55ee. On Android the bottom-pinned comment panel moves up by the keyboard height (and gets shorter if space is tight), and the host viewer scrolls its panel above the keyboard. The keyboard listener now lives in apps/mobile/hooks/use-android-keyboard-height.ts, shared with BottomSheet. Checked on the emulator only with Gboard's floating keyboard (the panel correctly stays put); the normal docked keyboard isn't checked yet. Move to RECENTLY FIXED once device test #181 passes on an Android phone. Other places with the same risk: #243.
-
 #243
 Listed: 2026-11-03
 Platform: App
@@ -1203,20 +1025,6 @@ Issue: Deleting an event in the app runs the B2 file cleanup twice ("[deleteEven
 Fix idea: find why deleteEvent's cleanup runs twice (double tap, or the confirm handler/effect firing twice) and run it once; treat "already deleted" from /api/media/delete as success instead of trying other endpoints; delete the guest preview picture before the event row.
 How to reproduce: Android USB build on staging, host deletes an event that has photos in a sub-gallery and the Home gallery; watch the Metro log and the screen.
 
-#291
-Listed: 2026-11-18
-Platform: App
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Device test #178 (2026-11-18, Pixel 8 and Shwetank's iPhone 11, staging gallery test-178-big-gallery-6ee0 with 300 test pictures)
-Issue: Picture memory still grows in the app's host photo grid while scrolling a big gallery, although #185's windowing works (only 20-44 tiles are mounted out of 300). Pixel 8, staging app, host view (adb dumpsys meminfo, TOTAL PSS): 420 MB at the top, 720 MB at the bottom (about 1 MB per picture seen), 685 MB back at the top, and still 675 MB after `adb shell am send-trim-memory com.evebash.app.staging RUNNING_CRITICAL` (Native Heap 261 MB, Graphics 153 MB), so a low-memory signal doesn't free it. iPhone 11, host view (Instruments, Activity Monitor): 51 MB rising to 416 MB over the first pass, then flat at about 440 MB once all 300 had been seen, also at rest. The Midnight Hero guest grid on the Pixel grew much less (360 -> 460 -> 416 MB). A 790-photo gallery could reach about 1 GB in the host view, which is risky on 3-4 GB phones. The decoded pictures (or something holding them) aren't released when tiles unmount. To check: which image size the host tiles load (thumbnail_url, preview_url or the original), expo-image cachePolicy and recyclingKey, and whether the image memory caches (Glide on Android, SDWebImage on iOS) are bounded. Files: apps/mobile/app/events/[id].tsx (host grid), apps/mobile/hooks/use-scroll-window.ts, apps/mobile/components/event/MasonryPhotoColumns.tsx.
-How to reproduce: Staging, a USB Android phone with the staging app signed in as a manager account (owner or platform admin). Open evebash-staging://events/test-178-big-gallery-6ee0?mode=admin (adb shell am start -a android.intent.action.VIEW -d <link>), open the Home gallery's photo grid and note `adb shell dumpsys meminfo com.evebash.app.staging` (TOTAL PSS). Scroll to #001 and back, note it again, then send `adb shell am send-trim-memory com.evebash.app.staging RUNNING_CRITICAL`. Count mounted tiles with `adb shell dumpsys activity top | grep -c expo.modules.image.ExpoImageViewWrapper`. Today: tiles stay at 20-44, memory climbs about 1 MB per picture and stays.
-Note 2026-11-18: step 1 on staging 08bb4814 (app only, apps/mobile/app/events/[id].tsx): tiles far from the screen now also leave out their dark shading, badges and buttons; they come back with the photo near the screen. Cause found on the Pixel 8 (adb dumpsys activity top, views by type at the bottom of the 300-picture gallery): every tile kept its shading layer (302 in all) and its button icons (about 1,557 icon texts), 5,806 views in all, although only 20-44 photos were mounted. Measured with EAS staging Android build 241accd8 on the Pixel 8, same steps as above, before -> after: views at the bottom 5,806 -> 2,143, shading layers 302 -> 26, icon texts about 1,557 -> 177; Native Heap top -> bottom 86 -> 266 MB before, 81 -> 208 MB now; TOTAL PSS 437 -> 690 MB before, 416 -> 589 MB now; back at the top after RUNNING_CRITICAL 675 -> 591 MB. Buttons, the dots menu, delete then Cancel, and drag reordering still work (device test #234). Still open: memory still grows about 170 MB over the 300 pictures. Each far tile still keeps its empty box (about 1,400 plain views at the bottom), and decoded pictures may add to it. Next: find which of the two the rest is.
-Note 2026-11-19: tried and ruled out: keeping the host grid's tile renderer the same between scroll steps (react-native-sortables redraws every tile when its renderItem changes, and the event screen re-renders at every 200 pt of scrolling). Local branch fix/291-stable-tiles, not pushed. Same scroll test on the Pixel 8 (4 up-and-down cycles, then a full pass over all 300 and back), EAS staging build 687181d5 (with it) vs 241accd8 (without): no change. TOTAL PSS 422 -> 640-680 MB with it, 438 -> 620-650 MB without; JS memory (dumpsys "Unknown") 27 -> 126 MB with it, 28 -> 109 MB without. Picture memory stays 17-37 MB in both, so it isn't the decoded pictures that grow. In both builds memory stopped climbing at about 620-680 MB after the second cycle, and the full pass over all 300 pictures didn't raise it, so since step 1 it looks like a ceiling rather than growth per picture. Next: a longer run to confirm the ceiling, then a debuggable build to see what fills the JS memory.
-Note 2026-11-19 (long test): memory no longer keeps growing. Pixel 8, EAS staging build 241accd8 (step 1, the code staging has), 10 full passes over all 300 pictures and back: TOTAL PSS 431 MB when the grid opens, 612 MB after pass 1, then 579-623 MB for passes 2-10 (619 MB after pass 10, 617 MB after a 30 s rest). JS memory (dumpsys "Unknown") rose to 117 MB by pass 7, then the app's own clean-up brought it back to 102-106 MB, so it isn't a leak. After a low-memory signal (RUNNING_CRITICAL) 596 MB (before step 1 it stayed at 675 MB). So since step 1 the host grid settles at about 600 MB for 300 photos instead of growing with every picture seen. What's left: every photo still keeps an empty box in the grid (react-native-sortables builds one per photo), so a bigger gallery probably settles higher. The real fix for that is todo #46 (recycling list, Phase 2, EB-224). Still to check: device test #234 (buttons after step 1) and the iPhone's memory with a staging build that has step 1.
-
 #294
 Listed: 2026-11-18
 Platform: App
@@ -1227,21 +1035,6 @@ Blocked by: -
 Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simulator, staging app build 1.2.4)
 Issue: In the app's Find You results ("Your Photos - N matches found in this event"), the photo grid isn't centred: its two columns sit on the left with an empty strip about a third of a column wide on the right (iPhone 17 Pro size, Cinematic wedding theme). Fix idea: check the matched-photos grid's width and gaps in apps/mobile/components/event/FindYouPanel.tsx (matchedPhotos.map, about line 454).
 How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc), Find You > Upload Photo > a picture of the groom (a crop of public/home/groom-solo.jpg): 5 matches, grid left of centre.
-
-#299
-Listed: 2026-10-23 (as #102 on the unmerged branch; renumbered #299 on 2026-11-19, #102 had been reused)
-Platform: Both
-Priority: Critical
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: the website/backend release (staging -> main), the analytics dashboard against live, the next store app release; then update the Google Play content-rating answers (users can report content and users)
-Found in: Google Play content-rating questionnaire (2026-10-23)
-Issue: No way to report objectionable content or users. Google Play's User Generated Content policy requires an in-app way to report UGC and users and that we act on reports; the questionnaire says UGC is the app's main content and that there is no reporting, so the review is likely to be rejected. The only "report" was Settings > Report a Bug (which also loses the message, #71 item 1), and the app's Settings legal text claimed hosts can "report abuse directly to EveBash administrators", which wasn't possible.
-How to reproduce: On staging (website or app), open a gallery photo, a comment, a chat message, a business or a user profile: there is no Report option.
-Fix (branch feat/content-reporting): content_reports table (RLS on, no client access) and file_content_report() for logged-in users (fixed reasons, optional note, one open report per person and item, 20 an hour). "Report" with a reason picker on photos and videos (website Lightbox and gallery viewer, app viewer), comments, app chat messages (press and hold) and business profiles; "Report user" on comments, chat, business owners, public profiles and the host's guest list. Confirms "Thanks, we'll review this within 24 hours." Analytics dashboard > Reports lists reports (open over 24 h highlighted) with Remove content (photos and videos through the existing media delete; comments and chat messages), Mark actioned, Dismiss and Suspend account (Supabase ban, can be lifted). Terms section 10 now has "Reporting and enforcement"; the Settings legal text was corrected. After it ships: update the Play questionnaire to say users can report content and users.
-Not covered yet: business reviews and announcements have no Report of their own (report the business or the user instead); a report doesn't email anyone yet, so someone must check the Reports tab daily to keep the 24-hour promise.
-Update 2026-11-20: staging tests PASS: #241 website, #242 app (iPhone and Android), #243 dashboard Reports tab (dismiss, remove a comment, suspend and lift), #244 Terms on website and app. Ideas noted: show the report type more prominently in the Reports tab; the app's logged-out prompt doesn't mention reporting; no email to admins on a new report yet (check the Reports tab daily to keep the 24-hour promise).
-Update 2026-11-20 (Shwetank: "OK live #38"): migration 20261119210000 applied on the live database (content_reports with RLS, 0 rows; file_content_report callable by logged-in users only). Terms "Last updated" set to November 20, 2026 (POLICY_VERSION unchanged, so no re-accept prompt).
 
 #300
 Listed: 2026-11-19
@@ -1287,9 +1080,396 @@ Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happen
 Issue: On a shared phone, one person's photos can be uploaded under another person's account. The upload list in apps/mobile/lib/uploadQueue.ts is saved on the phone, not per account, and every step uses whoever is logged in at that moment. Each item already stores who added it (userId, about line 128), but nothing uses it. Example: Riya picks 100 photos and logs out halfway; Arjun logs in on the same phone; the photos not yet sent, the ones stuck on "saving" (#302) and any failed ones he taps Retry on go up as Arjun's. Riya then can't find or delete them as her own, and Arjun can. Fix idea: only upload or save an item while the person who added it (item.userId) is logged in; items of another account wait until that person logs back in and can be removed from the list.
 How to reproduce: Staging app, account A, host view of a gallery where account B is also a guest or admin. Pick 30 photos, then right away Profile > Sign Out and log in as account B. Open the gallery: today the photos that were still waiting appear with account B as the uploader.
 
-=====================================================================
+#305
+Listed: 2026-11-20
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Device test #181 step 5 on an Android phone (iQOO, EveBash Staging app, host's photo viewer), 2026-11-20
+Issue: In the app's host photo viewer, the top row of buttons is too crowded on Android: the star (favourite) icon overlaps the icon next to it, and the download icon covers the "R" of the REPORT label. Most likely the Report button added for todo #38 gave the row one more button than fits on a phone this wide (1080 px). Looks only; the buttons still work. Fix idea: give the row less space per button, drop the text labels under the icons, or move less-used actions (rotate, report) into a "..." menu.
+How to reproduce: Android phone, EveBash Staging app, newone1@email.com > Staging test 1 host page > open a photo > look at the top row.
+Note 2026-11-20: on iPhone the top row doesn't overlap (Report sits in the Likes/Comments row), but when the host page scrolls up (keyboard open) the floating star/rotate/download buttons sit on top of the Likes/Comments/Report row.
+
+#308
+Listed: 2026-11-22
+Platform: Backend only
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: Backend packages have known security holes: sharp (^0.35.3) and zod (^4.4.3) are rated high, and one critical hole sits deeper in the package tree (12 in all: 1 critical, 5 high, 6 moderate). Fixes exist. Fix: update sharp and zod (npm audit fix where safe), run the backend tests, deploy to staging and check uploads, image processing and the API, then release.
+How to reproduce: cd apps/backend && npm audit --omit=dev.
+
+#309
+Listed: 2026-11-22
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: Photo and video links on media.evebash.com need no login and never expire, also for private galleries. The Cloudflare worker (cloudflare-worker/evebash-media-worker/worker.js) serves any file whose address it is given. The addresses contain long random parts (UUIDs), so they can't be guessed, but a forwarded or leaked link works forever, even after the guest loses access. Many photo sites work this way; this needs a decision, not a quick fix. Options: keep as is; or give private galleries short-lived signed links (the worker checks a signature and an expiry time), which affects caching and costs.
+How to reproduce: Open a photo from a private gallery, copy its address, open it in a logged-out browser: it loads.
+
+#310
+Listed: 2026-11-22
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: Android: app backup is on (allowBackup="true" in the Android manifest). Android backup can copy the app's data, including the saved login session, to another device. Apps that keep a login usually turn this off. Fix: set android.allowBackup to false in apps/mobile/app.json (Expo config) so the next build turns it off; check that sign-in still works after a reinstall.
+How to reproduce: Look at allowBackup in the built AndroidManifest.xml.
+
+#311
+Listed: 2026-11-22
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: App login session is kept in normal app storage (AsyncStorage in apps/mobile/lib/supabase.ts), not the phone's secure storage (iPhone Keychain / Android Keystore). Phones protect app storage well, so the risk is mainly on hacked (jailbroken or rooted) phones, or with #310 backups. Fix: store the Supabase session with expo-secure-store (large sessions may need splitting or an encrypted wrapper), then test sign-in, staying signed in after a restart and sign-out on iPhone and Android.
+How to reproduce: Read apps/mobile/lib/supabase.ts (storage: AsyncStorage).
+
+#312
+Listed: 2026-11-22
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: App packages have known security holes: expo-router (~55.0.16) is rated high; the app shows 36 in all (1 critical, 18 high, mostly in build tools). Fixes exist. Fix: update expo-router and the affected Expo packages (expo install --fix), make a staging build, and check sign-in, navigation, deep links and uploads on iPhone and Android. Reaches users with the next store release.
+How to reproduce: cd apps/mobile && npm audit --omit=dev.
+
 RECENTLY FIXED (delete entries older than 7 days)
+#307
+Listed: 2026-11-22
+Platform: Website
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: Website framework Next.js 16.1.1 (package.json) has a known security hole that npm audit rates critical; a fixed version exists. The website's packages show 38 known holes in all (3 critical, 20 high, mostly through Next.js, sharp and @tensorflow/tfjs-node). Fix: update Next.js to the fixed release (and sharp / tfjs-node where possible), run the build and the website checks on staging, then release.
+How to reproduce: npm audit --omit=dev at the repo root.
+Update 2026-11-22: Next.js and eslint-config-next updated 16.1.1 -> 16.4.6 (same major version). npm audit: Next.js no longer listed; all its 45 advisories (4 critical) gone. Website total down from 38+ to 34 (2 critical, 18 high), all left are in other packages: @tensorflow/tfjs-node (tar, adm-zip; fix needs a major change), Expo tooling in the root package (shell-quote, @expo/cli), zod, axios and a few small ones; not part of this issue. next build passes locally. Waiting on a click-through check on staging.
+Note 2026-11-22: on staging (3b45d9f9), the site reports Next.js 16.4.6. Claude checked in the built-in browser (signed in as newone1): home, login, dashboard, host page, event management (Galleries tab, photos load), pricing, terms, privacy-policy, eb-business, the old /marketplace redirect, the 404 page, and a Royal Emerald guest gallery with the photo viewer: all work, no new errors in the browser log. Waiting on Shwetank's click-through, then release to live.
+Note 2026-11-22: PASS (Shwetank, staging, Mac: dashboard, host page, upload, Choose Style, guest page, like and comment, log out and in). Next: release to live (staging -> main).
+Fixed in: 3b45d9f9 (2026-11-22)
+
+#314
+Listed: 2026-11-22
+Platform: Website
+Priority: Medium
+Status: Dropped
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Royal Emerald check 2026-11-22 (Claude in the built-in browser, staging.evebash.com, about 800 px wide)
+Issue: In the Royal Emerald guest gallery, opening a photo full screen leaves the page footer (the event title in script and "Made with EveBash") visible across the bottom of the screen, under the photo. The full-screen viewer should cover the whole page. Seen on the test event "Royal Emerald check with a really long title..." with a wide photo. Check whether other themes do the same, and whether the viewer's backdrop doesn't reach the bottom or the footer sits above it (z-index / stacking).
+How to reproduce: staging Royal Emerald guest page (public), scroll to the photos, open one: the footer text shows at the bottom.
+Note 2026-11-22 (later): could not reproduce (Claude, built-in browser, signed in as host, 1280x800 and 800x700, opened from the top and from the bottom of the page, and with the viewer's Fullscreen button): the viewer is fixed full-screen at z-index 9999 with a solid emerald background, and the footer (z-index 10) stays under it. Possibly it showed only during the open/close animation. Waiting on Shwetank to try on the Mac; if it can't be seen, close it as can't reproduce.
+
 =====================================================================
+Note 2026-11-22: not seen by Shwetank either (Mac, Chrome, staging, normal view and the viewer's Fullscreen button). Closed as can't reproduce; reopen with a screenshot if it shows again.
+Fixed in: - (dropped, can't reproduce) (2026-11-22)
+
+#313
+Listed: 2026-11-22
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Royal Emerald device check (Shwetank, staging.evebash.com, Mac, 2026-11-22)
+Issue: In the host page's "Choose Style" pop-up ("Select a design template for this event."), the names of the themes that are not selected (Classic White, Sunlit Portrait, Midnight Hero, Confetti Circle) are invisible: white text on the cream pop-up. Only the selected theme's name shows (in its gold accent). Cause: src/app/(main)/host/page.tsx about line 6319, style color: isActive ? template.accent : '#fff' (left from when the pop-up was dark). Hosts can't read which theme is which. Fix: use the site text colour (var(--site-text)) for names that aren't selected; check the same list in the event-creation form (about line 5037) and in light and dark site themes.
+How to reproduce: staging.evebash.com as a host > host page of an event > change design / Choose Style: only the selected theme's name is readable.
+Update 2026-11-22: fixed: names that aren't selected now use the site text colour (var(--site-text)); the selected one keeps its accent colour (all accents are mid-tone, readable on cream). The event-creation list (about line 5065) already used var(--site-subtle), so it was fine. Waiting on a quick check on staging by Shwetank.
+Note 2026-11-22: PASS (Shwetank, staging.evebash.com, Mac): all theme names readable in dark text; the selected one (Royal Emerald) in gold with a tick.
+Fixed in: 7d9988a5 (2026-11-22)
+
+#95
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Royal Emerald hover effects (hero image zoom, button grow) only work with a mouse, so phones get no feedback (src/components/TemplateRoyal.tsx).
+How to reproduce: Open a Royal Emerald gallery on a phone and tap the hero image and Explore Gallery: no visual response before scrolling.
+Update 2026-10-22: fixed. The hover-only image zoom and button grow are gone; the button has a pressed state that works on touch.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
+Note 2026-11-12: not checked; the built-in browser has no touch screen. Needs a real phone (device test #101).
+Note 2026-11-22: PASS (checked by Claude 2026-11-22 on staging.evebash.com in the built-in browser, page inside a 390x844 frame (desktop browser, so no get-the-app screen; not a real phone), signed in as newone1@email.com, test event "Royal Emerald check with a really long title..."). No hover-only effects are left: no image zoom; Explore Gallery (computer only) and the gold buttons have a pressed state (:active moves them down 1 px); Share and the Photos/Videos tabs respond by opening/switching. Checked from the page's styles, not with a real finger tap.
+Fixed in: Royal Emerald hero rework 590bbdc4 (checked 2026-11-22)
+
+#90
+Listed: 2026-10-22
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: On phones the Royal Emerald hero is at least one screen tall: text first, then a tall 4:5 framed image (src/components/TemplateRoyal.tsx), so guests scroll about two screens before the first photo.
+How to reproduce: Open a Royal Emerald gallery on a phone (or 375 px wide): count the scrolls before the first photo.
+Update 2026-10-22: the new hero (card, then framed photo, then button) is still about 1,200 px tall on a 390 px phone before the first photo, so this stays open.
+Update 2026-10-22 (later): fixed in 3b40188 (on staging). Phones now use the app's layout: framed photo first, a narrower card under it with the names on one line, smaller seal, no Explore Gallery button. About 807 px tall at 390x844, so the hero fits one screen. Desktop unchanged. Device test #113.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): at 390x844 the frame comes first, the card under it, no Explore Gallery, and the hero ends at 828 px (device test #113 step 1 PASS). On staging real phones get the "Get the EveBash app" screen, so this was seen with that screen turned off in the page.
+Note 2026-11-22: PASS (checked by Claude 2026-11-22 on staging.evebash.com in the built-in browser, page inside a 390x844 frame (desktop browser, so no get-the-app screen; not a real phone), signed in as newone1@email.com, test event "Royal Emerald check with a really long title..."). Framed photo first, card under it, no Explore Gallery. With a normal title ("Aarav & Diya") the hero is 781 px, so it fits the 844 px screen. With the 98-character test title it is 944 px (the title wraps to 5 lines), which is fine for such an unusual title.
+Fixed in: 3b40188d (checked 2026-11-22)
+
+#81
+Listed: 2026-10-22
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: The Royal Emerald guest page shows a typo when the gallery has no date: the line above the title falls back to "NITES • LUXURY WEDDING & CELEBRATION" (src/components/TemplateRoyal.tsx). When there is a date, it shows twice: in that line and again in the date pill below.
+How to reproduce: Open a Royal Emerald gallery with no date: the line above the title reads "NITES • LUXURY WEDDING & CELEBRATION". Add a date: it appears both above the title and in the pill.
+Update 2026-10-22: fixed in the new hero (src/components/TemplateRoyal.tsx (ornaments in src/components/royal/, styles in src/app/royal-emerald.css)). The card shows the date once and nothing when there is no date; the "NITES" fallback is gone.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): the date shows once ("29 SEPTEMBER 2026" on 29 sep) and there is no "NITES" text. A gallery with no date wasn't available to check. Device test #101 is FAIL only for step 7 (#92); this part passes.
+Note 2026-11-22: Royal Emerald check 2026-11-22 (Shwetank + Claude, staging.evebash.com, new test event "Royal Emerald check with a really long title...", newone1@email.com, Mac browser, computer width): can't happen for new events: the date is filled in automatically and can't be cleared. Older events without a date not checked; the code fix is in place.
+Fixed in: Royal Emerald hero rework (device test #101) (checked 2026-11-22)
+
+#82
+Listed: 2026-10-22
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Royal Emerald shows made-up text to guests when the host leaves fields empty: title "An Elegant & Timeless Wedding" and a description about "a monumental union of love, heritage, and royal celebrations" (src/components/TemplateRoyal.tsx). It should show nothing (or the gallery name) instead.
+How to reproduce: Open a Royal Emerald gallery with no description: the made-up paragraph appears under the title.
+Update 2026-10-22: fixed in the new hero. No made-up title or description: the card shows the gallery title, and the description stays in the gallery section below (where it was already shown).
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): no made-up title or description; the card shows the gallery's own title and the plaque its own description. Device test #101 is FAIL only for step 7 (#92); this part passes.
+Note 2026-11-22: Royal Emerald check 2026-11-22 (Shwetank + Claude, staging.evebash.com, new test event "Royal Emerald check with a really long title...", newone1@email.com, Mac browser, computer width): PASS: no made-up text on an empty event (only the host's title, date and normal labels).
+Fixed in: Royal Emerald hero rework (device test #101) (checked 2026-11-22)
+
+#83
+Listed: 2026-10-22
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Royal Emerald has wedding-only text fixed in the design: "The Wedding Collection", "Imperial Album" and the footer "Elegantly Captured • Royal Emerald Edition" (src/components/TemplateRoyal.tsx). Anniversary events pre-select this theme, so they also say "Wedding", and the footer shows the theme's name to guests.
+How to reproduce: Create an Anniversary event with Royal Emerald and open it as a guest: it says "The Wedding Collection".
+Update 2026-10-22: fixed in the new hero. "The Wedding Collection" and "Imperial Album" are gone; the line above the names follows the category (The Wedding of / The Anniversary of / The Engagement of / Celebrating) and only shows for "Name & Name" titles on the main gallery; the footer shows the gallery title instead of "Royal Emerald Edition".
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): no "The Wedding Collection", "Imperial Album" or "Royal Emerald Edition"; the footer shows the gallery title. The Anniversary wording wasn't checked. Device test #101 is FAIL only for step 7 (#92); this part passes.
+Note 2026-11-22: Royal Emerald check 2026-11-22 (Shwetank + Claude, staging.evebash.com, new test event "Royal Emerald check with a really long title...", newone1@email.com, Mac browser, computer width): PASS: no "The Wedding Collection", "Imperial Album" or other wedding-only wording.
+Fixed in: Royal Emerald hero rework (device test #101) (checked 2026-11-22)
+
+#84
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Royal Emerald stacks two section headings: "Treasured Moments / The Wedding Collection" (src/components/TemplateRoyal.tsx) sits right above the shared "Home Gallery · N Photos" heading (src/app/(public)/events/[slug]/page.tsx), with two gold dividers in a row.
+How to reproduce: Open any Royal Emerald gallery and scroll past the hero: two headings in a row.
+Update 2026-10-22: fixed. The theme's own "Treasured Moments / The Wedding Collection" heading was removed; only the shared gallery heading remains.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): no "Treasured Moments" heading; only the crest and "Home Gallery" between gold lines. Device test #101 is FAIL only for step 7 (#92); this part passes.
+Note 2026-11-22: Royal Emerald check 2026-11-22 (Shwetank + Claude, staging.evebash.com, new test event "Royal Emerald check with a really long title...", newone1@email.com, Mac browser, computer width): PASS: one heading ("Home Gallery") with a "Main Event: ..." box, no stacked headings.
+Fixed in: Royal Emerald hero rework (device test #101) (checked 2026-11-22)
+
+#88
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: In Royal Emerald some text is hard to read on the dark green: "Link Copied!" (text-green-600), the guest upload error (text-rose-600) and the empty-gallery message (muted text at opacity-50) (src/app/(public)/events/[slug]/page.tsx).
+How to reproduce: Open a Royal Emerald gallery, press Share Event (green text), and open an empty Royal Emerald gallery (faint message).
+Update 2026-10-22: "Link copied" is now gold in Royal Emerald (new gallery header, test_yourself #102). The guest upload error and the empty-gallery message are still hard to read.
+Update 2026-10-22: fixed in 3b40188 (on staging). The guest upload error is a light rose (royal-error) and the empty-gallery message is ivory and sage at full strength (royal-empty, no opacity-50). Device test #113.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): "Link copied" is pale gold and the empty-gallery text is ivory and sage at full opacity (device test #113 step 5 PASS). The guest upload error is not checked yet (needs a guest who can upload).
+Note 2026-11-22: Royal Emerald check 2026-11-22 (Shwetank + Claude, staging.evebash.com, new test event "Royal Emerald check with a really long title...", newone1@email.com, Mac browser, computer width): PASS: Share shows "LINK COPIED" in gold on dark green, easy to read.
+Fixed in: 3b40188 (checked 2026-11-22)
+
+#89
+Listed: 2026-10-22
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Guests can see a developer message on the empty gallery state: "Owner: Check Supabase database rules to enable shared access." (src/app/(public)/events/[slug]/page.tsx). Affects every theme, not only Royal Emerald.
+How to reproduce: Open a gallery the visitor can't load photos for (restricted state): the Supabase message shows under "Moments restricted...".
+Update 2026-10-22: fixed in 3b40188 (on staging), every theme: guests now read "You don't have access to these photos yet. Ask the host to share the gallery with you." Device test #113.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): the empty gallery has no developer message, and a private gallery shows "This gallery is private / Request access" with no Supabase mention (device test #113 step 6).
+Note 2026-11-22: Royal Emerald check 2026-11-22 (Shwetank + Claude, staging.evebash.com, new test event "Royal Emerald check with a really long title...", newone1@email.com, Mac browser, computer width): PASS: the empty gallery shows "No photos yet. Check back soon...", no developer text.
+Fixed in: 3b40188 (checked 2026-11-22)
+
+#91
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: The Royal Emerald hero crops images badly. The default palace image (public/royal_emerald_palace_hero.jpg) is landscape 1376x768 and 1 MB, shown in a portrait 4:5 frame, so most of it is cut off. Host cover photos are always cropped from the centre with no way to pick the focus point (src/components/TemplateRoyal.tsx). Related: #64.
+How to reproduce: Open a Royal Emerald gallery with no cover photo: the palace image is cut down to a narrow middle strip.
+Update 2026-10-22: the hero now applies the host's cover focus point, zoom and fit (Host page cover position), so the host picks which part shows. Decision (Sarthak, 2026-10-22): the gold frame stays portrait (4:5) for every cover, so landscape covers are cropped to portrait around that focus point; the default palace image crops to its centred doorway. next/image already serves it resized. Move to fixed with #101.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): the portrait frame follows the cover's focus point and zoom. Device test #101 is FAIL only for step 7 (#92); this part passes.
+Note 2026-11-22: Royal Emerald check 2026-11-22 (Shwetank + Claude, staging.evebash.com, new test event "Royal Emerald check with a really long title...", newone1@email.com, Mac browser, computer width): PASS: the host's cover photo is cropped well inside the gold frame.
+Fixed in: Royal Emerald hero rework (device test #101) (checked 2026-11-22)
+
+#93
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: The Royal Emerald double gold frame is fixed at z-40 (src/components/TemplateRoyal.tsx), so it stays on top of photos, the navbar and popups with a lower z-index while scrolling, and takes space at the edges on phones.
+How to reproduce: Open a Royal Emerald gallery and scroll: the gold frame lines cross photos and the navbar.
+Update 2026-10-22: fixed. The fixed double frame is gone; the new gold corners sit inside the hero only and scroll away with it.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): no fixed gold frame; the corners stay in the hero and nothing gold covers the photos after scrolling. Device test #101 is FAIL only for step 7 (#92); this part passes.
+Note 2026-11-22: Royal Emerald check 2026-11-22 (Shwetank + Claude, staging.evebash.com, new test event "Royal Emerald check with a really long title...", newone1@email.com, Mac browser, computer width): PASS: the gold corner frames don't sit on top of the full-screen photo. (Separate problem found: the page footer shows at the bottom of the full-screen viewer, issue #314.)
+Fixed in: Royal Emerald hero rework (device test #101) (checked 2026-11-22)
+
+#94
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: The Royal Emerald gallery area is always at least one screen tall (min-h-screen in src/components/TemplateRoyal.tsx), so a gallery with few photos has a big empty green block before the footer.
+How to reproduce: Open a Royal Emerald gallery with 1-3 photos: large empty space before the footer.
+Update 2026-10-22: fixed in 3b40188 (on staging). The gallery area no longer has min-h-screen (src/components/TemplateRoyal.tsx), so a small gallery goes straight to the footer. Device test #113.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): on an empty gallery the footer sits 160 px under the empty message (device test #113 step 7).
+Note 2026-11-22: Royal Emerald check 2026-11-22 (Shwetank + Claude, staging.evebash.com, new test event "Royal Emerald check with a really long title...", newone1@email.com, Mac browser, computer width): PASS: with 8 photos the gallery ends and the footer follows, no extra screen of empty space.
+Fixed in: 3b40188 (checked 2026-11-22)
+
+#306
+Listed: 2026-11-20
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Device test #186 on the iQOO Android phone (EveBash Staging app, newone1@email.com, Rotate test), 2026-11-20
+Issue: The app's photo viewer keeps the last item number when it is opened again, so it can open on the wrong item or on nothing. In apps/mobile/components/PhotoViewer.tsx the shown item (currentPhotoIndex) is only reset when the initialIndex prop changes (the useEffect at about line 932). Opening photo 1, swiping to photo 3, closing, then opening the only video on the Videos tab passes initialIndex 0 again, so nothing resets: the viewer shows "3 / 1" and a blank white screen (no video, no controls). Closing and opening the video again gives the same. A guest who looks at photos and then taps a video sees an empty screen. Probably also opens the wrong photo when you swipe, close, and tap the first photo again. Fix idea: reset to initialIndex whenever the viewer opens (effect on [initialIndex, visible], only when visible) and clamp the index to the list length.
+How to reproduce: Staging app, newone1@email.com > Rotate test > Photos: open the first photo, swipe to 3 / 11, close. Tap Videos (1) and open the video: "3 / 1" and a blank screen.
+Note 2026-11-20: fix on staging: PhotoViewer resets to the tapped item every time it opens (effect on [initialIndex, visible]) and clamps the index to the list length. Needs new staging app builds (iPhone + Android), then the reproduce steps on both phones.
+Note 2026-11-21: retest PASS on new staging builds (iPhone 11 and Android iQOO, newone1@email.com, Rotate test): open photo 1, swipe to 3 / 11, close, open the video on Videos (1): shows 1 / 1 with the video and controls. Reaches users with the next store release.
+Fixed in: dbfb0f28 (2026-11-21)
+
+#71
+Listed: 2026-10-13
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website Settings page work (2026-10-13)
+Issue: Several items in the app's Settings (apps/mobile/app/settings.tsx) look like they work but do nothing. (1) Report a Bug / Send Feedback: submitFeedback (apps/mobile/lib/database.ts) only writes to the phone's console and returns true, so the app says "Feedback Sent" and the message is lost. (2) Upload Quality (Speed / High-Res) is saved on the phone (@high_quality_uploads) but no upload code reads it. (3) Clear Media Cache runs a fake progress bar and always says "cleared 24.2 MB"; nothing is cleared. (4) Discoverable Profile saves profiles.discoverable, which nothing reads (there is no Explore feed). (5) The FAQ answers are out of date: "250 photos per event", "Register Business" (Phase 2), "5-character event code". The notification switches are #58 and #63. These were left out of the new website Settings page. Fix: send app feedback to the backend's /api/v1/contact-messages (what the website's Contact Us uses), and hide or remove the others until they work.
+How to reproduce: In the app, Settings > Report a Bug: send a message, then look for it anywhere the team reads (contact messages, email): it isn't there. Tap Clear Media Cache twice: "24.2 MB" both times.
+Fix: 02e0848 (2026-10-27). Report a Bug / Send Feedback now posts to /api/v1/contact-messages (source "mobile") through sendContactMessage in apps/mobile/lib/database.ts, which apps/mobile/app/contact.tsx also uses now; the message carries the category, user ID and email or phone. Discoverable Profile, Upload Quality and Clear Media Cache are removed from Settings (the Storage & Quality section is gone). FAQ answers follow the website's FAQ (src/components/home/HomeFaq.tsx). Checked: tsc has no errors in these files. Needs a new app build; device test #161.
+Note 2026-11-20: device test #161 PASS on iPhone 11 and Android iQOO (EveBash Staging app, newone1@email.com). Both feedback messages are in staging contact_messages with source "mobile" ([App Bug] Test 161 / Test 161 android). Reaches users with the next store release.
+Fixed in: 02e0848 (2026-11-20)
+
+#135
+Listed: 2026-10-24
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test #128 on the iOS simulator (2026-10-24)
+Issue: In the app's video viewer you can't seek: the progress bar (dashboardVideoProgressTrack in apps/mobile/components/PhotoViewer.tsx) only shows progress and has no touch handling, the buttons next to play are previous/next media, and the 5-second jump (seekBy, videoControlsRef) is defined but nothing calls it. On a 48-minute wedding video, guests can only watch from the start. The website player seeks fine. There is also no manual quality choice in the app (iOS picks it), which is fine. Fix: make the progress bar draggable/tappable (player.currentTime = fraction * duration) and/or add -10 s / +10 s buttons; check on iPhone and Android.
+How to reproduce: In the app, open any video in a gallery, play it, tap or drag the progress bar: playback position doesn't change.
+Fix (app, not in a build yet): apps/mobile/components/PhotoViewer.tsx: the progress bar is now a seek bar (tap or drag; a 20 px tall touch area around the 3 px bar, a thumb shows while dragging and the time follows the finger), plus -10 s / +10 s buttons beside play (icons gobackward.10 / goforward.10 added to icon-symbol.tsx), and the bar is adjustable for VoiceOver (swipe up/down = +/-10 s). On iOS a sideways drag anywhere is the "go back" gesture, so the gallery screen's swipe-back is switched off while a video viewer with these controls is open and back on when it closes. Checked in the iOS simulator (dev build from this branch, test_5 in test-face-new-155c): tap mid-bar 0:00 -> 24:20, +10 s 24:20 -> 24:30, drag to the right 46:06 and played from there; the screen no longer slides away while dragging. Android not checked. Device test #138.
+Note 2026-11-20: device test #186 PASS on real phones (EveBash Staging app, newone1@email.com, Rotate test video 0:28): iPhone 11 by Shwetank; Android iQOO checked by Claude over adb: tap mid-bar 0:00 -> 0:14, drag right 0:24, drag left 0:04, +10 s 0:14, -10 s 0:04, item stays 1 / 1. Reaches users with the next store release. Found while testing: #306.
+Fixed in: 3cc1b6df (2026-11-20)
+
+#242
+Listed: 2026-11-03
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Testing the #235 fix on the Android emulator (chat 2026-11-03)
+Issue: On Android, the keyboard covers the comment box in the photo viewer, so you can't see what you are typing or the send button. The Guestbook panel (renderGuestbookPanel in apps/mobile/components/PhotoViewer.tsx) uses KeyboardAvoidingView only on iOS (behavior is undefined on Android), and inside the viewer's Modal the screen doesn't shrink for the keyboard. Fix idea: give Android a behavior too (or move the panel up by the keyboard height from Keyboard events), then check typing a comment and a reply on Android and iPhone.
+How to reproduce: Android emulator, test-face-new-155c guest view, open a photo, tap the comment icon, tap "Share a wish...": the keyboard opens over the whole panel.
+Note 2026-11-03: fix on staging in 40a55ee. On Android the bottom-pinned comment panel moves up by the keyboard height (and gets shorter if space is tight), and the host viewer scrolls its panel above the keyboard. The keyboard listener now lives in apps/mobile/hooks/use-android-keyboard-height.ts, shared with BottomSheet. Checked on the emulator only with Gboard's floating keyboard (the panel correctly stays put); the normal docked keyboard isn't checked yet. Move to RECENTLY FIXED once device test #181 passes on an Android phone. Other places with the same risk: #243.
+Note 2026-11-20: device test #181 step 3 PASS on a real Android phone (iQOO, normal docked Gboard keyboard, EveBash Staging app, newone1@email.com, Staging test 1): "Share a wish..." and Send stay just above the keyboard, a long line stays visible, the comment sends. Left: step 5 (host's photo viewer) and step 7 (iPhone), then move this to RECENTLY FIXED.
+Note 2026-11-20: step 5 PASS on the iQOO (host's photo viewer: box and Send well above the keyboard). Left: step 7 (iPhone). Found while testing: #305 (crowded top buttons in the host viewer).
+Note 2026-11-20: step 7 FAIL on iPhone 11 (iOS 26.7, EveBash Staging app, newone1@email.com, Staging test 1): after tapping "Share a wish..." the keyboard covers the whole Guestbook panel; the box and Send are hidden and the panel does not move up (two screenshots a few seconds apart). So Android is fixed, iPhone is not. Next: check the iOS KeyboardAvoidingView in renderGuestbookPanel (apps/mobile/components/PhotoViewer.tsx) inside the viewer's Modal, maybe use the same keyboard-height lift as Android on iOS too.
+Note 2026-11-20: iPhone fix: the photo viewer now lifts the comment panel by the keyboard height on iOS too (useKeyboardHeight in apps/mobile/hooks/use-android-keyboard-height.ts, iOS uses keyboardWillShow/Hide); the KeyboardAvoidingView that did nothing is gone. BottomSheet is unchanged (Android only). Sent to the staging app as an over-the-air update. Next: device test #181 step 7 (and 3) again on the iPhone.
+Note 2026-11-20: iPhone retest PASS on the new staging build (iPhone 11, iOS 26.7, newone1@email.com, Staging test 1): guest viewer and host viewer both keep the comment box and Send above the keyboard; a comment sends. Small looks-only point: in the host viewer on iPhone there is a larger empty gap than needed between the panel and the keyboard.
+Fixed in: 6f5b7025 (2026-11-20)
+
+=====================================================================
+
+#304
+Listed: 2026-11-20
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Device test #234 on the iPhone (2026-11-20, EAS staging build 038ebba3, newone1, Test 178 big gallery)
+Issue: Deleting a photo from the app's host photo grid failed on staging: after Delete the tile showed "Deleting..." for about a minute, then an error ("could not delete", exact text not noted); the photo stayed (still 300 photos in test-178-big-gallery-6ee0). The app calls POST /api/media/delete (apps/backend/src/routes/media.ts, about line 1624), which deletes the B2 files first and the database row last, so a failure in the B2 step leaves the row. Checked: the photo's 4 files exist in EveBash-Staging-Media, and the staging Modal B2 key (.env.modal-staging) can log in and delete; newone1 owns the gallery (created_by), so the 403 path doesn't apply. The staging backend's own B2 key on Railway (changed 2026-11-18) wasn't checked, and the Railway logs weren't read. The ~1 minute wait suggests a timeout rather than a quick refusal.
+How to reproduce: Staging app as the owner, any gallery's host photo grid, trash on a test photo you don't need, Delete: "Deleting..." then an error after about a minute. Also try the same on staging.evebash.com (host page) and on live with a throwaway photo, to see whether it is staging-only. Then read the Railway staging logs for POST /api/media/delete.
+Note 2026-11-20: deleting a whole sub-gallery from the same iPhone app (Upload Test, 23 photos + 2 videos, newone1) worked: the gallery, its rows and all its files in EveBash-Staging-Media are gone. So the staging backend can delete from B2; the single-photo delete (POST /api/media/delete) fails for another reason. Next: retry a single-photo delete on a throwaway photo and read the Railway staging logs for that request.
+Note 2026-11-20 (later): could not reproduce. All 300 Test 178 photos still have all 4 files in B2 (1,201 files), so the failed request never reached the B2 step; nothing in the database blocks a photo delete (every table pointing at photos cascades or sets null; no delete triggers, live and staging). The same single-photo delete worked 25 times (deleting the Upload Test sub-gallery calls it per photo) and once more on purpose (Delete test sub-gallery, 1 photo, then the sub-gallery). Most likely the request hit the staging backend while Railway was restarting it after a push (it restarts on every push to staging; several pushes that afternoon). Idea, not done: give the app's delete a shorter timeout and a clearer "couldn't reach the server, try again" message.
+Fixed in: no code change (2026-11-20): not reproducible; a one-off during a staging backend restart.
+
+#291
+Listed: 2026-11-18
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test #178 (2026-11-18, Pixel 8 and Shwetank's iPhone 11, staging gallery test-178-big-gallery-6ee0 with 300 test pictures)
+Issue: Picture memory still grows in the app's host photo grid while scrolling a big gallery, although #185's windowing works (only 20-44 tiles are mounted out of 300). Pixel 8, staging app, host view (adb dumpsys meminfo, TOTAL PSS): 420 MB at the top, 720 MB at the bottom (about 1 MB per picture seen), 685 MB back at the top, and still 675 MB after `adb shell am send-trim-memory com.evebash.app.staging RUNNING_CRITICAL` (Native Heap 261 MB, Graphics 153 MB), so a low-memory signal doesn't free it. iPhone 11, host view (Instruments, Activity Monitor): 51 MB rising to 416 MB over the first pass, then flat at about 440 MB once all 300 had been seen, also at rest. The Midnight Hero guest grid on the Pixel grew much less (360 -> 460 -> 416 MB). A 790-photo gallery could reach about 1 GB in the host view, which is risky on 3-4 GB phones. The decoded pictures (or something holding them) aren't released when tiles unmount. To check: which image size the host tiles load (thumbnail_url, preview_url or the original), expo-image cachePolicy and recyclingKey, and whether the image memory caches (Glide on Android, SDWebImage on iOS) are bounded. Files: apps/mobile/app/events/[id].tsx (host grid), apps/mobile/hooks/use-scroll-window.ts, apps/mobile/components/event/MasonryPhotoColumns.tsx.
+How to reproduce: Staging, a USB Android phone with the staging app signed in as a manager account (owner or platform admin). Open evebash-staging://events/test-178-big-gallery-6ee0?mode=admin (adb shell am start -a android.intent.action.VIEW -d <link>), open the Home gallery's photo grid and note `adb shell dumpsys meminfo com.evebash.app.staging` (TOTAL PSS). Scroll to #001 and back, note it again, then send `adb shell am send-trim-memory com.evebash.app.staging RUNNING_CRITICAL`. Count mounted tiles with `adb shell dumpsys activity top | grep -c expo.modules.image.ExpoImageViewWrapper`. Today: tiles stay at 20-44, memory climbs about 1 MB per picture and stays.
+Note 2026-11-18: step 1 on staging 08bb4814 (app only, apps/mobile/app/events/[id].tsx): tiles far from the screen now also leave out their dark shading, badges and buttons; they come back with the photo near the screen. Cause found on the Pixel 8 (adb dumpsys activity top, views by type at the bottom of the 300-picture gallery): every tile kept its shading layer (302 in all) and its button icons (about 1,557 icon texts), 5,806 views in all, although only 20-44 photos were mounted. Measured with EAS staging Android build 241accd8 on the Pixel 8, same steps as above, before -> after: views at the bottom 5,806 -> 2,143, shading layers 302 -> 26, icon texts about 1,557 -> 177; Native Heap top -> bottom 86 -> 266 MB before, 81 -> 208 MB now; TOTAL PSS 437 -> 690 MB before, 416 -> 589 MB now; back at the top after RUNNING_CRITICAL 675 -> 591 MB. Buttons, the dots menu, delete then Cancel, and drag reordering still work (device test #234). Still open: memory still grows about 170 MB over the 300 pictures. Each far tile still keeps its empty box (about 1,400 plain views at the bottom), and decoded pictures may add to it. Next: find which of the two the rest is.
+Note 2026-11-19: tried and ruled out: keeping the host grid's tile renderer the same between scroll steps (react-native-sortables redraws every tile when its renderItem changes, and the event screen re-renders at every 200 pt of scrolling). Local branch fix/291-stable-tiles, not pushed. Same scroll test on the Pixel 8 (4 up-and-down cycles, then a full pass over all 300 and back), EAS staging build 687181d5 (with it) vs 241accd8 (without): no change. TOTAL PSS 422 -> 640-680 MB with it, 438 -> 620-650 MB without; JS memory (dumpsys "Unknown") 27 -> 126 MB with it, 28 -> 109 MB without. Picture memory stays 17-37 MB in both, so it isn't the decoded pictures that grow. In both builds memory stopped climbing at about 620-680 MB after the second cycle, and the full pass over all 300 pictures didn't raise it, so since step 1 it looks like a ceiling rather than growth per picture. Next: a longer run to confirm the ceiling, then a debuggable build to see what fills the JS memory.
+Note 2026-11-19 (long test): memory no longer keeps growing. Pixel 8, EAS staging build 241accd8 (step 1, the code staging has), 10 full passes over all 300 pictures and back: TOTAL PSS 431 MB when the grid opens, 612 MB after pass 1, then 579-623 MB for passes 2-10 (619 MB after pass 10, 617 MB after a 30 s rest). JS memory (dumpsys "Unknown") rose to 117 MB by pass 7, then the app's own clean-up brought it back to 102-106 MB, so it isn't a leak. After a low-memory signal (RUNNING_CRITICAL) 596 MB (before step 1 it stayed at 675 MB). So since step 1 the host grid settles at about 600 MB for 300 photos instead of growing with every picture seen. What's left: every photo still keeps an empty box in the grid (react-native-sortables builds one per photo), so a bigger gallery probably settles higher. The real fix for that is todo #46 (recycling list, Phase 2, EB-224). Still to check: device test #234 (buttons after step 1) and the iPhone's memory with a staging build that has step 1.
+Fixed in: 08bb4814 (2026-11-18). Far-away host tiles drop their buttons and shading; memory now levels off (Pixel 8: about 600 MB over 10 trips; iPhone 11, iOS 26.7: 120 MB with the grid open, 361 MB after 5 trips, 378 MB steady, against about 440 MB before). Checked by device test #234 on Android and iPhone. The leftover (one empty box per photo) is todo #46 (EB-224).
+
+#299
+Listed: 2026-10-23 (as #102 on the unmerged branch; renumbered #299 on 2026-11-19, #102 had been reused)
+Platform: Both
+Priority: Critical
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Google Play content-rating questionnaire (2026-10-23)
+Issue: No way to report objectionable content or users. Google Play's User Generated Content policy requires an in-app way to report UGC and users and that we act on reports; the questionnaire says UGC is the app's main content and that there is no reporting, so the review is likely to be rejected. The only "report" was Settings > Report a Bug (which also loses the message, #71 item 1), and the app's Settings legal text claimed hosts can "report abuse directly to EveBash administrators", which wasn't possible.
+How to reproduce: On staging (website or app), open a gallery photo, a comment, a chat message, a business or a user profile: there is no Report option.
+Fix (branch feat/content-reporting): content_reports table (RLS on, no client access) and file_content_report() for logged-in users (fixed reasons, optional note, one open report per person and item, 20 an hour). "Report" with a reason picker on photos and videos (website Lightbox and gallery viewer, app viewer), comments, app chat messages (press and hold) and business profiles; "Report user" on comments, chat, business owners, public profiles and the host's guest list. Confirms "Thanks, we'll review this within 24 hours." Analytics dashboard > Reports lists reports (open over 24 h highlighted) with Remove content (photos and videos through the existing media delete; comments and chat messages), Mark actioned, Dismiss and Suspend account (Supabase ban, can be lifted). Terms section 10 now has "Reporting and enforcement"; the Settings legal text was corrected. After it ships: update the Play questionnaire to say users can report content and users.
+Not covered yet: business reviews and announcements have no Report of their own (report the business or the user instead); a report doesn't email anyone yet, so someone must check the Reports tab daily to keep the 24-hour promise.
+Update 2026-11-20: staging tests PASS: #241 website, #242 app (iPhone and Android), #243 dashboard Reports tab (dismiss, remove a comment, suspend and lift), #244 Terms on website and app. Ideas noted: show the report type more prominently in the Reports tab; the app's logged-out prompt doesn't mention reporting; no email to admins on a new report yet (check the Reports tab daily to keep the 24-hour promise).
+Update 2026-11-20 (Shwetank: "OK live #38"): migration 20261119210000 applied on the live database (content_reports with RLS, 0 rows; file_content_report callable by logged-in users only). Terms "Last updated" set to November 20, 2026 (POLICY_VERSION unchanged, so no re-accept prompt).
+Fixed in: 1e52a0f3 (2026-11-20). Live: database migration, website and backend released 2026-11-20 (Terms page and the report code checked on evebash.com). The apps carry it with the next store release; then update Google Play's content-rating answers (users can report content and users). Someone checks the analytics dashboard Reports tab (Live) daily.
+
 #33
 Listed: 2026-10-11
 Platform: Website

@@ -1,7 +1,7 @@
 import { VIEWER_TEMPLATE_PALETTES, SPORTS_VIEWER_PALETTES } from '../constants/viewerPalettes';
 import { galleryActionText } from '../constants/galleryContrast';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Pressable, ScrollView, KeyboardAvoidingView, Platform, Share, Linking, TextInput, Keyboard, Modal, ActivityIndicator, StyleSheet, StatusBar as RNStatusBar, useWindowDimensions, type GestureResponderEvent, type NativeSyntheticEvent } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, ScrollView, Platform, Share, Linking, TextInput, Keyboard, Modal, ActivityIndicator, StyleSheet, StatusBar as RNStatusBar, useWindowDimensions, type GestureResponderEvent, type NativeSyntheticEvent } from 'react-native';
 import { Image as ExpoImage, type ImageLoadEventData } from 'expo-image';
 import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,7 +12,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useNavigation } from 'expo-router';
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, canCommentOnPhoto, Event as DatabaseEvent } from '@/lib/database';
 import { formatCommentTime } from '../../../shared/text/commentTime';
-import { useAndroidKeyboardHeight } from '@/hooks/use-android-keyboard-height';
+import { useKeyboardHeight } from '@/hooks/use-android-keyboard-height';
 import { getImageUrl, getOriginalMediaUrl } from '@/lib/imageUrl';
 import { SCREEN_ORIENTATION_LOCK, canLockScreenOrientation, lockScreenOrientation } from '@/lib/screenOrientation';
 import { MidnightColors, Fonts } from '../constants/theme';
@@ -902,8 +902,9 @@ export default function PhotoViewer({
   const [comments, setComments] = useState<any[]>([]);
   const refreshInteractionsRef = useRef<(() => Promise<void>) | null>(null);
   const [showComments, setShowComments] = useState(false);
-  // Android: the comment panel moves up above the keyboard (#242); iOS uses the panel's KeyboardAvoidingView
-  const keyboardHeight = useAndroidKeyboardHeight(visible && showComments);
+  // The comment panel moves up above the keyboard on Android and iOS (#242). KeyboardAvoidingView did nothing on
+  // iOS here (an absolutely positioned panel inside a Modal), so the keyboard covered the comment box.
+  const keyboardHeight = useKeyboardHeight(visible && showComments, { ios: true });
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
   // Everyone who can see the photo reads its comments; only managers and guests the host allowed can write
@@ -927,10 +928,16 @@ export default function PhotoViewer({
   const dashboardImageScrollRef = useRef<ScrollView | null>(null);
   const dashboardVideoControlsRef = useRef<ViewerVideoControls | null>(null);
 
-  // Sync index when initialIndex changes
+  // Start from the tapped item every time the viewer opens, not only when initialIndex changes: reopening with the
+  // same initialIndex used to keep the last swiped-to item, e.g. "3 / 1" and a blank screen on a 1-video list (#306)
   useEffect(() => {
-    setCurrentPhotoIndex(initialIndex);
-  }, [initialIndex]);
+    if (visible) setCurrentPhotoIndex(initialIndex);
+  }, [initialIndex, visible]);
+
+  // Never point past the end of the list (it can shrink while open, e.g. after a delete)
+  useEffect(() => {
+    if (photos.length > 0 && currentPhotoIndex > photos.length - 1) setCurrentPhotoIndex(photos.length - 1);
+  }, [photos.length, currentPhotoIndex]);
 
   const currentPhoto = photos[currentPhotoIndex];
   const currentPhotoKey = String(currentPhoto?.id || currentPhoto?.url || currentPhotoIndex);
@@ -1141,7 +1148,7 @@ export default function PhotoViewer({
     }, 80);
   };
 
-  // Host viewer: the comment panel is the last thing on its page, so scroll it up above the Android keyboard (#242)
+  // Host viewer: the comment panel is the last thing on its page, so scroll it up above the keyboard (#242)
   useEffect(() => {
     if (keyboardHeight > 0 && showHostTopControls) {
       requestAnimationFrame(() => hostScrollRef.current?.scrollToEnd({ animated: true }));
@@ -1347,15 +1354,14 @@ export default function PhotoViewer({
 
   const renderGuestbookPanel = (hostFlow = false) => {
     const hostGuestbook = showHostTopControls || hostFlow;
-    // The bottom-pinned panels sit just above the Android keyboard and shrink if the space above it is short
+    // The bottom-pinned panels sit just above the keyboard and shrink if the space above it is short
     const panelBottom = (showHostTopControls ? 12 : 10) + keyboardHeight;
     const keyboardLift = !hostFlow && keyboardHeight > 0
       ? { bottom: panelBottom, maxHeight: viewportHeight - panelBottom - viewerInsets.top - 16 }
       : null;
 
     return (
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <View
         style={[
           hostFlow ? localStyles.hostGuestbookPanelFlow : styles.guestbookPanel,
           !hostFlow && showHostTopControls && localStyles.hostGuestbookPanel,
@@ -1585,7 +1591,7 @@ export default function PhotoViewer({
             </Text>
           )}
         </View>
-      </KeyboardAvoidingView>
+      </View>
     );
   };
 

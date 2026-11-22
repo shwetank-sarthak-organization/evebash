@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 245
+Next test number: 246
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2477,7 +2477,7 @@ Date tested: 2026-11-12
 Account used: host newone@email.com
 Screenshot / recording: reports/device-tests/test-101-step7-390px.jpg (local, not in git)
 Fix ref:  6109d44b (2026-11-12, staging): phone names size from the longest word and wrap at the spaces; retest step 7 at 375 and 390 px
-Feedback: 2026-11-12 Claude: step 7 FAILS at phone width, the rest pass. Phone layout seen by turning off the "Get the EveBash app" screen in the page (on staging real phones get that screen, so step 5 can't be done on a real phone). Test gallery: mehandi night (test-face-new-155c) switched to Royal Emerald and renamed for the test, then put back (Confetti Circle, "mehandi night"). Steps 1-3 PASS: "The Wedding of / Asha / & / Raj", date once, A&R seal, no made-up text, no "Treasured Moments", footer shows the title, nothing gold over the photos. Step 4 PASS: Explore Gallery scrolls to the photos, the top bar doesn't cover the first row. Step 5 PASS at 390 px: frame, then card, page 390 px wide. Step 6 PASS: album newcheck shows only "newcheck", its date and a fleur-de-lis seal. Step 7 FAIL: "Rajyalakshmi & Venkatanarayanaswamy" is fine on a computer (34 px, 3 lines), but at 390 px the card shows "Rajyalakshmi & Venkatan / arayanaswamy" (26 px, names on one line, the word is split). Issue #92. Step 8 partly: the frame follows the cover's focus point and zoom; changing the focus point not tried. Steps 9-10 PASS at 1366x768 (no profile button). Step 11: "Asha weds Raj" gives ASHA & RAJ, "The Wedding of Asha & Raj" and an A&R seal; and / AND / + use the same rule (shared/text/coupleNames.ts), not run one by one. Step 12 PASS: the navbar title is 17 px, ends in "..." and shows the full title on hover.
+Feedback: 2026-11-12 Claude: step 7 FAILS at phone width, the rest pass. Phone layout seen by turning off the "Get the EveBash app" screen in the page (on staging real phones get that screen, so step 5 can't be done on a real phone). Test gallery: mehandi night (test-face-new-155c) switched to Royal Emerald and renamed for the test, then put back (Confetti Circle, "mehandi night"). Steps 1-3 PASS: "The Wedding of / Asha / & / Raj", date once, A&R seal, no made-up text, no "Treasured Moments", footer shows the title, nothing gold over the photos. Step 4 PASS: Explore Gallery scrolls to the photos, the top bar doesn't cover the first row. Step 5 PASS at 390 px: frame, then card, page 390 px wide. Step 6 PASS: album newcheck shows only "newcheck", its date and a fleur-de-lis seal. Step 7 FAIL: "Rajyalakshmi & Venkatanarayanaswamy" is fine on a computer (34 px, 3 lines), but at 390 px the card shows "Rajyalakshmi & Venkatan / arayanaswamy" (26 px, names on one line, the word is split). Issue #92. Step 8 partly: the frame follows the cover's focus point and zoom; changing the focus point not tried. Steps 9-10 PASS at 1366x768 (no profile button). Step 11: "Asha weds Raj" gives ASHA & RAJ, "The Wedding of Asha & Raj" and an A&R seal; and / AND / + use the same rule (shared/text/coupleNames.ts), not run one by one. Step 12 PASS: the navbar title is 17 px, ends in "..." and shows the full title on hover. 2026-11-22 Shwetank + Claude (new test event with a 98-character title, computer width): hero card, cover crop, no wedding-only or made-up text, empty-state message, Link Copied all PASS. Footer squeezed by the long title (#92); page footer shows under the full-screen photo (#314). Phone width (step 7) still not checked: stays RETEST.
 
 #102 Royal Emerald gallery section: crest, welcome plaque, Back / Share, Photos / Videos
 Status:    TODO
@@ -4476,7 +4476,7 @@ How to test:
 
 --------------------------------------------------------------------------------
 #161 App Settings: feedback reaches the team, dead items gone, FAQ up to date
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App
 Brief:     Report a Bug / Send Feedback used to say "Feedback Sent" and throw the message away. It now
@@ -4496,14 +4496,14 @@ How to test:
      Clear Media Cache). Withdraw Find You Consent is still under Privacy.
   6. Open each FAQ. Expect: no "250 photos", no "Register Business", no "5-character event code";
      free plan says 1 GB and one event.
-Done by: Claude (for Sarthak)
-Device / browser: iOS Simulator, iPhone 17 Pro, iOS 26.3 (local Release build); not a real iPhone
-Build / version: App 1.2.4 local Release simulator build from staging e79333c
-Date tested: 2026-10-28
-Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
+Done by:   Shwetank
+Device / browser:iPhone 11 (iOS 26.7); iQOO Android
+Build / version:EveBash Staging app (staging builds of 2026-11-19/20)
+Date tested:2026-11-20
+Account used:newone1@email.com
 Screenshot / recording:
 Fix ref:
-Feedback: iOS simulator: step 1 shows "Feedback Sent" (message "Test #161 email (Claude simulator run 2026-10-28)", Bug) - someone must check contact_messages for the row. Steps 5-6 PASS: no Discoverable Profile, no Storage & Quality, Withdraw Find You Consent under Privacy; FAQ has no 250 photos / Register Business / 5-character code, free plan says 1 GB and one event. Steps 2-4 not checked.
+Feedback:  Both phones pass. Claude checked staging contact_messages: "[App Bug] Test 161" and "[App Bug] Test 161 android", source mobile, newone1. Step 2 (phone-number account) not done.
 
 #162 App: new access requests show without reopening the screen
 Status:    TODO
@@ -5211,7 +5211,7 @@ Fix ref:
 Feedback:
 --------------------------------------------------------------------------------
 #181 App photo viewer comments: nothing behind the panel; Android keyboard doesn't hide the comment box
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (Android phone + iPhone)
 Brief:     In guest galleries the Like / Comment / Share / Download row showed through the comment panel and
@@ -5236,14 +5236,14 @@ How to test:
   6. Android: Dashboard > Join Event > tap the Join ID box. Expect: the sheet sits above the keyboard and
      doesn't flicker (same as before).
   7. iPhone: steps 1 to 3. Expect: the panel still moves up for the keyboard as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Shwetank; Claude over adb (Android screenshots)
+Device / browser:iQOO Android; iPhone 11 (iOS 26.7)
+Build / version:EveBash Staging app, builds of 2026-11-20/21
+Date tested:2026-11-20 to 2026-11-21
+Account used:newone1@email.com (Staging test 1)
 Screenshot / recording:
-Fix ref:
-Feedback:
+Fix ref:   6f5b7025 (iPhone keyboard lift, #242)
+Feedback:  2026-11-20 Shwetank, iQOO Android (staging app, newone1@email.com): step 3 PASS (box, typing and Send stay above the docked keyboard; long text visible; comment sent). Step 5 PASS too (host's photo viewer). Steps 1, 2, 4, 6, 7 not done yet. Found #305 (crowded top buttons in the host viewer). Step 7 FAIL on iPhone 11 (iOS 26.7, staging app): the keyboard covers the whole Guestbook panel; box and Send hidden, panel doesn't move up. Issue #242. RETEST 2026-11-20 on the new iPhone staging build (fix 6f5b7025): step 7 PASS (guest viewer) and the host viewer PASS on iPhone 11; a comment sends; nothing shows through the panel (steps 1-2 seen). Left: step 6 (Android Join Event sheet) and step 4 (Reply) to confirm, then PASS. 2026-11-21: step 6 PASS (Join Event sheet above the keyboard, no flicker) and step 4 PASS (Reply shows "Replying to newone1"; box and Send above the keyboard), Android. All steps now pass. Small looks point: with the keyboard closed, the bottom of the reply box slightly overlaps the Android navigation bar.
 
 --------------------------------------------------------------------------------
 #182 Pricing, Contact us and EB Network in the Noir homepage look (website)
@@ -5387,7 +5387,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #186 Video player: dragging the seek bar moves through the video, not to the next item (app, issue #180)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (iPhone and Android)
 Brief:     Dragging the video seek bar sideways used to jump to the next or previous photo or video instead of
@@ -5408,14 +5408,14 @@ How to test:
   5. Swipe left on the picture itself (not on the controls). Expect: the next video opens (2 / 4). Swipe right:
      back to the first one.
   6. Host side: from Host, open the same event, open a video and repeat steps 1 and 5. Expect: the same results.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Shwetank (iPhone); Claude over adb (Android)
+Device / browser:iPhone 11 (iOS 26.7); iQOO Android
+Build / version:EveBash Staging app (staging builds of 2026-11-19/20)
+Date tested:2026-11-20
+Account used:newone1@email.com (Rotate test, 1 video)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  iPhone: all steps pass. Android: tap mid-bar 0:00->0:14, drag right 0:24, drag left 0:04, +10 s 0:14, -10 s 0:04, counter stays 1 / 1. Step 5 (swipe to next video) not possible: the gallery has 1 video. Found #306 (viewer opens on a stale item: "3 / 1", blank).
 
 #187 Storage by event on Profile
 Status:    TODO
@@ -6730,7 +6730,7 @@ Fix ref:
 Feedback:
 --------------------------------------------------------------------------------
 #229 App: event lists reload when the connection comes back; upload counts in the phone notification; Storage Usage after uploads (#215, #171)
-Status:    TODO
+Status:    PASS
 Priority:  Low
 Platform:  App (iPhone + Android)
 Brief:     The Dashboard, Host and Your Events screens no longer stay on "Couldn't load your events" after the
@@ -6767,18 +6767,18 @@ How to test:
   3. Open a gallery with more than 20 photos and videos, note Storage Usage, and upload a video of 50 MB or more
      without leaving the page. Expect: once it's saved, Storage Usage goes up (by about 0.05 GB) without reopening
      the gallery. Delete the test video afterwards.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank (iPhone), Claude (database check)
+Device / browser: iPhone 11, iOS 26.7, EveBash Staging app (deleted and reinstalled first)
+Build / version: EAS staging build 038ebba3 (git e6ed3af3; newer than 3dd46e77 and includes #212, #215, #216, #288, #289, #171)
+Date tested: 2026-11-20
+Account used: newone1@email.com, sub-gallery Upload Test (upload-test-azks) in Staging test 1
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Pass: 10 photos then 5 more while uploading; the notification showed Uploading 15 files / X of 15, then 15 files uploaded; Storage Usage rose without reopening the gallery; airplane mode + reopen showed Couldn't load your events, and the events came back by themselves within about 5 s after airplane mode off.
 
 --------------------------------------------------------------------------------
 #230 App: no questions at upload (notifications, full Photos access on iPhone); cancelling an upload right away doesn't crash (#212, #288, #289)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (iPhone + Android; step 2 is iPhone only)
 Brief:     Picking photos no longer asks for notification permission; the app asks once around sign-in (#212).
@@ -6817,18 +6817,18 @@ How to test:
   3. Add Photos, pick 1 photo, tap Upload, and tap the ✕ on its row in the upload panel within a second or two.
      Expect: the row goes away, the app stays open, and the photo is not added. Try it 3 times. Then upload 1
      photo without cancelling. Expect: it uploads normally. Delete the test photo afterwards.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank (iPhone), Claude (database check)
+Device / browser: iPhone 11, iOS 26.7, EveBash Staging app (deleted and reinstalled first)
+Build / version: EAS staging build 038ebba3 (git e6ed3af3; newer than 3dd46e77 and includes #212, #215, #216, #288, #289, #171)
+Date tested: 2026-11-20
+Account used: newone1@email.com, sub-gallery Upload Test (upload-test-azks) in Staging test 1
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Pass: one notification question at sign-in only; Add Photos (2) and Add Videos (1) went straight to Upload ... ? with no notification or full Photo Library question; the video uploaded and plays. Cancel right after Upload (X on the row), 3 times: row gone, app stayed open, no photo added.
 
 --------------------------------------------------------------------------------
 #231 App: photos upload 3 at a time; a video uploads alone (#216)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (iPhone + Android)
 Brief:     The app now uploads 3 photos at once instead of one at a time (about 2.5x faster on the simulator).
@@ -6858,14 +6858,14 @@ How to test:
      "Waiting for connection", then the upload carries on by itself and every photo arrives once.
   4. On an older phone, upload 50 photos while scrolling the gallery. Expect: no crash and no freezing.
      Delete the test sub-gallery afterwards.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank (iPhone), Claude (database check)
+Device / browser: iPhone 11, iOS 26.7, EveBash Staging app (deleted and reinstalled first)
+Build / version: EAS staging build 038ebba3 (git e6ed3af3; newer than 3dd46e77 and includes #212, #215, #216, #288, #289, #171)
+Date tested: 2026-11-20
+Account used: newone1@email.com, sub-gallery Upload Test (upload-test-azks) in Staging test 1
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Pass: 6 photos showed 3 Uploading and the rest Waiting; a video then 3 photos: the video uploaded alone with the photos Waiting. Claude checked the database: Upload Test has 23 photos (2 + 6 + 15) and 2 videos, all processed, 0 uploaded twice. (Tested with 6 photos, not 30.)
 
 #232 Website and app: a rotated photo stays as sharp as the others (preview 1600 px, thumbnail 480 px)
 Status:    PASS
@@ -6918,7 +6918,7 @@ Feedback:  Staging 2026-11-18: first app login of newone3 and newone4 on the iPh
 
 --------------------------------------------------------------------------------
 #234 App: host photo grid buttons still work after the big-gallery memory fix (#291 step 1)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (iPhone and Android)
 Brief:     In the host photo grid, tiles far from the screen now leave out their dark shading, labels and buttons
@@ -6941,14 +6941,14 @@ How to test:
   4. Hold and drag a tile one place, then drag it back. Expect: they swap, then swap back.
   5. Hide a photo (dots > Hide from guests), scroll far away and back. Expect: its HIDDEN label is still there.
      Unhide it again.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by: Shwetank (iPhone), Claude (memory, screenshots)
+Device / browser: iPhone 11, iOS 26.7, EveBash Staging app
+Build / version: EAS staging build 038ebba3 (git e6ed3af3, newer than 20dd0d20; includes 08bb4814)
+Date tested: 2026-11-20
+Account used: newone1@email.com (owner of Test 178 big gallery, staging)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: iPhone: steps 1-5 pass (tiles show photo, star, dots, arrows, trash when stopped; Photo Actions opens; trash > Cancel deletes nothing; drag swaps and swaps back; HIDDEN stays after scrolling, unhidden again: 0 hidden in the database). Memory (Instruments Activity Monitor over USB, physical footprint of EveBashStaging, 8 s recordings back to back because longer ones stopped after ~10 s): 119-120 MB with the gallery open, 219 MB during trip 1, 361 MB and 362 MB after 5 trips to #300 and back, 378 MB at 15:58 and 16:04 (stable). Before the fix: about 416 MB after trip 1, then about 440 MB. The app never closed or froze. Separate finding: pressing Delete (instead of Cancel) on a tile showed Deleting... and after about a minute an error; the photo stayed (300 photos in the database). Logged as issue #304; not part of this test.
 
 #235 App + website: Find You on a big event (smarter search #111, many-collections fix #295)
 Status:    TODO
@@ -7208,3 +7208,27 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback: 2026-11-20 website (Claude, staging.evebash.com/terms-and-conditions): section 10 ends with "Reporting and enforcement", two paragraphs, support@evebash.com links; Last updated shows October 23, 2026 (was October 22). Re-accept prompts are driven by POLICY_VERSION (shared/legal/acceptance.ts, unchanged), not this date. Before the live release: set lastUpdated in shared/legal/policies.json to the release date (Shwetank's call). App: the app's own Terms screen (Settings > Terms of Service) has the reporting text in section 4, checked on Android and iPhone 2026-11-20.
+
+#245 App: the sign-in screen fits on one screen on small phones (todo #26)
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone and Android, separately)
+Brief:     On phones under 800 pt tall (iPhone SE, 13 mini-size and small Androids) the sign-in screen is
+           tighter so it fits without scrolling. Taller phones look exactly as before.
+Detail:    apps/mobile/app/login.tsx (todo #26). Needs a new staging app build. Checked on the iPhone SE simulator
+           2026-11-20: everything visible, Terms line included.
+How to test:
+  1. Small phone (iPhone SE or a small Android), logged out: open the app. Expect: EveBash name, Welcome Back,
+     email, password, Forgot Password, Sign In, Continue with Google, Continue with Apple (iPhone) and
+     "Don't have an account? Sign Up" all visible without scrolling; nothing cut off or overlapping.
+  2. Tap the email field. Expect: the keyboard opens and the field stays visible; you can still reach Sign In.
+  3. Tap Sign Up. Expect: Create Account works (it may scroll; it has more fields).
+  4. A normal-size phone (your iPhone 11, the iQOO): the sign-in screen looks as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
