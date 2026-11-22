@@ -233,6 +233,7 @@ Update 2026-10-22: hero fonts are now one set (Great Vibes for names, Cinzel for
 Update 2026-10-22 (later): fixed in 3b40188 (on staging). Royal Emerald no longer recolours shared controls by matching class names: its [class*="text-stone-"] and [role="switch"] overrides are gone, and the event page gives the Royal controls named classes (royal-button, royal-switch, royal-error, royal-muted, royal-empty). Shared text colours still come from the theme colours in gallery-refinements.css, like every theme. Device test #113.
 Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): the date and the Explore Gallery button are both Cinzel; only the names are in script, by design. Device test #101 is FAIL only for step 7 (#92); this part passes.
 Note 2026-11-22: not checked in the 2026-11-22 Royal Emerald check: needs a signed-in guest (Add photos, Favourites), more photos (Load More) or a location (#96).
+Note 2026-11-22: parked: Shwetank to decide with Sarthak whether events should have a location at all. If not, this issue can be dropped.
 
 #99
 Listed: 2026-10-22
