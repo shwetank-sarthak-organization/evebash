@@ -1092,20 +1092,6 @@ Issue: In the app's host photo viewer, the top row of buttons is too crowded on 
 How to reproduce: Android phone, EveBash Staging app, newone1@email.com > Staging test 1 host page > open a photo > look at the top row.
 Note 2026-11-20: on iPhone the top row doesn't overlap (Report sits in the Likes/Comments row), but when the host page scrolls up (keyboard open) the floating star/rotate/download buttons sit on top of the Likes/Comments/Report row.
 
-#307
-Listed: 2026-11-22
-Platform: Website
-Priority: High
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Quick security check (chat with Claude, 2026-11-22)
-Issue: Website framework Next.js 16.1.1 (package.json) has a known security hole that npm audit rates critical; a fixed version exists. The website's packages show 38 known holes in all (3 critical, 20 high, mostly through Next.js, sharp and @tensorflow/tfjs-node). Fix: update Next.js to the fixed release (and sharp / tfjs-node where possible), run the build and the website checks on staging, then release.
-How to reproduce: npm audit --omit=dev at the repo root.
-Update 2026-11-22: Next.js and eslint-config-next updated 16.1.1 -> 16.4.6 (same major version). npm audit: Next.js no longer listed; all its 45 advisories (4 critical) gone. Website total down from 38+ to 34 (2 critical, 18 high), all left are in other packages: @tensorflow/tfjs-node (tar, adm-zip; fix needs a major change), Expo tooling in the root package (shell-quote, @expo/cli), zod, axios and a few small ones; not part of this issue. next build passes locally. Waiting on a click-through check on staging.
-Note 2026-11-22: on staging (3b45d9f9), the site reports Next.js 16.4.6. Claude checked in the built-in browser (signed in as newone1): home, login, dashboard, host page, event management (Galleries tab, photos load), pricing, terms, privacy-policy, eb-business, the old /marketplace redirect, the 404 page, and a Royal Emerald guest gallery with the photo viewer: all work, no new errors in the browser log. Waiting on Shwetank's click-through, then release to live.
-
-
 #308
 Listed: 2026-11-22
 Platform: Backend only
@@ -1162,6 +1148,21 @@ Issue: App packages have known security holes: expo-router (~55.0.16) is rated h
 How to reproduce: cd apps/mobile && npm audit --omit=dev.
 
 RECENTLY FIXED (delete entries older than 7 days)
+#307
+Listed: 2026-11-22
+Platform: Website
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: Website framework Next.js 16.1.1 (package.json) has a known security hole that npm audit rates critical; a fixed version exists. The website's packages show 38 known holes in all (3 critical, 20 high, mostly through Next.js, sharp and @tensorflow/tfjs-node). Fix: update Next.js to the fixed release (and sharp / tfjs-node where possible), run the build and the website checks on staging, then release.
+How to reproduce: npm audit --omit=dev at the repo root.
+Update 2026-11-22: Next.js and eslint-config-next updated 16.1.1 -> 16.4.6 (same major version). npm audit: Next.js no longer listed; all its 45 advisories (4 critical) gone. Website total down from 38+ to 34 (2 critical, 18 high), all left are in other packages: @tensorflow/tfjs-node (tar, adm-zip; fix needs a major change), Expo tooling in the root package (shell-quote, @expo/cli), zod, axios and a few small ones; not part of this issue. next build passes locally. Waiting on a click-through check on staging.
+Note 2026-11-22: on staging (3b45d9f9), the site reports Next.js 16.4.6. Claude checked in the built-in browser (signed in as newone1): home, login, dashboard, host page, event management (Galleries tab, photos load), pricing, terms, privacy-policy, eb-business, the old /marketplace redirect, the 404 page, and a Royal Emerald guest gallery with the photo viewer: all work, no new errors in the browser log. Waiting on Shwetank's click-through, then release to live.
+Note 2026-11-22: PASS (Shwetank, staging, Mac: dashboard, host page, upload, Choose Style, guest page, like and comment, log out and in). Next: release to live (staging -> main).
+Fixed in: 3b45d9f9 (2026-11-22)
+
 #314
 Listed: 2026-11-22
 Platform: Website
