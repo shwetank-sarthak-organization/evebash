@@ -202,22 +202,6 @@ Update 2026-10-22: fixed in 3b40188 (on staging). Royal Emerald gives the switch
 Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): off is emerald with a gold thumb, on has a gold star box and a gold track (device test #113 step 4 PASS).
 Note 2026-11-22: not checked in the 2026-11-22 Royal Emerald check: needs a signed-in guest (Add photos, Favourites), more photos (Load More) or a location (#96).
 
-#90
-Listed: 2026-10-22
-Platform: Website
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: On phones the Royal Emerald hero is at least one screen tall: text first, then a tall 4:5 framed image (src/components/TemplateRoyal.tsx), so guests scroll about two screens before the first photo.
-How to reproduce: Open a Royal Emerald gallery on a phone (or 375 px wide): count the scrolls before the first photo.
-Update 2026-10-22: the new hero (card, then framed photo, then button) is still about 1,200 px tall on a 390 px phone before the first photo, so this stays open.
-Update 2026-10-22 (later): fixed in 3b40188 (on staging). Phones now use the app's layout: framed photo first, a narrower card under it with the names on one line, smaller seal, no Explore Gallery button. About 807 px tall at 390x844, so the hero fits one screen. Desktop unchanged. Device test #113.
-Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
-Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): at 390x844 the frame comes first, the card under it, no Explore Gallery, and the hero ends at 828 px (device test #113 step 1 PASS). On staging real phones get the "Get the EveBash app" screen, so this was seen with that screen turned off in the page.
-Note 2026-11-22: not checked in the 2026-11-22 Royal Emerald check: needs phone width (staging shows real phones and the browser's phone mode the get-the-app screen; use a narrow desktop window).
-
 #92
 Listed: 2026-10-22
 Platform: Website
@@ -233,21 +217,7 @@ Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www
 Note 2026-11-12: device test #101 step 7 FAILS at phone width (checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone)). "Rajyalakshmi & Venkatanarayanaswamy" is fine on a computer (royal-card__names--xlong, 34 px, three lines), but at 390 px the card shows the names on one line at 26 px and splits the word: "Rajyalakshmi & Venkatan / arayanaswamy" (the h1 has overflow-wrap: anywhere). The 2026-10-22 fix was checked before the phone hero changed to names on one line (device test #113), so that change probably brought it back. Fix idea: on phones put the long name on its own line or step the size down further, and break only between words. Screenshot: reports/device-tests/test-101-step7-390px.jpg (local).
 Update 2026-11-12: fixed in 6109d44b (staging). Cause: no spaces around the inline "&" on phones, so the title was one unbreakable string. Now spaces surround it, and on phones the font size follows the longest word (container width / letters) and wraps only at spaces; the laptop look is unchanged. Checked in the built-in browser at 375, 390 and 1366 px. Waiting on device test #101 step 7 (RETEST).
 Note 2026-11-22: FAIL in part: the invitation card and the top bar handle a 98-character title well, but the guest page footer does not: the long title in the middle squeezes the side links, so "Create your own event free" breaks one word per line and "Contact Us" / "Cancellation & Refund" wrap (seen at 1920 px and about 800 px). Fix idea: limit the footer title to 1-2 lines (line-clamp) or give the side columns a minimum width. Phone width not checked.
-
-#95
-Listed: 2026-10-22
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #101); move to RECENTLY FIXED once it passes
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: Royal Emerald hover effects (hero image zoom, button grow) only work with a mouse, so phones get no feedback (src/components/TemplateRoyal.tsx).
-How to reproduce: Open a Royal Emerald gallery on a phone and tap the hero image and Explore Gallery: no visual response before scrolling.
-Update 2026-10-22: fixed. The hover-only image zoom and button grow are gone; the button has a pressed state that works on touch.
-Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
-Note 2026-11-12: not checked; the built-in browser has no touch screen. Needs a real phone (device test #101).
-Note 2026-11-22: not checked in the 2026-11-22 Royal Emerald check: needs phone width (staging shows real phones and the browser's phone mode the get-the-app screen; use a narrow desktop window).
+Note 2026-11-22: phone width (390 px frame, Claude): the footer is fine there: the title sits on its own lines above, the links are in two short columns and only "Create your own event free" wraps to 2 lines. So the squeeze is a computer-width problem only.
 
 #96
 Listed: 2026-10-22
@@ -1211,6 +1181,39 @@ How to reproduce: staging Royal Emerald guest page (public), scroll to the photo
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
+#95
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Royal Emerald hover effects (hero image zoom, button grow) only work with a mouse, so phones get no feedback (src/components/TemplateRoyal.tsx).
+How to reproduce: Open a Royal Emerald gallery on a phone and tap the hero image and Explore Gallery: no visual response before scrolling.
+Update 2026-10-22: fixed. The hover-only image zoom and button grow are gone; the button has a pressed state that works on touch.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
+Note 2026-11-12: not checked; the built-in browser has no touch screen. Needs a real phone (device test #101).
+Note 2026-11-22: PASS (checked by Claude 2026-11-22 on staging.evebash.com in the built-in browser, page inside a 390x844 frame (desktop browser, so no get-the-app screen; not a real phone), signed in as newone1@email.com, test event "Royal Emerald check with a really long title..."). No hover-only effects are left: no image zoom; Explore Gallery (computer only) and the gold buttons have a pressed state (:active moves them down 1 px); Share and the Photos/Videos tabs respond by opening/switching. Checked from the page's styles, not with a real finger tap.
+Fixed in: Royal Emerald hero rework 590bbdc4 (checked 2026-11-22)
+
+#90
+Listed: 2026-10-22
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: On phones the Royal Emerald hero is at least one screen tall: text first, then a tall 4:5 framed image (src/components/TemplateRoyal.tsx), so guests scroll about two screens before the first photo.
+How to reproduce: Open a Royal Emerald gallery on a phone (or 375 px wide): count the scrolls before the first photo.
+Update 2026-10-22: the new hero (card, then framed photo, then button) is still about 1,200 px tall on a 390 px phone before the first photo, so this stays open.
+Update 2026-10-22 (later): fixed in 3b40188 (on staging). Phones now use the app's layout: framed photo first, a narrower card under it with the names on one line, smaller seal, no Explore Gallery button. About 807 px tall at 390x844, so the hero fits one screen. Desktop unchanged. Device test #113.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
+Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): at 390x844 the frame comes first, the card under it, no Explore Gallery, and the hero ends at 828 px (device test #113 step 1 PASS). On staging real phones get the "Get the EveBash app" screen, so this was seen with that screen turned off in the page.
+Note 2026-11-22: PASS (checked by Claude 2026-11-22 on staging.evebash.com in the built-in browser, page inside a 390x844 frame (desktop browser, so no get-the-app screen; not a real phone), signed in as newone1@email.com, test event "Royal Emerald check with a really long title..."). Framed photo first, card under it, no Explore Gallery. With a normal title ("Aarav & Diya") the hero is 781 px, so it fits the 844 px screen. With the 98-character test title it is 944 px (the title wraps to 5 lines), which is fine for such an unusual title.
+Fixed in: 3b40188d (checked 2026-11-22)
+
 #81
 Listed: 2026-10-22
 Platform: Website
