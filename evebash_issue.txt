@@ -1138,6 +1138,7 @@ Note 2026-11-22: FAIL in part: the invitation card and the top bar handle a 98-c
 Note 2026-11-22: phone width (390 px frame, Claude): the footer is fine there: the title sits on its own lines above, the links are in two short columns and only "Create your own event free" wraps to 2 lines. So the squeeze is a computer-width problem only.
 Update 2026-11-22: footer fixed (src/app/royal-emerald.css): the side link columns keep their own width (minmax(max-content, 1fr)) and the title column is capped at 36rem, so a long title wraps (balanced lines) in the middle. Checked by Claude in the built-in browser on staging with the 98-character title, CSS injected before the change: at 1920 and 800 px all links stay on one line (before: "Create your own event free" one word per line, "Contact Us" and "Cancellation & Refund" wrapped); a short title ("Asha & Raj") looks as before; phones (under 768 px) keep their own layout. Waiting on a check on staging.
 Note 2026-11-22: PASS (Shwetank, staging, Mac, full width and half width): all footer links on one line, the long title wraps in the middle.
+Note 2026-11-22: LIVE: released to main (PR #29); www.evebash.com serves the new footer layout (checked by Claude).
 Fixed in: 5f9820de (2026-11-22)
 
 #308
@@ -1152,6 +1153,7 @@ Issue: Backend packages have known security holes: sharp (^0.35.3) and zod (^4.4
 How to reproduce: cd apps/backend && npm audit --omit=dev.
 Update 2026-11-22: npm audit fix in apps/backend (no breaking changes; package.json unchanged, lock file only): sharp 0.35.3 -> 0.35.5, zod -> 4.6.7, @sentry/node -> 11.16.0, plus deeper fixes (proxy-addr (the critical one), body-parser, axios, follow-redirects, qs, glob, minimatch, ip-address). npm audit --omit=dev: 0 vulnerabilities (was 12: 1 critical, 5 high). Type check clean, 170/170 backend tests pass, sharp loads (libvips 8.18.7). Waiting on the staging deploy and an upload check.
 Note 2026-11-22: PASS (Shwetank, staging, Mac: photo upload, rotate, video thumbnail, Find You) after the staging backend restarted with the update. Next: release to live (staging -> main; Railway production deploys from main).
+Note 2026-11-22: LIVE: released to main (PR #29); the live backend (api.evebash.com) restarted with the update and answers normally (checked by Claude).
 Fixed in: 0cf8da3a (2026-11-22)
 
 #307
@@ -1186,6 +1188,7 @@ Note 2026-11-22 (later): could not reproduce (Claude, built-in browser, signed i
 Note 2026-11-22: not seen by Shwetank either (Mac, Chrome, staging, normal view and the viewer's Fullscreen button). Closed as can't reproduce; reopen with a screenshot if it shows again.
 Update 2026-11-22 (later): reproduced by Shwetank (staging, event sample-7edd: opening a photo while the footer is on screen shows the footer across the bottom). Cause: the viewer (fixed, z-index 9999) sits inside the gallery section <main> (relative z-10, TemplateRoyal.tsx), so its 9999 only counts inside that section; the footer (.royal-footer, z-index 10 since 85f86d99) comes later in the page at the same level and paints on top. Earlier checks missed it because the test page was long and the footer was off screen. Fix: .royal-footer z-index 10 -> 9 (src/app/royal-emerald.css), so the gallery section and its viewer sit above it. Status back to In progress until checked.
 Note 2026-11-22: PASS (Shwetank, staging, sample-7edd: footer on screen, photo opened, viewer covers the whole screen). Also checked by Claude: with the viewer open and the footer moved into view, z-index 10 put the footer on top, 9 keeps the viewer on top.
+Note 2026-11-22: LIVE: released to main (PR #29); www.evebash.com serves the footer at z-index 9 (checked by Claude).
 Fixed in: 03bcbf66 (2026-11-22)
 
 #313
