@@ -1157,12 +1157,13 @@ Found in: Quick security check (chat with Claude, 2026-11-22)
 Issue: App packages have known security holes: expo-router (~55.0.16) is rated high; the app shows 36 in all (1 critical, 18 high, mostly in build tools). Fixes exist. Fix: update expo-router and the affected Expo packages (expo install --fix), make a staging build, and check sign-in, navigation, deep links and uploads on iPhone and Android. Reaches users with the next store release.
 How to reproduce: cd apps/mobile && npm audit --omit=dev.
 
+RECENTLY FIXED (delete entries older than 7 days)
 #314
 Listed: 2026-11-22
 Platform: Website
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: Dropped
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Royal Emerald check 2026-11-22 (Claude in the built-in browser, staging.evebash.com, about 800 px wide)
 Issue: In the Royal Emerald guest gallery, opening a photo full screen leaves the page footer (the event title in script and "Made with EveBash") visible across the bottom of the screen, under the photo. The full-screen viewer should cover the whole page. Seen on the test event "Royal Emerald check with a really long title..." with a wide photo. Check whether other themes do the same, and whether the viewer's backdrop doesn't reach the bottom or the footer sits above it (z-index / stacking).
@@ -1170,7 +1171,9 @@ How to reproduce: staging Royal Emerald guest page (public), scroll to the photo
 Note 2026-11-22 (later): could not reproduce (Claude, built-in browser, signed in as host, 1280x800 and 800x700, opened from the top and from the bottom of the page, and with the viewer's Fullscreen button): the viewer is fixed full-screen at z-index 9999 with a solid emerald background, and the footer (z-index 10) stays under it. Possibly it showed only during the open/close animation. Waiting on Shwetank to try on the Mac; if it can't be seen, close it as can't reproduce.
 
 =====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
+Note 2026-11-22: not seen by Shwetank either (Mac, Chrome, staging, normal view and the viewer's Fullscreen button). Closed as can't reproduce; reopen with a screenshot if it shows again.
+Fixed in: - (dropped, can't reproduce) (2026-11-22)
+
 #313
 Listed: 2026-11-22
 Platform: Website
