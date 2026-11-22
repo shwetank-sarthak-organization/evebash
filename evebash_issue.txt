@@ -202,25 +202,6 @@ Update 2026-10-22: fixed in 3b40188 (on staging). Royal Emerald gives the switch
 Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone): off is emerald with a gold thumb, on has a gold star box and a gold track (device test #113 step 4 PASS).
 Note 2026-11-22: not checked in the 2026-11-22 Royal Emerald check: needs a signed-in guest (Add photos, Favourites), more photos (Load More) or a location (#96).
 
-#92
-Listed: 2026-10-22
-Platform: Website
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
-Issue: Long Royal Emerald titles have nothing guarding them: the gold gradient title (src/components/TemplateRoyal.tsx) has no line limit or word break, so long couple names can overflow on phones. Its drop-shadow doesn't show on gradient (clipped) text.
-How to reproduce: Give a Royal Emerald gallery a long title with a long single word (e.g. a long hyphenated couple name) and open it at 375 px wide.
-Update 2026-10-22: fixed. Names in gold script get smaller for long names (two steps) and break only between words; checked with "Maharajkumari Rajyalakshmi & Venkatanarayanaswamy" at 390 px and 1376 px.
-Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
-Note 2026-11-12: device test #101 step 7 FAILS at phone width (checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone)). "Rajyalakshmi & Venkatanarayanaswamy" is fine on a computer (royal-card__names--xlong, 34 px, three lines), but at 390 px the card shows the names on one line at 26 px and splits the word: "Rajyalakshmi & Venkatan / arayanaswamy" (the h1 has overflow-wrap: anywhere). The 2026-10-22 fix was checked before the phone hero changed to names on one line (device test #113), so that change probably brought it back. Fix idea: on phones put the long name on its own line or step the size down further, and break only between words. Screenshot: reports/device-tests/test-101-step7-390px.jpg (local).
-Update 2026-11-12: fixed in 6109d44b (staging). Cause: no spaces around the inline "&" on phones, so the title was one unbreakable string. Now spaces surround it, and on phones the font size follows the longest word (container width / letters) and wraps only at spaces; the laptop look is unchanged. Checked in the built-in browser at 375, 390 and 1366 px. Waiting on device test #101 step 7 (RETEST).
-Note 2026-11-22: FAIL in part: the invitation card and the top bar handle a 98-character title well, but the guest page footer does not: the long title in the middle squeezes the side links, so "Create your own event free" breaks one word per line and "Contact Us" / "Cancellation & Refund" wrap (seen at 1920 px and about 800 px). Fix idea: limit the footer title to 1-2 lines (line-clamp) or give the side columns a minimum width. Phone width not checked.
-Note 2026-11-22: phone width (390 px frame, Claude): the footer is fine there: the title sits on its own lines above, the links are in two short columns and only "Create your own event free" wraps to 2 lines. So the squeeze is a computer-width problem only.
-Update 2026-11-22: footer fixed (src/app/royal-emerald.css): the side link columns keep their own width (minmax(max-content, 1fr)) and the title column is capped at 36rem, so a long title wraps (balanced lines) in the middle. Checked by Claude in the built-in browser on staging with the 98-character title, CSS injected before the change: at 1920 and 800 px all links stay on one line (before: "Create your own event free" one word per line, "Contact Us" and "Cancellation & Refund" wrapped); a short title ("Asha & Raj") looks as before; phones (under 768 px) keep their own layout. Waiting on a check on staging.
-
-
 #96
 Listed: 2026-10-22
 Platform: Website
@@ -1139,6 +1120,26 @@ Issue: App packages have known security holes: expo-router (~55.0.16) is rated h
 How to reproduce: cd apps/mobile && npm audit --omit=dev.
 
 RECENTLY FIXED (delete entries older than 7 days)
+#92
+Listed: 2026-10-22
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Royal Emerald (Wedding) theme review, code only (2026-10-22)
+Issue: Long Royal Emerald titles have nothing guarding them: the gold gradient title (src/components/TemplateRoyal.tsx) has no line limit or word break, so long couple names can overflow on phones. Its drop-shadow doesn't show on gradient (clipped) text.
+How to reproduce: Give a Royal Emerald gallery a long title with a long single word (e.g. a long hyphenated couple name) and open it at 375 px wide.
+Update 2026-10-22: fixed. Names in gold script get smaller for long names (two steps) and break only between words; checked with "Maharajkumari Rajyalakshmi & Venkatanarayanaswamy" at 390 px and 1376 px.
+Note 2026-10-23: phone-only. Once the phone/tablet download screen is on for www.evebash.com (#109), phones and tablets no longer see this page, so it matters less then. Until then it still affects every phone visitor, and Google still crawls the phone version.
+Note 2026-11-12: device test #101 step 7 FAILS at phone width (checked by Claude in the built-in browser on staging (1366x768 at 2x and 390x844; not a real phone)). "Rajyalakshmi & Venkatanarayanaswamy" is fine on a computer (royal-card__names--xlong, 34 px, three lines), but at 390 px the card shows the names on one line at 26 px and splits the word: "Rajyalakshmi & Venkatan / arayanaswamy" (the h1 has overflow-wrap: anywhere). The 2026-10-22 fix was checked before the phone hero changed to names on one line (device test #113), so that change probably brought it back. Fix idea: on phones put the long name on its own line or step the size down further, and break only between words. Screenshot: reports/device-tests/test-101-step7-390px.jpg (local).
+Update 2026-11-12: fixed in 6109d44b (staging). Cause: no spaces around the inline "&" on phones, so the title was one unbreakable string. Now spaces surround it, and on phones the font size follows the longest word (container width / letters) and wraps only at spaces; the laptop look is unchanged. Checked in the built-in browser at 375, 390 and 1366 px. Waiting on device test #101 step 7 (RETEST).
+Note 2026-11-22: FAIL in part: the invitation card and the top bar handle a 98-character title well, but the guest page footer does not: the long title in the middle squeezes the side links, so "Create your own event free" breaks one word per line and "Contact Us" / "Cancellation & Refund" wrap (seen at 1920 px and about 800 px). Fix idea: limit the footer title to 1-2 lines (line-clamp) or give the side columns a minimum width. Phone width not checked.
+Note 2026-11-22: phone width (390 px frame, Claude): the footer is fine there: the title sits on its own lines above, the links are in two short columns and only "Create your own event free" wraps to 2 lines. So the squeeze is a computer-width problem only.
+Update 2026-11-22: footer fixed (src/app/royal-emerald.css): the side link columns keep their own width (minmax(max-content, 1fr)) and the title column is capped at 36rem, so a long title wraps (balanced lines) in the middle. Checked by Claude in the built-in browser on staging with the 98-character title, CSS injected before the change: at 1920 and 800 px all links stay on one line (before: "Create your own event free" one word per line, "Contact Us" and "Cancellation & Refund" wrapped); a short title ("Asha & Raj") looks as before; phones (under 768 px) keep their own layout. Waiting on a check on staging.
+Note 2026-11-22: PASS (Shwetank, staging, Mac, full width and half width): all footer links on one line, the long title wraps in the middle.
+Fixed in: 5f9820de (2026-11-22)
+
 #308
 Listed: 2026-11-22
 Platform: Backend only
