@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 313
+Next issue number: 314
 
 =====================================================================
 ACTIVE ISSUES
@@ -1299,6 +1299,17 @@ Blocked by: -
 Found in: Quick security check (chat with Claude, 2026-11-22)
 Issue: App packages have known security holes: expo-router (~55.0.16) is rated high; the app shows 36 in all (1 critical, 18 high, mostly in build tools). Fixes exist. Fix: update expo-router and the affected Expo packages (expo install --fix), make a staging build, and check sign-in, navigation, deep links and uploads on iPhone and Android. Reaches users with the next store release.
 How to reproduce: cd apps/mobile && npm audit --omit=dev.
+
+#313
+Listed: 2026-11-22
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Royal Emerald device check (Shwetank, staging.evebash.com, Mac, 2026-11-22)
+Issue: In the host page's "Choose Style" pop-up ("Select a design template for this event."), the names of the themes that are not selected (Classic White, Sunlit Portrait, Midnight Hero, Confetti Circle) are invisible: white text on the cream pop-up. Only the selected theme's name shows (in its gold accent). Cause: src/app/(main)/host/page.tsx about line 6319, style color: isActive ? template.accent : '#fff' (left from when the pop-up was dark). Hosts can't read which theme is which. Fix: use the site text colour (var(--site-text)) for names that aren't selected; check the same list in the event-creation form (about line 5037) and in light and dark site themes.
+How to reproduce: staging.evebash.com as a host > host page of an event > change design / Choose Style: only the selected theme's name is readable.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
