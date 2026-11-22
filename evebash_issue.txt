@@ -1092,17 +1092,6 @@ Issue: In the app's host photo viewer, the top row of buttons is too crowded on 
 How to reproduce: Android phone, EveBash Staging app, newone1@email.com > Staging test 1 host page > open a photo > look at the top row.
 Note 2026-11-20: on iPhone the top row doesn't overlap (Report sits in the Likes/Comments row), but when the host page scrolls up (keyboard open) the floating star/rotate/download buttons sit on top of the Likes/Comments/Report row.
 
-#308
-Listed: 2026-11-22
-Platform: Backend only
-Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Quick security check (chat with Claude, 2026-11-22)
-Issue: Backend packages have known security holes: sharp (^0.35.3) and zod (^4.4.3) are rated high, and one critical hole sits deeper in the package tree (12 in all: 1 critical, 5 high, 6 moderate). Fixes exist. Fix: update sharp and zod (npm audit fix where safe), run the backend tests, deploy to staging and check uploads, image processing and the API, then release.
-How to reproduce: cd apps/backend && npm audit --omit=dev.
-
 #309
 Listed: 2026-11-22
 Platform: Both
@@ -1148,6 +1137,20 @@ Issue: App packages have known security holes: expo-router (~55.0.16) is rated h
 How to reproduce: cd apps/mobile && npm audit --omit=dev.
 
 RECENTLY FIXED (delete entries older than 7 days)
+#308
+Listed: 2026-11-22
+Platform: Backend only
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: Backend packages have known security holes: sharp (^0.35.3) and zod (^4.4.3) are rated high, and one critical hole sits deeper in the package tree (12 in all: 1 critical, 5 high, 6 moderate). Fixes exist. Fix: update sharp and zod (npm audit fix where safe), run the backend tests, deploy to staging and check uploads, image processing and the API, then release.
+How to reproduce: cd apps/backend && npm audit --omit=dev.
+Update 2026-11-22: npm audit fix in apps/backend (no breaking changes; package.json unchanged, lock file only): sharp 0.35.3 -> 0.35.5, zod -> 4.6.7, @sentry/node -> 11.16.0, plus deeper fixes (proxy-addr (the critical one), body-parser, axios, follow-redirects, qs, glob, minimatch, ip-address). npm audit --omit=dev: 0 vulnerabilities (was 12: 1 critical, 5 high). Type check clean, 170/170 backend tests pass, sharp loads (libvips 8.18.7). Waiting on the staging deploy and an upload check.
+Note 2026-11-22: PASS (Shwetank, staging, Mac: photo upload, rotate, video thumbnail, Find You) after the staging backend restarted with the update. Next: release to live (staging -> main; Railway production deploys from main).
+Fixed in: 0cf8da3a (2026-11-22)
+
 #307
 Listed: 2026-11-22
 Platform: Website
@@ -1161,13 +1164,14 @@ How to reproduce: npm audit --omit=dev at the repo root.
 Update 2026-11-22: Next.js and eslint-config-next updated 16.1.1 -> 16.4.6 (same major version). npm audit: Next.js no longer listed; all its 45 advisories (4 critical) gone. Website total down from 38+ to 34 (2 critical, 18 high), all left are in other packages: @tensorflow/tfjs-node (tar, adm-zip; fix needs a major change), Expo tooling in the root package (shell-quote, @expo/cli), zod, axios and a few small ones; not part of this issue. next build passes locally. Waiting on a click-through check on staging.
 Note 2026-11-22: on staging (3b45d9f9), the site reports Next.js 16.4.6. Claude checked in the built-in browser (signed in as newone1): home, login, dashboard, host page, event management (Galleries tab, photos load), pricing, terms, privacy-policy, eb-business, the old /marketplace redirect, the 404 page, and a Royal Emerald guest gallery with the photo viewer: all work, no new errors in the browser log. Waiting on Shwetank's click-through, then release to live.
 Note 2026-11-22: PASS (Shwetank, staging, Mac: dashboard, host page, upload, Choose Style, guest page, like and comment, log out and in). Next: release to live (staging -> main).
+Note 2026-11-22: LIVE: released to main (PR #27, merge e64a3e6c); www.evebash.com reports Next.js 16.4.6, and home, login, pricing, privacy policy, terms, dashboard, host and the 404 page load (checked by Claude).
 Fixed in: 3b45d9f9 (2026-11-22)
 
 #314
 Listed: 2026-11-22
 Platform: Website
 Priority: Medium
-Status: Dropped
+Status: Fixed
 Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Royal Emerald check 2026-11-22 (Claude in the built-in browser, staging.evebash.com, about 800 px wide)
@@ -1177,7 +1181,9 @@ Note 2026-11-22 (later): could not reproduce (Claude, built-in browser, signed i
 
 =====================================================================
 Note 2026-11-22: not seen by Shwetank either (Mac, Chrome, staging, normal view and the viewer's Fullscreen button). Closed as can't reproduce; reopen with a screenshot if it shows again.
-Fixed in: - (dropped, can't reproduce) (2026-11-22)
+Update 2026-11-22 (later): reproduced by Shwetank (staging, event sample-7edd: opening a photo while the footer is on screen shows the footer across the bottom). Cause: the viewer (fixed, z-index 9999) sits inside the gallery section <main> (relative z-10, TemplateRoyal.tsx), so its 9999 only counts inside that section; the footer (.royal-footer, z-index 10 since 85f86d99) comes later in the page at the same level and paints on top. Earlier checks missed it because the test page was long and the footer was off screen. Fix: .royal-footer z-index 10 -> 9 (src/app/royal-emerald.css), so the gallery section and its viewer sit above it. Status back to In progress until checked.
+Note 2026-11-22: PASS (Shwetank, staging, sample-7edd: footer on screen, photo opened, viewer covers the whole screen). Also checked by Claude: with the viewer open and the footer moved into view, z-index 10 put the footer on top, 9 keeps the viewer on top.
+Fixed in: 03bcbf66 (2026-11-22)
 
 #313
 Listed: 2026-11-22
