@@ -308,7 +308,8 @@
 }
 .royal-footer__inner {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  /* Links keep their own width; a long event title wraps in the middle instead of squeezing them (#92) */
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, 36rem) minmax(max-content, 1fr);
   align-items: center;
   gap: 24px 40px;
   max-width: 1120px;
@@ -320,6 +321,7 @@
   margin: 0;
   color: var(--royal-gold, #ca9c69);
   font: 400 clamp(26px, 4vw, 34px)/1.25 var(--font-royal-script), cursive;
+  text-wrap: balance;
 }
 .royal-footer__made { margin: 6px 0 0; color: #bdc9b9; font-size: 13px; }
 /* EveBash in its own brand font, as on the rest of the website */
