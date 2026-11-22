@@ -1161,12 +1161,13 @@ How to reproduce: cd apps/mobile && npm audit --omit=dev.
 Listed: 2026-11-22
 Platform: Website
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Royal Emerald device check (Shwetank, staging.evebash.com, Mac, 2026-11-22)
 Issue: In the host page's "Choose Style" pop-up ("Select a design template for this event."), the names of the themes that are not selected (Classic White, Sunlit Portrait, Midnight Hero, Confetti Circle) are invisible: white text on the cream pop-up. Only the selected theme's name shows (in its gold accent). Cause: src/app/(main)/host/page.tsx about line 6319, style color: isActive ? template.accent : '#fff' (left from when the pop-up was dark). Hosts can't read which theme is which. Fix: use the site text colour (var(--site-text)) for names that aren't selected; check the same list in the event-creation form (about line 5037) and in light and dark site themes.
 How to reproduce: staging.evebash.com as a host > host page of an event > change design / Choose Style: only the selected theme's name is readable.
+Update 2026-11-22: fixed: names that aren't selected now use the site text colour (var(--site-text)); the selected one keeps its accent colour (all accents are mid-tone, readable on cream). The event-creation list (about line 5065) already used var(--site-subtle), so it was fine. Waiting on a quick check on staging by Shwetank.
 
 #314
 Listed: 2026-11-22
