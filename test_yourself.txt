@@ -7336,7 +7336,7 @@ Fix ref:
 Feedback:
 
 #250 App: Permissions tab readable in the light look (guest name, guest popup, report sheet)
-Status:    TODO
+Status:    TODO (Android PASS, iPhone simulator PASS; real iPhone after the next staging build)
 Priority:  Medium
 Platform:  App (iPhone and Android, separately; needs a staging build). Phone in light mode.
 Brief:     In the light look the guest list name was white on the light page, the guest and request popups kept a
@@ -7352,11 +7352,11 @@ How to test:
   4. In the guest popup tap Report user. Expect: a dark sheet with a white "Report user" title. Close it
      without sending.
   5. Phone in dark mode: the same screens look as before (dark).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
+Done by:   Android: Shwetank. iPhone simulator: Claude
+Device / browser: Android: iQOO (development build, app server). iPhone 18 Pro simulator
+Build / version: 66ebb833 via the local app server
+Date tested: 2026-11-23
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Android PASS (Shwetank). iPhone simulator PASS (Claude): guest name readable, light guest popup, dark report sheet with a white title.
