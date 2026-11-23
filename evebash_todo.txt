@@ -987,6 +987,13 @@ Brief:        When the host gives upload access, a guest who opens the event fro
               needed so uploads have a name and can be reported/removed); video size limits and cost. Check the
               app's event screen does the same. How to check: host turns upload access on, a guest opens the
               shared link, sees Add, uploads a photo and a video, and both show in the gallery.
+Note 2026-11-23: Shwetank: the guest Add button doesn't work today (website/app), and admins (the owner by
+              default, plus anyone made admin) can already add, remove and manage media. So guest uploads are
+              switched off until this todo: shared/permissions/guestUploads.ts GUEST_UPLOADS_ENABLED = false hides
+              the "Upload" / "Allow Photo Uploads" permission (website Permissions table and guest popup, app
+              guest popup and access text) and the guest "Add photos" button (website guest page, app). Saved
+              can_upload values are kept. This todo: fix the guest Add button, then set the switch to true.
+              Test: test_yourself #249.
 Done in:      -
 
 =====================================================================

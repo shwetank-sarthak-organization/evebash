@@ -84,6 +84,7 @@ import GalleriesIcon from '../../components/icons/GalleriesIcon';
 import PermissionsIcon from '../../components/icons/PermissionsIcon';
 import TransferOwnershipCard from '../../components/event/TransferOwnershipCard';
 import { memberLabel, type MemberDetails } from '../../../../shared/permissions/memberDetails';
+import { GUEST_UPLOADS_ENABLED } from '../../../../shared/permissions/guestUploads';
 import DesignIcon from '../../components/icons/DesignIcon';
 import PartnersIcon from '../../components/icons/PartnersIcon';
 import { haptic } from '@/lib/haptics';
@@ -1730,7 +1731,8 @@ function EventDetailScreen() {
 
       setGalleryAccess(opened.access);
       setGateTitle(opened.title || '');
-      setMemberCanUpload(opened.access === 'member' && opened.canUpload);
+      // Off until todo #49 (shared/permissions/guestUploads.ts)
+      setMemberCanUpload(GUEST_UPLOADS_ENABLED && opened.access === 'member' && opened.canUpload);
 
       if (opened.access === 'public_view' && opened.event) {
         await showPublicGallery(opened.event, opened.subEvents);
@@ -3351,7 +3353,7 @@ function EventDetailScreen() {
   // What an approved guest can do, in words (admins can do everything)
   const describeGuestAccess = (log: any) => {
     if (log.canAdmin) return 'Admin: full access';
-    const abilities = ['view', log.canUpload && 'upload', log.canComment && 'comment'].filter(Boolean) as string[];
+    const abilities = ['view', GUEST_UPLOADS_ENABLED && log.canUpload && 'upload', log.canComment && 'comment'].filter(Boolean) as string[];
     return abilities.length === 1 ? 'Can view' : `Can ${abilities.slice(0, -1).join(', ')} and ${abilities[abilities.length - 1]}`;
   };
 
@@ -6329,7 +6331,7 @@ function EventDetailScreen() {
                           { id: 'canAdmin', label: 'Admin Access', desc: 'Manage event, sub-galleries, and other guests', icon: 'shield.fill' },
                           { id: 'canUpload', label: 'Allow Photo Uploads', desc: 'Can add photos to the event. Videos are reserved for the event owner and admins.', icon: 'camera.fill' },
                           { id: 'canComment', label: 'Allow Comments', desc: 'Can react and post comments on any media', icon: 'bubble.left.fill' },
-                        ].map((perm) => {
+                        ].filter((perm) => GUEST_UPLOADS_ENABLED || perm.id !== 'canUpload').map((perm) => {
                           const isActive = Boolean((selectedGuest as any)?.[perm.id] || (selectedGuest?.canAdmin && (perm.id === 'canUpload' || perm.id === 'canComment')));
                           const isSelfAdminCheck = perm.id === 'canAdmin' && selectedGuest && doesGuestLogBelongToCurrentUser(selectedGuest) && !isOwner;
                           const displayDesc = isSelfAdminCheck ? "Ask host to remove you" : perm.desc;

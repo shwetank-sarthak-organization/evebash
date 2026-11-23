@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 249
+Next test number: 250
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -886,6 +886,7 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback:
+Note 2026-11-23: not needed for now: guest uploads are switched off until todo #49 (Phase 2); test again then.
 
 #42 Dashboard has no chat bubble; navbar links are easy to read (website)
 Status:    TODO
@@ -953,6 +954,7 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback:
+Note 2026-11-23: the "normal guests can't" part is moot while guest uploads are off (todo #49); admins uploading videos still applies.
 
 #45 A removed guest has to ask again; the list only changes when the change is saved (website)
 Status:    TODO
@@ -7308,3 +7310,27 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback: Pass. Share on a sub-gallery gives the main event's code and link; the guest page's Share Event copies the event link.
+
+#249 Guest upload permission hidden until todo #49 (website and app)
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website: staging.evebash.com; app: needs a staging build, iPhone and Android separately)
+Brief:     The "Upload" / "Allow Photo Uploads" permission is hidden for guests, and guests don't see "Add photos".
+           Admins and the owner upload as before.
+Detail:    shared/permissions/guestUploads.ts (GUEST_UPLOADS_ENABLED = false), used by src/app/(main)/host/page.tsx,
+           src/app/(public)/events/[slug]/page.tsx and apps/mobile/app/events/[id].tsx.
+How to test:
+  1. Website, host: event > Permissions. Expect: columns View, Admin, Comment (no Upload); the table lines up.
+     Click a guest: the popup shows Admin Access and Allow Comments, no Allow Photo Uploads.
+  2. App (iPhone and Android): event > Permissions > tap a guest: Admin Access and Allow Comments only; the
+     guest's line says e.g. "Can view and comment" (never "upload").
+  3. As a normal guest (not admin) open the event on the website and in the app: no "Add photos" button.
+  4. As the owner or an admin: uploading photos and videos still works.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
