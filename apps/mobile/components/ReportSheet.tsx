@@ -66,7 +66,9 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
   const label = target ? REPORT_TARGET_LABELS[target.targetType] : '';
 
   return (
-    <BottomSheet visible={!!target} onClose={onClose}>
+    // Always dark: this sheet's text and rows use the dark palette (MidnightColors); on the light look's white
+    // sheet the title and the intro line were nearly invisible.
+    <BottomSheet visible={!!target} onClose={onClose} style={{ backgroundColor: MidnightColors.background }}>
       <Text style={styles.title} accessibilityRole="header">{stage === 'done' ? 'Report sent' : `Report ${label}`}</Text>
       {stage === 'checking' && <ActivityIndicator color={MidnightColors.gold} style={styles.spinner} />}
       {stage === 'signed-out' && (

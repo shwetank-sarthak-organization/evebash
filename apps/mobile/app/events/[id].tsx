@@ -84,6 +84,7 @@ import GalleriesIcon from '../../components/icons/GalleriesIcon';
 import PermissionsIcon from '../../components/icons/PermissionsIcon';
 import TransferOwnershipCard from '../../components/event/TransferOwnershipCard';
 import { memberLabel, type MemberDetails } from '../../../../shared/permissions/memberDetails';
+import { GUEST_UPLOADS_ENABLED } from '../../../../shared/permissions/guestUploads';
 import DesignIcon from '../../components/icons/DesignIcon';
 import PartnersIcon from '../../components/icons/PartnersIcon';
 import { haptic } from '@/lib/haptics';
@@ -1564,6 +1565,24 @@ function EventDetailScreen() {
   const currentActiveEvent = selectedAdminGallery !== undefined
     ? (selectedAdminGallery || event)
     : (activeSubEvent || event);
+
+  // Share always shares the whole event (todo #48, option A): the main event's link, QR code, name and join code,
+  // from the primary gallery and from every sub-gallery. A sub-gallery opened from its own link loads its main event.
+  const [parentEvent, setParentEvent] = useState<DatabaseEvent | null>(null);
+  useEffect(() => {
+    const parentId = event?.parentId;
+    if (!parentId) {
+      setParentEvent(null);
+      return;
+    }
+    let cancelled = false;
+    void getEventById(parentId).then(parent => {
+      if (!cancelled) setParentEvent(parent);
+    });
+    return () => { cancelled = true; };
+  }, [event?.parentId]);
+  const shareGallery = event?.parentId ? parentEvent : event;
+  const shareJoinId = shareGallery?.joinId || '';
   // The app shows each gallery's phone cover (shared/themes/phoneCover.ts): the computer cover until a host sets one
   const shownActiveEvent = currentActiveEvent ? withPhoneCover(currentActiveEvent) : currentActiveEvent;
   const shownEvent = event ? withPhoneCover(event) : event;
@@ -1712,7 +1731,8 @@ function EventDetailScreen() {
 
       setGalleryAccess(opened.access);
       setGateTitle(opened.title || '');
-      setMemberCanUpload(opened.access === 'member' && opened.canUpload);
+      // Off until todo #49 (shared/permissions/guestUploads.ts)
+      setMemberCanUpload(GUEST_UPLOADS_ENABLED && opened.access === 'member' && opened.canUpload);
 
       if (opened.access === 'public_view' && opened.event) {
         await showPublicGallery(opened.event, opened.subEvents);
@@ -1726,8 +1746,8 @@ function EventDetailScreen() {
 
       const eventData = await getEventById(id);
       if (eventData) {
-        // Ensure joinId exists
-        if (!eventData.joinId) {
+        // Ensure joinId exists (main events only: one join code per event, todo #48)
+        if (!eventData.joinId && !eventData.parentId) {
           const joinCode = newEventJoinCode();
           await updateEvent(eventData.id, { joinId: joinCode });
           eventData.joinId = joinCode;
@@ -2628,9 +2648,9 @@ function EventDetailScreen() {
 
   // Only the link, for a browser, a bio or a printed card (todo #34). Share Invitation sends the whole message.
   const handleCopyShareLink = async () => {
-    if (!event) return;
+    if (!shareGallery) return;
     try {
-      await Clipboard.setStringAsync(getGalleryWebUrl(event.id));
+      await Clipboard.setStringAsync(getGalleryWebUrl(shareGallery.id));
       setShareLinkCopied(true);
       setTimeout(() => setShareLinkCopied(false), 2000);
     } catch (error) {
@@ -2639,11 +2659,11 @@ function EventDetailScreen() {
   };
 
   const handleShare = async () => {
-    if (!event) return;
-    const shareUrl = getGalleryWebUrl(event.id);
+    if (!shareGallery) return;
+    const shareUrl = getGalleryWebUrl(shareGallery.id);
     try {
       await Share.share({
-        message: `Join our event "${event.title}" on EveBash!\nJoin ID: ${event.joinId}\nLink: ${shareUrl}`,
+        message: `Join our event "${shareGallery.title}" on EveBash!\nJoin ID: ${shareJoinId}\nLink: ${shareUrl}`,
         url: shareUrl,
       });
     } catch (error) {
@@ -3333,7 +3353,7 @@ function EventDetailScreen() {
   // What an approved guest can do, in words (admins can do everything)
   const describeGuestAccess = (log: any) => {
     if (log.canAdmin) return 'Admin: full access';
-    const abilities = ['view', log.canUpload && 'upload', log.canComment && 'comment'].filter(Boolean) as string[];
+    const abilities = ['view', GUEST_UPLOADS_ENABLED && log.canUpload && 'upload', log.canComment && 'comment'].filter(Boolean) as string[];
     return abilities.length === 1 ? 'Can view' : `Can ${abilities.slice(0, -1).join(', ')} and ${abilities[abilities.length - 1]}`;
   };
 
@@ -3354,11 +3374,11 @@ function EventDetailScreen() {
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={styles.memberName} numberOfLines={1}>{log.name}</Text>
         {!!memberContact(log) && (
-          <Text style={{ color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.medium }} numberOfLines={1}>
+          <Text style={{ color: hp.slate400, fontSize: 12, fontFamily: Fonts.inter.medium }} numberOfLines={1}>
             {memberContact(log)}
           </Text>
         )}
-        <Text style={{ color: MidnightColors.gold, fontSize: 12, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>
+        <Text style={{ color: hp.gold, fontSize: 12, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>
           {describeGuestAccess(log)}
         </Text>
       </View>
@@ -6260,7 +6280,7 @@ function EventDetailScreen() {
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
-                      colors={['#1B211F', hp.onAccent]}
+                      colors={hostLight ? [hp.card, hp.surface] : ['#1B211F', hp.onAccent]} /* light look: light card so the light-look text stays readable */
                       style={styles.premiumModalContent}
                     >
                       {/* Header: Member Identity */}
@@ -6311,7 +6331,7 @@ function EventDetailScreen() {
                           { id: 'canAdmin', label: 'Admin Access', desc: 'Manage event, sub-galleries, and other guests', icon: 'shield.fill' },
                           { id: 'canUpload', label: 'Allow Photo Uploads', desc: 'Can add photos to the event. Videos are reserved for the event owner and admins.', icon: 'camera.fill' },
                           { id: 'canComment', label: 'Allow Comments', desc: 'Can react and post comments on any media', icon: 'bubble.left.fill' },
-                        ].map((perm) => {
+                        ].filter((perm) => GUEST_UPLOADS_ENABLED || perm.id !== 'canUpload').map((perm) => {
                           const isActive = Boolean((selectedGuest as any)?.[perm.id] || (selectedGuest?.canAdmin && (perm.id === 'canUpload' || perm.id === 'canComment')));
                           const isSelfAdminCheck = perm.id === 'canAdmin' && selectedGuest && doesGuestLogBelongToCurrentUser(selectedGuest) && !isOwner;
                           const displayDesc = isSelfAdminCheck ? "Ask host to remove you" : perm.desc;
@@ -6399,8 +6419,8 @@ function EventDetailScreen() {
                           onPress={() => setReportTarget({ targetType: 'user', targetId: selectedGuest.userId as string })}
                           style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, marginTop: 4 }}
                         >
-                          <IconSymbol name="flag" size={14} color={MidnightColors.slate400} />
-                          <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>Report user</Text>
+                          <IconSymbol name="flag" size={14} color={hp.slate400} />
+                          <Text style={{ color: hp.slate400, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>Report user</Text>
                         </TouchableOpacity>
                       )}
                     </LinearGradient>
@@ -6414,7 +6434,7 @@ function EventDetailScreen() {
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
-                      colors={['#1B211F', hp.onAccent]}
+                      colors={hostLight ? [hp.card, hp.surface] : ['#1B211F', hp.onAccent]} /* light look: light card so the light-look text stays readable */
                       style={styles.premiumModalContent}
                     >
                       {/* Header: Member Identity */}
@@ -8674,7 +8694,7 @@ function EventDetailScreen() {
 
             <View style={styles.qrContainer}>
               <Image
-                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getGalleryWebUrl(event.id))}` }}
+                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getGalleryWebUrl(shareGallery?.id || event.id))}` }}
                 style={styles.qrCode}
               />
               <Text style={styles.qrLabel}>Scan to Join</Text>
@@ -8683,7 +8703,7 @@ function EventDetailScreen() {
             <View style={styles.joinIdContainer}>
               <Text style={styles.joinIdLabel}>Unique Join ID</Text>
               <View style={styles.joinIdBox}>
-                <Text style={styles.joinIdValue}>{event.joinId}</Text>
+                <Text style={styles.joinIdValue}>{shareJoinId}</Text>
               </View>
             </View>
 

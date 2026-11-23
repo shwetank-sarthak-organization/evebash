@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 246
+Next test number: 251
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-18
+Last updated: 2026-11-23
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -886,6 +886,7 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback:
+Note 2026-11-23: not needed for now: guest uploads are switched off until todo #49 (Phase 2); test again then.
 
 #42 Dashboard has no chat bubble; navbar links are easy to read (website)
 Status:    TODO
@@ -953,6 +954,7 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback:
+Note 2026-11-23: the "normal guests can't" part is moot while guest uploads are off (todo #49); admins uploading videos still applies.
 
 #45 A removed guest has to ask again; the list only changes when the change is saved (website)
 Status:    TODO
@@ -7232,3 +7234,129 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback:
+
+#246 Website: sharing a sub-gallery shows the main event's code (todo #48)
+Status:    PASS
+Priority:  Medium
+Platform:  Website (staging.evebash.com), computer
+Brief:     On the host page, Share on a sub-gallery now shows the main event's Join ID, like the app. The link
+           is still the sub-gallery's own, so it opens that sub-gallery.
+Detail:    src/app/(main)/host/page.tsx handleShareEventLink (todo #48). Sub-gallery codes stay in the database
+           but are not shown or created any more.
+How to test:
+  1. Sign in on staging.evebash.com as a host of an event that has a sub-gallery. Open the event, then the main
+     gallery, press Share. Note the Join ID.
+  2. Open a sub-gallery, press Share. Expect: the same Join ID as step 1; the link ends with the sub-gallery's
+     own id (not the main event's).
+  3. Press Copy link / Share invitation and open the link in a private window. Expect: it opens that sub-gallery.
+  4. On the event list, open a main event's menu > Share. Expect: its Join ID, as before.
+Done by:   Shwetank (Claude also checked steps 1-3 in the built-in browser)
+Device / browser: Computer browser, staging.evebash.com
+Build / version: f1250c6d (staging)
+Date tested: 2026-11-23
+Account used: host of Staging test 1
+Screenshot / recording:
+Fix ref:
+Feedback: Pass. The event link opens its Home page; a sub-gallery link opens that sub-gallery.
+Note 2026-11-23 (later): replaced by #248: Share now always gives the main event (todo #48, option A), so
+           step 2's "link ends with the sub-gallery's id" no longer applies.
+
+#247 App: Share on a sub-gallery shares the whole event (todo #48)
+Status:    PASS
+Priority:  Medium
+Platform:  App (iPhone and Android, separately)
+Brief:     On an event's screen, Share Event gives the same thing everywhere: the main event's QR code, Join ID,
+           invitation message and link, whether you are on the primary gallery or on a sub-gallery.
+Detail:    apps/mobile/app/events/[id].tsx (shareGallery = the main event, todo #48 option A). Needs a new
+           staging app build (or the development build with the app server). Checked by Claude on the iPhone 18 Pro
+           simulator 2026-11-23: Royal Emerald > Sample > Share Event: QR the same as the main gallery's,
+           988U-X435, Copy link gives .../events/royal-emerald-check-...-c9e2.
+           History: an earlier version gave a sub-gallery its own link (Android PASS by Shwetank, iPhone simulator
+           PASS by Claude, 2026-11-23); option A replaced it the same day, so test again.
+How to test:
+  1. Host > open an event that has a sub-gallery > Share Event. Note the QR code and the Join ID.
+  2. Galleries > open a sub-gallery > Share Event. Expect: the same QR code and the same Join ID.
+  3. Tap Copy link, paste it in a browser. Expect: it opens the event's Home page (not the sub-gallery).
+  4. Tap Share Invitation. Expect: the message has the event's name, Join ID and the event's link. Close it
+     without sending.
+Done by:   Shwetank (Android and iPhone); Claude (iPhone simulator)
+Device / browser: Android: iQOO (development build, app server). iPhone 11 (staging build). iPhone 18 Pro simulator
+Build / version: Android: d4735828 via the app server. iPhone: staging EAS build 856635f4 (28b88bb2)
+Date tested: 2026-11-23
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback: PASS on Android and on the real iPhone (Shwetank): sub-gallery Share gives the same QR code and Join ID as the main gallery; Copy link opens the event's Home page.
+
+#248 Website: Share on a sub-gallery shares the whole event (todo #48)
+Status:    PASS
+Priority:  Medium
+Platform:  Website (staging.evebash.com), computer
+Brief:     Host page: Share on a sub-gallery shows the main event's QR code, Join ID and link (as on the primary
+           gallery). Guest page: the Share Event button copies the event's link also when you are in a sub-gallery.
+Detail:    src/app/(main)/host/page.tsx handleShareEventLink and src/app/(public)/events/[slug]/page.tsx
+           handleShare (todo #48 option A). Replaces #246.
+How to test:
+  1. Host > open an event with a sub-gallery > Share at the top. Note the Join ID and press Copy link.
+  2. Open a sub-gallery > Share. Expect: the same Join ID; Copy link gives the same link as step 1.
+  3. Paste the link in a private window. Expect: the event's Home page opens.
+  4. Guest page: open the event, open a sub-gallery, press Share Event (the copy button). Paste it. Expect: the
+     event's link (it opens the Home page).
+Done by:   Shwetank (Claude also checked steps 2 and 4 in the built-in browser)
+Device / browser: Computer browser, staging.evebash.com
+Build / version: d4735828 (staging)
+Date tested: 2026-11-23
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback: Pass. Share on a sub-gallery gives the main event's code and link; the guest page's Share Event copies the event link.
+
+#249 Guest upload permission hidden until todo #49 (website and app)
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website: staging.evebash.com; app: needs a staging build, iPhone and Android separately)
+Brief:     The "Upload" / "Allow Photo Uploads" permission is hidden for guests, and guests don't see "Add photos".
+           Admins and the owner upload as before.
+Detail:    shared/permissions/guestUploads.ts (GUEST_UPLOADS_ENABLED = false), used by src/app/(main)/host/page.tsx,
+           src/app/(public)/events/[slug]/page.tsx and apps/mobile/app/events/[id].tsx.
+How to test:
+  1. Website, host: event > Permissions. Expect: columns View, Admin, Comment (no Upload); the table lines up.
+     Click a guest: the popup shows Admin Access and Allow Comments, no Allow Photo Uploads.
+  2. App (iPhone and Android): event > Permissions > tap a guest: Admin Access and Allow Comments only; the
+     guest's line says e.g. "Can view and comment" (never "upload").
+  3. As a normal guest (not admin) open the event on the website and in the app: no "Add photos" button.
+  4. As the owner or an admin: uploading photos and videos still works.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#250 App: Permissions tab readable in the light look (guest name, guest popup, report sheet)
+Status:    TODO (Android PASS, iPhone simulator PASS; real iPhone after the next staging build)
+Priority:  Medium
+Platform:  App (iPhone and Android, separately; needs a staging build). Phone in light mode.
+Brief:     In the light look the guest list name was white on the light page, the guest and request popups kept a
+           dark background under dark text, and the report sheet's title was cream on white. All readable now.
+Detail:    apps/mobile/app/events/[id].tsx (guest row text, popups use a light card in the light look),
+           components/eventStyles/hostLightStyles.ts (memberName, avatarText), components/ReportSheet.tsx (always
+           dark). Checked by Claude on the iPhone 18 Pro simulator 2026-11-23.
+How to test:
+  1. Phone in light mode. Host > an event with a guest > Permissions. Expect: the guest's name is dark and
+     readable; the line under it says what they can do.
+  2. Tap the guest. Expect: a light popup; name at the top, Admin Access and Allow Comments titles all readable.
+  3. If there's a pending request, tap it: the request popup is readable too.
+  4. In the guest popup tap Report user. Expect: a dark sheet with a white "Report user" title. Close it
+     without sending.
+  5. Phone in dark mode: the same screens look as before (dark).
+Done by:   Android: Shwetank. iPhone simulator: Claude
+Device / browser: Android: iQOO (development build, app server). iPhone 18 Pro simulator
+Build / version: 66ebb833 via the local app server
+Date tested: 2026-11-23
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback: Android PASS (Shwetank). iPhone simulator PASS (Claude): guest name readable, light guest popup, dark report sheet with a white title.

@@ -38,6 +38,9 @@ export function makeHostLightStyles(base: EventStyles, c: typeof MidnightColors)
       requestName: with_('requestName', { color: c.white }),
       requestPhone: with_('requestPhone', { color: c.slate600 }),
       avatarTextSmall: with_('avatarTextSmall', { color: c.gold }),
+      // Guest list rows on the Permissions tab (the name was white on the light page)
+      memberName: with_('memberName', { color: c.white }),
+      avatarText: with_('avatarText', { color: c.gold }),
       premiumModalBackdrop: with_('premiumModalBackdrop', { backgroundColor: c.modalBackdrop }),
       premiumModalContent: with_('premiumModalContent', { borderColor: c.cardBorder, shadowColor: c.shadow, shadowOpacity: 0.2 }),
       premiumModalHeader: with_('premiumModalHeader', { backgroundColor: c.tint(0.02) }),

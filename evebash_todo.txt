@@ -32,9 +32,9 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 49
+Next todo number: 50
 
-Last updated: 2026-11-19
+Last updated: 2026-11-23
 
 =====================================================================
 ACTIVE TODOS
@@ -909,12 +909,48 @@ Listed:       2026-11-21
 Platform:     Both
 Priority:     Medium
 Phase:        1 (before launch)
-Status:       Agreed
+Status:       Done
 Effort:       S (a few hours)
 Suggested by: Shwetank (chat with Claude, 2026-11-21, during device test #162 / issue #48)
 Discussed:    Yes
 Decision:     2026-11-21 Shwetank: one code shares the whole event; hosts hide private sub-galleries with the
               hide icon. Do it later.
+              2026-11-23 Shwetank and Sarthak agreed: one join code per event. Each sub-gallery keeps
+              its own unique link (to share just that part).
+Note 2026-11-23: Shwetank saw that the app already works the right way and the website doesn't: in the app,
+              sub-galleries are tabs on the main event's screen, so Share always gives the main event's code
+              (apps/mobile/app/events/[id].tsx handleShare). On the website host page, Share on an open
+              sub-gallery shows that sub-gallery's own code and makes one if it has none
+              (src/app/(main)/host/page.tsx activeEventDetailEvent -> handleShareEventLink / ensureEventJoinId).
+              Fix: website Share always shows the main event's code; the link stays the sub-gallery's own
+              (/events/<sub-gallery id>, which already opens that sub-gallery). App: add a way to share one
+              sub-gallery's link. Check first whether a guest who asks to join through a sub-gallery link is
+              approved for that sub-gallery only or the whole event (open_gallery calls
+              request_gallery_access with the sub-gallery id).
+              Checked later the same day: request_gallery_access saves the request on the main event, so an
+              approved guest gets the whole event. Nothing to test there.
+Update 2026-11-23: website part done (host page Share on a sub-gallery shows the main event's code, keeps the
+              sub-gallery's link; handleShareEventLink in src/app/(main)/host/page.tsx; f1250c6d). Test: test_yourself #246 PASS 2026-11-23.
+              Still to do: the app's way to share one sub-gallery's link; check no other screen shows a
+              sub-gallery code.
+Update 2026-11-23 (later): app part done: on the event screen, Share uses the gallery on screen for the
+              link, QR code and message, and the main event's code (also when a sub-gallery is opened from its
+              own link); new sub-galleries opened in the app no longer get a code made for them
+              (apps/mobile/app/events/[id].tsx). Checked by Claude on the Android development build. Test:
+              test_yourself #247 (iPhone and Android, needs a new staging app build). Other screens: none found
+              that show a sub-gallery code. Done once #247 passes.
+Note 2026-11-23: #247 PASS on Android (Shwetank) and on the iPhone simulator (Claude); one real-iPhone check
+              left, after the next staging iOS build.
+Decision 2026-11-23 (later), Shwetank: option A: every way of sharing (QR code, Join ID, Share Invitation,
+              Copy link) always shares the whole event (the main event's link, name and code), from the primary
+              gallery and from every sub-gallery, because the top of the event screen works like the event's navbar.
+              This replaces "each sub-gallery shares its own link" from earlier today (tell Sarthak). Sub-gallery
+              links still work if someone copies the address. Done for website (host page Share and the guest
+              page's Share Event button) and app (event screen Share). Option B (the top of the screen always shows
+              the event's name, cover and date, sub-gallery editing moves below): not needed, Shwetank 2026-11-23,
+              since all 4 ways of sharing now give the whole event. Tests: #247 (app, redone for option A) and #248 (website).
+Note 2026-11-23: website test #248 PASS (Shwetank). Left: #247 on Android and on the real iPhone (staging iOS
+              build started 2026-11-23).
 Owner:        Shwetank
 Depends on:   -
 Brief:        Every sub-gallery gets its own join code today (e.g. Staging test 1 = STAG-FC5B, its sub-gallery =
@@ -926,6 +962,38 @@ Brief:        Every sub-gallery gets its own join code today (e.g. Staging test 
               event). Later (Phase 2): "share only this part" with one group (e.g. Haldi for close family) could
               reuse the hidden codes. How to check: create a sub-gallery; no code shows for it anywhere a host
               looks; the main event's code still joins and shows all non-hidden sub-galleries.
+Note 2026-11-23: #247 PASS on Android and iPhone (Shwetank). Not live yet: website with the next release
+              (staging -> main), app with the next store build.
+Done in:      d4735828 (2026-11-23); website f1250c6d, app 797c0aa6. Tests #247, #248 PASS
+
+#49  Upload button (photos and videos) for guests who open a shared link
+Listed:       2026-11-23
+Platform:     Both
+Priority:     Medium
+Phase:        2 (after launch)
+Status:       Agreed
+Effort:       M (1-3 days)
+Suggested by: Shwetank (chat with Claude, 2026-11-23)
+Discussed:    Yes
+Decision:     2026-11-23 Shwetank: wanted, but in Phase 2.
+Owner:        Unassigned
+Depends on:   -
+Brief:        When the host gives upload access, a guest who opens the event from a shared link should see an
+              Add button and be able to upload photos and videos. Today (website,
+              src/app/(public)/events/[slug]/page.tsx) the "Add photos" button shows only for signed-in guests
+              who joined the event (access "member") with upload allowed, and it takes photos only
+              (accept="image/*"); someone who opens a shared link without joining sees no button. To decide when
+              building: does "anyone with the link" get upload access, or only guests the host allowed (sign-in
+              needed so uploads have a name and can be reported/removed); video size limits and cost. Check the
+              app's event screen does the same. How to check: host turns upload access on, a guest opens the
+              shared link, sees Add, uploads a photo and a video, and both show in the gallery.
+Note 2026-11-23: Shwetank: the guest Add button doesn't work today (website/app), and admins (the owner by
+              default, plus anyone made admin) can already add, remove and manage media. So guest uploads are
+              switched off until this todo: shared/permissions/guestUploads.ts GUEST_UPLOADS_ENABLED = false hides
+              the "Upload" / "Allow Photo Uploads" permission (website Permissions table and guest popup, app
+              guest popup and access text) and the guest "Add photos" button (website guest page, app). Saved
+              can_upload values are kept. This todo: fix the guest Add button, then set the switch to true.
+              Test: test_yourself #249.
 Done in:      -
 
 =====================================================================

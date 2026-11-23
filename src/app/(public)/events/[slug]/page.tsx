@@ -22,6 +22,7 @@ import { GalleryHighlightVideo } from "@/components/GalleryHighlightVideo";
 import { getWebLightboxTheme, getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { ClassicGalleryHeader } from "@/components/classic/ClassicGalleryHeader";
 import { ConfettiCoupleSection } from "@/components/confetti/ConfettiCoupleSection";
+import { GUEST_UPLOADS_ENABLED } from "../../../../../shared/permissions/guestUploads";
 import type { ThemeContent } from "../../../../../shared/themes/themeContent";
 import { ConfettiGalleryHeader } from "@/components/confetti/ConfettiGalleryHeader";
 import { coverImageStyle } from "@/lib/coverStyle";
@@ -396,7 +397,8 @@ function EventPageContent() {
 
             setAccess(opened.access);
             setGateTitle(opened.title || "");
-            setCanGuestUpload(opened.access === "member" && opened.canUpload);
+            // Off until todo #49 (shared/permissions/guestUploads.ts)
+            setCanGuestUpload(GUEST_UPLOADS_ENABLED && opened.access === "member" && opened.canUpload);
 
             if (opened.access === "public_view" && opened.event) {
                 await showPublicGallery(opened);
@@ -589,8 +591,9 @@ function EventPageContent() {
         return () => observer.disconnect();
     }, [hasMorePhotos, loadMoreFailed, photos.length]);
 
+    // Share always shares the whole event, also from a sub-gallery (todo #48, option A)
     const handleShare = () => {
-        const shareUrl = `${window.location.origin}/events/${slug}?shared=true`;
+        const shareUrl = `${window.location.origin}/events/${encodeURIComponent(event?.parentId || decodeURIComponent(slug))}?shared=true`;
         navigator.clipboard.writeText(shareUrl);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);

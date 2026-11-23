@@ -15,6 +15,7 @@ import { PartnersIcon } from "@/components/PartnersIcon";
 import { GalleryTypesInfo } from "@/components/GalleryTypesInfo";
 import { TransferOwnershipCard } from "@/components/transfer/TransferOwnershipCard";
 import { memberLabel, type MemberDetails } from "../../../../shared/permissions/memberDetails";
+import { GUEST_UPLOADS_ENABLED } from "../../../../shared/permissions/guestUploads";
 import { buildSourceGalleryOptions, formatSourceCount, isFromSourceGallery } from "../../../../shared/media/sourceGalleries";
 import { HostIcon } from "@/components/HostIcon";
 import { HostConsoleIcon } from "@/components/HostConsoleIcon";
@@ -3070,9 +3071,25 @@ function DashboardContent() {
         return eventWithJoinId;
     };
 
+    // Share always shares the whole event (todo #48, option A), like the app: Share on a sub-gallery opens the main
+    // event's link, QR code and join code. A sub-gallery's own code stays in the database and is never shown or made.
+    const findMainEvent = async (parentId: string): Promise<Event | null> => {
+        if (selectedMainEvent?.id === parentId) return selectedMainEvent;
+        return userEvents.find(evt => evt.id === parentId)
+            || sharedEvents.find(evt => evt.id === parentId)
+            || await getEventById(parentId);
+    };
+
     const handleShareEventLink = async (eventToShare: Event) => {
         try {
-            const eventWithJoinId = await ensureEventJoinId(eventToShare);
+            let eventWithJoinId: Event;
+            if (eventToShare.parentId) {
+                const mainEvent = await findMainEvent(eventToShare.parentId);
+                if (!mainEvent) throw new Error("Main event not found");
+                eventWithJoinId = await ensureEventJoinId(mainEvent);
+            } else {
+                eventWithJoinId = await ensureEventJoinId(eventToShare);
+            }
             setShareModalEvent(eventWithJoinId);
         } catch (error) {
             console.error("Failed to prepare share modal:", error);
@@ -3716,24 +3733,29 @@ function DashboardContent() {
     // table (Member / Role / Permissions / Actions); below that each row stacks into a card.
     // Borders use the shared --site-line / --site-border colours (globals.css).
     const renderEventDetailPermissionTable = (logs: EventDetailLog[], isPending: boolean) => {
-        const columns = isPending
-            ? "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(4,5.5rem)_16rem]"
-            : "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(4,5.5rem)_6.5rem]";
+        // The Upload column is hidden while guest uploads are off (shared/permissions/guestUploads.ts, todo #49)
+        const columns = GUEST_UPLOADS_ENABLED
+            ? (isPending
+                ? "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(4,5.5rem)_16rem]"
+                : "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(4,5.5rem)_7.5rem]")
+            : (isPending
+                ? "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(3,5.5rem)_16rem]"
+                : "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(3,5.5rem)_7.5rem]");
         const headerLabel = "text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]";
-        const permissionColumns = [
+        const permissionColumns = ([
             { key: "view", label: "View" },
             { key: "canAdmin", label: "Admin" },
             { key: "canUpload", label: "Upload" },
             { key: "canComment", label: "Comment" },
-        ] as const;
+        ] as const).filter(({ key }) => GUEST_UPLOADS_ENABLED || key !== "canUpload");
 
         return (
             <div className="overflow-hidden rounded-[1.5rem] border border-[var(--site-border)] bg-[var(--site-surface)]/50">
                 <div className={cn("hidden border-b border-[var(--site-border)] bg-[var(--site-surface)] xl:grid", columns)}>
                     <div className={cn("row-span-2 self-center px-5 py-3", headerLabel)}>Member</div>
                     <div className={cn("row-span-2 flex items-center border-l border-[var(--site-line)] px-4", headerLabel)}>Role</div>
-                    <div className="col-span-4 border-b border-l border-[var(--site-line)] py-2.5 text-center text-[11px] font-black uppercase tracking-[0.18em] text-[var(--site-gold-text)]">Permissions</div>
-                    <div className={cn("row-span-2 flex items-center justify-end border-l border-[var(--site-line)] px-5", headerLabel)}>Actions</div>
+                    <div className={cn(GUEST_UPLOADS_ENABLED ? "col-span-4" : "col-span-3", "border-b border-l border-[var(--site-line)] py-2.5 text-center text-[11px] font-black uppercase tracking-[0.18em] text-[var(--site-gold-text)]")}>Permissions</div>
+                    <div className={cn("row-span-2 flex items-center justify-center border-l border-[var(--site-line)] px-3", headerLabel)}>Actions</div>
                     {permissionColumns.map(({ key, label }) => (
                         <div key={key} className={cn("border-l border-[var(--site-line)] px-2 py-2.5 text-center", headerLabel)}>{label}</div>
                     ))}
@@ -3795,7 +3817,7 @@ function DashboardContent() {
 
                                 <div className="hidden items-center border-l border-[var(--site-line)] px-4 xl:flex">{roleBadge}</div>
 
-                                <div className="col-span-2 row-start-2 grid grid-cols-4 gap-2 rounded-2xl border border-[var(--site-line)] bg-[var(--site-bg)]/40 p-3 xl:contents">
+                                <div className={cn("col-span-2 row-start-2 grid gap-2 rounded-2xl border border-[var(--site-line)] bg-[var(--site-bg)]/40 p-3 xl:contents", GUEST_UPLOADS_ENABLED ? "grid-cols-4" : "grid-cols-3")}>
                                     {permissionColumns.map(({ key, label }) => {
                                         let control: React.ReactNode;
                                         if (key === "view") {
@@ -3843,7 +3865,7 @@ function DashboardContent() {
                                 </div>
 
                                 <div className={cn(
-                                    "flex items-center justify-end gap-2 border-[var(--site-line)] xl:col-span-1 xl:col-start-auto xl:row-start-auto xl:border-l xl:px-5 xl:py-3.5",
+                                    "flex items-center justify-end gap-2 border-[var(--site-line)] xl:col-span-1 xl:col-start-auto xl:row-start-auto xl:justify-center xl:border-l xl:px-3 xl:py-3.5",
                                     isPending ? "col-span-2 row-start-3" : "col-start-2 row-start-1"
                                 )}>
                                     {isPending && (
@@ -3872,7 +3894,7 @@ function DashboardContent() {
                                             onClick={() => void reportContent({ targetType: "user", targetId: log.userId! })}
                                             aria-label={`Report ${guestName}`}
                                             title="Report user"
-                                            className="rounded-xl border border-slate-700 bg-slate-800 p-2.5 text-slate-400 transition-colors hover:border-amber-400/30 hover:bg-amber-500/10 hover:text-amber-300"
+                                            className="rounded-xl border border-[var(--site-border)] bg-[var(--site-surface-2)] p-2.5 text-[var(--site-muted)] transition-colors hover:border-amber-400/40 hover:bg-amber-500/10 hover:text-amber-400 light:hover:text-amber-700"
                                         >
                                             <Flag className="h-4 w-4" />
                                         </button>
@@ -7063,7 +7085,7 @@ function DashboardContent() {
                                                 { key: "canAdmin", label: "Admin Access", desc: "Manage event, sub-galleries, and other guests", icon: ShieldCheck },
                                                 { key: "canUpload", label: "Allow Photo Uploads", desc: "Can add photos to the event. Videos are reserved for the event owner and admins.", icon: Camera },
                                                 { key: "canComment", label: "Allow Comments", desc: "Can react and post comments on media", icon: MessageCircle },
-                                            ].map(({ key, label, desc, icon: Icon }) => {
+                                            ].filter(({ key }) => GUEST_UPLOADS_ENABLED || key !== "canUpload").map(({ key, label, desc, icon: Icon }) => {
                                                 const permKey = key as "canAdmin" | "canUpload" | "canComment";
                                                 const isActive = Boolean(selectedGuestLog[permKey] || (selectedGuestLog.canAdmin && (permKey === "canUpload" || permKey === "canComment")));
 
