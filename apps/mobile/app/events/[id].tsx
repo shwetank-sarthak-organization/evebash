@@ -3374,11 +3374,11 @@ function EventDetailScreen() {
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={styles.memberName} numberOfLines={1}>{log.name}</Text>
         {!!memberContact(log) && (
-          <Text style={{ color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.medium }} numberOfLines={1}>
+          <Text style={{ color: hp.slate400, fontSize: 12, fontFamily: Fonts.inter.medium }} numberOfLines={1}>
             {memberContact(log)}
           </Text>
         )}
-        <Text style={{ color: MidnightColors.gold, fontSize: 12, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>
+        <Text style={{ color: hp.gold, fontSize: 12, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>
           {describeGuestAccess(log)}
         </Text>
       </View>
@@ -6280,7 +6280,7 @@ function EventDetailScreen() {
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
-                      colors={['#1B211F', hp.onAccent]}
+                      colors={hostLight ? [hp.card, hp.surface] : ['#1B211F', hp.onAccent]} /* light look: light card so the light-look text stays readable */
                       style={styles.premiumModalContent}
                     >
                       {/* Header: Member Identity */}
@@ -6419,8 +6419,8 @@ function EventDetailScreen() {
                           onPress={() => setReportTarget({ targetType: 'user', targetId: selectedGuest.userId as string })}
                           style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, marginTop: 4 }}
                         >
-                          <IconSymbol name="flag" size={14} color={MidnightColors.slate400} />
-                          <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>Report user</Text>
+                          <IconSymbol name="flag" size={14} color={hp.slate400} />
+                          <Text style={{ color: hp.slate400, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>Report user</Text>
                         </TouchableOpacity>
                       )}
                     </LinearGradient>
@@ -6434,7 +6434,7 @@ function EventDetailScreen() {
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
-                      colors={['#1B211F', hp.onAccent]}
+                      colors={hostLight ? [hp.card, hp.surface] : ['#1B211F', hp.onAccent]} /* light look: light card so the light-look text stays readable */
                       style={styles.premiumModalContent}
                     >
                       {/* Header: Member Identity */}

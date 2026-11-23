@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 250
+Next test number: 251
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7326,6 +7326,32 @@ How to test:
      guest's line says e.g. "Can view and comment" (never "upload").
   3. As a normal guest (not admin) open the event on the website and in the app: no "Add photos" button.
   4. As the owner or an admin: uploading photos and videos still works.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#250 App: Permissions tab readable in the light look (guest name, guest popup, report sheet)
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone and Android, separately; needs a staging build). Phone in light mode.
+Brief:     In the light look the guest list name was white on the light page, the guest and request popups kept a
+           dark background under dark text, and the report sheet's title was cream on white. All readable now.
+Detail:    apps/mobile/app/events/[id].tsx (guest row text, popups use a light card in the light look),
+           components/eventStyles/hostLightStyles.ts (memberName, avatarText), components/ReportSheet.tsx (always
+           dark). Checked by Claude on the iPhone 18 Pro simulator 2026-11-23.
+How to test:
+  1. Phone in light mode. Host > an event with a guest > Permissions. Expect: the guest's name is dark and
+     readable; the line under it says what they can do.
+  2. Tap the guest. Expect: a light popup; name at the top, Admin Access and Allow Comments titles all readable.
+  3. If there's a pending request, tap it: the request popup is readable too.
+  4. In the guest popup tap Report user. Expect: a dark sheet with a white "Report user" title. Close it
+     without sending.
+  5. Phone in dark mode: the same screens look as before (dark).
 Done by:
 Device / browser:
 Build / version:
