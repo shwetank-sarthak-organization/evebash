@@ -7260,7 +7260,7 @@ Note 2026-11-23 (later): replaced by #248: Share now always gives the main event
            step 2's "link ends with the sub-gallery's id" no longer applies.
 
 #247 App: Share on a sub-gallery shares the whole event (todo #48)
-Status:    TODO
+Status:    TODO (Android PASS; real iPhone still to check)
 Priority:  Medium
 Platform:  App (iPhone and Android, separately)
 Brief:     On an event's screen, Share Event gives the same thing everywhere: the main event's QR code, Join ID,
@@ -7277,14 +7277,14 @@ How to test:
   3. Tap Copy link, paste it in a browser. Expect: it opens the event's Home page (not the sub-gallery).
   4. Tap Share Invitation. Expect: the message has the event's name, Join ID and the event's link. Close it
      without sending.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
+Done by:   Android: Shwetank. iPhone simulator: Claude
+Device / browser: Android: iQOO (development build, app server). iPhone 18 Pro simulator
+Build / version: d4735828 via the local app server (staging data)
+Date tested: 2026-11-23
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Android PASS (Shwetank). iPhone simulator PASS (Claude). Real iPhone: test on the staging iOS build started 2026-11-23 (EAS 856635f4).
 
 #248 Website: Share on a sub-gallery shares the whole event (todo #48)
 Status:    PASS
