@@ -32,9 +32,9 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 49
+Next todo number: 50
 
-Last updated: 2026-11-19
+Last updated: 2026-11-23
 
 =====================================================================
 ACTIVE TODOS
@@ -926,6 +926,29 @@ Brief:        Every sub-gallery gets its own join code today (e.g. Staging test 
               event). Later (Phase 2): "share only this part" with one group (e.g. Haldi for close family) could
               reuse the hidden codes. How to check: create a sub-gallery; no code shows for it anywhere a host
               looks; the main event's code still joins and shows all non-hidden sub-galleries.
+Done in:      -
+
+#49  Upload button (photos and videos) for guests who open a shared link
+Listed:       2026-11-23
+Platform:     Both
+Priority:     Medium
+Phase:        2 (after launch)
+Status:       Agreed
+Effort:       M (1-3 days)
+Suggested by: Shwetank (chat with Claude, 2026-11-23)
+Discussed:    Yes
+Decision:     2026-11-23 Shwetank: wanted, but in Phase 2.
+Owner:        Unassigned
+Depends on:   -
+Brief:        When the host gives upload access, a guest who opens the event from a shared link should see an
+              Add button and be able to upload photos and videos. Today (website,
+              src/app/(public)/events/[slug]/page.tsx) the "Add photos" button shows only for signed-in guests
+              who joined the event (access "member") with upload allowed, and it takes photos only
+              (accept="image/*"); someone who opens a shared link without joining sees no button. To decide when
+              building: does "anyone with the link" get upload access, or only guests the host allowed (sign-in
+              needed so uploads have a name and can be reported/removed); video size limits and cost. Check the
+              app's event screen does the same. How to check: host turns upload access on, a guest opens the
+              shared link, sees Add, uploads a photo and a video, and both show in the gallery.
 Done in:      -
 
 =====================================================================
