@@ -3070,8 +3070,8 @@ function DashboardContent() {
         return eventWithJoinId;
     };
 
-    // One join code per event (todo #48): a sub-gallery is shared with its own link but the main event's code, like
-    // the app. Its own code stays in the database and is never shown or created here.
+    // Share always shares the whole event (todo #48, option A), like the app: Share on a sub-gallery opens the main
+    // event's link, QR code and join code. A sub-gallery's own code stays in the database and is never shown or made.
     const findMainEvent = async (parentId: string): Promise<Event | null> => {
         if (selectedMainEvent?.id === parentId) return selectedMainEvent;
         return userEvents.find(evt => evt.id === parentId)
@@ -3085,8 +3085,7 @@ function DashboardContent() {
             if (eventToShare.parentId) {
                 const mainEvent = await findMainEvent(eventToShare.parentId);
                 if (!mainEvent) throw new Error("Main event not found");
-                const mainWithJoinId = await ensureEventJoinId(mainEvent);
-                eventWithJoinId = { ...eventToShare, joinId: mainWithJoinId.joinId };
+                eventWithJoinId = await ensureEventJoinId(mainEvent);
             } else {
                 eventWithJoinId = await ensureEventJoinId(eventToShare);
             }

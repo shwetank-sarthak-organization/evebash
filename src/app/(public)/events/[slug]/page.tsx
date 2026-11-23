@@ -589,8 +589,9 @@ function EventPageContent() {
         return () => observer.disconnect();
     }, [hasMorePhotos, loadMoreFailed, photos.length]);
 
+    // Share always shares the whole event, also from a sub-gallery (todo #48, option A)
     const handleShare = () => {
-        const shareUrl = `${window.location.origin}/events/${slug}?shared=true`;
+        const shareUrl = `${window.location.origin}/events/${encodeURIComponent(event?.parentId || decodeURIComponent(slug))}?shared=true`;
         navigator.clipboard.writeText(shareUrl);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);

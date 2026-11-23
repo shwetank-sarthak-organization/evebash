@@ -1565,23 +1565,23 @@ function EventDetailScreen() {
     ? (selectedAdminGallery || event)
     : (activeSubEvent || event);
 
-  // One join code per event (todo #48): Share sends the link of the gallery on screen (a sub-gallery's link opens
-  // that sub-gallery) with the main event's code. A sub-gallery opened from its own link loads its main event's code.
-  const [parentJoinId, setParentJoinId] = useState<string | null>(null);
+  // Share always shares the whole event (todo #48, option A): the main event's link, QR code, name and join code,
+  // from the primary gallery and from every sub-gallery. A sub-gallery opened from its own link loads its main event.
+  const [parentEvent, setParentEvent] = useState<DatabaseEvent | null>(null);
   useEffect(() => {
     const parentId = event?.parentId;
     if (!parentId) {
-      setParentJoinId(null);
+      setParentEvent(null);
       return;
     }
     let cancelled = false;
     void getEventById(parentId).then(parent => {
-      if (!cancelled) setParentJoinId(parent?.joinId || null);
+      if (!cancelled) setParentEvent(parent);
     });
     return () => { cancelled = true; };
   }, [event?.parentId]);
-  const shareJoinId = (event?.parentId ? parentJoinId : event?.joinId) || '';
-  const shareGallery = currentActiveEvent || event;
+  const shareGallery = event?.parentId ? parentEvent : event;
+  const shareJoinId = shareGallery?.joinId || '';
   // The app shows each gallery's phone cover (shared/themes/phoneCover.ts): the computer cover until a host sets one
   const shownActiveEvent = currentActiveEvent ? withPhoneCover(currentActiveEvent) : currentActiveEvent;
   const shownEvent = event ? withPhoneCover(event) : event;
