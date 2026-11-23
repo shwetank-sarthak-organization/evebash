@@ -7287,7 +7287,7 @@ Fix ref:
 Feedback:
 
 #248 Website: Share on a sub-gallery shares the whole event (todo #48)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website (staging.evebash.com), computer
 Brief:     Host page: Share on a sub-gallery shows the main event's QR code, Join ID and link (as on the primary
@@ -7300,11 +7300,11 @@ How to test:
   3. Paste the link in a private window. Expect: the event's Home page opens.
   4. Guest page: open the event, open a sub-gallery, press Share Event (the copy button). Paste it. Expect: the
      event's link (it opens the Home page).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
+Done by:   Shwetank (Claude also checked steps 2 and 4 in the built-in browser)
+Device / browser: Computer browser, staging.evebash.com
+Build / version: d4735828 (staging)
+Date tested: 2026-11-23
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Pass. Share on a sub-gallery gives the main event's code and link; the guest page's Share Event copies the event link.
