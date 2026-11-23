@@ -930,7 +930,7 @@ Note 2026-11-23: Shwetank saw that the app already works the right way and the w
               Checked later the same day: request_gallery_access saves the request on the main event, so an
               approved guest gets the whole event. Nothing to test there.
 Update 2026-11-23: website part done (host page Share on a sub-gallery shows the main event's code, keeps the
-              sub-gallery's link; handleShareEventLink in src/app/(main)/host/page.tsx). Test: test_yourself #246.
+              sub-gallery's link; handleShareEventLink in src/app/(main)/host/page.tsx; f1250c6d). Test: test_yourself #246 PASS 2026-11-23.
               Still to do: the app's way to share one sub-gallery's link; check no other screen shows a
               sub-gallery code.
 Owner:        Shwetank

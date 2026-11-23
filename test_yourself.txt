@@ -7234,7 +7234,7 @@ Fix ref:
 Feedback:
 
 #246 Website: sharing a sub-gallery shows the main event's code (todo #48)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website (staging.evebash.com), computer
 Brief:     On the host page, Share on a sub-gallery now shows the main event's Join ID, like the app. The link
@@ -7248,11 +7248,11 @@ How to test:
      own id (not the main event's).
   3. Press Copy link / Share invitation and open the link in a private window. Expect: it opens that sub-gallery.
   4. On the event list, open a main event's menu > Share. Expect: its Join ID, as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Shwetank (Claude also checked steps 1-3 in the built-in browser)
+Device / browser: Computer browser, staging.evebash.com
+Build / version: f1250c6d (staging)
+Date tested: 2026-11-23
+Account used: host of Staging test 1
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Pass. The event link opens its Home page; a sub-gallery link opens that sub-gallery.
