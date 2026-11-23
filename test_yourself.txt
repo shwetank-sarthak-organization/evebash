@@ -7258,7 +7258,7 @@ Fix ref:
 Feedback: Pass. The event link opens its Home page; a sub-gallery link opens that sub-gallery.
 
 #247 App: sharing a sub-gallery sends its own link with the main event's code (todo #48)
-Status:    TODO
+Status:    TODO (Android PASS; real iPhone still to check)
 Priority:  Medium
 Platform:  App (iPhone and Android, separately)
 Brief:     On an event's screen in the app, Share on a sub-gallery now gives that sub-gallery's link (it opens
@@ -7274,11 +7274,11 @@ How to test:
   4. Tap Share Invitation. Expect: the message names the sub-gallery, the main event's Join ID and the
      sub-gallery's link. Close it without sending.
   5. Back to Galleries > Home (primary) > Share Event: the main event's link and code, as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Android: Shwetank. iPhone simulator: Claude
+Device / browser: Android: iQOO (development build). iPhone 18 Pro simulator (development build)
+Build / version: 797c0aa6 via the local app server (staging data)
+Date tested: 2026-11-23
+Account used: host of Royal Emerald check / Staging test 1
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Android PASS (Shwetank). iPhone simulator PASS (Claude): Royal Emerald main and Sample both show 988U-X435; Copy link gives .../events/royal-emerald-check-...-c9e2 on the main gallery and .../events/sample-7edd on Sample. Still to do: one check on the real iPhone after the next staging iOS build (its current EveBash Staging build doesn't have the fix), then PASS.
