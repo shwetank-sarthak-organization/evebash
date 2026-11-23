@@ -3070,9 +3070,26 @@ function DashboardContent() {
         return eventWithJoinId;
     };
 
+    // One join code per event (todo #48): a sub-gallery is shared with its own link but the main event's code, like
+    // the app. Its own code stays in the database and is never shown or created here.
+    const findMainEvent = async (parentId: string): Promise<Event | null> => {
+        if (selectedMainEvent?.id === parentId) return selectedMainEvent;
+        return userEvents.find(evt => evt.id === parentId)
+            || sharedEvents.find(evt => evt.id === parentId)
+            || await getEventById(parentId);
+    };
+
     const handleShareEventLink = async (eventToShare: Event) => {
         try {
-            const eventWithJoinId = await ensureEventJoinId(eventToShare);
+            let eventWithJoinId: Event;
+            if (eventToShare.parentId) {
+                const mainEvent = await findMainEvent(eventToShare.parentId);
+                if (!mainEvent) throw new Error("Main event not found");
+                const mainWithJoinId = await ensureEventJoinId(mainEvent);
+                eventWithJoinId = { ...eventToShare, joinId: mainWithJoinId.joinId };
+            } else {
+                eventWithJoinId = await ensureEventJoinId(eventToShare);
+            }
             setShareModalEvent(eventWithJoinId);
         } catch (error) {
             console.error("Failed to prepare share modal:", error);

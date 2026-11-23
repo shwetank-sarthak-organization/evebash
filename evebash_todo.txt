@@ -909,7 +909,7 @@ Listed:       2026-11-21
 Platform:     Both
 Priority:     Medium
 Phase:        1 (before launch)
-Status:       Agreed
+Status:       In progress
 Effort:       S (a few hours)
 Suggested by: Shwetank (chat with Claude, 2026-11-21, during device test #162 / issue #48)
 Discussed:    Yes
@@ -927,6 +927,12 @@ Note 2026-11-23: Shwetank saw that the app already works the right way and the w
               sub-gallery's link. Check first whether a guest who asks to join through a sub-gallery link is
               approved for that sub-gallery only or the whole event (open_gallery calls
               request_gallery_access with the sub-gallery id).
+              Checked later the same day: request_gallery_access saves the request on the main event, so an
+              approved guest gets the whole event. Nothing to test there.
+Update 2026-11-23: website part done (host page Share on a sub-gallery shows the main event's code, keeps the
+              sub-gallery's link; handleShareEventLink in src/app/(main)/host/page.tsx). Test: test_yourself #246.
+              Still to do: the app's way to share one sub-gallery's link; check no other screen shows a
+              sub-gallery code.
 Owner:        Shwetank
 Depends on:   -
 Brief:        Every sub-gallery gets its own join code today (e.g. Staging test 1 = STAG-FC5B, its sub-gallery =

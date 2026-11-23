@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 246
+Next test number: 247
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-18
+Last updated: 2026-11-23
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -7224,6 +7224,30 @@ How to test:
   2. Tap the email field. Expect: the keyboard opens and the field stays visible; you can still reach Sign In.
   3. Tap Sign Up. Expect: Create Account works (it may scroll; it has more fields).
   4. A normal-size phone (your iPhone 11, the iQOO): the sign-in screen looks as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#246 Website: sharing a sub-gallery shows the main event's code (todo #48)
+Status:    TODO
+Priority:  Medium
+Platform:  Website (staging.evebash.com), computer
+Brief:     On the host page, Share on a sub-gallery now shows the main event's Join ID, like the app. The link
+           is still the sub-gallery's own, so it opens that sub-gallery.
+Detail:    src/app/(main)/host/page.tsx handleShareEventLink (todo #48). Sub-gallery codes stay in the database
+           but are not shown or created any more.
+How to test:
+  1. Sign in on staging.evebash.com as a host of an event that has a sub-gallery. Open the event, then the main
+     gallery, press Share. Note the Join ID.
+  2. Open a sub-gallery, press Share. Expect: the same Join ID as step 1; the link ends with the sub-gallery's
+     own id (not the main event's).
+  3. Press Copy link / Share invitation and open the link in a private window. Expect: it opens that sub-gallery.
+  4. On the event list, open a main event's menu > Share. Expect: its Join ID, as before.
 Done by:
 Device / browser:
 Build / version:
