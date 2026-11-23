@@ -909,7 +909,7 @@ Listed:       2026-11-21
 Platform:     Both
 Priority:     Medium
 Phase:        1 (before launch)
-Status:       In progress
+Status:       Done
 Effort:       S (a few hours)
 Suggested by: Shwetank (chat with Claude, 2026-11-21, during device test #162 / issue #48)
 Discussed:    Yes
@@ -962,7 +962,9 @@ Brief:        Every sub-gallery gets its own join code today (e.g. Staging test 
               event). Later (Phase 2): "share only this part" with one group (e.g. Haldi for close family) could
               reuse the hidden codes. How to check: create a sub-gallery; no code shows for it anywhere a host
               looks; the main event's code still joins and shows all non-hidden sub-galleries.
-Done in:      -
+Note 2026-11-23: #247 PASS on Android and iPhone (Shwetank). Not live yet: website with the next release
+              (staging -> main), app with the next store build.
+Done in:      d4735828 (2026-11-23); website f1250c6d, app 797c0aa6. Tests #247, #248 PASS
 
 #49  Upload button (photos and videos) for guests who open a shared link
 Listed:       2026-11-23
