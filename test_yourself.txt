@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 247
+Next test number: 248
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7256,3 +7256,29 @@ Account used: host of Staging test 1
 Screenshot / recording:
 Fix ref:
 Feedback: Pass. The event link opens its Home page; a sub-gallery link opens that sub-gallery.
+
+#247 App: sharing a sub-gallery sends its own link with the main event's code (todo #48)
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone and Android, separately)
+Brief:     On an event's screen in the app, Share on a sub-gallery now gives that sub-gallery's link (it opens
+           the sub-gallery) and the main event's Join ID. Share on the main gallery is as before.
+Detail:    apps/mobile/app/events/[id].tsx (shareGallery / shareJoinId, todo #48). Needs a new staging app build
+           (or the development build with the app server). Checked by Claude on the Android development build
+           2026-11-23 (Royal Emerald event: main and Sample both 988U-X435, different QR codes, the message has
+           the Sample link).
+How to test:
+  1. Host > open an event that has a sub-gallery > Share Event. Note the Join ID.
+  2. Galleries > open a sub-gallery > Share Event. Expect: the same Join ID; the QR code is different.
+  3. Tap Copy link, paste it in a browser (or another phone). Expect: it opens that sub-gallery.
+  4. Tap Share Invitation. Expect: the message names the sub-gallery, the main event's Join ID and the
+     sub-gallery's link. Close it without sending.
+  5. Back to Galleries > Home (primary) > Share Event: the main event's link and code, as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

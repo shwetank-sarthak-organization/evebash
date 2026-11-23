@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 315
+Next issue number: 316
 
 =====================================================================
 ACTIVE ISSUES
@@ -1119,6 +1119,17 @@ Found in: Quick security check (chat with Claude, 2026-11-22)
 Issue: App packages have known security holes: expo-router (~55.0.16) is rated high; the app shows 36 in all (1 critical, 18 high, mostly in build tools). Fixes exist. Fix: update expo-router and the affected Expo packages (expo install --fix), make a staging build, and check sign-in, navigation, deep links and uploads on iPhone and Android. Reaches users with the next store release.
 How to reproduce: cd apps/mobile && npm audit --omit=dev.
 
+#315
+Listed: 2026-11-23
+Platform: App
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Checking todo #48 in the Android development build (Claude, iQOO, staging, 2026-11-23)
+Issue: In the app, opening an event often fails with "We couldn't open this gallery" (open_gallery request times out after 20 s, apps/mobile/lib/supabase.ts SUPABASE_FETCH_TIMEOUT_MS) or takes 10 s or more; several other app requests to Supabase time out at the same moment. Seen 5 times in about 10 minutes, mostly right after signing in or after the app reloaded; Try again often fails too, and it then works a minute later (under 1 s). The same open_gallery call for the same account takes 0.16 s on the website and under 1 s from the Mac, and the phone reaches Supabase fine (ping about 50 ms), so the server is not slow: requests in the app seem to wait behind other requests. Not yet known: the cause (too many requests at once on Android, a request that never finishes and blocks the others, or the sign-in/session refresh), whether iOS and the store build do the same, and whether it happens on live.
+How to reproduce: Android development build on staging, sign in (or reload the app), open an event right away from Host > My Events: "We couldn't open this gallery" after about 20 s. Metro log: "[Supabase] Network request failed: Supabase request timed out".
+
 RECENTLY FIXED (delete entries older than 7 days)
 #92
 Listed: 2026-10-22
@@ -1183,8 +1194,6 @@ Found in: Royal Emerald check 2026-11-22 (Claude in the built-in browser, stagin
 Issue: In the Royal Emerald guest gallery, opening a photo full screen leaves the page footer (the event title in script and "Made with EveBash") visible across the bottom of the screen, under the photo. The full-screen viewer should cover the whole page. Seen on the test event "Royal Emerald check with a really long title..." with a wide photo. Check whether other themes do the same, and whether the viewer's backdrop doesn't reach the bottom or the footer sits above it (z-index / stacking).
 How to reproduce: staging Royal Emerald guest page (public), scroll to the photos, open one: the footer text shows at the bottom.
 Note 2026-11-22 (later): could not reproduce (Claude, built-in browser, signed in as host, 1280x800 and 800x700, opened from the top and from the bottom of the page, and with the viewer's Fullscreen button): the viewer is fixed full-screen at z-index 9999 with a solid emerald background, and the footer (z-index 10) stays under it. Possibly it showed only during the open/close animation. Waiting on Shwetank to try on the Mac; if it can't be seen, close it as can't reproduce.
-
-=====================================================================
 Note 2026-11-22: not seen by Shwetank either (Mac, Chrome, staging, normal view and the viewer's Fullscreen button). Closed as can't reproduce; reopen with a screenshot if it shows again.
 Update 2026-11-22 (later): reproduced by Shwetank (staging, event sample-7edd: opening a photo while the footer is on screen shows the footer across the bottom). Cause: the viewer (fixed, z-index 9999) sits inside the gallery section <main> (relative z-10, TemplateRoyal.tsx), so its 9999 only counts inside that section; the footer (.royal-footer, z-index 10 since 85f86d99) comes later in the page at the same level and paints on top. Earlier checks missed it because the test page was long and the footer was off screen. Fix: .royal-footer z-index 10 -> 9 (src/app/royal-emerald.css), so the gallery section and its viewer sit above it. Status back to In progress until checked.
 Note 2026-11-22: PASS (Shwetank, staging, sample-7edd: footer on screen, photo opened, viewer covers the whole screen). Also checked by Claude: with the viewer open and the footer moved into view, z-index 10 put the footer on top, 9 keeps the viewer on top.

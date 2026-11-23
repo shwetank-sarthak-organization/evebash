@@ -1564,6 +1564,24 @@ function EventDetailScreen() {
   const currentActiveEvent = selectedAdminGallery !== undefined
     ? (selectedAdminGallery || event)
     : (activeSubEvent || event);
+
+  // One join code per event (todo #48): Share sends the link of the gallery on screen (a sub-gallery's link opens
+  // that sub-gallery) with the main event's code. A sub-gallery opened from its own link loads its main event's code.
+  const [parentJoinId, setParentJoinId] = useState<string | null>(null);
+  useEffect(() => {
+    const parentId = event?.parentId;
+    if (!parentId) {
+      setParentJoinId(null);
+      return;
+    }
+    let cancelled = false;
+    void getEventById(parentId).then(parent => {
+      if (!cancelled) setParentJoinId(parent?.joinId || null);
+    });
+    return () => { cancelled = true; };
+  }, [event?.parentId]);
+  const shareJoinId = (event?.parentId ? parentJoinId : event?.joinId) || '';
+  const shareGallery = currentActiveEvent || event;
   // The app shows each gallery's phone cover (shared/themes/phoneCover.ts): the computer cover until a host sets one
   const shownActiveEvent = currentActiveEvent ? withPhoneCover(currentActiveEvent) : currentActiveEvent;
   const shownEvent = event ? withPhoneCover(event) : event;
@@ -1726,8 +1744,8 @@ function EventDetailScreen() {
 
       const eventData = await getEventById(id);
       if (eventData) {
-        // Ensure joinId exists
-        if (!eventData.joinId) {
+        // Ensure joinId exists (main events only: one join code per event, todo #48)
+        if (!eventData.joinId && !eventData.parentId) {
           const joinCode = newEventJoinCode();
           await updateEvent(eventData.id, { joinId: joinCode });
           eventData.joinId = joinCode;
@@ -2628,9 +2646,9 @@ function EventDetailScreen() {
 
   // Only the link, for a browser, a bio or a printed card (todo #34). Share Invitation sends the whole message.
   const handleCopyShareLink = async () => {
-    if (!event) return;
+    if (!shareGallery) return;
     try {
-      await Clipboard.setStringAsync(getGalleryWebUrl(event.id));
+      await Clipboard.setStringAsync(getGalleryWebUrl(shareGallery.id));
       setShareLinkCopied(true);
       setTimeout(() => setShareLinkCopied(false), 2000);
     } catch (error) {
@@ -2639,11 +2657,11 @@ function EventDetailScreen() {
   };
 
   const handleShare = async () => {
-    if (!event) return;
-    const shareUrl = getGalleryWebUrl(event.id);
+    if (!shareGallery) return;
+    const shareUrl = getGalleryWebUrl(shareGallery.id);
     try {
       await Share.share({
-        message: `Join our event "${event.title}" on EveBash!\nJoin ID: ${event.joinId}\nLink: ${shareUrl}`,
+        message: `Join our event "${shareGallery.title}" on EveBash!\nJoin ID: ${shareJoinId}\nLink: ${shareUrl}`,
         url: shareUrl,
       });
     } catch (error) {
@@ -8674,7 +8692,7 @@ function EventDetailScreen() {
 
             <View style={styles.qrContainer}>
               <Image
-                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getGalleryWebUrl(event.id))}` }}
+                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getGalleryWebUrl(shareGallery?.id || event.id))}` }}
                 style={styles.qrCode}
               />
               <Text style={styles.qrLabel}>Scan to Join</Text>
@@ -8683,7 +8701,7 @@ function EventDetailScreen() {
             <View style={styles.joinIdContainer}>
               <Text style={styles.joinIdLabel}>Unique Join ID</Text>
               <View style={styles.joinIdBox}>
-                <Text style={styles.joinIdValue}>{event.joinId}</Text>
+                <Text style={styles.joinIdValue}>{shareJoinId}</Text>
               </View>
             </View>
 
