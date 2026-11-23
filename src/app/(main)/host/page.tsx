@@ -3737,10 +3737,10 @@ function DashboardContent() {
         const columns = GUEST_UPLOADS_ENABLED
             ? (isPending
                 ? "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(4,5.5rem)_16rem]"
-                : "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(4,5.5rem)_6.5rem]")
+                : "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(4,5.5rem)_7.5rem]")
             : (isPending
                 ? "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(3,5.5rem)_16rem]"
-                : "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(3,5.5rem)_6.5rem]");
+                : "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(3,5.5rem)_7.5rem]");
         const headerLabel = "text-[11px] font-black uppercase tracking-[0.16em] text-[var(--site-muted)]";
         const permissionColumns = ([
             { key: "view", label: "View" },
@@ -3755,7 +3755,7 @@ function DashboardContent() {
                     <div className={cn("row-span-2 self-center px-5 py-3", headerLabel)}>Member</div>
                     <div className={cn("row-span-2 flex items-center border-l border-[var(--site-line)] px-4", headerLabel)}>Role</div>
                     <div className={cn(GUEST_UPLOADS_ENABLED ? "col-span-4" : "col-span-3", "border-b border-l border-[var(--site-line)] py-2.5 text-center text-[11px] font-black uppercase tracking-[0.18em] text-[var(--site-gold-text)]")}>Permissions</div>
-                    <div className={cn("row-span-2 flex items-center justify-end border-l border-[var(--site-line)] px-5", headerLabel)}>Actions</div>
+                    <div className={cn("row-span-2 flex items-center justify-center border-l border-[var(--site-line)] px-3", headerLabel)}>Actions</div>
                     {permissionColumns.map(({ key, label }) => (
                         <div key={key} className={cn("border-l border-[var(--site-line)] px-2 py-2.5 text-center", headerLabel)}>{label}</div>
                     ))}
@@ -3865,7 +3865,7 @@ function DashboardContent() {
                                 </div>
 
                                 <div className={cn(
-                                    "flex items-center justify-end gap-2 border-[var(--site-line)] xl:col-span-1 xl:col-start-auto xl:row-start-auto xl:border-l xl:px-5 xl:py-3.5",
+                                    "flex items-center justify-end gap-2 border-[var(--site-line)] xl:col-span-1 xl:col-start-auto xl:row-start-auto xl:justify-center xl:border-l xl:px-3 xl:py-3.5",
                                     isPending ? "col-span-2 row-start-3" : "col-start-2 row-start-1"
                                 )}>
                                     {isPending && (
@@ -3894,7 +3894,7 @@ function DashboardContent() {
                                             onClick={() => void reportContent({ targetType: "user", targetId: log.userId! })}
                                             aria-label={`Report ${guestName}`}
                                             title="Report user"
-                                            className="rounded-xl border border-slate-700 bg-slate-800 p-2.5 text-slate-400 transition-colors hover:border-amber-400/30 hover:bg-amber-500/10 hover:text-amber-300"
+                                            className="rounded-xl border border-[var(--site-border)] bg-[var(--site-surface-2)] p-2.5 text-[var(--site-muted)] transition-colors hover:border-amber-400/40 hover:bg-amber-500/10 hover:text-amber-400 light:hover:text-amber-700"
                                         >
                                             <Flag className="h-4 w-4" />
                                         </button>
