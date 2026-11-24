@@ -1156,7 +1156,7 @@ Blocked by: -
 Found in: Razorpay test payment on staging (Claude in the built-in browser, 2026-11-24)
 Issue: The "Confirm plan change" popup on the pricing page says "Current plan: Free (1 GB), Active until Not set" for a Free account. Free has no end date, so it reads like an error. Fix: for Free (or no end date) show "No end date" or hide the line (src/app/(main)/pricing/page.tsx, the date formatter returns "Not set").
 How to reproduce: sign in on a Free account, open Pricing, click Choose Starter.
-Fixed in: 20e94c93 (2026-11-24). The popup now says "No end date" when the current plan has no end date, and "Active until <date>" otherwise.
+Fixed in: ef335093 (2026-11-24). The popup now says "No end date" when the current plan has no end date, and "Active until <date>" otherwise.
 
 #92
 Listed: 2026-10-22
