@@ -746,7 +746,10 @@ export default function Pricing() {
                                     <p className="text-[11px] font-black uppercase tracking-widest text-[var(--site-muted)]">Current Plan</p>
                                     <p className="mt-1 font-semibold text-[var(--site-text)]">{getPlanDisplayName(currentSubscription?.role)}</p>
                                     <p className="mt-1 text-[var(--site-subtle)]">
-                                        Active until {formatDate(currentSubscription?.planEndDate)}
+                                        {/* Free has no end date: "Active until Not set" read like an error (issue #317) */}
+                                        {currentSubscription?.planEndDate
+                                            ? `Active until ${formatDate(currentSubscription.planEndDate)}`
+                                            : "No end date"}
                                     </p>
                                 </div>
 

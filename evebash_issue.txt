@@ -1143,19 +1143,21 @@ How to reproduce: staging pricing page, start a Starter payment with a test card
 Update 2026-11-24: fixed in code (staging). Backend: new POST /api/v1/payments/webhook (apps/backend/src/routes/payments.ts, mounted before express.json() in server.ts) checks the X-Razorpay-Signature with RAZORPAY_WEBHOOK_SECRET and, for payment.captured / order.paid, switches the plan on from the order's notes. create-order now needs the buyer signed in and puts their user id in the order notes; verify-payment refuses a payment whose order belongs to another account. verify-payment and the webhook share applyPaidPlan, which writes the payments row first as a claim: a unique index on captured razorpay_payment_id (migration 20261124120000, applied on staging only) makes the second report a no-op, so the plan is never extended twice; if the profile update fails the claim is removed and Razorpay's retry tries again. Website pricing page: sends the sign-in with create-order, and a signed-out visitor goes to login (returnTo /pricing) before paying instead of paying and then seeing "not signed in". 9 new tests (tests/payments.test.ts), 179/179 backend tests pass. Orders made before this change have no user id, so the webhook skips them (verify-payment still works for them). To do: Razorpay dashboard (Test Mode) webhook to https://api-staging.evebash.com/api/v1/payments/webhook with events payment.captured and order.paid, the same secret as RAZORPAY_WEBHOOK_SECRET on Railway staging; then a test payment with the tab closed early. Live needs: the migration on the live database (OK first), RAZORPAY_WEBHOOK_SECRET on Railway production, a Live Mode webhook to https://api.evebash.com/api/v1/payments/webhook, and the release.
 Update 2026-11-24 (later): staging webhook set up (Razorpay Test Mode webhook + RAZORPAY_WEBHOOK_SECRET on Railway staging). Tested on staging.evebash.com as newone@email.com (Free): bought Starter monthly with the test card while the page's verify-payment call was blocked (same as closing the tab after paying). The webhook alone switched the plan on: role starter, ends 2026-12-24, one captured payments row with notes "(Razorpay webhook)". Left: the live steps above.
 Update 2026-11-24 (live DB): migration 20261124120000 applied on the live database (it had 0 captured payments, so no duplicates). Left for live: the release (staging→main), RAZORPAY_WEBHOOK_SECRET on Railway production, then the Live Mode webhook.
+Update 2026-11-24 (live): released (PR #31, merged into main as 653d6a3c). Live backend checked: create-order without sign-in gets 401, the webhook answers "invalid signature" to a fake message (secret set). Live Mode webhook added in Razorpay. Waits on device test #251: the first real payment's webhook delivery shows 200 in Razorpay.
 
+RECENTLY FIXED (delete entries older than 7 days)
 #317
 Listed: 2026-11-24
 Platform: Website
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: Fixed
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Razorpay test payment on staging (Claude in the built-in browser, 2026-11-24)
 Issue: The "Confirm plan change" popup on the pricing page says "Current plan: Free (1 GB), Active until Not set" for a Free account. Free has no end date, so it reads like an error. Fix: for Free (or no end date) show "No end date" or hide the line (src/app/(main)/pricing/page.tsx, the date formatter returns "Not set").
 How to reproduce: sign in on a Free account, open Pricing, click Choose Starter.
+Fixed in: ef335093 (2026-11-24). The popup now says "No end date" when the current plan has no end date, and "Active until <date>" otherwise.
 
-RECENTLY FIXED (delete entries older than 7 days)
 #92
 Listed: 2026-10-22
 Platform: Website
