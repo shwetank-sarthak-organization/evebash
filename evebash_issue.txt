@@ -1145,18 +1145,19 @@ Update 2026-11-24 (later): staging webhook set up (Razorpay Test Mode webhook + 
 Update 2026-11-24 (live DB): migration 20261124120000 applied on the live database (it had 0 captured payments, so no duplicates). Left for live: the release (staging→main), RAZORPAY_WEBHOOK_SECRET on Railway production, then the Live Mode webhook.
 Update 2026-11-24 (live): released (PR #31, merged into main as 653d6a3c). Live backend checked: create-order without sign-in gets 401, the webhook answers "invalid signature" to a fake message (secret set). Live Mode webhook added in Razorpay. Waits on device test #251: the first real payment's webhook delivery shows 200 in Razorpay.
 
+RECENTLY FIXED (delete entries older than 7 days)
 #317
 Listed: 2026-11-24
 Platform: Website
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: Fixed
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Razorpay test payment on staging (Claude in the built-in browser, 2026-11-24)
 Issue: The "Confirm plan change" popup on the pricing page says "Current plan: Free (1 GB), Active until Not set" for a Free account. Free has no end date, so it reads like an error. Fix: for Free (or no end date) show "No end date" or hide the line (src/app/(main)/pricing/page.tsx, the date formatter returns "Not set").
 How to reproduce: sign in on a Free account, open Pricing, click Choose Starter.
+Fixed in: 20e94c93 (2026-11-24). The popup now says "No end date" when the current plan has no end date, and "Active until <date>" otherwise.
 
-RECENTLY FIXED (delete entries older than 7 days)
 #92
 Listed: 2026-10-22
 Platform: Website
