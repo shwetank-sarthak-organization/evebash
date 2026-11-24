@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 316
+Next issue number: 318
 
 =====================================================================
 ACTIVE ISSUES
@@ -1129,6 +1129,31 @@ Blocked by: -
 Found in: Checking todo #48 in the Android development build (Claude, iQOO, staging, 2026-11-23)
 Issue: In the app, opening an event often fails with "We couldn't open this gallery" (open_gallery request times out after 20 s, apps/mobile/lib/supabase.ts SUPABASE_FETCH_TIMEOUT_MS) or takes 10 s or more; several other app requests to Supabase time out at the same moment. Seen 5 times in about 10 minutes, mostly right after signing in or after the app reloaded; Try again often fails too, and it then works a minute later (under 1 s). The same open_gallery call for the same account takes 0.16 s on the website and under 1 s from the Mac, and the phone reaches Supabase fine (ping about 50 ms), so the server is not slow: requests in the app seem to wait behind other requests. Not yet known: the cause (too many requests at once on Android, a request that never finishes and blocks the others, or the sign-in/session refresh), whether iOS and the store build do the same, and whether it happens on live.
 How to reproduce: Android development build on staging, sign in (or reload the app), open an event right away from Host > My Events: "We couldn't open this gallery" after about 20 s. Metro log: "[Supabase] Network request failed: Supabase request timed out".
+
+#316
+Listed: 2026-11-24
+Platform: Both
+Priority: High
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Razorpay test payment on staging (Claude in the built-in browser, 2026-11-24)
+Issue: A paid plan is switched on only by the buyer's browser: after Razorpay takes the money, the pricing page calls /api/v1/payments/verify-payment (apps/backend/src/routes/payments.ts), which checks the signature, sets the plan and logs the payment. There is no Razorpay webhook (no webhook route in the backend), so if the buyer closes the tab, loses internet or the page crashes between paying and that call, the money is taken but the plan stays unchanged and nothing is logged in the payments table. Fix: add a Razorpay webhook (payment.captured / order.paid) to the backend that checks the webhook signature and activates the plan (skip if verify-payment already did, keyed by razorpay_payment_id); set it up in the Razorpay dashboard for test (staging) and live, with its own webhook secret per environment.
+How to reproduce: staging pricing page, start a Starter payment with a test card, choose Success on the Razorpay demo bank page and close the EveBash tab before the "Payment verified" message: Razorpay shows the payment as captured, but the profile stays Free and there is no row in payments.
+Update 2026-11-24: fixed in code (staging). Backend: new POST /api/v1/payments/webhook (apps/backend/src/routes/payments.ts, mounted before express.json() in server.ts) checks the X-Razorpay-Signature with RAZORPAY_WEBHOOK_SECRET and, for payment.captured / order.paid, switches the plan on from the order's notes. create-order now needs the buyer signed in and puts their user id in the order notes; verify-payment refuses a payment whose order belongs to another account. verify-payment and the webhook share applyPaidPlan, which writes the payments row first as a claim: a unique index on captured razorpay_payment_id (migration 20261124120000, applied on staging only) makes the second report a no-op, so the plan is never extended twice; if the profile update fails the claim is removed and Razorpay's retry tries again. Website pricing page: sends the sign-in with create-order, and a signed-out visitor goes to login (returnTo /pricing) before paying instead of paying and then seeing "not signed in". 9 new tests (tests/payments.test.ts), 179/179 backend tests pass. Orders made before this change have no user id, so the webhook skips them (verify-payment still works for them). To do: Razorpay dashboard (Test Mode) webhook to https://api-staging.evebash.com/api/v1/payments/webhook with events payment.captured and order.paid, the same secret as RAZORPAY_WEBHOOK_SECRET on Railway staging; then a test payment with the tab closed early. Live needs: the migration on the live database (OK first), RAZORPAY_WEBHOOK_SECRET on Railway production, a Live Mode webhook to https://api.evebash.com/api/v1/payments/webhook, and the release.
+Update 2026-11-24 (later): staging webhook set up (Razorpay Test Mode webhook + RAZORPAY_WEBHOOK_SECRET on Railway staging). Tested on staging.evebash.com as newone@email.com (Free): bought Starter monthly with the test card while the page's verify-payment call was blocked (same as closing the tab after paying). The webhook alone switched the plan on: role starter, ends 2026-12-24, one captured payments row with notes "(Razorpay webhook)". Left: the live steps above.
+Update 2026-11-24 (live DB): migration 20261124120000 applied on the live database (it had 0 captured payments, so no duplicates). Left for live: the release (staging→main), RAZORPAY_WEBHOOK_SECRET on Railway production, then the Live Mode webhook.
+
+#317
+Listed: 2026-11-24
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Razorpay test payment on staging (Claude in the built-in browser, 2026-11-24)
+Issue: The "Confirm plan change" popup on the pricing page says "Current plan: Free (1 GB), Active until Not set" for a Free account. Free has no end date, so it reads like an error. Fix: for Free (or no end date) show "No end date" or hide the line (src/app/(main)/pricing/page.tsx, the date formatter returns "Not set").
+How to reproduce: sign in on a Free account, open Pricing, click Choose Starter.
 
 RECENTLY FIXED (delete entries older than 7 days)
 #92

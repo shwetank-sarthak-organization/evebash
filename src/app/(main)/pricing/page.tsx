@@ -372,6 +372,15 @@ export default function Pricing() {
         setCheckoutPlanId(plan.id);
 
         try {
+            // Signed in first: the order records the buyer, so Razorpay's webhook can switch the plan on even if this
+            // page closes right after paying (issue #316)
+            const { data: buyerSession } = await supabase.auth.getSession();
+            const buyerToken = buyerSession.session?.access_token;
+            if (!buyerToken) {
+                window.location.href = `/login?returnTo=${encodeURIComponent("/pricing")}`;
+                return;
+            }
+
             const isScriptLoaded = await loadRazorpayScript();
             if (!isScriptLoaded || !window.Razorpay) {
                 setCheckoutMessage({
@@ -385,6 +394,7 @@ export default function Pricing() {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    Authorization: `Bearer ${buyerToken}`,
                 },
                 body: JSON.stringify({
                     planId: plan.id,
