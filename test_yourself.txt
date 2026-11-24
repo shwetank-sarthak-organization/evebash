@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 251
+Next test number: 252
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7360,3 +7360,31 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback: Android PASS (Shwetank). iPhone simulator PASS (Claude): guest name readable, light guest popup, dark report sheet with a white title.
+
+#251 Website (live): a real payment switches the plan on through the Razorpay webhook (issue #316)
+Status:    TODO
+Priority:  High
+Platform:  Website, live www.evebash.com (any browser). Needs a real payment (refund it afterwards if it's a test).
+Brief:     Razorpay now tells our backend directly when a payment succeeds, so the plan switches on even if the
+           buyer closes the page right after paying. Staging passed on 2026-11-24 (page's own report blocked, the
+           webhook alone switched Free to Starter). The live secret and Live Mode webhook were set on 2026-11-24,
+           but only a real Razorpay event can prove the two secrets match.
+Detail:    apps/backend/src/routes/payments.ts (razorpayWebhook, applyPaidPlan), server.ts (route before
+           express.json), migration 20261124120000 (live and staging), src/app/(main)/pricing/page.tsx.
+How to test:
+  1. Signed out, open www.evebash.com/pricing and click a paid plan. Expect: the login page; after login you
+     come back to Pricing.
+  2. Signed in on a test account, buy the cheapest paid plan and finish the payment. Expect: the plan shows as
+     active, as before.
+  3. Razorpay Dashboard (Live Mode) > Account & Settings > Webhooks > the api.evebash.com webhook. Expect: the
+     latest deliveries (payment.captured, order.paid) show response 200, not 400 or 503.
+  4. Optional: ask Claude to check the payments table: exactly one captured row for that payment.
+  5. Refund the payment in Razorpay if it was only a test.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
