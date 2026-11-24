@@ -145,11 +145,254 @@ function isCurrentPlanActive(planEndDate?: string | null): boolean {
   return endDate >= today;
 }
 
+type SupabaseAdmin = ReturnType<typeof getSupabaseAdminClient>;
+
+type PaidPlanInput = {
+  userId: string;
+  planId: string;
+  duration: RazorpayBillingDuration;
+  orderId: string;
+  paymentId: string;
+  amountInPaise: number;
+  currency: string;
+  source: "verify-payment" | "webhook";
+};
+
+type ProfilePlanRow = {
+  role?: string | null;
+  subscription_duration?: string | null;
+  plan_start_date?: string | null;
+  plan_end_date?: string | null;
+  pending_plan_role?: string | null;
+  pending_subscription_duration?: string | null;
+  pending_plan_start_date?: string | null;
+  pending_plan_end_date?: string | null;
+};
+
+const PROFILE_PLAN_COLUMNS =
+  "role, subscription_duration, plan_start_date, plan_end_date, pending_plan_role, pending_subscription_duration, pending_plan_start_date, pending_plan_end_date";
+
+// What the pricing page shows once a payment is in: the plan now, or the plan queued after it
+function describePlan(profile: ProfilePlanRow | null, planId: string, alreadyApplied: boolean) {
+  if (profile?.pending_plan_role === planId && profile.role !== planId) {
+    return {
+      change_type: "downgrade_scheduled" as const,
+      already_applied: alreadyApplied,
+      plan_id: profile.role || "free",
+      pending_plan_role: profile.pending_plan_role,
+      pending_subscription_duration: profile.pending_subscription_duration ?? null,
+      pending_plan_start_date: profile.pending_plan_start_date ?? null,
+      pending_plan_end_date: profile.pending_plan_end_date ?? null,
+    };
+  }
+  return {
+    change_type: "immediate" as const,
+    already_applied: alreadyApplied,
+    plan_id: profile?.role || planId,
+    subscription_duration: profile?.subscription_duration ?? null,
+    plan_start_date: profile?.plan_start_date ?? null,
+    plan_end_date: profile?.plan_end_date ?? null,
+  };
+}
+
+async function loadProfilePlan(supabaseAdmin: SupabaseAdmin, userId: string): Promise<ProfilePlanRow | null> {
+  const { data, error } = await supabaseAdmin.from("profiles").select(PROFILE_PLAN_COLUMNS).eq("id", userId).maybeSingle();
+  if (error) throw new Error(error.message || "Could not load the current plan.");
+  return (data as ProfilePlanRow | null) ?? null;
+}
+
+// Switches a paid plan on, exactly once per Razorpay payment. Both verify-payment (the buyer's page) and the
+// Razorpay webhook call it, often within seconds of each other. The payments row is written first and is the
+// claim: a unique index on captured razorpay_payment_id (migration 20261124120000) makes the second caller fail
+// with 23505, and that caller just reports the plan the first one set. If the profile update fails, the claim is
+// removed so a retry (Razorpay retries webhooks) can do it again.
+export async function applyPaidPlan(supabaseAdmin: SupabaseAdmin, input: PaidPlanInput, now = new Date()) {
+  const { userId, planId, duration, orderId, paymentId } = input;
+
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from("payments")
+    .select("id")
+    .eq("razorpay_payment_id", paymentId)
+    .eq("status", "captured")
+    .limit(1);
+  if (existingError) throw new Error(existingError.message || "Could not check earlier payments.");
+  if (existing && existing.length > 0) {
+    return describePlan(await loadProfilePlan(supabaseAdmin, userId), planId, true);
+  }
+
+  const currentProfile = await loadProfilePlan(supabaseAdmin, userId);
+  const currentRole = currentProfile?.role || "free";
+  const subscriptionDuration = DURATION_TO_PROFILE_VALUE[duration];
+  const isDowngrade =
+    currentRole.toLowerCase() !== "admin" &&
+    isCurrentPlanActive(currentProfile?.plan_end_date) &&
+    getPlanStorageBytes(planId) < getPlanStorageBytes(currentRole);
+
+  let profileUpdate: Record<string, unknown>;
+  if (isDowngrade) {
+    const currentEndDate = parseDateOnly(currentProfile?.plan_end_date) || now;
+    const pendingStartDate = addDays(currentEndDate, 1);
+    profileUpdate = {
+      pending_plan_role: planId,
+      pending_subscription_duration: subscriptionDuration,
+      pending_plan_start_date: toDateOnly(pendingStartDate),
+      pending_plan_end_date: toDateOnly(addMonths(pendingStartDate, DURATION_TO_MONTHS[duration])),
+    };
+  } else {
+    profileUpdate = {
+      role: planId,
+      role_type: "primary",
+      subscription_duration: subscriptionDuration,
+      plan_start_date: toDateOnly(now),
+      plan_end_date: toDateOnly(addMonths(now, DURATION_TO_MONTHS[duration])),
+      pending_plan_role: null,
+      pending_subscription_duration: null,
+      pending_plan_start_date: null,
+      pending_plan_end_date: null,
+    };
+  }
+
+  const via = input.source === "webhook" ? " (Razorpay webhook)" : "";
+  const { data: claim, error: claimError } = await supabaseAdmin
+    .from("payments")
+    .insert({
+      user_id: userId,
+      amount: input.amountInPaise / 100,
+      currency: input.currency || "INR",
+      status: "captured",
+      plan_id: planId,
+      billing_duration: subscriptionDuration,
+      payment_gateway: "razorpay",
+      razorpay_order_id: orderId,
+      razorpay_payment_id: paymentId,
+      notes: (isDowngrade ? "Scheduled downgrade to " : "Immediate plan activation: ") + planId + via,
+    })
+    .select("id")
+    .single();
+
+  if (claimError) {
+    if ((claimError as { code?: string }).code === "23505") {
+      return describePlan(await loadProfilePlan(supabaseAdmin, userId), planId, true);
+    }
+    throw new Error(claimError.message || "Could not record the payment.");
+  }
+
+  const { error: updateError } = await supabaseAdmin.from("profiles").update(profileUpdate).eq("id", userId);
+  if (updateError) {
+    await supabaseAdmin.from("payments").delete().eq("id", (claim as { id: string }).id);
+    throw new Error(updateError.message || "Payment verified, but plan activation failed.");
+  }
+
+  return describePlan({ ...currentProfile, ...(profileUpdate as ProfilePlanRow) }, planId, false);
+}
+
+type RazorpayOrderLike = { amount?: number | string; currency?: string; notes?: unknown };
+
+type WebhookDeps = {
+  secret: string | undefined;
+  supabaseAdmin: () => SupabaseAdmin;
+  fetchOrder: (orderId: string) => Promise<RazorpayOrderLike>;
+  log?: { info: (obj: object, msg: string) => void; warn: (obj: object, msg: string) => void };
+};
+
+// Razorpay webhook (payment.captured / order.paid). Answers 2xx for anything it doesn't need to act on, so
+// Razorpay stops retrying; 5xx only when switching the plan on failed and a retry could help.
+export async function handleRazorpayWebhook(
+  rawBody: Buffer,
+  signature: string | undefined,
+  deps: WebhookDeps,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  if (!deps.secret) return { status: 503, body: { error: "Webhook secret is not configured." } };
+
+  const expected = crypto.createHmac("sha256", deps.secret).update(rawBody).digest("hex");
+  if (!signature || !safeCompare(expected, signature)) {
+    return { status: 400, body: { error: "Invalid webhook signature." } };
+  }
+
+  let event: { event?: string; payload?: { payment?: { entity?: Record<string, unknown> } } };
+  try {
+    event = JSON.parse(rawBody.toString("utf8"));
+  } catch {
+    return { status: 400, body: { error: "Invalid JSON." } };
+  }
+
+  if (event.event !== "payment.captured" && event.event !== "order.paid") {
+    return { status: 200, body: { ignored: true, reason: "event not handled" } };
+  }
+
+  const payment = event.payload?.payment?.entity || {};
+  const paymentId = typeof payment.id === "string" ? payment.id : "";
+  const orderId = typeof payment.order_id === "string" ? payment.order_id : "";
+  if (!paymentId || !orderId || payment.status !== "captured") {
+    return { status: 200, body: { ignored: true, reason: "no captured payment for an order" } };
+  }
+
+  try {
+    const order = await deps.fetchOrder(orderId);
+    const notes = (order.notes || {}) as Record<string, unknown>;
+    const userId = typeof notes.userId === "string" ? notes.userId : "";
+    const planId = typeof notes.planId === "string" ? notes.planId : "";
+    const duration = normalizeBillingDuration(notes.duration);
+    if (!userId || !planId || !duration) {
+      deps.log?.warn({ orderId, paymentId }, "[Payments] Webhook: order has no buyer or plan in its notes; skipped");
+      return { status: 200, body: { ignored: true, reason: "order has no buyer or plan" } };
+    }
+
+    const amountInPaise = Number(order.amount);
+    if (Number(payment.amount) !== amountInPaise) {
+      deps.log?.warn({ orderId, paymentId }, "[Payments] Webhook: payment amount differs from the order; skipped");
+      return { status: 200, body: { ignored: true, reason: "amount mismatch" } };
+    }
+
+    const result = await applyPaidPlan(deps.supabaseAdmin(), {
+      userId,
+      planId,
+      duration,
+      orderId,
+      paymentId,
+      amountInPaise,
+      currency: typeof order.currency === "string" ? order.currency : "INR",
+      source: "webhook",
+    });
+    deps.log?.info({ userId, paymentId, alreadyApplied: result.already_applied }, "[Payments] Webhook handled");
+    return { status: 200, body: { success: true, already_applied: result.already_applied } };
+  } catch (error) {
+    deps.log?.warn({ error, orderId, paymentId }, "[Payments] Webhook: could not switch the plan on");
+    return { status: 500, body: { error: "Could not process the payment." } };
+  }
+}
+
+// POST /api/v1/payments/webhook. Mounted in server.ts before express.json(): the signature is over the raw body.
+export async function razorpayWebhook(request: Request, response: Response) {
+  const credentials = getRazorpayCredentials();
+  const rawBody = Buffer.isBuffer(request.body) ? request.body : Buffer.from("");
+  const header = request.headers["x-razorpay-signature"];
+  const result = await handleRazorpayWebhook(rawBody, typeof header === "string" ? header : undefined, {
+    secret: process.env.RAZORPAY_WEBHOOK_SECRET,
+    supabaseAdmin: getSupabaseAdminClient,
+    fetchOrder: async (orderId) => {
+      if (!credentials) throw new Error("Razorpay credentials are not configured.");
+      const razorpay = new Razorpay({ key_id: credentials.keyId, key_secret: credentials.keySecret });
+      return (await razorpay.orders.fetch(orderId)) as RazorpayOrderLike;
+    },
+    log: request.log,
+  });
+  response.status(result.status).json(result.body);
+}
+
 // POST /api/v1/payments/create-order or /api/create-order
 paymentsRouter.post("/create-order", async (request: Request, response: Response) => {
   const credentials = getRazorpayCredentials();
   if (!credentials) {
     response.status(500).json({ error: "Razorpay credentials are not configured." });
+    return;
+  }
+
+  // The buyer must be signed in: the order carries their user id, so the webhook can switch the plan on even if
+  // their page closes before verify-payment runs (issue #316).
+  const buyer = await verifySupabaseUser(request);
+  if (!buyer) {
+    response.status(401).json({ error: "Please sign in to buy a plan." });
     return;
   }
 
@@ -162,7 +405,7 @@ paymentsRouter.post("/create-order", async (request: Request, response: Response
     return;
   }
 
-  const supabaseAdmin = getSupabaseAdminClient();
+  const { supabaseAdmin } = buyer;
   const { data, error } = await supabaseAdmin
     .from("pricing_plans")
     .select("id, name, monthly_price, three_month_price, six_month_price, discounted_yearly_price, active")
@@ -201,6 +444,7 @@ paymentsRouter.post("/create-order", async (request: Request, response: Response
       currency: "INR",
       receipt,
       notes: {
+        userId: buyer.user.id,
         planId: plan.id,
         planName: plan.name,
         duration,
@@ -290,135 +534,25 @@ paymentsRouter.post("/verify-payment", async (request: Request, response: Respon
       return;
     }
 
-    const today = new Date();
-    const planStartDate = toDateOnly(today);
-    const planEndDate = toDateOnly(addMonths(today, DURATION_TO_MONTHS[duration]));
-    const subscriptionDuration = DURATION_TO_PROFILE_VALUE[duration];
-
-    const { data: currentProfile, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("role, subscription_duration, plan_start_date, plan_end_date")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (profileError) {
-      response.status(500).json({ error: profileError.message || "Could not load your current plan." });
+    const orderUserId = typeof notes.userId === "string" ? notes.userId : "";
+    if (orderUserId && orderUserId !== user.id) {
+      response.status(403).json({ error: "This payment belongs to another account." });
       return;
     }
 
-    const currentRole = typeof currentProfile?.role === "string" && currentProfile.role ? currentProfile.role : "free";
-    const currentStorage = getPlanStorageBytes(currentRole);
-    const newStorage = getPlanStorageBytes(planId);
-
-    const isDowngrade =
-      currentRole.toLowerCase() !== "admin" &&
-      isCurrentPlanActive(currentProfile?.plan_end_date) &&
-      newStorage < currentStorage;
-
-    if (isDowngrade) {
-      const currentEndDate = parseDateOnly(currentProfile?.plan_end_date) || today;
-      const pendingStartDate = addDays(currentEndDate, 1);
-      const pendingPlanStartDate = toDateOnly(pendingStartDate);
-      const pendingPlanEndDate = toDateOnly(addMonths(pendingStartDate, DURATION_TO_MONTHS[duration]));
-
-      const { error: scheduleError } = await supabaseAdmin
-        .from("profiles")
-        .update({
-          pending_plan_role: planId,
-          pending_subscription_duration: subscriptionDuration,
-          pending_plan_start_date: pendingPlanStartDate,
-          pending_plan_end_date: pendingPlanEndDate,
-        })
-        .eq("id", user.id);
-
-      if (scheduleError) {
-        response.status(500).json({ error: scheduleError.message || "Payment verified, but downgrade scheduling failed." });
-        return;
-      }
-
-      // Log payment to payments table
-      try {
-        const paymentAmount = Number(order.amount) / 100;
-        await supabaseAdmin.from("payments").insert({
-          user_id: user.id,
-          amount: paymentAmount,
-          currency: (order as any).currency || "INR",
-          status: "captured",
-          plan_id: planId,
-          billing_duration: subscriptionDuration,
-          payment_gateway: "razorpay",
-          razorpay_order_id: orderId,
-          razorpay_payment_id: paymentId,
-          notes: "Scheduled downgrade to " + planId,
-        });
-      } catch (logErr) {
-        request.log.warn({ logErr }, "[Payments] Could not insert downgrade payment into payments table");
-      }
-
-      response.json({
-        success: true,
-        change_type: "downgrade_scheduled",
-        payment_id: paymentId,
-        order_id: orderId,
-        plan_id: currentRole,
-        pending_plan_role: planId,
-        pending_subscription_duration: subscriptionDuration,
-        pending_plan_start_date: pendingPlanStartDate,
-        pending_plan_end_date: pendingPlanEndDate,
-      });
-      return;
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from("profiles")
-      .update({
-        role: planId,
-        role_type: "primary",
-        subscription_duration: subscriptionDuration,
-        plan_start_date: planStartDate,
-        plan_end_date: planEndDate,
-        pending_plan_role: null,
-        pending_subscription_duration: null,
-        pending_plan_start_date: null,
-        pending_plan_end_date: null,
-      })
-      .eq("id", user.id);
-
-    if (updateError) {
-      response.status(500).json({ error: updateError.message || "Payment verified, but plan activation failed." });
-      return;
-    }
-
-    // Log payment to payments table
-    try {
-      const paymentAmount = Number(order.amount) / 100;
-      await supabaseAdmin.from("payments").insert({
-        user_id: user.id,
-        amount: paymentAmount,
-        currency: (order as any).currency || "INR",
-        status: "captured",
-        plan_id: planId,
-        billing_duration: subscriptionDuration,
-        payment_gateway: "razorpay",
-        razorpay_order_id: orderId,
-        razorpay_payment_id: paymentId,
-        notes: "Immediate plan activation: " + planId,
-      });
-      request.log.info({ userId: user.id, paymentId, amount: paymentAmount }, "[Payments] Captured payment logged to ledger");
-    } catch (logErr) {
-      request.log.warn({ logErr }, "[Payments] Could not insert payment into payments table");
-    }
-
-    response.json({
-      success: true,
-      change_type: "immediate",
-      payment_id: paymentId,
-      order_id: orderId,
-      plan_id: planId,
-      subscription_duration: subscriptionDuration,
-      plan_start_date: planStartDate,
-      plan_end_date: planEndDate,
+    const result = await applyPaidPlan(supabaseAdmin, {
+      userId: user.id,
+      planId,
+      duration,
+      orderId,
+      paymentId,
+      amountInPaise: Number(order.amount),
+      currency: typeof order.currency === "string" ? order.currency : "INR",
+      source: "verify-payment",
     });
+    request.log.info({ userId: user.id, paymentId, alreadyApplied: result.already_applied }, "[Payments] Payment verified");
+
+    response.json({ success: true, payment_id: paymentId, order_id: orderId, ...result });
   } catch (error) {
     request.log.error({ error }, "[Payments] Verify payment failed");
     response.status(500).json({ error: error instanceof Error ? error.message : "Unable to verify payment." });

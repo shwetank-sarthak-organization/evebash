@@ -13,7 +13,7 @@ import { mediaRouter } from "./routes/media.js";
 import { videoWorkerRouter } from "./routes/videoWorker.js";
 import { pricingPlansRouter } from "./routes/pricingPlans.js";
 import { applyDuePlanChanges, subscriptionRouter } from "./routes/subscription.js";
-import { paymentsRouter } from "./routes/payments.js";
+import { paymentsRouter, razorpayWebhook } from "./routes/payments.js";
 import { permissionsRouter } from "./routes/permissions.js";
 import { eventTransfersRouter } from "./routes/eventTransfers.js";
 import { runMediaWatchdog } from "./services/watchdog.js";
@@ -80,6 +80,8 @@ app.use(
     },
   }),
 );
+// Razorpay webhook: before express.json(), because its signature is checked against the raw body (issue #316)
+app.post("/api/v1/payments/webhook", express.raw({ type: "*/*", limit: "1mb" }), razorpayWebhook);
 app.use(express.json({ limit: "10mb" }));
 
 // Starting a transfer says whether an email has an account, so it can't be used to test long lists of emails.
