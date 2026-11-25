@@ -90,3 +90,11 @@ The public existence response intentionally reveals account registration status.
 A conservative, in-memory budget of 60 checks per 15 minutes per backend process
 limits directory scans regardless of proxy headers. At larger user/traffic volumes,
 replace scans with a restricted indexed Auth lookup and use a shared rate-limit store.
+
+Issue #320: before that shared budget, each visitor gets 20 checks per 15 minutes,
+keyed by the last `X-Forwarded-For` entry (the address Railway's edge saw; earlier
+entries can be made up by the caller). A limit answer is 429 with
+`{ "error": ..., "code": "rate_limited" }`, and the website then signs up without
+the check (Supabase never creates a second account for an email), so one visitor
+can no longer stop email sign-up for everyone. Switch: `SIGNUP_CHECK_PER_VISITOR=false`
+turns both off (shared budget only, 429 without `code`, the website stops as before).
