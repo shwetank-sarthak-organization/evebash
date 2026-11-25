@@ -7616,7 +7616,7 @@ Fix ref:
 Feedback: Website: a 10 MB 4000x3000 JPEG gave "Profile photo updated." and was stored as a 512x384 JPEG (8 KB, no camera data); changing again to a PNG stored a 512x512 JPEG (5.6 KB) and the first file was deleted (404). App: Profile > Edit > Change Profile Photo > Save Changes stored a 512x511 JPEG (2.4 KB), set it on the profile and deleted the website's photo (404); the website then showed the app's photo. BUT the app's Profile screen kept showing the old photo after saving (also after switching tabs) and only showed the new one after closing and reopening the app: the app never refreshes the signed-in user after Edit Profile (new issue #324, not part of #322). Remove Profile Photo on the website: photo gone, file deleted (404), profile empty.
 
 #253 Uploading photos and videos still works after the one-file upload links (issue #318)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website (staging.evebash.com: Chrome, Safari, a phone browser) + App (EveBash Staging on iPhone and Android, after reopening it twice so it takes the 2026-11-25 update)
 Jira:      EB-429
@@ -7627,6 +7627,9 @@ Brief:     Uploads now go to storage with a link that only works for that one fi
 Detail:    Commit 78b1a20e (backend, website, app). App over-the-air update on the staging channel, 2026-11-25 (iPhone
            update bac3a1a4, Android update 59c91c05); no new build needed. Switches: ONE_FILE_UPLOAD_LINKS,
            UPLOAD_LEGACY_B2_TOKEN (Railway).
+           Android: the update only reaches the 2026-11-20 staging build (EAS build 17a7ead7, runtime 51b6a344). A phone
+           with the 2026-11-19 build (runtime 9035b966) never gets it: install the 2026-11-20 build over it first (an
+           update install, sign-in stays).
 How to test:
   1. App (iPhone and Android): close and reopen EveBash Staging twice (the update downloads on the first open and
      starts on the second).
@@ -7637,14 +7640,26 @@ How to test:
      3 photos, including one big phone photo. Expect: all upload and appear.
   5. Delete the test photos and video again.
   (No guest step: guest uploads are switched off until todo #49, shared/permissions/guestUploads.ts.)
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak), on Sarthak's phone over USB
+Device / browser: Real Pixel 8, Android 16 (app); earlier: iPhone 16e simulator iOS 26.3 (app), Playwright Chromium on a Mac (website)
+Build / version: EveBash Staging 1.2.4 (versionCode 26, EAS build 17a7ead7 of 2026-11-20) with the 2026-11-25 update 59c91c05; staging backend and website 78b1a20e
+Date tested: 2026-11-25
+Account used: Sarthak's own account on staging (app was already signed in), gallery "Test event staging" (test-event-staging-iczui); earlier newone1@email.com
+Screenshot / recording: not kept (screens checked in the chat; they showed Sarthak's own photos in the picker)
 Fix ref:
-Feedback:  Partly done by Claude 2026-11-25 (not real phones): website in Playwright Chromium on a Mac as newone1@email.com,
+Feedback:  PASS 2026-11-25 on a real Android phone (Claude): the Pixel had the 2026-11-19 build, which can't take the update,
+           so the 2026-11-20 build was installed over it (sign-in kept). First open: update downloaded ("NEW_UPDATE_LOADED");
+           every later open: "No update available", so the update was running. Step 2: 3 test pictures (made on the Mac
+           and copied to the phone, so none of Sarthak's photos were picked) via Host > Test event staging > Add Photos:
+           all 3 uploaded, saved ("status":"saved") and processed (processed / ready / faces indexed) within seconds, and
+           showed in the gallery (Photos 30 -> 33). Step 3: a 5 s 1280x720 clip (2 MB) via the Videos tab > Add Videos:
+           uploaded, saved and processed in about 40 s; its playlist (master.m3u8) and poster load (200). Step 5: all 4
+           deleted in the app (red bin / "..." > Delete video): 0 rows left (gallery back to 31), files 404; the test files
+           were removed from the phone again. Not covered: a real iPhone (same app code, checked on the simulator), Safari
+           and a phone browser (same website code, checked in Chromium). The app's log line still says "Uploading directly
+           to B2" for both kinds of link, and the backend does not log which link a phone used, so the one-file link was
+           shown by the update running (its code uses putUrl whenever the backend sends one), not by watching the request.
+           Partly done by Claude 2026-11-25 (not real phones): website in Playwright Chromium on a Mac as newone1@email.com,
            gallery royal-emerald-check-with-a-really-long-title-to-test-wrappin-c9e2: 3 photos (one 5.4 MB, 4000x3000) and a
            5 s video uploaded through signed one-file links to the staging bucket (all 200), saved and processed. iPhone 16e
            simulator (iOS 26.3, EveBash Staging 1.2.4 with the 2026-11-25 update): 1 photo (earlier) and the 5 s video via
