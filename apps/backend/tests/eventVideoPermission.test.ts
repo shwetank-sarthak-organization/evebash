@@ -82,15 +82,27 @@ async function runGuard(path: string, body: Record<string, unknown>) {
   });
 }
 
-test('logged-out photo uploads to a gallery are refused; profile and business uploads pass through', async () => {
+test('logged-out photo uploads to a gallery are refused; business uploads pass through', async () => {
   delete process.env.PHOTO_UPLOADS_REQUIRE_PERMISSION;
   const photo = { eventId: 'some-gallery-1a2b', fileName: 'photo.jpg', resourceType: 'image' };
   for (const path of ['/get-upload-url', '/save-photo', '/mobile/get-upload-url']) assert.equal(await runGuard(path, photo), 401, path);
   assert.equal(await runGuard('/save-photo-batch', { photos: [photo] }), 401);
-  assert.equal(await runGuard('/get-upload-url', { scope: 'profile', fileName: 'me.jpg', resourceType: 'image' }), 'next');
   assert.equal(await runGuard('/get-upload-url', { eventId: 'business-cover-123', fileName: 'c.jpg', resourceType: 'image' }), 'next');
 
   process.env.PHOTO_UPLOADS_REQUIRE_PERMISSION = 'false';
   assert.equal(await runGuard('/get-upload-url', photo), 'next', 'kill switch restores the old behaviour');
   delete process.env.PHOTO_UPLOADS_REQUIRE_PERMISSION;
+});
+
+test('issue #300: "scope": "profile" no longer skips the gallery check, and profile picture links need a login', async () => {
+  delete process.env.PROFILE_UPLOADS_REQUIRE_LOGIN;
+  const photo = { eventId: 'some-gallery-1a2b', storageKey: 'events/some-gallery-1a2b/photos/x.jpg', fileName: 'x.jpg', resourceType: 'image', scope: 'profile' };
+  for (const path of ['/save-photo', '/mobile/get-upload-url']) assert.equal(await runGuard(path, photo), 401, path);
+  for (const path of ['/save-photo-batch', '/mobile/save-photo-batch']) assert.equal(await runGuard(path, { scope: 'profile', photos: [photo] }), 401, path);
+  assert.equal(await runGuard('/get-upload-url', { scope: 'profile', fileName: 'me.jpg', resourceType: 'image' }), 401, 'profile picture link');
+
+  process.env.PROFILE_UPLOADS_REQUIRE_LOGIN = 'false';
+  assert.equal(await runGuard('/save-photo', photo), 'next', 'kill switch restores the old behaviour');
+  assert.equal(await runGuard('/get-upload-url', { scope: 'profile', fileName: 'me.jpg', resourceType: 'image' }), 'next');
+  delete process.env.PROFILE_UPLOADS_REQUIRE_LOGIN;
 });

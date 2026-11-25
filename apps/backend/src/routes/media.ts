@@ -1,4 +1,4 @@
-import { canPostEventPhoto, canPostEventVideo, isPhotoUploadPermissionRequired, isVideoUpload } from "../services/eventVideoPermission.js";
+import { canPostEventPhoto, canPostEventVideo, isPhotoUploadPermissionRequired, isProfileUploadLoginRequired, isVideoUpload } from "../services/eventVideoPermission.js";
 import { saveVideoThumbnail, ThumbnailError } from "../services/videoThumbnail.js";
 import { removeGuestPreviewPicture, saveGuestPreviewPicture, GuestPreviewPictureError } from "../services/guestPreviewPicture.js";
 import { Buffer } from "node:buffer";
@@ -611,8 +611,14 @@ mediaRouter.use(asyncRoute(async (request, response, next) => {
   if (request.path === "/upload/chunk/initiate" && body.resourceType === undefined) entries[0].resourceType = "video";
   const galleryOf = (entry: Record<string, unknown>) => String(entry.eventId || String(entry.storageKey || '').match(/^events\/([^/]+)\//)?.[1] || '');
   const videos = entries.filter(isVideoUpload);
+  // Profile pictures are only stored by /get-upload-url; on other steps "scope" means nothing (issue #300)
+  const profileChecks = isProfileUploadLoginRequired();
+  const isProfilePicture = body.scope === "profile" && (!profileChecks || request.path === "/get-upload-url");
+  if (isProfilePicture && profileChecks && !(await verifyRequestUser(request))) {
+    return jsonError(response, 401, "Log in to upload a profile picture.");
+  }
   // Gallery photos (not profile pictures, and not Phase 2 business portfolios, which use made-up "business-" ids)
-  const photoGalleries = isPhotoUploadPermissionRequired() && body.scope !== "profile"
+  const photoGalleries = isPhotoUploadPermissionRequired() && !isProfilePicture
     ? new Set<string>(entries.filter((entry: Record<string, unknown>) => !isVideoUpload(entry)).map(galleryOf)
         .filter((eventId: string) => eventId && !eventId.startsWith("business-")))
     : new Set<string>();

@@ -74,3 +74,13 @@ export async function canPostEventPhoto(db: SupabaseClient, user: User, eventId:
 export function isPhotoUploadPermissionRequired() {
   return process.env.PHOTO_UPLOADS_REQUIRE_PERMISSION?.trim().toLowerCase() !== 'false';
 }
+
+/**
+ * Issue #300: "scope": "profile" used to skip the gallery check on every upload step, so a logged-out request could
+ * save photos into any gallery by adding it. Now it only counts on /get-upload-url (the one step that stores profile
+ * pictures, under profiles/<user>/), and that needs a login. Kill switch: PROFILE_UPLOADS_REQUIRE_LOGIN=false goes back
+ * to the old behaviour.
+ */
+export function isProfileUploadLoginRequired() {
+  return process.env.PROFILE_UPLOADS_REQUIRE_LOGIN?.trim().toLowerCase() !== 'false';
+}
