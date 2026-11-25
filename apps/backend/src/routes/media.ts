@@ -2,6 +2,8 @@ import { canPostEventPhoto, canPostEventVideo, isMediaRouteRoleCheckOn, isPhotoU
 import { saveVideoThumbnail, ThumbnailError } from "../services/videoThumbnail.js";
 import { removeGuestPreviewPicture, saveGuestPreviewPicture, GuestPreviewPictureError } from "../services/guestPreviewPicture.js";
 import { isProfilePictureRouteOn, ProfilePictureError, saveProfilePicture } from "../services/profilePicture.js";
+import { getEventBucket } from "../services/eventBucketS3.js";
+import { isLegacyUploadTokenOn, oneFileUploadLink, uploadContentType, type OneFileUploadLink } from "../services/uploadLinks.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
@@ -558,6 +560,24 @@ export async function uploadBufferToB2(auth: BackblazeAuth, bucketId: string, bu
   throw lastError instanceof Error ? lastError : new Error(`B2 upload failed for ${key}`);
 }
 
+/**
+ * The links for uploading one file to `storageKey` (issue #318): the one-file link (putUrl, putHeaders) and, while
+ * UPLOAD_LEGACY_B2_TOKEN is on, Backblaze's own any-file link (uploadUrl, authorizationToken) for old app builds.
+ * Null when neither can be given (the caller answers 503).
+ */
+async function storageUploadLinks(storageKey: string, contentType: string) {
+  let oneFile: OneFileUploadLink | null = null;
+  try {
+    oneFile = await oneFileUploadLink(await getEventBucket(), storageKey, contentType);
+  } catch (error) {
+    // Clients fall back to Backblaze's link while it is still handed out
+    console.warn("[Media] Could not sign a one-file upload link:", error);
+  }
+  if (!isLegacyUploadTokenOn()) return oneFile;
+  const b2UploadData = await getCachedUploadUrl(await getCachedBackblazeAuth());
+  return { uploadUrl: b2UploadData.uploadUrl, authorizationToken: b2UploadData.authorizationToken, ...(oneFile || {}) };
+}
+
 /** Stores a JPEG made by the backend itself and returns its media.evebash.com link */
 async function uploadJpegToMedia(key: string, bytes: Buffer) {
   await uploadBufferToB2(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), bytes, key, "image/jpeg");
@@ -727,15 +747,10 @@ mediaRouter.post("/get-upload-url", asyncRoute(async (request, response) => {
   })) return;
 
   const storageKey = buildStorageKey({ eventId, userId, resourceType, fileName, scope });
-  const backblazeAuth = await getCachedBackblazeAuth();
-  const b2UploadData = await getCachedUploadUrl(backblazeAuth);
+  const links = await storageUploadLinks(storageKey, uploadContentType(body.contentType, fileName, isVideoResource(resourceType, fileName)));
+  if (!links) return jsonError(response, 503, "Uploads are not available right now. Please try again in a few minutes.");
 
-  response.json({
-    uploadUrl: b2UploadData.uploadUrl,
-    authorizationToken: b2UploadData.authorizationToken,
-    storageKey,
-    mediaDomain: getMediaDomain(),
-  });
+  response.json({ ...links, storageKey, mediaDomain: getMediaDomain() });
 }));
 
 mediaRouter.post("/upload/chunk/initiate", asyncRoute(async (request, response) => {
@@ -1292,16 +1307,10 @@ mediaRouter.post("/mobile/get-upload-url", asyncRoute(async (request, response) 
     console.warn("[MobileMedia] upload_intents record notice:", intentErr);
   }
 
-  const backblazeAuth = await getCachedBackblazeAuth();
-  const b2UploadData = await getCachedUploadUrl(backblazeAuth);
+  const links = await storageUploadLinks(storageKey, uploadContentType(body.contentType, fileName, isVideoResource(resourceType, fileName)));
+  if (!links) return jsonError(response, 503, "Uploads are not available right now. Please try again in a few minutes.");
 
-  response.json({
-    uploadUrl: b2UploadData.uploadUrl,
-    authorizationToken: b2UploadData.authorizationToken,
-    storageKey,
-    clientUploadId,
-    mediaDomain: getMediaDomain(),
-  });
+  response.json({ ...links, storageKey, clientUploadId, mediaDomain: getMediaDomain() });
 }));
 
 mediaRouter.post("/mobile/reconcile-upload", asyncRoute(async (request, response) => {

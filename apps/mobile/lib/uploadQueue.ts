@@ -5,6 +5,7 @@ import { supabase } from './supabase';
 import { getEndpointsForPath, fetchWithEndpointFallback } from './storage';
 import { toDurationSeconds } from './mediaDuration';
 import { appAlert } from './feedback';
+import { hasStorageUploadLink, storageUploadRequest } from '../../../shared/media/storageUploadRequest';
 
 // Issue #144: an upload that failed because the phone lost its connection doesn't use up an attempt. The item waits
 // until the backend answers again and then carries on; other errors still get MAX_UPLOAD_RETRIES attempts.
@@ -677,6 +678,7 @@ async function uploadWorker(item: UploadQueueItem) {
               fileName: item.fileName,
               resourceType: item.mediaType === 'video' ? 'video' : 'image',
               fileSize,
+              contentType: item.fileType,
               clientUploadId: item.id,
             }),
           });
@@ -694,7 +696,7 @@ async function uploadWorker(item: UploadQueueItem) {
       // Mobile endpoint not available on server yet
     }
 
-    if (!getUrlResult || !getUrlResult.uploadUrl) {
+    if (!hasStorageUploadLink(getUrlResult)) {
       console.log(`[UploadQueue] Mobile endpoint not found, falling back to standard /get-upload-url...`);
       const standardResponse = await fetchWithEndpointFallback(
         getEndpointsForPath('/api/media/get-upload-url'),
@@ -710,6 +712,7 @@ async function uploadWorker(item: UploadQueueItem) {
               fileName: item.fileName,
               resourceType: item.mediaType === 'video' ? 'video' : 'image',
               fileSize,
+              contentType: item.fileType,
             }),
           });
         },
@@ -722,7 +725,9 @@ async function uploadWorker(item: UploadQueueItem) {
       }
     }
 
-    const { uploadUrl, authorizationToken, storageKey } = getUrlResult;
+    const { storageKey } = getUrlResult;
+    // The one-file link when the backend sends one (issue #318), else Backblaze's own upload as before
+    const storageRequest = storageUploadRequest(getUrlResult, item.fileType || 'application/octet-stream');
 
     await mutateQueue(q => {
       const target = q.find(i => i.id === item.id);
@@ -740,16 +745,12 @@ async function uploadWorker(item: UploadQueueItem) {
     if (!fileInfo?.exists) throw new Error('The file to upload is no longer on this phone.');
     console.log(`[UploadQueue] Uploading directly to B2 (single-part, up to 5GB): ${storageKey}`);
     const uploadTask = FileSystem.createUploadTask(
-      uploadUrl,
+      storageRequest.url,
       item.fileUri,
       {
         uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-        headers: {
-          Authorization: authorizationToken,
-          'Content-Type': item.fileType || 'application/octet-stream',
-          'X-Bz-File-Name': encodeURIComponent(storageKey),
-          'X-Bz-Content-Sha1': 'do_not_verify',
-        },
+        httpMethod: storageRequest.method,
+        headers: storageRequest.headers,
       },
       (progress) => {
         const rawPercent = Math.min(
