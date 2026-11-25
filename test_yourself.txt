@@ -7584,7 +7584,7 @@ Fix ref:
 Feedback:
 
 #252 Changing your profile picture works on the website and in the app, and the picture is small (issue #322)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website (staging.evebash.com, any browser) + App (EveBash Staging, iPhone and Android; no new build needed)
 Jira:      EB-427
@@ -7606,11 +7606,11 @@ How to test:
   5. Check the photo on the other side too (website after the app change, app after the website change).
      Expect: the same latest photo on both.
   6. Profile > Remove Profile Photo (website or app). Expect: the photo goes away and stays away after a reload.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by: Claude (asked by Sarthak, 2026-11-25)
+Device / browser: Website: Playwright Chromium on a Mac (not a phone browser). App: iPhone 16e simulator, iOS 26.3 (not a real phone); Android not tried
+Build / version: staging website + backend a366d48f; EveBash Staging app 1.2.4 (no new build)
+Date tested: 2026-11-25
+Account used: newone1@email.com (signed in on the website with a passwordless admin link; the app was already signed in). Had no photo before; removed again at the end
+Screenshot / recording: not kept (screens checked in the chat)
 Fix ref:
-Feedback:
+Feedback: Website: a 10 MB 4000x3000 JPEG gave "Profile photo updated." and was stored as a 512x384 JPEG (8 KB, no camera data); changing again to a PNG stored a 512x512 JPEG (5.6 KB) and the first file was deleted (404). App: Profile > Edit > Change Profile Photo > Save Changes stored a 512x511 JPEG (2.4 KB), set it on the profile and deleted the website's photo (404); the website then showed the app's photo. BUT the app's Profile screen kept showing the old photo after saving (also after switching tabs) and only showed the new one after closing and reopening the app: the app never refreshes the signed-in user after Edit Profile (new issue #324, not part of #322). Remove Profile Photo on the website: photo gone, file deleted (404), profile empty.
