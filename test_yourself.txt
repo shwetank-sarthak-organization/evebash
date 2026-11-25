@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 253
+Next test number: 254
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7614,3 +7614,34 @@ Account used: newone1@email.com (signed in on the website with a passwordless ad
 Screenshot / recording: not kept (screens checked in the chat)
 Fix ref:
 Feedback: Website: a 10 MB 4000x3000 JPEG gave "Profile photo updated." and was stored as a 512x384 JPEG (8 KB, no camera data); changing again to a PNG stored a 512x512 JPEG (5.6 KB) and the first file was deleted (404). App: Profile > Edit > Change Profile Photo > Save Changes stored a 512x511 JPEG (2.4 KB), set it on the profile and deleted the website's photo (404); the website then showed the app's photo. BUT the app's Profile screen kept showing the old photo after saving (also after switching tabs) and only showed the new one after closing and reopening the app: the app never refreshes the signed-in user after Edit Profile (new issue #324, not part of #322). Remove Profile Photo on the website: photo gone, file deleted (404), profile empty.
+
+#253 Uploading photos and videos still works after the one-file upload links (issue #318)
+Status:    TODO
+Priority:  High
+Platform:  Website (staging.evebash.com: Chrome, Safari, a phone browser) + App (EveBash Staging on iPhone and Android, after reopening it twice so it takes the 2026-11-25 update)
+Jira:      EB-429
+Brief:     Uploads now go to storage with a link that only works for that one file (safer: before, the link worked for any
+           file name in the whole storage). Nothing should look different: photos and videos upload, show and process as
+           before. Claude checked the website in a test browser and the app on the iPhone simulator on 2026-11-25; this
+           is the check on real phones and other browsers.
+Detail:    Commit 78b1a20e (backend, website, app). App over-the-air update on the staging channel, 2026-11-25 (iPhone
+           update bac3a1a4, Android update 59c91c05); no new build needed. Switches: ONE_FILE_UPLOAD_LINKS,
+           UPLOAD_LEGACY_B2_TOKEN (Railway).
+How to test:
+  1. App (iPhone and Android): close and reopen EveBash Staging twice (the update downloads on the first open and
+     starts on the second).
+  2. App: Host > a test gallery > Add Photos, pick 3 photos. Expect: all 3 upload, appear in the gallery and get
+     their thumbnails within a minute.
+  3. App: upload one short video the same way. Expect: it uploads and processes as before.
+  4. Website (Chrome and Safari on a computer, and a phone browser): Host > a test gallery > Add or Drop Photos with
+     3 photos, including one big phone photo. Expect: all upload and appear.
+  5. As a guest allowed to upload (website or app), upload one photo. Expect: it works.
+  6. Delete the test photos and video again.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
