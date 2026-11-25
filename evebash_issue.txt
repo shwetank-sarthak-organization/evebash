@@ -141,17 +141,6 @@ Update 2026-10-23 (Sarthak asked for every phone/tablet visitor to be asked to g
 Update 2026-10-23 (Sarthak: phones and tablets should not see the website, only login and plan activation; on staging, flag off): added a full-screen "Get the EveBash app" screen (src/components/MobileAppGate.tsx, rules in src/lib/appGate.ts) to the (main), (public) and (vault) layouts, behind its own flag NEXT_PUBLIC_MOBILE_APP_GATE=true (build time, off). A script in <head> decides before the first paint and globals.css hides the rest of the page, so the website never flashes; the component re-checks on client-side navigation. Still open on phones: login, forgot/reset password, profile, pricing, contact-us and the policy/delete-account pages (Play/App Store review, Razorpay and password emails need them). Search crawlers (user agent with bot/crawl/spider/lighthouse) still get the website so Google keeps indexing it. Store buttons say "coming soon" until the two store URL env vars are set. Device test #123.
 Must wait for store launch: a "Get the app" fallback to the store pages (set the two store URL env vars and redeploy); the iPhone Smart App Banner (apple-itunes-app meta tag, needs the App Store ID); adding Google Play's app-signing SHA-256 to assetlinks.json after the first upload (Play re-signs the app).
 
-#68
-Listed: 2026-10-13
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Checking signing fingerprints for #67 (2026-10-13)
-Issue: The locally built Android APKs in the repo root (app-release-v1.apk, app-release-v1.2.4.apk) are signed with the Android debug key (apps/mobile/android/app/debug.keystore, "CN=Android Debug", SHA-1 5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25, SHA-256 FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C), even though they are named "release". EAS builds use the EAS Android keystore (SHA-1 29:40:B3:BD:EB:22:B7:1F:A2:E5:E6:8C:B0:92:52:2B:D2:08:30:47; Firebase also lists SHA-256 b5:2b:a8:a5:85:66:3d:5f:1d:d4:10:37:f7:ff:67:02:1d:49:7d:f1:2c:8c:11:8b:ac:09:fd:41:a9:39:1e:13, probably the same key). Impact: testers can't install an EAS build over a local APK (or the other way round) without uninstalling, because the signatures differ; and the debug key is public, so it must never go into the live assetlinks.json (#67). Fix: make store and tester builds only through EAS, and list only the EAS key's and Google Play's app-signing key's SHA-256 in assetlinks.json and Firebase (#18).
-How to reproduce: ~/Library/Android/sdk/build-tools/36.1.0/apksigner verify --print-certs app-release-v1.2.4.apk shows "CN=Android Debug".
-
 #72
 Listed: 2026-10-13
 Platform: Both
@@ -634,17 +623,6 @@ Found in: Backend test runs while building todo #18 (chat 2026-10-28)
 Issue: apps/backend/tests/albums.test.ts fails now and then when the whole suite runs (npm test), each time a different test: "album proofing is off unless switched on" once, "albums made before roles existed ask for roles before anything else" once, in 5 full runs; the file alone and the other 3 full runs passed (127/127). Unrelated to the change being tested, so a flaky test can hide or fake a real failure.
 How to reproduce: cd apps/backend && npm test several times; look for a failing album test.
 Fix idea: look for shared state or timing in albums.test.ts (environment variables set by one test and read by another, or real timers), and isolate it.
-
-#205
-Listed: 2026-11-02
-Platform: App
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: App screen review (chat 2026-11-01)
-Issue: On iPhone, the New Event name placeholder showed wide letter spacing ("e . g .  W e d d i n g") after the Join Event sheet had been opened in the same run. Seen once on the iPhone 17 Pro simulator on 2026-11-02; the placeholder looked normal on 2026-11-01 when New Event was opened first. Neither field's style was changed. Likely cause, not confirmed: iOS reuses the text box from the Join Event code field, which has letterSpacing 4 (apps/mobile/app/(tabs)/dashboard.tsx). Not checked on a real iPhone.
-How to reproduce: Start the app, open Dashboard > Join Event and close it, then Host > + . Look at the Event Name placeholder.
 
 #218
 Listed: 2026-11-02
@@ -1517,6 +1495,30 @@ Not covered yet: business reviews and announcements have no Report of their own 
 Update 2026-11-20: staging tests PASS: #241 website, #242 app (iPhone and Android), #243 dashboard Reports tab (dismiss, remove a comment, suspend and lift), #244 Terms on website and app. Ideas noted: show the report type more prominently in the Reports tab; the app's logged-out prompt doesn't mention reporting; no email to admins on a new report yet (check the Reports tab daily to keep the 24-hour promise).
 Update 2026-11-20 (Shwetank: "OK live #38"): migration 20261119210000 applied on the live database (content_reports with RLS, 0 rows; file_content_report callable by logged-in users only). Terms "Last updated" set to November 20, 2026 (POLICY_VERSION unchanged, so no re-accept prompt).
 Fixed in: 1e52a0f3 (2026-11-20). Live: database migration, website and backend released 2026-11-20 (Terms page and the report code checked on evebash.com). The apps carry it with the next store release; then update Google Play's content-rating answers (users can report content and users). Someone checks the analytics dashboard Reports tab (Live) daily.
+
+#68
+Listed: 2026-10-13
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Checking signing fingerprints for #67 (2026-10-13)
+Issue: The locally built Android APKs in the repo root (app-release-v1.apk, app-release-v1.2.4.apk) are signed with the Android debug key (apps/mobile/android/app/debug.keystore, "CN=Android Debug", SHA-1 5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25, SHA-256 FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C), even though they are named "release". EAS builds use the EAS Android keystore (SHA-1 29:40:B3:BD:EB:22:B7:1F:A2:E5:E6:8C:B0:92:52:2B:D2:08:30:47; Firebase also lists SHA-256 b5:2b:a8:a5:85:66:3d:5f:1d:d4:10:37:f7:ff:67:02:1d:49:7d:f1:2c:8c:11:8b:ac:09:fd:41:a9:39:1e:13, probably the same key). Impact: testers can't install an EAS build over a local APK (or the other way round) without uninstalling, because the signatures differ; and the debug key is public, so it must never go into the live assetlinks.json (#67). Fix: make store and tester builds only through EAS, and list only the EAS key's and Google Play's app-signing key's SHA-256 in assetlinks.json and Firebase (#18).
+How to reproduce: ~/Library/Android/sdk/build-tools/36.1.0/apksigner verify --print-certs app-release-v1.2.4.apk shows "CN=Android Debug".
+Fixed in: no code change (2026-11-19). The only copies left were the two debug-signed APKs in the repo root (app-release-v1.apk, 6 Jul, and app-release-v1.2.4.apk, 9 Jul, 127 MB each, never in git); both were moved to the macOS Trash (restorable). Store and tester builds are EAS-only (the first Play upload on 2026-11-17 is signed by the EAS key and Play app signing, see #18). The "never list the debug key in assetlinks.json" rule stays in #67.
+
+#205
+Listed: 2026-11-02
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Unassigned
+Blocked by: -
+Found in: App screen review (chat 2026-11-01)
+Issue: On iPhone, the New Event name placeholder showed wide letter spacing ("e . g .  W e d d i n g") after the Join Event sheet had been opened in the same run. Seen once on the iPhone 17 Pro simulator on 2026-11-02; the placeholder looked normal on 2026-11-01 when New Event was opened first. Neither field's style was changed. Likely cause, not confirmed: iOS reuses the text box from the Join Event code field, which has letterSpacing 4 (apps/mobile/app/(tabs)/dashboard.tsx). Not checked on a real iPhone.
+How to reproduce: Start the app, open Dashboard > Join Event and close it, then Host > + . Look at the Event Name placeholder.
+Fixed in: no code change; seen once, not reproduced (2026-11-19). On the iPhone 16e simulator (staging app) the New Event placeholder "e.g. Wedding of John & Jane" had normal spacing after Join Event was opened and closed. The New Event name field (apps/mobile/app/(tabs)/gallery.tsx) sets no letterSpacing; the Join Event code field still has letterSpacing 4. Reopen if seen again; the fix would be letterSpacing: 0 on the New Event name field. Closed 2026-11-19.
 
 #33
 Listed: 2026-10-11
