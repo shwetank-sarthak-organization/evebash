@@ -19,18 +19,23 @@ HOW TO USE
   sets Status to RETEST; tester re-tests and sets PASS or FAIL.
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
+- Jira: every test that isn't PASS has a ticket on the EB board (evebash.atlassian.net), titled
+  "Test #N: <title>", label device-test. Its key is on the test's "Jira:" line. A new test gets its
+  ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
+  This file stays the main record: change the file first, then the ticket.
 
 Next test number: 252
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-23
+Last updated: 2026-11-25
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
 Status:    PASS
 Priority:  High
 Platform:  Website + App
+Jira:      EB-140
 Brief:     Find You now needs login and gallery access. Check real users are not blocked.
 Detail:    Backend flag FIND_YOU_REQUIRE_ACCESS (commit 5021ce4). Set to false on Railway 2026-10-10
            until the app build with fba2cdc is out; turn back to true before the final retest.
@@ -67,6 +72,7 @@ Feedback:  2026-10-10 Sarthak, website: "Failed to search: 401". Every logged-in
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-243
 Brief:     Logged-out users must not use Find You.
 Detail:    Logged out, the Find You / partners pages should show a login prompt.
 How to test:
@@ -87,6 +93,7 @@ Feedback: Website part PASS: logged out, Find You on a public event (test-face-n
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-244
 Brief:     Anyone with link/QR of a PUBLIC gallery can view previews, nothing else.
 Detail:    No download, like, comment or Find You while logged out.
 How to test:
@@ -108,6 +115,7 @@ Feedback: Website part PASS: test-face-new made public for the test (set back to
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-245
 Brief:     A logged-in user opening a public gallery link joins immediately.
 How to test:
   1. With a second account (not the host), log in and open the public gallery link.
@@ -127,6 +135,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-246
 Brief:     Private gallery needs host approval. Rejection is not final.
 How to test:
   1. Second account opens a PRIVATE gallery link -> "Request access" screen.
@@ -149,6 +158,7 @@ Feedback: Partly checked: logged out, a private event (test-face-new, wedding-2-
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App (dashboard)
+Jira:      EB-247
 Brief:     Joining by typing the gallery code still works.
 How to test:
   1. Second account, dashboard -> Join with code -> enter a public gallery code.
@@ -168,6 +178,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-248
 Brief:     Host can still do everything on their gallery.
 How to test:
   1. As host open your gallery: upload, delete photo, edit settings, sub-galleries,
@@ -187,6 +198,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-249
 Brief:     A guest made admin manages the gallery but can't delete it.
 How to test:
   1. Host makes a guest an admin (guest list -> admin).
@@ -226,6 +238,7 @@ Feedback:  Website: deleted with no error (photo-check-e9c0, 27-sep-b4fd). Conso
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-250
 Brief:     Names/avatars on likes and comments still show.
 How to test:
   1. Logged in, like and comment on a photo with two accounts.
@@ -244,6 +257,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-251
 Brief:     Chat screen was broken by an ambiguous query; fixed in 982237b.
 How to test:
   1. Open chats, open a conversation, send a message both ways.
@@ -262,6 +276,7 @@ Feedback:
 Status:    BLOCKED
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-141
 Brief:     The sample "Wedding" gallery is read-only for anyone.
 How to test:
   1. Logged out, open the sample gallery from the homepage / app.
@@ -280,6 +295,7 @@ Feedback: No sample galleries on staging: /sample-galleries says "No sample gall
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-252
 Brief:     Sign-up still picks a free username.
 How to test:
   1. Create a new test account (use a name that probably exists, e.g. "Test User").
@@ -300,6 +316,7 @@ Feedback:  2026-10-12 Sarthak, app: partial. Sign-up finished with no error or "
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-253
 Brief:     Guest list shows names/photos of joined guests.
 How to test:
   1. Host opens guest list of a gallery with 2+ guests.
@@ -318,6 +335,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-254
 Brief:     Uploaded photos get thumbnails and faces indexed.
 How to test:
   1. Upload 20-50 photos.
@@ -337,6 +355,7 @@ Feedback: Website PASS: 3 JPEGs (1600x1067) uploaded to a new test sub-gallery; 
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-255
 Brief:     Videos process once and play.
 How to test:
   1. Upload a short video (<1 min) and a long one (10+ min).
@@ -356,6 +375,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-256
 Brief:     Refreshing mid-upload must not create broken/duplicate files.
 How to test:
   1. Start uploading a large video on the website, refresh the page halfway.
@@ -375,6 +395,7 @@ Feedback:
 Status:    PASS
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-142
 Brief:     Move photos/videos to another gallery of the same event. Website: Galleries > Select > Move to...
            (or a photo's or video's action menu). App: event admin view > Select, or a photo's/video's actions.
 How to test:
@@ -421,6 +442,7 @@ Feedback: Website and iOS simulator show the same card: 44.77 GB of 50 GB, Event
 Status:    TODO
 Priority:  High
 Platform:  Website (desktop and phone browser)
+Jira:      EB-257
 Brief:     /vault is private personal storage. Uploads go straight to storage with progress.
 How to test:
   1. Profile > "EB Vault - Your personal storage" (or open /vault).
@@ -442,6 +464,7 @@ Feedback: Website partly PASS: /vault, + New > Upload files with 3 small files (
 Status:    TODO
 Priority:  High
 Platform:  Website (Android Chrome, iPhone Safari, desktop)
+Jira:      EB-258
 Brief:     Click a file to preview it. PDFs use pdf.js so they work on Android Chrome.
 How to test:
   1. Upload and open: a JPG/PNG, an MP4, a multi-page PDF, a TXT or CSV, and a ZIP or DOCX.
@@ -462,6 +485,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-259
 How to test:
   1. + New > New folder. Rename it. Move a file into it (file menu > Move).
   2. Try to move a folder into its own subfolder. Expect: not allowed.
@@ -482,6 +506,7 @@ Feedback: Website PASS for: New folder, Rename folder, Move a file into it, Make
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-260
 How to test:
   1. Move a file and a folder (with files) to Trash. Expect them in Trash with a "Gone forever on" date.
   2. Storage used does NOT go down yet (Trash still counts).
@@ -501,6 +526,7 @@ Feedback: Steps 1-3 PASS: a folder and a file moved to Trash show "Deleted 28 Oc
 Status:    TODO
 Priority:  High
 Platform:  Website
+Jira:      EB-261
 How to test:
   1. With account A upload a file. Log in as account B: A's file is not in My Files, Recent, Starred or Search.
   2. On a Free account: upload a file over 200 MB. Expect "Files on your plan can be up to 200 MB each."
@@ -520,6 +546,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website (phone browser and desktop)
+Jira:      EB-262
 Brief:     Video previews now use 2-hour links and refresh themselves if a link expires (commit d504769).
 How to test:
   1. Upload an MP4 of at least 15 minutes to EB Vault and open its preview.
@@ -540,6 +567,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  App (iPhone + Android) - needs a NEW staging build (new native packages)
+Jira:      EB-263
 Brief:     EB Vault in the app: Profile > EB Vault (under Usage & Plan).
 How to test:
   1. Open Profile, tap "EB Vault - Your personal storage". Expect the Vault screen with the storage bar.
@@ -562,6 +590,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  App (iPhone + Android)
+Jira:      EB-264
 How to test:
   1. Tap a photo: shown full screen. Tap an MP4: plays in the app; pause 10+ min then play: continues.
   2. Tap a multi-page PDF: pages appear inside the app (not a download), "Show more pages" on long PDFs.
@@ -581,6 +610,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (iPhone + Android)
+Jira:      EB-265
 How to test:
   1. File ... > Save to Photos (photo and video): appears in the phone's gallery.
   2. File ... > Share or save to Files: share sheet opens; saving to Files/Drive works.
@@ -601,6 +631,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  App (new build from staging with 06019c8)
+Jira:      EB-266
 Brief:     Deleting a main gallery in the app now also deletes its sub-galleries (issue #1).
 How to test:
   1. In the app, create a gallery, add a sub-gallery, upload 2 photos into the sub-gallery.
@@ -621,6 +652,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (new build from staging with 06019c8)
+Jira:      EB-267
 Brief:     App Find You now includes the sub-galleries, like the website (issue #2).
 How to test:
   1. Upload a photo of yourself ONLY into a sub-gallery.
@@ -640,6 +672,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (new build from staging with 06019c8)
+Jira:      EB-268
 Brief:     Sub-gallery cover pictures were blank in the app (broken image address) (issue #3).
 How to test:
   1. In the app, set a cover picture on a sub-gallery.
@@ -659,6 +692,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (new build from staging with 06019c8)
+Jira:      EB-269
 Brief:     After logging in from a gallery, you return to it instead of the dashboard (issue #5).
 How to test:
   1. Log out of the app. Open a private gallery link -> tap "Log in" -> log in.
@@ -679,6 +713,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-270
 Brief:     Event owners/admins can save copies of event media into their own EB Vault. The items stay in the event.
 How to test:
   1. As the event owner: Host > event > Galleries > Select > tick 2 photos and 1 video > "Save to EB Vault".
@@ -701,6 +736,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (iPhone + Android) - needs a build with this change
+Jira:      EB-271
 How to test:
   1. Event admin view > Select > tick items > "To Vault" > pick a folder > Save. Expect a "Saved ..." message.
   2. A photo's action sheet and a video's actions both have "Save to EB Vault".
@@ -720,6 +756,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  App (new build from staging with 65efa33)
+Jira:      EB-272
 Brief:     Share links and QR codes used wedalbum.app (blank page). Now staging builds use
            staging.evebash.com and production builds www.evebash.com (issue #16).
 How to test:
@@ -743,6 +780,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Both (app: JS-only change, any staging build; website: staging.evebash.com/eb-network)
+Jira:      EB-273
 Brief:     The app's "Vendors" tab is now "EB Network", with the same wording as the website.
            The website's EB Network page now has the same "List your business" form as the app.
 How to test:
@@ -770,6 +808,7 @@ Feedback: Website steps 2-4 PASS: /eb-network shows Coming soon, "Find trusted e
 Status:    TODO
 Priority:  Medium
 Platform:  Website now; App (new build from staging with 363c5aa)
+Jira:      EB-274
 Brief:     Approving (or rejecting) a request now sends the guest a phone notification (issue #8).
 How to test:
   1. Second account on a phone with the app installed and notifications allowed.
@@ -832,6 +871,7 @@ Feedback: Same numbers on website /profile and the app Profile: 44.77 GB of 50 G
 Status:    PASS
 Priority:  High
 Platform:  Website + App (new build from staging with 8acf63a)
+Jira:      EB-143
 Brief:     The server now refuses gallery uploads that don't fit the OWNER's plan (issue #6).
            Guests use the host's storage, not their own. Unblocked 2026-11-07: EVENT_UPLOAD_LIMITS=true
            is set on Railway staging (not production yet).
@@ -867,6 +907,7 @@ Feedback:  2026-11-11 partial (Shwetank): step 1 pass with a note: the website's
 Status:    TODO
 Priority:  High
 Platform:  Website + App (build from staging)
+Jira:      EB-275
 Brief:     RLS lockdown part 2 (issue #21) lets only gallery managers add photo rows directly.
            It isn't confirmed whether guest uploads go through the backend or write photo rows
            themselves, so a guest with upload permission might lose uploads once part 2 is on.
@@ -892,6 +933,7 @@ Note 2026-11-23: not needed for now: guest uploads are switched off until todo #
 Status:    TODO
 Priority:  Low
 Platform:  Website (staging.evebash.com)
+Jira:      EB-276
 Brief:     The mock "EveBash Messages" chat bubble was removed from the Dashboard (issue #27), and
            navbar links now use Inter instead of the decorative brand font (issue #34).
 How to test:
@@ -915,6 +957,7 @@ Feedback: Computer PASS: no fixed chat button on /dashboard; navbar links are In
 Status:    TODO
 Priority:  Medium
 Platform:  Both (website now; app needs a new build from staging)
+Jira:      EB-277
 Brief:     The View Access switch was really "reject this guest" (turning it off kicked the guest out
            and hid them from the list; on public galleries they got straight back in). It was removed.
            Kicking someone out is done with Delete (website) / the remove button (app).
@@ -937,6 +980,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website (app needs no change; it uses the same backend)
+Jira:      EB-278
 Brief:     The "may this person upload videos?" check crashed (500) for guest admins: it looked up a
            guests.email column that doesn't exist. It now matches guest admins by their login.
 How to test:
@@ -960,6 +1004,7 @@ Note 2026-11-23: the "normal guests can't" part is moot while guest uploads are 
 Status:    TODO
 Priority:  High
 Platform:  Website
+Jira:      EB-279
 Brief:     Delete (and Deny) used to drop the guest from the Permissions list even when nothing was
            deleted (Cancel on "Are you sure?", or a failed request). The guest kept their approved
            row, so asking again let them straight back in. Now the row only goes when it's really deleted.
@@ -984,6 +1029,7 @@ Feedback:  2026-10-11 website steps 1-3 pass (done as test #38 part 5). Still to
 Status:    TODO
 Priority:  Medium
 Platform:  Both (app approve needs a new build; the database part is live)
+Jira:      EB-280
 Brief:     Joining or being approved no longer turns on Allow Photo Uploads or Allow Comments. The host
            switches them on per guest. Turning Admin on still turns both on.
 How to test:
@@ -1006,6 +1052,7 @@ Feedback:  2026-10-11 website pass (steps 1, 3, 4). Still to do: step 2 (approve
 Status:    TODO
 Priority:  High
 Platform:  Both (website now; app needs a new build from staging; the server check is live)
+Jira:      EB-281
 Brief:     A guest whose host turned on "Allow Photo Uploads" gets an "Add photos" button in the gallery.
            Everyone else gets no button, and the server refuses their uploads (issue #40: before, anyone
            who knew a gallery's id could upload, even logged out). Videos stay owner/admin only.
@@ -1032,6 +1079,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Both (website now; app needs a new build from staging)
+Jira:      EB-282
 Brief:     The comment box shows only for the host, admins and guests whose host turned on
            "Allow Comments". Other members still see all comments, with "The host hasn't turned on
            comments for you." where the box would be. Likes are unchanged.
@@ -1055,6 +1103,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-283
 Brief:     Host dashboard → event → Permissions now lists guests in a table: Member, Role, then
            View / Admin / Upload / Comment switches, then Actions. Same gold/dark colours and fonts.
            Pending requests have their own table with Approve / Deny. Admins and members share one
@@ -1107,6 +1156,7 @@ Feedback:  2026-10-11 steps 3-4 pass (done as test #38 part 4: B sent back from 
 Status:    TODO
 Priority:  High
 Platform:  App (Android)
+Jira:      EB-284
 Brief:     The Android package changed from com.anonymous.evebash to com.evebash.app (#41). The new
            build installs as a separate app next to the old one. Google sign-in and push depend on the
            new Firebase Android app, google-services.json and SHA-1s (#18), so test only once those are in.
@@ -1143,6 +1193,7 @@ Feedback:  2026-10-12 partial, Pixel 8 (Sarthak): step 1 old app uninstalled; st
 Status:    TODO
 Priority:  High
 Platform:  App (iOS)
+Jira:      EB-285
 Brief:     The iOS bundle ID changed from com.anonymous.wed-albummobile to com.evebash.app (#17), and the
            build now asks for the Sign in with Apple entitlement (ios.usesAppleSignIn). Needs the App ID
            with Sign in with Apple + Push in Apple Developer, and com.evebash.app in Supabase's Apple
@@ -1172,6 +1223,7 @@ Feedback:  2026-10-12 partial, iOS Simulator only (Sarthak): local Release build
 Status:    TODO
 Priority:  Medium
 Platform:  Website (staging.evebash.com; repeat steps 1-3 on www.evebash.com after the merge to main)
+Jira:      EB-286
 Brief:     Sample gallery pages have their own title and cover preview, unknown addresses show a
            branded 404 page, and staging is hidden from Google.
 How to test:
@@ -1226,6 +1278,7 @@ Feedback:  Android steps 1-5 PASS (tester's result). Step 5 used Gboard's Floati
 Status:    TODO
 Priority:  High
 Platform:  App (Android and iOS; needs a staging build with the #46 fix)
+Jira:      EB-287
 Brief:     The event's Permissions tab now asks the server for this gallery's guests only, instead of
            loading the whole guests table (all hosts) and filtering on the phone, which was cut off at
            1,000 rows (issue #46). The lists and who counts as a guest admin must not change.
@@ -1256,6 +1309,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website + App (Android and iOS; the app needs a staging build with the #52 fix)
+Jira:      EB-288
 Brief:     The lists of galleries you joined now ask the server for your own guests rows only, instead of
            loading every approved guests row (all hosts) and keeping yours on the device, which was cut off
            at 1,000 rows (issue #52). The galleries shown must not change.
@@ -1291,6 +1345,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Both (website: staging.evebash.com; app: JS-only change, any staging build)
+Jira:      EB-289
 Brief:     Pending requests now have only Approve and Deny (no bin button). Deny asks to confirm, sends the
            person a push, erases the request, and lets them ask again. Members keep the bin (Remove).
 How to test:
@@ -1319,6 +1374,7 @@ Feedback:
 Status:    PASS
 Priority:  Medium
 Platform:  Website (staging.evebash.com), computer and phone
+Jira:      EB-144
 Brief:     The white strip under each photo is gone. The icons sit on the bottom of the photo over a soft fade:
            on hover with a mouse, always on phones and tablets.
 How to test:
@@ -1345,6 +1401,7 @@ Feedback: Tile icons: Like photo / Comments / Download original on each tile. St
 Status:    TODO
 Priority:  Medium
 Platform:  Both (website: staging.evebash.com; app: needs a staging build with the #53 fix)
+Jira:      EB-290
 Brief:     For old guest rows (joined by phone or email before accounts were linked), the guest panel now asks the
            server for that one profile. The app used to download every user's profile and match on the phone
            (issue #53); the website now uses the same matching as the app. What the panel shows must not change.
@@ -1377,6 +1434,7 @@ Feedback:
 Status:    TODO
 Priority:  Low
 Platform:  App (Android and iOS; needs a staging build with the #54 change)
+Jira:      EB-291
 Brief:     The hidden Social screen (no button led to it) and its code were deleted (issue #54). Nothing visible
            should change.
 How to test:
@@ -1397,6 +1455,7 @@ Feedback: iOS simulator: app opened signed in, no error; tab bar Dashboard, Host
 Status:    TODO
 Priority:  Low
 Platform:  Both (website: staging.evebash.com; app: JS-only change, any staging build)
+Jira:      EB-292
 Brief:     Event Partners comes with EB Business and EB Network in Phase 2, so it's hidden everywhere for now.
 How to test:
   1. Website, logged in: open a gallery from the Dashboard. The menu shows Home, Collections, Find You and
@@ -1419,6 +1478,7 @@ Feedback: Website steps 1-3 PASS: gallery menu Home / Collections / Find You / D
 Status:    TODO
 Priority:  High
 Platform:  Both (backend fix on staging; any app build with push, website staging.evebash.com)
+Jira:      EB-293
 Brief:     The access-request push never reached the host (issue #47): the server looked up a profile column
            that doesn't exist and gave up quietly. Approval and deny pushes (#37, #57) had the same problem.
 How to test:
@@ -1472,6 +1532,7 @@ Feedback: Computer: Permissions shows Event visibility with one switch. Private 
 Status:    TODO
 Priority:  Medium
 Platform:  Website (staging.evebash.com; check on a phone browser too)
+Jira:      EB-294
 Brief:     Every website popup now uses one dark-gold design with an X at the top right (commit 5a5e1d7, issue #38).
            The browser's own grey OK/Cancel popups are replaced by themed ones. What each button does is unchanged.
 How to test:
@@ -1506,6 +1567,7 @@ Feedback: Partly: Delete Gallery confirm (dark card, X, red Delete), New Sub-Gal
 Status:    TODO
 Priority:  Low
 Platform:  Website (staging.evebash.com; check on a phone browser too)
+Jira:      EB-295
 Brief:     Host > open an event > Design tab is redesigned: Event Type and Template cards on the left, the template's
            name and description with a Preview Guest Theme button on the right, and below a sketch of the guest home
            on a phone and in a browser, drawn in the template's own colours. The sketch is plain page markup (no
@@ -1538,6 +1600,7 @@ Feedback: Steps 1, 2, 5 PASS on test-face-new: Event Type Wedding, Template "Roy
 Status:    TODO
 Priority:  Medium
 Platform:  App (Android and iOS; needs a staging build with 96bc72b)
+Jira:      EB-296
 Brief:     Logging out used to keep the Google account, so "Continue with Google" signed straight back in to
            the same account with no picker (issue #62). Logout now also signs out of Google.
 How to test:
@@ -1559,6 +1622,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website (phone browsers first: Safari on iPhone, Chrome on Android; then a desktop browser)
+Jira:      EB-297
 Brief:     The website login page now looks like the app's login screen: white card on the dark-to-bronze
            gradient, cream input boxes, dark Sign In button with gold text, white Google button. Only the
            look changed; the login and sign-up steps are the same as before.
@@ -1585,6 +1649,7 @@ Feedback: Computer PASS: new login page logs in with email and lands on /dashboa
 Status:    TODO
 Priority:  Medium
 Platform:  Website (a desktop browser first, then Safari on iPhone and Chrome on Android)
+Jira:      EB-298
 Brief:     The host gallery page (Host > an event > Galleries > open a gallery) has a new look: a top bar
            with "< Galleries", the gallery name ("(Sub-Gallery)" or "(Primary Gallery)") and Download /
            Delete buttons (same rounded shape as Create Event); a gold-bordered Welcome Message box; a small
@@ -1623,6 +1688,7 @@ Feedback: Partly PASS (computer): top bar "claude-test - Sub-Gallery" with Downl
 Status:    TODO
 Priority:  Medium
 Platform:  App (Android first, then iOS)
+Jira:      EB-299
 Brief:     The app now has expo-updates (runtimeVersion policy appVersion, EAS channels staging/production).
            A new native build is needed; after that, JavaScript-only changes can reach the app with eas update
            instead of a new build. Nothing else changed.
@@ -1644,6 +1710,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website (desktop and phone browser)
+Jira:      EB-300
 Brief:     Host > open an event > Galleries tab has a new look: icon with "Galleries" / "Your celebration in
            chapters", a wide Primary Gallery card, sub-gallery cards with the photo on top and a delete button,
            and a dashed "Create Sub-Gallery" tile at the end. Design only; behaviour unchanged.
@@ -1669,6 +1736,7 @@ Feedback: Computer steps 1-6 PASS on test-face-new: heading with (i) and Add Sub
 Status:    TODO
 Priority:  Medium
 Platform:  Both (website desktop + phone browser, Android and iOS app)
+Jira:      EB-301
 Brief:     Choose Style now shows only themes with their own website design. Wedding: Royal Emerald,
            Classic White, Midnight Hero. Birthday: Playful Scrapbook, Neon Party, Pop Art. Anniversary:
            the Wedding three. Corporate: Museum Gallery, Brutalist Grid. College: Cyber Tech.
@@ -1700,6 +1768,7 @@ Feedback: Website host picker (Choose Style) lists only 6 templates: Royal Emera
 Status:    TODO
 Priority:  Medium
 Platform:  Website (Android phone in Chrome; also iPhone Safari and a computer for the "not shown" checks)
+Jira:      EB-302
 Brief:     Event pages show a small dark bar at the bottom on Android phones: "EveBash app / Continue in the app",
            an Open button and an X. Open tries the EveBash app; if the app isn't installed nothing happens.
            Only shows when NEXT_PUBLIC_OPEN_IN_APP_BANNER=true was set for that deploy (issue #67).
@@ -1729,6 +1798,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (Android) + website on the same Android phone
+Jira:      EB-303
 Brief:     The app now opens links to an event: evebash://events/<id> (what the website's Open button uses) and
            website links /events/<id> and /events/<id>/find-you. The event code can be an event id or a join code.
            Opening the app normally must be unchanged. Website links (https) only open the app by themselves after
@@ -1763,6 +1833,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website (computer + phone browser)
+Jira:      EB-304
 Brief:     Design-only change to /dashboard. New header (icon, "Collections | <name>", "Memories curated for you",
            with a "Join Event" button on the right like the host page's Create Event), three stat boxes (Total
            Photos = photos across all your events and their sub-galleries; Total Videos = videos across the same;
@@ -1793,6 +1864,7 @@ Feedback: Computer: layout as described, 3 event cards + Your memories. At ~1024
 Status:    TODO
 Priority:  Medium
 Platform:  Website (computer + phone browser)
+Jira:      EB-305
 Brief:     Issue #69. On /dashboard the "Your memories" card (last card in the events grid) used to only show more
            cards in place, so with 3 or fewer events it seemed to do nothing. It now opens /dashboard/events, a page
            with every event you host or joined (like the app's Gallery screen): All Events / Attended Memories /
@@ -1827,6 +1899,7 @@ Feedback: Computer PASS: Explore All opens /dashboard/events (5 Collections); Ho
 Status:    TODO
 Priority:  Low
 Platform:  Website (computer + phone browser)
+Jira:      EB-306
 Brief:     Host page event cards (Host Console grid and the Hosted / Shared tabs) now look like the dashboard
            cards: photo on top, title, short date ("6 Aug 26") with a calendar icon, guest count with a person icon
            (loads after the cards). Shared cards show "Owner: <username>" underneath. The dashboard cards also get
@@ -1852,6 +1925,7 @@ Feedback: Partly: /host cards show photo, title, short date ("9 Oct 26") and gue
 Status:    TODO
 Priority:  Medium
 Platform:  Website (computer + phone browser)
+Jira:      EB-307
 Brief:     The website now has Settings (/settings), like the app: sign-in method, Change Password, Delete
            Account, feedback and support, terms and privacy. Open it from the new Settings button next to
            Edit Profile. Delete Account moved there from the profile page. The profile no longer shows or
@@ -1881,6 +1955,7 @@ Feedback: Computer steps 1, 3, 5 PASS: Edit Profile + Settings side by side, no 
 Status:    TODO
 Priority:  Medium
 Platform:  App (Android + iOS)
+Jira:      EB-308
 Brief:     Profile no longer shows or edits Relationship Status and Anniversary / Milestone Date, and Settings
            no longer has the Private Account switch. Saving the profile no longer sends those two fields,
            so values saved before stay in the database untouched.
@@ -1903,6 +1978,7 @@ Feedback: iOS simulator: Profile has no Relationship Status, Anniversary or Priv
 Status:    TODO
 Priority:  Medium
 Platform:  Both (website + app)
+Jira:      EB-309
 Brief:     Events with no uploaded cover now show a default photo picked by category: Wedding (mandap at
            sunset), Birthday (balloon arch and cake), Sports (multisport collage). Other categories still
            show the old stock photo. Covers a host uploaded are unchanged. Nothing new is saved to the database.
@@ -1929,6 +2005,7 @@ Feedback:
 Status:    TODO
 Priority:  Low
 Platform:  Website (desktop + phone browser)
+Jira:      EB-310
 Brief:     The redesigned /profile page had a navy background and bright yellow accents. It now uses the
            site's dark background and gold (#CA9C68). The three Activity & Engagement cards (Photos Added,
            Events Hosted, Events Joined) are now short single-row cards.
@@ -1959,6 +2036,7 @@ Feedback: Computer: dark page background rgb(19,25,31); EB Vault button next to 
 Status:    TODO
 Priority:  Medium
 Platform:  Both (website: staging.evebash.com/host; app: JS-only change, any staging build)
+Jira:      EB-311
 Brief:     Hosts and admins can show only what one person uploaded (Owner, Admin, Guest, Former guest...).
 How to test:
   1. As the owner, make account B an admin and account C a guest with Upload on. B and C each upload a
@@ -1985,6 +2063,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website (staging.evebash.com/host)
+Jira:      EB-312
 Brief:     An admin who doesn't own the event got the primary gallery whichever sub-gallery they opened.
 How to test:
   1. Log in as an admin of someone else's event (e.g. shwetank.chauhan3 on "Wedding").
@@ -2007,6 +2086,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website (staging.evebash.com), computer
+Jira:      EB-313
 Brief:     Videos used to be saved as tiny .m3u8 playlist files; now the original .mp4 is downloaded.
            The host console's Download All used to include only the 20-odd items loaded on screen.
 How to test:
@@ -2032,6 +2112,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Both (website: staging.evebash.com; app: JS-only change, any staging build)
+Jira:      EB-314
 Brief:     The buttons used to be hidden for logged-out visitors; now they show and open a log-in prompt.
 How to test:
   1. Website, logged out (private window): open a public gallery's collection. On each photo (hover on a
@@ -2058,6 +2139,7 @@ Feedback: Website PASS: logged out on a public event, Like / Comments / Download
 Status:    TODO
 Priority:  Low
 Platform:  Both (website host page and gallery page; app host view)
+Jira:      EB-315
 Brief:     The main gallery is labelled "Home (Primary Gallery)"; an info icon explains it vs sub-galleries.
 How to test:
   1. Website: Host -> an event -> Galleries. The big card says "Home (Primary Gallery)". Open it: the
@@ -2082,6 +2164,7 @@ Feedback: Website steps 1-2 PASS: the big card says "Home (Primary Gallery)"; th
 Status:    TODO
 Priority:  Medium
 Platform:  Both (website: staging.evebash.com now; app: needs a staging build with d342b02)
+Jira:      EB-316
 Brief:     Shared gallery cards now show "Owner: <name>" from the public name card instead of the owner's
            username or email, so they keep working after RLS lockdown part 2 (issue #75).
 How to test (an account that is a guest admin of someone else's gallery, e.g. chauhansarthak497):
@@ -2103,6 +2186,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website (staging.evebash.com), computer
+Jira:      EB-317
 Brief:     Download All on Home (Primary Gallery) now asks what to download. The host page's Download follows
            the Photos / Videos tab, Source gallery, Favourites only and Uploaded by filters.
 How to test:
@@ -2131,6 +2215,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Both (website: staging.evebash.com/login; app: JS-only change, any staging build)
+Jira:      EB-318
 Brief:     The Email | Phone switch is commented out on the login and sign-up screens; only email shows.
 How to test:
   1. Website /login and /login?mode=signup: no Email | Phone switch, no phone field; email + password only.
@@ -2151,6 +2236,7 @@ Feedback: Website PASS: /login and /login?mode=signup show email + password only
 Status:    TODO
 Priority:  High
 Platform:  Both (website: staging.evebash.com; app: JS-only change, any staging build)
+Jira:      EB-319
 Brief:     A hidden sub-gallery shows only in the Host section (with a badge), for everyone including the host.
 How to test:
   1. Website: Host -> an event -> Galleries -> the eye button on a sub-gallery. It greys out with "Hidden from
@@ -2177,6 +2263,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Both (website: staging.evebash.com; app: JS-only change, any staging build)
+Jira:      EB-320
 Brief:     Hidden photos/videos show only in the Host section (darkened, "Hidden" badge), never on the guest side.
 How to test:
   1. Website: Host -> a gallery -> the eye button on a photo card: it darkens with "Hidden". Select mode ->
@@ -2201,6 +2288,7 @@ Feedback: Website PASS: host selected 1 photo in a test sub-gallery -> Hide from
 Status:    TODO
 Priority:  Medium
 Platform:  Both (website and app; logged-out public view too)
+Jira:      EB-321
 Brief:     Photos uploaded directly to Home used to disappear from Home once any favourite was picked.
 How to test:
   1. Event with favourites and photos uploaded to Home (e.g. "Wedding": 7 favourites + 14 Home uploads).
@@ -2224,6 +2312,7 @@ Feedback: Partly: starring a photo in a sub-gallery raised Home from 42 to 43 ph
 Status:    TODO
 Priority:  High
 Platform:  Both (website: Dashboard and Host; app: Dashboard, Your events, Gallery tab)
+Jira:      EB-322
 Brief:     Samarth (admin of "Samarth & Jyoti Wedding") created the sub-gallery "Baraat"; it showed as a main
            event in his own lists. It now only appears inside the wedding.
 How to test:
@@ -2245,6 +2334,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website (desktop browser)
+Jira:      EB-323
 Brief:     Each queued or uploading file has a cancel (X) button. The panel's chevron is gone: clicking the
            header bar (status text / Clear / close row) minimizes and expands the panel.
 How to test:
@@ -2272,6 +2362,7 @@ Feedback: Partly: the upload panel shows an X on each file and Cancel all. Cance
 Status:    TODO
 Priority:  High
 Platform:  Website (desktop browser)
+Jira:      EB-324
 Brief:     The upload panel now follows you around the website (issue #78). Leaving the host page while
            files upload used to hide the panel and the "don't leave" warning.
 How to test:
@@ -2298,6 +2389,7 @@ Feedback: Computer: while 3 photos were processing I clicked Dashboard; the pane
 Status:    PASS
 Priority:  Medium
 Platform:  Website (desktop browser and phone browser)
+Jira:      EB-145
 Brief:     Above the photos, the Source gallery (or Favourites only) and Uploaded by filters and the Select
            button are now inside a "Filter" button, on the same line as the grid/list toggle (opposite side).
 How to test:
@@ -2329,6 +2421,7 @@ Feedback: Steps 1, 7 PASS: only a Filter button left of the grid/list toggle; pa
 Status:    PASS
 Priority:  High
 Platform:  Website (desktop browser)
+Jira:      EB-146
 Brief:     The selection bar (Filter > Select) now has a red Delete button. It asks first, then deletes every
            selected item.
 How to test:
@@ -2443,6 +2536,7 @@ Feedback:         Website: selfie search compared all 1,459 faces in the gallery
 Status:    RETEST
 Priority:  Medium
 Platform:  Website
+Jira:      EB-168
 Brief:     The Royal Emerald (Wedding) guest page has a new top section: an ivory torn-edge card with the gallery
            title in gold script and a wax seal, a gold filigree frame around the cover photo, and gold corners.
            Check it looks right on a real phone and a laptop (issues #81-#85, #91-#93, #95, #96).
@@ -2485,6 +2579,7 @@ Feedback: 2026-11-12 Claude: step 7 FAILS at phone width, the rest pass. Phone l
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-325
 Brief:     The top of the photo section in Royal Emerald galleries is redesigned: a gold crest, the gallery title
            between gold lines, the gallery description on an emerald plaque with gold corners, Back and Share
            beside it, and a gold Photos / Videos switch. Other themes are unchanged.
@@ -2513,6 +2608,7 @@ Feedback: 2026-11-12 Claude (partly done, so still TODO). Test gallery: mehandi 
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-326
 Brief:     Hosts can choose one of a gallery's own videos (e.g. the photographer's summary film) as its "gallery video".
            In Royal Emerald it plays in a gold frame at the top of that gallery's photo section. Needs the database
            change supabase/migrations/20261022000000_gallery_video.sql applied first.
@@ -2549,6 +2645,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website
+Jira:      EB-327
 Brief:     Find You now shows a consent step (18+ and face data) before the selfie buttons.
 Detail:    Migration 20261011000000_find_you_consent.sql applied 2026-10-22, so consent is saved.
 How to test (account that has never used Find You):
@@ -2574,6 +2671,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  App (new build from staging with the Find You consent commit)
+Jira:      EB-328
 Brief:     Same consent step inside the gallery's Find You tab, and a withdraw row in Settings.
 How to test (account that has never used Find You, or withdraw first):
   1. Open a gallery > Find You. Expect: consent card instead of "Upload Photo" / "Take Selfie".
@@ -2598,6 +2696,7 @@ Feedback:
 Status:    BLOCKED
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-147
 Brief:     With FIND_YOU_REQUIRE_CONSENT=true on Railway the backend refuses a search from anyone
            who hasn't agreed. Blocked until the app build from #105 is what testers and users have;
            older app builds have no consent step and would be refused.
@@ -2619,6 +2718,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-329
 Brief:     Issue #80. Photo pipeline v2 now reads the full-size JPEG built into RAW files. Test
            after the Modal deploy that carries the #80 fix.
 How to test:
@@ -2642,6 +2742,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (new build from staging with 7e65b4b)
+Jira:      EB-330
 Brief:     Sending an enquiry used to read your location silently and vendors always saw "Mumbai 100%".
 How to test:
   1. With location allowed for EveBash, open a business page and send an enquiry.
@@ -2663,6 +2764,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (Android and iOS)
+Jira:      EB-331
 Brief:     The app now shows a gallery's cinematic highlight video like the website (#103), under the welcome
            message, and hosts can set it from the app. Same database change as #103 (already applied).
 How to test:
@@ -2693,6 +2795,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (Android and iOS)
+Jira:      EB-332
 Brief:     The app's Royal Emerald gallery now matches the website (issue #97), arranged for a phone. Compare
            it with the same gallery on the website.
 How to test:
@@ -2738,6 +2841,7 @@ Feedback: iOS simulator: steps 2 (title that isn't two names: no "The Wedding of
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App (Android and iOS)
+Jira:      EB-333
 Brief:     Posting, reading and deleting comments works the same on the website and the app, and only people
            the host allows can post.
 How to test:
@@ -2773,6 +2877,7 @@ Feedback: Host part (step 6) partly: as host, posted a comment from the photo vi
 Status:    PASS
 Priority:  Medium
 Platform:  Website + App (Android and iOS)
+Jira:      EB-148
 Brief:     Replies sit under the comment they answer, on both the website and the app, and show the same on both.
 How to test:
   Same setup as #110 (host, guest A with comments ON). Start with one comment from the host on a photo.
@@ -2805,6 +2910,7 @@ Feedback: The website gallery photo viewer has no Reply button at all (src/compo
 Status:    TODO
 Priority:  Medium
 Platform:  Website (phone and desktop browsers)
+Jira:      EB-334
 Brief:     Royal Emerald controls that stayed in light-theme colours are now emerald and gold, the phone hero
            matches the app and fits one screen, and the developer message is gone for guests (every theme).
 How to test:
@@ -2836,6 +2942,7 @@ Feedback: 2026-11-12 Claude (partly done, so still TODO). Step 1 PASS at 390 px 
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-335
 Brief:     New Album tab on the event page (next to Design), behind ALBUM_PROOFING on Railway (off by
            default). Needs migrations 20261022010000_album_proofing.sql and 20261023000000_album_proof_roles.sql.
 How to test:
@@ -2857,6 +2964,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website
+Jira:      EB-336
 Brief:     Pages are processed on the backend (preview about 3000 px wide, thumbnail); the original file is
            not stored and no faces are indexed.
 How to test:
@@ -2882,6 +2990,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-337
 Brief:     The album's client (picked when the album is made, see #120) reviews. Comments are drafts
            until "Send feedback"; the photographer gets one push for the whole batch.
 How to test:
@@ -2906,6 +3015,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-338
 Brief:     App voice notes need a NEW app build (expo-audio native module); an older build shows "Update
            EveBash to record voice notes" and opens voice notes in the browser. Max 2 minutes.
 How to test:
@@ -2929,6 +3039,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App
+Jira:      EB-339
 Brief:     Page designs can come from Photos or from Files (Drive, iCloud).
 How to test:
   1. In the app, Album tab > an album > Upload pages > Files: pick 3 JPEG pages.
@@ -2950,6 +3061,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-340
 Brief:     Round 2 shows only changed pages as "Updated"; approving every page lets the client approve the
            album, which locks it until reopened.
 How to test:
@@ -2974,6 +3086,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-341
 Brief:     Each album has one photographer and one or more clients, picked from the event host
            and guests with Admin Access. Everyone else (host or admins without a role) can only view.
            Roles change from the album's ... menu. Albums made before roles existed ask for them first.
@@ -3002,6 +3115,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-342
 Brief:     An album's photographer or client must stay an event admin. Turning off their Admin Access,
            rejecting them or removing them from the guest list shows "Change the album roles first" and
            nothing changes. Needs migration 20261023010000_album_role_guard.sql.
@@ -3028,6 +3142,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website (Android phone, iPhone, iPad, Android tablet, and a computer for the "not shown" check)
+Jira:      EB-343
 Brief:     On phones and tablets every website page shows a small dark bar at the bottom: "EveBash app" with
            "Coming soon to Google Play" (Android) or "Coming soon to the App Store" (iPhone/iPad) and an X.
            Once the store links are set it says "Get it on ..." with a Get button. Android event pages also keep
@@ -3061,6 +3176,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website (Android phone, iPhone, iPad, Android tablet, and a computer)
+Jira:      EB-344
 Brief:     On phones and tablets every page is replaced by a full-screen "Get the EveBash app" screen with
            Google Play / App Store buttons ("coming soon" until the store links are set) and Log in /
            Activate a plan links. These pages still open normally: login, forgot/reset password, profile
@@ -3098,6 +3214,7 @@ Feedback: Emulated Android phone, signed in: /dashboard and /events/wedding-2-77
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-345
 Brief:     Deleting a video used to say "Photo removed". Now the message names what was deleted,
            the tile shows "Deleting..." while it goes, and a panel/card shows the progress like
            the upload panel. The app also no longer says "removed" when the delete failed.
@@ -3133,6 +3250,7 @@ Feedback: Partly: confirm reads "Delete 2 photos? They'll be removed from this e
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-346
 Brief:     Every unfinished upload has a cancel (X) button, also while a video is "Processing video...",
            and the header has "Cancel all". Cancelling something already uploaded deletes it
            completely (original, previews, streaming copy), after a confirm.
@@ -3162,6 +3280,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-347
 Brief:     Tapping "Event Storage" on the profile's Storage card opens a list of how much
            Photos, Videos and Voice notes (and Album designs, once you have any) take; tapping
            again closes it.
@@ -3255,6 +3374,7 @@ Feedback:  Passed (reported by Sarthak in chat). Note: written before later chan
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-348
 Brief:     Videos longer than 10 minutes can now be converted on a GPU (issue #117). They must
            look and play exactly like before.
 Detail:    Only after the Modal deploy with transcode_video_long_gpu AND the switch turned on for
@@ -3454,6 +3574,7 @@ Feedback:  PASS on the iOS simulator: steps 1 (cover), 2, 3, 4, 6 (Royal Emerald
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-349
 Brief:     Videos recorded as HDR on an iPhone (the iPhone default) or in 10-bit on a camera used
            to be converted into a format most phones can't play (issue #118). Now they come out in
            the normal format, with colours that look right.
@@ -3532,6 +3653,7 @@ Feedback:   Grid photos look sharp, nothing broken, narrow window and older gall
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-350
 Brief:     A video recorded upright on a phone with no sound used to fail ("failed" status, never
            plays) (issue #119). Now it should process like any other video.
 Detail:    Only after the Modal deploy with the #119 fix AND the switch turned on
@@ -3597,6 +3719,7 @@ Feedback:  PASS all steps (1-4, 6 by Claude; 5 by Sarthak). Classic: all 92 phot
 Status:    TODO
 Priority:  Medium
 Platform:  App
+Jira:      EB-351
 Brief:     In the app's video viewer you can now drag or tap the progress bar to jump anywhere,
            and use the -10 s / +10 s buttons beside play (issue #135). Before, you could only
            watch from the start.
@@ -3626,6 +3749,7 @@ Feedback:
 Status:    TODO (website PASS 2026-10-25; iPhone and Android still to check)
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-352
 Brief:     The GPU worker now converts every long video itself (issue #141), including portrait
            phone videos and iPhone HDR. Check they play the right way up with normal colours.
 Detail:    Only after the Modal deploy with #141 AND the switch on for the test gallery
@@ -3690,6 +3814,7 @@ Feedback:  PASS all steps. Step 1 PASS: 20 photos and 2 videos uploaded through 
 Status:    TODO
 Priority:  Low
 Platform:  Website + App
+Jira:      EB-353
 Brief:     The still picture shown on a video tile before it plays (the poster) was pale for iPhone HDR
            videos and a full 4K image (issue #145). With the fix it uses the same colours as the video.
 Detail:    Only after the Modal deploy with #145 AND the switch on
@@ -3714,6 +3839,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (iPhone + Android)
+Jira:      EB-354
 Brief:     As the host, a portrait phone video opened in the app's viewer was a narrow strip inside a
            wide frame (issue #146). Now the frame takes the video's shape and fills the screen height.
 Detail:    Needs an app build with the #146 fix (apps/mobile/components/PhotoViewer.tsx).
@@ -3736,6 +3862,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (iPhone + Android)
+Jira:      EB-355
 Brief:     The app gave up on a photo if the network dropped for a few seconds mid-upload (issue #144).
            Now it waits for the network and carries on; no photo should end as failed.
 Detail:    Needs an app build with the #144 fix (apps/mobile/lib/uploadQueue.ts, lib/storage.ts).
@@ -3874,6 +4001,7 @@ Feedback:  2026-11-16 app steps 4 and 5 PASS (Sarthak, with Claude checking the 
 Status:    TODO
 Priority:  Medium
 Platform:  Website (phone browser)
+Jira:      EB-356
 Brief:     On phones the signed-in menu (top-right button) was cut off, so Logout could not be seen or
            tapped. The menu now fits the screen and scrolls when the phone is short.
 Detail:    Commit fb130e5: src/components/Navbar.tsx. Checked in the built-in browser at 375x812 and
@@ -3902,6 +4030,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website (computer on staging; phone on www.evebash.com)
+Jira:      EB-357
 Brief:     The gallery Find You page used to download 12 MB of face models it never used before the
            Upload / Take Selfie buttons turned on (about 10 s on 4G). It no longer downloads them, so
            the buttons work at once. Searching itself is unchanged (the server does the matching).
@@ -3941,6 +4070,7 @@ Feedback:         2026-10-26 steps 1-3 PASS. 1: both buttons enabled as soon as 
 Status:    TODO
 Priority:  Medium
 Platform:  Website (computer; phones and tablets still get the "Get the app" screen, #109)
+Jira:      EB-358
 Brief:     Midnight Hero, the default gallery theme, was redesigned: the cover photo fills the screen,
            a square invitation card near the bottom shows the names, the date, a gold Enter Gallery
            button and a Share button, the page is midnight navy, and the top bar shows the title in a
@@ -3996,6 +4126,7 @@ Feedback:         2026-10-26 Claude, built-in browser at 1440x900 on staging (9a
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-359
 Brief:     A new wedding theme, "Sunlit Portrait": the cover photo fills the first screen with
            "We're getting married ♥ date" and the couple's names in a big serif along the bottom,
            and a round white arrow button. The top bar has the same links as Classic White, in white
@@ -4068,6 +4199,7 @@ Feedback:         2026-10-26 Claude, built-in browser before commit (local dev s
 Status:    TODO
 Priority:  Low
 Platform:  Website (computer)
+Jira:      EB-360
 Brief:     A gallery that has videos but no photos used to open on the empty Photos tab ("No photos
            yet."). It now opens on Videos. Galleries with photos still open on Photos. Works in every theme.
 Detail:    Commit 5d7fe4f: src/app/(public)/events/[slug]/page.tsx. The choice is made once when a gallery
@@ -4166,6 +4298,7 @@ Feedback:         2026-10-26 Claude, built-in browser before commit (local dev s
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-361
 Brief:     A new wedding theme, "Periwinkle Script": a cream top bar with the couple's names in script
            in the middle and the same links as Classic White either side; below it the cover photo in a
            frame with rounded top corners and "<names>'s Wedding Day!" in a big cream script across it.
@@ -4208,6 +4341,7 @@ Feedback:         2026-10-26 Claude, built-in browser before commit (local dev s
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-362
 Brief:     Signed-in users saw the "Before you continue" terms/privacy popup flash on every page load
            and when moving between parts of the site. It should now only appear for accounts that have
            not accepted the current policies.
@@ -4233,6 +4367,7 @@ Feedback: Step 1 PASS: after a fresh email login, /host -> /dashboard -> /host w
 Status:    TODO
 Priority:  High
 Platform:  Website + App (computer browser, phone browser, iPhone and Android app)
+Jira:      EB-363
 Brief:     A full check of every Download button, in the main gallery (Home) and in a sub-gallery, for
            photos and videos, as a guest and as the host. Files must save at full quality: photos as the
            original, videos as a playable .mp4 (never a small .m3u8 file).
@@ -4280,6 +4415,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App (computer browser, iPhone and Android app)
+Jira:      EB-364
 Brief:     Renaming a gallery and saving the gallery message used to say "updated" even when nothing was
            saved (for example with no internet). Now a failed save shows an error and the old name or
            message stays, and a save that works still says "updated" as before.
@@ -4316,6 +4452,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-365
 Brief:     The homepage used to show the full-screen "Loading your gallery" screen first and the headline
            only after the page's code ran (issue #29). Now the headline is in the first page load. This
            checks the homepage on a slow phone, that the other pages still look and load as before, and
@@ -4346,6 +4483,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App
+Jira:      EB-366
 Brief:     The wedding theme Sunlit Portrait (#149 on the website) now has an app version: the cover
            photo fills the screen with "We're getting married" / "Happily married since <date>" and
            the couple's names in a serif; the gallery tabs, gallery opening (with or without a
@@ -4398,6 +4536,7 @@ Feedback:         2026-10-27 Claude, iOS simulator (iPhone 17 Pro, dev app on a 
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-367
 Brief:     Step 1 of the new video pipeline changes how the streaming copies are made (keyframes every
            6 s instead of every 48 frames, segments uploaded while the video is still converting). It is
            behind two keys of the Modal video switch, off by default. Before it is turned on for every
@@ -4457,6 +4596,7 @@ Feedback:  2026-10-27 partial run by Claude (developer check, not a tester PASS)
 Status:    TODO
 Priority:  Low
 Platform:  Website + App
+Jira:      EB-368
 Brief:     Some saves used to look saved when nothing was saved (theme, cover picture, cover Fit/Fill
            and position, event type, share code). Now a failed save shows an error and the old value
            stays on screen. Successful saves should work exactly as before.
@@ -4511,6 +4651,7 @@ Feedback:  Both phones pass. Claude checked staging contact_messages: "[App Bug]
 Status:    TODO
 Priority:  Medium
 Platform:  App
+Jira:      EB-369
 Brief:     The Permissions tab and Gallery > Requests only loaded when the screen opened, so a new access
            request needed a pull to refresh. Now they reload when a "New access request" push arrives
            while the app is open, and when the app comes back from the background.
@@ -4541,6 +4682,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-370
 Brief:     With VIDEO_RUNPOD=test for a test gallery, its videos are converted on RunPod (GPU for videos over
            10 min, 32-core CPU for shorter ones) instead of Modal. They must look and play the same as
            Modal's, and a video must still finish on Modal when RunPod has no worker.
@@ -4596,6 +4738,7 @@ Feedback:  2026-10-28 developer run by Claude (not a tester PASS), host newone@e
 Status:    TODO
 Priority:  High (launch blocker, test first)
 Platform:  App (iPhone and Android)
+Jira:      EB-371
 Brief:     Seven fixes from the app screen review (issues #192 to #198). Guest event themes are not part of
            this and should look exactly as before.
 Detail:    App code only, no new native build needed. Commit d331316 on staging.
@@ -4683,6 +4826,7 @@ Feedback:  Steps 1, 3, 4 and 5 PASS, step 2 as reworded above. 1: "Something wen
 Status:    TODO
 Priority:  Medium
 Platform:  App (iPhone and Android)
+Jira:      EB-372
 Brief:     Six small design fixes from the app screen review (issues #199 to #204). Guest event themes are not part
            of this and should look exactly as before.
 Detail:    App code only, no new native build needed. Commit b14706e on staging.
@@ -4722,6 +4866,7 @@ Feedback:
 Status:    TODO
 Priority:  High (launch blocker, test first)
 Platform:  Website + App
+Jira:      EB-373
 Brief:     Signing out used to end the account's sessions everywhere: every phone and the website (issue #207). Now it
            only signs out the device you tap it on.
 Detail:    App code (no new native build needed) and website. Commit d2770d9 on staging.
@@ -4746,6 +4891,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-374
 Brief:     Find You used to download and share a small preview of each matched photo (issue #218). With the backend
            switch on, Download and Share give the full original photo. What you see on screen stays the same.
 Detail:    Commit 2f6818d on staging. Needs FIND_YOU_ORIGINAL_URL=true on the staging backend (Railway).
@@ -4771,6 +4917,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-375
 Brief:     The homepage was redesigned (todo #20): black and gold look, real event photos, a hero gallery that
            demos itself, a 3-guest Find You loop, a 4-scene album proofing demo, event-type tabs, a closing
            chat-vs-gallery demo and a new footer. The navbar button now says "Create event" on every page.
@@ -4803,6 +4950,7 @@ Feedback:
 Status:    TODO
 Priority:  High (launch blocker, test first)
 Platform:  App (iPhone and Android)
+Jira:      EB-376
 Brief:     Hosts now see upload progress on the gallery screen, with Cancel, a "Waiting for connection" message
            offline, a short "uploaded" message instead of a pop-up, and plain reasons when a file fails (issues #208
            to #211, part of #214). Guest pages are unchanged.
@@ -4835,6 +4983,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (iPhone and Android)
+Jira:      EB-377
 Brief:     With no connection, the host's gallery screen used to show "Photos (0)", "0 GB" and "No photos yet" for a
            gallery full of photos (issue #219). Now a gallery already on screen keeps its photos, counts and storage
            with a short "Couldn't refresh" message, and a gallery that hasn't loaded yet says "Couldn't load this
@@ -4869,6 +5018,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (iPhone and Android)
+Jira:      EB-378
 Brief:     The app used to open on a still gold EB logo. Now, on a fresh start, an instant camera appears, focuses,
            clicks with a soft gold flash, pauses, and pushes out a photo that develops to show EB. The photo frame
            melts away, EB grows, "EveBash" fades in below it with a gold shine, and then the app appears (todo #22).
@@ -4906,6 +5056,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (iPhone and Android)
+Jira:      EB-379
 Brief:     Host event screens are now charcoal like the rest of the app instead of black, with no blue-grey, navy or
            yellow gold (issues #230, #231). Access requests have labelled Deny and Approve buttons under the guest's
            name (#232). Guest rows say what each guest can do in words, without the "#01" number, and the Event
@@ -4946,6 +5097,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-380
 Brief:     The Host page now uses the homepage's "Noir" look: near-black background, one gold (#DCB579),
            gold-foil and frosted pill buttons like the homepage, and "Host Console" in the homepage heading font
            and gold. The page background, navbar, footer and pop-ups on every website page are now Noir too.
@@ -4986,6 +5138,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-381
 Brief:     The Dashboard and its "Your memories" page now match the Noir homepage and the Host page: near-black
            panels instead of blue-grey, one gold, a gold-foil "Join Event" pill, frosted "Explore all" and "Create
            now" pills, and "Collections | <your name>" in the gold heading font. "Events Joined" now shows "1 Event"
@@ -5021,6 +5174,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (iPhone + Android)
+Jira:      EB-382
 Brief:     In the app's photo viewer a like or comment didn't show until you closed and reopened the photo,
            comment times read "Invalid Date", and Play did nothing once a video had ended (issues #235, #236,
            #238). Now the heart and comments change at once, times show properly (the date too for older
@@ -5052,6 +5206,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-383
 Brief:     Profile and Settings now match the Noir homepage, Host and Dashboard: near-black cards instead of
            blue-grey, one gold, gold-foil main buttons and frosted second buttons, all with pill corners, and
            "Settings" in the gold heading font. Profile's first card now starts at the same height as Host and
@@ -5145,6 +5300,7 @@ Feedback:  PASS. iPhone: (1) fast scroll to #300 and back in the host view: pict
 Status:    TODO
 Priority:  Medium
 Platform:  App (iPhone + Android)
+Jira:      EB-384
 Brief:     On the host's Gallery Media (open your event, Galleries tab, open a gallery), photos and videos now
            show 2 per row instead of 3, as bigger square tiles. The buttons on each tile are bigger and moved:
            favourite (star) and actions (...) top-right, move earlier / later (< >) bottom-left, delete (photos
@@ -5185,6 +5341,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App (Android phone)
+Jira:      EB-385
 Brief:     On Android the keyboard covered the photo comment box (#242). These other places use the same
            pattern, or have no keyboard handling at all, so they may have the same problem. This test finds
            out which ones really break, so only those get fixed (#243).
@@ -5216,6 +5373,7 @@ Feedback:
 Status:    PASS
 Priority:  Medium
 Platform:  App (Android phone + iPhone)
+Jira:      EB-228
 Brief:     In guest galleries the Like / Comment / Share / Download row showed through the comment panel and
            the empty message was cut off (#237). On Android the keyboard covered the comment box, so you
            couldn't see what you typed or the Send button (#242). Now the row is hidden while comments are
@@ -5252,6 +5410,7 @@ Feedback:  2026-11-20 Shwetank, iQOO Android (staging app, newone1@email.com): s
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-386
 Brief:     Pricing, Contact us and EB Network now match the Noir homepage and the other site pages. Pricing: the
            Premium button is a gold-foil pill and every other plan button a frosted pill, in normal case ("Choose
            Premium", not "CHOOSE PREMIUM"); "Best Value" on Ultimate is a quiet gold instead of orange; the heading is
@@ -5287,6 +5446,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  Website + App
+Jira:      EB-387
 Detail:    Todo #24. Needs migration 20261104000000_event_ownership_transfer.sql. Use two accounts: A owns an
            event with some photos, B is on a plan. Backend rules and the database step have automated tests;
            the website screens were only looked at with made-up data, and the app screens have not been run.
@@ -5319,6 +5479,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  App (iPhone and Android)
+Jira:      EB-388
 Brief:     The app now saves its list of waiting uploads in a file instead of one big setting, so very large batches
            (thousands of photos) are no longer lost after a restart. At start-up it also deletes old upload copies
            that nothing is waiting for. Uploading should look and work exactly as before; this checks nothing broke.
@@ -5353,6 +5514,7 @@ Feedback:
 Status:    TODO
 Priority:  High (launch blocker, test first)
 Platform:  Website (staging.evebash.com), computer and phone browser
+Jira:      EB-389
 Brief:     Likes and comments now show the moment you make them, without reloading. The gallery photo viewer now has
            replies under comments, asks before deleting a comment, and shows comment times the same way as the app.
 Detail:    Commit 35e8f8f on staging (website only). Use a test gallery and a host account that can comment.
@@ -5423,6 +5585,7 @@ Feedback:  iPhone: all steps pass. Android: tap mid-bar 0:00->0:14, drag right 0
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-390
 Detail:    Todo #25. Needs migration 20261105000000_event_storage_by_event.sql. Use an account that owns a few
            events, at least one with a sub-gallery.
 How to test:
@@ -5447,6 +5610,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-391
 Detail:    Issue #246. Use an event with a member who has an account, plus one account that isn't an admin.
 How to test:
   1. As the owner: Host > event > Permissions > tap the member. Expect: their Username and Email ID, the same
@@ -5468,6 +5632,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-392
 Detail:    Use an event with members who have an account, ideally two with the same name.
 How to test:
   1. As the owner, website: Host > event > Permissions. Expect: under each member's name, their @username.
@@ -5489,6 +5654,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-393
 Detail:    Issue #248. Needs a paid account whose plan end date has passed (shwetank.chauhan3@gmail.com was one on
            2026-11-05), and one still in its 7-day grace period if you can set that up.
 How to test:
@@ -5512,6 +5678,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-394
 Brief:     The album cards on the Album tab were redesigned: a bigger cover filled edge to edge, the status and page
            count on the cover, and a line at the bottom saying what to do next. The website was checked in a browser
            with sample albums (desktop and phone width); the app card has not been seen on a phone yet.
@@ -5543,6 +5710,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-395
 Brief:     The website now has a light look (ivory paper, dark text, bronze gold) next to the dark one. It starts
            on the phone's or computer's light/dark setting; the sun/moon button in the navbar and Settings >
            Appearance (Light / Dark / Match device) change it, and the browser remembers the choice. The dark look
@@ -5581,6 +5749,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website
+Jira:      EB-396
 Brief:     The screen inside an album (Host > event > Album > an album) was redesigned so the photographer and the
            client can see where the album stands and what to do next. Checked with sample data in a browser (desktop
            and phone width, dark and light look), not with real albums.
@@ -5616,6 +5785,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App
+Jira:      EB-397
 Brief:     The app's screen inside an album (Event > Album > an album) was redesigned to match the website (test #193):
            where the album stands, what to do next, and pages shown in their real shape. Checked on the iPhone 16e
            simulator with sample data (photographer and client views, quick Approve), not with real albums. Reorder
@@ -5652,6 +5822,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App
+Jira:      EB-398
 Brief:     The app now has a light look (ivory paper, dark text, bronze gold), with the same colours as the website's
            (test #192). It starts on the phone's light/dark setting; Settings > Appearance (Light / Dark / Match device)
            changes it, and the phone remembers the choice. The dark look must be exactly as before. Log in, Sign up,
@@ -5692,6 +5863,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  App + Website
+Jira:      EB-399
 Brief:     Changing an event's theme in the app (Design > Change Template) now saves it on the main gallery and on every album, like the website's host page does. Before, the albums kept their old theme on the website.
 Detail:    Issue #254, commit 9dbddbed. Needs a new EAS staging build. Not checked on a phone yet.
 How to test:
@@ -5712,6 +5884,7 @@ Feedback:
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-400
 Brief:     Every event type now offers the same themes: Royal Emerald, Classic White, Sunlit Portrait, Midnight Hero and Confetti Circle on the website, the first four in the app (Confetti Circle comes with todo #12). The event type's other themes show below, greyed out, as "Coming soon" and can't be picked. An event already on another theme still shows it first as its current theme.
 Detail:    Todo #11, commit 610b2c0a (shared/themes/activeThemes.ts). The app part needs a new EAS staging build.
 How to test:
@@ -5734,6 +5907,7 @@ Feedback: Partly checked by Claude 2026-11-07 (not a real device): step 1 on sta
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-401
 Brief:     The cover's Position (move and zoom) is now saved as the part of the photo to keep in view plus a zoom, so the same part shows on a computer, a phone and in the app. The website's guest themes now follow it; before, they ignored it (issue #64).
 Detail:    Issue #64, commit 610b2c0a (shared/themes/coverFocus.ts). 3 events already had a moved cover; they may now sit slightly differently. The app part needs a new EAS staging build.
 How to test:
@@ -5782,6 +5956,7 @@ Feedback: All 9 steps pass. Preview Guest Theme opens /events/<id>?edit=1; penci
 Status:    TODO
 Priority:  Medium
 Platform:  App
+Jira:      EB-402
 Brief:     The same edit mode in the app: Preview Guest Theme opens the guest view with an edit bar and pencils; sheets change the cover (the phone cover), title, date, message and video; Save or Discard.
 Detail:    Todo #11, commit 610b2c0a. Needs an EAS staging build made with EXPO_PUBLIC_GUEST_EDIT_MODE=true. Themes: Royal Emerald, Classic White, Sunlit Portrait, Midnight Hero (Confetti Circle isn't in the app yet, todo #12).
 How to test:
@@ -5863,6 +6038,7 @@ Feedback:  2026-11-11 partial (Shwetank): steps 1 and 2 pass (newone1, Free with
 Status:    TODO
 Priority:  High
 Platform:  App (step 9: Website)
+Jira:      EB-403
 Brief:     The wedding theme Confetti Circle (#151 on the website) now has an app version: the cover
            photo with a big see-through white circle holding the couple's names in pink-to-orange
            capitals, a dark tag with a red heart and the gallery's message, "We're getting married!"
@@ -5931,6 +6107,7 @@ Feedback:         2026-11-07 Claude, iPhone 17 Pro simulator, dev build on a loc
 Status:    TODO
 Priority:  Medium
 Platform:  App
+Jira:      EB-404
 Brief:     In the app's edit mode, Confetti Circle now has a Couple sheet (as on the website, #201): pencils on the bride and the groom open it on that side; the host fills in the label, name, a few words and Instagram / Facebook / X. Saved for the whole event, so Home and every album show the same couple.
 Detail:    Todo #12 step 2, commit 6d0b2861. Needs an app build made with EXPO_PUBLIC_GUEST_EDIT_MODE=true (like #200). Uses the same saved details as the website, so a change in one shows in the other.
 How to test:
@@ -5959,6 +6136,7 @@ Feedback:         2026-11-07 Claude, iPhone 17 Pro simulator, dev build on a loc
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-405
 Brief:     The Design tab's Guest Home Preview was a colour sketch that looked the same for every theme. It now shows the real guest page, shrunk: on the website a phone-size and a computer-size frame, in the app a computer-size frame (guests who use the app see its own look with Preview Guest Theme). It updates after you change the template or event type, and has a Reload button.
 Detail:    Todo #28, commit a454736d. The app part needs a new EAS staging build, and loads the staging website, so the website part must be on staging first. The app passes its sign-in to the preview so private galleries show; the app must stay signed in afterwards.
 How to test:
@@ -5989,6 +6167,7 @@ Feedback:         2026-11-07 Claude, before staging: step 5 on the iPhone 16e si
 Status:    TODO
 Priority:  Medium
 Platform:  App
+Jira:      EB-406
 Brief:     The app's Design tab card now also has an "App" phone frame with a picture of the app's real guest home (the screen guests see in the app). The picture is taken a few seconds after you open Preview Guest Theme and is kept on this phone. (Since todo #31 a smaller copy is also saved on the event for the website's preview; that part is test #207.)
 Detail:    Todo #29, commit ddc95b35. Uses the new library react-native-view-shot, so it needs a new EAS staging build (an older build simply never takes a picture). Builds on #205.
 How to test:
@@ -6017,6 +6196,7 @@ Feedback:         2026-11-07 Claude, before staging: steps 1 and 2 on the iPhone
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-407
 Brief:     The website's Guest Home Preview showed the website drawn at phone size and called it "Phone", but the theme looks different in the app. Now the website card has two frames: "App" (a picture of the app's guest home, sent by the app when you open Preview Guest Theme there) and "Website" (the page at a computer's size). Sarthak 2026-11-12: no website-at-phone-size frame and no note under the App frame. The app's own card also shows the picture when it was taken on another phone.
 Detail:    Todo #31, commits 8c0d7799 and 2e1b8453. Needs the database change supabase/migrations/20261112120000_guest_preview_picture.sql (applied 2026-11-12), the backend and website on staging, and an app build with react-native-view-shot (a new EAS staging build, as for #206). Builds on #205 and #206.
 How to test:
@@ -6041,6 +6221,7 @@ Feedback:
 Status:    PASS
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-166
 Brief:     Host > event > Permissions. Transfer ownership used to be a full-width card that opened in place. Now it is a box the same size as Event visibility (beside it on a computer, under it on a phone and in the app). Tapping it opens the transfer form in the usual modal (website) or bottom sheet (app).
 Detail:    Commit c23fc841. Checked 2026-11-12 by Claude on the website (1440 px and 375 px, dark) and the iPhone 16e simulator (dev build, this branch's code without the light theme). Sending a real transfer was not tried.
 How to test:
@@ -6070,6 +6251,7 @@ Feedback:         2026-11-12 Sarthak: website good (steps 1-3). Claude: app box 
 Status:    TODO
 Priority:  Low
 Platform:  Website + App
+Jira:      EB-408
 Brief:     On a gallery's Home (Primary Gallery), the Source gallery filter counted only the photos loaded so far (test-face-new showed "All galleries (16)" for 46 photos). Now the count ends in "+" while more photos are still to load, and opening the list loads the whole gallery first, so every count is exact (issues #176 and #215).
 Detail:    Commit 913ef3ec. App: needs a build or update with this commit. Checked 2026-11-12 by Claude on the local website (built-in browser, signed in as the host) and on the Pixel 8 emulator (dev build on a local bundler with this commit). Not checked on a real phone or with a gallery of hundreds of photos.
 How to test:
@@ -6093,6 +6275,7 @@ Feedback:
 Status:    TODO
 Priority:  Low
 Platform:  Website + App
+Jira:      EB-409
 Brief:     On the Royal Emerald hero card, a couple with a name over 8 letters now shows first name, "&", second name on three lines (phones on the website, and the app); short couples stay on one line (issue #264, related #92). App: needs a build or update with this change.
 How to test:
   1. Rename a Royal Emerald test gallery "Rajyalakshmi & Venkatanarayanaswamy". Website at 375 and 390 px wide (or app): expect Rajyalakshmi, &, Venkatanarayanaswamy on three lines, no word split, nothing cut off at the sides.
@@ -6136,6 +6319,7 @@ Feedback:  Step 1: "206 100". Step 2: the upload was refused by the host's plan 
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-410
 Brief:     After a theme change, the App frame in the Design tab's Guest Home Preview used to keep the old theme, dimmed. Now it shows a sample of the app in the new theme with a small "Sample" tag, until a host opens Preview Guest Theme in the app again (issue #265). Deleting a gallery now also deletes the app's picture of it (issue #266).
 Detail:    Commit 520cc156. Website: staging.evebash.com after its Vercel deploy. Backend: the staging Railway deploy of this commit. App: needs a build or update with this change. Use a test gallery, not a customer's.
 How to test:
@@ -6296,6 +6480,7 @@ Feedback:  EAS build run 2026-11-15, cable unplugged: normal use, Wi-Fi off (mob
 Status:    TODO
 Priority:  Medium
 Platform:  App (iPhone + Android)
+Jira:      EB-411
 Brief:     The bar at the bottom of a gallery while the host uploads was redesigned. Before, it said "Uploading photos
            (0 of 10)" the whole time, showed file names, stopped near 90% and had tiny Retry and Cancel buttons. Now
            it counts files as they upload, shows a percent, has an icon for each state (uploading, waiting for
@@ -6382,6 +6567,7 @@ Feedback:  All 10 steps pass. 1-3 open, email and Google login OK. 4 event page 
 Status:    TODO
 Priority:  Medium
 Platform:  Website + App
+Jira:      EB-412
 Brief:     Event join codes ("Join ID") used to be 6, 9 or 10 characters, started with the event's name, and only
            worked when typed exactly, dash included. New events now get a random 8-character code like K7MP-Q4RX
            (never 0, O, 1, I or L). The Join Event box on the website and in the app takes a code with or without
@@ -6415,6 +6601,7 @@ Feedback:
 Status:    TODO
 Priority:  Low
 Platform:  Website
+Jira:      EB-413
 Brief:     The three boxes at the top of the dashboard (Total Photos, Total Videos, Events Joined) used to show
            "661 Photos", which got cut off ("661 Pho...") in a window about 1024 px wide. They now show only the
            number, because the label above already names it.
@@ -6478,6 +6665,7 @@ Feedback:  PASS on Android. Before: a test push through Expo reached the phone (
 Status:    TODO
 Priority:  Medium
 Platform:  App (iPhone + Android)
+Jira:      EB-414
 Brief:     The upload status now works like the website's upload panel and shows on every app page, not only in
            the gallery: a header with a progress ring, the count and Cancel all, and a row for every file with
            its thumbnail, what it's doing, its own bar and its own X to cancel it. The down arrow turns it into a
@@ -6689,6 +6877,7 @@ Feedback:  PASS. Step 1: installed from the EAS install link. Step 2: "Continue 
 Status:    TODO
 Priority:  Medium
 Platform:  App (iPhone + Android)
+Jira:      EB-415
 Brief:     After picking photos or videos the app now asks which gallery they go into before anything uploads
            (#213). A file that didn't upload keeps its row and Retry when you add more files (#170). Guests read
            "Open a collection to add your photos." instead of "album" (#214, app and website).
@@ -6956,6 +7145,7 @@ Feedback: iPhone: steps 1-5 pass (tiles show photo, star, dots, arrows, trash wh
 Status:    TODO
 Priority:  High
 Platform:  App (iPhone and Android, separately) + website
+Jira:      EB-416
 Brief:     Find You now uses a smarter search (it also finds photos where the person looks different: haldi,
            turban, side views) and works on events with many collections (before, events with more than about 24
            collections showed "Something went wrong during matching").
@@ -7215,6 +7405,7 @@ Feedback: 2026-11-20 website (Claude, staging.evebash.com/terms-and-conditions):
 Status:    TODO
 Priority:  Medium
 Platform:  App (iPhone and Android, separately)
+Jira:      EB-417
 Brief:     On phones under 800 pt tall (iPhone SE, 13 mini-size and small Androids) the sign-in screen is
            tighter so it fits without scrolling. Taller phones look exactly as before.
 Detail:    apps/mobile/app/login.tsx (todo #26). Needs a new staging app build. Checked on the iPhone SE simulator
@@ -7315,6 +7506,7 @@ Feedback: Pass. Share on a sub-gallery gives the main event's code and link; the
 Status:    TODO
 Priority:  Medium
 Platform:  Both (website: staging.evebash.com; app: needs a staging build, iPhone and Android separately)
+Jira:      EB-418
 Brief:     The "Upload" / "Allow Photo Uploads" permission is hidden for guests, and guests don't see "Add photos".
            Admins and the owner upload as before.
 Detail:    shared/permissions/guestUploads.ts (GUEST_UPLOADS_ENABLED = false), used by src/app/(main)/host/page.tsx,
@@ -7339,6 +7531,7 @@ Feedback:
 Status:    TODO (Android PASS, iPhone simulator PASS; real iPhone after the next staging build)
 Priority:  Medium
 Platform:  App (iPhone and Android, separately; needs a staging build). Phone in light mode.
+Jira:      EB-419
 Brief:     In the light look the guest list name was white on the light page, the guest and request popups kept a
            dark background under dark text, and the report sheet's title was cream on white. All readable now.
 Detail:    apps/mobile/app/events/[id].tsx (guest row text, popups use a light card in the light look),
@@ -7365,6 +7558,7 @@ Feedback: Android PASS (Shwetank). iPhone simulator PASS (Claude): guest name re
 Status:    TODO
 Priority:  High
 Platform:  Website, live www.evebash.com (any browser). Needs a real payment (refund it afterwards if it's a test).
+Jira:      EB-420
 Brief:     Razorpay now tells our backend directly when a payment succeeds, so the plan switches on even if the
            buyer closes the page right after paying. Staging passed on 2026-11-24 (page's own report blocked, the
            webhook alone switched Free to Starter). The live secret and Live Mode webhook were set on 2026-11-24,
