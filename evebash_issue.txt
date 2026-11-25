@@ -1090,8 +1090,8 @@ How to reproduce: cd apps/mobile && npm audit --omit=dev.
 Listed: 2026-11-23
 Platform: App
 Priority: High
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Checking todo #48 in the Android development build (Claude, iQOO, staging, 2026-11-23)
 Issue: In the app, opening an event often fails with "We couldn't open this gallery" (open_gallery request times out after 20 s, apps/mobile/lib/supabase.ts SUPABASE_FETCH_TIMEOUT_MS) or takes 10 s or more; several other app requests to Supabase time out at the same moment. Seen 5 times in about 10 minutes, mostly right after signing in or after the app reloaded; Try again often fails too, and it then works a minute later (under 1 s). The same open_gallery call for the same account takes 0.16 s on the website and under 1 s from the Mac, and the phone reaches Supabase fine (ping about 50 ms), so the server is not slow: requests in the app seem to wait behind other requests. Not yet known: the cause (too many requests at once on Android, a request that never finishes and blocks the others, or the sign-in/session refresh), whether iOS and the store build do the same, and whether it happens on live.
