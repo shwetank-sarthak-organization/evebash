@@ -24,7 +24,30 @@ export type AdminAction =
   | 'listContentReports'
   | 'reviewContentReport'
   | 'removeReportedContent'
-  | 'setReportedUserSuspended';
+  | 'setReportedUserSuspended'
+  | 'listEventChanges';
+
+// A row of the event change log (todo #27), with names and current titles added by the backend
+export interface EventChange {
+  id: number;
+  event_id: string;
+  root_event_id: string;
+  event_title: string | null;
+  action: 'created' | 'updated' | 'deleted';
+  field: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  actor_id: string | null;
+  actor_email: string | null;
+  actor_name: string | null;
+  actor_role: 'owner' | 'guest_admin' | 'platform_admin' | 'other_user' | 'backend' | 'database';
+  source: 'website' | 'app' | 'backend' | 'database' | 'other';
+  client: string | null;
+  origin: string | null;
+  created_at: string;
+  current_title: string | null;
+  root_title: string | null;
+}
 
 export type ContentReportStatus = 'open' | 'actioned' | 'dismissed';
 
@@ -68,6 +91,7 @@ export interface AdminActionResult {
   gallery?: { id: string; title: string; parent_id?: string | null };
   media?: GalleryMedia[];
   reports?: ContentReport[];
+  changes?: EventChange[];
   hasMore?: boolean;
   success: boolean;
   error?: string;

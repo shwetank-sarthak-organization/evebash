@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { storedBytes, type Event, type UserProfile, type GuestLog, type Photo } from '../lib/analytics';
 import { GalleryViewer } from './GalleryViewer';
+import { ChangeLogGrid } from './ChangeLogGrid';
 import {
   Search,
   Calendar,
@@ -26,6 +27,7 @@ import {
   ChevronDown,
   Layers,
   Lock,
+  History,
 } from 'lucide-react';
 
 interface Props {
@@ -128,6 +130,7 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos, onVi
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [viewingGallery, setViewingGallery] = useState<Event | null>(null);
+  const [logGallery, setLogGallery] = useState<Event | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const copyToClipboard = (text: string, key: string) => {
@@ -1163,6 +1166,15 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos, onVi
                             <Eye className="w-3 h-3 text-indigo-400" />
                             <span>View</span>
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => setLogGallery(gallery)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-700/80 bg-slate-800/80 hover:bg-slate-700 hover:border-indigo-500/60 hover:text-indigo-300 text-slate-300 text-xs font-medium transition-all cursor-pointer shadow-sm"
+                            title="Who changed what in this gallery and its sub-galleries"
+                          >
+                            <History className="w-3 h-3 text-indigo-400" />
+                            <span>Log</span>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1416,6 +1428,15 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos, onVi
           </table>
         </div>
       </div>
+
+      {/* Change log of one gallery and its sub-galleries (todo #27) */}
+      {logGallery && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 p-4 sm:p-8" onClick={() => setLogGallery(null)}>
+          <div className="mx-auto max-w-6xl" onClick={e => e.stopPropagation()}>
+            <ChangeLogGrid eventId={logGallery.id} title={logGallery.title} onClose={() => setLogGallery(null)} />
+          </div>
+        </div>
+      )}
 
       {/* Embedded Gallery Viewer Modal */}
       {viewingGallery && (
