@@ -1116,12 +1116,13 @@ Update 2026-11-24 (live): released (PR #31, merged into main as 653d6a3c). Live 
 Listed: 2026-11-25
 Platform: App
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Fixing #321, chat with Sarthak (with Claude), 2026-11-25
 Issue: In the app's event screen, the upload-finished popup asks for the gallery's indexing progress without a login: checkStatus in apps/mobile/app/events/[id].tsx (about line 2925) calls /api/v1/media/indexing-status with a plain fetch and no Authorization header. That route needs a login since #284 (2026-11-16), so it answers 401 every 4 seconds and the popup's progress (setMobileIndexingStatus) never fills in. The upload queue (apps/mobile/lib/uploadQueue.ts) sends the login and is not affected. Not checked on a phone. Fix idea: send the login like uploadQueue.ts does (supabase.auth.getSession, Authorization: Bearer).
 How to reproduce: Staging app as a host, upload a few photos to a gallery, watch the upload-finished popup: the indexing progress never shows. Logs: 401 from /api/v1/media/indexing-status.
+Note 2026-11-25: fix written (not pushed yet). checkStatus in apps/mobile/app/events/[id].tsx now sends the login (supabase.auth.getSession, Authorization: Bearer) and uses the shared getEndpointsForPath / fetchWithEndpointFallback from apps/mobile/lib/storage.ts, like lib/uploadQueue.ts; the screen's own copy of the address logic (getApiBaseUrl, 18 lines) is gone. The event id is now URL-encoded. App type check clean. Reaches staging phones as an over-the-air update.
 
 #325
 Listed: 2026-11-25

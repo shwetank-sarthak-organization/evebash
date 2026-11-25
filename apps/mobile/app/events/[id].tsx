@@ -24,7 +24,7 @@ import { albumApi } from '../../lib/albumApi';
 import PhotoViewer from '../../components/PhotoViewer';
 import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../../constants/templates';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadEventMedia } from '@/lib/storage';
+import { fetchWithEndpointFallback, getEndpointsForPath, uploadEventMedia } from '@/lib/storage';
 import { COVER_PICKER_OPTIONS, NO_PHONE_COVER, RESET_COVER_POSITION, RESET_PHONE_COVER_POSITION, removeEventCover, uploadEventCover } from '@/lib/eventCoverUpload';
 import { GUEST_EDIT_ENABLED, useGuestEdit } from '../../components/event/guestEdit/useGuestEdit';
 import { GuestEditBar } from '../../components/event/guestEdit/GuestEditBar';
@@ -2896,33 +2896,21 @@ function EventDetailScreen() {
 
     let pollInterval: NodeJS.Timeout;
 
-    const getApiBaseUrl = () => {
-      const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
-      if (apiBase) return apiBase.replace(/\/+$/, '');
-      
-      try {
-        const Constants = require('expo-constants').default;
-        const hostUri = Constants?.expoConfig?.hostUri || Constants?.manifest2?.extra?.expoGo?.developer?.hostUri;
-        const devHost = typeof hostUri === 'string' ? hostUri.split(':')[0] : '';
-        if (devHost) return `http://${devHost}:3000`;
-      } catch (e) {}
-
-      try {
-        const { Platform } = require('react-native');
-        if (Platform.OS === 'android') return 'http://10.0.2.2:3000';
-      } catch (e) {}
-
-      return 'http://localhost:8080';
-    };
-
     const checkStatus = async () => {
       try {
-        const baseUrl = getApiBaseUrl();
         const eventIdToQuery = selectedAdminGallery !== undefined
           ? (selectedAdminGallery ? selectedAdminGallery.id : id)
           : (activeSubEvent ? activeSubEvent.id : id);
 
-        const res = await fetch(`${baseUrl}/api/v1/media/indexing-status?eventId=${eventIdToQuery}`);
+        // The server needs a login for this (issue #284); without it every check was refused (issue #323).
+        // Same endpoints and login as the upload queue (lib/uploadQueue.ts).
+        const { data: statusSession } = await supabase.auth.getSession();
+        const statusToken = statusSession.session?.access_token;
+        const res = await fetchWithEndpointFallback(
+          getEndpointsForPath(`/api/v1/media/indexing-status?eventId=${encodeURIComponent(String(eventIdToQuery))}`),
+          (endpoint) => fetch(endpoint, statusToken ? { headers: { Authorization: `Bearer ${statusToken}` } } : undefined),
+          'indexing-status'
+        );
         if (res.ok) {
           const rawData = await res.json();
           // indexing-status only counts photos; an event with none (videos only) has nothing left to index
