@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 318
+Next issue number: 322
 
 =====================================================================
 ACTIVE ISSUES
@@ -1007,6 +1007,7 @@ Blocked by: -
 Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
 Issue: The backend accepts gallery uploads with no login, and never checks that the uploader belongs to the gallery. In apps/backend/src/routes/media.ts, getUploadUserId (about line 208) returns "anonymous" when the login is missing or no longer valid, and validateAnonymousEvent (about line 229) only checks that the gallery exists. So /get-upload-url, /mobile/get-upload-url, /upload/chunk/initiate, /upload/chunk/complete, /save-photo-batch and /mobile/save-photo-batch all go ahead for anyone who knows a gallery's id, private galleries included, and the row is saved with user_id "anonymous" (photos.user_id is text, so it saves without error). /upload/chunk/part-url checks no login at all. A logged-in person who is not the owner, an admin or a guest of that gallery is not refused either. The gallery id is not a secret: the gallery page itself loads it. Why it matters: a stranger could put files into any gallery, including private ones, and use up the owner's storage; it is also the reason #301 and #302 save photos as "anonymous". No screen uses this today: every upload screen in the app and on the website asks for a login first, and there were 0 "anonymous" rows in photos on 2026-11-16. The rule seems to date from the move of the media routes to the Railway backend (09b8c758, 2026-08-06). Fix idea, behind a switch: refuse every upload step with no valid login (401), and accept only the gallery's owner, its admins and its approved guests (403 for anyone else); /upload/chunk/part-url should also check that the large file belongs to the person asking.
 How to reproduce: Log out of the website. Send POST <staging API>/api/media/get-upload-url with no Authorization header and the body {"eventId":"<any staging gallery id>","fileName":"x.jpg","fileSize":1000,"resourceType":"image"}. Today it answers with an upload link instead of 401.
+Note 2026-11-25 (Sarthak with Claude): most of this was already fixed before the entry was written. Since 6a1782f9 (2026-10-11) the check in mediaRouter.use (apps/backend/src/routes/media.ts, about line 600) needs a login for every gallery upload step (part-url included, through the file's own gallery) and accepts only the owner, admins and guests the host allowed to upload (canPostEventPhoto); videos only owner and admins. Checked 2026-11-25 with no login: the reproduce request gets 401 "Log in to upload photos to this gallery." on staging and live. Still open: uploads with "scope":"profile" (profile pictures) skip that check, so a logged-out request still gets an upload link (seen on staging 2026-11-25; stored under profiles/anonymous/). That link is the stranger's way into the much bigger #318 (the link works for any file name in the bucket). Fix for this part: refuse scope "profile" uploads without a login, behind a switch. Priority to review once that is in (Sarthak's call).
 
 #301
 Listed: 2026-11-19
@@ -1448,6 +1449,50 @@ Note 2026-11-20: step 7 FAIL on iPhone 11 (iOS 26.7, EveBash Staging app, newone
 Note 2026-11-20: iPhone fix: the photo viewer now lifts the comment panel by the keyboard height on iOS too (useKeyboardHeight in apps/mobile/hooks/use-android-keyboard-height.ts, iOS uses keyboardWillShow/Hide); the KeyboardAvoidingView that did nothing is gone. BottomSheet is unchanged (Android only). Sent to the staging app as an over-the-air update. Next: device test #181 step 7 (and 3) again on the iPhone.
 Note 2026-11-20: iPhone retest PASS on the new staging build (iPhone 11, iOS 26.7, newone1@email.com, Staging test 1): guest viewer and host viewer both keep the comment box and Send above the keyboard; a comment sends. Small looks-only point: in the host viewer on iPhone there is a larger empty gap than needed between the panel and the keyboard.
 Fixed in: 6f5b7025 (2026-11-20)
+
+#318
+Listed: 2026-11-25
+Platform: Both
+Priority: Critical
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Backend login review, chat with Sarthak (with Claude), 2026-11-25
+Issue: The upload links the backend hands out work for any file name in the whole storage bucket, so whoever gets one can add or replace any file, customers' gallery photos included. /get-upload-url and /mobile/get-upload-url in apps/backend/src/routes/media.ts (about lines 696 and 1238) return Backblaze's own uploadUrl and authorizationToken (b2_get_upload_url through getCachedUploadUrl in apps/backend/src/backblaze.ts). That token is for the whole bucket and lasts up to 24 hours; the file name is whatever the uploader puts in the X-Bz-File-Name header, and the storageKey the backend suggests is not enforced. Our own website shows it: the profile page (src/app/(main)/profile/page.tsx, about line 348) uploads to profiles/<uid>/profile_pic.jpg, not the key the backend returned. Who can get a token: anyone with no login (scope "profile" skips the login check, see #300) and any logged-in account (sign-up is free). Why it matters: Backblaze serves the newest copy of a name, so uploading under an existing photo's name (names are in the photo links guests see, see #309) replaces that photo for everyone; the same for anyone's profile picture (fixed name profile_pic.jpg). Also unlimited files in our bucket at our cost. Same code on live (organization/main, checked 2026-11-25). Found by reading the code; not tried by uploading. Fix idea, behind a switch: hand out a link for one exact file instead (an S3 presigned PUT for the given key; signUpload in apps/backend/src/services/eventBucketS3.ts already does this for the video worker) and move the website (src/lib/storage.ts, the profile page) and the app (apps/mobile/lib/storage.ts, apps/mobile/lib/uploadQueue.ts) to it. Old app builds keep using the old link until they update, so the old way has to stay for them until a forced update. Quick first step: refuse scope "profile" uploads without a login (#300); that stops strangers, not accounts.
+How to reproduce: Do not overwrite real files. On staging, POST /api/media/get-upload-url with no login and the body {"scope":"profile","fileName":"x.jpg","fileSize":10,"resourceType":"image"}: it returns uploadUrl and authorizationToken. Upload a small text file to that uploadUrl with that token and X-Bz-File-Name set to a made-up name that is not the returned storageKey (e.g. test/issue-318.txt). Expected today (not yet tried): accepted. Delete the test file afterwards.
+
+#319
+Listed: 2026-11-25
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Backend login review, chat with Sarthak (with Claude), 2026-11-25
+Issue: Anyone can add fake "failed payment" rows. POST /api/v1/payments/log-failure (apps/backend/src/routes/payments.ts, about line 563) needs no login (it only reads one if sent) and inserts a payments row with status "failed" and whatever planId, orderId, paymentId and failureReason the request sends, with no length limit (requests up to 10 MB) and no rate limit. The website's own /api/log-payment-failure (src/app/api/log-payment-failure/route.ts) passes requests straight through. Why it matters: junk or very large rows in the payments table and in anything that counts failed payments. No money moves and no plan changes. Fix idea, behind a switch: require a login (the pricing page, src/app/(main)/pricing/page.tsx about line 528, already sends it, and buying needs a login since #316), cap the text lengths, add a rate limit.
+How to reproduce: Not on live. On staging, POST /api/v1/payments/log-failure with no login and the body {"planId":"test-319","failureReason":"test"}: it answers success and adds a row to payments. Delete the row afterwards.
+
+#320
+Listed: 2026-11-25
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Backend login review, chat with Sarthak (with Claude), 2026-11-25
+Issue: One person can block email sign-up on the website for everyone. POST /api/v1/signup/check-email (apps/backend/src/routes/signup.ts) needs no login and has one shared limit for the whole service: 60 checks per 15 minutes (keyGenerator always "signup-auth-directory"). The website's signup (src/context/AuthContext.tsx, about line 398) stops with "Unable to check your email right now" when the check fails, so 60 requests every 15 minutes from anyone stop all new email sign-ups on the website. Google sign-in and app sign-up don't use this check. The route also tells anyone whether an email has an account (by design, to show "An account with this email already exists"). Fix idea, behind a switch: a per-visitor limit as well as the shared one (needs a trusted client address behind Railway's proxy), and let sign-up go ahead when only the limit is hit (Supabase's own signUp already reports an existing account, AuthContext handles identities.length === 0).
+How to reproduce: Not on live. On staging, send 61 POSTs to /api/v1/signup/check-email with {"email":"someone@example.com"} within 15 minutes, then try to sign up with email on staging.evebash.com: "Too many signup checks" and no account is made. Wait 15 minutes to clear it.
+
+#321
+Listed: 2026-11-25
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Backend login review, chat with Sarthak (with Claude), 2026-11-25
+Issue: Two backend routes check only that someone is logged in, not who. (1) /api/media/watchdog/run (apps/backend/src/routes/media.ts, about line 573) runs the media recovery job for any logged-in account ("Allow if authenticated" in the code); it should be the internal secret or a platform admin only. (2) GET /api/media/indexing-status (about line 1582) gives photo and face counts for any gallery to any logged-in account (#284 added the login, not a gallery check); it should be the gallery's owner, its admins or a platform admin. Why it matters: small; anyone can sign up free, so these are close to public. No photos or names are shown. Fix idea, behind a switch: add those checks (authorizeEventProcessing in media.ts already does owner / platform admin / internal job).
+How to reproduce: Log in on staging as an account that doesn't own the gallery, then call GET /api/media/indexing-status?eventId=<someone else's gallery id> with that login: counts come back. POST /api/media/watchdog/run with that login: it runs and returns a report.
 
 =====================================================================
 
