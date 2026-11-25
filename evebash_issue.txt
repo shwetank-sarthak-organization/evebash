@@ -1138,12 +1138,13 @@ How to reproduce: Staging app as a host, upload a few photos to a gallery, watch
 Listed: 2026-11-25
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Device test #252 on the iPhone 16e simulator (EveBash Staging 1.2.4, newone1@email.com), chat with Sarthak (with Claude), 2026-11-25
 Issue: After Profile > Edit > Save Changes, the app keeps showing the old profile on the Profile screen (and anywhere else that reads the signed-in user) until the app is closed and reopened. saveProfile in apps/mobile/app/(tabs)/profile.tsx (about line 330) saves to profiles through updateUserProfile (apps/mobile/lib/database.ts, about line 1105) but never updates the user in AuthContext (apps/mobile/context/AuthContext.tsx, which has no refresh function; Supabase realtime is off). Seen with the profile photo: saved and stored correctly (the website showed the new photo at once), but the app showed the old one even after switching tabs, and the new one only after reopening. Probably the same for name, username, phone and the other fields (not tried). Before #322 a new photo never saved at all, so this was hidden. Fix idea: give AuthContext a refreshUser() that reads the profile again (the same fields it reads at sign-in) and call it after a successful save; the change reaches staging phones as an over-the-air update.
 How to reproduce: Staging app, Profile > Edit, pick a new photo (or change Full name), Save Changes: the Profile screen still shows the old photo/name. Close and reopen the app: the new one shows.
+Note 2026-11-25: fix written (not pushed yet). AuthContext (apps/mobile/context/AuthContext.tsx) now gives refreshUser(): it runs the same profile load as at sign-in (fetchAndSetUser, kept in a ref; cleared on sign-out) and never throws. The Profile screen (apps/mobile/app/(tabs)/profile.tsx) calls it after Save Changes succeeds (before the toast and closing the editor) and after Remove Profile Photo (the backend already set profile_image to null). No backend or website change. App type check clean (tsc, both files included). Reaches staging phones as an over-the-air update; not tried on a phone yet. Settings' notification switches also save through updateUserProfile but into a column that doesn't exist (#58/#63), left alone.
 
 #325
 Listed: 2026-11-25

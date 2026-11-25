@@ -143,7 +143,7 @@ const getPersonasArray = (personaVal: any): string[] => {
 };
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const { colors, isDark } = useAppTheme();
   const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
@@ -303,6 +303,8 @@ export default function ProfileScreen() {
               setEditImage(null);
               setEditImageBase64(null);
               setEditImageRemoved(true);
+              // The backend already cleared the photo on the profile; show that everywhere (issue #324)
+              await refreshUser();
               showToast('Profile photo removed.');
             } catch (error: any) {
               appAlert('Error', error?.message || 'Failed to remove profile photo.');
@@ -355,6 +357,8 @@ export default function ProfileScreen() {
       });
 
       if (success) {
+        // Load the saved profile into the signed-in user, so this screen shows it right away (issue #324)
+        await refreshUser();
         showToast('Profile updated successfully.');
         setIsEditing(false);
       } else {
