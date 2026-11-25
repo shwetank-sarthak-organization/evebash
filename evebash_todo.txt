@@ -1025,6 +1025,10 @@ Note 2026-11-23: Shwetank: the guest Add button doesn't work today (website/app)
               guest popup and access text) and the guest "Add photos" button (website guest page, app). Saved
               can_upload values are kept. This todo: fix the guest Add button, then set the switch to true.
               Test: test_yourself #249.
+Note 2026-11-25: when guest uploads are switched on, also run device test #254 (issue #323): the app's
+              upload-complete popup, which only guests see, now sends the login for its face-indexing progress
+              (c6c7bfff, on staging); it couldn't be checked while guest uploads are off. Sarthak moved #323 to Phase 2
+              with this todo.
 Done in:      -
 
 =====================================================================

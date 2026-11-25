@@ -7679,6 +7679,7 @@ Brief:     After a guest's upload finishes, the app shows an "upload complete" p
            Test it once guest uploads are on.
 Detail:    Commit c6c7bfff (apps/mobile/app/events/[id].tsx). Staging app update 2026-11-25 (iPhone f5a5db4e, Android
            5930b128). Android phones with the 2026-11-19 staging build need the 2026-11-20 build first (see #253).
+           Phase 2: moved with todo #49 on 2026-11-25 (Sarthak). Run it when guest uploads are switched on.
 How to test:
   1. Close and reopen EveBash Staging twice. Sign in as a guest who may upload to a test gallery (e.g.
      newone5@email.com in newone1@email.com's royal-emerald gallery).

@@ -1116,14 +1116,15 @@ Update 2026-11-24 (live): released (PR #31, merged into main as 653d6a3c). Live 
 Listed: 2026-11-25
 Platform: App
 Priority: Low
-Status: In progress
+Status: Blocked
 Owner: Sarthak (with Claude)
-Blocked by: Device check (test_yourself #254), which needs guest uploads switched on (todo #49)
+Blocked by: Phase 2: guest uploads switched on (todo #49), then device test #254
 Found in: Fixing #321, chat with Sarthak (with Claude), 2026-11-25
 Issue: In the app's event screen, the upload-finished popup asks for the gallery's indexing progress without a login: checkStatus in apps/mobile/app/events/[id].tsx (about line 2925) calls /api/v1/media/indexing-status with a plain fetch and no Authorization header. That route needs a login since #284 (2026-11-16), so it answers 401 every 4 seconds and the popup's progress (setMobileIndexingStatus) never fills in. The upload queue (apps/mobile/lib/uploadQueue.ts) sends the login and is not affected. Not checked on a phone. Fix idea: send the login like uploadQueue.ts does (supabase.auth.getSession, Authorization: Bearer).
 How to reproduce: Staging app as a host, upload a few photos to a gallery, watch the upload-finished popup: the indexing progress never shows. Logs: 401 from /api/v1/media/indexing-status.
 Note 2026-11-25: fix written (not pushed yet). checkStatus in apps/mobile/app/events/[id].tsx now sends the login (supabase.auth.getSession, Authorization: Bearer) and uses the shared getEndpointsForPath / fetchWithEndpointFallback from apps/mobile/lib/storage.ts, like lib/uploadQueue.ts; the screen's own copy of the address logic (getApiBaseUrl, 18 lines) is gone. The event id is now URL-encoded. App type check clean. Reaches staging phones as an over-the-air update.
 Note 2026-11-25: on staging in c6c7bfff; staging app update published (iPhone f5a5db4e for runtime 2854576c, Android 5930b128 for runtime 51b6a344; fingerprints checked). Tried on Sarthak's Pixel 8 with the update (Host > Test event staging > Add Photos, 1 test picture: uploaded, then deleted again, 0 rows, file 404), but this popup (showUploadCompleteModal) only opens after an upload in the guest view; in the host view the app shows a short "uploaded" message instead. Guest uploads are switched off (GUEST_UPLOADS_ENABLED = false, todo #49: the guest upload button needs memberCanUpload), so nobody can reach the popup today and the fix can't be seen on a device yet. Device test #254 (EB-432, BLOCKED) for when guest uploads are on.
+Note 2026-11-25: moved to Phase 2 with todo #49 (Sarthak). DONE: the fix (c6c7bfff: the popup's progress check sends the login, through the shared endpoint helpers, like the upload queue) is on staging and in the staging app update (iPhone f5a5db4e, Android 5930b128); app type check clean; on the Pixel the update loads and host uploads work. LEFT: (1) todo #49 fixes the guest Add button and sets GUEST_UPLOADS_ENABLED = true (shared/permissions/guestUploads.ts); (2) run device test #254 (a guest uploads 2-3 photos; the upload-complete popup's face-indexing progress fills in); (3) if it passes, move this to RECENTLY FIXED and EB-426 to Done; (4) live gets it with the staging to main release plus a production app update or store build.
 
 #325
 Listed: 2026-11-25
