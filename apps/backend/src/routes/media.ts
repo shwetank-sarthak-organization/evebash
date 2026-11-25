@@ -1,6 +1,7 @@
 import { canPostEventPhoto, canPostEventVideo, isMediaRouteRoleCheckOn, isPhotoUploadPermissionRequired, isPlatformAdmin, isProfileUploadLoginRequired, isVideoUpload } from "../services/eventVideoPermission.js";
 import { saveVideoThumbnail, ThumbnailError } from "../services/videoThumbnail.js";
 import { removeGuestPreviewPicture, saveGuestPreviewPicture, GuestPreviewPictureError } from "../services/guestPreviewPicture.js";
+import { isProfilePictureRouteOn, ProfilePictureError, saveProfilePicture } from "../services/profilePicture.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
@@ -555,6 +556,12 @@ export async function uploadBufferToB2(auth: BackblazeAuth, bucketId: string, bu
   }
 
   throw lastError instanceof Error ? lastError : new Error(`B2 upload failed for ${key}`);
+}
+
+/** Stores a JPEG made by the backend itself and returns its media.evebash.com link */
+async function uploadJpegToMedia(key: string, bytes: Buffer) {
+  await uploadBufferToB2(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), bytes, key, "image/jpeg");
+  return `https://${getMediaDomain()}/${key.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 function getB2KeyFromUrl(url: string) {
@@ -1678,6 +1685,48 @@ mediaRouter.post("/delete", asyncRoute(async (request, response) => {
 }));
 
 
+/** Deletes a profile picture's file (and old -thumbnail/-preview copies), only if it is in this user's own folder and
+ *  not `keep`. Google and other outside links are never touched. */
+async function deleteProfilePictureFiles(userId: string, url: unknown, keep?: string) {
+  const deleted: string[] = [];
+  const storageKey = typeof url === "string" && url ? getB2KeyFromUrl(url) : "";
+  if (!storageKey || !storageKey.startsWith(`profiles/${userId}/`) || storageKey === keep) return deleted;
+  const backblazeAuth = await getCachedBackblazeAuth();
+  const bucketId = requireEnv("B2_BUCKET_ID");
+  for (const key of [storageKey, `${storageKey}-thumbnail.webp`, `${storageKey}-preview.webp`]) {
+    if (await deleteB2File(backblazeAuth, bucketId, key)) deleted.push(key);
+  }
+  return deleted;
+}
+
+// Profile pictures (issue #322): the backend stores the picture itself (services/profilePicture.ts). The app has always
+// posted here; the website does too. Off switch PROFILE_PICTURE_ROUTE=false: "Route not found." as before.
+mediaRouter.post("/upload", asyncRoute(async (request, response, next) => {
+  if (!isProfilePictureRouteOn()) return next();
+  const user = await requireUser(request, response);
+  if (!user) return;
+  const db = getSupabaseAdminClient();
+  try {
+    response.json(await saveProfilePicture(request.body || {}, user.id, {
+      upload: uploadJpegToMedia,
+      load: async (userId) => {
+        const { data, error } = await db.from("profiles").select("profile_image").eq("id", userId).maybeSingle();
+        if (error) throw error;
+        return typeof data?.profile_image === "string" && data.profile_image ? data.profile_image : null;
+      },
+      commit: async (userId, url) => {
+        const { error } = await db.from("profiles").update({ profile_image: url }).eq("id", userId);
+        if (error) throw error;
+      },
+      remove: async (key) => deleteB2File(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), key),
+      removePrevious: (previousUrl, keep) => deleteProfilePictureFiles(user.id, previousUrl, keep),
+    }));
+  } catch (error) {
+    if (error instanceof ProfilePictureError) return jsonError(response, error.status, error.message);
+    throw error;
+  }
+}));
+
 mediaRouter.post("/profile-image", asyncRoute(async (request, response) => {
   const user = await requireUser(request, response);
   if (!user) return;
@@ -1686,17 +1735,7 @@ mediaRouter.post("/profile-image", asyncRoute(async (request, response) => {
   const { data: profile, error: profileError } = await supabaseAdmin.from("profiles").select("profile_image").eq("id", user.id).maybeSingle();
   if (profileError) throw profileError;
 
-  const deletedFiles: string[] = [];
-  if (profile?.profile_image) {
-    const storageKey = getB2KeyFromUrl(profile.profile_image);
-    if (storageKey && storageKey.startsWith(`profiles/${user.id}/`)) {
-      const backblazeAuth = await getCachedBackblazeAuth();
-      const bucketId = requireEnv("B2_BUCKET_ID");
-      for (const key of [storageKey, `${storageKey}-thumbnail.webp`, `${storageKey}-preview.webp`]) {
-        if (await deleteB2File(backblazeAuth, bucketId, key)) deletedFiles.push(key);
-      }
-    }
-  }
+  const deletedFiles = await deleteProfilePictureFiles(user.id, profile?.profile_image);
 
   const { error: updateError } = await supabaseAdmin.from("profiles").update({ profile_image: null }).eq("id", user.id);
   if (updateError) throw updateError;
@@ -1747,10 +1786,7 @@ mediaRouter.post("/video-thumbnail", asyncRoute(async (request, response) => {
         for (const result of results) if (result.error) throw result.error;
         return results.some(result => Boolean(result.data?.length));
       },
-      upload: async (key, bytes) => {
-        await uploadBufferToB2(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), bytes, key, "image/jpeg");
-        return `https://${getMediaDomain()}/${key.split("/").map(encodeURIComponent).join("/")}`;
-      },
+      upload: uploadJpegToMedia,
       commit: async (media, thumbnailUrl) => {
         let query = db.from("photos").update({ thumbnail_url: thumbnailUrl }).eq("id", media.id).eq("storage_key", media.storage_key).eq("status", "processed");
         query = media.thumbnail_url === null ? query.is("thumbnail_url", null) : query.eq("thumbnail_url", media.thumbnail_url);
@@ -1780,10 +1816,7 @@ mediaRouter.post("/guest-preview-picture", asyncRoute(async (request, response) 
         if (error) throw error;
         return data ? { picture: data.guest_preview_picture } : null;
       },
-      upload: async (key, bytes) => {
-        await uploadBufferToB2(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), bytes, key, "image/jpeg");
-        return `https://${getMediaDomain()}/${key.split("/").map(encodeURIComponent).join("/")}`;
-      },
+      upload: uploadJpegToMedia,
       commit: async (eventId, previous, picture) => {
         // Only over the picture this save replaces, so two phones saving at once can't lose track of a file
         let query = db.from("events").update({ guest_preview_picture: picture }).eq("id", eventId);

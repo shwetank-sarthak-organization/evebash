@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 252
+Next test number: 253
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7574,6 +7574,38 @@ How to test:
      latest deliveries (payment.captured, order.paid) show response 200, not 400 or 503.
   4. Optional: ask Claude to check the payments table: exactly one captured row for that payment.
   5. Refund the payment in Razorpay if it was only a test.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#252 Changing your profile picture works on the website and in the app, and the picture is small (issue #322)
+Status:    TODO
+Priority:  High
+Platform:  Website (staging.evebash.com, any browser) + App (EveBash Staging, iPhone and Android; no new build needed)
+Jira:      EB-427
+Brief:     Changing the profile picture was broken on both: the website showed "Missing eventId" and the app's
+           save failed. Now the picture goes to our backend, which makes it small (512 px JPEG), saves it on your
+           profile and deletes your previous picture from storage.
+Detail:    New backend route POST /api/media/upload (apps/backend/src/services/profilePicture.ts, off switch
+           PROFILE_PICTURE_ROUTE=false). Website: src/app/(main)/profile/page.tsx. App: unchanged
+           (apps/mobile/lib/storage.ts uploadProfileImage already calls this route).
+How to test:
+  1. Website, signed in: Profile, change the profile photo to a big phone photo (5 MB or more). Expect:
+     "Profile photo updated." and the new photo shows within a few seconds.
+  2. Reload the page and open the photo in a new tab (right click > Open image in new tab). Expect: the same
+     photo; the address ends in .jpg under /profiles/; the image is at most 512 px wide.
+  3. Change the photo again to a different picture. Expect: the new one shows. Optional: ask Claude to check
+     that the first photo's file is gone from storage.
+  4. App, signed in: Profile > Edit, pick a new photo, Save. Expect: "Profile updated successfully." and the new
+     photo, also after closing and reopening the app.
+  5. Check the photo on the other side too (website after the app change, app after the website change).
+     Expect: the same latest photo on both.
+  6. Profile > Remove Profile Photo (website or app). Expect: the photo goes away and stays away after a reload.
 Done by:
 Device / browser:
 Build / version:
