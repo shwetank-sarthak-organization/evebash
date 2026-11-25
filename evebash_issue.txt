@@ -1118,11 +1118,12 @@ Platform: App
 Priority: Low
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: -
+Blocked by: Device check (test_yourself #254), which needs guest uploads switched on (todo #49)
 Found in: Fixing #321, chat with Sarthak (with Claude), 2026-11-25
 Issue: In the app's event screen, the upload-finished popup asks for the gallery's indexing progress without a login: checkStatus in apps/mobile/app/events/[id].tsx (about line 2925) calls /api/v1/media/indexing-status with a plain fetch and no Authorization header. That route needs a login since #284 (2026-11-16), so it answers 401 every 4 seconds and the popup's progress (setMobileIndexingStatus) never fills in. The upload queue (apps/mobile/lib/uploadQueue.ts) sends the login and is not affected. Not checked on a phone. Fix idea: send the login like uploadQueue.ts does (supabase.auth.getSession, Authorization: Bearer).
 How to reproduce: Staging app as a host, upload a few photos to a gallery, watch the upload-finished popup: the indexing progress never shows. Logs: 401 from /api/v1/media/indexing-status.
 Note 2026-11-25: fix written (not pushed yet). checkStatus in apps/mobile/app/events/[id].tsx now sends the login (supabase.auth.getSession, Authorization: Bearer) and uses the shared getEndpointsForPath / fetchWithEndpointFallback from apps/mobile/lib/storage.ts, like lib/uploadQueue.ts; the screen's own copy of the address logic (getApiBaseUrl, 18 lines) is gone. The event id is now URL-encoded. App type check clean. Reaches staging phones as an over-the-air update.
+Note 2026-11-25: on staging in c6c7bfff; staging app update published (iPhone f5a5db4e for runtime 2854576c, Android 5930b128 for runtime 51b6a344; fingerprints checked). Tried on Sarthak's Pixel 8 with the update (Host > Test event staging > Add Photos, 1 test picture: uploaded, then deleted again, 0 rows, file 404), but this popup (showUploadCompleteModal) only opens after an upload in the guest view; in the host view the app shows a short "uploaded" message instead. Guest uploads are switched off (GUEST_UPLOADS_ENABLED = false, todo #49: the guest upload button needs memberCanUpload), so nobody can reach the popup today and the fix can't be seen on a device yet. Device test #254 (EB-432, BLOCKED) for when guest uploads are on.
 
 #325
 Listed: 2026-11-25

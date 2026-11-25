@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 254
+Next test number: 255
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7666,3 +7666,30 @@ Feedback:  PASS 2026-11-25 on a real Android phone (Claude): the Pixel had the 2
            Add Videos uploaded, saved and processed. All test media deleted again (files 404, 0 rows). Still to do by a
            tester: real iPhone and Android phones (steps 1-3), Safari and a phone browser (step 4). Android emulator only
            has a different EveBash app; installing the staging APK (139 MB) and signing in need Sarthak.
+
+#254 Guest upload-finished popup shows indexing progress (issue #323)
+Status:    BLOCKED
+Priority:  Low
+Platform:  App (EveBash Staging on iPhone and Android, after reopening it twice so it takes the 2026-11-25 update)
+Jira:      EB-432
+Brief:     After a guest's upload finishes, the app shows an "upload complete" popup with the gallery's face-indexing
+           progress. Its progress check sent no login, so the server refused it and the progress never showed. It now
+           sends the login. BLOCKED: the popup only appears in the guest view, and guest uploads are switched off
+           (shared/permissions/guestUploads.ts GUEST_UPLOADS_ENABLED = false, todo #49), so nobody can reach it yet.
+           Test it once guest uploads are on.
+Detail:    Commit c6c7bfff (apps/mobile/app/events/[id].tsx). Staging app update 2026-11-25 (iPhone f5a5db4e, Android
+           5930b128). Android phones with the 2026-11-19 staging build need the 2026-11-20 build first (see #253).
+How to test:
+  1. Close and reopen EveBash Staging twice. Sign in as a guest who may upload to a test gallery (e.g.
+     newone5@email.com in newone1@email.com's royal-emerald gallery).
+  2. Open that gallery as the guest and upload 2-3 photos. Expect: when they finish, the "upload complete" popup
+     shows the face-indexing progress (counts / percent) and it fills in, instead of staying empty.
+  3. Delete the test photos again (as the host).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
