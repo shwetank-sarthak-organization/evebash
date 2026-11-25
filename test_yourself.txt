@@ -7635,8 +7635,8 @@ How to test:
   3. App: upload one short video the same way. Expect: it uploads and processes as before.
   4. Website (Chrome and Safari on a computer, and a phone browser): Host > a test gallery > Add or Drop Photos with
      3 photos, including one big phone photo. Expect: all upload and appear.
-  5. As a guest allowed to upload (website or app), upload one photo. Expect: it works.
-  6. Delete the test photos and video again.
+  5. Delete the test photos and video again.
+  (No guest step: guest uploads are switched off until todo #49, shared/permissions/guestUploads.ts.)
 Done by:
 Device / browser:
 Build / version:
@@ -7644,4 +7644,10 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  Partly done by Claude 2026-11-25 (not real phones): website in Playwright Chromium on a Mac as newone1@email.com,
+           gallery royal-emerald-check-with-a-really-long-title-to-test-wrappin-c9e2: 3 photos (one 5.4 MB, 4000x3000) and a
+           5 s video uploaded through signed one-file links to the staging bucket (all 200), saved and processed. iPhone 16e
+           simulator (iOS 26.3, EveBash Staging 1.2.4 with the 2026-11-25 update): 1 photo (earlier) and the 5 s video via
+           Add Videos uploaded, saved and processed. All test media deleted again (files 404, 0 rows). Still to do by a
+           tester: real iPhone and Android phones (steps 1-3), Safari and a phone browser (step 4). Android emulator only
+           has a different EveBash app; installing the staging APK (139 MB) and signing in need Sarthak.
