@@ -3,9 +3,10 @@ import rateLimit, { ipKeyGenerator, type Options } from "express-rate-limit";
 
 /**
  * Who is asking: X-Real-IP, which Railway's edge sets to the client's address ("for identifying client's remote IP"),
- * else the connection's own address. Not X-Forwarded-For: Railway passes the caller's own entries through, so it can
- * be made up, while made-up X-Real-IP values are replaced (both checked on staging 2026-11-25, issue #320). IPv6 is
- * grouped by /56.
+ * replacing any value the caller sent; else the connection's own address. Not X-Forwarded-For: Railway rewrites it to
+ * "client, edge node", and the edge node's address changes from request to request. The connection address is one of
+ * Railway's internal proxies (100.64.x.x), shared by everyone. Checked in the staging logs 2026-11-25 (issues #320,
+ * #326). IPv6 is grouped by /56.
  */
 export function visitorAddressKey(realIp: string | string[] | undefined, socketAddress: string | undefined) {
   const address = (Array.isArray(realIp) ? realIp[0] : realIp)?.split(",")[0]?.trim();
