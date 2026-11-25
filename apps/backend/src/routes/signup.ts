@@ -17,13 +17,13 @@ export function isSignupPerVisitorLimitOn() {
 }
 
 /**
- * Who is asking: the last X-Forwarded-For entry, which Railway's edge adds for the address it saw (earlier entries
- * come from the caller and can be made up), else the connection's own address. IPv6 is grouped by /56.
+ * Who is asking: X-Real-IP, which Railway's edge sets to the client's address ("for identifying client's remote IP"),
+ * else the connection's own address. Not X-Forwarded-For: Railway passes the caller's own entries through (checked on
+ * staging 2026-11-25), so it can be made up. IPv6 is grouped by /56.
  */
-export function signupVisitorKey(forwardedFor: string | string[] | undefined, socketAddress: string | undefined) {
-  const entries = (Array.isArray(forwardedFor) ? forwardedFor.join(",") : forwardedFor || "")
-    .split(",").map(entry => entry.trim()).filter(Boolean);
-  return ipKeyGenerator(entries.at(-1) || socketAddress || "unknown", 56);
+export function signupVisitorKey(realIp: string | string[] | undefined, socketAddress: string | undefined) {
+  const address = (Array.isArray(realIp) ? realIp[0] : realIp)?.split(",")[0]?.trim();
+  return ipKeyGenerator(address || socketAddress || "unknown", 56);
 }
 
 function tooManyAnswer() {
@@ -49,10 +49,10 @@ export function createSignupRouter(getDirectory: () => AuthDirectory = () => get
     windowMs: WINDOW_MS,
     limit: CHECKS_PER_VISITOR,
     skip: () => !isSignupPerVisitorLimitOn(),
-    keyGenerator: (req: Request) => signupVisitorKey(req.headers["x-forwarded-for"], req.socket.remoteAddress),
+    keyGenerator: (req: Request) => signupVisitorKey(req.headers["x-real-ip"], req.socket.remoteAddress),
     standardHeaders: false,
     legacyHeaders: false,
-    // The key reads X-Forwarded-For itself (last entry only), so the library's proxy checks don't apply
+    // The key doesn't use X-Forwarded-For or req.ip, so the library's proxy checks don't apply
     validate: { xForwardedForHeader: false },
     message: tooManyAnswer,
   }));

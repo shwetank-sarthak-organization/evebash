@@ -16,9 +16,13 @@ async function startSignupServer(t: { after: (fn: () => void) => void }) {
   await new Promise<void>(resolve => server.once("listening", resolve));
   t.after(() => { server.closeAllConnections(); server.close(); });
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/signup/check-email`;
-  const send = (email: unknown, forwardedFor?: string) => fetch(url, {
+  const send = (email: unknown, realIp?: string, forwardedFor?: string) => fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...(forwardedFor ? { "X-Forwarded-For": forwardedFor } : {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(realIp ? { "X-Real-IP": realIp } : {}),
+      ...(forwardedFor ? { "X-Forwarded-For": forwardedFor } : {}),
+    },
     body: JSON.stringify({ email }),
   });
   return { send, calls: () => calls };
@@ -97,8 +101,8 @@ test("each visitor gets 20 checks before the shared 60, and limit answers say ra
   const limited = await send("new@example.com", "198.51.100.1");
   assert.equal(limited.status, 429);
   assert.deepEqual(await limited.json(), { error: "Too many signup checks. Please try again later.", code: "rate_limited" });
-  // Made-up earlier entries don't help: only the last one (added by Railway's edge) counts
-  assert.equal((await send("new@example.com", "203.0.113.9, 198.51.100.1")).status, 429);
+  // A made-up X-Forwarded-For doesn't help: only X-Real-IP (set by Railway's edge) counts
+  assert.equal((await send("new@example.com", "198.51.100.1", "203.0.113.9")).status, 429);
   // Another visitor still gets answers
   assert.deepEqual(await (await send("existing@example.com", "198.51.100.2")).json(), { exists: true });
   assert.equal(calls(), 1);
@@ -109,9 +113,9 @@ test("each visitor gets 20 checks before the shared 60, and limit answers say ra
   assert.equal((await shared.json()).code, "rate_limited");
 });
 
-test("visitor key: last X-Forwarded-For entry, else the connection; IPv6 grouped by /56", () => {
-  assert.equal(signupVisitorKey("203.0.113.9, 198.51.100.1", "10.0.0.1"), "198.51.100.1");
-  assert.equal(signupVisitorKey(["203.0.113.9", "198.51.100.1 "], undefined), "198.51.100.1");
+test("visitor key: X-Real-IP, else the connection; IPv6 grouped by /56", () => {
+  assert.equal(signupVisitorKey("198.51.100.1", "10.0.0.1"), "198.51.100.1");
+  assert.equal(signupVisitorKey([" 198.51.100.1 "], undefined), "198.51.100.1");
   assert.equal(signupVisitorKey(undefined, "::ffff:192.0.2.5"), "192.0.2.5");
   assert.equal(signupVisitorKey("2001:db8:abcd:12:1:2:3:4", undefined), "2001:db8:abcd::/56");
   assert.equal(signupVisitorKey("", undefined), "unknown");
