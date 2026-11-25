@@ -1,7 +1,8 @@
-import { Router, type Request } from "express";
-import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { getSupabaseAdminClient } from "../supabase.js";
+import { requestVisitorKey } from "../services/visitorRateLimit.js";
 
 type AuthDirectory = Pick<ReturnType<typeof getSupabaseAdminClient>["auth"]["admin"], "listUsers">;
 
@@ -14,16 +15,6 @@ const TOO_MANY = "Too many signup checks. Please try again later.";
 // website signs up without the check. Off ("false"): only the shared budget, answered as before.
 export function isSignupPerVisitorLimitOn() {
   return process.env.SIGNUP_CHECK_PER_VISITOR?.trim().toLowerCase() !== "false";
-}
-
-/**
- * Who is asking: X-Real-IP, which Railway's edge sets to the client's address ("for identifying client's remote IP"),
- * else the connection's own address. Not X-Forwarded-For: Railway passes the caller's own entries through (checked on
- * staging 2026-11-25), so it can be made up. IPv6 is grouped by /56.
- */
-export function signupVisitorKey(realIp: string | string[] | undefined, socketAddress: string | undefined) {
-  const address = (Array.isArray(realIp) ? realIp[0] : realIp)?.split(",")[0]?.trim();
-  return ipKeyGenerator(address || socketAddress || "unknown", 56);
 }
 
 function tooManyAnswer() {
@@ -49,7 +40,8 @@ export function createSignupRouter(getDirectory: () => AuthDirectory = () => get
     windowMs: WINDOW_MS,
     limit: CHECKS_PER_VISITOR,
     skip: () => !isSignupPerVisitorLimitOn(),
-    keyGenerator: (req: Request) => signupVisitorKey(req.headers["x-real-ip"], req.socket.remoteAddress),
+    // X-Real-IP (set by Railway's edge), see services/visitorRateLimit.ts
+    keyGenerator: requestVisitorKey,
     standardHeaders: false,
     legacyHeaders: false,
     // The key doesn't use X-Forwarded-For or req.ip, so the library's proxy checks don't apply

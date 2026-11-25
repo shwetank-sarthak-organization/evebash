@@ -99,3 +99,9 @@ made up (checked on staging 2026-11-25). A limit answer is 429 with
 the check (Supabase never creates a second account for an email), so one visitor
 can no longer stop email sign-up for everyone. Switch: `SIGNUP_CHECK_PER_VISITOR=false`
 turns both off (shared budget only, 429 without `code`, the website stops as before).
+
+Issue #326: the other limiters in `src/server.ts` (contact messages, vendor leads,
+event transfers, Vault, Albums) use the same visitor key through `visitorRateLimit`
+(`src/services/visitorRateLimit.ts`). The app doesn't set `trust proxy`, so `req.ip`
+is Railway's proxy and each limit used to be one budget shared by everyone. Switch:
+`RATE_LIMIT_BY_VISITOR=false` keys them by `req.ip` again.

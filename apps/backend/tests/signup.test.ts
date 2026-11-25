@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import type { AddressInfo } from "node:net";
-import { authEmailExists, createSignupRouter, signupVisitorKey } from "../src/routes/signup.js";
+import { authEmailExists, createSignupRouter } from "../src/routes/signup.js";
 
 async function startSignupServer(t: { after: (fn: () => void) => void }) {
   let calls = 0;
@@ -111,12 +111,4 @@ test("each visitor gets 20 checks before the shared 60, and limit answers say ra
   const shared = await send("new@example.com", "198.51.100.50");
   assert.equal(shared.status, 429);
   assert.equal((await shared.json()).code, "rate_limited");
-});
-
-test("visitor key: X-Real-IP, else the connection; IPv6 grouped by /56", () => {
-  assert.equal(signupVisitorKey("198.51.100.1", "10.0.0.1"), "198.51.100.1");
-  assert.equal(signupVisitorKey([" 198.51.100.1 "], undefined), "198.51.100.1");
-  assert.equal(signupVisitorKey(undefined, "::ffff:192.0.2.5"), "192.0.2.5");
-  assert.equal(signupVisitorKey("2001:db8:abcd:12:1:2:3:4", undefined), "2001:db8:abcd::/56");
-  assert.equal(signupVisitorKey("", undefined), "unknown");
 });

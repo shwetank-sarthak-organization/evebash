@@ -1138,12 +1138,13 @@ How to reproduce: On live, logged in with any account, POST https://api.evebash.
 Listed: 2026-11-25
 Platform: Website
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Fixing #320, chat with Sarthak (with Claude), 2026-11-25
 Issue: The backend's other rate limits are effectively one budget shared by all visitors, so one person can use them up for everyone. apps/backend/src/server.ts sets contactMessagesLimiter (10 per 15 minutes, /api/contact-messages and /api/v1/contact-messages), vendorLeadsLimiter (10 per 15 minutes, /api/v1/vendor-leads), eventTransfersLimiter (30 POSTs per 15 minutes, /api/v1/event-transfers), vaultLimiter (5000) and albumLimiter (3000) with express-rate-limit's default key, req.ip. The app never sets "trust proxy", and every request reaches it through Railway's proxy, so req.ip is the proxy's address, not the visitor's: e.g. 10 contact-form messages from anyone in 15 minutes stop the contact form for everyone (and 30 transfer starts block event transfers). Found by reading the code; not tried (it would send real contact messages). Fix idea, behind a switch: key these limiters on X-Real-IP like the sign-up check (signupVisitorKey in apps/backend/src/routes/signup.ts, issue #320; Railway's edge replaces X-Real-IP with the caller's real address, checked on staging 2026-11-25; X-Forwarded-For can be made up), perhaps sharing one small helper; do not set "trust proxy" app-wide without checking what else reads req.ip.
 How to reproduce: Not on live. On staging, send 11 contact-form messages (POST /api/v1/contact-messages) within 15 minutes, then send one from another network or phone: it is refused ("Too many contact requests"). Delete the test messages afterwards.
+Note 2026-11-25: fix written (not pushed yet), behind RATE_LIMIT_BY_VISITOR (on unless "false"). New apps/backend/src/services/visitorRateLimit.ts: visitorAddressKey/requestVisitorKey (X-Real-IP, else the connection address; IPv6 /56; moved from routes/signup.ts, which now imports it, so #320's sign-up check and these limits share one helper) and visitorRateLimit(options), express-rate-limit keyed by that visitor key (switch off: req.ip as before). The five limiters in apps/backend/src/server.ts (event transfers, contact messages, vendor leads, Vault, Albums) use it; their limits and messages are unchanged. Backend tests 199 of 199 (tests/visitorRateLimit.test.ts: per-visitor budgets, X-Forwarded-For ignored, switch off = one shared budget), type check clean; README updated. Staging check planned: 10 invalid contact-form posts (400, nothing stored, still counted) each with a made-up X-Real-IP, then the 11th refused; a request over IPv6 (another address) still allowed.
 
 RECENTLY FIXED (delete entries older than 7 days)
 #320
