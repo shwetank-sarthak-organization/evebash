@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
-import { canPostEventPhoto, canPostEventVideo, isVideoUpload } from '../src/services/eventVideoPermission.js';
+import { canPostEventPhoto, canPostEventVideo, isMediaRouteRoleCheckOn, isPlatformAdmin, isVideoUpload } from '../src/services/eventVideoPermission.js';
 
 // Real guests columns (no email): a query on a missing column fails here as it does in Supabase
 const guestColumns = ['id', 'user_id', 'phone', 'event_id', 'parent_event_id', 'status', 'can_admin', 'can_upload', 'can_comment'];
@@ -105,4 +105,22 @@ test('issue #300: "scope": "profile" no longer skips the gallery check, and prof
   assert.equal(await runGuard('/save-photo', photo), 'next', 'kill switch restores the old behaviour');
   assert.equal(await runGuard('/get-upload-url', { scope: 'profile', fileName: 'me.jpg', resourceType: 'image' }), 'next');
   delete process.env.PROFILE_UPLOADS_REQUIRE_LOGIN;
+});
+
+test('issue #321: only global platform admins run the watchdog; indexing counts follow the upload rule; kill switch', async () => {
+  const db = database({ events, profiles: [{ id: 'platform', role: 'admin' }, { id: 'delegatedAdmin', role: 'admin', delegated_by: 'someone' }, { id: 'host', role: 'user' }], profile_assigned_events: [], guests: [
+    { id: '1', user_id: 'uploader', event_id: 'root', status: 'approved', can_upload: true, can_admin: false },
+    { id: '2', user_id: 'viewer', event_id: 'root', status: 'approved', can_upload: false, can_admin: false },
+  ] });
+  assert.equal(await isPlatformAdmin(db, 'platform'), true);
+  for (const id of ['delegatedAdmin', 'host', 'stranger']) assert.equal(await isPlatformAdmin(db, id), false, id);
+  // indexing-status uses canPostEventPhoto: the people who upload (and poll for progress) get through, others don't
+  for (const id of ['owner', 'creator', 'uploader', 'platform']) assert.equal(await canPostEventPhoto(db, user(id), 'child'), true, id);
+  for (const id of ['viewer', 'stranger']) assert.equal(await canPostEventPhoto(db, user(id), 'child'), false, id);
+
+  delete process.env.MEDIA_ROUTES_CHECK_ROLE;
+  assert.equal(isMediaRouteRoleCheckOn(), true);
+  process.env.MEDIA_ROUTES_CHECK_ROLE = 'false';
+  assert.equal(isMediaRouteRoleCheckOn(), false);
+  delete process.env.MEDIA_ROUTES_CHECK_ROLE;
 });

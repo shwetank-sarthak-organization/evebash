@@ -1,4 +1,4 @@
-import { canPostEventPhoto, canPostEventVideo, isPhotoUploadPermissionRequired, isProfileUploadLoginRequired, isVideoUpload } from "../services/eventVideoPermission.js";
+import { canPostEventPhoto, canPostEventVideo, isMediaRouteRoleCheckOn, isPhotoUploadPermissionRequired, isPlatformAdmin, isProfileUploadLoginRequired, isVideoUpload } from "../services/eventVideoPermission.js";
 import { saveVideoThumbnail, ThumbnailError } from "../services/videoThumbnail.js";
 import { removeGuestPreviewPicture, saveGuestPreviewPicture, GuestPreviewPictureError } from "../services/guestPreviewPicture.js";
 import { Buffer } from "node:buffer";
@@ -578,9 +578,12 @@ mediaRouter.all("/watchdog/run", asyncRoute(async (request, response) => {
 
   if (!isSecretMatch) {
     const user = await verifySupabaseUser(authHeader.replace("Bearer ", ""));
-    // Allow if authenticated (or configure admin check if preferred)
     if (!user) {
       return jsonError(response, 401, "Unauthorized watchdog execution");
+    }
+    // Platform admins only (issue #321); with MEDIA_ROUTES_CHECK_ROLE=false any login, as before
+    if (isMediaRouteRoleCheckOn() && !(await isPlatformAdmin(getSupabaseAdminClient(), user.id))) {
+      return jsonError(response, 403, "Only platform admins can run the watchdog");
     }
   }
 
@@ -1593,6 +1596,13 @@ mediaRouter.get("/indexing-status", asyncRoute(async (request, response) => {
   if (!eventId) return jsonError(response, 400, "Missing eventId");
 
   const supabaseAdmin = getSupabaseAdminClient();
+  // Only people who can upload to this gallery (issue #321); with MEDIA_ROUTES_CHECK_ROLE=false any login, as before
+  if (isMediaRouteRoleCheckOn()) {
+    const verified = await verifyRequestUser(request);
+    if (!verified || !(await canPostEventPhoto(supabaseAdmin, verified.user, eventId))) {
+      return jsonError(response, 403, "Not allowed to see this gallery's progress");
+    }
+  }
   const [
     { count: totalPhotos, error: totalError },
     { count: indexedPhotos, error: indexedError },

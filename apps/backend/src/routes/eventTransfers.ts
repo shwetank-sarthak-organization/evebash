@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { Router } from "express";
 import { verifySupabaseUser } from "../auth.js";
 import { checkReceiverCapacity, findRootEvent, type ReceiverCapacity } from "../services/eventTransfers.js";
+import { isPlatformAdmin } from "../services/eventVideoPermission.js";
 import type { VaultUser } from "../vault/access.js";
 import { findPushProfile, sendExpoPush, wantsEventInvites } from "./notifications.js";
 
@@ -64,11 +65,6 @@ function blockMessage(capacity: ReceiverCapacity) {
 
 const isOwner = (createdBy: string | null, user: { id: string; email?: string | null; phone?: string | null }) =>
   !!createdBy && (createdBy === user.id || createdBy === user.phone || (!!user.email && createdBy.toLowerCase() === user.email.toLowerCase()));
-
-async function isPlatformAdmin(admin: Admin, userId: string) {
-  const { data } = await admin.from("profiles").select("role, delegated_by").eq("id", userId).maybeSingle();
-  return data?.role === "admin" && !data.delegated_by;
-}
 
 async function eventSize(admin: Admin, eventId: string) {
   const { data, error } = await admin.rpc("event_transfer_size_bytes", { p_event_id: eventId });

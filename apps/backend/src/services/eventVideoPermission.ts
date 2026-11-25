@@ -84,3 +84,18 @@ export function isPhotoUploadPermissionRequired() {
 export function isProfileUploadLoginRequired() {
   return process.env.PROFILE_UPLOADS_REQUIRE_LOGIN?.trim().toLowerCase() !== 'false';
 }
+
+/** Platform admin: same rule as eb_private.is_platform_admin in the database (and eventUploadRole above). */
+export async function isPlatformAdmin(db: SupabaseClient, userId: string): Promise<boolean> {
+  const { data } = await db.from('profiles').select('role, delegated_by').eq('id', userId).maybeSingle();
+  return data?.role === 'admin' && !data.delegated_by;
+}
+
+/**
+ * Issue #321: the media watchdog runs only for internal jobs and platform admins, and a gallery's indexing counts
+ * are only for people who can upload to it (owner, admins, guests with uploads on). Before, any logged-in account
+ * could do both. Kill switch: MEDIA_ROUTES_CHECK_ROLE=false goes back to "any login".
+ */
+export function isMediaRouteRoleCheckOn() {
+  return process.env.MEDIA_ROUTES_CHECK_ROLE?.trim().toLowerCase() !== 'false';
+}

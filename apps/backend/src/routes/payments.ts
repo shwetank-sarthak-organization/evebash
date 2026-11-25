@@ -559,26 +559,44 @@ paymentsRouter.post("/verify-payment", async (request: Request, response: Respon
   }
 });
 
+/**
+ * Issue #319: a failed payment is logged only for a signed-in buyer (the pricing page always sends the login, and
+ * buying needs one since #316), and its text is cut to a sane length. Before, anyone could add any number of
+ * "failed" rows of any size. Kill switch: PAYMENT_FAILURE_LOG_REQUIRES_LOGIN=false goes back to the old behaviour.
+ */
+export function isPaymentFailureLoginRequired() {
+  return process.env.PAYMENT_FAILURE_LOG_REQUIRES_LOGIN?.trim().toLowerCase() !== "false";
+}
+
+export function paymentFailureRow(body: Record<string, any>, userId: string | null, clip: boolean) {
+  const text = (value: unknown, max: number) => clip ? (typeof value === "string" ? value.trim().slice(0, max) : "") : value;
+  return {
+    user_id: userId,
+    amount: 0,
+    currency: "INR",
+    status: "failed",
+    plan_id: text(body.planId, 64) || "unknown",
+    billing_duration: text(body.duration, 32) || null,
+    payment_gateway: "razorpay",
+    razorpay_order_id: text(body.orderId, 64) || null,
+    razorpay_payment_id: text(body.paymentId, 64) || null,
+    failure_reason: text(body.failureReason, 1000) || "Payment failed or was dismissed",
+  };
+}
+
 // POST /api/v1/payments/log-failure
 paymentsRouter.post("/log-failure", async (request: Request, response: Response) => {
   const verification = await verifySupabaseUser(request);
   const userId = verification?.user?.id;
-  const { orderId, paymentId, planId, duration, failureReason } = request.body || {};
+  const loginRequired = isPaymentFailureLoginRequired();
+  if (loginRequired && !userId) {
+    response.status(401).json({ success: false, error: "Please sign in." });
+    return;
+  }
 
   try {
     const supabaseAdmin = getSupabaseAdminClient();
-    await supabaseAdmin.from("payments").insert({
-      user_id: userId || null,
-      amount: 0,
-      currency: "INR",
-      status: "failed",
-      plan_id: planId || "unknown",
-      billing_duration: duration || null,
-      payment_gateway: "razorpay",
-      razorpay_order_id: orderId || null,
-      razorpay_payment_id: paymentId || null,
-      failure_reason: failureReason || "Payment failed or was dismissed",
-    });
+    await supabaseAdmin.from("payments").insert(paymentFailureRow(request.body || {}, userId || null, loginRequired));
     response.json({ success: true });
   } catch (error) {
     request.log.warn({ error }, "[Payments] Failed to log payment failure");

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { test } from 'node:test';
-import { applyPaidPlan, handleRazorpayWebhook } from '../src/routes/payments.js';
+import { applyPaidPlan, handleRazorpayWebhook, paymentFailureRow, paymentsRouter } from '../src/routes/payments.js';
 
 // The plan date helpers in payments.ts mix local time and UTC; Railway runs in UTC, so test in UTC too
 process.env.TZ = 'UTC';
@@ -197,4 +197,36 @@ test('webhook: a failure while switching the plan on returns 500 so Razorpay ret
     fetchOrder: async () => { throw new Error('Razorpay is down'); },
   });
   assert.equal(result.status, 500);
+});
+
+// Issue #319: failed-payment logging needs a signed-in buyer and keeps the text short
+function logFailure(body: Row) {
+  const layer = (paymentsRouter.stack as any[]).find((l) => l.route?.path === '/log-failure');
+  return new Promise<{ status: number; data: any }>((resolve) => {
+    let status = 200;
+    const req = { body, get: () => '', headers: {}, log: { warn() {} } };
+    const res = { status(code: number) { status = code; return res; }, json(data: unknown) { resolve({ status, data }); return res; } };
+    layer.route.stack[0].handle(req, res);
+  });
+}
+
+test('log-failure: refused without a login (issue #319)', async () => {
+  delete process.env.PAYMENT_FAILURE_LOG_REQUIRES_LOGIN;
+  const result = await logFailure({ planId: 'starter', failureReason: 'test' });
+  assert.equal(result.status, 401);
+});
+
+test('log-failure: text is cut to a sane length; the kill switch keeps it as sent', () => {
+  const long = 'x'.repeat(5000);
+  const row = paymentFailureRow({ planId: long, duration: long, orderId: long, paymentId: long, failureReason: long }, 'user-1', true);
+  assert.equal(String(row.plan_id).length, 64);
+  assert.equal(String(row.billing_duration).length, 32);
+  assert.equal(String(row.razorpay_order_id).length, 64);
+  assert.equal(String(row.razorpay_payment_id).length, 64);
+  assert.equal(String(row.failure_reason).length, 1000);
+  assert.equal(row.user_id, 'user-1');
+  const real = { orderId: 'order_ABC', paymentId: null, planId: 'starter', duration: 'monthly', failureReason: 'BAD_REQUEST_ERROR: Payment cancelled' };
+  assert.deepEqual(paymentFailureRow(real, 'u', true), paymentFailureRow(real, 'u', false), 'real failures are stored the same');
+  assert.equal(paymentFailureRow({ failureReason: long }, null, false).failure_reason, long);
+  assert.equal(paymentFailureRow({}, 'u', true).plan_id, 'unknown');
 });

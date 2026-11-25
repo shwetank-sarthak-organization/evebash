@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 323
+Next issue number: 324
 
 =====================================================================
 ACTIVE ISSUES
@@ -1009,6 +1009,7 @@ Issue: The backend accepts gallery uploads with no login, and never checks that 
 How to reproduce: Log out of the website. Send POST <staging API>/api/media/get-upload-url with no Authorization header and the body {"eventId":"<any staging gallery id>","fileName":"x.jpg","fileSize":1000,"resourceType":"image"}. Today it answers with an upload link instead of 401.
 Note 2026-11-25 (Sarthak with Claude): most of this was already fixed before the entry was written. Since 6a1782f9 (2026-10-11) the check in mediaRouter.use (apps/backend/src/routes/media.ts, about line 600) needs a login for every gallery upload step (part-url included, through the file's own gallery) and accepts only the owner, admins and guests the host allowed to upload (canPostEventPhoto); videos only owner and admins. Checked 2026-11-25 with no login: the reproduce request gets 401 "Log in to upload photos to this gallery." on staging and live. Still open: uploads with "scope":"profile" (profile pictures) skip that check, so a logged-out request still gets an upload link (seen on staging 2026-11-25; stored under profiles/anonymous/). That link is the stranger's way into the much bigger #318 (the link works for any file name in the bucket). Fix for this part: refuse scope "profile" uploads without a login, behind a switch. Priority to review once that is in (Sarthak's call).
 Note 2026-11-25 (later, corrects the note above): the issue is NOT mostly fixed. The check in mediaRouter.use skipped the gallery check for any request with "scope":"profile", on every upload step, while save-photo, save-photo-batch, mobile/get-upload-url and mobile/save-photo-batch ignore scope. So a logged-out request with "scope":"profile" and a real gallery id still gets past the login check and only meets validateAnonymousEvent (gallery exists), and the photo is saved into that gallery, private ones too, as "anonymous". Checked without writing anything on staging and live: POST /api/media/save-photo for a gallery id that doesn't exist answers "Log in to upload photos to this gallery." without scope and "Invalid event or unauthorized access" with "scope":"profile" (the old check). With #318 the file itself can be uploaded too. Fix written (not committed yet): "scope":"profile" now only counts on /get-upload-url (the one step that stores profile pictures) and that needs a login (401 "Log in to upload a profile picture."); every other step does the gallery check whatever the scope. Switch: PROFILE_UPLOADS_REQUIRE_LOGIN, on unless set to "false" (isProfileUploadLoginRequired in apps/backend/src/services/eventVideoPermission.ts), like PHOTO_UPLOADS_REQUIRE_PERMISSION. Nothing real breaks: no screen sends "scope":"profile" to /get-upload-url today (#322). Test added in apps/backend/tests/eventVideoPermission.test.ts; backend tests 178 of 180 pass (the 2 RunPod upload-link tests fail on this machine because @aws-sdk/client-s3 isn't installed locally, unrelated). Next: push to staging, repeat the check on staging (expect "Log in to upload photos to this gallery." with "scope":"profile" too), then release to live.
+Note 2026-11-25: fix on staging in f105c151 (staging backend updated about 30 s after the push). Checked on staging with no login and a gallery id that doesn't exist: save-photo, save-photo-batch and mobile/get-upload-url with "scope":"profile" all answer 401 "Log in to upload photos to this gallery."; a profile picture link answers 401 "Log in to upload a profile picture."; plain gallery links still 401 as before. Live (api.evebash.com) still has the hole until the next release: there the same save-photo-batch request got as far as inserting into photos (refused only because the gallery id doesn't exist, photos_event_id_fkey), and a logged-out profile picture request still gets a bucket-wide upload link (#318). Waits on: release to live (staging to main), then repeat the check on api.evebash.com and move this to RECENTLY FIXED.
 
 #301
 Listed: 2026-11-19
@@ -1466,12 +1467,13 @@ How to reproduce: Do not overwrite real files. On staging, POST /api/media/get-u
 Listed: 2026-11-25
 Platform: Website
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Backend login review, chat with Sarthak (with Claude), 2026-11-25
 Issue: Anyone can add fake "failed payment" rows. POST /api/v1/payments/log-failure (apps/backend/src/routes/payments.ts, about line 563) needs no login (it only reads one if sent) and inserts a payments row with status "failed" and whatever planId, orderId, paymentId and failureReason the request sends, with no length limit (requests up to 10 MB) and no rate limit. The website's own /api/log-payment-failure (src/app/api/log-payment-failure/route.ts) passes requests straight through. Why it matters: junk or very large rows in the payments table and in anything that counts failed payments. No money moves and no plan changes. Fix idea, behind a switch: require a login (the pricing page, src/app/(main)/pricing/page.tsx about line 528, already sends it, and buying needs a login since #316), cap the text lengths, add a rate limit.
 How to reproduce: Not on live. On staging, POST /api/v1/payments/log-failure with no login and the body {"planId":"test-319","failureReason":"test"}: it answers success and adds a row to payments. Delete the row afterwards.
+Note 2026-11-25: fix written (not pushed yet). /log-failure answers 401 "Please sign in." without a login, and the text is cut (plan id, order id, payment id 64 characters, duration 32, reason 1000; real failures from the pricing page are stored exactly as before). Switch: PAYMENT_FAILURE_LOG_REQUIRES_LOGIN, on unless "false" (then no login check and no cutting, as before). The pricing page already sends the login through src/app/api/log-payment-failure. No rate limit added: with a login needed, junk can only come from accounts. Tests in apps/backend/tests/payments.test.ts. Failed payments show in the analytics dashboard's Payments grid (apps/analytics-dashboard/src/components/PaymentsGrid.tsx), which is where junk rows would have appeared.
 
 #320
 Listed: 2026-11-25
@@ -1488,12 +1490,13 @@ How to reproduce: Not on live. On staging, send 61 POSTs to /api/v1/signup/check
 Listed: 2026-11-25
 Platform: Both
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Backend login review, chat with Sarthak (with Claude), 2026-11-25
 Issue: Two backend routes check only that someone is logged in, not who. (1) /api/media/watchdog/run (apps/backend/src/routes/media.ts, about line 573) runs the media recovery job for any logged-in account ("Allow if authenticated" in the code); it should be the internal secret or a platform admin only. (2) GET /api/media/indexing-status (about line 1582) gives photo and face counts for any gallery to any logged-in account (#284 added the login, not a gallery check); it should be the gallery's owner, its admins or a platform admin. Why it matters: small; anyone can sign up free, so these are close to public. No photos or names are shown. Fix idea, behind a switch: add those checks (authorizeEventProcessing in media.ts already does owner / platform admin / internal job).
 How to reproduce: Log in on staging as an account that doesn't own the gallery, then call GET /api/media/indexing-status?eventId=<someone else's gallery id> with that login: counts come back. POST /api/media/watchdog/run with that login: it runs and returns a report.
+Note 2026-11-25: fix written (not pushed yet). Watchdog: the internal secret still works; a login now also needs to be a global platform admin (403 otherwise). Indexing counts: only people who can upload to that gallery (canPostEventPhoto: owner, admins, guests with uploads on, platform admins; 403 otherwise). These are the callers today: the website upload panel (src/context/UploadContext.tsx) and the app upload queue (apps/mobile/lib/uploadQueue.ts) poll it while someone uploads, so a guest uploader still gets through. Switch: MEDIA_ROUTES_CHECK_ROLE, on unless "false" (then any login, as before). isPlatformAdmin moved from apps/backend/src/routes/eventTransfers.ts to apps/backend/src/services/eventVideoPermission.ts so both use one copy. Tests in apps/backend/tests/eventVideoPermission.test.ts. Found while checking callers: #323.
 
 #322
 Listed: 2026-11-25
@@ -1505,6 +1508,17 @@ Blocked by: -
 Found in: Fixing #300, chat with Sarthak (with Claude), 2026-11-25
 Issue: Changing your profile picture looks broken on both the website and the app. Website: the profile page (src/app/(main)/profile/page.tsx, handleImageUpload about line 320) asks /api/v1/media/get-upload-url for a link with no login, no "scope" and no eventId, so the backend answers 400 "Missing eventId" and the page shows "Missing eventId". App: uploadProfileImage (apps/mobile/lib/storage.ts, about line 257) posts the picture as base64 to <backend>/api/media/upload, which the backend doesn't have (404 "Route not found."); it seems lost when the media routes moved to the Railway backend. Checked by sending the same requests to the staging backend on 2026-11-25; not tried in the website or on a phone. Fix idea (ties in with #318): one backend route that needs a login, takes the picture, checks it is an image, stores it under profiles/<user id>/ itself and returns the link (what the app already expects from /api/media/upload: { url, publicId }); the website sends the file there too, so no storage upload link is handed out for profile pictures.
 How to reproduce: Staging website, log in, Profile, change the profile photo: error "Missing eventId". Staging app, Profile > Edit, pick a new photo: upload fails ("Route not found." or "Upload failed").
+
+#323
+Listed: 2026-11-25
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Fixing #321, chat with Sarthak (with Claude), 2026-11-25
+Issue: In the app's event screen, the upload-finished popup asks for the gallery's indexing progress without a login: checkStatus in apps/mobile/app/events/[id].tsx (about line 2925) calls /api/v1/media/indexing-status with a plain fetch and no Authorization header. That route needs a login since #284 (2026-11-16), so it answers 401 every 4 seconds and the popup's progress (setMobileIndexingStatus) never fills in. The upload queue (apps/mobile/lib/uploadQueue.ts) sends the login and is not affected. Not checked on a phone. Fix idea: send the login like uploadQueue.ts does (supabase.auth.getSession, Authorization: Bearer).
+How to reproduce: Staging app as a host, upload a few photos to a gallery, watch the upload-finished popup: the indexing progress never shows. Logs: 401 from /api/v1/media/indexing-status.
 
 =====================================================================
 
