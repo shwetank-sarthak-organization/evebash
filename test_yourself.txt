@@ -7696,7 +7696,7 @@ Fix ref:
 Feedback:
 
 #255 Permissions: the event owner shows first, above Admins and Members (todo #50)
-Status:    TODO (website PASS; iPhone simulator PASS; real iPhone and Android still to check)
+Status:    TODO (website PASS; iPhone simulator PASS; real Android PASS; real iPhone still to check)
 Priority:  Low
 Platform:  Both. Website (staging.evebash.com, desktop and phone width) and the app (iPhone and Android, separately; needs a
            staging build or the app server).
@@ -7721,4 +7721,4 @@ Date tested: 2026-11-26
 Account used: newone2@email.com (Admin on an event owned by newone1)
 Screenshot / recording:
 Fix ref:
-Feedback: iPhone 18 Pro simulator PASS (Claude, 2026-11-26, efc1b2c1 via the local app server, signed in as newone2): Permissions > Guest List shows Owner first (newone1, @newone1, newone1@email.com, "Owner: full access", no buttons), then Admins (1) newone2; light look. Website owner username and email on separate lines PASS (Shwetank, b7068688). Website as owner PASS (Shwetank): the row says "You". Website as admin PASS (Shwetank): Owner section shows "newone1", "Full access · can't be changed" and the Owner badge, above Members (1) · 1 Admin. App: staging builds started 2026-11-26.
+Feedback: Real Android PASS (Claude over USB, 2026-11-26, iQOO, EveBash Staging build 0b4a8601 + staging update 52808477, signed in as newone2, dark look): Owner newone1, @newone1, newone1@email.com on separate lines, then Admins (1) newone2 @newone2. Found and fixed on the way: issue #327. iPhone 18 Pro simulator PASS (Claude, 2026-11-26, efc1b2c1 via the local app server, signed in as newone2): Permissions > Guest List shows Owner first (newone1, @newone1, newone1@email.com, "Owner: full access", no buttons), then Admins (1) newone2; light look. Website owner username and email on separate lines PASS (Shwetank, b7068688). Website as owner PASS (Shwetank): the row says "You". Website as admin PASS (Shwetank): Owner section shows "newone1", "Full access · can't be changed" and the Owner badge, above Members (1) · 1 Admin. App: staging builds started 2026-11-26.
