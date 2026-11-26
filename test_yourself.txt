@@ -7776,7 +7776,7 @@ Fix ref:
 Feedback: Website as admin and as owner, and ordinary-member actions (steps 1-5) PASS, reported by Shwetank 2026-11-26. iPhone 18 Pro simulator PASS, steps 1-2 as the admin (Claude, 2026-11-26, latest staging code via the local app server, newone2): no bin on the admin row; Admin Access says "Only the event owner can change this"; tapping it shows "Owner only"; nothing changed. Real Android PASS, steps 1-2 as the admin (Claude over USB, 2026-11-26, iQOO, staging build + update 322ed1ec, newone2 on Riya & Arjun's Wedding): no bin button on the admin row; in newone2's popup Admin Access says "Only the event owner can change this" and tapping it shows "Owner only"; nothing changed (still Admins (1)). Steps 3-5 (ordinary members, owner view) need a third account and newone1.
 
 #258 Android: events open quickly on mobile data, also right after signing in (issue #315)
-Status:    TODO
+Status:    FAIL
 Priority:  High
 Platform:  App (EveBash Staging on Android, NEW app build)
 Jira:      EB-433
@@ -7800,11 +7800,11 @@ How to test:
      then closing and reopening the app or signing out and in first. Expect: every event opens, none takes more
      than about 5 seconds, and "We couldn't open this gallery" never shows.
   4. If an event is slow or fails, write down the time to the minute (we can find it in the staging server log).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Claude (for Shwetank), driving the phone over USB
+Device / browser: iQOO I2012, Android 14, EveBash Staging app; Jio 4G mobile data, Wi-Fi off
+Build / version:  a9a75698 (EveBash Staging 1.2.4 (26)); checked the installed app's code: ping every 2 s
+Date tested:      2026-11-26, 21:14-21:41 IST
+Account used:     newone2@email.com (admin of Riya & Arjun's Wedding; has no events of its own, so events were opened from Host > Shared and the Dashboard)
+Screenshot / recording: screenshots of every open kept on Shwetank's Mac (not in the repo)
 Fix ref:
-Feedback:
+Feedback:         12 event opens on Jio mobile data, 1-3 minutes apart, the app fully closed and reopened 3 times (not signed out and in: that needs the password). All 12 opened and "We couldn't open this gallery" never showed, so the 20 s hang is gone. 10 of 12 were ready in 1.6-3.0 s. Two were slow: 21:23 Riya & Arjun's Wedding from Host > Shared took 7.0 s (the same event opened in 1.6-1.7 s at 21:14 and 21:35), and 21:40-21:41 Riya & Arjun's Wedding from the Dashboard (guest view) took 5.3 s; at that moment the staging server's /api/media/guest-preview-picture took 6.7 s and member-directory 1.7-2.0 s, so that one was probably the server, not the phone's connection. The staging server log has no requests at 21:23 (the event screen reads Supabase directly), so the cause of the 7.0 s one is not known. Reopening the app took about 8 s to the Dashboard (3 times). FAIL only because one open went over the 5 s limit. Times are when the screen stopped changing, from screenshots about 0.8 s apart, so they can be up to about 0.8 s long and include pictures still loading.
