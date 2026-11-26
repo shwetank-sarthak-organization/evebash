@@ -1035,13 +1035,13 @@ Done in:      -
 Listed:       2026-11-26
 Platform:     Both
 Priority:     Low
-Phase:        TBD (1 or 2, decide after discussion)
-Status:       Idea
+Phase:        1
+Status:       Done
 Effort:       S (a few hours)
 Suggested by: Shwetank (chat with Claude, 2026-11-26)
-Discussed:    No
-Decision:     -
-Owner:        Unassigned
+Discussed:    Yes
+Decision:     2026-11-26 Shwetank: build it now.
+Owner:        Shwetank (with Claude)
 Depends on:   -
 Brief:        An event admin who isn't the owner can see the other admins in Permissions (app: "Admins (N)" group
               in the Guest List, apps/mobile/app/events/[id].tsx; website: the Admin column in the Permissions table,
@@ -1054,7 +1054,9 @@ Brief:        An event admin who isn't the owner can see the other admins in Per
               both need the same plain logic, put it in shared/. How to check: as an admin (not owner), open the
               event's Permissions on the website and on the app (iPhone and Android) and see the owner first,
               then Admins, then Members; as the owner, the row says "You".
-Done in:      -
+Done in:      ebd6dd01 (2026-11-26), on staging. Device test #255. The owner row shows the name from the
+              public profile card (other people's email/phone aren't readable), "You" for the owner, or the email on old
+              events.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
