@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 263
+Next test number: 264
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7942,7 +7942,7 @@ Fix ref:
 Feedback:
 
 --------------------------------------------------------------------------------
-#262 iPhone: app builds and opens with Xcode 27 / iOS 27 from a clean prebuild, links still open the right screen (issue #276)
+#263 iPhone: app builds and opens with Xcode 27 / iOS 27 from a clean prebuild, links still open the right screen (issue #276)
 Status:    TODO
 Priority:  High (launch blocker, test first)
 Platform:  App (EveBash Staging on iPhone)
