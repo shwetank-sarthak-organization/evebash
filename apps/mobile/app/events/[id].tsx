@@ -85,6 +85,7 @@ import PermissionsIcon from '../../components/icons/PermissionsIcon';
 import TransferOwnershipCard from '../../components/event/TransferOwnershipCard';
 import { memberLabel, type MemberDetails, type OwnerDetails } from '../../../../shared/permissions/memberDetails';
 import { eventOwnerLabel } from '../../../../shared/permissions/eventOwner';
+import { homeAfterUnstar } from '../../../../shared/media/homeFavourites';
 import { GUEST_UPLOADS_ENABLED } from '../../../../shared/permissions/guestUploads';
 import DesignIcon from '../../components/icons/DesignIcon';
 import PartnersIcon from '../../components/icons/PartnersIcon';
@@ -2408,8 +2409,9 @@ function EventDetailScreen() {
       return next;
     });
 
+    // On Home, an un-starred photo leaves the list, unless it was uploaded to Home itself (then it only loses its star)
     if (selectedAdminGallery === null && !result.favourited) {
-      setPhotos(prev => prev.filter(photo => photo.id !== photoId));
+      setPhotos(prev => homeAfterUnstar(prev, photoId, [editableGallery.id, editableGallery.legacyId]).items);
     }
   };
 

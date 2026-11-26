@@ -18,6 +18,7 @@ import { memberLabel, type MemberDetails, type OwnerDetails } from "../../../../
 import { eventOwnerLabel } from "../../../../shared/permissions/eventOwner";
 import { GUEST_UPLOADS_ENABLED } from "../../../../shared/permissions/guestUploads";
 import { buildSourceGalleryOptions, formatSourceCount, isFromSourceGallery } from "../../../../shared/media/sourceGalleries";
+import { homeAfterUnstar } from "../../../../shared/media/homeFavourites";
 import { HostIcon } from "@/components/HostIcon";
 import { HostConsoleIcon } from "@/components/HostConsoleIcon";
 import { DashboardEventCard, SERIF, formatShortEventDate } from "@/components/dashboard/DashboardEvents";
@@ -3583,6 +3584,17 @@ function DashboardContent() {
                 else next.delete(photoId);
                 return next;
             });
+            // On Home, an un-starred photo leaves the list now, not only after a page refresh (unless it was uploaded to Home)
+            if (!result.favourited && selectedEventId === selectedMainEventId) {
+                const { items, removed } = homeAfterUnstar(currentEventPhotos, photoId, [selectedMainEventId, selectedMainEventLegacyId]);
+                if (removed) {
+                    setCurrentEventPhotos(items);
+                    const isVideo = removed.mediaType === "video" || removed.resourceType === "video";
+                    setCurrentEventMediaCounts(prev => isVideo
+                        ? { ...prev, videos: Math.max(0, prev.videos - 1) }
+                        : { ...prev, photos: Math.max(0, prev.photos - 1) });
+                }
+            }
             setStatus("success");
             setMessage(result.favourited ? "Added to Primary Gallery." : "Removed from Primary Gallery.");
             await refreshEventFavourites(selectedMainEventId);
