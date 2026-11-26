@@ -7748,7 +7748,7 @@ Fix ref:
 Feedback: Website and step 3 (photo uploaded to Home stays when un-starred) PASS, reported by Shwetank 2026-11-26. iPhone 18 Pro simulator PASS for steps 1-2 (Claude, 2026-11-26, 03bc587c via the local app server, newone2): starred a Haldi photo, Home showed it (Photos (1)); un-starred on Home: it left at once and the tab said Photos (0). Real Android PASS for steps 1-2 (Claude over USB, 2026-11-26, iQOO, staging build + update fe393a0a, newone2 on Riya & Arjun's Wedding): starred a Haldi photo, Home showed it (Photos (1)); un-starred on Home: it left at once and the tab said Photos (0); Haldi still had all 4 photos, star off. The first try showed the count stuck at Photos (1), fixed in 03bc587c. Step 3 (a photo uploaded to Home) not tested: needs an upload from the phone.
 
 #257 Only the event owner changes Admin Access or removes an admin (issue #329)
-Status:    TODO
+Status:    TODO (real Android steps 1-2 PASS as admin; website, iPhone, and steps 3-5 still to check)
 Priority:  High
 Platform:  Both. Website (staging.evebash.com) and the app (iPhone and Android, separately; staging app opened twice for the
            update). Needs two accounts: A owns an event, B is an admin on it (and, for step 4, a third member C).
@@ -7773,4 +7773,4 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Real Android PASS, steps 1-2 as the admin (Claude over USB, 2026-11-26, iQOO, staging build + update 322ed1ec, newone2 on Riya & Arjun's Wedding): no bin button on the admin row; in newone2's popup Admin Access says "Only the event owner can change this" and tapping it shows "Owner only"; nothing changed (still Admins (1)). Steps 3-5 (ordinary members, owner view) need a third account and newone1.
