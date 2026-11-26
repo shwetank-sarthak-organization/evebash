@@ -83,7 +83,7 @@ import { useRoyalFonts } from '../../components/royal/royalFonts';
 import GalleriesIcon from '../../components/icons/GalleriesIcon';
 import PermissionsIcon from '../../components/icons/PermissionsIcon';
 import TransferOwnershipCard from '../../components/event/TransferOwnershipCard';
-import { memberLabel, type MemberDetails } from '../../../../shared/permissions/memberDetails';
+import { memberLabel, ownerContactLine, type MemberDetails, type OwnerDetails } from '../../../../shared/permissions/memberDetails';
 import { eventOwnerLabel } from '../../../../shared/permissions/eventOwner';
 import { GUEST_UPLOADS_ENABLED } from '../../../../shared/permissions/guestUploads';
 import DesignIcon from '../../components/icons/DesignIcon';
@@ -1010,6 +1010,7 @@ function EventDetailScreen() {
   const [linkedVendors, setLinkedVendors] = useState<Business[]>([]);
   const [guestLogs, setGuestLogs] = useState<any[]>([]);
   const [memberDirectory, setMemberDirectory] = useState<Record<string, MemberDetails>>({});
+  const [eventOwnerDetails, setEventOwnerDetails] = useState<OwnerDetails | undefined>();
   const [updating, setUpdating] = useState(false);
   const [coverUploadMessage, setCoverUploadMessage] = useState<string | null>(null);
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
@@ -2892,9 +2893,14 @@ function EventDetailScreen() {
   // Usernames for the Permissions list, loaded again when someone joins or leaves it
   const guestLogIds = guestLogs.map((log) => log.id).join(',');
   useEffect(() => {
-    if (!id || !guestLogIds || !(isOwner || canManageEvent)) return;
+    // Also loaded with no guests yet: it carries the owner's details for the Owner row (todo #50)
+    if (!id || !(isOwner || canManageEvent)) return;
     let active = true;
-    void getMemberDirectory(id).then((directory) => { if (active) setMemberDirectory(directory); });
+    void getMemberDirectory(id).then((directory) => {
+      if (!active) return;
+      setMemberDirectory(directory.members);
+      setEventOwnerDetails(directory.owner);
+    });
     return () => { active = false; };
   }, [id, guestLogIds, isOwner, canManageEvent]);
 
@@ -6174,7 +6180,9 @@ function EventDetailScreen() {
 
                   {/* ── OWNER ── not a guest of their own event, so shown on its own first (todo #50) */}
                   {(() => {
-                    const ownerName = eventOwnerLabel(event.createdBy, [user?.uid, user?.email], ownerCardName);
+                    const ownerName = eventOwnerLabel(event.createdBy, [user?.uid, user?.email], eventOwnerDetails?.name || ownerCardName);
+                    // Username and email come from the backend, which only tells the people who manage the event
+                    const ownerContact = ownerContactLine(eventOwnerDetails);
                     return (
                       <View style={{ marginBottom: 8 }}>
                         <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 16, marginTop: 10 }]}>Owner</Text>
@@ -6184,6 +6192,11 @@ function EventDetailScreen() {
                           </View>
                           <View style={{ flex: 1, gap: 2 }}>
                             <Text style={styles.memberName} numberOfLines={1}>{ownerName}</Text>
+                            {!!ownerContact && (
+                              <Text style={{ color: hp.slate400, fontSize: 12, fontFamily: Fonts.inter.medium }} numberOfLines={1}>
+                                {ownerContact}
+                              </Text>
+                            )}
                             <Text style={{ color: hp.gold, fontSize: 12, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>
                               Owner: full access
                             </Text>

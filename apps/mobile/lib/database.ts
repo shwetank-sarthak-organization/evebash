@@ -788,7 +788,7 @@ export interface GuestProfile {
 export async function getMemberDirectory(eventId: string) {
     const { data: { session } } = await supabase.auth.getSession();
     const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, '');
-    if (!session?.access_token || !apiBaseUrl) return {};
+    if (!session?.access_token || !apiBaseUrl) return { members: {} };
     return fetchMemberDirectory(`${apiBaseUrl}/api/v1/permissions/member-directory`, session.access_token, eventId);
 }
 

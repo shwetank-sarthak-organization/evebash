@@ -335,7 +335,23 @@ export function createPermissionsRouter(
         const profile = profileById.get(guest.user_id as string);
         if (profile) members[guest.id] = { username: profile.username ?? null, email: profile.email ?? null };
       }
-      return response.json({ success: true, members });
+
+      // The event owner's name, username and email for the Owner row in Permissions (todo #50): the owner isn't a
+      // guest, and only the people who manage the event get this far. Never the phone.
+      const { data: event, error: eventError } = await supabaseAdmin
+        .from("events").select("created_by").eq("id", eventId).maybeSingle();
+      if (eventError) throw eventError;
+      const createdBy = typeof event?.created_by === "string" ? event.created_by : "";
+      let owner: { name: string | null; username: string | null; email: string | null } | null = null;
+      if (createdBy.includes("@")) {
+        owner = { name: null, username: null, email: createdBy };
+      } else if (createdBy) {
+        const { data: ownerProfile, error: ownerError } = await supabaseAdmin
+          .from("profiles").select("name, username, email").eq("id", createdBy).maybeSingle();
+        if (ownerError) throw ownerError;
+        if (ownerProfile) owner = { name: ownerProfile.name ?? null, username: ownerProfile.username ?? null, email: ownerProfile.email ?? null };
+      }
+      return response.json({ success: true, members, owner });
     } catch (error: any) {
       console.error("[BackendPermissions] Error in member-directory:", error);
       return response.status(500).json({ success: false, error: "Could not load this event's members." });

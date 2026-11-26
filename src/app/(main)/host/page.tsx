@@ -14,7 +14,7 @@ import { GuestPagePreview } from "@/components/GuestPagePreview";
 import { PartnersIcon } from "@/components/PartnersIcon";
 import { GalleryTypesInfo } from "@/components/GalleryTypesInfo";
 import { TransferOwnershipCard } from "@/components/transfer/TransferOwnershipCard";
-import { memberLabel, type MemberDetails } from "../../../../shared/permissions/memberDetails";
+import { memberLabel, ownerContactLine, type MemberDetails, type OwnerDetails } from "../../../../shared/permissions/memberDetails";
 import { eventOwnerLabel } from "../../../../shared/permissions/eventOwner";
 import { GUEST_UPLOADS_ENABLED } from "../../../../shared/permissions/guestUploads";
 import { buildSourceGalleryOptions, formatSourceCount, isFromSourceGallery } from "../../../../shared/media/sourceGalleries";
@@ -1093,6 +1093,7 @@ function DashboardContent() {
     const [selectedGuestLog, setSelectedGuestLog] = useState<EventDetailLog | null>(null);
     const [selectedGuestProfile, setSelectedGuestProfile] = useState<any | null>(null);
     const [memberDirectory, setMemberDirectory] = useState<Record<string, MemberDetails>>({});
+    const [eventOwnerDetails, setEventOwnerDetails] = useState<OwnerDetails | undefined>();
     const [loadingGuestProfile, setLoadingGuestProfile] = useState(false);
 
     // Guest requests (Requests tab)
@@ -1874,10 +1875,14 @@ function DashboardContent() {
     // Loaded again when someone joins or leaves the list
     const eventDetailLogIds = eventDetailLogs.map((log) => log.id).join(",");
     useEffect(() => {
-        if (!selectedMainEventId || !eventDetailLogIds) return;
+        setEventOwnerDetails(undefined);
+        // Also loaded with no guests yet: it carries the owner's details for the Owner row (todo #50)
+        if (!selectedMainEventId) return;
         let isMounted = true;
         void getMemberDirectory(selectedMainEventId).then((directory) => {
-            if (isMounted) setMemberDirectory(directory);
+            if (!isMounted) return;
+            setMemberDirectory(directory.members);
+            setEventOwnerDetails(directory.owner);
         });
         return () => {
             isMounted = false;
@@ -4783,8 +4788,10 @@ function DashboardContent() {
                                                     const ownerName = eventOwnerLabel(
                                                         selectedMainEvent.createdBy,
                                                         [user.uid, user.email],
-                                                        selectedMainEvent.createdBy ? eventOwners[selectedMainEvent.createdBy]?.name : undefined,
+                                                        eventOwnerDetails?.name || (selectedMainEvent.createdBy ? eventOwners[selectedMainEvent.createdBy]?.name : undefined),
                                                     );
+                                                    // Username and email come from the backend, which only tells the people who manage the event
+                                                    const ownerContact = ownerContactLine(eventOwnerDetails);
                                                     return (
                                                         <section className="space-y-3">
                                                             <h5 className="text-sm font-black uppercase tracking-[0.18em] text-[var(--site-muted)]">Owner</h5>
@@ -4794,6 +4801,7 @@ function DashboardContent() {
                                                                 </span>
                                                                 <span className="min-w-0 flex-1">
                                                                     <span className="block truncate text-base font-black text-[var(--site-text)]">{ownerName}</span>
+                                                                    {ownerContact && <span className="block truncate text-xs font-bold text-[var(--site-muted)]">{ownerContact}</span>}
                                                                     <span className="block truncate text-xs font-bold text-[var(--site-muted)]">Full access · can&apos;t be changed</span>
                                                                 </span>
                                                                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--site-gold-text)]">
