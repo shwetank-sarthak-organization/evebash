@@ -4,6 +4,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MidnightColors } from '@/constants/theme';
 import { vaultApi, type VaultFolder } from '@/lib/vaultApi';
+import { useAndroidKeyboardHeight } from '@/hooks/use-android-keyboard-height';
 
 /** New folder and rename. onSubmit returns an error message to show, or null on success. */
 export function NamePrompt({ title, initial, confirmLabel, onClose, onSubmit }: {
@@ -13,6 +14,8 @@ export function NamePrompt({ title, initial, confirmLabel, onClose, onSubmit }: 
   const [value, setValue] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Android: a Modal doesn't shrink for the keyboard, so lift the dialog above it (#243; 0 on iOS)
+  const keyboardHeight = useAndroidKeyboardHeight();
 
   const submit = async () => {
     if (!value.trim() || busy) return;
@@ -23,7 +26,7 @@ export function NamePrompt({ title, initial, confirmLabel, onClose, onSubmit }: 
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.overlay}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.overlay, keyboardHeight > 0 && { paddingBottom: 20 + keyboardHeight }]}>
         <View style={styles.dialog}>
           <Text style={styles.dialogTitle} accessibilityRole="header">{title}</Text>
           <TextInput

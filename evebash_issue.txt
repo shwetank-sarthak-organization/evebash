@@ -82,12 +82,14 @@ Note 2026-10-27: Fixed in c42c419 (needs a new app build): apps/mobile/hooks/use
 Listed: 2026-10-12
 Platform: Both
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: A decision: add the profiles.notification_preferences column (database change), and whether upload pushes should start for every host
 Found in: #47 investigation (2026-10-12)
 Issue: profiles has no notification_preferences column (checked 2026-10-12), but several places use it. (1) Host upload pushes never send: apps/backend/src/uploadNotifications.ts asks for push_token, notification_preferences, the lookup fails and it returns quietly, so "New photo(s) uploaded" and "New video uploaded" (including VIDEO_READY_PUSH=true from Modal's callback) never reach the host. test_yourself #51 step 5 uses the video push, so it will fail until this is fixed (use a join request instead). (2) The app's Settings > Notifications switches don't save: updateUserProfile (apps/mobile/lib/database.ts) drops columns the profile doesn't have and still reports success, so the switch flips back on the next login and nobody can turn pushes off. (3) Client-side pushes fail the same way: the app's sendPushNotificationDirectly (enquiries and vendor chat, Phase 2, see #20) and the website's sendPushNotification (old approval path). #47 fixed only the access-request, approval and deny pushes in apps/backend/src/routes/notifications.ts (select "*"). Fix options: add the column (jsonb, nullable) so settings save and count, and for (1) read the profile the way notifications.ts does; the photo-upload push has no kill switch, so put it behind a flag first, because fixing it starts a push to every host on every upload.
 How to reproduce: Upload a photo or video to someone else's gallery: the owner's phone gets nothing, and Railway logs show nothing. In the app, turn off Event invites in Settings, log out and in: it's on again.
+Note 2026-11-26: Checked read-only: profiles has no notification_preferences on staging (degbveyjppkuhydwxfjq) and live (sbhouirpyiyybrravvih). Code change on branch claude/epic-lederberg-c4460a (not pushed): the host upload push now reads the profile with select "*" and sits behind UPLOAD_OWNER_PUSH (off = same as today). Adding the column is still waiting for the user's OK.
+Note 2026-11-26: Column added on STAGING only (jsonb, nullable, no default; migration 20261126140000_profiles_notification_preferences.sql). Live not touched. UPLOAD_OWNER_PUSH is still unset, so host upload pushes stay off until it is turned on for staging.
 
 #63
 Listed: 2026-10-12
@@ -767,12 +769,13 @@ How to reproduce: Android emulator, Profile > EB Vault; compare with Profile > U
 Listed: 2026-11-03
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: Device test #180 (which places really break on a phone)
 Found in: Searching the app for the #242 pattern (chat 2026-11-03)
 Issue: Other places where the Android keyboard may cover a text box or its button, like #242. Not checked on a phone yet: the emulator here only shows Gboard's floating keyboard. Same pattern as #242 (keyboard handling only on iOS, inside a pop-up): (1) album page review, "Write a reply" and "Describe the change (optional)" (apps/mobile/components/album/PageReviewer.tsx, about line 416); (2) host page > Add Sub-Gallery (apps/mobile/components/event/modals/SubEventModal.tsx); (3) EB Vault > New folder and Rename (NamePrompt in apps/mobile/components/vault/VaultModals.tsx). No keyboard handling at all, in a pop-up in the middle of the screen, so the keyboard may hide its lower half and the Save button: (4) Host tab > an event's options > Rename Event (apps/mobile/app/(tabs)/gallery.tsx, about line 1186); (5) host event page > pencil next to the title, "Edit Event Title" (apps/mobile/components/event/modals/RenameEventModal.tsx). Full screens with no keyboard handling, fine if Android shrinks the screen for the keyboard: (6) Profile > Edit (the lowest boxes, location and birthday); (7) Contact us (the message box, apps/mobile/app/contact.tsx); (8) the host page's welcome message editor (apps/mobile/app/events/[id].tsx, about line 5413). Not listed: the business screens (Phase 2: chat, vendors, manage business) use the same iOS-only pattern. Fix idea: for each place that fails device test #180, lift the pop-up by the keyboard height with apps/mobile/hooks/use-android-keyboard-height.ts (added for #242; the bottom sheets use it too).
 How to reproduce: Device test #180 on an Android phone with its normal on-screen keyboard.
+Note 2026-11-26: fix written (not pushed). Same lift as #242 (useAndroidKeyboardHeight, 0 on iPhone, so iPhone is unchanged) in the 5 pop-ups that sit inside a Modal: Rename Event (apps/mobile/app/(tabs)/gallery.tsx), Edit Event Title (RenameEventModal.tsx), New Sub-Gallery (SubEventModal.tsx), EB Vault New folder / Rename (NamePrompt in VaultModals.tsx), and the album page review screen (PageReviewer.tsx, a full-screen Modal). Left alone because they are normal screens, not Modals, so Android shrinks them: Profile > Edit, Contact us, the welcome message box. App type check clean. NOT checked on the emulator or a phone: the emulator was never signed in, so the before/after screenshots are missing. Device test #261 (EB-441) covers it.
 
 #249
 Listed: 2026-11-06
@@ -822,13 +825,14 @@ How to reproduce: In the app, open a Classic White gallery as a guest (e.g. 10-o
 Listed: 2026-11-07
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: Sarthak's OK to change a guest theme (themes keep their own designs)
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
 Found in: Midnight Hero edit-mode pencils test (todo #11, chat 2026-11-07)
 Issue: In the app's Midnight Hero gallery (the default theme), the welcome card shows a box with a question mark after the host's message instead of the white heart the screen adds (' 🤍' after the description in apps/mobile/app/events/[id].tsx, the shared welcome card used by Midnight Hero and the older themes). The card's serif italic font has no emoji, and here iOS didn't fall back to the emoji font. Guests see it on every gallery with a message. Seen on the iPhone 16e simulator; check on a real phone. Fix idea: draw the heart in its own Text with the system font, or drop it.
 How to reproduce: In the app, open a Midnight Hero gallery with a welcome message as a guest and scroll to the card under the cover: a "?" box follows the message.
 Note 2026-11-07: drawing the heart in its own Text with the system font did not remove the box on the iPhone 16e simulator (iOS 26.3), and the same "?" box shows after FIND YOU on that screen. So it may be the simulator's emoji font, not our card: check on a real iPhone first. No change made.
+Fixed in: ae445d4b (2026-11-19, issue #293). No code change for #255 itself: the boxed ? was the ' 🤍' added after every welcome message; it was removed, so no heart is drawn and the Midnight Hero design is unchanged. Device test #240 PASS on iPhone and Android. Closed 2026-11-26 after checking staging code.
 
 #64
 Listed: 2026-10-13
@@ -849,12 +853,13 @@ Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 
 Listed: 2026-11-12
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: Fixed
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Chat with Sarthak (2026-11-12): "the light theme permission page has a visibility issue"
 Issue: In the light theme, the host's Permissions tab in the app is hard to read. The likely cause (from the code, not yet checked on a phone): the two sheets that open from that tab, the member sheet (tap a guest: name, profile details, Member Privileges switches, Save Permissions) and the access request sheet ("Requesting Access"), draw their background with a fixed dark gradient, colors={['#1B211F', hp.onAccent]} in apps/mobile/app/events/[id].tsx (about lines 6336 and 6478 on staging). The light theme turns their text dark (hostLightStyles in apps/mobile/components/eventStyles/hostLightStyles.ts sets premiumModalTitle and userInfoDetailValue to the light theme's dark text colour, and an active privilege's label uses hp.white, which is dark in the light theme), so the guest's name, the privilege names and other labels are dark on dark. Fix: when hostLight is on, give both sheets a light background from the theme (for example appColors.deepSlate / card) and check every text and switch on them; the dark theme and guest themes stay as they are. Also look over the rest of the Permissions tab in the light theme in case the report means something else on that page.
 How to reproduce: In the app, set Appearance to Light. Open an event you host, go to the Permissions tab and tap a guest in the Guest List (or a pending access request). Expect: the sheet's text is readable. Now: dark text on a dark sheet.
+Fixed in: 66ebb833 (2026-11-23). Guest and access-request popups use a light card in the light look (hostLight), guest names use the host palette, report sheet title fixed. Device test #250: Android PASS, iPhone simulator PASS; real iPhone still to check after the next staging build. Closed 2026-11-26 after checking staging code.
 
 #262
 Listed: 2026-11-12

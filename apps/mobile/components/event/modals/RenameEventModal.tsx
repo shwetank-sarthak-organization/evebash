@@ -7,6 +7,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useAppTheme } from '../../../context/ThemeContext';
+import { useAndroidKeyboardHeight } from '../../../hooks/use-android-keyboard-height';
 
 interface RenameEventModalProps {
   visible: boolean;
@@ -30,9 +31,11 @@ export function RenameEventModal({
   styles
 }: RenameEventModalProps) {
   const { colors, isDark } = useAppTheme();
+  // Android: a Modal doesn't shrink for the keyboard, so lift the pop-up above it (#243; 0 on iOS)
+  const keyboardHeight = useAndroidKeyboardHeight(visible);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
+      <View style={[styles.modalOverlay, keyboardHeight > 0 && { paddingBottom: keyboardHeight }]}>
         <TouchableOpacity
           style={styles.modalBackdrop}
           activeOpacity={1}

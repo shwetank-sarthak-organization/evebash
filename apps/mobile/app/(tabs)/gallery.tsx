@@ -60,6 +60,7 @@ import { appAlert, showToast } from '@/lib/feedback';
 import { getGalleryWebUrl } from '@/lib/webLinks';
 import { confirmDenyRequest } from '@/lib/denyRequest';
 import { useReloadOnReturn } from '@/hooks/use-reload-on-return';
+import { useAndroidKeyboardHeight } from '@/hooks/use-android-keyboard-height';
 import { useRetryWhenOnline } from '@/hooks/use-retry-when-online';
 import { newEventJoinCode } from '../../../../shared/text/joinCode';
 
@@ -144,6 +145,8 @@ export default function PortfolioTabScreen() {
   const [optionsVisible, setOptionsVisible] = useState(false);
   const [templateVisible, setTemplateVisible] = useState(false);
   const [renameVisible, setRenameVisible] = useState(false);
+  // Android: lift the Rename pop-up above the keyboard (#243; 0 on iOS)
+  const renameKeyboardHeight = useAndroidKeyboardHeight(renameVisible);
   const [editTitle, setEditTitle] = useState('');
 
   // Welcome Settings State
@@ -1192,7 +1195,7 @@ export default function PortfolioTabScreen() {
 
       {/* ── RENAME MODAL ── */}
       <Modal visible={renameVisible} transparent animationType="fade" onRequestClose={() => setRenameVisible(false)}>
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, renameKeyboardHeight > 0 && { paddingBottom: renameKeyboardHeight }]}>
           <TouchableOpacity
             style={styles.modalBackdrop}
             activeOpacity={1}
