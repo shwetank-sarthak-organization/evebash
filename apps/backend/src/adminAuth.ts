@@ -9,7 +9,9 @@ function requireEnv(name: string) {
   return value;
 }
 
-export function getAdminClient() {
+// actorId: the person the backend acts for. Sent as x-eb-actor so the event change log (todo #27,
+// supabase/migrations/20261119230000_event_change_log.sql) can name them; the database only trusts it from the service key.
+export function getAdminClient(actorId?: string) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || process.env.SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !key) {
@@ -23,6 +25,7 @@ export function getAdminClient() {
         autoRefreshToken: false,
         persistSession: false,
       },
+      ...(actorId ? { global: { headers: { "x-eb-actor": actorId } } } : {}),
     },
   );
 }
@@ -56,7 +59,8 @@ export async function verifySuperAdmin(request: Request) {
     return { error: "Only global super admins can use this endpoint" } as const;
   }
 
-  return { supabaseAdmin, user: userData.user, profile };
+  // Dashboard actions write as this admin, so their gallery changes show who made them
+  return { supabaseAdmin: getAdminClient(userData.user.id), user: userData.user, profile };
 }
 
 export function adminAuthStatus(error?: string) {

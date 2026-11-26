@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { createUploadTask, FileSystemUploadType } from 'expo-file-system/legacy';
+import { storageUploadRequest } from '../../../shared/media/storageUploadRequest';
 
 type EventUploadResourceType = 'image' | 'video' | 'auto';
 
@@ -116,6 +117,7 @@ export async function uploadEventMedia(
                         eventId,
                         fileName: file.name,
                         resourceType: resolvedResourceType,
+                        contentType: file.type,
                     }),
                 });
             },
@@ -127,7 +129,7 @@ export async function uploadEventMedia(
             throw new Error(getUrlResult.error || `Failed to get B2 upload URL (status: ${getUrlResponse.status})`);
         }
 
-        const { uploadUrl, authorizationToken, storageKey, mediaDomain } = getUrlResult;
+        const { storageKey, mediaDomain } = getUrlResult;
 
         // 2. Upload file binary directly to B2 — with retry (max 3 attempts)
         // B2 upload URLs are single-use: a failed attempt invalidates the URL, so we
@@ -137,8 +139,8 @@ export async function uploadEventMedia(
         let lastUploadError: unknown = null;
         const MAX_UPLOAD_ATTEMPTS = 3;
 
-        let currentUploadUrl = uploadUrl;
-        let currentAuthToken = authorizationToken;
+        // The one-file link when the backend sends one (issue #318); it only fits its own storageKey
+        let currentLink = getUrlResult;
         let currentStorageKey = storageKey;
 
         for (let attempt = 1; attempt <= MAX_UPLOAD_ATTEMPTS; attempt++) {
@@ -150,7 +152,7 @@ export async function uploadEventMedia(
                         (endpoint) => fetch(endpoint, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-                            body: JSON.stringify({ eventId, fileName: file.name, resourceType: resolvedResourceType }),
+                            body: JSON.stringify({ eventId, fileName: file.name, resourceType: resolvedResourceType, contentType: file.type }),
                         }),
                         'retry get upload url'
                     );
@@ -158,22 +160,18 @@ export async function uploadEventMedia(
                     if (!retryUrlResponse.ok) {
                         throw new Error(retryResult.error || `Failed to refresh upload URL (status: ${retryUrlResponse.status})`);
                     }
-                    currentUploadUrl = retryResult.uploadUrl;
-                    currentAuthToken = retryResult.authorizationToken;
+                    currentLink = retryResult;
                     currentStorageKey = retryResult.storageKey ?? currentStorageKey;
                 }
 
+                const request = storageUploadRequest({ ...currentLink, storageKey: currentStorageKey }, file.type || 'application/octet-stream');
                 const uploadTask = createUploadTask(
-                    currentUploadUrl,
+                    request.url,
                     file.uri,
                     {
                         uploadType: FileSystemUploadType.BINARY_CONTENT,
-                        headers: {
-                            Authorization: currentAuthToken,
-                            'Content-Type': file.type || 'application/octet-stream',
-                            'X-Bz-File-Name': encodeURIComponent(currentStorageKey),
-                            'X-Bz-Content-Sha1': 'do_not_verify',
-                        },
+                        httpMethod: request.method,
+                        headers: request.headers,
                     }
                 );
 

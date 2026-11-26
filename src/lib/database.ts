@@ -1763,7 +1763,7 @@ async function getMemberDetails(logId?: string) {
 /** Username and email of everyone on an event's Permissions list, by guest row id. */
 export async function getMemberDirectory(eventId: string) {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) return {};
+    if (!session?.access_token) return { members: {} };
     return fetchMemberDirectory(getApiUrl("/api/v1/permissions/member-directory"), session.access_token, eventId);
 }
 

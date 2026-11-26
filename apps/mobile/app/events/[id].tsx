@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import * as Clipboard from 'expo-clipboard';
 import { Button } from '@/components/ui/Button';
-import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, getMemberDirectory, GuestProfile, removeGuestChatPermission, getUserTotalStorage, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery, getGalleryVideo, setGalleryVideo, type GalleryVideo } from '@/lib/database';
+import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, getMemberDirectory, GuestProfile, removeGuestChatPermission, getUserTotalStorage, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery, getGalleryVideo, setGalleryVideo, type GalleryVideo, getProfileCard } from '@/lib/database';
 import { confirmDenyRequest } from '@/lib/denyRequest';
 import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDetails } from '@/lib/uploaders';
 import { useAuth } from '@/context/AuthContext';
@@ -24,7 +24,7 @@ import { albumApi } from '../../lib/albumApi';
 import PhotoViewer from '../../components/PhotoViewer';
 import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../../constants/templates';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadEventMedia } from '@/lib/storage';
+import { fetchWithEndpointFallback, getEndpointsForPath, uploadEventMedia } from '@/lib/storage';
 import { COVER_PICKER_OPTIONS, NO_PHONE_COVER, RESET_COVER_POSITION, RESET_PHONE_COVER_POSITION, removeEventCover, uploadEventCover } from '@/lib/eventCoverUpload';
 import { GUEST_EDIT_ENABLED, useGuestEdit } from '../../components/event/guestEdit/useGuestEdit';
 import { GuestEditBar } from '../../components/event/guestEdit/GuestEditBar';
@@ -83,7 +83,8 @@ import { useRoyalFonts } from '../../components/royal/royalFonts';
 import GalleriesIcon from '../../components/icons/GalleriesIcon';
 import PermissionsIcon from '../../components/icons/PermissionsIcon';
 import TransferOwnershipCard from '../../components/event/TransferOwnershipCard';
-import { memberLabel, type MemberDetails } from '../../../../shared/permissions/memberDetails';
+import { memberLabel, type MemberDetails, type OwnerDetails } from '../../../../shared/permissions/memberDetails';
+import { eventOwnerLabel } from '../../../../shared/permissions/eventOwner';
 import { GUEST_UPLOADS_ENABLED } from '../../../../shared/permissions/guestUploads';
 import DesignIcon from '../../components/icons/DesignIcon';
 import PartnersIcon from '../../components/icons/PartnersIcon';
@@ -881,6 +882,16 @@ function EventDetailScreen() {
 
   const [isOwner, setIsOwner] = useState(false);
   const [isSharedEventAdmin, setIsSharedEventAdmin] = useState(false);
+  // The owner's name for the Owner row in Permissions (todo #50); only the public profile card is readable
+  const [ownerCardName, setOwnerCardName] = useState<string | undefined>();
+  useEffect(() => {
+    const ownerId = event?.createdBy;
+    setOwnerCardName(undefined);
+    if (!ownerId || ownerId.includes('@') || ownerId === user?.uid) return;
+    let cancelled = false;
+    getProfileCard(ownerId).then(card => { if (!cancelled) setOwnerCardName(card?.name); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [event?.createdBy, user?.uid]);
 
   const isAccountEventManager = React.useMemo(() => {
     if (!user || !event) return false;
@@ -999,6 +1010,7 @@ function EventDetailScreen() {
   const [linkedVendors, setLinkedVendors] = useState<Business[]>([]);
   const [guestLogs, setGuestLogs] = useState<any[]>([]);
   const [memberDirectory, setMemberDirectory] = useState<Record<string, MemberDetails>>({});
+  const [eventOwnerDetails, setEventOwnerDetails] = useState<OwnerDetails | undefined>();
   const [updating, setUpdating] = useState(false);
   const [coverUploadMessage, setCoverUploadMessage] = useState<string | null>(null);
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
@@ -2881,9 +2893,14 @@ function EventDetailScreen() {
   // Usernames for the Permissions list, loaded again when someone joins or leaves it
   const guestLogIds = guestLogs.map((log) => log.id).join(',');
   useEffect(() => {
-    if (!id || !guestLogIds || !(isOwner || canManageEvent)) return;
+    // Also loaded with no guests yet: it carries the owner's details for the Owner row (todo #50)
+    if (!id || !(isOwner || canManageEvent)) return;
     let active = true;
-    void getMemberDirectory(id).then((directory) => { if (active) setMemberDirectory(directory); });
+    void getMemberDirectory(id).then((directory) => {
+      if (!active) return;
+      setMemberDirectory(directory.members);
+      setEventOwnerDetails(directory.owner);
+    });
     return () => { active = false; };
   }, [id, guestLogIds, isOwner, canManageEvent]);
 
@@ -2896,33 +2913,21 @@ function EventDetailScreen() {
 
     let pollInterval: NodeJS.Timeout;
 
-    const getApiBaseUrl = () => {
-      const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
-      if (apiBase) return apiBase.replace(/\/+$/, '');
-      
-      try {
-        const Constants = require('expo-constants').default;
-        const hostUri = Constants?.expoConfig?.hostUri || Constants?.manifest2?.extra?.expoGo?.developer?.hostUri;
-        const devHost = typeof hostUri === 'string' ? hostUri.split(':')[0] : '';
-        if (devHost) return `http://${devHost}:3000`;
-      } catch (e) {}
-
-      try {
-        const { Platform } = require('react-native');
-        if (Platform.OS === 'android') return 'http://10.0.2.2:3000';
-      } catch (e) {}
-
-      return 'http://localhost:8080';
-    };
-
     const checkStatus = async () => {
       try {
-        const baseUrl = getApiBaseUrl();
         const eventIdToQuery = selectedAdminGallery !== undefined
           ? (selectedAdminGallery ? selectedAdminGallery.id : id)
           : (activeSubEvent ? activeSubEvent.id : id);
 
-        const res = await fetch(`${baseUrl}/api/v1/media/indexing-status?eventId=${eventIdToQuery}`);
+        // The server needs a login for this (issue #284); without it every check was refused (issue #323).
+        // Same endpoints and login as the upload queue (lib/uploadQueue.ts).
+        const { data: statusSession } = await supabase.auth.getSession();
+        const statusToken = statusSession.session?.access_token;
+        const res = await fetchWithEndpointFallback(
+          getEndpointsForPath(`/api/v1/media/indexing-status?eventId=${encodeURIComponent(String(eventIdToQuery))}`),
+          (endpoint) => fetch(endpoint, statusToken ? { headers: { Authorization: `Bearer ${statusToken}` } } : undefined),
+          'indexing-status'
+        );
         if (res.ok) {
           const rawData = await res.json();
           // indexing-status only counts photos; an event with none (videos only) has nothing left to index
@@ -6172,6 +6177,33 @@ function EventDetailScreen() {
                   <View style={[styles.sectionHeader, { marginTop: 12 }]}>
                     <Text style={styles.sectionTitle}>Guest List</Text>
                   </View>
+
+                  {/* ── OWNER ── not a guest of their own event, so shown on its own first (todo #50) */}
+                  {(() => {
+                    const ownerName = eventOwnerLabel(event.createdBy, [user?.uid, user?.email], eventOwnerDetails?.name || ownerCardName);
+                    return (
+                      <View style={{ marginBottom: 8 }}>
+                        <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 16, marginTop: 10 }]}>Owner</Text>
+                        <View style={styles.memberCard} accessible accessibilityLabel={`${ownerName}, event owner, full access`}>
+                          <View style={styles.memberAvatar}>
+                            <Text style={styles.avatarText}>{ownerName.charAt(0).toUpperCase()}</Text>
+                          </View>
+                          <View style={{ flex: 1, gap: 2 }}>
+                            <Text style={styles.memberName} numberOfLines={1}>{ownerName}</Text>
+                            {/* Username and email, each on its own line, come from the backend, which only tells the people who manage the event */}
+                            {[eventOwnerDetails?.username && `@${eventOwnerDetails.username}`, eventOwnerDetails?.email].filter(Boolean).map(line => (
+                              <Text key={line as string} style={{ color: hp.slate400, fontSize: 12, fontFamily: Fonts.inter.medium }} numberOfLines={1}>
+                                {line}
+                              </Text>
+                            ))}
+                            <Text style={{ color: hp.gold, fontSize: 12, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>
+                              Owner: full access
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })()}
 
                   {/* ── PENDING REQUESTS ── */}
                   <View style={{ gap: 12 }}>

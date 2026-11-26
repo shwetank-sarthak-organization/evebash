@@ -74,3 +74,28 @@ export async function canPostEventPhoto(db: SupabaseClient, user: User, eventId:
 export function isPhotoUploadPermissionRequired() {
   return process.env.PHOTO_UPLOADS_REQUIRE_PERMISSION?.trim().toLowerCase() !== 'false';
 }
+
+/**
+ * Issue #300: "scope": "profile" used to skip the gallery check on every upload step, so a logged-out request could
+ * save photos into any gallery by adding it. Now it only counts on /get-upload-url (the one step that stores profile
+ * pictures, under profiles/<user>/), and that needs a login. Kill switch: PROFILE_UPLOADS_REQUIRE_LOGIN=false goes back
+ * to the old behaviour.
+ */
+export function isProfileUploadLoginRequired() {
+  return process.env.PROFILE_UPLOADS_REQUIRE_LOGIN?.trim().toLowerCase() !== 'false';
+}
+
+/** Platform admin: same rule as eb_private.is_platform_admin in the database (and eventUploadRole above). */
+export async function isPlatformAdmin(db: SupabaseClient, userId: string): Promise<boolean> {
+  const { data } = await db.from('profiles').select('role, delegated_by').eq('id', userId).maybeSingle();
+  return data?.role === 'admin' && !data.delegated_by;
+}
+
+/**
+ * Issue #321: the media watchdog runs only for internal jobs and platform admins, and a gallery's indexing counts
+ * are only for people who can upload to it (owner, admins, guests with uploads on). Before, any logged-in account
+ * could do both. Kill switch: MEDIA_ROUTES_CHECK_ROLE=false goes back to "any login".
+ */
+export function isMediaRouteRoleCheckOn() {
+  return process.env.MEDIA_ROUTES_CHECK_ROLE?.trim().toLowerCase() !== 'false';
+}

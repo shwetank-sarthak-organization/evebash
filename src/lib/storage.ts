@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
+import { storageUploadRequest, type StorageUploadRequest } from "../../shared/media/storageUploadRequest";
 
 /** The server's reason for refusing an upload; `code` is "storage_full" or "plan_expired" when the plan is the reason. */
 export type UploadRefusedError = Error & { code?: string };
@@ -28,9 +29,7 @@ async function sha1OfBlob(blob: Blob): Promise<string> {
  * 3. Saves photo metadata to Supabase via Railway save-photo endpoint.
  */
 function uploadWithXhr(
-    url: string,
-    authToken: string,
-    storageKey: string,
+    request: StorageUploadRequest,
     file: File,
     onProgress?: (percent: number) => void,
     signal?: AbortSignal
@@ -42,12 +41,8 @@ function uploadWithXhr(
         }
 
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", url, true);
-
-        xhr.setRequestHeader("Authorization", authToken);
-        xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-        xhr.setRequestHeader("X-Bz-File-Name", encodeURIComponent(storageKey));
-        xhr.setRequestHeader("X-Bz-Content-Sha1", "do_not_verify");
+        xhr.open(request.method, request.url, true);
+        for (const [name, value] of Object.entries(request.headers)) xhr.setRequestHeader(name, value);
 
         if (onProgress) {
             xhr.upload.onprogress = (event) => {
@@ -683,6 +678,7 @@ export async function uploadEventImage(
                 fileName: file.name,
                 fileSize: file.size,
                 resourceType,
+                contentType: file.type,
                 laneIndex,
             }),
             signal,
@@ -693,44 +689,38 @@ export async function uploadEventImage(
             throw uploadRefusedError(getUrlResult, `Failed to get B2 upload URL (status: ${getUrlResponse.status})`);
         }
 
-        const { uploadUrl, authorizationToken, storageKey } = getUrlResult;
-
-        // 2. Upload file binary directly to Backblaze B2 URL
-        console.log(`[Storage] Uploading file binary directly to B2...`);
-        let currentUploadUrl = uploadUrl;
-        let currentAuthToken = authorizationToken;
+        // The one-file link (issue #318) is only good for its own storageKey, so a retry with a fresh link uploads and
+        // saves under the fresh key
+        let storageKey: string = getUrlResult.storageKey;
         let responseStatus: number;
         let responseText: string;
 
-        try {
+        // 2. Upload file binary directly to storage
+        const sendFile = async (link: typeof getUrlResult) => {
+            const request = storageUploadRequest({ ...link, storageKey }, file.type || "application/octet-stream");
             if (typeof XMLHttpRequest === "undefined") {
                 // Fallback to fetch (e.g. server-side/test environment)
-                const res = await fetch(currentUploadUrl, {
-                    method: "POST",
-                    headers: {
-                        Authorization: currentAuthToken,
-                        "Content-Type": file.type || "application/octet-stream",
-                        "X-Bz-File-Name": encodeURIComponent(storageKey),
-                        "X-Bz-Content-Sha1": "do_not_verify",
-                        "Content-Length": String(file.size),
-                    },
+                const res = await fetch(request.url, {
+                    method: request.method,
+                    headers: { ...request.headers, "Content-Length": String(file.size) },
                     body: file,
                     signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(180_000)]) : AbortSignal.timeout(180_000),
                 });
-                responseStatus = res.status;
-                responseText = await res.text();
-            } else {
-                const xhrResult = await uploadWithXhr(currentUploadUrl, currentAuthToken, storageKey, file, onProgress, signal);
-                responseStatus = xhrResult.status;
-                responseText = xhrResult.responseText;
+                return { status: res.status, responseText: await res.text() };
             }
+            return uploadWithXhr(request, file, onProgress, signal);
+        };
+
+        console.log(`[Storage] Uploading file binary directly to storage...`);
+        try {
+            ({ status: responseStatus, responseText } = await sendFile(getUrlResult));
 
             if (responseStatus < 200 || responseStatus >= 300) {
                 throw new Error(`Upload failed with status: ${responseStatus}`);
             }
         } catch (fetchErr) {
             console.warn(`[Storage] Direct B2 upload failed for ${file.name}. Requesting fresh upload URL and retrying...`, fetchErr);
-            
+
             const retryUrlResponse = await fetch(getApiUrl("/api/media/get-upload-url"), {
                 method: "POST",
                 headers,
@@ -739,6 +729,7 @@ export async function uploadEventImage(
                     fileName: file.name,
                     fileSize: file.size,
                     resourceType,
+                    contentType: file.type,
                     laneIndex,
                     forceRefresh: true,
                 }),
@@ -750,30 +741,9 @@ export async function uploadEventImage(
                 throw new Error(retryUrlResult.error || `Failed to refresh B2 upload URL during retry (status: ${retryUrlResponse.status})`);
             }
 
-            currentUploadUrl = retryUrlResult.uploadUrl;
-            currentAuthToken = retryUrlResult.authorizationToken;
-
-            // Retry the upload one more time with a fresh URL
-            if (typeof XMLHttpRequest === "undefined") {
-                const res = await fetch(currentUploadUrl, {
-                    method: "POST",
-                    headers: {
-                        Authorization: currentAuthToken,
-                        "Content-Type": file.type || "application/octet-stream",
-                        "X-Bz-File-Name": encodeURIComponent(storageKey),
-                        "X-Bz-Content-Sha1": "do_not_verify",
-                        "Content-Length": String(file.size),
-                    },
-                    body: file,
-                    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(180_000)]) : AbortSignal.timeout(180_000),
-                });
-                responseStatus = res.status;
-                responseText = await res.text();
-            } else {
-                const xhrResult = await uploadWithXhr(currentUploadUrl, currentAuthToken, storageKey, file, onProgress, signal);
-                responseStatus = xhrResult.status;
-                responseText = xhrResult.responseText;
-            }
+            // Retry the upload one more time with a fresh link (and, with a one-file link, its own key)
+            if (retryUrlResult.putUrl && retryUrlResult.storageKey) storageKey = retryUrlResult.storageKey;
+            ({ status: responseStatus, responseText } = await sendFile(retryUrlResult));
         }
 
         if (responseStatus < 200 || responseStatus >= 300) {

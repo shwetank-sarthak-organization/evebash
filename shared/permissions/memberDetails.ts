@@ -19,8 +19,14 @@ export async function fetchMemberDetails(url: string, accessToken: string, logId
     }
 }
 
-/** Every member and request of an event, by guest row id, for its Permissions list. Empty when it can't be read. */
-export async function fetchMemberDirectory(url: string, accessToken: string, eventId: string): Promise<Record<string, MemberDetails>> {
+/** The event owner's name, username and email, for the Owner row in Permissions (todo #50). */
+export type OwnerDetails = { name?: string; username?: string; email?: string };
+
+/** One event's Permissions details: every member and request by guest row id, and the owner. */
+export type MemberDirectory = { members: Record<string, MemberDetails>; owner?: OwnerDetails };
+
+/** Empty when it can't be read (or the backend is older and sends no owner), so the list still shows names. */
+export async function fetchMemberDirectory(url: string, accessToken: string, eventId: string): Promise<MemberDirectory> {
     try {
         const response = await fetch(url, {
             method: "POST",
@@ -28,11 +34,16 @@ export async function fetchMemberDirectory(url: string, accessToken: string, eve
             body: JSON.stringify({ eventId }),
         });
         const result = await response.json().catch(() => ({}));
-        return response.ok && result.success ? result.members : {};
+        if (!response.ok || !result.success) return { members: {} };
+        const owner = result.owner
+            ? { name: result.owner.name || undefined, username: result.owner.username || undefined, email: result.owner.email || undefined }
+            : undefined;
+        return { members: result.members || {}, owner };
     } catch {
-        return {};
+        return { members: {} };
     }
 }
+
 
 /** What tells two members with the same name apart: the username (unique), else the email, else what the row has. */
 export function memberLabel(details: MemberDetails | undefined, fallback: string) {

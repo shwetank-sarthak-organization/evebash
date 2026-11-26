@@ -90,3 +90,19 @@ The public existence response intentionally reveals account registration status.
 A conservative, in-memory budget of 60 checks per 15 minutes per backend process
 limits directory scans regardless of proxy headers. At larger user/traffic volumes,
 replace scans with a restricted indexed Auth lookup and use a shared rate-limit store.
+
+Issue #320: before that shared budget, each visitor gets 20 checks per 15 minutes,
+keyed by `X-Real-IP` (Railway's edge sets it to the client's address, replacing
+any value the caller sent). Not `X-Forwarded-For`: Railway rewrites it to
+"client, edge node", and the edge node's address changes per request (checked in
+the staging logs 2026-11-25). A limit answer is 429 with
+`{ "error": ..., "code": "rate_limited" }`, and the website then signs up without
+the check (Supabase never creates a second account for an email), so one visitor
+can no longer stop email sign-up for everyone. Switch: `SIGNUP_CHECK_PER_VISITOR=false`
+turns both off (shared budget only, 429 without `code`, the website stops as before).
+
+Issue #326: the other limiters in `src/server.ts` (contact messages, vendor leads,
+event transfers, Vault, Albums) use the same visitor key through `visitorRateLimit`
+(`src/services/visitorRateLimit.ts`). The app doesn't set `trust proxy`, so `req.ip`
+is Railway's proxy and each limit used to be one budget shared by everyone. Switch:
+`RATE_LIMIT_BY_VISITOR=false` keys them by `req.ip` again.

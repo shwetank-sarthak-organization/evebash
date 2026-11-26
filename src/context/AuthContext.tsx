@@ -402,10 +402,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 signal: AbortSignal.timeout(15000),
             });
             const result = await check.json();
-            if (!check.ok || typeof result.exists !== "boolean") {
+            // Issue #320: when only the check's rate limit was hit, sign up without it. Supabase never makes a
+            // second account for an email; a confirmed one comes back with no identities (handled below).
+            const checkSkipped = check.status === 429 && result.code === "rate_limited";
+            if (!checkSkipped && (!check.ok || typeof result.exists !== "boolean")) {
                 return { success: false, error: result.error || "Unable to check your email right now. Please try again later." };
             }
-            if (result.exists) return { success: false, error: existingAccountMessage };
+            if (!checkSkipped && result.exists) return { success: false, error: existingAccountMessage };
             const { data, error } = await supabase.auth.signUp({
                 email: normalizedEmail,
                 password,

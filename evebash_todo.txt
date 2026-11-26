@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 50
+Next todo number: 51
 
 Last updated: 2026-11-23
 
@@ -241,13 +241,14 @@ Done in:      -
 Listed:       2026-10-27
 Platform:     Both
 Priority:     Medium
-Phase:        TBD (decide after discussion)
+Phase:        1 (v1 launch)
 Status:       Idea
 Effort:       M
 Suggested by: Sarthak (2026-10-27: "if user uploads video ask him to keep original or not, telling him
               how much extra size will be occupied if he keeps original")
-Discussed:    No
-Decision:     -
+Discussed:    Yes
+Decision:     2026-11-19 Sarthak: Phase 1 (v1 launch). Waits for #13 (4K stream) so the size
+              estimate is built once with the final set of streams.
 Owner:        Unassigned
 Depends on:   #13 (the size estimate depends on which streams are made)
 Brief:        When a host uploads videos (website and app), ask once per upload: keep the original
@@ -456,12 +457,12 @@ Listed:       2026-10-28
 Platform:     Both
 Priority:     Medium
 Phase:        TBD (decide after the research)
-Status:       Idea
+Status:       In progress
 Effort:       M
 Suggested by: Sarthak
 Discussed:    No
 Decision:     -
-Owner:        Unassigned
+Owner:        Sarthak (with Claude)
 Depends on:   -
 Brief:        Today Cloudflare runs the evebash.com DNS and the worker evebash-media-worker
               (cloudflare-worker/evebash-media-worker/), which serves every photo and video on
@@ -478,6 +479,16 @@ Brief:        Today Cloudflare runs the evebash.com DNS and the worker evebash-m
               Result: a short report in reports/ with a yes/no and cost for each idea, then new
               todos for the ones we pick.
 Done in:      -
+Update:       2026-11-19 (Sarthak with Claude): research done, report in reports/Cloudflare options for EveBash
+              2026-11-19.md (not committed; nothing changed in any service). Yes: Workers Paid (#132, before
+              launch), cancel the unused "Images Stream Basic" subscription before 2026-12-03, ask Cloudflare
+              support whether serving our B2 videos through the worker is allowed (after #132), Turnstile on
+              sign-up and forms (Phase 2, needs app build). Not now: Pro plan (#139, may only move India to
+              Singapore). No: R2 (+$97/month at 100 customers), Cloudflare image resizing (+$56), Stream (+$390),
+              Queues (saves under $1), Pages instead of Vercel (Free plan serves India from Marseille). Also
+              found: the backend never sets trust proxy, so rate limits are probably shared by all users (not
+              verified live), and QStash's free plan (1,000 messages/day) must not be the live plan. Waiting on
+              Sarthak to pick which become todos/issues and the phase.
 
 #21 Wire up "Book a demo" and the footer social links (website)
 Listed:       2026-11-02
@@ -606,13 +617,18 @@ Update:       2026-11-20 (Shwetank asked to build it): apps/mobile/app/login.tsx
 Listed:       2026-11-07
 Platform:     Analytics dashboard
 Priority:     Medium
-Phase:        TBD (1 or 2, decide after discussion)
-Status:       Idea
+Phase:        1 (v1 launch)
+Status:       In progress
 Effort:       M
 Suggested by: Sarthak
-Discussed:    No
-Decision:     -
-Owner:        Unassigned
+Discussed:    Yes
+Decision:     2026-11-19 Sarthak: Phase 1 (v1 launch). Log title, date, description, both covers, theme
+              (template_id), type, category, join ID, public/hidden/sample, gallery video, owner,
+              parent, vendors and each theme_content block; skip order, cover offsets/scale/mode,
+              legacy_id and guest_preview_picture. Values cut to 500 characters, logs kept for good,
+              platform admins only (hosts don't see it), events only (photos, albums and permissions
+              later).
+Owner:        Sarthak (with Claude)
 Depends on:   -
 Brief:        Each time an event or sub-gallery is changed (title, date, cover, message/description,
               theme, join ID, privacy and the like), save a log row: the event, the field, the old and
@@ -630,6 +646,21 @@ Brief:        Each time an event or sub-gallery is changed (title, date, cover, 
               To decide: which fields to log (skip noisy ones like order and cover offsets?), whether to
               keep old and new values for long text, how long to keep logs, whether hosts also see the
               log on their event, and whether photo, album and permission changes join later.
+              Update 2026-11-19: built, not yet committed or applied. Migration
+              supabase/migrations/20261119230000_event_change_log.sql (table event_change_log, service
+              role read only; triggers on events that never block a save; who = the login, or the
+              backend's x-eb-actor header from the service key only; from = x-client-info). Backend:
+              listEventChanges admin action (apps/backend/src/eventChangeLog.ts); dashboard actions send
+              the admin's id (adminAuth.ts). Dashboard: Change Log tab and a Log button on each gallery
+              (ChangeLogGrid.tsx). Checked: migration run in a local in-memory Postgres (roles, sources,
+              theme blocks, 500-character cut, spoofed header ignored, a broken log still saves the
+              event); tsc and oxlint clean.
+              Update 2026-11-19: migration applied on STAGING (Sarthak's OK). Checked: RLS on, service
+              role SELECT only, both triggers on; a test in a rolled-back transaction on the demo event
+              logged the owner's title change (owner, website, staging.evebash.com) and a backend change
+              made for the owner (owner, backend), and skipped a reorder; 0 rows left after. Live not
+              applied. To do: push (the staging backend has no listEventChanges until then), check in
+              the dashboard after a real save from the website and the app, add a device test.
 Done in:      -
 
 #33 Automatic Modal publishing and database migrations (GitHub Actions)
@@ -994,7 +1025,43 @@ Note 2026-11-23: Shwetank: the guest Add button doesn't work today (website/app)
               guest popup and access text) and the guest "Add photos" button (website guest page, app). Saved
               can_upload values are kept. This todo: fix the guest Add button, then set the switch to true.
               Test: test_yourself #249.
+Note 2026-11-25: when guest uploads are switched on, also run device test #254 (issue #323): the app's
+              upload-complete popup, which only guests see, now sends the login for its face-indexing progress
+              (c6c7bfff, on staging); it couldn't be checked while guest uploads are off. Sarthak moved #323 to Phase 2
+              with this todo.
 Done in:      -
+
+#50  Permissions: show the event owner at the top of the Guest List
+Listed:       2026-11-26
+Platform:     Both
+Priority:     Low
+Phase:        1
+Status:       Done
+Effort:       S (a few hours)
+Suggested by: Shwetank (chat with Claude, 2026-11-26)
+Discussed:    Yes
+Decision:     2026-11-26 Shwetank: build it now.
+Owner:        Shwetank (with Claude)
+Depends on:   -
+Brief:        An event admin who isn't the owner can see the other admins in Permissions (app: "Admins (N)" group
+              in the Guest List, apps/mobile/app/events/[id].tsx; website: the Admin column in the Permissions table,
+              src/app/(main)/host/page.tsx), but the owner isn't listed there, because the owner has no guest
+              entry. The owner's name only shows on the event card ("Owner: ..." on the website's Shared tab and in
+              the app's Gallery tab). Add an "Owner" row at the top of the Guest List on both, with name and
+              email/phone like the other rows, marked "Owner: full access" and not editable (no permission
+              switches, no remove/report). Use the owner lookup that already feeds the "Owner: ..." label
+              (website getEventOwnerName / eventOwners; app gallery.tsx ownerDetails) rather than a new one; if
+              both need the same plain logic, put it in shared/. How to check: as an admin (not owner), open the
+              event's Permissions on the website and on the app (iPhone and Android) and see the owner first,
+              then Admins, then Members; as the owner, the row says "You".
+Done in:      ebd6dd01 (2026-11-26), on staging. Device test #255. The owner row shows the name from the
+              public profile card (other people's email/phone aren't readable), "You" for the owner, or the email on old
+              events.
+Note 2026-11-26: Shwetank wants the owner's email and username too. Added in 7d4729dd: the backend's
+              /api/v1/permissions/member-directory (only for people who manage the event) now also returns the owner's
+              name, username and email (never the phone); the Owner row shows "@username · email" under the name on the
+              website and app. Website and app need the staging backend; the app needs this code (staging builds started
+              before it, so an app update or new build). Test #255.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)

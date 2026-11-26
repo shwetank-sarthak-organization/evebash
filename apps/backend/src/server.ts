@@ -1,6 +1,5 @@
 import cors from "cors";
 import express from "express";
-import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { pinoHttp } from "pino-http";
 import { PORT, corsOrigins } from "./config.js";
@@ -19,6 +18,7 @@ import { eventTransfersRouter } from "./routes/eventTransfers.js";
 import { runMediaWatchdog } from "./services/watchdog.js";
 import { startWatchdogScheduler } from "./services/watchdogScheduler.js";
 import { createSignupRouter } from "./routes/signup.js";
+import { visitorRateLimit } from "./services/visitorRateLimit.js";
 import { accountRouter } from "./routes/account.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { createVaultRouter } from "./routes/vault.js";
@@ -84,9 +84,11 @@ app.use(
 app.post("/api/v1/payments/webhook", express.raw({ type: "*/*", limit: "1mb" }), razorpayWebhook);
 app.use(express.json({ limit: "10mb" }));
 
+// Every limiter below has one budget per visitor (X-Real-IP), not one shared by everyone (issue #326, switch
+// RATE_LIMIT_BY_VISITOR; services/visitorRateLimit.ts).
 // Starting a transfer says whether an email has an account, so it can't be used to test long lists of emails.
 // Reads aren't counted: the Dashboard and Permissions tab load them often, and a venue may share one IP address.
-const eventTransfersLimiter = rateLimit({
+const eventTransfersLimiter = visitorRateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 30,
   skip: (request) => request.method !== "POST",
@@ -95,7 +97,7 @@ const eventTransfersLimiter = rateLimit({
   message: { success: false, error: "Too many requests. Please try again later." },
 });
 
-const contactMessagesLimiter = rateLimit({
+const contactMessagesLimiter = visitorRateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
   standardHeaders: true,
@@ -103,7 +105,7 @@ const contactMessagesLimiter = rateLimit({
   message: { success: false, error: "Too many contact requests. Please try again later." },
 });
 
-const vendorLeadsLimiter = rateLimit({
+const vendorLeadsLimiter = visitorRateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
   standardHeaders: true,
@@ -152,7 +154,7 @@ const vaultStorage = isVaultEnabled() && vaultBucket ? createS3VaultStorage(vaul
 // "Save to EB Vault" from events needs a key that can read the event bucket and write the Vault bucket.
 const vaultCopySettings = getVaultCopySettings();
 const vaultCopier = vaultStorage && vaultCopySettings ? createS3EventToVaultCopier(vaultCopySettings) : null;
-const vaultLimiter = rateLimit({
+const vaultLimiter = visitorRateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 5000,
   standardHeaders: true,
@@ -164,7 +166,7 @@ app.use("/api/v1/vault", vaultLimiter, createVaultRouter({ repo: vaultRepository
 // Album proofing: off until ALBUM_PROOFING=true (the router answers 503 "disabled" until then)
 const albumRepository = createSupabaseAlbumRepository();
 const albumFiles = createB2AlbumFiles();
-const albumLimiter = rateLimit({
+const albumLimiter = visitorRateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 3000,
   standardHeaders: true,

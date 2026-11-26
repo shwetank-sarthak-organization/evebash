@@ -42,6 +42,8 @@ import {
 } from "@/lib/database";
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
+import { compressCoverImage } from "@/lib/eventCoverUpload";
+import { fileToDataUrl } from "@/lib/fileToDataUrl";
 import { getPlanDetails } from "@/lib/planLimits";
 import { defaultPricingPlans } from "@/lib/pricingPlans";
 import { getSubscriptionStatus } from "@/lib/subscriptionStatus";
@@ -328,35 +330,22 @@ export default function ProfilePage() {
         setUploading(true);
         setSaveError("");
         try {
-            const presignedUrlEndpoint = getApiUrl("/api/v1/media/get-upload-url");
-            const presignedRes = await fetch(presignedUrlEndpoint, {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const accessToken = sessionData.session?.access_token;
+            if (!accessToken) throw new Error("Please sign in again before changing your profile photo.");
+
+            // The backend stores the picture itself (issue #322); big photos are scaled down first
+            const picture = await compressCoverImage(file);
+            const uploadRes = await fetch(getApiUrl("/api/v1/media/upload"), {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ fileName: `profiles/${user.uid}/profile_pic.jpg`, resourceType: "image" }),
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+                body: JSON.stringify({ scope: "profile", base64: await fileToDataUrl(picture), fileName: file.name, contentType: picture.type }),
             });
-            const presignedData = await presignedRes.json().catch(() => ({}));
-
-            if (!presignedRes.ok || !presignedData.uploadUrl) {
-                throw new Error(presignedData.error || "Failed to get upload URL");
+            const uploadData = await uploadRes.json().catch(() => ({}));
+            if (!uploadRes.ok || typeof uploadData.url !== "string") {
+                throw new Error(uploadData.error || "Failed to upload profile photo.");
             }
-
-            const uploadRes = await fetch(presignedData.uploadUrl, {
-                method: "POST",
-                headers: {
-                    Authorization: presignedData.authorizationToken,
-                    "Content-Type": file.type || "image/jpeg",
-                    "X-Bz-File-Name": encodeURIComponent(`profiles/${user.uid}/profile_pic.jpg`),
-                    "X-Bz-Content-Sha1": "do_not_verify",
-                },
-                body: file,
-            });
-
-            if (!uploadRes.ok) {
-                throw new Error("Failed to upload image bytes to storage.");
-            }
-
-            const mediaDomain = (process.env.NEXT_PUBLIC_MEDIA_DOMAIN || "media.evebash.com").replace(/^https?:\/\//, "").replace(/\/+$/, "");
-            const publicUrl = `https://${mediaDomain}/profiles/${user.uid}/profile_pic.jpg`;
+            const publicUrl: string = uploadData.url;
 
             await updateUserProfileImage(user.uid, publicUrl);
             setProfileImage(publicUrl);

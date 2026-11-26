@@ -106,7 +106,9 @@ test('member directory: managers get usernames for the event and its sub-galleri
     profiles: [
       { id: 'u1', username: 'asha', email: 'asha@example.com', phone: '+911' },
       { id: 'u2', username: null, email: 'rahul@example.com', phone: '+912' },
+      { id: 'owner-1', name: 'Priya', username: 'priya', email: 'priya@example.com', phone: '+913' },
     ],
+    events: [{ id: 'wedding', created_by: 'owner-1' }, { id: 'old', created_by: 'host@example.com' }],
   };
   const admin = {
     from(table: string) {
@@ -115,6 +117,7 @@ test('member directory: managers get usernames for the event and its sub-galleri
         select: () => builder,
         eq: (column: string, value: unknown) => { filters.push((row) => row[column] === value); return builder; },
         in: (column: string, values: unknown[]) => { filters.push((row) => values.includes(row[column])); return builder; },
+        maybeSingle: async () => ({ data: (directoryTables[table] || []).find((row) => filters.every((keep) => keep(row))) ?? null, error: null }),
         then: (resolve: (value: unknown) => unknown) => resolve({ data: (directoryTables[table] || []).filter((row) => filters.every((keep) => keep(row))), error: null }),
       };
       return builder;
@@ -145,6 +148,7 @@ test('member directory: managers get usernames for the event and its sub-galleri
     const refused = await post({ eventId: 'wedding' });
     assert.equal(refused.status, 403);
     assert.equal(refused.body.members, undefined);
+    assert.equal(refused.body.owner, undefined);
 
     access = 'allowed';
     assert.deepEqual((await post({ eventId: 'wedding' })).body, {
@@ -153,7 +157,11 @@ test('member directory: managers get usernames for the event and its sub-galleri
         main: { username: 'asha', email: 'asha@example.com' },
         sub: { username: null, email: 'rahul@example.com' },
       },
+      owner: { name: 'Priya', username: 'priya', email: 'priya@example.com' },
     });
+
+    // Old events saved the owner by email
+    assert.deepEqual((await post({ eventId: 'old' })).body.owner, { name: null, username: null, email: 'host@example.com' });
   } finally {
     server.close();
   }

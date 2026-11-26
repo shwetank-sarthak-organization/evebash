@@ -1,5 +1,5 @@
 import { PolicyAcceptanceGate } from "../components/PolicyAcceptanceGate";
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { releasePushToken } from '@/lib/notifications';
 import { User as SupabaseUser } from '@supabase/supabase-js';
@@ -139,6 +139,8 @@ interface AuthContextType {
   loginWithApple: () => Promise<{ success: boolean; error?: string }>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  /** Reads the signed-in user's profile again, e.g. after Edit Profile saves it (realtime is off, issue #324) */
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -147,6 +149,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   console.log('[Auth] AuthProvider mounting...');
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  // The signed-in user's profile loader (fetchAndSetUser below), so screens can reload it after saving (issue #324)
+  const refreshProfileRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     configureGoogleSignin();
@@ -331,6 +335,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         };
 
+        refreshProfileRef.current = fetchAndSetUser;
         fetchAndSetUser();
 
         const profileChannel = supabase
@@ -368,6 +373,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         handleUserSession(session.user);
       } else {
         if (profileUnsubscribe) profileUnsubscribe();
+        refreshProfileRef.current = null;
         if (isMounted) {
           setUser(null);
           finishAuthLoading();
@@ -598,11 +604,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     configureGoogleSignin()
       .then((GoogleSignin) => GoogleSignin?.signOut())
       .catch((err) => console.warn('[Auth] Google sign-out failed:', err));
+    refreshProfileRef.current = null;
     setUser(null);
   };
 
+  // Never throws: the loader logs its own errors and keeps the current user
+  const refreshUser = async () => {
+    const refresh = refreshProfileRef.current;
+    if (refresh) await refresh();
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, authWithPhone, loginWithGoogle, loginWithApple, resetPassword, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, authWithPhone, loginWithGoogle, loginWithApple, resetPassword, logout, refreshUser }}>
       <PolicyAcceptanceGate userId={user?.uid} onSignOut={logout}>{children}</PolicyAcceptanceGate>
     </AuthContext.Provider>
   );
@@ -622,6 +635,7 @@ export function useAuth(): AuthContextType {
       loginWithApple: async () => ({ success: false, error: 'Auth context not ready' }),
       resetPassword: async () => ({ success: false, error: 'Auth context not ready' }),
       logout: async () => {},
+      refreshUser: async () => {},
     };
   }
   return ctx;

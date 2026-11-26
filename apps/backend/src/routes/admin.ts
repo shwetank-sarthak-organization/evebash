@@ -13,6 +13,7 @@ import {
   reviewContentReport,
   setReportedUserSuspended,
 } from "../contentReports.js";
+import { EventChangeLogError, listEventChanges } from "../eventChangeLog.js";
 
 export const adminRouter = Router();
 
@@ -1577,13 +1578,20 @@ adminRouter.post("/", async (request: Request, response: ExpressResponse) => {
         await setReportedUserSuspended(supabaseAdmin, user.id, payload);
         return jsonResponse(response, { success: true });
       }
+      case "listEventChanges": {
+        response.setHeader("Cache-Control", "no-store");
+        const { changes, hasMore } = await listEventChanges(supabaseAdmin, payload);
+        return jsonResponse(response, { success: true, changes, hasMore });
+      }
       default:
         return jsonResponse(response, { success: false, error: "Unsupported admin action" }, 400);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Admin action failed";
     console.error("[admin/control]", message);
-    const status = error instanceof AdminActionError || error instanceof ContentReportError ? error.status : 500;
+    const status = error instanceof AdminActionError || error instanceof ContentReportError || error instanceof EventChangeLogError
+      ? error.status
+      : 500;
     return jsonResponse(response, { success: false, error: message }, status);
   }
 });

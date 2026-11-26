@@ -66,10 +66,11 @@ export async function createEventBucket(env: NodeJS.ProcessEnv = process.env): P
   return {
     bucket,
     signDownload: (Key, expiresIn) => getSignedUrl(client, new GetObjectCommand({ Bucket, Key }), { expiresIn }),
+    // An empty CacheControl signs no cache-control header (gallery uploads send none, issue #318)
     signUpload: (Key, ContentType, CacheControl, expiresIn) =>
-      getSignedUrl(client, new PutObjectCommand({ Bucket, Key, ContentType, CacheControl }), {
+      getSignedUrl(client, new PutObjectCommand({ Bucket, Key, ContentType, ...(CacheControl ? { CacheControl } : {}) }), {
         expiresIn,
-        signableHeaders: new Set(["content-type", "cache-control"]),
+        signableHeaders: new Set(CacheControl ? ["content-type", "cache-control"] : ["content-type"]),
       }),
     async list(Prefix) {
       const out: { key: string; size: number }[] = [];
