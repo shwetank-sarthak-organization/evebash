@@ -7817,12 +7817,15 @@ Jira:      EB-438
 Brief:     The app download was carrying about 6 MB of font files it never used (the Royal Emerald and Classic White
            fonts were pulled in with every weight). They are now included one by one, only the faces the app uses.
            This checks that no text lost its font.
-Detail:    Fix in apps/mobile/components/royal/royalFonts.ts and apps/mobile/components/classic/classicFonts.ts.
-           Bundled assets change, so this needs a NEW app build (staging EAS build for Android and iPhone); an
-           over-the-air update does not carry it. Checked: type check passes and expo export --platform android
-           bundles 25 font files (was 46), 6.27 MB less. Not checked on a device.
+Detail:    Fix in apps/mobile/components/royal/royalFonts.ts and apps/mobile/components/classic/classicFonts.ts
+           (commit 8b2b3fd7). Checked: type check passes and expo export --platform android bundles 25 font files
+           (was 46), 6.27 MB less. Not checked on a device.
+           Android: staging over-the-air update 335bc23a (2026-11-26) carries it to EveBash Staging build a9a75698
+           (1.2.4 (26)) or later; close and reopen the app twice so the update loads. Older Android builds don't get it.
+           iPhone: no installed iPhone staging build can take this update (the #315 change gave a new runtime), so the
+           iPhone half needs the next iPhone staging build.
 How to test (do it on an Android phone and on an iPhone):
-  1. Install the new staging build and open the app. Expect: the Home, Gallery and Profile headings look as before
+  1. Open the staging app (Android: after the update has loaded; iPhone: the new build). Expect: the Home, Gallery and Profile headings look as before
      (Akaya Kanadaka headings, Inter text).
   2. Open an event with the Royal Emerald theme. Expect: script title (Great Vibes), capital letters (Cinzel), body
      in Cormorant Garamond, italic where it was before. No plain system font.
