@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 257
+Next test number: 258
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7746,3 +7746,31 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback: Website and step 3 (photo uploaded to Home stays when un-starred) PASS, reported by Shwetank 2026-11-26. iPhone 18 Pro simulator PASS for steps 1-2 (Claude, 2026-11-26, 03bc587c via the local app server, newone2): starred a Haldi photo, Home showed it (Photos (1)); un-starred on Home: it left at once and the tab said Photos (0). Real Android PASS for steps 1-2 (Claude over USB, 2026-11-26, iQOO, staging build + update fe393a0a, newone2 on Riya & Arjun's Wedding): starred a Haldi photo, Home showed it (Photos (1)); un-starred on Home: it left at once and the tab said Photos (0); Haldi still had all 4 photos, star off. The first try showed the count stuck at Photos (1), fixed in 03bc587c. Step 3 (a photo uploaded to Home) not tested: needs an upload from the phone.
+
+#257 Only the event owner changes Admin Access or removes an admin (issue #329)
+Status:    TODO
+Priority:  High
+Platform:  Both. Website (staging.evebash.com) and the app (iPhone and Android, separately; staging app opened twice for the
+           update). Needs two accounts: A owns an event, B is an admin on it (and, for step 4, a third member C).
+Brief:     A guest admin could switch off their own Admin, switch Admin for others, and remove other admins. Now only the
+           owner can; admins still manage ordinary members.
+Detail:    supabase/migrations/20261126120000_owner_only_admin_access.sql, apps/backend/src/routes/permissions.ts,
+           src/app/(main)/host/page.tsx, apps/mobile/app/events/[id].tsx (d4975182).
+How to test:
+  1. Website, signed in as B (admin): Host > Shared > the event > Permissions. Expect: B's own Admin switch is greyed
+     out ("Only the event owner can change Admin Access or remove an admin." on hover) and there is no remove (bin)
+     button on any admin row.
+  2. Click B's name: in the popup, Admin Access says "Only the event owner can change this" and can't be switched.
+  3. Approve a pending request or remove an ordinary member as B: still works.
+  4. As B, try making member C an admin: refused (switch locked).
+  5. Website, signed in as A (owner): the same page: Admin switches work, admins have the bin button.
+  6. App (iPhone, then Android): steps 1-5 on the event's Permissions tab (the bin is hidden on admin rows; tapping
+     Admin Access shows "Owner only").
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
