@@ -7709,7 +7709,7 @@ How to test:
   1. Account A owns an event; account B is made Admin on it.
   2. Website, signed in as B: Host > Shared > the event > Permissions. Expect: "Owner" with A's name and an Owner badge,
      then the guest tables. Nothing on the owner row can be clicked or switched.
-     Since 7d4729dd: under the name, A's "@username · email" (never the phone). Same in the app.
+     Since 7d4729dd / b7068688: under the name, A's @username and email, each on its own line (never the phone). Same in the app.
   3. Website, signed in as A: same page. Expect: the owner row says "You".
   4. App (iPhone, then Android), signed in as B: open the event > Permissions. Expect: "Owner" card with A's name and
      "Owner: full access" above Admins and Members. Signed in as A: it says "You".
