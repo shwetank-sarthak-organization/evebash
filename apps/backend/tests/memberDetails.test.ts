@@ -108,7 +108,7 @@ test('member directory: managers get usernames for the event and its sub-galleri
       { id: 'u2', username: null, email: 'rahul@example.com', phone: '+912' },
       { id: 'owner-1', name: 'Priya', username: 'priya', email: 'priya@example.com', phone: '+913' },
     ],
-    events: [{ id: 'wedding', created_by: 'owner-1' }, { id: 'old', created_by: 'host@example.com' }],
+    events: [{ id: 'wedding', legacy_id: 'wedding-link', created_by: 'owner-1' }, { id: 'old', legacy_id: null, created_by: 'host@example.com' }],
   };
   const admin = {
     from(table: string) {
@@ -159,6 +159,9 @@ test('member directory: managers get usernames for the event and its sub-galleri
       },
       owner: { name: 'Priya', username: 'priya', email: 'priya@example.com' },
     });
+
+    // The app may send the event's legacy id (its link name): same members and owner
+    assert.deepEqual((await post({ eventId: 'wedding-link' })).body, (await post({ eventId: 'wedding' })).body);
 
     // Old events saved the owner by email
     assert.deepEqual((await post({ eventId: 'old' })).body.owner, { name: null, username: null, email: 'host@example.com' });

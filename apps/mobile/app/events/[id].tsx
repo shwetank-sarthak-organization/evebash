@@ -2892,17 +2892,19 @@ function EventDetailScreen() {
 
   // Usernames for the Permissions list, loaded again when someone joins or leaves it
   const guestLogIds = guestLogs.map((log) => log.id).join(',');
+  // The event's own id, not the route's (which can be its link name, e.g. from the Shared list on Android)
+  const directoryEventId = event?.id || id;
   useEffect(() => {
     // Also loaded with no guests yet: it carries the owner's details for the Owner row (todo #50)
-    if (!id || !(isOwner || canManageEvent)) return;
+    if (!directoryEventId || !(isOwner || canManageEvent)) return;
     let active = true;
-    void getMemberDirectory(id).then((directory) => {
+    void getMemberDirectory(directoryEventId).then((directory) => {
       if (!active) return;
       setMemberDirectory(directory.members);
       setEventOwnerDetails(directory.owner);
     });
     return () => { active = false; };
-  }, [id, guestLogIds, isOwner, canManageEvent]);
+  }, [directoryEventId, guestLogIds, isOwner, canManageEvent]);
 
   // Poll face indexing status when upload completes in mobile app
   useEffect(() => {

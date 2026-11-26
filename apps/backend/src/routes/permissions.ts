@@ -317,8 +317,18 @@ export function createPermissionsRouter(
       }
 
       const supabaseAdmin = getAdmin();
+      // The app can send the event's legacy id (its link name, e.g. "riya-arjun-s-wedding-00bc") instead of its id, and
+      // guest rows may hold either, so find the event by both and look guests up under both
+      let event: { id: string; legacy_id: string | null; created_by: string | null } | null = null;
+      for (const column of ["id", "legacy_id"]) {
+        const { data, error: lookupError } = await supabaseAdmin
+          .from("events").select("id, legacy_id, created_by").eq(column, eventId).maybeSingle();
+        if (lookupError) throw lookupError;
+        if (data) { event = data; break; }
+      }
+      const eventKeys = Array.from(new Set([eventId, event?.id, event?.legacy_id].filter(Boolean) as string[]));
       const rows = await Promise.all(["event_id", "parent_event_id"].map((column) => supabaseAdmin
-        .from("guests").select("id, user_id").eq(column, eventId).in("status", ["approved", "pending"])));
+        .from("guests").select("id, user_id").in(column, eventKeys).in("status", ["approved", "pending"])));
       const failed = rows.find((result) => result.error);
       if (failed) throw failed.error;
       const guests = rows.flatMap((result) => result.data || []).filter((guest) => guest.user_id);
@@ -331,16 +341,16 @@ export function createPermissionsRouter(
 
       const profileById = new Map((profiles || []).map((profile) => [profile.id, profile]));
       const members: Record<string, { username: string | null; email: string | null }> = {};
+      const seen = new Set<string>();
       for (const guest of guests) {
+        if (seen.has(guest.id)) continue;
+        seen.add(guest.id);
         const profile = profileById.get(guest.user_id as string);
         if (profile) members[guest.id] = { username: profile.username ?? null, email: profile.email ?? null };
       }
 
       // The event owner's name, username and email for the Owner row in Permissions (todo #50): the owner isn't a
       // guest, and only the people who manage the event get this far. Never the phone.
-      const { data: event, error: eventError } = await supabaseAdmin
-        .from("events").select("created_by").eq("id", eventId).maybeSingle();
-      if (eventError) throw eventError;
       const createdBy = typeof event?.created_by === "string" ? event.created_by : "";
       let owner: { name: string | null; username: string | null; email: string | null } | null = null;
       if (createdBy.includes("@")) {
