@@ -7696,7 +7696,7 @@ Fix ref:
 Feedback:
 
 #255 Permissions: the event owner shows first, above Admins and Members (todo #50)
-Status:    TODO (website PASS; iPhone simulator PASS; real Android PASS; real iPhone still to check)
+Status:    PASS (website, iPhone simulator, real Android; real iPhone not checked, Shwetank accepted the simulator 2026-11-26)
 Priority:  Low
 Platform:  Both. Website (staging.evebash.com, desktop and phone width) and the app (iPhone and Android, separately; needs a
            staging build or the app server).
