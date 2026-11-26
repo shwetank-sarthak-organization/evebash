@@ -4,6 +4,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppTheme } from '@/context/ThemeContext';
 import { MidnightColors } from '@/constants/theme';
 import { Stack, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { sendContactMessage } from '@/lib/database';
 import { useAndroidKeyboardHeight } from '@/hooks/use-android-keyboard-height';
@@ -14,6 +15,7 @@ export default function ContactUsScreen() {
   // Android: the keyboard covers the lower part of this page; add scroll room and scroll the message box up (#243; 0 on iOS)
   const keyboardHeight = useAndroidKeyboardHeight();
   const scrollRef = useRef<ScrollView>(null);
+  const insets = useSafeAreaInsets();
   const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -55,29 +57,24 @@ export default function ContactUsScreen() {
 
   return (
     <View style={styles.mainContainer}>
-      <Stack.Screen options={{ 
-        headerShown: true, 
-        headerTransparent: true,
-        headerTitle: 'Contact Us',
-        headerTintColor: colors.white,
-        headerLeft: () => (
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" 
+      <Stack.Screen options={{ headerShown: false }} />
+      <ScrollView ref={scrollRef} style={styles.container}>
+        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
             onPress={() => {
               if (router.canGoBack()) {
                 router.back();
               } else {
                 router.replace('/(tabs)/dashboard');
               }
-            }} 
+            }}
             style={styles.nativeBackButton}
-            hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
+            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
           >
             <IconSymbol name="chevron.left" size={28} color={colors.white} />
           </TouchableOpacity>
-        ),
-        headerShadowVisible: false,
-      }} />
-      <ScrollView ref={scrollRef} style={styles.container}>
+          <Text style={styles.topBarTitle}>Contact Us</Text>
+        </View>
         <View style={styles.header}>
           <Text style={styles.title}>Get in Touch</Text>
           <Text style={styles.subtitle}>
@@ -217,6 +214,17 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     flex: 1,
     backgroundColor: colors.background,
   },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  topBarTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.white,
+  },
   nativeBackButton: {
     width: 44,
     height: 44,
@@ -229,7 +237,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   },
   header: {
     paddingHorizontal: 24,
-    paddingTop: 100,
+    paddingTop: 24,
     paddingBottom: 24,
     alignItems: 'center',
   },
