@@ -7696,7 +7696,7 @@ Fix ref:
 Feedback:
 
 #255 Permissions: the event owner shows first, above Admins and Members (todo #50)
-Status:    TODO
+Status:    TODO (website as admin PASS; website as owner and the app still to check)
 Priority:  Low
 Platform:  Both. Website (staging.evebash.com, desktop and phone width) and the app (iPhone and Android, separately; needs a
            staging build or the app server).
@@ -7713,11 +7713,11 @@ How to test:
   4. App (iPhone, then Android), signed in as B: open the event > Permissions. Expect: "Owner" card with A's name and
      "Owner: full access" above Admins and Members. Signed in as A: it says "You".
   5. Light and dark look: the owner row is readable in both.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Website (as admin): Shwetank
+Device / browser: Website, desktop browser (light look)
+Build / version: ebd6dd01 on staging.evebash.com
+Date tested: 2026-11-26
+Account used: newone2@email.com (Admin on an event owned by newone1)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback: Website as admin PASS (Shwetank): Owner section shows "newone1", "Full access · can't be changed" and the Owner badge, above Members (1) · 1 Admin. App: staging builds started 2026-11-26.
