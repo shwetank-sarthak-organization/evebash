@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 255
+Next test number: 256
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7686,6 +7686,33 @@ How to test:
   2. Open that gallery as the guest and upload 2-3 photos. Expect: when they finish, the "upload complete" popup
      shows the face-indexing progress (counts / percent) and it fills in, instead of staying empty.
   3. Delete the test photos again (as the host).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#255 Permissions: the event owner shows first, above Admins and Members (todo #50)
+Status:    TODO
+Priority:  Low
+Platform:  Both. Website (staging.evebash.com, desktop and phone width) and the app (iPhone and Android, separately; needs a
+           staging build or the app server).
+Brief:     The owner isn't a guest of their own event, so the Permissions guest list never showed them. Now an "Owner" row
+           is shown first: the owner's name (or "You" for the owner, or their email on old events), marked full access,
+           with no switches and no remove or report buttons.
+Detail:    shared/permissions/eventOwner.ts (eventOwnerLabel, used by both), src/app/(main)/host/page.tsx (Owner section
+           above the tables), apps/mobile/app/events/[id].tsx (Owner card at the top of the Guest List).
+How to test:
+  1. Account A owns an event; account B is made Admin on it.
+  2. Website, signed in as B: Host > Shared > the event > Permissions. Expect: "Owner" with A's name and an Owner badge,
+     then the guest tables. Nothing on the owner row can be clicked or switched.
+  3. Website, signed in as A: same page. Expect: the owner row says "You".
+  4. App (iPhone, then Android), signed in as B: open the event > Permissions. Expect: "Owner" card with A's name and
+     "Owner: full access" above Admins and Members. Signed in as A: it says "You".
+  5. Light and dark look: the owner row is readable in both.
 Done by:
 Device / browser:
 Build / version:
