@@ -7880,7 +7880,7 @@ Brief:     On Android a pop-up window does not shrink when the keyboard opens, s
            #242). This checks they do, and that the screens we left alone (which need nothing) really are fine.
 Detail:    Issue #243. Changed on Android only (the keyboard-height helper returns 0 on iPhone, so iPhone is
            unchanged): RenameEventModal.tsx, SubEventModal.tsx, VaultModals.tsx (NamePrompt), PageReviewer.tsx,
-           Profile Edit (app/(tabs)/profile.tsx), Rename Event in gallery.tsx (cannot be opened in the app today). Pixel 8 check 2026-11-26: Sub-Gallery and Edit Event Title pass. Needs an app build or update with this commit. Use an Android phone
+           Profile Edit (app/(tabs)/profile.tsx), Rename Event in gallery.tsx (cannot be opened in the app today). Pixel 8 check 2026-11-26: Sub-Gallery, Edit Event Title, Vault New folder, Profile Edit, Contact us and the host Welcome Message box pass (only album page review not checked). Needs an app build or update with this commit. Use an Android phone
            with its normal on-screen keyboard (not a Bluetooth keyboard, not floating). Not checked on an emulator:
            nobody was signed in there. Test #180 lists the same places; if you do this test, #180 can be closed.
 How to test:
