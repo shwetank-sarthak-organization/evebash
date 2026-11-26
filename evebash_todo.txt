@@ -1057,6 +1057,11 @@ Brief:        An event admin who isn't the owner can see the other admins in Per
 Done in:      ebd6dd01 (2026-11-26), on staging. Device test #255. The owner row shows the name from the
               public profile card (other people's email/phone aren't readable), "You" for the owner, or the email on old
               events.
+Note 2026-11-26: Shwetank wants the owner's email and username too. Added in 7d4729dd: the backend's
+              /api/v1/permissions/member-directory (only for people who manage the event) now also returns the owner's
+              name, username and email (never the phone); the Owner row shows "@username · email" under the name on the
+              website and app. Website and app need the staging backend; the app needs this code (staging builds started
+              before it, so an app update or new build). Test #255.
 
 =====================================================================
 DONE / DROPPED (delete after 14 days)
