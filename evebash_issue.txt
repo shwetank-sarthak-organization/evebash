@@ -1132,12 +1132,13 @@ Note 2026-11-25 (added with Sarthak): (a) Order: nothing can be done before the 
 Listed: 2026-11-26
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Closing #105 (font size cleanup), chat with Sarthak (with Claude), 2026-11-26
 Issue: Part (3) of #105. All 7 Material Symbols font files (about 6.7 MB, more than half of the fonts still in the app) are bundled because expo-symbols is imported through apps/mobile/components/ui/icon-symbol.tsx and icon-symbol.ios.tsx (used by login, settings, contact, chat, shortlist, customer-chats, business-near-you, sample-galleries and others) and possibly expo-router native tabs. The app draws its Android icons with MaterialIcons, so these fonts may never be shown on Android. Not checked: which screens and platforms really draw a Material Symbols glyph. Plan: (1) list every IconSymbol and native-tab use and which platform renders it; (2) if no screen needs the fonts, stop them being bundled and re-run expo export to confirm about 6.7 MB less; (3) add a device test that checks every tab and icon on Android and iPhone. Removing them wrongly could blank icons, so it needs a new app build and a device check. Ask before changing dependencies or app config.
 How to reproduce: cd apps/mobile && npx expo export --platform android --output-dir /tmp/x: 7 MaterialSymbols*.ttf files in the Assets list (about 6.7 MB).
+Note 2026-11-26: Cause found: our IconSymbol never draws a Material Symbol on Android (it uses MaterialIcons), but expo-router's native-tab code imports expo-symbols, whose SymbolView imports useFonts from the ROOT of @expo-google-fonts/material-symbols, and that root file require()s all 7 weights. expo-symbols itself only loads the Regular weight. Fix (branch, not pushed yet): apps/mobile/metro.config.js points that one root import at the package's own useFonts.js (same function), so only the Regular weight stays. expo export: Android fonts 25 -> 19 files, 11.91 -> 6.08 MB (5.83 MB less); iPhone unchanged (never had them). Device test #260.
 
 RECENTLY FIXED (delete entries older than 7 days)
 #105

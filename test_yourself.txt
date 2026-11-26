@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 260
+Next test number: 261
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7842,3 +7842,28 @@ Account used: Pixel: Sarthak's staging host account; iPhone: newone1
 Screenshot / recording: none kept
 Fix ref:
 Feedback: PASS on both. Royal Emerald (royal-emerald-check-...-c9e2): Great Vibes title, Cinzel date, menu and buttons, Cormorant Garamond "Highlights". Classic White (Staging Test 1): Playfair Display title and Playfair italic tagline. Dashboard and login: Akaya Kanadaka headings, Inter text. No font errors in the logs ("fonts ready"). Not checked: Sunlit Portrait and Confetti Circle (no such event on staging; their font code did not change), and an iPhone release build (the next iPhone staging build carries it).
+
+#260 Android: app opens and every icon still shows after the Material Symbols cleanup (issue #330)
+Status:    TODO
+Priority:  Medium
+Platform:  App (EveBash Staging on Android)
+Jira:      EB-440
+Brief:     The Android app carried 7 Material Symbols font files (~6.7 MB) because of how a library imports them; only
+           one is ever used. A small bundler setting now leaves out the 6 unused ones (5.83 MB less). Nothing on screen
+           should change. This checks the app still opens and all icons show.
+Detail:    Change in apps/mobile/metro.config.js (issue #330). Our app draws its Android icons with MaterialIcons, not
+           Material Symbols, so no icon should change. The iPhone bundle is not affected (it never had these fonts).
+           Reaches Android with the next staging over-the-air update or build.
+How to test (Android):
+  1. Open the staging app after the update has loaded. Expect: it opens normally, no red error screen.
+  2. Go through Dashboard, Host, EB Network, Profile and Settings. Expect: every tab and button icon shows as before;
+     no empty squares or missing icons.
+  3. Open a gallery (any theme). Expect: the icons on the gallery screen show as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
