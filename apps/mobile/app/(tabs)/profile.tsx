@@ -41,6 +41,7 @@ import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { appAlert, showToast } from '@/lib/feedback';
 import { MidnightColors } from '@/constants/theme';
+import { useAndroidKeyboardHeight } from '@/hooks/use-android-keyboard-height';
 
 const { width } = Dimensions.get('window');
 
@@ -150,6 +151,8 @@ export default function ProfileScreen() {
 
   // Edit Profile States
   const [isEditing, setIsEditing] = useState(false);
+  // Android: the Edit Profile Modal doesn't shrink for the keyboard, so lift it above it (#243; 0 on iOS)
+  const editKeyboardHeight = useAndroidKeyboardHeight(isEditing);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editUsername, setEditUsername] = useState('');
@@ -764,7 +767,7 @@ export default function ProfileScreen() {
           if (!saving) setIsEditing(false);
         }}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, editKeyboardHeight > 0 && { paddingBottom: editKeyboardHeight }]}>
           <View style={styles.modalContent}>
             
             {/* Modal Header */}

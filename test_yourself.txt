@@ -7876,11 +7876,11 @@ Priority:  Medium
 Platform:  App (Android phone)
 Jira:      EB-441
 Brief:     On Android a pop-up window does not shrink when the keyboard opens, so the keyboard could cover the text
-           box or its Save button. Five pop-ups now move up by the keyboard height (like the photo comment box did in
+           box or its Save button. Six pop-ups now move up by the keyboard height (like the photo comment box did in
            #242). This checks they do, and that the screens we left alone (which need nothing) really are fine.
 Detail:    Issue #243. Changed on Android only (the keyboard-height helper returns 0 on iPhone, so iPhone is
            unchanged): RenameEventModal.tsx, SubEventModal.tsx, VaultModals.tsx (NamePrompt), PageReviewer.tsx,
-           Rename Event in app/(tabs)/gallery.tsx. Needs an app build or update with this commit. Use an Android phone
+           Profile Edit (app/(tabs)/profile.tsx), Rename Event in gallery.tsx (cannot be opened in the app today). Pixel 8 check 2026-11-26: Sub-Gallery and Edit Event Title pass. Needs an app build or update with this commit. Use an Android phone
            with its normal on-screen keyboard (not a Bluetooth keyboard, not floating). Not checked on an emulator:
            nobody was signed in there. Test #180 lists the same places; if you do this test, #180 can be closed.
 How to test:
@@ -7893,7 +7893,9 @@ How to test:
      above the keyboard.
   5. Album tab of an event you host: open a page for review, tap "Write a reply", then "Describe the change". Expect:
      the box and its button can be seen above the keyboard.
-  6. Profile > Edit: tap location and birthday. Contact us: tap "Tell us more about your event...". Host page >
+  6. Profile > Edit: tap Location and scroll down to Birthday (this pop-up was changed too). Expect: the box you tapped
+     stays above the keyboard.
+  6b. Then: Contact us: tap "Tell us more about your event...". Host page >
      Galleries > Welcome Message: tap the box. Expect: still fine (these were not changed). If one is hidden, say which.
   7. Close each pop-up with the keyboard open. Expect: it closes normally and the next one opens in its usual place.
 Done by:
