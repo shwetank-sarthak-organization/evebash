@@ -7788,6 +7788,10 @@ Detail:    Fix in apps/mobile/plugins/withOkHttpHealthPings.js (ping every 2 s i
            NEW Android build (staging EAS build, or a development build after `npx expo prebuild -p android`); an
            over-the-air update does not carry it. Test on mobile data with Wi-Fi off. Checked on the Android emulator
            with a frozen connection (20 of 20 opens worked, 1.2-3.7 s), not on a real phone.
+           Build to install (2026-11-26): EAS staging build a9a75698 (EveBash Staging 1.2.4 (26), commit 36bc8cd2):
+           https://expo.dev/accounts/evebash/projects/evebash/builds/a9a75698-eb37-4574-8e81-0dbe8c4264af . The
+           staging build of 2026-11-26 12:52 (0b4a8601) is older than the fix: don't test with it. A phone with the
+           USB development build must uninstall it first (different signing key; the sign-in is lost).
 How to test:
   1. Install the new staging build on an Android phone. Turn Wi-Fi off (mobile data only) and sign in as a host.
      Expect: the Dashboard loads.
