@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 262
+Next test number: 263
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7896,6 +7896,40 @@ How to test:
   6. Profile > Edit: tap location and birthday. Contact us: tap "Tell us more about your event...". Host page >
      Galleries > Welcome Message: tap the box. Expect: still fine (these were not changed). If one is hidden, say which.
   7. Close each pop-up with the keyboard open. Expect: it closes normally and the next one opens in its usual place.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#262 iPhone: app builds and opens with Xcode 27 / iOS 27 from a clean prebuild, links still open the right screen (issue #276)
+Status:    TODO
+Priority:  High (launch blocker, test first)
+Platform:  App (EveBash Staging on iPhone)
+Jira:      EB-442
+Brief:     Xcode 27 / iOS 27 needed hand edits in the generated ios folder (issue #276). A config plugin
+           (apps/mobile/plugins/withIosXcode27.js) now makes them on every prebuild: the iOS scene lifecycle (React
+           Native starts in a SceneDelegate; links and app events are passed on to the AppDelegate as before) and
+           iOS 16.0 as the minimum for the app and all pods. This checks a clean build opens on iOS 27 and links work.
+Detail:    Needs a Mac with Xcode 27 and an iOS 27 simulator (or an EAS build on an Xcode 27 image). Claude checked
+           it on 2026-11-26 with Xcode 26.2 and an iOS 26.3 simulator only: clean prebuild, pod install, Release
+           build and launch all fine, iOS uses the new scene ("Default Configuration"), login screen shows. Steps 2-3
+           were not done there (iOS asks "Open in EveBash Staging?" and that needs a tap). The app's minimum iOS is
+           now 16.0 (was 15.1).
+How to test:
+  1. From apps/mobile: npx expo prebuild --platform ios --clean, then pod install in ios, then build and run on an
+     iOS 27 simulator. Expect: no deployment-target errors; the app opens to login and stays open.
+  2. With the app open, run: xcrun simctl openurl booted "evebash-staging://privacy-policy" and tap Open.
+     Expect: the Privacy Policy screen opens.
+  3. Close the app fully, then run: xcrun simctl openurl booted "evebash-staging://terms-and-conditions" and tap
+     Open. Expect: the app starts straight on Terms and Conditions.
+  4. Sign in, press Home, open the app again. Expect: same screen as before, data refreshes as before.
+  5. On a real iPhone build: tap an event share link (staging.evebash.com/...) in Notes or Messages.
+     Expect: the event opens in the app.
 Done by:
 Device / browser:
 Build / version:
