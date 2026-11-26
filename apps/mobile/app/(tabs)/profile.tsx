@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
+  Platform,
   View,
   Text,
   StyleSheet,
@@ -41,6 +42,7 @@ import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { appAlert, showToast } from '@/lib/feedback';
 import { MidnightColors } from '@/constants/theme';
+import { useAndroidKeyboardHeight } from '@/hooks/use-android-keyboard-height';
 
 const { width } = Dimensions.get('window');
 
@@ -150,6 +152,18 @@ export default function ProfileScreen() {
 
   // Edit Profile States
   const [isEditing, setIsEditing] = useState(false);
+  // Android: the Edit Profile Modal doesn't shrink for the keyboard, so lift it above it (#243; 0 on iOS)
+  const editKeyboardHeight = useAndroidKeyboardHeight(isEditing);
+  const editScrollRef = useRef<ScrollView>(null);
+  const locationGroupRef = useRef<View>(null);
+  const birthdayGroupRef = useRef<View>(null);
+  // Android: bring a lower field to the top part of the sheet when it is tapped, so the keyboard doesn't hide it (#243)
+  const scrollEditFieldIntoView = (group: React.RefObject<View | null>) => {
+    if (Platform.OS !== 'android') return;
+    const inner = (editScrollRef.current as any)?.getInnerViewRef?.();
+    if (!inner || !group.current) return;
+    group.current.measureLayout(inner, (_x, y) => editScrollRef.current?.scrollTo({ y: Math.max(0, y - 40), animated: true }), () => {});
+  };
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editUsername, setEditUsername] = useState('');
@@ -764,7 +778,7 @@ export default function ProfileScreen() {
           if (!saving) setIsEditing(false);
         }}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, editKeyboardHeight > 0 && { paddingBottom: editKeyboardHeight }]}>
           <View style={styles.modalContent}>
             
             {/* Modal Header */}
@@ -780,8 +794,9 @@ export default function ProfileScreen() {
             </View>
 
             <ScrollView 
+              ref={editScrollRef}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.modalScrollContent}
+              contentContainerStyle={[styles.modalScrollContent, editKeyboardHeight > 0 && { paddingBottom: 48 + 160 }]}
             >
               {/* Profile Image Picking Area */}
               <View style={styles.editAvatarSection}>
@@ -920,7 +935,7 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Location Input */}
-                <View style={styles.inputGroup}>
+                <View ref={locationGroupRef} style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Location</Text>
                   <View style={styles.inputWrapper}>
                     <IconSymbol name="mappin.and.ellipse" size={16} color={colors.gold} style={styles.inputIcon} />
@@ -928,6 +943,7 @@ export default function ProfileScreen() {
                       style={styles.textInput}
                       value={editLocation}
                       onChangeText={setEditLocation}
+                      onFocus={() => scrollEditFieldIntoView(locationGroupRef)}
                       placeholder="e.g. Mumbai, Maharashtra"
                       placeholderTextColor={colors.slate600}
                       editable={!saving}
@@ -960,7 +976,7 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Birthday Input */}
-                <View style={styles.inputGroup}>
+                <View ref={birthdayGroupRef} style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Birthday</Text>
                   <View style={styles.inputWrapper}>
                     <IconSymbol name="gift.fill" size={16} color={colors.gold} style={styles.inputIcon} />
@@ -968,6 +984,7 @@ export default function ProfileScreen() {
                       style={styles.textInput}
                       value={editBirthday}
                       onChangeText={setEditBirthday}
+                      onFocus={() => scrollEditFieldIntoView(birthdayGroupRef)}
                       placeholder="e.g. October 24 (or DD/MM/YYYY)"
                       placeholderTextColor={colors.slate600}
                       editable={!saving}

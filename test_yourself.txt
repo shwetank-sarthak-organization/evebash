@@ -7871,16 +7871,16 @@ Feedback: PASS. Step 1: app opened normally after the update loaded ("fonts read
 
 --------------------------------------------------------------------------------
 #261 Android: pop-up text boxes stay above the keyboard (issue #243)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (Android phone)
 Jira:      EB-441
 Brief:     On Android a pop-up window does not shrink when the keyboard opens, so the keyboard could cover the text
-           box or its Save button. Five pop-ups now move up by the keyboard height (like the photo comment box did in
+           box or its Save button. Six pop-ups now move up by the keyboard height (like the photo comment box did in
            #242). This checks they do, and that the screens we left alone (which need nothing) really are fine.
 Detail:    Issue #243. Changed on Android only (the keyboard-height helper returns 0 on iPhone, so iPhone is
            unchanged): RenameEventModal.tsx, SubEventModal.tsx, VaultModals.tsx (NamePrompt), PageReviewer.tsx,
-           Rename Event in app/(tabs)/gallery.tsx. Needs an app build or update with this commit. Use an Android phone
+           Profile Edit (app/(tabs)/profile.tsx), Rename Event in gallery.tsx (cannot be opened in the app today). Pixel 8 check 2026-11-26: Sub-Gallery, Edit Event Title, Vault New folder, Profile Edit, Contact us and the host Welcome Message box pass (only album page review not checked). Needs an app build or update with this commit. Use an Android phone
            with its normal on-screen keyboard (not a Bluetooth keyboard, not floating). Not checked on an emulator:
            nobody was signed in there. Test #180 lists the same places; if you do this test, #180 can be closed.
 How to test:
@@ -7893,9 +7893,45 @@ How to test:
      above the keyboard.
   5. Album tab of an event you host: open a page for review, tap "Write a reply", then "Describe the change". Expect:
      the box and its button can be seen above the keyboard.
-  6. Profile > Edit: tap location and birthday. Contact us: tap "Tell us more about your event...". Host page >
+  6. Profile > Edit: tap Location and scroll down to Birthday (this pop-up was changed too). Expect: the box you tapped
+     stays above the keyboard.
+  6b. Then: Contact us: tap "Tell us more about your event...". Host page >
      Galleries > Welcome Message: tap the box. Expect: still fine (these were not changed). If one is hidden, say which.
+  6c. Contact us (Profile > Usage & Plan > Support Chat): scroll down. Expect: the "Contact Us" title and back arrow scroll
+     away with the page and never sit on top of the text (issue #331). Tap the message box. Expect: it and Send
+     Message end up above the keyboard.
   7. Close each pop-up with the keyboard open. Expect: it closes normally and the next one opens in its usual place.
+Done by:   Claude (adb taps, watching the screen), on Sarthak's phone
+Device / browser: Pixel 8 (Android 16, normal docked Gboard), over USB
+Build / version: EAS staging build a9a75698 (1.2.4 (26)) + staging updates 12385d48 to 9af7da38 (last update group 6a176097)
+Date tested: 2026-11-26
+Account used: Sarthak's staging host account (Test 260 event)
+Screenshot / recording: none kept in the repo
+Fix ref: 12385d48, 298b807e, 7e04a856, d831517c, 9af7da38
+Feedback: PASS for everything that can be reached on the Pixel: Add Sub-Gallery (step 3), Edit Event Title (2), EB Vault New folder (4), Profile > Edit (6: after the third update the tapped box moves up and Save Changes shows above the keyboard), Contact us message box (6b/6c: box and Send Message end up above the keyboard, title scrolls away), host Welcome Message box (6b: shows above the keyboard). Not tested and moved to test #262: album page review (step 5), Vault Rename, closing pop-ups with the keyboard open on the album screen, and the Contact us header on an iPhone. Step 1 (Rename Event on the Host tab) cannot be opened in the app today (nothing shows that options menu). Closed with Sarthak's OK 2026-11-26.
+
+--------------------------------------------------------------------------------
+#262 Album page review boxes above the Android keyboard; Contact us header on iPhone (left over from #243 / #261)
+Status:    TODO
+Priority:  Low
+Platform:  App (Android phone + iPhone)
+Jira:      EB-444
+Brief:     Two checks that could not be done when issue #243 was closed. (1) On Android, the album page review screen
+           (apps/mobile/components/album/PageReviewer.tsx) now lifts above the keyboard; nobody has seen it on a phone
+           because testing it needs an album, pages sent for review and a client comment. (2) On iPhone, the Contact us
+           title and back arrow now scroll with the page (issue #331); only Android was checked.
+Detail:    Part 1 needs a host account, an event with an album (Album tab > Create the first album), at least one page
+           sent for review, and a second (client) account that has pinned a comment on a page. Android phone with its
+           normal on-screen keyboard. Part 2 needs an iPhone staging build with commit d831517c or later (staging
+           over-the-air updates reach Android only until a new iOS staging build exists).
+How to test:
+  1. (Android) As the client, open a page for review and pin a comment. As the host, open the page review, tap
+     "Write a reply". Expect: the box and its button are above the keyboard. Then tap "Describe the change
+     (optional)". Expect: same.
+  2. (Android) Close the page review with the keyboard open. Expect: it closes normally.
+  3. (iPhone) Profile > Usage & Plan > Support Chat. Scroll down. Expect: the "Contact Us" title and back arrow scroll
+     away with the page and never sit on top of the text. Tap the message box. Expect: it stays visible (iPhone moves
+     the page for the keyboard).
 Done by:
 Device / browser:
 Build / version:

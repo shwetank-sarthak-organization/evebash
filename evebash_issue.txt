@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 331
+Next issue number: 332
 
 =====================================================================
 ACTIVE ISSUES
@@ -765,18 +765,6 @@ Found in: App screen review, EB Vault (chat 2026-11-03)
 Issue: EB Vault (apps/mobile/components/vault/VaultScreen.tsx, VaultPreview.tsx, VaultModals.tsx, VaultUploads.tsx) uses its own colours, not the app palette: a #0E1318 page background (the app uses MidnightColors.background, #13191F), cool blue-grey text and boxes (#E2E8F0, #F1F5F9, #141B22, white see-through borders) and Tailwind amber and red banners. Next to Profile and Plan & Usage it looks darker and colder, the same kind of mismatch as #230. Its header also differs from the sibling Plan & Usage page, which uses TabScreenHeader. Long file names are cut at the end, so the extension is hidden ("SU0710…265404 …") in the list, the actions sheet title and the preview header; cutting in the middle (ellipsizeMode="middle") keeps ".pdf" visible. Smaller: the Profile row says "Usage & Plan" but that page's title says "Plan & Usage". Keep the Vault green (#7FA38C), which the Profile card uses too. Fix idea: swap the hard-coded colours for MidnightColors tokens, cut file names in the middle, and use one name for Usage & Plan. Also check on a phone: a 195 KB PDF took about 15-20 s to show in the preview on the emulator, with only "Loading PDF..." on screen.
 How to reproduce: Android emulator, Profile > EB Vault; compare with Profile > Usage & Plan.
 
-#243
-Listed: 2026-11-03
-Platform: App
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: Device test #180 (which places really break on a phone)
-Found in: Searching the app for the #242 pattern (chat 2026-11-03)
-Issue: Other places where the Android keyboard may cover a text box or its button, like #242. Not checked on a phone yet: the emulator here only shows Gboard's floating keyboard. Same pattern as #242 (keyboard handling only on iOS, inside a pop-up): (1) album page review, "Write a reply" and "Describe the change (optional)" (apps/mobile/components/album/PageReviewer.tsx, about line 416); (2) host page > Add Sub-Gallery (apps/mobile/components/event/modals/SubEventModal.tsx); (3) EB Vault > New folder and Rename (NamePrompt in apps/mobile/components/vault/VaultModals.tsx). No keyboard handling at all, in a pop-up in the middle of the screen, so the keyboard may hide its lower half and the Save button: (4) Host tab > an event's options > Rename Event (apps/mobile/app/(tabs)/gallery.tsx, about line 1186); (5) host event page > pencil next to the title, "Edit Event Title" (apps/mobile/components/event/modals/RenameEventModal.tsx). Full screens with no keyboard handling, fine if Android shrinks the screen for the keyboard: (6) Profile > Edit (the lowest boxes, location and birthday); (7) Contact us (the message box, apps/mobile/app/contact.tsx); (8) the host page's welcome message editor (apps/mobile/app/events/[id].tsx, about line 5413). Not listed: the business screens (Phase 2: chat, vendors, manage business) use the same iOS-only pattern. Fix idea: for each place that fails device test #180, lift the pop-up by the keyboard height with apps/mobile/hooks/use-android-keyboard-height.ts (added for #242; the bottom sheets use it too).
-How to reproduce: Device test #180 on an Android phone with its normal on-screen keyboard.
-Note 2026-11-26: fix written (not pushed). Same lift as #242 (useAndroidKeyboardHeight, 0 on iPhone, so iPhone is unchanged) in the 5 pop-ups that sit inside a Modal: Rename Event (apps/mobile/app/(tabs)/gallery.tsx), Edit Event Title (RenameEventModal.tsx), New Sub-Gallery (SubEventModal.tsx), EB Vault New folder / Rename (NamePrompt in VaultModals.tsx), and the album page review screen (PageReviewer.tsx, a full-screen Modal). Left alone because they are normal screens, not Modals, so Android shrinks them: Profile > Edit, Contact us, the welcome message box. App type check clean. NOT checked on the emulator or a phone: the emulator was never signed in, so the before/after screenshots are missing. Device test #261 (EB-441) covers it.
-
 #249
 Listed: 2026-11-06
 Platform: App
@@ -1136,6 +1124,39 @@ How to reproduce: On live, logged in with any account, POST https://api.evebash.
 Note 2026-11-25 (added with Sarthak): (a) Order: nothing can be done before the staging to main release; the app update comes after it, because a production update ships every app change made on staging since the live build (it is an app release), and the live app and live server must match. (b) Right after the release, check: live POST /api/v1/media/get-upload-url (logged in) returns putUrl as well as uploadUrl, and a live website upload goes as a signed PUT and is saved. (c) Production update recipe (like the staging one in #318, memory evebash-ota-publish): clean worktree + cloned node_modules, eas.json build.production.env exported (APP_VARIANT=production, EXPO_PUBLIC_API_BASE_URL=https://api.evebash.com), eas fingerprint:compare against the latest production builds with --environment production, then eas update --channel production --environment production. EAS production holds the live iPhone Google client, which is right for live. (d) If the fingerprint doesn't match a live store build, those phones can't get an update: a new store build is needed (Play and App Store review time); phones on older builds never get updates (like the Pixel's 2026-11-19 staging build). The fingerprint check is read-only and can be run before release day to plan this. (e) Switching UPLOAD_LEGACY_B2_TOKEN off breaks small uploads (photos and videos under 20 MB) on live app builds without the update, so do it only after most users have the update or a forced update is out. (f) The same release takes the other 2026-11-25 fixes live (#300, #319, #320, #321, #322, #324, #326); all their switches are on unless set to "false", so nothing needs setting on live first.
 
 RECENTLY FIXED (delete entries older than 7 days)
+#243
+Listed: 2026-11-03
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: Device test #180 (which places really break on a phone)
+Found in: Searching the app for the #242 pattern (chat 2026-11-03)
+Issue: Other places where the Android keyboard may cover a text box or its button, like #242. Not checked on a phone yet: the emulator here only shows Gboard's floating keyboard. Same pattern as #242 (keyboard handling only on iOS, inside a pop-up): (1) album page review, "Write a reply" and "Describe the change (optional)" (apps/mobile/components/album/PageReviewer.tsx, about line 416); (2) host page > Add Sub-Gallery (apps/mobile/components/event/modals/SubEventModal.tsx); (3) EB Vault > New folder and Rename (NamePrompt in apps/mobile/components/vault/VaultModals.tsx). No keyboard handling at all, in a pop-up in the middle of the screen, so the keyboard may hide its lower half and the Save button: (4) Host tab > an event's options > Rename Event (apps/mobile/app/(tabs)/gallery.tsx, about line 1186); (5) host event page > pencil next to the title, "Edit Event Title" (apps/mobile/components/event/modals/RenameEventModal.tsx). Full screens with no keyboard handling, fine if Android shrinks the screen for the keyboard: (6) Profile > Edit (the lowest boxes, location and birthday); (7) Contact us (the message box, apps/mobile/app/contact.tsx); (8) the host page's welcome message editor (apps/mobile/app/events/[id].tsx, about line 5413). Not listed: the business screens (Phase 2: chat, vendors, manage business) use the same iOS-only pattern. Fix idea: for each place that fails device test #180, lift the pop-up by the keyboard height with apps/mobile/hooks/use-android-keyboard-height.ts (added for #242; the bottom sheets use it too).
+How to reproduce: Device test #180 on an Android phone with its normal on-screen keyboard.
+Note 2026-11-26: fix written (not pushed). Same lift as #242 (useAndroidKeyboardHeight, 0 on iPhone, so iPhone is unchanged) in the 5 pop-ups that sit inside a Modal: Rename Event (apps/mobile/app/(tabs)/gallery.tsx), Edit Event Title (RenameEventModal.tsx), New Sub-Gallery (SubEventModal.tsx), EB Vault New folder / Rename (NamePrompt in VaultModals.tsx), and the album page review screen (PageReviewer.tsx, a full-screen Modal). Left alone because they are normal screens, not Modals, so Android shrinks them: Profile > Edit, Contact us, the welcome message box. App type check clean. NOT checked on the emulator or a phone: the emulator was never signed in, so the before/after screenshots are missing. Device test #261 (EB-441) covers it.
+Note 2026-11-26: checked on Sarthak's Pixel 8 (Android 16, normal docked Gboard) with a staging over-the-air update (update group f0f545b0, commit 12385d48). PASS, the whole pop-up sits above the keyboard with its box and button visible: New Sub-Gallery, Edit Event Title. FAIL found: Profile > Edit is also a Modal, not a screen as first thought; tapping Location left the box hidden behind the keyboard. Fix added (same lift, profile.tsx) and sent as a second update. The Rename Event pop-up in apps/mobile/app/(tabs)/gallery.tsx can't be opened from anywhere (nothing ever shows its options menu), so it could not be tested; the change there is harmless dead code. Not yet checked: EB Vault name prompt, album page review, Contact us, the welcome message box.
+Note 2026-11-26 (later): Profile > Edit still not good on the Pixel 8 after three small updates (lift, extra scroll room, scroll-to-field): the sheet now sits above the keyboard, but the Location box stays half hidden at the sheet's bottom edge when tapped, and the last update did not change that (not sure the third update had loaded). Scrolling by hand works. Left open: needs a look at why Android does not scroll the tapped field in (profile.tsx, Edit Profile Modal, scrollEditFieldIntoView). Updates published to the staging Android app: f0f545b0, de062212, e2088f55, 3af87c4a; commits 12385d48 (on staging), 6cc8d9e7, dc4b1d8b, 298b807e (local only, not pushed).
+Note 2026-11-26 (Sarthak): Profile > Edit is accepted as it is: the tapped box is half hidden, but scrolling a little shows it, so no more work there. Still unchecked on a phone: EB Vault name prompt, album page review, Contact us, Welcome Message box (device test #261).
+Note 2026-11-26 (Pixel 8, later updates a5d45903 and earlier): PASS: EB Vault New folder (centered above the keyboard, Cancel and Create visible); Profile > Edit (after the scroll-to-field update the tapped box moves up and Save Changes shows above the keyboard); Contact us message box (the page had no scroll room, so the message box was fully hidden; fixed with extra scroll room and scroll-to-end on focus, commit 7e04a856: box and Send Message now above the keyboard). Still not checked on a phone: album page review (needs an event with an album), the host Welcome Message box. The title overlap on Contact us is now #331.
+Fixed in: 7e04a856 (2026-11-26). Fixes for the pop-ups that fail on Android are on staging (12385d48, 298b807e, 7e04a856) and were checked on Sarthak's Pixel 8: New Sub-Gallery, Edit Event Title, EB Vault New folder, Profile > Edit, Contact us message box. Closed by Sarthak's OK with two places not yet checked on a phone: album page review and the host Welcome Message box (device test #261 stays open for them, and for the Contact us header on iPhone, #331).
+Note 2026-11-26 (later): the host Welcome Message box also failed on the Pixel 8 (keyboard fully covered it, the page did not move). Fixed in 9af7da38 (page gets scroll room while the box is edited and scrolls it up; app/events/[id].tsx) and checked on the Pixel 8 through staging update 6a176097: the box shows above the keyboard. Left unchecked on a phone: album page review (device test #261).
+
+
+#331
+Listed: 2026-11-26
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test of #243 on Sarthak's Pixel 8 (chat 2026-11-26)
+Issue: On the Contact us screen the "Contact Us" title and back arrow stay fixed at the top of the screen (a transparent header, apps/mobile/app/contact.tsx) while the page scrolls under them, so the title draws on top of the email, business hours and form text and overlaps it. Fix: the title and back arrow are now the first row of the page and scroll away with it (no fixed header). The iPhone screen changes the same way, because it had the same overlap.
+How to reproduce: Profile > Usage & Plan > Support Chat. Scroll the page down: "Contact Us" stays on top of the text.
+Note 2026-11-26: fix on the Pixel 8 (staging update a5d45903, commit d831517c): "Contact Us" and the back arrow are the first row of the page and scroll away with it; no overlap when scrolling. Not pushed yet.
+Fixed in: d831517c (2026-11-26). Checked on Sarthak's Pixel 8 through a staging update (a5d45903): the title and back arrow scroll away with the page and no longer overlap the text. iPhone not checked; device test #261 step 6c.
+
+
 #330
 Listed: 2026-11-26
 Platform: App
