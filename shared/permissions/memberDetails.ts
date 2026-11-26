@@ -44,10 +44,6 @@ export async function fetchMemberDirectory(url: string, accessToken: string, eve
     }
 }
 
-/** The owner row's second line: "@username · email", or whichever of them is known. */
-export function ownerContactLine(owner: OwnerDetails | undefined) {
-    return [owner?.username && `@${owner.username}`, owner?.email].filter(Boolean).join(" · ");
-}
 
 /** What tells two members with the same name apart: the username (unique), else the email, else what the row has. */
 export function memberLabel(details: MemberDetails | undefined, fallback: string) {

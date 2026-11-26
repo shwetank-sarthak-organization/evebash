@@ -14,7 +14,7 @@ import { GuestPagePreview } from "@/components/GuestPagePreview";
 import { PartnersIcon } from "@/components/PartnersIcon";
 import { GalleryTypesInfo } from "@/components/GalleryTypesInfo";
 import { TransferOwnershipCard } from "@/components/transfer/TransferOwnershipCard";
-import { memberLabel, ownerContactLine, type MemberDetails, type OwnerDetails } from "../../../../shared/permissions/memberDetails";
+import { memberLabel, type MemberDetails, type OwnerDetails } from "../../../../shared/permissions/memberDetails";
 import { eventOwnerLabel } from "../../../../shared/permissions/eventOwner";
 import { GUEST_UPLOADS_ENABLED } from "../../../../shared/permissions/guestUploads";
 import { buildSourceGalleryOptions, formatSourceCount, isFromSourceGallery } from "../../../../shared/media/sourceGalleries";
@@ -4790,8 +4790,6 @@ function DashboardContent() {
                                                         [user.uid, user.email],
                                                         eventOwnerDetails?.name || (selectedMainEvent.createdBy ? eventOwners[selectedMainEvent.createdBy]?.name : undefined),
                                                     );
-                                                    // Username and email come from the backend, which only tells the people who manage the event
-                                                    const ownerContact = ownerContactLine(eventOwnerDetails);
                                                     return (
                                                         <section className="space-y-3">
                                                             <h5 className="text-sm font-black uppercase tracking-[0.18em] text-[var(--site-muted)]">Owner</h5>
@@ -4801,7 +4799,9 @@ function DashboardContent() {
                                                                 </span>
                                                                 <span className="min-w-0 flex-1">
                                                                     <span className="block truncate text-base font-black text-[var(--site-text)]">{ownerName}</span>
-                                                                    {ownerContact && <span className="block truncate text-xs font-bold text-[var(--site-muted)]">{ownerContact}</span>}
+                                                                    {/* Username and email, each on its own line, come from the backend, which only tells the people who manage the event */}
+                                                                    {eventOwnerDetails?.username && <span className="block truncate text-xs font-bold text-[var(--site-muted)]">@{eventOwnerDetails.username}</span>}
+                                                                    {eventOwnerDetails?.email && <span className="block truncate text-xs font-bold text-[var(--site-muted)]">{eventOwnerDetails.email}</span>}
                                                                     <span className="block truncate text-xs font-bold text-[var(--site-muted)]">Full access · can&apos;t be changed</span>
                                                                 </span>
                                                                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--site-gold)]/30 bg-[var(--site-gold)]/10 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--site-gold-text)]">

@@ -83,7 +83,7 @@ import { useRoyalFonts } from '../../components/royal/royalFonts';
 import GalleriesIcon from '../../components/icons/GalleriesIcon';
 import PermissionsIcon from '../../components/icons/PermissionsIcon';
 import TransferOwnershipCard from '../../components/event/TransferOwnershipCard';
-import { memberLabel, ownerContactLine, type MemberDetails, type OwnerDetails } from '../../../../shared/permissions/memberDetails';
+import { memberLabel, type MemberDetails, type OwnerDetails } from '../../../../shared/permissions/memberDetails';
 import { eventOwnerLabel } from '../../../../shared/permissions/eventOwner';
 import { GUEST_UPLOADS_ENABLED } from '../../../../shared/permissions/guestUploads';
 import DesignIcon from '../../components/icons/DesignIcon';
@@ -6181,8 +6181,6 @@ function EventDetailScreen() {
                   {/* ── OWNER ── not a guest of their own event, so shown on its own first (todo #50) */}
                   {(() => {
                     const ownerName = eventOwnerLabel(event.createdBy, [user?.uid, user?.email], eventOwnerDetails?.name || ownerCardName);
-                    // Username and email come from the backend, which only tells the people who manage the event
-                    const ownerContact = ownerContactLine(eventOwnerDetails);
                     return (
                       <View style={{ marginBottom: 8 }}>
                         <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 16, marginTop: 10 }]}>Owner</Text>
@@ -6192,11 +6190,12 @@ function EventDetailScreen() {
                           </View>
                           <View style={{ flex: 1, gap: 2 }}>
                             <Text style={styles.memberName} numberOfLines={1}>{ownerName}</Text>
-                            {!!ownerContact && (
-                              <Text style={{ color: hp.slate400, fontSize: 12, fontFamily: Fonts.inter.medium }} numberOfLines={1}>
-                                {ownerContact}
+                            {/* Username and email, each on its own line, come from the backend, which only tells the people who manage the event */}
+                            {[eventOwnerDetails?.username && `@${eventOwnerDetails.username}`, eventOwnerDetails?.email].filter(Boolean).map(line => (
+                              <Text key={line as string} style={{ color: hp.slate400, fontSize: 12, fontFamily: Fonts.inter.medium }} numberOfLines={1}>
+                                {line}
                               </Text>
-                            )}
+                            ))}
                             <Text style={{ color: hp.gold, fontSize: 12, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>
                               Owner: full access
                             </Text>
