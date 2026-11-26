@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Platform } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppTheme } from '@/context/ThemeContext';
 import { MidnightColors } from '@/constants/theme';
 import { Stack, useRouter } from 'expo-router';
 import { Button } from '@/components/ui/Button';
 import { sendContactMessage } from '@/lib/database';
+import { useAndroidKeyboardHeight } from '@/hooks/use-android-keyboard-height';
 
 export default function ContactUsScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
+  // Android: the keyboard covers the lower part of this page; add scroll room and scroll the message box up (#243; 0 on iOS)
+  const keyboardHeight = useAndroidKeyboardHeight();
+  const scrollRef = useRef<ScrollView>(null);
   const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -73,7 +77,7 @@ export default function ContactUsScreen() {
         ),
         headerShadowVisible: false,
       }} />
-      <ScrollView style={styles.container}>
+      <ScrollView ref={scrollRef} style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Get in Touch</Text>
           <Text style={styles.subtitle}>
@@ -186,6 +190,9 @@ export default function ContactUsScreen() {
               numberOfLines={4}
               textAlignVertical="top"
               value={message}
+              onFocus={() => {
+                if (Platform.OS === 'android') setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250);
+              }}
               onChangeText={(value) => {
                 setMessage(value);
                 clearSubmitState();
@@ -199,7 +206,7 @@ export default function ContactUsScreen() {
           <Button title="Send Message" icon="paperplane.fill" onPress={handleSubmit} loading={submitting} style={{ marginTop: 8 }} />
         </View>
         
-        <View style={{ height: 40 }} />
+        <View style={{ height: 40 + keyboardHeight }} />
       </ScrollView>
     </View>
   );
