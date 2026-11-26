@@ -2411,7 +2411,14 @@ function EventDetailScreen() {
 
     // On Home, an un-starred photo leaves the list, unless it was uploaded to Home itself (then it only loses its star)
     if (selectedAdminGallery === null && !result.favourited) {
-      setPhotos(prev => homeAfterUnstar(prev, photoId, [editableGallery.id, editableGallery.legacyId]).items);
+      const { items, removed } = homeAfterUnstar(photos, photoId, [editableGallery.id, editableGallery.legacyId]);
+      if (removed) {
+        setPhotos(items);
+        // The Photos/Videos tab counts go down too, as on the website
+        setMediaTotals(prev => isVideoMedia(removed)
+          ? { ...prev, videos: Math.max(0, prev.videos - 1) }
+          : { ...prev, photos: Math.max(0, prev.photos - 1) });
+      }
     }
   };
 
