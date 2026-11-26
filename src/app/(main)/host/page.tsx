@@ -1220,6 +1220,20 @@ function DashboardContent() {
         }).catch(() => {});
         return () => { active = false; };
     }, [selectedMainEventId, selectedMainEvent?.parentId, selectedMainEventIsOwn, user?.uid]);
+    // Issue #329: only the owner (or their account manager, or a platform admin) gives or takes Admin Access and
+    // changes or removes an admin. The owner already can, so only ask the database for other people.
+    const [adminManagerEventId, setAdminManagerEventId] = useState('');
+    useEffect(() => {
+        let active = true;
+        setAdminManagerEventId('');
+        if (!selectedMainEventId || selectedMainEventIsOwn) return;
+        void Promise.resolve(supabase.rpc('can_manage_event_admins', { p_event_id: selectedMainEventId })).then(({ data, error }) => {
+            if (active && !error && data === true) setAdminManagerEventId(selectedMainEventId);
+        }).catch(() => {});
+        return () => { active = false; };
+    }, [selectedMainEventId, selectedMainEventIsOwn, user?.uid]);
+    const canManageEventAdmins = selectedMainEventIsOwn || (!!selectedMainEventId && adminManagerEventId === selectedMainEventId);
+    const OWNER_ONLY_ADMIN_MESSAGE = "Only the event owner can change Admin Access or remove an admin.";
     const [savingVisibility, setSavingVisibility] = useState(false);
     const [visibilityError, setVisibilityError] = useState("");
     const canChangeSelectedEventVisibility = !!selectedMainEvent && !selectedMainEvent.parentId && (
@@ -2168,6 +2182,12 @@ function DashboardContent() {
         log: EventDetailLog,
         key: "canAdmin" | "canUpload" | "canComment"
     ) => {
+        if (!canManageEventAdmins && (key === "canAdmin" || log.canAdmin)) {
+            setMessage(OWNER_ONLY_ADMIN_MESSAGE);
+            setStatus("error");
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
+            return;
+        }
         const nextValue = !log[key];
         const nextPermissions = key === "canAdmin" && nextValue
             ? { canAdmin: true, canUpload: true, canComment: true }
@@ -3847,6 +3867,7 @@ function DashboardContent() {
                                         } else {
                                             // Admins always get uploads and comments, so those switches show on and are locked
                                             const impliedByAdmin = key !== "canAdmin" && hasAdminAccess;
+                                            const ownerOnly = key === "canAdmin" && !canManageEventAdmins;
                                             const isOn = Boolean(log[key]) || impliedByAdmin;
                                             control = (
                                                 <button
@@ -3854,8 +3875,8 @@ function DashboardContent() {
                                                     role="switch"
                                                     aria-checked={isOn}
                                                     aria-label={`${label} for ${guestName}`}
-                                                    title={impliedByAdmin ? "Admins can always upload and comment" : undefined}
-                                                    disabled={impliedByAdmin}
+                                                    title={impliedByAdmin ? "Admins can always upload and comment" : ownerOnly ? OWNER_ONLY_ADMIN_MESSAGE : undefined}
+                                                    disabled={impliedByAdmin || ownerOnly}
                                                     onClick={() => void handleGuestPermissionToggle(log, key)}
                                                     className={cn(
                                                         "relative h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-gold)]/60 disabled:cursor-not-allowed disabled:opacity-50",
@@ -3914,7 +3935,8 @@ function DashboardContent() {
                                             <Flag className="h-4 w-4" />
                                         </button>
                                     )}
-                                    {!isPending && (
+                                    {/* Admins are removed by the owner only (issue #329) */}
+                                    {!isPending && (canManageEventAdmins || !hasAdminAccess) && (
                                         <button
                                             type="button"
                                             onClick={() => void removeGuest()}
@@ -7133,14 +7155,18 @@ function DashboardContent() {
                                             ].filter(({ key }) => GUEST_UPLOADS_ENABLED || key !== "canUpload").map(({ key, label, desc, icon: Icon }) => {
                                                 const permKey = key as "canAdmin" | "canUpload" | "canComment";
                                                 const isActive = Boolean(selectedGuestLog[permKey] || (selectedGuestLog.canAdmin && (permKey === "canUpload" || permKey === "canComment")));
+                                                // Issue #329: only the owner changes Admin Access, or anything on an admin
+                                                const ownerOnly = !canManageEventAdmins && (permKey === "canAdmin" || !!selectedGuestLog.canAdmin);
 
                                                 return (
                                                     <button
                                                         key={key}
                                                         type="button"
+                                                        disabled={ownerOnly}
+                                                        title={ownerOnly ? OWNER_ONLY_ADMIN_MESSAGE : undefined}
                                                         onClick={() => handleGuestPermissionToggle(selectedGuestLog, permKey)}
                                                         className={cn(
-                                                            "flex w-full items-center gap-4 rounded-[1.25rem] border p-4 text-left transition-colors",
+                                                            "flex w-full items-center gap-4 rounded-[1.25rem] border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60",
                                                             isActive ? "border-[var(--site-gold)]/45 bg-[var(--site-gold)]/10" : "border-[var(--site-line)] bg-[var(--site-surface)]/70 hover:border-[var(--site-border)]"
                                                         )}
                                                     >
@@ -7152,7 +7178,7 @@ function DashboardContent() {
                                                         </span>
                                                         <span className="min-w-0 flex-1">
                                                             <span className="block text-sm font-black text-[var(--site-text)]">{label}</span>
-                                                            <span className="mt-1 block text-xs font-bold text-[var(--site-muted)]">{desc}</span>
+                                                            <span className="mt-1 block text-xs font-bold text-[var(--site-muted)]">{ownerOnly && permKey === "canAdmin" ? "Only the event owner can change this" : desc}</span>
                                                         </span>
                                                         <span className={cn(
                                                             "relative h-7 w-12 rounded-full transition-colors",

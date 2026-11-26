@@ -883,6 +883,20 @@ function EventDetailScreen() {
 
   const [isOwner, setIsOwner] = useState(false);
   const [isSharedEventAdmin, setIsSharedEventAdmin] = useState(false);
+  // Issue #329: only the owner (or their account manager, or a platform admin) gives or takes Admin Access and
+  // changes or removes an admin. The owner already can, so only ask the database for other people (as the website does).
+  const [adminManagerEventId, setAdminManagerEventId] = useState('');
+  useEffect(() => {
+    let active = true;
+    setAdminManagerEventId('');
+    const eventId = event?.id;
+    if (!eventId || isOwner) return;
+    void Promise.resolve(supabase.rpc('can_manage_event_admins', { p_event_id: eventId })).then(({ data, error }) => {
+      if (active && !error && data === true) setAdminManagerEventId(eventId);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [event?.id, isOwner, user?.uid]);
+  const canManageEventAdmins = isOwner || (!!event?.id && adminManagerEventId === event.id);
   // The owner's name for the Owner row in Permissions (todo #50); only the public profile card is readable
   const [ownerCardName, setOwnerCardName] = useState<string | undefined>();
   useEffect(() => {
@@ -3399,10 +3413,15 @@ function EventDetailScreen() {
         </Text>
       </View>
 
-      <View>
+      {/* Admins are removed by the owner only (issue #329), as on the website */}
+      {(canManageEventAdmins || !log.canAdmin) && <View>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel="Remove guest"
           style={styles.memberDelete}
           onPress={() => {
+            if (log.canAdmin && !canManageEventAdmins) {
+              appAlert("Owner only", "Only the event owner can remove an admin.");
+              return;
+            }
             if (doesGuestLogBelongToCurrentUser(log) && !isOwner) {
               appAlert("Permission Denied", "Ask host to remove you.");
               return;
@@ -3433,7 +3452,7 @@ function EventDetailScreen() {
         >
           <IconSymbol name="trash.fill" size={16} color="rgba(239, 68, 68, 0.4)" />
         </TouchableOpacity>
-      </View>
+      </View>}
     </TouchableOpacity>
   );
 
@@ -6376,8 +6395,9 @@ function EventDetailScreen() {
                           { id: 'canComment', label: 'Allow Comments', desc: 'Can react and post comments on any media', icon: 'bubble.left.fill' },
                         ].filter((perm) => GUEST_UPLOADS_ENABLED || perm.id !== 'canUpload').map((perm) => {
                           const isActive = Boolean((selectedGuest as any)?.[perm.id] || (selectedGuest?.canAdmin && (perm.id === 'canUpload' || perm.id === 'canComment')));
-                          const isSelfAdminCheck = perm.id === 'canAdmin' && selectedGuest && doesGuestLogBelongToCurrentUser(selectedGuest) && !isOwner;
-                          const displayDesc = isSelfAdminCheck ? "Ask host to remove you" : perm.desc;
+                          // Issue #329: only the owner changes Admin Access, or anything on an admin (an admin can't drop their own)
+                          const isSelfAdminCheck = !!selectedGuest && !canManageEventAdmins && (perm.id === 'canAdmin' || !!selectedGuest.canAdmin);
+                          const displayDesc = isSelfAdminCheck ? (perm.id === 'canAdmin' ? "Only the event owner can change this" : perm.desc) : perm.desc;
 
                           return (
                             <TouchableOpacity
@@ -6390,7 +6410,7 @@ function EventDetailScreen() {
                               onPress={() => {
                                 if (selectedGuest) {
                                   if (isSelfAdminCheck) {
-                                    appAlert("Permission Denied", "Ask host to remove you.");
+                                    appAlert("Owner only", "Only the event owner can change Admin Access or remove an admin.");
                                     return;
                                   }
                                   const nextValue = !isActive;
