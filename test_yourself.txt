@@ -24,11 +24,11 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 259
+Next test number: 260
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-25
+Last updated: 2026-11-26
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -7800,6 +7800,37 @@ How to test:
      then closing and reopening the app or signing out and in first. Expect: every event opens, none takes more
      than about 5 seconds, and "We couldn't open this gallery" never shows.
   4. If an event is slow or fails, write down the time to the minute (we can find it in the staging server log).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#259 App: every font still shows after the font size cleanup (issue #105)
+Status:    TODO
+Priority:  Medium
+Platform:  App (Android and iPhone, NEW app build)
+Jira:      EB-438
+Brief:     The app download was carrying about 6 MB of font files it never used (the Royal Emerald and Classic White
+           fonts were pulled in with every weight). They are now included one by one, only the faces the app uses.
+           This checks that no text lost its font.
+Detail:    Fix in apps/mobile/components/royal/royalFonts.ts and apps/mobile/components/classic/classicFonts.ts.
+           Bundled assets change, so this needs a NEW app build (staging EAS build for Android and iPhone); an
+           over-the-air update does not carry it. Checked: type check passes and expo export --platform android
+           bundles 25 font files (was 46), 6.27 MB less. Not checked on a device.
+How to test (do it on an Android phone and on an iPhone):
+  1. Install the new staging build and open the app. Expect: the Home, Gallery and Profile headings look as before
+     (Akaya Kanadaka headings, Inter text).
+  2. Open an event with the Royal Emerald theme. Expect: script title (Great Vibes), capital letters (Cinzel), body
+     in Cormorant Garamond, italic where it was before. No plain system font.
+  3. Open an event with the Classic White theme. Expect: Playfair Display serif, medium weight and italic where they
+     were before.
+  4. Open one event each with the Sunlit Portrait and Confetti Circle themes. Expect: Instrument Serif and Bebas
+     Neue as before.
+  5. Open a few other themes. Expect: they look exactly as before.
 Done by:
 Device / browser:
 Build / version:

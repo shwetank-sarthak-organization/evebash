@@ -1,6 +1,8 @@
-import { GreatVibes_400Regular } from '@expo-google-fonts/great-vibes';
-import { Cinzel_400Regular, Cinzel_600SemiBold } from '@expo-google-fonts/cinzel';
-import { CormorantGaramond_500Medium, CormorantGaramond_500Medium_Italic } from '@expo-google-fonts/cormorant-garamond';
+import { GreatVibes_400Regular } from '@expo-google-fonts/great-vibes/400Regular';
+import { Cinzel_400Regular } from '@expo-google-fonts/cinzel/400Regular';
+import { Cinzel_600SemiBold } from '@expo-google-fonts/cinzel/600SemiBold';
+import { CormorantGaramond_500Medium } from '@expo-google-fonts/cormorant-garamond/500Medium';
+import { CormorantGaramond_500Medium_Italic } from '@expo-google-fonts/cormorant-garamond/500Medium_Italic';
 import { useLazyFonts, type LazyFontSet } from '@/hooks/use-lazy-fonts';
 
 // Royal Emerald's fonts, the same as the website (src/components/royal/royalFonts.ts). They load only when a Royal
