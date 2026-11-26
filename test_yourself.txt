@@ -7844,7 +7844,7 @@ Fix ref:
 Feedback: PASS on both. Royal Emerald (royal-emerald-check-...-c9e2): Great Vibes title, Cinzel date, menu and buttons, Cormorant Garamond "Highlights". Classic White (Staging Test 1): Playfair Display title and Playfair italic tagline. Dashboard and login: Akaya Kanadaka headings, Inter text. No font errors in the logs ("fonts ready"). Not checked: Sunlit Portrait and Confetti Circle (no such event on staging; their font code did not change), and an iPhone release build (the next iPhone staging build carries it).
 
 #260 Android: app opens and every icon still shows after the Material Symbols cleanup (issue #330)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (EveBash Staging on Android)
 Jira:      EB-440
@@ -7859,11 +7859,11 @@ How to test (Android):
   2. Go through Dashboard, Host, EB Network, Profile and Settings. Expect: every tab and button icon shows as before;
      no empty squares or missing icons.
   3. Open a gallery (any theme). Expect: the icons on the gallery screen show as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (steps 1-2) and Sarthak (step 3)
+Device / browser: Pixel 8 (Android 16, Sarthak's phone over USB)
+Build / version: EAS staging build a9a75698 (1.2.4 (26)) + staging update cec62afa (logcat NEW_UPDATE_LOADED 01a21895)
+Date tested: 2026-11-26
+Account used: Sarthak's staging host account
+Screenshot / recording: none kept
 Fix ref:
-Feedback:
+Feedback: PASS. Step 1: app opened normally after the update loaded ("fonts ready", no errors). Step 2 (Claude): icons on Dashboard, Host, EB Network, Profile and Settings all show. Step 3 (Sarthak, by eye): in the Staging Test 1 gallery (Classic White) the back arrow, share icon and tab icons all show.
