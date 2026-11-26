@@ -941,8 +941,8 @@ How to reproduce: On staging, open a gallery in the app and tap a photo. Steps t
 Listed: 2026-11-16
 Platform: App
 Priority: High
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: iOS simulator and USB iPhone builds, todo #37 (chat 2026-11-16)
 Issue: The iOS app doesn't build or start with Xcode 27 / the iOS 27 SDK unless the generated apps/mobile/ios folder is patched by hand. (1) The app closes at launch on iOS 27 (crash in UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption): apps built with the iOS 27 SDK must use the UIScene lifecycle, and Expo SDK 55's AppDelegate doesn't. Fixed locally with a SceneDelegate in AppDelegate.swift (starts React Native in scene(_:willConnectTo:), forwards deep links and universal links to the AppDelegate) and UIApplicationSceneManifest in Info.plist. (2) Xcode 27 refuses pods whose minimum iOS is below 15, and expo-router uses an iOS 16 API, so all pods and the app need a minimum of iOS 16.0 (set in the Podfile post_install). Both live only in the gitignored ios folder, so "npx expo prebuild --clean" and EAS builds lose them. Fix: a config plugin in apps/mobile (or expo-build-properties deploymentTarget 16.0 plus a scene-lifecycle plugin), or an Expo SDK that supports scenes, before the first EAS iOS build on an Xcode 27 image and before Apple requires the iOS 27 SDK for App Store uploads. Local-only extra (not a product bug): this Mac's project path has spaces, which breaks the RN prebuilt-core download and some unquoted script phases; the Podfile post_install quotes them and pods are installed with RCT_USE_PREBUILT_RNCORE=0 RCT_USE_RN_DEP=0. Full notes in the todo #37 entry.
