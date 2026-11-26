@@ -7810,7 +7810,7 @@ Fix ref:
 Feedback:
 
 #259 App: every font still shows after the font size cleanup (issue #105)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (Android and iPhone, NEW app build)
 Jira:      EB-438
@@ -7834,11 +7834,11 @@ How to test (do it on an Android phone and on an iPhone):
   4. Open one event each with the Sunlit Portrait and Confetti Circle themes. Expect: Instrument Serif and Bebas
      Neue as before.
   5. Open a few other themes. Expect: they look exactly as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak)
+Device / browser: Pixel 8 (Android 16, Sarthak's phone over USB); iPhone 16e simulator (iOS 26.3)
+Build / version: Pixel: EAS staging build a9a75698 (1.2.4 (26)) + staging update 335bc23a (logcat NEW_UPDATE_LOADED 01a21881). iPhone: EveBash Staging development build loading this branch (8b2b3fd7) from a local bundler, not a release build
+Date tested: 2026-11-26
+Account used: Pixel: Sarthak's staging host account; iPhone: newone1
+Screenshot / recording: none kept
 Fix ref:
-Feedback:
+Feedback: PASS on both. Royal Emerald (royal-emerald-check-...-c9e2): Great Vibes title, Cinzel date, menu and buttons, Cormorant Garamond "Highlights". Classic White (Staging Test 1): Playfair Display title and Playfair italic tagline. Dashboard and login: Akaya Kanadaka headings, Inter text. No font errors in the logs ("fonts ready"). Not checked: Sunlit Portrait and Confetti Circle (no such event on staging; their font code did not change), and an iPhone release build (the next iPhone staging build carries it).
