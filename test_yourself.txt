@@ -7897,6 +7897,9 @@ How to test:
      stays above the keyboard.
   6b. Then: Contact us: tap "Tell us more about your event...". Host page >
      Galleries > Welcome Message: tap the box. Expect: still fine (these were not changed). If one is hidden, say which.
+  6c. Contact us (Profile > Usage & Plan > Support Chat): scroll down. Expect: the "Contact Us" title and back arrow scroll
+     away with the page and never sit on top of the text (issue #331). Tap the message box. Expect: it and Send
+     Message end up above the keyboard.
   7. Close each pop-up with the keyboard open. Expect: it closes normally and the next one opens in its usual place.
 Done by:
 Device / browser:
