@@ -1149,7 +1149,7 @@ Blocked by: -
 Found in: Shwetank on staging, and code reading with Claude, 2026-11-26
 Issue: (1) Website: un-starring a photo while viewing Home (Primary Gallery) showed "Removed from Primary Gallery." but the photo stayed in the Home list until the page was refreshed (handleToggleEventFavourite in src/app/(main)/host/page.tsx refreshed the star ids but not the Home list). (2) App: un-starring on Home removed the photo from the list even when it was uploaded to Home itself, so a Home photo looked deleted until the gallery was reopened.
 How to reproduce: Host > event > Home: un-star a favourite that came from a sub-gallery (website: still shown); app: un-star a photo uploaded to Home (it disappears).
-Fixed in: b528699d (2026-11-26). Shared rule shared/media/homeFavourites.ts (homeAfterUnstar, 4 tests): an un-starred photo leaves Home at once unless its gallery is Home (id or legacy id). Website also updates the photo/video count. Device test #256.
+Fixed in: b528699d (2026-11-26). Shared rule shared/media/homeFavourites.ts (homeAfterUnstar, 4 tests): an un-starred photo leaves Home at once unless its gallery is Home (id or legacy id). Website also updates the photo/video count. Device test #256. App count fix (Photos (n) went stale on Home): 03bc587c, staging app update abd820ca (iPhone) / fe393a0a (Android).
 
 #327
 Listed: 2026-11-26
