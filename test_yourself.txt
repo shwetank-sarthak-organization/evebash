@@ -7724,7 +7724,7 @@ Fix ref:
 Feedback: Real Android PASS (Claude over USB, 2026-11-26, iQOO, EveBash Staging build 0b4a8601 + staging update 52808477, signed in as newone2, dark look): Owner newone1, @newone1, newone1@email.com on separate lines, then Admins (1) newone2 @newone2. Found and fixed on the way: issue #327. iPhone 18 Pro simulator PASS (Claude, 2026-11-26, efc1b2c1 via the local app server, signed in as newone2): Permissions > Guest List shows Owner first (newone1, @newone1, newone1@email.com, "Owner: full access", no buttons), then Admins (1) newone2; light look. Website owner username and email on separate lines PASS (Shwetank, b7068688). Website as owner PASS (Shwetank): the row says "You". Website as admin PASS (Shwetank): Owner section shows "newone1", "Full access · can't be changed" and the Owner badge, above Members (1) · 1 Admin. App: staging builds started 2026-11-26.
 
 #256 Un-starring a photo takes it off Home at once, but a photo uploaded to Home stays (issue #328)
-Status:    TODO (steps 1-2 PASS on real Android and the iPhone simulator; step 3 and the website still to check)
+Status:    PASS (website and step 3 by Shwetank; steps 1-2 on real Android and the iPhone simulator by Claude)
 Priority:  Medium
 Platform:  Both. Website (staging.evebash.com) and the app (iPhone and Android, separately; staging app, opened twice to get
            the update).
@@ -7745,4 +7745,4 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback: iPhone 18 Pro simulator PASS for steps 1-2 (Claude, 2026-11-26, 03bc587c via the local app server, newone2): starred a Haldi photo, Home showed it (Photos (1)); un-starred on Home: it left at once and the tab said Photos (0). Real Android PASS for steps 1-2 (Claude over USB, 2026-11-26, iQOO, staging build + update fe393a0a, newone2 on Riya & Arjun's Wedding): starred a Haldi photo, Home showed it (Photos (1)); un-starred on Home: it left at once and the tab said Photos (0); Haldi still had all 4 photos, star off. The first try showed the count stuck at Photos (1), fixed in 03bc587c. Step 3 (a photo uploaded to Home) not tested: needs an upload from the phone.
+Feedback: Website and step 3 (photo uploaded to Home stays when un-starred) PASS, reported by Shwetank 2026-11-26. iPhone 18 Pro simulator PASS for steps 1-2 (Claude, 2026-11-26, 03bc587c via the local app server, newone2): starred a Haldi photo, Home showed it (Photos (1)); un-starred on Home: it left at once and the tab said Photos (0). Real Android PASS for steps 1-2 (Claude over USB, 2026-11-26, iQOO, staging build + update fe393a0a, newone2 on Riya & Arjun's Wedding): starred a Haldi photo, Home showed it (Photos (1)); un-starred on Home: it left at once and the tab said Photos (0); Haldi still had all 4 photos, star off. The first try showed the count stuck at Photos (1), fixed in 03bc587c. Step 3 (a photo uploaded to Home) not tested: needs an upload from the phone.
