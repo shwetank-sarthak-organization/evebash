@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 256
+Next test number: 258
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7696,7 +7696,7 @@ Fix ref:
 Feedback:
 
 #255 Permissions: the event owner shows first, above Admins and Members (todo #50)
-Status:    TODO (website PASS; the app (iPhone and Android) still to check)
+Status:    PASS (website, iPhone simulator, real Android; real iPhone not checked, Shwetank accepted the simulator 2026-11-26)
 Priority:  Low
 Platform:  Both. Website (staging.evebash.com, desktop and phone width) and the app (iPhone and Android, separately; needs a
            staging build or the app server).
@@ -7721,4 +7721,56 @@ Date tested: 2026-11-26
 Account used: newone2@email.com (Admin on an event owned by newone1)
 Screenshot / recording:
 Fix ref:
-Feedback: Website owner username and email on separate lines PASS (Shwetank, b7068688). Website as owner PASS (Shwetank): the row says "You". Website as admin PASS (Shwetank): Owner section shows "newone1", "Full access · can't be changed" and the Owner badge, above Members (1) · 1 Admin. App: staging builds started 2026-11-26.
+Feedback: Real Android PASS (Claude over USB, 2026-11-26, iQOO, EveBash Staging build 0b4a8601 + staging update 52808477, signed in as newone2, dark look): Owner newone1, @newone1, newone1@email.com on separate lines, then Admins (1) newone2 @newone2. Found and fixed on the way: issue #327. iPhone 18 Pro simulator PASS (Claude, 2026-11-26, efc1b2c1 via the local app server, signed in as newone2): Permissions > Guest List shows Owner first (newone1, @newone1, newone1@email.com, "Owner: full access", no buttons), then Admins (1) newone2; light look. Website owner username and email on separate lines PASS (Shwetank, b7068688). Website as owner PASS (Shwetank): the row says "You". Website as admin PASS (Shwetank): Owner section shows "newone1", "Full access · can't be changed" and the Owner badge, above Members (1) · 1 Admin. App: staging builds started 2026-11-26.
+
+#256 Un-starring a photo takes it off Home at once, but a photo uploaded to Home stays (issue #328)
+Status:    PASS (website and step 3 by Shwetank; steps 1-2 on real Android and the iPhone simulator by Claude)
+Priority:  Medium
+Platform:  Both. Website (staging.evebash.com) and the app (iPhone and Android, separately; staging app, opened twice to get
+           the update).
+Brief:     Home (Primary Gallery) shows the event's starred photos plus photos uploaded to Home. Un-starring used to leave the
+           photo on Home on the website until a refresh, and in the app made a Home photo disappear until reopening.
+Detail:    shared/media/homeFavourites.ts, src/app/(main)/host/page.tsx (handleToggleEventFavourite),
+           apps/mobile/app/events/[id].tsx (handleToggleEventFavourite).
+How to test:
+  1. Host > an event with a sub-gallery (e.g. Haldi). In Haldi, star a photo. Open Home: it is there.
+  2. Website, on Home: un-star it. Expect: "Removed from Primary Gallery." and it leaves Home at once (no refresh), and
+     the Photos count goes down by 1. Open Haldi: it is still there.
+  3. Upload a photo straight to Home and star it. Un-star it on Home. Expect: it stays on Home (only the star goes).
+  4. App (iPhone, then Android): same steps 1-3 on the event's Galleries > Home.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback: Website and step 3 (photo uploaded to Home stays when un-starred) PASS, reported by Shwetank 2026-11-26. iPhone 18 Pro simulator PASS for steps 1-2 (Claude, 2026-11-26, 03bc587c via the local app server, newone2): starred a Haldi photo, Home showed it (Photos (1)); un-starred on Home: it left at once and the tab said Photos (0). Real Android PASS for steps 1-2 (Claude over USB, 2026-11-26, iQOO, staging build + update fe393a0a, newone2 on Riya & Arjun's Wedding): starred a Haldi photo, Home showed it (Photos (1)); un-starred on Home: it left at once and the tab said Photos (0); Haldi still had all 4 photos, star off. The first try showed the count stuck at Photos (1), fixed in 03bc587c. Step 3 (a photo uploaded to Home) not tested: needs an upload from the phone.
+
+#257 Only the event owner changes Admin Access or removes an admin (issue #329)
+Status:    PASS (website and steps 3-5 by Shwetank; app steps 1-2 on real Android and the iPhone simulator by Claude)
+Priority:  High
+Platform:  Both. Website (staging.evebash.com) and the app (iPhone and Android, separately; staging app opened twice for the
+           update). Needs two accounts: A owns an event, B is an admin on it (and, for step 4, a third member C).
+Brief:     A guest admin could switch off their own Admin, switch Admin for others, and remove other admins. Now only the
+           owner can; admins still manage ordinary members.
+Detail:    supabase/migrations/20261126120000_owner_only_admin_access.sql, apps/backend/src/routes/permissions.ts,
+           src/app/(main)/host/page.tsx, apps/mobile/app/events/[id].tsx (d4975182).
+How to test:
+  1. Website, signed in as B (admin): Host > Shared > the event > Permissions. Expect: B's own Admin switch is greyed
+     out ("Only the event owner can change Admin Access or remove an admin." on hover) and there is no remove (bin)
+     button on any admin row.
+  2. Click B's name: in the popup, Admin Access says "Only the event owner can change this" and can't be switched.
+  3. Approve a pending request or remove an ordinary member as B: still works.
+  4. As B, try making member C an admin: refused (switch locked).
+  5. Website, signed in as A (owner): the same page: Admin switches work, admins have the bin button.
+  6. App (iPhone, then Android): steps 1-5 on the event's Permissions tab (the bin is hidden on admin rows; tapping
+     Admin Access shows "Owner only").
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback: Website as admin and as owner, and ordinary-member actions (steps 1-5) PASS, reported by Shwetank 2026-11-26. iPhone 18 Pro simulator PASS, steps 1-2 as the admin (Claude, 2026-11-26, latest staging code via the local app server, newone2): no bin on the admin row; Admin Access says "Only the event owner can change this"; tapping it shows "Owner only"; nothing changed. Real Android PASS, steps 1-2 as the admin (Claude over USB, 2026-11-26, iQOO, staging build + update 322ed1ec, newone2 on Riya & Arjun's Wedding): no bin button on the admin row; in newone2's popup Admin Access says "Only the event owner can change this" and tapping it shows "Owner only"; nothing changed (still Admins (1)). Steps 3-5 (ordinary members, owner view) need a third account and newone1.

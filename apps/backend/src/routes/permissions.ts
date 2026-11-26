@@ -1,7 +1,8 @@
 import type { Request, Response } from "express";
 import { Router } from "express";
 import { getAdminClient } from "../adminAuth.js";
-import { verifySupabaseUser } from "../auth.js";
+import { getBearerToken, verifySupabaseUser } from "../auth.js";
+import { getSupabaseUserClient } from "../supabase.js";
 import { galleryFromLegacyGuestId, notifyGuestRequestDenied, openGalleryAccessAsCaller } from "./notifications.js";
 import { checkGalleryManageAccess, describeUploaders, MAX_UPLOADER_IDS } from "./uploaders.js";
 
@@ -110,14 +111,47 @@ export async function checkGuestRouteAccessAsCaller(
   return (await galleryAccess(request, eventId)) === "manage" ? "allowed" : "forbidden";
 }
 
+/**
+ * Whether the signed-in caller may change Admin Access on this event (issue #329): the owner, their delegated account
+ * manager or a platform admin, as the database's can_manage_event_admins sees it. Guest admins may not.
+ */
+export async function canManageEventAdminsAsCaller(request: Request, eventId: string): Promise<boolean> {
+  const token = getBearerToken(request);
+  if (!token) return false;
+  const { data, error } = await getSupabaseUserClient(token).rpc("can_manage_event_admins", { p_event_id: eventId });
+  if (error) throw error;
+  return data === true;
+}
+
+const OWNER_ONLY_ADMIN = {
+  success: false,
+  code: "owner_only_admin",
+  error: "Only the event owner can give or take away Admin Access, or change or remove an admin.",
+};
+
 export function createPermissionsRouter(
   checkAccess = checkGuestRouteAccessAsCaller,
   getAdmin = getAdminClient,
   notifyDenied: (supabaseAdmin: ReturnType<typeof getAdminClient>, guest: Parameters<typeof notifyGuestRequestDenied>[1]) => Promise<boolean> =
     (supabaseAdmin, guest) => notifyGuestRequestDenied(supabaseAdmin as never, guest),
   checkGalleryAccess: (request: Request, eventId: string) => Promise<GuestRouteAccess> = (request, eventId) => checkGalleryManageAccess(request, eventId),
+  canManageAdmins: (request: Request, eventId: string) => Promise<boolean> = canManageEventAdminsAsCaller,
 ) {
   const permissionsRouter = Router();
+
+  /**
+   * Issue #329: changes that touch Admin Access are for the owner only. Returns true when the change may go ahead.
+   * `touchesAdmin` says whether this change gives or takes Admin; any change to a row that already has Admin counts too.
+   * Only with logins on (the old body-based mode has no signed-in caller to ask about).
+   */
+  const adminChangeAllowed = async (request: Request, logId: string, touchesAdmin: (row: { can_admin: boolean | null }) => boolean) => {
+    if (!isGuestRouteLoginRequired()) return true;
+    const { data: row, error } = await getAdmin().from("guests").select("id, event_id, can_admin").eq("id", logId).maybeSingle();
+    if (error) throw error;
+    if (!row || !(row.can_admin || touchesAdmin(row))) return true;
+    const eventId = row.event_id || (await galleryFromLegacyGuestId(getAdmin() as never, row.id));
+    return !!eventId && canManageAdmins(request, eventId);
+  };
 
   const authorize = async (request: Request, logId: string, requester: unknown): Promise<GuestRouteAccess> => {
     if (isGuestRouteLoginRequired()) return checkAccess(request, logId);
@@ -143,6 +177,7 @@ export function createPermissionsRouter(
         const { status: code, body } = denied(access);
         return response.status(code).json(body);
       }
+      if (!(await adminChangeAllowed(request, logId, () => false))) return response.status(403).json(OWNER_ONLY_ADMIN);
 
       const supabaseAdmin = getAdmin();
       const { error } = await supabaseAdmin
@@ -171,6 +206,7 @@ export function createPermissionsRouter(
         const { status: code, body } = denied(access);
         return response.status(code).json(body);
       }
+      if (!(await adminChangeAllowed(request, logId, () => false))) return response.status(403).json(OWNER_ONLY_ADMIN);
 
       const supabaseAdmin = getAdmin();
       const { error } = await supabaseAdmin
@@ -203,6 +239,7 @@ export function createPermissionsRouter(
         const { status: code, body } = denied(access);
         return response.status(code).json(body);
       }
+      if (!(await adminChangeAllowed(request, logId, () => false))) return response.status(403).json(OWNER_ONLY_ADMIN);
 
       const supabaseAdmin = getAdmin();
       const { data: guest, error: readError } = await supabaseAdmin
@@ -317,8 +354,18 @@ export function createPermissionsRouter(
       }
 
       const supabaseAdmin = getAdmin();
+      // The app can send the event's legacy id (its link name, e.g. "riya-arjun-s-wedding-00bc") instead of its id, and
+      // guest rows may hold either, so find the event by both and look guests up under both
+      let event: { id: string; legacy_id: string | null; created_by: string | null } | null = null;
+      for (const column of ["id", "legacy_id"]) {
+        const { data, error: lookupError } = await supabaseAdmin
+          .from("events").select("id, legacy_id, created_by").eq(column, eventId).maybeSingle();
+        if (lookupError) throw lookupError;
+        if (data) { event = data; break; }
+      }
+      const eventKeys = Array.from(new Set([eventId, event?.id, event?.legacy_id].filter(Boolean) as string[]));
       const rows = await Promise.all(["event_id", "parent_event_id"].map((column) => supabaseAdmin
-        .from("guests").select("id, user_id").eq(column, eventId).in("status", ["approved", "pending"])));
+        .from("guests").select("id, user_id").in(column, eventKeys).in("status", ["approved", "pending"])));
       const failed = rows.find((result) => result.error);
       if (failed) throw failed.error;
       const guests = rows.flatMap((result) => result.data || []).filter((guest) => guest.user_id);
@@ -331,16 +378,16 @@ export function createPermissionsRouter(
 
       const profileById = new Map((profiles || []).map((profile) => [profile.id, profile]));
       const members: Record<string, { username: string | null; email: string | null }> = {};
+      const seen = new Set<string>();
       for (const guest of guests) {
+        if (seen.has(guest.id)) continue;
+        seen.add(guest.id);
         const profile = profileById.get(guest.user_id as string);
         if (profile) members[guest.id] = { username: profile.username ?? null, email: profile.email ?? null };
       }
 
       // The event owner's name, username and email for the Owner row in Permissions (todo #50): the owner isn't a
       // guest, and only the people who manage the event get this far. Never the phone.
-      const { data: event, error: eventError } = await supabaseAdmin
-        .from("events").select("created_by").eq("id", eventId).maybeSingle();
-      if (eventError) throw eventError;
       const createdBy = typeof event?.created_by === "string" ? event.created_by : "";
       let owner: { name: string | null; username: string | null; email: string | null } | null = null;
       if (createdBy.includes("@")) {
@@ -370,6 +417,10 @@ export function createPermissionsRouter(
         const { status: code, body } = denied(access);
         return response.status(code).json(body);
       }
+
+      const wantsAdmin = typeof permissions.canAdmin === "boolean" ? permissions.canAdmin : null;
+      const allowed = await adminChangeAllowed(request, logId, (row) => wantsAdmin !== null && wantsAdmin !== !!row.can_admin);
+      if (!allowed) return response.status(403).json(OWNER_ONLY_ADMIN);
 
       const updateData: Record<string, boolean> = {};
       if (typeof permissions.canAdmin === "boolean") updateData.can_admin = permissions.canAdmin;

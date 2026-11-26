@@ -162,17 +162,21 @@ test('taking Admin Access from someone with an album role answers 409 with the d
   const message = 'This person is the photographer in "Wedding Album". Change the album\'s roles first (Album tab > the album > ... > Change roles), then try again.';
   const refusingAdmin = {
     from: () => {
+      let reading = false;
       const builder: any = {
+        select: () => { reading = true; return builder; },
+        maybeSingle: async () => ({ data: { id: 'g1', event_id: 'e1', can_admin: true }, error: null }),
         update: () => builder,
         delete: () => builder,
-        eq: () => Promise.resolve({ error: { code: 'EBA01', message } }),
+        eq: () => reading ? builder : Promise.resolve({ error: { code: 'EBA01', message } }),
       };
       return builder;
     },
   };
   const app = express();
   app.use(express.json());
-  app.use('/permissions', createPermissionsRouter(async () => 'allowed', () => refusingAdmin as never));
+  // The owner is asking (issue #329's owner-only check passes), so the database's album-role refusal is what comes back
+  app.use('/permissions', createPermissionsRouter(async () => 'allowed', () => refusingAdmin as never, undefined, undefined, async () => true));
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/permissions`;
@@ -191,6 +195,70 @@ test('taking Admin Access from someone with an album role answers 409 with the d
       assert.equal(result.json.code, 'album_role_assigned');
       assert.equal(result.json.error, message);
     }
+  } finally {
+    server.close();
+  }
+});
+
+// Issue #329: only the event owner gives or takes Admin Access, and changes or removes an admin
+test('guest admins cannot change Admin Access or change/remove an admin; the owner can', async () => {
+  const rows: Record<string, { id: string; event_id: string; can_admin: boolean }> = {
+    admin: { id: 'admin', event_id: 'e1', can_admin: true },
+    member: { id: 'member', event_id: 'e1', can_admin: false },
+  };
+  const writes: string[] = [];
+  const admin = {
+    from: () => {
+      let id = '';
+      let mode = 'select';
+      const builder: any = {
+        select: () => builder,
+        update: () => { mode = 'update'; return builder; },
+        delete: () => { mode = 'delete'; return builder; },
+        eq: (_column: string, value: string) => {
+          id = value;
+          if (mode === 'select') return builder;
+          writes.push(`${mode}:${id}`);
+          return Promise.resolve({ error: null });
+        },
+        maybeSingle: async () => ({ data: rows[id] ?? null, error: null }),
+      };
+      return builder;
+    },
+  };
+  let isOwner = false;
+  const app = express();
+  app.use(express.json());
+  app.use('/permissions', createPermissionsRouter(async () => 'allowed', () => admin as never, undefined, undefined, async () => isOwner));
+  const server = app.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/permissions`;
+  const post = async (path: string, body: object) => {
+    const response = await fetch(`${base}/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return { status: response.status, json: await response.json() as { code?: string } };
+  };
+  try {
+    // A guest admin (not the owner)
+    for (const [path, body] of [
+      ['update-guest-permissions', { logId: 'admin', permissions: { canAdmin: false } }],
+      ['update-guest-permissions', { logId: 'member', permissions: { canAdmin: true, canUpload: true, canComment: true } }],
+      ['update-guest-status', { logId: 'admin', status: 'rejected' }],
+      ['delete-guest', { logId: 'admin' }],
+    ] as const) {
+      const result = await post(path, body);
+      assert.equal(result.status, 403, `${path} ${JSON.stringify(body)}`);
+      assert.equal(result.json.code, 'owner_only_admin');
+    }
+    assert.deepEqual(writes, []);
+
+    // ...can still manage ordinary members
+    assert.equal((await post('update-guest-permissions', { logId: 'member', permissions: { canComment: false } })).status, 200);
+    assert.equal((await post('delete-guest', { logId: 'member' })).status, 200);
+
+    // The owner can do all of it
+    isOwner = true;
+    assert.equal((await post('update-guest-permissions', { logId: 'admin', permissions: { canAdmin: false } })).status, 200);
+    assert.equal((await post('delete-guest', { logId: 'admin' })).status, 200);
   } finally {
     server.close();
   }

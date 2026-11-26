@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 327
+Next issue number: 330
 
 =====================================================================
 ACTIVE ISSUES
@@ -1138,7 +1138,45 @@ Issue: #318 (upload links that work for any file name in the whole storage bucke
 How to reproduce: On live, logged in with any account, POST https://api.evebash.com/api/v1/media/get-upload-url with an eventId the account may upload to: the reply has uploadUrl and authorizationToken (the any-file link). Do not upload anything with it.
 Note 2026-11-25 (added with Sarthak): (a) Order: nothing can be done before the staging to main release; the app update comes after it, because a production update ships every app change made on staging since the live build (it is an app release), and the live app and live server must match. (b) Right after the release, check: live POST /api/v1/media/get-upload-url (logged in) returns putUrl as well as uploadUrl, and a live website upload goes as a signed PUT and is saved. (c) Production update recipe (like the staging one in #318, memory evebash-ota-publish): clean worktree + cloned node_modules, eas.json build.production.env exported (APP_VARIANT=production, EXPO_PUBLIC_API_BASE_URL=https://api.evebash.com), eas fingerprint:compare against the latest production builds with --environment production, then eas update --channel production --environment production. EAS production holds the live iPhone Google client, which is right for live. (d) If the fingerprint doesn't match a live store build, those phones can't get an update: a new store build is needed (Play and App Store review time); phones on older builds never get updates (like the Pixel's 2026-11-19 staging build). The fingerprint check is read-only and can be run before release day to plan this. (e) Switching UPLOAD_LEGACY_B2_TOKEN off breaks small uploads (photos and videos under 20 MB) on live app builds without the update, so do it only after most users have the update or a forced update is out. (f) The same release takes the other 2026-11-25 fixes live (#300, #319, #320, #321, #322, #324, #326); all their switches are on unless set to "false", so nothing needs setting on live first.
 
+#329
+Listed: 2026-11-26
+Platform: Both
+Priority: High
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Shwetank on staging, chat with Claude, 2026-11-26
+Issue: A guest admin (not the owner) could switch off their own Admin Access on the website (the app only blocked it on screen, "Ask host to remove you"), switch Admin on or off for other guests, change an admin's permissions or status, and remove other admins. The backend routes (apps/backend/src/routes/permissions.ts) let anyone who manages the event change any guest row, and so did the database (guests_update / guests_delete policies use can_manage_event). Decision (Shwetank, 2026-11-26): an admin cannot step down themselves (blocked), and only the owner gives or takes Admin Access and changes or removes an admin.
+How to reproduce: as a guest admin on the website: Host > Shared > the event > Permissions: switch off your own Admin (it worked), or remove another admin.
+Update 2026-11-26: fixed on staging in d4975182. Database (migration 20261126120000, staging only): eb_private/public.can_manage_event_admins (owner, their delegated account manager, platform admin) and trigger guests_admin_guard refuses a change of can_admin, any change to an admin's status/upload/comment, and removing an admin by anyone else (checked on staging as newone2 and newone1, rolled back). Backend: the four guest routes answer 403 code owner_only_admin for the same changes (2 tests, 200/200 pass). Website and app: the Admin switch is locked with "Only the event owner can change this", and admins have no remove button, for non-owners. Left: device test #257, then the live database migration (needs OK) with the release.
+Update 2026-11-26 (later): device test #257 PASS (website and steps 3-5 by Shwetank; app on real Android and the iPhone simulator by Claude). Left: migration 20261126120000 on the live database (needs OK), at the staging-to-main release.
+
 RECENTLY FIXED (delete entries older than 7 days)
+#328
+Listed: 2026-11-26
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Shwetank on staging, and code reading with Claude, 2026-11-26
+Issue: (1) Website: un-starring a photo while viewing Home (Primary Gallery) showed "Removed from Primary Gallery." but the photo stayed in the Home list until the page was refreshed (handleToggleEventFavourite in src/app/(main)/host/page.tsx refreshed the star ids but not the Home list). (2) App: un-starring on Home removed the photo from the list even when it was uploaded to Home itself, so a Home photo looked deleted until the gallery was reopened.
+How to reproduce: Host > event > Home: un-star a favourite that came from a sub-gallery (website: still shown); app: un-star a photo uploaded to Home (it disappears).
+Fixed in: b528699d (2026-11-26). Shared rule shared/media/homeFavourites.ts (homeAfterUnstar, 4 tests): an un-starred photo leaves Home at once unless its gallery is Home (id or legacy id). Website also updates the photo/video count. Device test #256. App count fix (Photos (n) went stale on Home): 03bc587c, staging app update abd820ca (iPhone) / fe393a0a (Android).
+
+#327
+Listed: 2026-11-26
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Device test #255 on a real Android phone (iQOO, staging build), Claude over USB, 2026-11-26
+Issue: In the app's Permissions tab the member list had no usernames/emails (guest rows showed no "@username", and the todo #50 Owner row no username/email) when the event was opened by its link name (legacy id, e.g. "riya-arjun-s-wedding-00bc"), as the Shared list does on Android. The app sent the route id to /api/v1/permissions/member-directory, which looked guests and the owner up by the event's id only, so it answered 200 with nothing. The iPhone simulator had the real id, so it worked there.
+How to reproduce: Android staging app, signed in as an admin: Host > Shared > the event > Permissions: no "@username" under names.
+Fixed in: 61f6ca39 (2026-11-26). Backend: member-directory finds the event by id or legacy id and looks guests up under both; app: sends the event's own id. Backend test added (legacy id gives the same answer). Checked with device test #255.
+Note 2026-11-26: checked on the real Android phone (staging update 52808477): usernames and the owner's username/email show. While testing, the staging app updates published earlier that day (256b682c / 8f60f92d and 379602e7 / 9f4ba100) were found to lack the staging settings (EXPO_PUBLIC_API_BASE_URL, EXPO_PUBLIC_MEDIA_DOMAIN, APP_VARIANT were not exported before eas update), so for about 45 minutes the staging app could not reach the backend. Republished correctly as 52808477 (Android) / 8d477c06 (iPhone); staging app users must open the app twice to get it. Recipe: see #318's note 2026-11-25.
+
 #326
 Listed: 2026-11-25
 Platform: Website
