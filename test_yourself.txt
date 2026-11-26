@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 261
+Next test number: 262
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -5345,7 +5345,8 @@ Jira:      EB-385
 Brief:     On Android the keyboard covered the photo comment box (#242). These other places use the same
            pattern, or have no keyboard handling at all, so they may have the same problem. This test finds
            out which ones really break, so only those get fixed (#243).
-Detail:    Nothing was changed for this test. Use an Android phone with its normal on-screen keyboard (not a
+Detail:    (2026-11-26: issue #243 was fixed from the code without waiting for this test; the fix is checked by
+           test #261 instead.) Nothing was changed for this test. Use an Android phone with its normal on-screen keyboard (not a
            Bluetooth keyboard, not the floating keyboard). The Android emulator can't show this: with its
            hardware keyboard on, Gboard only shows a floating keyboard. In Feedback, list the numbers that fail.
 How to test:
@@ -7867,3 +7868,39 @@ Account used: Sarthak's staging host account
 Screenshot / recording: none kept
 Fix ref:
 Feedback: PASS. Step 1: app opened normally after the update loaded ("fonts ready", no errors). Step 2 (Claude): icons on Dashboard, Host, EB Network, Profile and Settings all show. Step 3 (Sarthak, by eye): in the Staging Test 1 gallery (Classic White) the back arrow, share icon and tab icons all show.
+
+--------------------------------------------------------------------------------
+#261 Android: pop-up text boxes stay above the keyboard (issue #243)
+Status:    TODO
+Priority:  Medium
+Platform:  App (Android phone)
+Jira:      EB-441
+Brief:     On Android a pop-up window does not shrink when the keyboard opens, so the keyboard could cover the text
+           box or its Save button. Five pop-ups now move up by the keyboard height (like the photo comment box did in
+           #242). This checks they do, and that the screens we left alone (which need nothing) really are fine.
+Detail:    Issue #243. Changed on Android only (the keyboard-height helper returns 0 on iPhone, so iPhone is
+           unchanged): RenameEventModal.tsx, SubEventModal.tsx, VaultModals.tsx (NamePrompt), PageReviewer.tsx,
+           Rename Event in app/(tabs)/gallery.tsx. Needs an app build or update with this commit. Use an Android phone
+           with its normal on-screen keyboard (not a Bluetooth keyboard, not floating). Not checked on an emulator:
+           nobody was signed in there. Test #180 lists the same places; if you do this test, #180 can be closed.
+How to test:
+  For each place: tap the text box. Expect: the whole pop-up (box and button) sits above the keyboard.
+  1. Host tab > an event's options > Rename Event: tap the name box. Expect: box and "Update Name" above the keyboard.
+  2. Host page of an event > pencil next to the title (Edit Event Title): tap the box. Expect: box and "Save Title"
+     above the keyboard.
+  3. Host page > Galleries > Add Sub-Gallery: tap the name box. Expect: box and Save above the keyboard.
+  4. Profile > EB Vault > + > New folder, then a file's ... > Rename. Expect: the box, Cancel and Create/Rename
+     above the keyboard.
+  5. Album tab of an event you host: open a page for review, tap "Write a reply", then "Describe the change". Expect:
+     the box and its button can be seen above the keyboard.
+  6. Profile > Edit: tap location and birthday. Contact us: tap "Tell us more about your event...". Host page >
+     Galleries > Welcome Message: tap the box. Expect: still fine (these were not changed). If one is hidden, say which.
+  7. Close each pop-up with the keyboard open. Expect: it closes normally and the next one opens in its usual place.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

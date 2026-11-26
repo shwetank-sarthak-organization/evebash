@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useAppTheme } from '../../../context/ThemeContext';
+import { useAndroidKeyboardHeight } from '../../../hooks/use-android-keyboard-height';
 import { IconSymbol } from '../../ui/icon-symbol';
 
 interface SubEventModalProps {
@@ -45,6 +46,8 @@ export function SubEventModal({
   styles
 }: SubEventModalProps) {
   const { colors, isDark } = useAppTheme();
+  // Android: a Modal doesn't shrink for the keyboard, so lift the pop-up above it (#243; 0 on iOS)
+  const keyboardHeight = useAndroidKeyboardHeight(visible);
   const savePressRef = React.useRef(false);
   const canSave = newSubTitle.trim().length > 0 && subDate.trim().length > 0 && !updating;
 
@@ -65,7 +68,7 @@ export function SubEventModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={[styles.modalOverlay, { position: 'relative' }]}
+        style={[styles.modalOverlay, { position: 'relative' }, keyboardHeight > 0 && { paddingBottom: keyboardHeight }]}
         pointerEvents="box-none"
       >
         <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, styles.modalBackdrop]} />
