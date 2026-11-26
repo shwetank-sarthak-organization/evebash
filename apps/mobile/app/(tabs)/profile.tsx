@@ -784,7 +784,7 @@ export default function ProfileScreen() {
 
             <ScrollView 
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.modalScrollContent}
+              contentContainerStyle={[styles.modalScrollContent, editKeyboardHeight > 0 && { paddingBottom: 48 + 160 }]}
             >
               {/* Profile Image Picking Area */}
               <View style={styles.editAvatarSection}>
