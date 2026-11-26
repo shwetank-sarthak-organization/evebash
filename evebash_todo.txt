@@ -32,7 +32,7 @@ Field values:
 - Owner:        a name, or Unassigned
 - Depends on:   another todo, an issue number, a decision, or "-"
 
-Next todo number: 50
+Next todo number: 51
 
 Last updated: 2026-11-23
 
@@ -1029,6 +1029,31 @@ Note 2026-11-25: when guest uploads are switched on, also run device test #254 (
               upload-complete popup, which only guests see, now sends the login for its face-indexing progress
               (c6c7bfff, on staging); it couldn't be checked while guest uploads are off. Sarthak moved #323 to Phase 2
               with this todo.
+Done in:      -
+
+#50  Permissions: show the event owner at the top of the Guest List
+Listed:       2026-11-26
+Platform:     Both
+Priority:     Low
+Phase:        TBD (1 or 2, decide after discussion)
+Status:       Idea
+Effort:       S (a few hours)
+Suggested by: Shwetank (chat with Claude, 2026-11-26)
+Discussed:    No
+Decision:     -
+Owner:        Unassigned
+Depends on:   -
+Brief:        An event admin who isn't the owner can see the other admins in Permissions (app: "Admins (N)" group
+              in the Guest List, apps/mobile/app/events/[id].tsx; website: the Admin column in the Permissions table,
+              src/app/(main)/host/page.tsx), but the owner isn't listed there, because the owner has no guest
+              entry. The owner's name only shows on the event card ("Owner: ..." on the website's Shared tab and in
+              the app's Gallery tab). Add an "Owner" row at the top of the Guest List on both, with name and
+              email/phone like the other rows, marked "Owner: full access" and not editable (no permission
+              switches, no remove/report). Use the owner lookup that already feeds the "Owner: ..." label
+              (website getEventOwnerName / eventOwners; app gallery.tsx ownerDetails) rather than a new one; if
+              both need the same plain logic, put it in shared/. How to check: as an admin (not owner), open the
+              event's Permissions on the website and on the app (iPhone and Android) and see the owner first,
+              then Admins, then Members; as the owner, the row says "You".
 Done in:      -
 
 =====================================================================
