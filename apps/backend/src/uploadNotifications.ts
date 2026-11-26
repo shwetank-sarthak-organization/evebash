@@ -1,3 +1,4 @@
+import { findPushProfile } from "./routes/notifications.js";
 import { getSupabaseAdminClient } from "./supabase.js";
 
 // Grouped upload pushes wait for this long after the last upload (see debounceEventNotification in routes/media.ts).
@@ -8,6 +9,14 @@ export function isVideoReadyPushEnabled() {
   return process.env.VIDEO_READY_PUSH?.trim().toLowerCase() === "true";
 }
 
+/**
+ * Switch for the host's "new photo(s) / new video uploaded" pushes (#58). They have never been sent (the profile lookup
+ * named a column that doesn't exist and failed), so they stay off until UPLOAD_OWNER_PUSH is "true".
+ */
+export function isUploadOwnerPushEnabled() {
+  return process.env.UPLOAD_OWNER_PUSH?.trim().toLowerCase() === "true";
+}
+
 export async function sendOwnerUploadNotification(
   eventId: string,
   userId: string,
@@ -16,6 +25,7 @@ export async function sendOwnerUploadNotification(
   data: Record<string, unknown>,
 ) {
   if (!eventId || !userId || userId === "anonymous") return;
+  if (!isUploadOwnerPushEnabled()) return;
 
   const supabaseAdmin = getSupabaseAdminClient();
   const { data: event, error: eventError } = await supabaseAdmin
@@ -26,13 +36,10 @@ export async function sendOwnerUploadNotification(
 
   if (eventError || !event?.created_by || event.created_by === userId) return;
 
-  const { data: profile, error: profileError } = await supabaseAdmin
-    .from("profiles")
-    .select("push_token, notification_preferences")
-    .eq("id", event.created_by)
-    .maybeSingle();
+  // Reads "*" so a missing notification_preferences column can't fail the lookup (see findPushProfile)
+  const profile = await findPushProfile(supabaseAdmin, "id", event.created_by);
 
-  if (profileError || !profile?.push_token) return;
+  if (!profile?.push_token) return;
   const preferences = profile.notification_preferences as Record<string, unknown> | null;
   if (preferences?.push === false || preferences?.event_activity === false) return;
 
