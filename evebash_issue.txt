@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 333
+Next issue number: 334
 
 =====================================================================
 ACTIVE ISSUES
@@ -1074,6 +1074,16 @@ Blocked by: -
 Found in: Device test #148 (Claude, 2026-11-27)
 Issue: In the Midnight Hero top bar (src/app/midnight-hero.css), a very long gallery title lets the centre column grow to 36vw. In a window 768-1100 px wide the right group (Find You + Download All) then no longer fits its column and "Download All" ends about 2 px outside the window (801.8 px in an 800 px window). Fix: cap the title at 28vw in that width range.
 How to reproduce: On a computer open a Midnight Hero gallery with a title of about 100 characters, make the window 800x600 and look at the right end of the top bar.
+#333
+Listed: 2026-11-27
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Device test #152 (Claude, 2026-11-27)
+Issue: The Periwinkle Script card is meant to show date, message and place (src/components/TemplatePeriwinkle.tsx reads event.location), but the staging events table has no location column (requests for location, venue or place return an error) and the host page has no field to enter a place. So the place can never show on the card. Fix idea: decide where a place is stored (an events column or theme_content) and add a field in the host page, then map it into the event. Periwinkle Script is hidden as Coming soon for now (Phase 2), so this is not urgent.
+How to reproduce: Set an event's template_id to periwinkle (it can't be picked in the host Design tab right now) and open the guest page: the card shows date and message, never a place.
 
 RECENTLY FIXED (delete entries older than 7 days)
 #303

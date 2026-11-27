@@ -4397,7 +4397,7 @@ Feedback:         2026-10-26 Claude, built-in browser before commit (local dev s
                   no message gives just the band with no card, cover "fit" moved and zoomed shows the photo
                   inside a blurred frame with title and card still in place. The PLACE could not be tested: the
                   staging events table has no location column (requests for location/venue/place return an
-                  error), so the card can never show a place; new issue pending (see report). Step 6: phone
+                  error), so the card can never show a place; new issue #333. Step 6: phone
                   width 390 px in a computer browser (not a real phone, staging shows phones the app screen):
                   names left, menu right, title fits the photo, card text readable inside the card.
 --------------------------------------------------------------------------------
