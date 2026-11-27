@@ -2079,7 +2079,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #82 Event admin opens the sub-gallery they click on the website host page (issue #74)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website (staging.evebash.com/host)
 Jira:      EB-312
@@ -2091,14 +2091,23 @@ How to test:
   3. Open another sub-gallery and the primary gallery: each shows its own title, cover and photos.
   4. Reload the page while a sub-gallery is open: the same sub-gallery stays open.
   5. As the owner, repeat step 2: unchanged, the sub-gallery opens.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak)
+Device / browser: Local Playwright Chromium 1440x900 (desktop user agent, headless); not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging f97d1815)
+Date tested: 2026-11-27
+Account used: newone5@email.com (Admin Access on a test event owned by newone1); newone1@email.com (owner)
+Screenshot / recording: reports/device-tests/test-82-step2-admin-sub-alpha.png, test-82-step3-admin-primary.png (local only)
 Fix ref:   580a5c4 (2026-10-13)
 Feedback:
+  2026-11-27 Claude: Own event "Claude test #82 - delete me" as newone1 with 2 sub-galleries (Sub Alpha: blue cover, 2 photos orange+blue;
+  Sub Beta: green cover, 2 photos purple+green) and a primary gallery (red cover, own photos). newone5 requested access, was approved, then given Admin Access.
+  Step 1 PASS: newone5 (Admin, not owner) sees the event under Host -> Shared.
+  Step 2 PASS: opening Sub Alpha shows "Sub Alpha", its blue cover and its 2 photos (galleryId=sub-alpha-ed10 in the URL), not the primary's.
+  Step 3 PASS: Sub Beta shows its own title, green cover and 2 photos; the primary gallery shows "Claude test #82 - delete me . Home (Primary Gallery)", red cover and its own photos.
+  Step 4 PASS: reload with Sub Beta open (as newone5) keeps Sub Beta open (same URL, title, cover, 2 photos).
+  Step 5 PASS: as newone1 (owner) Sub Alpha, Sub Beta and the primary open the same way; reload keeps Sub Alpha open.
+  Notes: the primary gallery's photo count is higher than its own uploads (5-6 vs 2) because cover uploads also appear in it; not part of this test. The test page showed the light theme.
+  Cleaned up: test event and both sub-galleries deleted; newone5 membership went with it.
 
 --------------------------------------------------------------------------------
 #83 Download All: real videos in the ZIP, and the host console downloads the whole gallery
