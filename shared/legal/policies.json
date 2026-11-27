@@ -1,7 +1,7 @@
 {
   "privacy-policy": {
     "title": "Privacy Policy",
-    "lastUpdated": "October 22, 2026",
+    "lastUpdated": "November 27, 2026",
     "description": "EveBash respects your privacy and is committed to handling personal information responsibly and transparently. This Privacy Policy explains how EveBash collects, uses, stores, processes, shares, and protects personal information when people use our websites, mobile applications, accounts, event galleries, media-sharing features, business features, subscriptions, payment features, find You functionality, and related services. By using EveBash, you acknowledge the practices described in this Privacy Policy. Where consent is required by applicable law, we will request appropriate consent before carrying out the relevant processing.",
     "sections": [
       {
@@ -1583,6 +1583,51 @@
           {
             "kind": "paragraph",
             "text": "If we add purchases through Apple or Google in the future, the store will process the payment under its own privacy terms, EveBash will receive purchase identifiers, receipts or purchase tokens, product information, payment status and subscription status to validate access, address billing issues and prevent fraud, and we will update this policy before that happens."
+          }
+        ]
+      },
+      {
+        "title": "30. EB Vault (Private Storage)",
+        "blocks": [
+          {
+            "kind": "paragraph",
+            "text": "EB Vault, where offered, is private storage in your EveBash account for your own files, such as photos, videos and documents. This section explains how we handle what you keep there."
+          },
+          {
+            "kind": "bullet",
+            "text": "What we store: the files you upload or save to EB Vault, and information about them that you create or that we need to run the feature: file and folder names, folder structure, file type and size, upload and change dates, whether you starred an item, and items you moved to Trash;"
+          },
+          {
+            "kind": "bullet",
+            "text": "Who can see it: only you, through your signed-in account. EB Vault files are not shown in event galleries, are not visible to event hosts, guests or other users, and EB Vault has no public sharing links. Each time you open or download a file, we create a short-lived private link for you that stops working after a few minutes, or after up to two hours for video and PDF previews;"
+          },
+          {
+            "kind": "bullet",
+            "text": "Where it is stored: in a separate private storage area with Backblaze B2, not in the storage used for event galleries and not through our public media delivery. File information is kept in our database with Supabase;"
+          },
+          {
+            "kind": "bullet",
+            "text": "What we do not do: we do not use EB Vault files for Find You or any facial processing, we do not run video or photo processing on them, and we do not use their contents for advertising;"
+          },
+          {
+            "kind": "bullet",
+            "text": "Saving from an event: when you choose Save to EB Vault on event media, we make a separate copy of the original file in your EB Vault. That copy stays in your EB Vault even if the event or the original is later changed or deleted, until you delete it;"
+          },
+          {
+            "kind": "bullet",
+            "text": "Trash and deletion: items you delete go to Trash first. They are permanently deleted when you empty Trash, delete them from Trash, or automatically 30 days after they were moved there, and the stored file is then removed from our storage. Copies may remain for a limited time in backups, as described in Data Retention;"
+          },
+          {
+            "kind": "bullet",
+            "text": "Storage and plans: EB Vault shares your plan's storage with your events, and copies count toward it. If your plan expires or changes and your stored content is more than the new plan allows, some EB Vault files may become hidden or be permanently deleted as described in our Terms & Conditions and the notices we show you in the app and on the website;"
+          },
+          {
+            "kind": "bullet",
+            "text": "Account deletion: when your EveBash account is deleted, your EB Vault files and their information are deleted with it."
+          },
+          {
+            "kind": "paragraph",
+            "text": "Limited access by EveBash: our team does not browse EB Vault files. We access them only where needed to keep the service running and secure, to handle a request you make to us, or where the law requires it."
           }
         ]
       }
