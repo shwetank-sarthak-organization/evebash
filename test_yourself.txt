@@ -4536,14 +4536,32 @@ How to test:
   3. From the homepage, tap Pricing, Log in and See a sample gallery. Expect: each opens as before.
   4. Open a gallery in a theme with italic text (e.g. Royal Emerald or Classic White). Expect: italic
      words look properly slanted in the theme's font, same as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak)
+Device / browser: Playwright Chromium (desktop user agent) at 390x844 with Slow 4G + cache off for steps 1-3; step 4 at 390x844 too. Phone width in a computer browser, not a real phone.
+Build / version: staging.evebash.com as of 2026-11-27 (staging 7b1ef1be)
+Date tested: 2026-11-27
+Account used: steps 1-3 logged out; step 4 newone1@email.com
+Screenshot / recording: reports/device-tests/test-157-1-early-0.png (first screenshot ~400 ms), test-157-1-final.png, test-157-3-*.png, test-157-4-gallery.png (local only)
 Fix ref:
 Feedback:
+  2026-11-27 Claude: partly done, status stays TODO (step 4 not fully checked).
+  Step 1 PASS: Slow 4G (150 ms, 1.6 Mbit/s), cache off, desktop user agent, 390 px wide. The first screenshot
+    at about 0.4 s already shows the headline "One gallery for every moment of every event." with the page
+    behind it; 12 screenshots over 5 s and a 50 ms text poll (163 samples) never showed "Loading your
+    gallery". The raw page HTML already contains the headline and not the loading text. Step 1 outdated in
+    wording: the homepage was redesigned (#169) and is now a LIGHT page with this new headline, not a dark page
+    with "Deliver every event's memories, beautifully organized."
+  Step 2 PASS / outdated list: sections now are Live in four steps, Guests skip the scrolling, Album
+    proofing, Built for every kind of event (Find You etc.), Made for everyone at the event, Start free /
+    pricing, final button, FAQ, footer (Product, Company, Legal, Contact). The old list (How it works, who it's
+    for, ...) is outdated; everything on the current page is there and the footer is at the bottom.
+  Step 3 PASS: Pricing (/pricing, "Simple, transparent pricing") and Log in (/login, "Welcome Back") open from
+    the phone menu; "See a sample gallery" opens /sample-galleries, but that page says "No sample galleries
+    are available yet." on staging (data, not a load problem; see issue #32).
+  Step 4 NOT DONE: opened Royal Emerald (newone1's gallery) at 390 px. The title and date are in a slanted
+    script font and look right, but the page has no text with CSS italic that I could check, and I did not
+    open Classic White. Left for a person or another run: open a gallery with italic body text (e.g. Classic
+    White) and confirm the slant.
 --------------------------------------------------------------------------------
 #158 Sunlit Portrait theme in the app (iPhone and Android)
 Status:    TODO
