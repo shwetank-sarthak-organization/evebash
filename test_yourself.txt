@@ -4088,7 +4088,7 @@ Feedback:         2026-10-26 steps 1-3 PASS. 1: both buttons enabled as soon as 
 
 --------------------------------------------------------------------------------
 #148 New Midnight Hero gallery design (website, computer)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website (computer; phones and tablets still get the "Get the app" screen, #109)
 Jira:      EB-358
@@ -4129,12 +4129,12 @@ How to test:
      gallery, no "Main Event: ..." text), the highlight film in a gold frame with a gold-ringed play
      button (only if the host picked one), then a Photos / Videos switch with the chosen one in gold.
      Click Videos and Photos, play the film, click Back and Share Gallery: each works as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Claude (for Sarthak)
+Device / browser: Real Google Chrome (Playwright) 1440x900 and 800x600 + Chrome for Testing; not a real device
+Build / version:  staging.evebash.com as of 2026-11-27 (staging c2b272be)
+Date tested:      2026-11-27
+Account used:     newone1@email.com (host, passwordless link)
+Screenshot / recording: reports/device-tests/test-148-*.png (local)
 Fix ref:
 Feedback:         2026-10-26 Claude, built-in browser at 1440x900 on staging (9abe281), wedding-2-77d4:
                   step 1 looks as described; step 2 links are Home, Collections, Find You, Download All and
@@ -4142,6 +4142,33 @@ Feedback:         2026-10-26 Claude, built-in browser at 1440x900 on staging (9a
                   the tick (the clipboard refused the copy only because the test window was not focused).
                   Not done: steps 3, 5, 6 and a real person's look on a real computer.
                   (These results were for the earlier pill design; steps 1, 2 and 6 changed in f41b30d.)
+                  2026-11-27 Claude: PASS on my own test gallery (wedding-2-77d4 does not exist on staging), all steps
+                  against the current text. 1: cover fills the screen; card with thin double gold border and
+                  a small gold diamond on top, "Aanya weds Rohan" (title "Aanya & Rohan"), "15 DECEMBER 2026",
+                  gold Enter Gallery button, square share button; no Save The Date / Celebration Of / back
+                  arrow / Scroll Down. The card is a wide rectangle (about 560x215), not a square.
+                  2: gold script title in the centre, Home + Collections left, Find You + Download All right,
+                  plain text, current page gold with a thin gold line, readable on the photo, no pill; at the
+                  top the bar is transparent, after scrolling it is navy (rgba 6,10,24,0.9).
+                  3: Collections opens a list with the album (Haldi) which opens the album; Home returns to
+                  the gallery; Find You opens /find-you; Download All asks "Home only / Entire event", then
+                  a ZIP (6 photos + 1 video, 208 MB) downloaded; deleted afterwards.
+                  4: Enter Gallery scrolls to the photos; the share button turns into a tick and the clipboard
+                  holds .../events/<id>?shared=true.
+                  5: cover scale/offset (set in the database, not the host page) changes the big cover as
+                  expected; very long title wraps over 4 lines in the card and is cut with ... in the bar;
+                  album card shows small "AANYA & ROHAN" above "Haldi"; no date -> no date line.
+                  6: at 800x600 the bar links get smaller and fit either side of the title; the card and
+                  buttons stay on screen; no sideways scroll. Small catch: with the very long title the
+                  right edge of "Download All" ends about 2 px outside the 800 px window (new issue pending
+                  (see report), Low).
+                  7: top shows Back to Gallery / Share Gallery boxes, event name in gold italic, gold star,
+                  "Home Gallery" with Gallery in gold, "6 PHOTOGRAPHS · 1 FILM", message in italics, gold
+                  framed film with gold-ringed play button, Photos (6) / Videos (1) switch with the chosen
+                  one in gold. Film plays in real Chrome (the Chrome for Testing build has no H.264, so
+                  it only spins there); Share Gallery copies the link; Back to Gallery goes to /dashboard when
+                  signed in (existing code). Photos/film rows were copies of other newone1 files, 4 thumbnails
+                  were blocked by the browser (test-data artefact). Test gallery and rows deleted.
 --------------------------------------------------------------------------------
 #149 New wedding theme Sunlit Portrait (website, computer and phone)
 Status:    TODO
