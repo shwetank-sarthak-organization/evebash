@@ -729,7 +729,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #33 Save event photos and videos to EB Vault (website)
-Status:    TODO
+Status:    FAIL
 Priority:  Medium
 Platform:  Website
 Jira:      EB-270
@@ -741,14 +741,31 @@ How to test:
   4. The items are still in the event gallery. Profile storage: Vault went up by their size.
   5. Also try a single photo's action menu > "Save to EB Vault", and a video's actions.
   6. As a guest who is NOT an admin, the option must not work (no Select bar for guests; direct calls are refused).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak)
+Device / browser: Local Chromium (playwright-core) 1440x900, headless; not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging 7b1ef1be)
+Date tested: 2026-11-27
+Account used: newone1@email.com (owner), newone5@email.com (guest)
+Screenshot / recording: reports/device-tests/test-33-step2-not-set-up.png, test-33-step6-guest-view.png (local only)
 Fix ref:
 Feedback:
+  2026-11-27 Claude: FAIL at step 2, the save does not work on staging. Own event "Claude test #33 - delete me" as
+  newone1 with 3 photos and 2 processed videos (the video was uploaded twice by mistake).
+  Step 1 PASS: Photos and Videos > Filter > Select shows "Select all / Save to EB Vault / Hide / Show / Delete / Cancel";
+  3 photos selected; "Save 3 items to EB Vault" folder picker opens (My Files, no folders).
+  Step 2 FAIL: pressing "Save to My Files" shows "Saving from events to EB Vault isn't set up yet." Nothing was saved.
+  Same with a direct call: POST api-staging.evebash.com/api/v1/vault/save-from-event as the owner returns 503
+  {"code":"disabled"}. Cause: apps/backend/src/vault/config.ts getVaultCopySettings() returns null, so the staging
+  backend is missing VAULT_COPY_KEY_ID / VAULT_COPY_APPLICATION_KEY (or the Vault bucket settings). Needs a person
+  to set them on the staging backend (Railway), then retest.
+  Steps 3, 4, 5 NOT DONE (nothing in Vault to check; Vault usage unchanged at 1,529,234 bytes; single photo/video
+  menu not tried as it uses the same route).
+  Step 6 partly PASS: newone5 requested access, was approved as a member without admin; their gallery view has no
+  Select bar and no Save to EB Vault. Direct calls: no token = 401; newone5's token = 503 disabled (nothing saved),
+  but because the feature is off, the 401/403 permission check was not reached, so refusal for a non-admin is
+  unconfirmed. Retest this too once the copy keys are set.
+  new issue pending (see report).
+  Cleanup: test event and its photos deleted; nothing was saved to Vault.
 
 --------------------------------------------------------------------------------
 #34 Save event photos and videos to EB Vault (app)
