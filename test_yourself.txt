@@ -8013,7 +8013,7 @@ Feedback:         PASS on both. (1) Old code: the iQOO's previous build (a9a7569
 Status:    TODO
 Priority:  High
 Platform:  App (EveBash Staging on Android and iPhone)
-Jira:      (new ticket, see below)
+Jira:      EB-446
 Brief:     Signing out during an upload used to make the rest fail, leave one on "saving", or finish a big video as
            "Anonymous" (#302). On a shared phone the next person's account took over the first person's photos (#303).
            Now sign-out asks first, pauses the uploads, and only the person who picked a file can upload it.
