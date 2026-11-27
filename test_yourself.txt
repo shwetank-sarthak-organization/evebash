@@ -5874,7 +5874,7 @@ Fix ref:
 Feedback:
 
 #193 Album screen redesign (website): steps, one clear action, album-shaped pages
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-396
@@ -5900,14 +5900,36 @@ How to test:
      list of changes under the To fix tab.
   9. The Activity line at the bottom shows the latest event; See all lists rounds sent and pages approved.
  10. Switch the site to the light look (sun icon in the navbar). Expect: everything readable; labels on photos stay dark.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:    Claude (for Sarthak)
+Device / browser: Playwright Chromium 1440x900 (desktop) and 375x812 with a desktop user agent (phone width in a computer browser, not a real phone); not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging 194546f5)
+Date tested: 2026-11-27
+Account used: newone1 (photographer) and newone5 (client, Admin Access) on own test event "Claude test #193 - delete me" (deleted afterwards)
+Screenshot / recording: reports/device-tests/test-193-*.png (local)
 Fix ref:
 Feedback:
+           2026-11-27 Claude: all 10 steps PASS on staging. Setup: own event as newone1, newone5 added as Admin
+           (row inserted straight into guests with can_admin, not through the invite flow), album with newone1
+           photographer and newone5 client (picker listed host + admin, as in #120), 10 page JPEGs (square cover,
+           portraits, wide spreads; the file chooser fired twice so 5 files became 10 pages), sent to the client.
+           1 PASS "newone1 (you) -> newone5", 4 steps, "Client reviews · Round 1" highlighted. At 375 px (desktop UA)
+           only dots with "Step 3 of 4: Client reviews · Round 1" under them, no sideways scroll.
+           2 PASS "Waiting for newone5 to review", no Send button (the "Ready to send 10 pages" + "Send 10 pages" box
+           was seen before sending; Send asked to confirm).
+           3 PASS square, portrait and wide pages keep their shape, no black bars; spreads have a thin fold line.
+           4 PASS dots and words seen: Not sent (grey, before sending), With client (gold), Approved (green), To fix (red).
+           5 PASS Spread|Single switch changed a page to "Pages 2-3" and back; on a portrait page the ... menu showed
+           "Upload a new version" and "Delete page" in full and closed on a click outside; "Page 2" not cut short.
+           6 PASS Reorder, dragged page 3 before page 2, Done; order stayed after a reload.
+           7 PASS client: "Check 10 pages", Start review, Approve / Ask for a change under each page (the client sees
+           "To check" where the photographer sees "With client"); Approve on Page 1's tile -> green, "1 of 10 approved".
+           8 PASS client added a whole-page comment and used "Send 1 note"; photographer: "1 change to make", To fix 1
+           tab, comment badge on the page.
+           9 PASS Activity line "newone5 approved Page 1 · 27 Nov"; See all lists "Round 1: newone1 sent 10 pages" and
+           the approval (sending feedback is not listed).
+           10 PASS dark and light look both readable, buttons on photos stay dark; left on light (original).
+           Not seen: no real phone; app not checked (not changed). No new bug. Cleanup: event, guest row and album
+           deleted (checked in the database).
 
 #194 Album screen redesign (app): steps, one clear action, album-shaped pages
 Status:    TODO
