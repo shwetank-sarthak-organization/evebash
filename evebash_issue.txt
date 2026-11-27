@@ -971,8 +971,8 @@ How to reproduce: Staging website, host page, upload 30 photos to a gallery. Whi
 Listed: 2026-11-19
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
 Issue: In the app, logging out during an upload leaves the upload list half-running. logout() in apps/mobile/context/AuthContext.tsx (about line 587) doesn't touch the upload list (apps/mobile/lib/uploadQueue.ts), which is saved on the phone and keeps going. (1) Files not started yet fail with "Authorization required." (about line 606) after 3 tries each. (2) A photo already being sent reaches storage, but saving it to the gallery is skipped without a message (flushMetadataBatchesInternal returns when there is no login, about line 878), so it stays on "saving" and isn't in the gallery until someone logs in and another upload finishes or the app restarts. (3) A video of 20 MB or more already being sent keeps going to the end (chunkUpload.ts sends an empty login, which /upload/chunk/part-url and /upload/chunk/complete accept, #300) and is saved as "anonymous". There is no warning before logout. Fix idea: on logout, ask "X photos haven't uploaded yet. Log out anyway? They'll carry on when you log back in.", then pause the list (stop the file in flight like cancelUploadItem does, and start nothing new until a login), instead of letting files fail or finish as "anonymous". See #303 for whose files resume.
@@ -982,8 +982,8 @@ How to reproduce: Staging app, host view of a gallery, pick 20 photos and a vide
 Listed: 2026-11-19
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
 Issue: On a shared phone, one person's photos can be uploaded under another person's account. The upload list in apps/mobile/lib/uploadQueue.ts is saved on the phone, not per account, and every step uses whoever is logged in at that moment. Each item already stores who added it (userId, about line 128), but nothing uses it. Example: Riya picks 100 photos and logs out halfway; Arjun logs in on the same phone; the photos not yet sent, the ones stuck on "saving" (#302) and any failed ones he taps Retry on go up as Arjun's. Riya then can't find or delete them as her own, and Arjun can. Fix idea: only upload or save an item while the person who added it (item.userId) is logged in; items of another account wait until that person logs back in and can be removed from the list.
