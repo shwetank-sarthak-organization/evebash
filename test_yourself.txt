@@ -1765,7 +1765,7 @@ Fix ref:
 Feedback: Website host picker (Choose Style) lists only 6 templates: Royal Emerald, Classic White, Sunlit Portrait, Confetti Circle, Periwinkle Script, Midnight Hero. Old events with hidden themes and the app not checked.
 
 #72 Website: "Open in app" bar on event pages (Android phones only, behind a flag)
-Status:    TODO
+Status:    BLOCKED
 Priority:  Medium
 Platform:  Website (Android phone in Chrome; also iPhone Safari and a computer for the "not shown" checks)
 Jira:      EB-302
@@ -1792,7 +1792,9 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  2026-11-27 Sarthak (via Claude): parked as BLOCKED. Staging has the "Get the EveBash app" screen on for phones and
+           tablets (#123), which replaces event pages, so the bar can't be tested as written. Unblock once the app-screen
+           plan is settled (gate off, or the bar kept only for open pages), then set the banner flag and redeploy.
 
 #73 App: event links open the event in the app (Android)
 Status:    TODO
@@ -3139,7 +3141,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #122 Website: "Get the app" bar on phones and tablets (behind a flag)
-Status:    TODO
+Status:    BLOCKED
 Priority:  Medium
 Platform:  Website (Android phone, iPhone, iPad, Android tablet, and a computer for the "not shown" check)
 Jira:      EB-343
@@ -3169,7 +3171,9 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  2026-11-27 Sarthak (via Claude): parked as BLOCKED. Staging has the "Get the EveBash app" screen on for phones and
+           tablets (#123), which replaces event pages, so the bar can't be tested as written. Unblock once the app-screen
+           plan is settled (gate off, or the bar kept only for open pages), then set the banner flag and redeploy.
 
 --------------------------------------------------------------------------------
 #123 Website: phones and tablets see "Get the EveBash app" instead of the website (behind a flag)
