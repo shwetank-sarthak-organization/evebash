@@ -1580,7 +1580,7 @@ Feedback: Partly: Delete Gallery confirm (dark card, X, red Delete), New Sub-Gal
 
 --------------------------------------------------------------------------------
 #65 Host Event Design tab: new layout with phone and website preview
-Status:    TODO
+Status:    PASS
 Priority:  Low
 Platform:  Website (staging.evebash.com; check on a phone browser too)
 Jira:      EB-295
@@ -1603,13 +1603,14 @@ How to test:
   7. Tab key: Event Type, Template and Preview Guest Theme can be reached and opened with Enter.
   8. On a phone browser: the cards stack, the phone sketch sits above the browser sketch, no sideways scrolling.
 Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
-Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
-Date tested: 2026-10-28
-Account used: host newone@email.com
-Screenshot / recording:
+Device / browser: Claude Playwright Chromium (isolated context), computer 1280x800 and 375x800 with a desktop user agent (phone width in a computer browser, not a real phone); not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging ec9d6e85)
+Date tested: 2026-11-27
+Account used: host newone1@email.com (own test event "Claude test #65 - delete me", deleted afterwards)
+Screenshot / recording: reports/device-tests/test-65-default.png, test-65-white.png, test-65-375.png
 Fix ref:
 Feedback: Steps 1, 2, 5 PASS on test-face-new: Event Type Wedding, Template "Royal Emerald" in gold, right card with name, description and Preview Guest Theme; phone and browser sketches show the cover, title, date, Home, sub-gallery names (phone) / Collections (browser) and Find You. Template opens Choose Style. Not checked: picking another template, light theme, long title, keyboard, phone.
+          2026-11-27 Claude: PASS (steps 5 and 6 outdated, see below). Step 1 PASS. Step 2 PASS: new event shows Event Type "Wedding", Template "Midnight Hero" in gold, right card with the same name and "Big impact cinematic dark aesthetic". Step 3 PASS: Event Type opens the picker (Wedding ticked); Template opens "Choose Style"; picking Classic White changed name, description and both previews to the light design; picking Midnight Hero changed them back. Step 4 PASS: Preview Guest Theme opens a new tab at /events/<event>?edit=1 (guest page in edit mode). Step 5 outdated: the hand-drawn sketches are now the real "Guest Home Preview" (phone "APP" + browser "WEBSITE", GuestPagePreview.tsx). The browser preview shows the event's own cover, title and date; the phone preview shows the app sample ("Maya & Arjun", sample photo), not this event's own data. Text readable on Classic White (light) and Midnight Hero (dark). Step 6 outdated: the long title (about 150 characters) is no longer cut at two lines: the browser preview wraps it over 4-7 lines inside the frame, the preview address bar and nav title are cut with "..."; nothing spilled outside the frames. Step 7 PASS: Tab from the Design tab reaches Event Type, Template, then Preview Guest Theme; Enter opens each (picker, Choose Style, new tab). Step 8 PASS (375 px, desktop user agent, not a real phone): cards stack, the phone preview sits above the browser preview, page width 375 = no sideways scroll. Side note: Escape does not close the Event Type / Choose Style pickers (X button does); not part of this test.
 
 --------------------------------------------------------------------------------
 #66 App: after logging out, "Continue with Google" lets you pick the account
