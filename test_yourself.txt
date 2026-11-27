@@ -5207,7 +5207,7 @@ Feedback:  2026-11-27 Claude (checked in the DARK look: a fresh browser opened i
            6 FAIL: at 375 px "Host Console" fits on one line, but the page scrolls sideways: page width 891 px in a 375 px window.
              The event cards (Riya & Arjun's Wedding, Royal Emerald check..., Staging test 1) are 875 px wide, most likely stretched by
              the very long event titles (this account has two: "Claude test #148 ..." from another session and the #92 title).
-             Screenshots test-174-7-phone-host*.png. New issue pending (see report).
+             Screenshots test-174-7-phone-host*.png. Issue #334.
            7 outdated/partly: /events/wedding-2-77d4 now gives 404 on staging (logged out and as newone1), so it could not be opened.
              Opened /events/royal-emerald-check-with-a-really-long-title-to-test-wrappin-c9e2 as newone1 instead: it keeps its own
              green gold-frame theme, no Noir colours, navbar and footer not shown. Nothing to compare against "before", so only
