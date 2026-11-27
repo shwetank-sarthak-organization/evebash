@@ -983,8 +983,8 @@ How to reproduce: Open a photo from a private gallery, copy its address, open it
 Listed: 2026-11-22
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Quick security check (chat with Claude, 2026-11-22)
 Issue: Android: app backup is on (allowBackup="true" in the Android manifest). Android backup can copy the app's data, including the saved login session, to another device. Apps that keep a login usually turn this off. Fix: set android.allowBackup to false in apps/mobile/app.json (Expo config) so the next build turns it off; check that sign-in still works after a reinstall.
@@ -1005,8 +1005,8 @@ How to reproduce: Read apps/mobile/lib/supabase.ts (storage: AsyncStorage).
 Listed: 2026-11-22
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Quick security check (chat with Claude, 2026-11-22)
 Issue: App packages have known security holes: expo-router (~55.0.16) is rated high; the app shows 36 in all (1 critical, 18 high, mostly in build tools). Fixes exist. Fix: update expo-router and the affected Expo packages (expo install --fix), make a staging build, and check sign-in, navigation, deep links and uploads on iPhone and Android. Reaches users with the next store release.
