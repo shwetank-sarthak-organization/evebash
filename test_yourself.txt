@@ -7979,7 +7979,7 @@ Feedback:
 Status:    TODO
 Priority:  High
 Platform:  App (EveBash Staging on Android and iPhone)
-Jira:      (new ticket, see below)
+Jira:      EB-445
 Brief:     The terms box now says "I confirm I am 18 or older, agree to the Terms & Conditions and acknowledge the
            Privacy Policy." (policy version 2026-11-27.1). Everyone sees it once: at sign-up, or in the "Before you
            continue" popup after signing in. App builds without this change keep the old box and must not get stuck.
