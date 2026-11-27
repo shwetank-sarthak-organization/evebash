@@ -4998,7 +4998,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #169 Homepage redesign: demos, tabs, footer and speed
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-375
@@ -5020,14 +5020,24 @@ How to test:
   6. Check the footer on the homepage and on Pricing or Privacy policy. Expect: same new footer, no broken links.
   7. iPhone: Settings > Accessibility > Motion > Reduce Motion on, reload. Expect: nothing loops; tabs still work.
   8. Scroll the whole page on a low-end Android phone (if the website shows). Expect: smooth, no jank.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:    Claude (for Sarthak)
+Device / browser: Playwright Chromium 1440x900 (dark colour scheme, plus one light check) on a Mac; step 7 with prefers-reduced-motion emulated (not the iPhone setting); not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging d5e355f7)
+Date tested: 2026-11-27
+Account used: none (logged out)
+Screenshot / recording: /Users/sarthak/EveBash/reports/device-tests/test-169-*.png (local only)
 Fix ref:
 Feedback:
+  2026-11-27 Claude (logged out, laptop-size window, Playwright Chromium; not a real device):
+  1. PASS. Dark colour scheme: black background (rgb 9,9,11), gold headline, hero gallery cycles Designs (royal, confetti, hero) -> Albums (couple) -> Video -> back. The Designs / Albums / Videos buttons each switch the hero to that part. Note: the site now follows the device light/dark setting (todo #1), so in light mode the same page is cream and brown, not black; step wording is outdated on this point ("black background" = dark mode).
+  2. PASS. "Guests skip the scrolling": three selfies in turn with 4, then 6, then 2 photos found (loops); the three dots ("Show guest 1/2/3") switch guests (2, 6 shown when clicked).
+  3. PASS. "Album proofing": 4 scenes (client picks: 3 photos sent; photographer designs: pages 6 and 7 draft 1; live review: client chat + photographer laptop; approved: 20 of 20 pages approved); the 4 step buttons switch scenes.
+  4. PASS. Wedding / Fest / Sports / Corporate change the photo (petals, fest, sports, corporate), the line and the album chips (Fest: Day 1, Day 2, Main stage, Backstage, Pro night). "Made for everyone": Photographers / Event organizers / Guests and clients each show their own photo and 7 points.
+  5. PASS. Closing section alternates a busy "Wedding family group" chat (243 members, 128 unread) with a clean "Isha weds Vihaan" EveBash gallery card.
+  6. PASS. Same new footer on the homepage and on /pricing (Product, Company, Legal, Contact). All 14 page/anchor links return 200 and the 3 anchors (#find-you, #album-proofing, #features) exist on the homepage; tel and mailto links present.
+  7. PASS (emulated prefers-reduced-motion: reduce, not the iPhone setting). Nothing loops: hero stays on one design for 9 s, Find You stays on 4 photos, album scene stays put, closing stays on the gallery card (the chat scene is not shown), 0 infinite animations running. Tabs and dots still work (hero tabs, guest dots, album steps, event-type tabs).
+  8. Skipped as the test says ("if the website shows"): on staging phones get the "Get the EveBash app" screen; no low-end Android phone used.
+  No page errors or failed requests during the run. No new issue.
 
 --------------------------------------------------------------------------------
 #170 Upload feedback in the app: progress card, offline message, toast, plain errors
