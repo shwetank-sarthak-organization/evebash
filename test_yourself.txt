@@ -2624,7 +2624,7 @@ Fix ref:
 Feedback: 2026-11-12 Claude (partly done, so still TODO). Test gallery: mehandi night (test-face-new-155c) switched to Royal Emerald and renamed for the test, then put back (Confetti Circle, "mehandi night"). Step 1 PASS: crest with A&R, "Home Gallery" between gold lines, the description on the plaque with Back on the left and Share on the right, then Photos (46) / Videos (4). Step 2 PASS: "Link copied" in pale gold. Step 5 PASS: album newcheck, title is the album name, crest with a fleur-de-lis. Not done: 3 (Back), 4 (switching Photos / Videos), 6 (no description), 7 (phone), 8 (other theme).
 
 #103 Cinematic highlight video ("gallery video"): host picks a video, guests see it at the top of the gallery
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-326
@@ -2650,15 +2650,14 @@ How to test:
      processed the panel shows its thumbnail with a play button and the guest page plays it.
   9. Same panel: "Choose from this gallery's videos" lists only that gallery's videos; picking one makes it the
      gallery video (the tile badge moves to it). "Remove" clears it.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak)
+Device / browser: Claude, Playwright Chromium 1440x900 (local playwright-core, desktop user agent); not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging fe0b0ad4)
+Date tested: 2026-11-27
+Account used: host newone1@email.com, approved guest newone5@email.com, logged out; own test event "Claude test #103 - delete me" (deleted afterwards)
+Screenshot / recording: reports/device-tests/test-103-*.png (local only)
 Fix ref:
-Feedback:
-
+Feedback: 2026-11-27 Claude: PASS. Migration gallery_video is applied on staging (events.gallery_video_id exists, get_gallery_video works). Own event on Royal Emerald with a main gallery and a Haldi album, 2 short ffmpeg videos each (all processed). Step 1 PASS: "Use as cinematic highlight video" shows the message 'This video now plays at the top of "..."' and the tile gets the gold "Cinematic highlight" badge; the panel shows the thumbnail. Step 2 PASS: Explore Gallery shows a wide gold-framed video under "Home Gallery" with a gold play button; it plays (HLS, 5 s in 5 s). Step 3 PASS: Haldi with a different video shows its own (different colours/timer). Step 4 PASS: newone5 (approved) sees the video on both pages; logged out on the private event "This gallery is private", no video; logged out after switching the event to public the video shows (main and Haldi). Step 5 PASS: "Remove as cinematic highlight video" removes the badge, the panel says "No cinematic highlight video yet" and the guest page shows no frame. Step 6 PASS: after choosing again, hiding the video from guests removes it from the guest page, showing it again brings it back, deleting it clears gallery_video_id and the guest page shows no video, nothing breaks. Step 7 PASS (layouts differ per theme): Midnight Hero = wide framed video under "Home Gallery" with a dark play button; Classic White = "Highlight film" card with play button beside the title; Sunlit Portrait = full-width hero video with a "Highlight film" button; Confetti Circle = video in a soft confetti frame under "We're getting married!", on main and Haldi. Not compared pixel by pixel: galleries without a video vs before. Step 8 PASS: "Upload video" in the panel uploads into the gallery's Videos and it becomes the gallery video (the upload was too quick to catch the "Processing" label; it showed Ready and the thumbnail with play button, and the guest page played it). Minor: right after the upload the tab still read "Videos (1)" while 2 tiles showed; after a reload it said 2. Step 9 PASS: "Choose from this gallery's videos" lists only this gallery's 2 videos (current one marked), picking the other moves the gallery video, "Remove" clears it. Cleaned up: event, Haldi album, videos and newone5's guest row deleted; no account settings changed. New issue pending (see report): none, only the stale video count noted above.
 --------------------------------------------------------------------------------
 #104 Website asks for Find You consent before the first selfie
 Status:    TODO
