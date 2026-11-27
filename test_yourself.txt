@@ -8168,7 +8168,7 @@ Feedback:         PASS on Android, photos only; also passed on the iPhone simula
 Status:    TODO
 Priority:  Medium
 Platform:  Website (staging)
-Jira:      (new ticket, see below)
+Jira:      EB-450
 Brief:     Logging out on the website while photos were uploading let them carry on, and the rest were saved as
            "anonymous" or under the next account. Now Logout asks first and stops the files still being sent.
 Detail:    Fix 8e1e3d6b (src/context/AuthContext.tsx logout guard, src/context/UploadContext.tsx). Checked by Claude on
