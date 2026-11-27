@@ -985,7 +985,7 @@ Fix ref:
 Feedback:
 
 #44 Guest admin can upload videos; normal guests can't (website)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website (app needs no change; it uses the same backend)
 Jira:      EB-278
@@ -998,14 +998,22 @@ How to test:
      Expect: refused with "videos are reserved for the owner and admins"; photos still upload.
   Note: a red 404 for can_manage_event_visibility on the guest admin page is expected until RLS
   lockdown part 2 (#21); it only means guest admins don't get the public/private switch yet.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak)
+Device / browser: Playwright Chromium 1440x900 (computer browser, desktop user agent; not a real device)
+Build / version: staging.evebash.com as of 2026-11-27 (staging ec9d6e85)
+Date tested: 2026-11-27
+Account used: newone1 (host, own event "Claude test #44 - delete me"), newone5 (guest, Admin Access on)
+Screenshot / recording: reports/device-tests/test-44-guest-admin-video.png (local only)
 Fix ref:
-Feedback:
+Feedback:  2026-11-27 Claude: PASS. Own event as newone1; newone5 asked for access, newone1 approved, then switched Admin on (Uploads and Comments came on with it).
+           Step 1 PASS: as newone5 on the gallery's Photos and Videos upload page, video-upload-permission = 200 {"allowed":true}, no 500.
+           Uploaded a 3 s mp4 (Videos tab, Add or Drop Videos): get-upload-url 200, PUT to Backblaze 200, save-photo-batch 200. The row
+           went to status processed within seconds (duration 3.0, HLS master.m3u8 and poster.jpg both 200). The Videos counter showed (0)
+           until I reloaded, then (1): the list does not refresh by itself after a video upload (small, not logged as an issue).
+           Step 2 not testable: the host's Permissions list no longer has an Uploads switch for guests (guest uploads are off, todo #49),
+           so there is no "normal guest with uploads on" to test. Does not block PASS (see Note 2026-11-23).
+           Note: can_manage_event_visibility returned 200, not the expected 404 (RLS part 2 seems to be on staging now); can_manage_event_admins 200 too.
+           Cleaned up: test event deleted by the host (event, photo row and guest rows gone).
 Note 2026-11-23: the "normal guests can't" part is moot while guest uploads are off (todo #49); admins uploading videos still applies.
 
 #45 A removed guest has to ask again; the list only changes when the change is saved (website)
