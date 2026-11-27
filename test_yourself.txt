@@ -28,7 +28,7 @@ Next test number: 264
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-26
+Last updated: 2026-11-27
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -7777,7 +7777,7 @@ Fix ref:
 Feedback: Website as admin and as owner, and ordinary-member actions (steps 1-5) PASS, reported by Shwetank 2026-11-26. iPhone 18 Pro simulator PASS, steps 1-2 as the admin (Claude, 2026-11-26, latest staging code via the local app server, newone2): no bin on the admin row; Admin Access says "Only the event owner can change this"; tapping it shows "Owner only"; nothing changed. Real Android PASS, steps 1-2 as the admin (Claude over USB, 2026-11-26, iQOO, staging build + update 322ed1ec, newone2 on Riya & Arjun's Wedding): no bin button on the admin row; in newone2's popup Admin Access says "Only the event owner can change this" and tapping it shows "Owner only"; nothing changed (still Admins (1)). Steps 3-5 (ordinary members, owner view) need a third account and newone1.
 
 #258 Android: events open quickly on mobile data, also right after signing in (issue #315)
-Status:    FAIL
+Status:    PASS
 Priority:  High
 Platform:  App (EveBash Staging on Android, NEW app build)
 Jira:      EB-433
@@ -7808,7 +7808,7 @@ Date tested:      2026-11-26, 21:14-21:41 IST
 Account used:     newone2@email.com (admin of Riya & Arjun's Wedding; has no events of its own, so events were opened from Host > Shared and the Dashboard)
 Screenshot / recording: screenshots of every open kept on Shwetank's Mac (not in the repo)
 Fix ref:
-Feedback:         12 event opens on Jio mobile data, 1-3 minutes apart, the app fully closed and reopened 3 times (not signed out and in: that needs the password). All 12 opened and "We couldn't open this gallery" never showed, so the 20 s hang is gone. 10 of 12 were ready in 1.6-3.0 s. Two were slow: 21:23 Riya & Arjun's Wedding from Host > Shared took 7.0 s (the same event opened in 1.6-1.7 s at 21:14 and 21:35), and 21:40-21:41 Riya & Arjun's Wedding from the Dashboard (guest view) took 5.3 s; at that moment the staging server's /api/media/guest-preview-picture took 6.7 s and member-directory 1.7-2.0 s, so that one was probably the server, not the phone's connection. The staging server log has no requests at 21:23 (the event screen reads Supabase directly), so the cause of the 7.0 s one is not known. Reopening the app took about 8 s to the Dashboard (3 times). FAIL only because one open went over the 5 s limit. Times are when the screen stopped changing, from screenshots about 0.8 s apart, so they can be up to about 0.8 s long and include pictures still loading.
+Feedback:         12 event opens on Jio mobile data, 1-3 minutes apart, the app fully closed and reopened 3 times (not signed out and in: that needs the password). All 12 opened and "We couldn't open this gallery" never showed, so the 20 s hang is gone. 10 of 12 were ready in 1.6-3.0 s. Two were slow: 21:23 Riya & Arjun's Wedding from Host > Shared took 7.0 s (the same event opened in 1.6-1.7 s at 21:14 and 21:35), and 21:40-21:41 Riya & Arjun's Wedding from the Dashboard (guest view) took 5.3 s; at that moment the staging server's /api/media/guest-preview-picture took 6.7 s and member-directory 1.7-2.0 s, so that one was probably the server, not the phone's connection. The staging server log has no requests at 21:23 (the event screen reads Supabase directly), so the cause of the 7.0 s one is not known. Reopening the app took about 8 s to the Dashboard (3 times). FAIL only because one open went over the 5 s limit. Times are when the screen stopped changing, from screenshots about 0.8 s apart, so they can be up to about 0.8 s long and include pictures still loading. Accepted as PASS by Sarthak 2026-11-27 after a staging log check (Claude): the 7.0 s open was not a connection problem (open_gallery answered in 11 ms and all the event's data arrived within 1.0 s, the same as the fast opens), and the 5.3 s one was a slow staging database (open_gallery took 2.75 s). The phone's route never moved during the test (Mumbai all the time), so the route-move case is proven on the emulator only.
 
 #259 App: every font still shows after the font size cleanup (issue #105)
 Status:    PASS
