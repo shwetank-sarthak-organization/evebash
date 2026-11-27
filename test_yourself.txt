@@ -2979,7 +2979,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #115 Website: photographer uploads album pages
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website
 Jira:      EB-336
@@ -2994,14 +2994,22 @@ How to test:
   4. Switch one page Spread <-> Single and drag a page to a new place. Expect: numbering updates.
   5. Try a .gif, a .psd and a file over 60 MB. Expect: a clear message for each, nothing uploaded.
   6. Dashboard storage: expect it to grow by about 1 MB per page, not by the size of the originals.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:    Claude (for Sarthak)
+Device / browser: Playwright Chromium (headless) 1440x900, desktop; not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging bd7adfec)
+Date tested: 2026-11-27
+Account used: newone1@email.com (host/photographer), newone5 as client
+Screenshot / recording: none (PASS)
 Fix ref:
 Feedback:
+  2026-11-27 Claude (phone-free, desktop browser): Own test event "Claude test #115 - delete me" as newone1 (newone5 added to it as admin guest by the staging API, because the host cannot be both photographer and client). Test pages made with ffmpeg: 01.jpg cover 4800x4800 12 MB, 02-07.jpg spreads 10800x3600 about 21 MB each, plus anim.gif, design.psd (2 MB) and a 89 MB JPEG.
+  Step 1 PASS: Album tab > Create the first album > name + photographer + client > Create album. Dropped 7 pages via Choose files; each showed a progress bar, all 7 done in about 60 s (about 6-9 s per 21 MB page, not "a few seconds" because the files are large). Thumbnails appeared.
+  Step 2 PASS: pages in file-name order; cover says "Page 1", spreads "Pages 2-3, 4-5, 6-7, 8-9, 10-11, 12-13".
+  Step 3 PASS with a note: opened Pages 2-3, zoom in: the large title text is sharp. The preview is 3000x1000 (thumbnail 640x213), so 28 px fine print from a 10800 px page is too small to read; that is the 3000 px preview limit, as the brief says.
+  Step 4 PASS: switched Pages 2-3 to Single: numbering became Page 1, Page 2, Pages 3-4 ... 11-12. Reorder mode: dragged the spread before the cover; order changed and was still the same after a page reload.
+  Step 5 PASS: .gif and .psd: "Not a JPEG, PNG, WebP or TIFF image"; 89 MB JPEG: "Larger than 60 MB". Each is listed as rejected, no page was added (still 7).
+  Step 6 PASS (roughly): storage on Profile before 990.09 MB, after 7 pages 993.23 MB (+3 MB, about 0.45 MB/page; the first run with the same 7 pages showed +6.6 MB, about 0.95 MB/page), far below the 148 MB of originals. Other sessions use the same account at the same time, so the numbers are not exact.
+  Cleanup: album, event and guest row deleted; storage back to 985.67 MB. Screenshots: not saved (no failure).
 
 --------------------------------------------------------------------------------
 #116 Client reviews pages: pins, favourites, approve, send feedback
