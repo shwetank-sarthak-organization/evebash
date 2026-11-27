@@ -1057,8 +1057,8 @@ Note 2026-11-25 (added with Sarthak): (a) Order: nothing can be done before the 
 Listed: 2026-11-27
 Platform: Website
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Device test #266 on staging.evebash.com (Shwetank with Claude), 2026-11-27
 Issue: On a computer-width screen (lg and wider) the website's top bar has no Log out. The only Logout button in src/components/Navbar.tsx (about line 213) sits in the phone-size menu (the lg:hidden panel opened by "Toggle menu", about line 147-158), so on a computer it is in the page but never shown. People must find the profile icon, open the Profile page and scroll to Sign Out. Not broken, but easy to miss. Fix idea: add Log out to the computer-width top bar (for example a small menu on the profile icon with Profile and Log out), using the same logout() so the #301 question about unfinished uploads still shows.
