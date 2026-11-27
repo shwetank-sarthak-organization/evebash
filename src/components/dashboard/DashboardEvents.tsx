@@ -112,7 +112,7 @@ export function DashboardEventCard({ event, guests, onOpen, footer, className }:
         <button
             type="button"
             onClick={onOpen || (() => window.open(`/events/${event.id}?mode=visitor`, "_blank", "noopener,noreferrer"))}
-            className={cn("group flex flex-col rounded-2xl border border-[var(--site-line)] bg-[var(--site-surface)] p-3 text-left font-sans transition-all hover:-translate-y-1 hover:border-[var(--site-gold)]/40", className)}
+            className={cn("group flex min-w-0 flex-col rounded-2xl border border-[var(--site-line)] bg-[var(--site-surface)] p-3 text-left font-sans transition-all hover:-translate-y-1 hover:border-[var(--site-gold)]/40", className)}
         >
             <div className="relative w-full overflow-hidden rounded-xl bg-[var(--site-bg)]" style={{ aspectRatio: "16 / 10" }}>
                 <img
