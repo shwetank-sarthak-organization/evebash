@@ -86,7 +86,8 @@ export const unstable_settings = {
 // Auth gate: redirects unauthenticated users to /login
 function AuthGate({ children, onReady }: { children: React.ReactNode; onReady: () => void }) {
   const { user, loading } = useAuth();
-  const segments = useSegments();
+  // A plain list: newer expo-router types the segments as a fixed-length tuple (#312)
+  const segments = useSegments() as string[];
   const router = useRouter();
   const rootNavigationState = useRootNavigationState();
   const { returnTo } = useGlobalSearchParams<{ returnTo?: string }>();

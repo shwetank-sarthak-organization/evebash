@@ -664,7 +664,7 @@ export default function BusinessDetailScreen() {
           </View>
 
           {activeTab === 'About' && (
-            <View style={{ animationDuration: '300ms' }}>
+            <View>
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>About</Text>
                 <Text style={styles.descriptionText}>
