@@ -41,6 +41,7 @@ import { APP_VERSION } from '@/lib/appVersion';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { appAlert, showToast } from '@/lib/feedback';
+import { unfinishedUploads } from '@/lib/uploadQueue';
 import { MidnightColors } from '@/constants/theme';
 import { useAndroidKeyboardHeight } from '@/hooks/use-android-keyboard-height';
 
@@ -752,12 +753,25 @@ export default function ProfileScreen() {
           <TouchableOpacity
             style={styles.signOutBtn}
             activeOpacity={0.8}
-            onPress={() =>
-              appAlert('Sign out?', 'You can sign back in anytime with the same account.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Sign Out', style: 'destructive', onPress: logout },
-              ])
-            }
+            onPress={() => {
+              // Files still uploading pause at sign-out and carry on when this account signs back in (#302)
+              const waiting = unfinishedUploads();
+              const what = waiting.every(item => item.mediaType === 'photo')
+                ? `${waiting.length} ${waiting.length === 1 ? 'photo' : 'photos'}`
+                : waiting.every(item => item.mediaType === 'video')
+                  ? `${waiting.length} ${waiting.length === 1 ? 'video' : 'videos'}`
+                  : `${waiting.length} files`;
+              appAlert(
+                'Sign out?',
+                waiting.length > 0
+                  ? `${what} ${waiting.length === 1 ? "hasn't" : "haven't"} finished uploading. If you sign out, ${waiting.length === 1 ? 'it pauses' : 'they pause'} and ${waiting.length === 1 ? 'carries' : 'carry'} on when you sign back in with this account.`
+                  : 'You can sign back in anytime with the same account.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Sign Out', style: 'destructive', onPress: logout },
+                ],
+              );
+            }}
           >
             <IconSymbol name="rectangle.portrait.and.arrow.right" size={16} color={colors.dangerSoft} />
             <Text style={styles.signOutText}>Sign Out</Text>

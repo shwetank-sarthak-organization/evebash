@@ -32,6 +32,7 @@ import {
   getGalleryRequestStatus,
 } from '@/lib/database';
 import { subscribeToUploadQueue, UploadQueueItem, WAITING_FOR_CONNECTION } from '@/lib/uploadQueue';
+import { getUploadAccount } from '@/lib/uploadAccount';
 import { markStartup } from '@/lib/startupTiming';
 import { useRetryWhenOnline } from '@/hooks/use-retry-when-online';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -135,7 +136,9 @@ const NOTIFICATION_ICONS: Record<string, IconSymbolName> = {
 };
 
 /** The in-app card for the upload queue, or null when there is nothing to show. */
-function buildUploadQueueNotification(queueItems: UploadQueueItem[]): any {
+function buildUploadQueueNotification(allItems: UploadQueueItem[]): any {
+  // Only the signed-in person's files; another account's wait on this phone until it signs in again (#303)
+  const queueItems = allItems.filter(item => item.userId === getUploadAccount());
   const active = queueItems.filter(i => i.status === 'uploading' || i.status === 'pending');
   // Uploaded but not ready yet (videos wait for Modal to finish transcoding)
   const processing = queueItems.filter(i => i.status === 'uploaded_pending_metadata' || i.status === 'processing');

@@ -5,6 +5,7 @@ import { supabase } from './supabase';
 import { getEndpointsForPath, fetchWithEndpointFallback } from './storage';
 import { toDurationSeconds } from './mediaDuration';
 import { appAlert } from './feedback';
+import { getUploadAccount, isUploadPausedError, setUploadAccountId, uploadAccessToken } from './uploadAccount';
 import { hasStorageUploadLink, storageUploadRequest } from '../../../shared/media/storageUploadRequest';
 
 // Issue #144: an upload that failed because the phone lost its connection doesn't use up an attempt. The item waits
@@ -149,12 +150,24 @@ let queue: UploadQueueItem[] = [];
 const inFlight = new Map<string, UploadQueueItem['mediaType']>();
 // Files cancelled while a worker still has them: the worker stops quietly instead of retrying or failing
 const cancelledIds = new Set<string>();
+// Files whose transfer was stopped because their account signed out (#302): the worker puts them back to wait,
+// without using a retry or failing them
+const pausedIds = new Set<string>();
 // The single-part transfer in flight per file, so a cancel can stop it
 const uploadTasks = new Map<string, FileSystem.UploadTask>();
 const cancelledListeners = new Set<(photoId: string) => void>();
 const listeners = new Set<QueueListener>();
 // Names of copies in the uploads folder whose queue items haven't been added yet, so the startup clean-up keeps them
 const copiesBeingAdded = new Set<string>();
+
+/** True for a file picked by the account signed in now: only those upload or are saved (#303) */
+function isOwnUpload(item: UploadQueueItem) {
+  const account = getUploadAccount();
+  return !!account && item.userId === account;
+}
+
+// Not finished yet: still to upload, being sent, or waiting for its save
+const UNFINISHED = new Set<UploadStatus>(['pending', 'uploading', 'uploaded_pending_metadata', 'upload_needs_reconciliation']);
 
 // ── 1. Non-Poisoning Queue Mutation Mutex ────────────────────────────────────
 let queueWriteChain: Promise<void> = Promise.resolve();
@@ -367,11 +380,17 @@ export async function initUploadQueue() {
 }
 
 async function reconcileInterruptedUploads(items: UploadQueueItem[]) {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
-  if (!accessToken) return;
+  // Another account's files are checked when that account signs in again (#303)
+  const own = items.filter(isOwnUpload);
+  if (own.length === 0) return;
+  let accessToken: string;
+  try {
+    accessToken = await uploadAccessToken(own[0].userId);
+  } catch {
+    return;
+  }
 
-  for (const item of items) {
+  for (const item of own) {
     // Chunked uploads (videos >= 20 MiB) handle their own resume state perfectly.
     // Transition them to pending so processQueue -> uploadWorker -> chunkUpload resumes them.
     if (item.mediaType === 'video' && item.fileSize && item.fileSize >= 20 * 1024 * 1024) {
@@ -470,6 +489,8 @@ export async function addToUploadQueue(
 ) {
   // No notification permission prompt here: the app asks once at sign-in (registerDeviceForPushNotifications), and
   // the upload panel shows progress either way (issue #212)
+  // Only the signed-in person adds files, so they are the upload account (normally already set at sign-in)
+  if (getUploadAccount() !== userId) setUploadAccount(userId);
 
   // 1. Calculate total batch size & check disk space
   let totalBatchBytes = 0;
@@ -588,8 +609,23 @@ async function cleanupDurableFile(fileUri: string) {
   }
 }
 
+/** A file stopped because its account signed out: back to waiting, without using a retry (#302) */
+function putBackToWait(itemId: string) {
+  return mutateQueue(q => {
+    const target = q.find(i => i.id === itemId);
+    if (target && (target.status === 'uploading' || target.status === 'pending')) {
+      target.status = 'pending';
+      target.progress = 0;
+      target.storageKey = undefined; // A fresh upload link once it starts again
+      target.error = undefined;
+    }
+  });
+}
+
 // ── 5. Single-Part Upload Worker (Up to 5GB) ─────────────────────────────────
 async function uploadWorker(item: UploadQueueItem) {
+  // A pause left from an earlier run doesn't apply: processQueue only starts files of the account signed in now
+  pausedIds.delete(item.id);
   await mutateQueue(q => {
     const target = q.find(i => i.id === item.id);
     if (target) {
@@ -601,11 +637,8 @@ async function uploadWorker(item: UploadQueueItem) {
   void updateProgressNotification(true);
 
   try {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData.session?.access_token;
-    if (!accessToken) {
-      throw new Error('Authorization required.');
-    }
+    // Only with the login of the person who picked this file (#303); signed out or another account: it waits (#302)
+    const accessToken = await uploadAccessToken(item.userId);
 
     // Retrieve file size if missing
     let fileSize = item.fileSize || 0;
@@ -742,6 +775,7 @@ async function uploadWorker(item: UploadQueueItem) {
     // Cancelled while the upload URL was fetched: its file is already deleted, and a background upload of a missing
     // file crashes the app on iOS (issue #289). Nothing may be awaited between this check and createUploadTask.
     if (cancelledIds.delete(item.id)) return;
+    if (pausedIds.delete(item.id)) { await putBackToWait(item.id); return; }
     if (!fileInfo?.exists) throw new Error('The file to upload is no longer on this phone.');
     console.log(`[UploadQueue] Uploading directly to B2 (single-part, up to 5GB): ${storageKey}`);
     const uploadTask = FileSystem.createUploadTask(
@@ -773,6 +807,9 @@ async function uploadWorker(item: UploadQueueItem) {
     const response = await uploadTask.uploadAsync();
     // Cancelled: the transfer was stopped (or had just ended; the file is never saved to the gallery then)
     if (cancelledIds.delete(item.id)) return;
+    // Its account signed out while it was being sent: it starts again when that account signs back in. If the file
+    // had just finished, it is kept as uploaded and saved once that account signs back in (flushes are per account)
+    if (pausedIds.delete(item.id) && (!response || response.status !== 200)) { await putBackToWait(item.id); return; }
     if (!response || response.status !== 200) {
       throw new Error(`Direct B2 upload failed with status: ${response ? response.status : 'unknown'}`);
     }
@@ -793,6 +830,11 @@ async function uploadWorker(item: UploadQueueItem) {
     void flushMetadataBatches();
   } catch (err: any) {
     if (cancelledIds.delete(item.id)) return;
+    if (pausedIds.delete(item.id) || isUploadPausedError(err)) {
+      console.log(`[UploadQueue] ${item.fileName} waits until its account signs in again.`);
+      await putBackToWait(item.id);
+      return;
+    }
     const retries = (item.retryCount || 0) + 1;
     // Set by chunkUpload for 4xx responses — repeating the identical request cannot succeed.
     const nonRetryable = err?.nonRetryable === true;
@@ -871,12 +913,16 @@ export function flushMetadataBatches(): Promise<void> {
 }
 
 async function flushMetadataBatchesInternal(): Promise<void> {
-  const pendingItems = queue.filter(i => i.status === 'uploaded_pending_metadata');
+  // Saved only by the person who uploaded them (#303); another account's files are saved when it signs in again
+  const pendingItems = queue.filter(i => i.status === 'uploaded_pending_metadata' && isOwnUpload(i));
   if (pendingItems.length === 0) return;
 
-  const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
-  if (!accessToken) return;
+  let accessToken: string;
+  try {
+    accessToken = await uploadAccessToken(pendingItems[0].userId);
+  } catch {
+    return;
+  }
 
   // Group pending items by eventId
   const itemsByEvent = new Map<string, UploadQueueItem[]>();
@@ -1167,7 +1213,7 @@ export function triggerAndTrackProcessing(eventId: string) {
       return;
     }
 
-    const processingVideos = queue.filter(item => item.eventId === eventId && item.status === 'processing' && item.mediaType === 'video');
+    const processingVideos = queue.filter(item => item.eventId === eventId && item.status === 'processing' && item.mediaType === 'video' && isOwnUpload(item));
     let videosSettled = false;
     if (processingVideos.length > 0) {
       try {
@@ -1177,9 +1223,10 @@ export function triggerAndTrackProcessing(eventId: string) {
       }
     }
 
-    const currentProcessing = queue.filter(item => item.eventId === eventId && item.status === 'processing');
+    // The signed-in person's files only: another account's waiting files mustn't hold these back (#303)
+    const currentProcessing = queue.filter(item => item.eventId === eventId && item.status === 'processing' && isOwnUpload(item));
     const stillUploading = queue.filter(
-      item => item.eventId === eventId && (item.status === 'pending' || item.status === 'uploading' || item.status === 'uploaded_pending_metadata')
+      item => item.eventId === eventId && isOwnUpload(item) && (item.status === 'pending' || item.status === 'uploading' || item.status === 'uploaded_pending_metadata')
     );
 
     if (currentProcessing.length === 0) {
@@ -1225,7 +1272,7 @@ export function triggerAndTrackProcessing(eventId: string) {
             const mappedProgress = Math.min(99, Math.max(90, Math.round(90 + (data.percentComplete * 0.09))));
             await mutateQueue(q => {
               for (const item of q) {
-                if (item.eventId === eventId && item.status === 'processing' && item.mediaType !== 'video') {
+                if (item.eventId === eventId && item.status === 'processing' && item.mediaType !== 'video' && isOwnUpload(item)) {
                   item.progress = mappedProgress;
                 }
               }
@@ -1252,7 +1299,7 @@ export function triggerAndTrackProcessing(eventId: string) {
             // Mark processing photos as completed (videos settle from their own row status)
             await mutateQueue(q => {
               for (const item of q) {
-                if (item.eventId === eventId && item.status === 'processing' && item.mediaType !== 'video') {
+                if (item.eventId === eventId && item.status === 'processing' && item.mediaType !== 'video' && isOwnUpload(item)) {
                   item.status = 'completed';
                   item.progress = 100;
                 }
@@ -1283,14 +1330,16 @@ export function triggerAndTrackProcessing(eventId: string) {
 // ── 7. Concurrent Queue Dispatcher ──────────────────────────────────────────
 async function processQueue() {
   while (inFlight.size < PHOTO_CONCURRENCY && ![...inFlight.values()].includes('video')) {
-    const nextItem = queue.find(item => item.status === 'pending' && !inFlight.has(item.id));
+    // Only the signed-in person's files (#303); signed out, nothing starts (#302)
+    const nextItem = queue.find(item => item.status === 'pending' && !inFlight.has(item.id) && isOwnUpload(item));
 
     if (!nextItem) {
       if (inFlight.size === 0) {
-        const allSettled = queue.every(
+        const own = queue.filter(isOwnUpload);
+        const allSettled = own.every(
           item => item.status === 'completed' || item.status === 'failed'
         );
-        if (allSettled && queue.length > 0) {
+        if (allSettled && own.length > 0) {
           notifyQueueDrained();
         }
       }
@@ -1320,13 +1369,16 @@ export function subscribeToUploadQueue(listener: QueueListener) {
 }
 
 export async function clearFinishedUploads() {
-  // Never clear finished items if any item is still uploading or processing
-  const hasActiveWork = queue.some(
+  // Only the signed-in person's files; never while any of them is still uploading or processing
+  const own = queue.filter(isOwnUpload);
+  const hasActiveWork = own.some(
     item => item.status === 'pending' || item.status === 'uploading' || item.status === 'uploaded_pending_metadata' || item.status === 'upload_needs_reconciliation' || item.status === 'processing'
   );
   if (hasActiveWork) return;
 
-  const itemsToRemove = queue.filter(item => item.status === 'completed' || item.status === 'failed');
+  const itemsToRemove = own.filter(item => item.status === 'completed' || item.status === 'failed');
+  if (itemsToRemove.length === 0) return;
+  const removeIds = new Set(itemsToRemove.map(item => item.id));
   for (const item of itemsToRemove) {
     await cleanupDurableFile(item.fileUri);
     if (item.status === 'failed' && item.fileSize && item.fileSize >= 20 * 1024 * 1024) {
@@ -1337,7 +1389,7 @@ export async function clearFinishedUploads() {
   }
 
   await mutateQueue(q => {
-    queue = q.filter(item => item.status !== 'completed' && item.status !== 'failed');
+    queue = q.filter(item => !removeIds.has(item.id));
   });
 }
 
@@ -1371,7 +1423,8 @@ async function deleteCancelledUpload(storageKey: string) {
  */
 export async function cancelUploadItem(itemId: string): Promise<boolean> {
   const item = queue.find(i => i.id === itemId);
-  if (!item || !isUploadCancellable(item)) return true;
+  // Another account's files are only removed from the list, never deleted from a gallery (removeOtherAccountUploads)
+  if (!item || !isUploadCancellable(item) || !isOwnUpload(item)) return true;
 
   if (isUploadSaved(item)) {
     if (!(await deleteCancelledUpload(item.storageKey!))) return false;
@@ -1400,7 +1453,8 @@ export async function cancelUploadItem(itemId: string): Promise<boolean> {
 
 export async function retryUploadItem(itemId: string) {
   const item = queue.find(i => i.id === itemId);
-  if (!item) return;
+  // Never someone else's file under this account (#303)
+  if (!item || !isOwnUpload(item)) return;
 
   // The local copy is deleted once the server has the file (e.g. a video whose processing failed),
   // so there is nothing left to re-upload.
@@ -1436,13 +1490,19 @@ export async function resetUploadQueue() {
   }
   pendingNotificationUpdate = false;
 
-  for (const item of queue) {
+  // The signed-in person's files only: another account's stay for when it signs in again (#303)
+  const own = queue.filter(isOwnUpload);
+  for (const item of own) {
+    if (inFlight.has(item.id)) {
+      cancelledIds.add(item.id);
+      uploadTasks.get(item.id)?.cancelAsync().catch(() => {});
+    }
     await cleanupDurableFile(item.fileUri);
   }
 
-  inFlight.clear();
-  await mutateQueue(() => {
-    queue = [];
+  const ownIds = new Set(own.map(item => item.id));
+  await mutateQueue(q => {
+    queue = q.filter(item => !ownIds.has(item.id));
   });
 
   if (Notifications) {
@@ -1450,6 +1510,96 @@ export async function resetUploadQueue() {
       await Notifications.dismissNotificationAsync(PROGRESS_NOTIFICATION_ID);
     } catch (e) {}
   }
+}
+
+// ── 8b. Whose files upload (issues #302, #303) ────────────────────────────────
+
+/**
+ * Called by AuthContext with the signed-in person's id (null when signed out). Only that account's files upload or
+ * are saved. Signing out or switching account stops the files being sent now; they wait in the list, without
+ * failing, and carry on when their account signs in again on this phone.
+ */
+export function setUploadAccount(userId: string | null) {
+  if (getUploadAccount() === userId) return;
+  setUploadAccountId(userId);
+
+  // Stop transfers that aren't this account's: a photo stops at once, a video after the part being sent
+  for (const itemId of inFlight.keys()) {
+    const item = queue.find(i => i.id === itemId);
+    if (item && !isOwnUpload(item)) {
+      pausedIds.add(itemId);
+      uploadTasks.get(itemId)?.cancelAsync().catch(() => {});
+    }
+  }
+
+  notifyListeners();
+  void updateProgressNotification(true);
+  if (!userId) return;
+
+  // This account's files: check ones interrupted earlier, save uploaded ones, and carry on
+  const needsReconciliation = queue.filter(item => item.status === 'upload_needs_reconciliation' && isOwnUpload(item));
+  if (needsReconciliation.length > 0) void reconcileInterruptedUploads(needsReconciliation);
+  void flushMetadataBatches();
+  for (const eventId of new Set(queue.filter(item => item.status === 'processing' && isOwnUpload(item)).map(item => item.eventId))) {
+    void triggerAndTrackProcessing(eventId);
+  }
+  processQueue();
+}
+
+/** The signed-in person's files that haven't finished uploading yet (shown before signing out, #302) */
+export function unfinishedUploads(): UploadQueueItem[] {
+  return queue.filter(item => isOwnUpload(item) && UNFINISHED.has(item.status));
+}
+
+/**
+ * Files another account on this phone picked that still wait for it to sign in again (#303): not uploaded yet, or
+ * failed. Its files already in a gallery are done and not counted.
+ */
+export function otherAccountUploads(items: UploadQueueItem[] = queue): UploadQueueItem[] {
+  const account = getUploadAccount();
+  return items.filter(item => item.userId !== account && (UNFINISHED.has(item.status) || item.status === 'failed'));
+}
+
+/**
+ * Takes files of other accounts off this phone's list (#303): copies are deleted and nothing is uploaded or saved
+ * for them. Files already in a gallery stay there (only their owner can delete them).
+ */
+export async function removeOtherAccountUploads() {
+  const others = otherAccountUploads();
+  if (others.length === 0) return;
+  for (const item of others) {
+    await cleanupDurableFile(item.fileUri);
+    if (item.mediaType === 'video') {
+      const { clearChunkUploadState } = require('./chunkUpload');
+      await clearChunkUploadState(item.id).catch(() => {});
+    }
+  }
+  const removeIds = new Set(others.map(item => item.id));
+  await mutateQueue(q => {
+    queue = q.filter(item => !removeIds.has(item.id));
+  });
+}
+
+/** After the account was deleted: drops its files from this phone's list, since they can't upload any more */
+export async function discardAccountUploads(userId: string) {
+  const mine = queue.filter(item => item.userId === userId);
+  if (mine.length === 0) return;
+  for (const item of mine) {
+    if (inFlight.has(item.id)) {
+      cancelledIds.add(item.id);
+      uploadTasks.get(item.id)?.cancelAsync().catch(() => {});
+    }
+    await cleanupDurableFile(item.fileUri);
+    if (item.mediaType === 'video') {
+      const { clearChunkUploadState } = require('./chunkUpload');
+      await clearChunkUploadState(item.id).catch(() => {});
+    }
+  }
+  const removeIds = new Set(mine.map(item => item.id));
+  await mutateQueue(q => {
+    queue = q.filter(item => !removeIds.has(item.id));
+  });
+  void updateProgressNotification(true);
 }
 
 // ── 9. Notification & Drainage Handlers ─────────────────────────────────────
@@ -1501,7 +1651,9 @@ async function updateProgressNotification(force: boolean = false) {
 async function performNotificationUpdate() {
   if (!Notifications) return;
 
-  const activeItems = queue.filter(
+  // The signed-in person's files only (#303): signed out, there is no progress to show
+  const ownQueue = queue.filter(isOwnUpload);
+  const activeItems = ownQueue.filter(
     item => item.status === 'pending' || item.status === 'uploading' || item.status === 'uploaded_pending_metadata' || item.status === 'processing'
   );
 
@@ -1511,7 +1663,7 @@ async function performNotificationUpdate() {
       notificationThrottleTimer = null;
     }
     pendingNotificationUpdate = false;
-    if (queue.length === 0) {
+    if (ownQueue.length === 0) {
       try {
         await Notifications.dismissNotificationAsync(PROGRESS_NOTIFICATION_ID);
       } catch (e) {}
@@ -1522,7 +1674,7 @@ async function performNotificationUpdate() {
   // Prioritize the latest active batch initiated by the user
   const sortedActive = [...activeItems].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
   const currentEventId = sortedActive[0]?.eventId;
-  const currentBatchItems = queue.filter(item => item.eventId === currentEventId);
+  const currentBatchItems = ownQueue.filter(item => item.eventId === currentEventId);
   // Every file of this gallery in the queue, like the upload panel: a set added mid-upload joins the count (issue #171)
   const total = currentBatchItems.length;
 
@@ -1619,11 +1771,12 @@ async function notifyQueueDrained() {
   }
   pendingNotificationUpdate = false;
 
-  const totalCount = queue.length;
+  const ownQueue = queue.filter(isOwnUpload);
+  const totalCount = ownQueue.length;
   if (totalCount === 0) return;
 
-  const failed = queue.filter(item => item.status === 'failed');
-  const succeeded = queue.filter(item => item.status === 'completed');
+  const failed = ownQueue.filter(item => item.status === 'failed');
+  const succeeded = ownQueue.filter(item => item.status === 'completed');
 
   if (Notifications) {
     try {

@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File } from 'expo-file-system';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getEndpointsForPath } from './storage';
-import { supabase } from './supabase';
+import { isUploadPausedError, uploadAccessToken } from './uploadAccount';
 import { sha1 } from './sha1';
 import { toDurationSeconds } from './mediaDuration';
 import type { UploadQueueItem } from './uploadQueue';
@@ -85,18 +85,12 @@ function chunkApiUrl(path: string): string {
   return getEndpointsForPath(path)[0];
 }
 
-async function getAccessToken(forceRefresh = false): Promise<string> {
-  if (forceRefresh) {
-    const { data } = await supabase.auth.refreshSession();
-    if (data.session?.access_token) return data.session.access_token;
-  }
-  // getSession() transparently refreshes an expired token, so long uploads always send a valid one.
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || '';
-}
-
-/** POST JSON to the chunk API with a fresh token; on 401 refresh the session once and retry (same as web). */
-async function postChunkApi(path: string, body: unknown, timeoutMs = API_TIMEOUT_MS): Promise<Response> {
+/**
+ * POST JSON to the chunk API with a fresh token of the account that picked the video (`ownerId`); on 401 refresh the
+ * session once and retry (same as web). Throws the "paused" error when that account isn't signed in (#302, #303),
+ * so a video never continues without a login or under another account.
+ */
+async function postChunkApi(path: string, body: unknown, ownerId: string, timeoutMs = API_TIMEOUT_MS): Promise<Response> {
   const url = chunkApiUrl(path);
 
   const send = async (token: string) => {
@@ -117,10 +111,10 @@ async function postChunkApi(path: string, body: unknown, timeoutMs = API_TIMEOUT
     }
   };
 
-  let response = await send(await getAccessToken());
+  let response = await send(await uploadAccessToken(ownerId));
   if (response.status === 401) {
     console.warn(`[ChunkUpload] 401 from ${path}. Refreshing session and retrying once...`);
-    response = await send(await getAccessToken(true));
+    response = await send(await uploadAccessToken(ownerId, true));
   }
   return response;
 }
@@ -143,7 +137,7 @@ export async function abortChunkedUpload(item: UploadQueueItem) {
     const state: ChunkUploadState = JSON.parse(stateRaw);
     // A completed upload is already a real photo row — never abort it.
     if (state.b2FileId && state.status !== 'completed') {
-      const response = await postChunkApi('/api/media/upload/chunk/abort', { fileId: state.b2FileId });
+      const response = await postChunkApi('/api/media/upload/chunk/abort', { fileId: state.b2FileId }, item.userId);
       if (!response.ok && response.status !== 404 && response.status !== 409) {
         console.warn(`[ChunkUpload] Abort returned ${response.status} for fileId=${state.b2FileId}`);
       }
@@ -221,7 +215,7 @@ export async function uploadVideoInChunks(
         fileSize: item.fileSize,
         contentType: item.fileType || 'video/mp4',
         resourceType: 'video',
-      });
+      }, item.userId);
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -271,7 +265,7 @@ export async function uploadVideoInChunks(
         }
 
         throwIfCancelled(item.id);
-        const result = await uploadPartWithRetry(file, state, item.id, partNumber);
+        const result = await uploadPartWithRetry(file, state, item.id, item.userId, partNumber);
         if (result === 'session_expired') {
           sessionExpired = true;
           break;
@@ -334,6 +328,7 @@ export async function uploadVideoInChunks(
           partSha1Array,
           duration: durationSeconds,
         },
+        item.userId,
         COMPLETE_TIMEOUT_MS
       );
 
@@ -376,6 +371,7 @@ async function uploadPartWithRetry(
   file: File,
   state: ChunkUploadState,
   itemId: string,
+  ownerId: string,
   partNumber: number
 ): Promise<CompletedPart | 'session_expired'> {
   const offset = (partNumber - 1) * state.chunkSize;
@@ -413,7 +409,7 @@ async function uploadPartWithRetry(
       throwIfCancelled(itemId);
       try {
         // Fresh part URL per attempt (B2 upload URLs are single-use and tokens expire).
-        const partUrlRes = await postChunkApi('/api/media/upload/chunk/part-url', { fileId: state.b2FileId });
+        const partUrlRes = await postChunkApi('/api/media/upload/chunk/part-url', { fileId: state.b2FileId }, ownerId);
         if (partUrlRes.status === 410 || partUrlRes.status === 404) {
           return 'session_expired';
         }
@@ -441,6 +437,8 @@ async function uploadPartWithRetry(
         console.log(`${label} Upload successful (status ${uploadRes.status}).`);
         return { sha1: chunkSha1, size: partSize };
       } catch (err) {
+        // Its account signed out: stop now (the parts sent so far are kept for when it signs back in)
+        if (isUploadPausedError(err)) throw err;
         lastErr = err;
         if (attempt < MAX_PART_RETRIES) {
           const wait = Math.min(1000 * 2 ** attempt, 30_000);

@@ -35,6 +35,8 @@ import {
   cancelUploadItem,
   clearFinishedUploads,
   isUploadCancellable,
+  otherAccountUploads,
+  removeOtherAccountUploads,
   isUploadSaved,
   retryUploadItem,
   subscribeToUploadQueue,
@@ -42,8 +44,9 @@ import {
   WAITING_FOR_CONNECTION,
   type UploadQueueItem,
 } from '../lib/uploadQueue';
+import { getUploadAccount } from '../lib/uploadAccount';
 
-type Kind = 'uploading' | 'offline' | 'preparing' | 'failed' | 'finishing' | 'done';
+type Kind = 'uploading' | 'offline' | 'preparing' | 'failed' | 'finishing' | 'done' | 'others';
 type Summary = { kind: Kind | null; failed: UploadQueueItem[]; title: string; subtitle: string; percent: number; key: string };
 
 const STILL_UPLOADING = new Set<UploadQueueItem['status']>(['pending', 'uploading', 'uploaded_pending_metadata', 'upload_needs_reconciliation']);
@@ -173,6 +176,28 @@ const cancelAll = (items: UploadQueueItem[]) => {
   );
 };
 
+/** Files another account on this phone picked: they wait for it to sign in again (#303). Never shown one by one */
+const othersSummary = (others: UploadQueueItem[]): Summary => ({
+  kind: 'others',
+  failed: [],
+  title: `${others.length} ${others.length === 1 ? 'file' : 'files'} from another account`,
+  subtitle: `${others.length === 1 ? "It'll" : "They'll"} upload when that account signs in on this phone.`,
+  percent: 0,
+  key: `others:${others.map(item => item.id).join(',')}`,
+});
+
+const removeOthers = (count: number) => {
+  haptic('tap');
+  appAlert(
+    count === 1 ? 'Remove this file?' : `Remove ${count} files?`,
+    `${count === 1 ? 'It was' : 'They were'} picked by another account on this phone and won't be uploaded. Anything already in a gallery stays there.`,
+    [
+      { text: 'Keep', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => { void removeOtherAccountUploads(); } },
+    ],
+  );
+};
+
 const retryFailed = async (failed: UploadQueueItem[]) => {
   haptic('tap');
   for (const item of failed) await retryUploadItem(item.id);
@@ -273,7 +298,13 @@ export function UploadStatusOverlay() {
 
   useEffect(() => subscribeToUploadQueue(setItems), []);
 
-  const summary = useMemo(() => summarize(items), [items]);
+  // Only the signed-in person's files are listed and counted; another account's just wait (#303). The queue notifies
+  // its listeners when the account changes, so this re-reads it then
+  const account = getUploadAccount();
+  const own = useMemo(() => items.filter(item => item.userId === account), [items, account]);
+  const others = useMemo(() => otherAccountUploads(items), [items, account]);
+  const ownSummary = useMemo(() => summarize(own), [own]);
+  const summary = ownSummary.kind || others.length === 0 ? ownSummary : othersSummary(others);
 
   // Finished everywhere: say so briefly, then clear (the gallery screen clears at once and shows its own toast)
   useEffect(() => {
@@ -299,13 +330,14 @@ export function UploadStatusOverlay() {
     failed: { icon: 'exclamationmark.triangle.fill', color: colors.dangerSoft, wash: wash.danger },
     finishing: { icon: 'checkmark', color: colors.success, wash: wash.success },
     done: { icon: 'checkmark', color: colors.success, wash: wash.success },
+    others: { icon: 'person.fill', color: colors.slate300, wash: wash.neutral },
   };
   const ring = {
     value: kind === 'finishing' || kind === 'done' || kind === 'failed' ? 100 : summary.percent,
     indeterminate: kind === 'preparing',
     color: kind === 'failed' ? colors.dangerSoft : kind === 'finishing' || kind === 'done' ? colors.success : kind === 'offline' ? colors.warning : colors.goldFill,
     trackColor: colors.tint(isDark ? 0.1 : 0.08),
-    dimmed: kind === 'offline',
+    dimmed: kind === 'offline' || kind === 'others',
   };
 
   const minimize = (value: boolean) => {
@@ -356,9 +388,12 @@ export function UploadStatusOverlay() {
   );
 
   const running = kind === 'uploading' || kind === 'offline' || kind === 'preparing';
+  const onlyOthers = kind === 'others';
   // × once nothing is running: clears the files that failed, otherwise just hides
   const close = kind === 'failed'
     ? { a11y: 'Dismiss failed uploads', onPress: () => { void clearFinishedUploads(); } }
+    : onlyOthers
+    ? { a11y: 'Hide this message', onPress: () => setHiddenFor(summary.key) }
     : { a11y: 'Hide upload status', onPress: () => setHiddenFor(summary.key) };
 
   return (
@@ -376,14 +411,16 @@ export function UploadStatusOverlay() {
           <Text style={styles.title} numberOfLines={2}>{summary.title}</Text>
           {!!summary.subtitle && <Text style={styles.subtitle} numberOfLines={2}>{summary.subtitle}</Text>}
         </View>
-        {running && openUploads(items).length > 0 && textButton('Cancel all', 'Cancel all uploads', () => cancelAll(items))}
+        {running && openUploads(own).length > 0 && textButton('Cancel all', 'Cancel all uploads', () => cancelAll(own))}
+        {onlyOthers && textButton('Remove', 'Remove the files from another account', () => removeOthers(others.length))}
         {kind === 'failed' && textButton('Retry all', 'Retry all failed uploads', () => { void retryFailed(failed); })}
         {iconButton('chevron.down', 'Minimize upload status', () => minimize(true))}
         {!running && iconButton('xmark', close.a11y, close.onPress)}
       </View>
       {/* One row per file, as on the website: a thumbnail, what it's doing, its own bar, and × to cancel it */}
-      <ScrollView style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={items.length > 4}>
-        {items.map(item => {
+      {!onlyOthers && (
+      <ScrollView style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={own.length > 4}>
+        {own.map(item => {
           const row = rowStatus(item);
           return (
             <View key={item.id} style={styles.fileRow}>
@@ -432,7 +469,21 @@ export function UploadStatusOverlay() {
             </View>
           );
         })}
+        {others.length > 0 && (
+          <Pressable
+            onPress={() => removeOthers(others.length)}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={`${othersSummary(others).title} waiting. Remove them`}
+            style={({ pressed }) => [styles.fileRow, pressed && styles.pressed]}
+          >
+            <Text style={[styles.fileMeta, styles.fileLabelWrap]} numberOfLines={2}>
+              {`${othersSummary(others).title} ${others.length === 1 ? 'is' : 'are'} waiting for that account · Remove`}
+            </Text>
+          </Pressable>
+        )}
       </ScrollView>
+      )}
     </Animated.View>
   );
 }
