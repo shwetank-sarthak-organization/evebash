@@ -1085,18 +1085,19 @@ Found in: Device test #152 (Claude, 2026-11-27)
 Issue: The Periwinkle Script card is meant to show date, message and place (src/components/TemplatePeriwinkle.tsx reads event.location), but the staging events table has no location column (requests for location, venue or place return an error) and the host page has no field to enter a place. So the place can never show on the card. Fix idea: decide where a place is stored (an events column or theme_content) and add a field in the host page, then map it into the event. Periwinkle Script is hidden as Coming soon for now (Phase 2), so this is not urgent.
 How to reproduce: Set an event's template_id to periwinkle (it can't be picked in the host Design tab right now) and open the guest page: the card shows date and message, never a place.
 
+RECENTLY FIXED (delete entries older than 7 days)
 #334
 Listed: 2026-11-27
 Platform: Website
 Priority: Low
-Status: Open
+Status: Fixed
 Owner: Unassigned
 Blocked by: -
 Found in: Device test #174 (Claude, 2026-11-27)
 Issue: On the Host page at phone width (375 px), event cards with a very long title stretch to about 875 px, so the whole page scrolls sideways (page 891 px wide in a 375 px window). The long title should wrap or end in "..." inside the card. Low while staging shows phones the "Get the EveBash app" screen, because phones can't open /host; it matters once that screen is off.
 How to reproduce: Sign in as a host that has an event with a very long title (e.g. newone1: "Royal Emerald check with a really long title..."), open /host in a 375 px wide window and scroll right. Screenshots: reports/device-tests/test-174-7-phone-host*.png (local).
+Fixed in: ead37dc5 (2026-11-27). DashboardEventCard now has min-w-0 and the Host grid grid-cols-1 below sm, so a long title no longer widens the cards. Checked on staging after the build: Playwright Chromium at 375 px (desktop user agent, not a real phone), dark look, newone1: page width 375 px, all event cards 343 px (before: 891 and 875). Device test #174 step 6.
 
-RECENTLY FIXED (delete entries older than 7 days)
 #303
 Listed: 2026-11-19
 Platform: App

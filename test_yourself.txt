@@ -5158,7 +5158,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #174 Host page in the Noir homepage look (website)
-Status:    FAIL
+Status:    RETEST
 Priority:  Medium
 Platform:  Website
 Jira:      EB-380
@@ -5194,7 +5194,7 @@ Build / version: staging.evebash.com as of 2026-11-27 (staging 7b1ef1be)
 Date tested: 2026-11-27
 Account used: newone1@email.com (passwordless admin sign-in)
 Screenshot / recording: reports/device-tests/test-174-*.png (local only): 1-host, 2-Requests, 4-Permissions/Design/Album/galleries, 5-create, 5-share, 6-filter, 6-select, 7-phone-host(-full), 8-guest-in
-Fix ref:
+Fix ref:   ead37dc5 (2026-11-27), issue #334 (host cards stretch at phone width)
 Feedback:  2026-11-27 Claude (checked in the DARK look: a fresh browser opened in light, so I switched with the navbar moon button; nothing saved on the account, nothing to put back):
            1 PASS: near-black background (rgb 9,9,11), "Host Console" in gold serif, gold-foil "Create Event" pill, no blue-grey.
            2 PASS: Host / Shared / Requests tabs gold when selected, counts readable, "Nothing shared" and "All caught up!" boxes dark.
@@ -5213,6 +5213,8 @@ Feedback:  2026-11-27 Claude (checked in the DARK look: a fresh browser opened i
              green gold-frame theme, no Noir colours, navbar and footer not shown. Nothing to compare against "before", so only
              "looks like its own design" was checked. The step needs a new example gallery.
 
+           2026-11-27 Claude retest of step 6 after ead37dc5 (staging build): at 375 px page width 375, all event cards 343 px: PASS.
+           Still to do before PASS: step 7 needs a gallery that exists (wedding-2-77d4 is a 404 on staging); run it again with the new one.
 --------------------------------------------------------------------------------
 #175 Dashboard in the Noir homepage look (website)
 Status:    PASS
