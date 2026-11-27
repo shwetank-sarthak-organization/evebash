@@ -5158,7 +5158,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #174 Host page in the Noir homepage look (website)
-Status:    TODO
+Status:    FAIL
 Priority:  Medium
 Platform:  Website
 Jira:      EB-380
@@ -5188,14 +5188,30 @@ How to test:
   6. Make the browser window phone-narrow (about 375 px). Expect: "Host Console" fits on one line, no sideways
      scrolling.
   7. Open a guest gallery (for example /events/wedding-2-77d4). Expect: exactly as before this change.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:    Claude (for Sarthak)
+Device / browser: Claude, Playwright Chromium 1440x900 (steps 1-5, 7) and 375x812 with a desktop user agent (step 6: phone width in a computer browser, not a real phone); not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging 7b1ef1be)
+Date tested: 2026-11-27
+Account used: newone1@email.com (passwordless admin sign-in)
+Screenshot / recording: reports/device-tests/test-174-*.png (local only): 1-host, 2-Requests, 4-Permissions/Design/Album/galleries, 5-create, 5-share, 6-filter, 6-select, 7-phone-host(-full), 8-guest-in
 Fix ref:
-Feedback:
+Feedback:  2026-11-27 Claude (checked in the DARK look: a fresh browser opened in light, so I switched with the navbar moon button; nothing saved on the account, nothing to put back):
+           1 PASS: near-black background (rgb 9,9,11), "Host Console" in gold serif, gold-foil "Create Event" pill, no blue-grey.
+           2 PASS: Host / Shared / Requests tabs gold when selected, counts readable, "Nothing shared" and "All caught up!" boxes dark.
+           3 PASS (event Royal Emerald...): Galleries, Permissions, Design, Album all dark cards with gold accents; gold-foil Add
+             Sub-Gallery, Open, Create the first album; switches gold = on, grey = off; Design preview keeps the green theme.
+           4 PASS: gallery with 13 photos: Filter menu readable, Select mode shows Select all / Move to... / Hide from guests
+             as pills, Delete red. "Save to EB Vault" shows greyed (nothing selected), its green was not checked. I selected no photo.
+           5 PASS: Create Event and Share pop-ups near-black, white QR card, gold-foil pill; closed without creating anything.
+             Note: in the Create Event pop-up Escape did not close it (the X button did); Share closes with Escape.
+           6 FAIL: at 375 px "Host Console" fits on one line, but the page scrolls sideways: page width 891 px in a 375 px window.
+             The event cards (Riya & Arjun's Wedding, Royal Emerald check..., Staging test 1) are 875 px wide, most likely stretched by
+             the very long event titles (this account has two: "Claude test #148 ..." from another session and the #92 title).
+             Screenshots test-174-7-phone-host*.png. New issue pending (see report).
+           7 outdated/partly: /events/wedding-2-77d4 now gives 404 on staging (logged out and as newone1), so it could not be opened.
+             Opened /events/royal-emerald-check-with-a-really-long-title-to-test-wrappin-c9e2 as newone1 instead: it keeps its own
+             green gold-frame theme, no Noir colours, navbar and footer not shown. Nothing to compare against "before", so only
+             "looks like its own design" was checked. The step needs a new example gallery.
 
 --------------------------------------------------------------------------------
 #175 Dashboard in the Noir homepage look (website)
