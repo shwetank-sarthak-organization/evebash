@@ -4160,8 +4160,8 @@ Feedback:         2026-10-26 Claude, built-in browser at 1440x900 on staging (9a
                   album card shows small "AANYA & ROHAN" above "Haldi"; no date -> no date line.
                   6: at 800x600 the bar links get smaller and fit either side of the title; the card and
                   buttons stay on screen; no sideways scroll. Small catch: with the very long title the
-                  right edge of "Download All" ends about 2 px outside the 800 px window (new issue pending
-                  (see report), Low).
+                  right edge of "Download All" ends about 2 px outside the 800 px window (issue #332, Low, fixed in a755ee89 and
+                  re-checked on staging the same day: the bar now fits at 768-1440 px).
                   7: top shows Back to Gallery / Share Gallery boxes, event name in gold italic, gold star,
                   "Home Gallery" with Gallery in gold, "6 PHOTOGRAPHS · 1 FILM", message in italics, gold
                   framed film with gold-ringed play button, Photos (6) / Videos (1) switch with the chosen

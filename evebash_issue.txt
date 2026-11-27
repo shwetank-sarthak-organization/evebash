@@ -1064,11 +1064,12 @@ Issue: #318 (upload links that work for any file name in the whole storage bucke
 How to reproduce: On live, logged in with any account, POST https://api.evebash.com/api/v1/media/get-upload-url with an eventId the account may upload to: the reply has uploadUrl and authorizationToken (the any-file link). Do not upload anything with it.
 Note 2026-11-25 (added with Sarthak): (a) Order: nothing can be done before the staging to main release; the app update comes after it, because a production update ships every app change made on staging since the live build (it is an app release), and the live app and live server must match. (b) Right after the release, check: live POST /api/v1/media/get-upload-url (logged in) returns putUrl as well as uploadUrl, and a live website upload goes as a signed PUT and is saved. (c) Production update recipe (like the staging one in #318, memory evebash-ota-publish): clean worktree + cloned node_modules, eas.json build.production.env exported (APP_VARIANT=production, EXPO_PUBLIC_API_BASE_URL=https://api.evebash.com), eas fingerprint:compare against the latest production builds with --environment production, then eas update --channel production --environment production. EAS production holds the live iPhone Google client, which is right for live. (d) If the fingerprint doesn't match a live store build, those phones can't get an update: a new store build is needed (Play and App Store review time); phones on older builds never get updates (like the Pixel's 2026-11-19 staging build). The fingerprint check is read-only and can be run before release day to plan this. (e) Switching UPLOAD_LEGACY_B2_TOKEN off breaks small uploads (photos and videos under 20 MB) on live app builds without the update, so do it only after most users have the update or a forced update is out. (f) The same release takes the other 2026-11-25 fixes live (#300, #319, #320, #321, #322, #324, #326); all their switches are on unless set to "false", so nothing needs setting on live first.
 
+RECENTLY FIXED (delete entries older than 7 days)
 #332
 Listed: 2026-11-27
 Platform: Website
 Priority: Low
-Status: In progress
+Status: Fixed
 Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Device test #148 (Claude, 2026-11-27)
@@ -1084,8 +1085,8 @@ Blocked by: -
 Found in: Device test #152 (Claude, 2026-11-27)
 Issue: The Periwinkle Script card is meant to show date, message and place (src/components/TemplatePeriwinkle.tsx reads event.location), but the staging events table has no location column (requests for location, venue or place return an error) and the host page has no field to enter a place. So the place can never show on the card. Fix idea: decide where a place is stored (an events column or theme_content) and add a field in the host page, then map it into the event. Periwinkle Script is hidden as Coming soon for now (Phase 2), so this is not urgent.
 How to reproduce: Set an event's template_id to periwinkle (it can't be picked in the host Design tab right now) and open the guest page: the card shows date and message, never a place.
+Fixed in: a755ee89 (2026-11-27). The title in the Midnight Hero top bar is capped at 28vw between 768 and 1100 px. Checked on staging after the deploy (Chrome, own test gallery): with the long title the right end of Download All is at 769.8 px in an 800 px window (was 801.8), also fine at 768, 900, 1100 and 1440 px; normal titles unchanged at 768 and 800 px.
 
-RECENTLY FIXED (delete entries older than 7 days)
 #334
 Listed: 2026-11-27
 Platform: Website
