@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 266
+Next test number: 267
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -8163,3 +8163,33 @@ Account used:     newone1 (picked the files), newone2 (second account); Riya & A
 Screenshot / recording: none kept; checked through the screen's text and the staging database
 Fix ref:
 Feedback:         PASS on Android, photos only; also passed on the iPhone simulator earlier. (1) Warning shown: "6 photos haven't finished uploading. If you sign out, they pause and carry on when you sign back in with this account." (2) After Sign Out nothing failed and nothing was saved for 30 s, none as anonymous. (3) newone2 signed in: nothing uploaded under newone2; the upload button said "6 files from another account. They'll upload when that account signs in on this phone." (4) newone1 signed back in: the 6 carried on by themselves and finished as newone1 (about 7 minutes on mobile data). (5) Another round with 3 photos: on newone2, Remove asked "Remove 3 files? ... won't be uploaded. Anything already in a gallery stays there.", the note went away, and newone1 later had nothing waiting and nothing new in the gallery. Not checked: a video over 20 MB (Add Photos only picks photos; videos go through the separate video upload), a real iPhone. Test photos and the phone's test folder were deleted afterwards.
+
+#266 Website: logging out during an upload asks first and stops the rest (issue #301)
+Status:    TODO
+Priority:  Medium
+Platform:  Website (staging)
+Jira:      (new ticket, see below)
+Brief:     Logging out on the website while photos were uploading let them carry on, and the rest were saved as
+           "anonymous" or under the next account. Now Logout asks first and stops the files still being sent.
+Detail:    Fix 8e1e3d6b (src/context/AuthContext.tsx logout guard, src/context/UploadContext.tsx). Checked by Claude on
+           the local website on staging, 2026-11-27, newone1, Riya & Arjun's Wedding > Haldi, 8 test photos of 12.7 MB:
+           the question showed ("8 photos are still uploading. If you log out now, they stop and won't be uploaded.
+           Log out?"); Cancel kept newone1 logged in and the upload going; OK logged out, the panel showed the rest as
+           Cancelled, and nothing more was saved (2 saved as newone1 before, none as anonymous). The browser's confirm
+           box was answered by a test script there, so the real box wasn't clicked. Not checked: a real click, a video,
+           the safety net (login ending another way).
+How to test:
+  1. Staging website, log in as a host, open a gallery and add about 20 photos.
+  2. While the upload panel still counts, click Logout. Expect: "N photos are still uploading. If you log out now,
+     they stop and won't be uploaded. Log out?"
+  3. Click Cancel. Expect: still logged in, the upload carries on.
+  4. Click Logout again and OK. Expect: the login page; the panel shows the rest as Cancelled; in the gallery (log in
+     again) only the photos that finished before are there, under your name, none "Anonymous".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

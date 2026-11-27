@@ -956,17 +956,6 @@ Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simula
 Issue: In the app's Find You results ("Your Photos - N matches found in this event"), the photo grid isn't centred: its two columns sit on the left with an empty strip about a third of a column wide on the right (iPhone 17 Pro size, Cinematic wedding theme). Fix idea: check the matched-photos grid's width and gaps in apps/mobile/components/event/FindYouPanel.tsx (matchedPhotos.map, about line 454).
 How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc), Find You > Upload Photo > a picture of the groom (a crop of public/home/groom-solo.jpg): 5 matches, grid left of centre.
 
-#301
-Listed: 2026-11-19
-Platform: Website
-Priority: Medium
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
-Issue: On the website, logging out during an upload doesn't stop it, and the rest of the files are saved as "anonymous". logout() in src/context/AuthContext.tsx (about line 532) only signs out and goes to /login without a page reload, so the upload loop of the host page and the upload panel (src/context/UploadContext.tsx, in the (main) layout) keep running. Each next file finds no login, and the backend saves it as "anonymous" (#300), so the person can't find or delete those photos as their own. The "uploads in progress" warning (handleBeforeUnload, about line 217) only shows when the tab is closed or reloaded, not on logout. If the same or another person logs in in that tab before the batch ends, the rest go under that account. Fix idea: on logout while uploads are running, ask "Photos are still uploading. Log out and stop them?" and, on yes, cancel them with the panel's existing cancelAllUploads (about line 146) before signing out. Fixing #300 also makes any leftover file fail instead of being saved as "anonymous".
-How to reproduce: Staging website, host page, upload 30 photos to a gallery. While the upload panel is still counting, log out from the navbar. Today: no warning, the panel keeps counting on the login page, and the photos reach the gallery with "Anonymous" as the uploader.
-
 #305
 Listed: 2026-11-20
 Platform: App
@@ -1065,6 +1054,19 @@ How to reproduce: On live, logged in with any account, POST https://api.evebash.
 Note 2026-11-25 (added with Sarthak): (a) Order: nothing can be done before the staging to main release; the app update comes after it, because a production update ships every app change made on staging since the live build (it is an app release), and the live app and live server must match. (b) Right after the release, check: live POST /api/v1/media/get-upload-url (logged in) returns putUrl as well as uploadUrl, and a live website upload goes as a signed PUT and is saved. (c) Production update recipe (like the staging one in #318, memory evebash-ota-publish): clean worktree + cloned node_modules, eas.json build.production.env exported (APP_VARIANT=production, EXPO_PUBLIC_API_BASE_URL=https://api.evebash.com), eas fingerprint:compare against the latest production builds with --environment production, then eas update --channel production --environment production. EAS production holds the live iPhone Google client, which is right for live. (d) If the fingerprint doesn't match a live store build, those phones can't get an update: a new store build is needed (Play and App Store review time); phones on older builds never get updates (like the Pixel's 2026-11-19 staging build). The fingerprint check is read-only and can be run before release day to plan this. (e) Switching UPLOAD_LEGACY_B2_TOKEN off breaks small uploads (photos and videos under 20 MB) on live app builds without the update, so do it only after most users have the update or a forced update is out. (f) The same release takes the other 2026-11-25 fixes live (#300, #319, #320, #321, #322, #324, #326); all their switches are on unless set to "false", so nothing needs setting on live first.
 
 RECENTLY FIXED (delete entries older than 7 days)
+#301
+Listed: 2026-11-19
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: On the website, logging out during an upload doesn't stop it, and the rest of the files are saved as "anonymous". logout() in src/context/AuthContext.tsx (about line 532) only signs out and goes to /login without a page reload, so the upload loop of the host page and the upload panel (src/context/UploadContext.tsx, in the (main) layout) keep running. Each next file finds no login, and the backend saves it as "anonymous" (#300), so the person can't find or delete those photos as their own. The "uploads in progress" warning (handleBeforeUnload, about line 217) only shows when the tab is closed or reloaded, not on logout. If the same or another person logs in in that tab before the batch ends, the rest go under that account. Fix idea: on logout while uploads are running, ask "Photos are still uploading. Log out and stop them?" and, on yes, cancel them with the panel's existing cancelAllUploads (about line 146) before signing out. Fixing #300 also makes any leftover file fail instead of being saved as "anonymous".
+How to reproduce: Staging website, host page, upload 30 photos to a gallery. While the upload panel is still counting, log out from the navbar. Today: no warning, the panel keeps counting on the login page, and the photos reach the gallery with "Anonymous" as the uploader.
+Note 2026-11-27 (Shwetank with Claude): Logout now asks first while files are still uploading ("N photos are still uploading. If you log out now, they stop and won't be uploaded. Log out?"); Cancel keeps the person logged in, OK stops the files still being sent (the panel's own cancel) and then logs out; files already saved stay. A safety net also stops them if the login ends or changes another way. Checked on the local website on staging (newone1, 8 test photos): question shown, Cancel kept uploading, OK logged out and stopped 6, nothing saved afterwards, none as anonymous. Device test #266.
+Fixed in: 8e1e3d6b (2026-11-27); device test #266
+
 #332
 Listed: 2026-11-27
 Platform: Website
