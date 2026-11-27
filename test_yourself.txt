@@ -4372,18 +4372,35 @@ How to test:
   6. Open the guest page on a phone with the website (skip if it shows the "Get the app" screen,
      #109). Expect: names on the left of the bar and the menu on the right, the title fits the
      photo, the card text is readable and inside the card.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:           Claude (for Sarthak)
+Device / browser:  Playwright Chromium 1440x900 and 390x844 (desktop user agent, phone width in a computer browser, not a real phone); not a real device
+Build / version:   staging.evebash.com as of 2026-11-27 (staging c2b272be)
+Date tested:       2026-11-27
+Account used:      newone1@email.com (host), own test event, deleted afterwards
+Screenshot / recording: reports/device-tests/test-152-*.png (local only)
 Fix ref:
 Feedback:         2026-10-26 Claude, built-in browser before commit (local dev server, a temporary preview
                   page with a sample couple, since deleted): at 1280x860 and 375x812 (phone size
                   emulated) steps 2 and 6 look as described. Not done: steps 1, 3, 4, 5 and a real
                   person on staging.
-
+                  2026-11-27 Claude (status stays TODO, steps 1 and the place part of 5 not done): own wedding
+                  event as newone1 (rows inserted with the staging admin API, not through the host page),
+                  theme periwinkle, deleted afterwards. Step 1 NOT done: I did not open the host design
+                  settings in the browser to see the picker. Step 2 PASS: cream bar with names in script in the
+                  middle, Home / Collections / Find You / Download All, photo with rounded top corners, big
+                  cream script "Priya & Rohan's Wedding Day!", cut-corner cream card half on the photo and
+                  half on the periwinkle band with date and message; the header below the band does not repeat
+                  the message. Step 3 PASS: Home goes back to the main gallery from an album, Collections lists
+                  the album and opens it, Find You opens /find-you, Download All opens the download choice
+                  (Home only / Entire event). Step 4 PASS: the album page card shows the album's own message
+                  and its own date, not the main gallery's. Step 5 partly: "Sharma Wedding" shows
+                  "Sharma Wedding's Wedding Day!", "Alexandrina & Maximilian" fits on two lines, no date and
+                  no message gives just the band with no card, cover "fit" moved and zoomed shows the photo
+                  inside a blurred frame with title and card still in place. The PLACE could not be tested: the
+                  staging events table has no location column (requests for location/venue/place return an
+                  error), so the card can never show a place; new issue pending (see report). Step 6: phone
+                  width 390 px in a computer browser (not a real phone, staging shows phones the app screen):
+                  names left, menu right, title fits the photo, card text readable inside the card.
 --------------------------------------------------------------------------------
 #154 Policy popup no longer flashes on page load (website)
 Status:    TODO
