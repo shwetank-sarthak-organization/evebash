@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 265
+Next test number: 266
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -8008,3 +8008,35 @@ Account used:     newone1 (Android popup), newone3 (iPhone popup), newone2 (alre
 Screenshot / recording: screenshots kept on Shwetank's Mac (not in the repo)
 Fix ref:
 Feedback:         PASS on both. (1) Old code: the iQOO's previous build (a9a75698) with newone2, after the migration: Dashboard, no popup, no "update the app" error; the old-version database check also tested in a rolled-back transaction. Not tried on an old iPhone build. (2) Popup: iPhone newone3 and Android newone1 got "Before you continue" with the 18+ box, Accept and continue disabled until ticked; after Accept the app opened, and after a full restart no popup. newone3 saved 2026-11-27.1 with the 18+ text, platform ios. newone1's 2026-11-27.1 row says web: Shwetank had ticked it on the website a moment earlier (14:57), so the phone's Accept found it already saved (no error, popup closed). (3) Sign Up: both show "I confirm I am 18 or older, ..." and Create Account stays disabled until ticked. (4) newone2 (ticked on the website) got no popup in either app; newone3's website and old-app checks both answer accepted. Found on the way: after #276 (1fd3de5c, config plugin) the app's fingerprint changed, so EAS staging build a9a75698 (bb5f7021) no longer gets staging updates; and EAS has no Android builds left this month (resets 2026-12-01), hence the local build.
+
+#265 App: signing out pauses uploads, and they never go up under another account (issues #302, #303)
+Status:    TODO
+Priority:  High
+Platform:  App (EveBash Staging on Android and iPhone)
+Jira:      (new ticket, see below)
+Brief:     Signing out during an upload used to make the rest fail, leave one on "saving", or finish a big video as
+           "Anonymous" (#302). On a shared phone the next person's account took over the first person's photos (#303).
+           Now sign-out asks first, pauses the uploads, and only the person who picked a file can upload it.
+Detail:    Fix b29b91e7 (apps/mobile/lib/uploadAccount.ts, uploadQueue.ts, chunkUpload.ts, UploadStatusOverlay.tsx,
+           AuthContext.tsx, Profile). JS only: reaches the staging app with an over-the-air update (the iQOO needs the
+           staging build with fingerprint f99bf82f or newer). Checked by Claude on the iPhone simulator 2026-11-27
+           (photos only, newone1 and newone2 on Riya & Arjun's Wedding > Haldi): warning "3 photos haven't finished
+           uploading...", 8 of 10 saved before sign-out, 2 paused, nothing uploaded under newone2 (panel: "2 files from
+           another account" + Remove), both finished as newone1 after signing back in. Not checked: a video of 20 MB or
+           more (it stops after the 10 MB part being sent), the Remove button, Android, a real phone.
+How to test (do it on Android and on iPhone separately; two accounts that can upload to the same gallery):
+  1. Sign in as account A, open a gallery, pick about 20 photos and one video over 20 MB. While it still uploads,
+     go to Profile > Sign Out. Expect: "N files haven't finished uploading. If you sign out, they pause..." first.
+  2. Sign Out. Expect: no "Didn't upload" errors; the video doesn't appear as "Anonymous" in the gallery.
+  3. Sign in as account B. Expect: nothing of A's uploads under B (check the uploader in the gallery); the upload
+     panel shows only "N files from another account" with Remove.
+  4. Sign out, sign in as A again. Expect: A's paused photos and the video carry on and finish as A's.
+  5. Repeat 1-3, then on B tap Remove > Remove. Expect: the note goes away; later, signing in as A shows nothing waiting.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

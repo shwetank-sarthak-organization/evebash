@@ -967,28 +967,6 @@ Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happen
 Issue: On the website, logging out during an upload doesn't stop it, and the rest of the files are saved as "anonymous". logout() in src/context/AuthContext.tsx (about line 532) only signs out and goes to /login without a page reload, so the upload loop of the host page and the upload panel (src/context/UploadContext.tsx, in the (main) layout) keep running. Each next file finds no login, and the backend saves it as "anonymous" (#300), so the person can't find or delete those photos as their own. The "uploads in progress" warning (handleBeforeUnload, about line 217) only shows when the tab is closed or reloaded, not on logout. If the same or another person logs in in that tab before the batch ends, the rest go under that account. Fix idea: on logout while uploads are running, ask "Photos are still uploading. Log out and stop them?" and, on yes, cancel them with the panel's existing cancelAllUploads (about line 146) before signing out. Fixing #300 also makes any leftover file fail instead of being saved as "anonymous".
 How to reproduce: Staging website, host page, upload 30 photos to a gallery. While the upload panel is still counting, log out from the navbar. Today: no warning, the panel keeps counting on the login page, and the photos reach the gallery with "Anonymous" as the uploader.
 
-#302
-Listed: 2026-11-19
-Platform: App
-Priority: Medium
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
-Issue: In the app, logging out during an upload leaves the upload list half-running. logout() in apps/mobile/context/AuthContext.tsx (about line 587) doesn't touch the upload list (apps/mobile/lib/uploadQueue.ts), which is saved on the phone and keeps going. (1) Files not started yet fail with "Authorization required." (about line 606) after 3 tries each. (2) A photo already being sent reaches storage, but saving it to the gallery is skipped without a message (flushMetadataBatchesInternal returns when there is no login, about line 878), so it stays on "saving" and isn't in the gallery until someone logs in and another upload finishes or the app restarts. (3) A video of 20 MB or more already being sent keeps going to the end (chunkUpload.ts sends an empty login, which /upload/chunk/part-url and /upload/chunk/complete accept, #300) and is saved as "anonymous". There is no warning before logout. Fix idea: on logout, ask "X photos haven't uploaded yet. Log out anyway? They'll carry on when you log back in.", then pause the list (stop the file in flight like cancelUploadItem does, and start nothing new until a login), instead of letting files fail or finish as "anonymous". See #303 for whose files resume.
-How to reproduce: Staging app, host view of a gallery, pick 20 photos and a video over 20 MB. While the upload status still shows progress, go to Profile > Sign Out. Today: no warning; photos not started turn failed, one photo stays on "saving", and the video appears in the gallery with "Anonymous" as the uploader.
-
-#303
-Listed: 2026-11-19
-Platform: App
-Priority: Medium
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
-Issue: On a shared phone, one person's photos can be uploaded under another person's account. The upload list in apps/mobile/lib/uploadQueue.ts is saved on the phone, not per account, and every step uses whoever is logged in at that moment. Each item already stores who added it (userId, about line 128), but nothing uses it. Example: Riya picks 100 photos and logs out halfway; Arjun logs in on the same phone; the photos not yet sent, the ones stuck on "saving" (#302) and any failed ones he taps Retry on go up as Arjun's. Riya then can't find or delete them as her own, and Arjun can. Fix idea: only upload or save an item while the person who added it (item.userId) is logged in; items of another account wait until that person logs back in and can be removed from the list.
-How to reproduce: Staging app, account A, host view of a gallery where account B is also a guest or admin. Pick 30 photos, then right away Profile > Sign Out and log in as account B. Open the gallery: today the photos that were still waiting appear with account B as the uploader.
-
 #305
 Listed: 2026-11-20
 Platform: App
@@ -1087,6 +1065,32 @@ How to reproduce: On live, logged in with any account, POST https://api.evebash.
 Note 2026-11-25 (added with Sarthak): (a) Order: nothing can be done before the staging to main release; the app update comes after it, because a production update ships every app change made on staging since the live build (it is an app release), and the live app and live server must match. (b) Right after the release, check: live POST /api/v1/media/get-upload-url (logged in) returns putUrl as well as uploadUrl, and a live website upload goes as a signed PUT and is saved. (c) Production update recipe (like the staging one in #318, memory evebash-ota-publish): clean worktree + cloned node_modules, eas.json build.production.env exported (APP_VARIANT=production, EXPO_PUBLIC_API_BASE_URL=https://api.evebash.com), eas fingerprint:compare against the latest production builds with --environment production, then eas update --channel production --environment production. EAS production holds the live iPhone Google client, which is right for live. (d) If the fingerprint doesn't match a live store build, those phones can't get an update: a new store build is needed (Play and App Store review time); phones on older builds never get updates (like the Pixel's 2026-11-19 staging build). The fingerprint check is read-only and can be run before release day to plan this. (e) Switching UPLOAD_LEGACY_B2_TOKEN off breaks small uploads (photos and videos under 20 MB) on live app builds without the update, so do it only after most users have the update or a forced update is out. (f) The same release takes the other 2026-11-25 fixes live (#300, #319, #320, #321, #322, #324, #326); all their switches are on unless set to "false", so nothing needs setting on live first.
 
 RECENTLY FIXED (delete entries older than 7 days)
+#303
+Listed: 2026-11-19
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: On a shared phone, one person's photos can be uploaded under another person's account. The upload list in apps/mobile/lib/uploadQueue.ts is saved on the phone, not per account, and every step uses whoever is logged in at that moment. Each item already stores who added it (userId, about line 128), but nothing uses it. Example: Riya picks 100 photos and logs out halfway; Arjun logs in on the same phone; the photos not yet sent, the ones stuck on "saving" (#302) and any failed ones he taps Retry on go up as Arjun's. Riya then can't find or delete them as her own, and Arjun can. Fix idea: only upload or save an item while the person who added it (item.userId) is logged in; items of another account wait until that person logs back in and can be removed from the list.
+How to reproduce: Staging app, account A, host view of a gallery where account B is also a guest or admin. Pick 30 photos, then right away Profile > Sign Out and log in as account B. Open the gallery: today the photos that were still waiting appear with account B as the uploader.
+Note 2026-11-27 (Shwetank with Claude): fixed together with #302. New apps/mobile/lib/uploadAccount.ts: only the signed-in person's files start, upload, are saved, reconciled or retried, each with its owner's login (uploadAccessToken checks item.userId against the signed-in user); another account's files wait and the upload panel shows only "N files from another account" with Remove (their copies are deleted, nothing uploaded; anything already in a gallery stays). Account deletion drops that account's waiting files. Checked on the iPhone simulator: with newone1's 2 paused photos on the phone, newone2 signed in and nothing uploaded under newone2; both finished as newone1 after newone1 signed back in. Device test #265.
+Fixed in: b29b91e7 (2026-11-27); device test #265
+
+#302
+Listed: 2026-11-19
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: In the app, logging out during an upload leaves the upload list half-running. logout() in apps/mobile/context/AuthContext.tsx (about line 587) doesn't touch the upload list (apps/mobile/lib/uploadQueue.ts), which is saved on the phone and keeps going. (1) Files not started yet fail with "Authorization required." (about line 606) after 3 tries each. (2) A photo already being sent reaches storage, but saving it to the gallery is skipped without a message (flushMetadataBatchesInternal returns when there is no login, about line 878), so it stays on "saving" and isn't in the gallery until someone logs in and another upload finishes or the app restarts. (3) A video of 20 MB or more already being sent keeps going to the end (chunkUpload.ts sends an empty login, which /upload/chunk/part-url and /upload/chunk/complete accept, #300) and is saved as "anonymous". There is no warning before logout. Fix idea: on logout, ask "X photos haven't uploaded yet. Log out anyway? They'll carry on when you log back in.", then pause the list (stop the file in flight like cancelUploadItem does, and start nothing new until a login), instead of letting files fail or finish as "anonymous". See #303 for whose files resume.
+How to reproduce: Staging app, host view of a gallery, pick 20 photos and a video over 20 MB. While the upload status still shows progress, go to Profile > Sign Out. Today: no warning; photos not started turn failed, one photo stays on "saving", and the video appears in the gallery with "Anonymous" as the uploader.
+Note 2026-11-27 (Shwetank with Claude): fixed together with #303. Sign-out now asks first when files are still uploading ("N photos haven't finished uploading. If you sign out, they pause..."), then pauses the list: a photo being sent stops at once, a video after its current 10 MB part, nothing fails, nothing is saved without a login, and chunked videos can no longer send an empty login. Files waiting for their save are saved at the next sign-in of the same account. Checked on the iPhone simulator (newone1, 10 photos to Haldi): 8 saved before sign-out, 2 paused, both finished after signing back in. Device test #265.
+Fixed in: b29b91e7 (2026-11-27); device test #265
+
 #32
 Listed: 2026-10-11
 Platform: Website
