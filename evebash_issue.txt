@@ -57,19 +57,6 @@ Update 2026-11-27: 18+ confirmation built (decided: everyone confirms once). New
 Update 2026-11-27: device test #264 PASS (Android iQOO with a local staging build, iPhone simulator): popup once with the 18+ box, Sign Up box, old code not stuck. Staging app update a5f0c635 (Android) / 9ff2569b (iOS) carries it. Still open: the Ossciv entity block and Grievance Officer at incorporation.
 Update 2026-11-27: migration 20261127120000_policy_acceptance_18_plus.sql applied on the LIVE database (Shwetank's OK), after a rolled-back test there. Live website and apps keep using the old check until the release, with no change for users; the 18+ box goes live with the next release PR (staging -> main). Still open: the Ossciv entity block and Grievance Officer at incorporation.
 
-#32
-Listed: 2026-10-11
-Platform: Website
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: Real sample galleries (Sarthak)
-Found in: Website UI re-check (2026-10-11)
-Issue: Sample galleries still show test data: one sample ("Wedding") whose albums are named "Rec 1", "REc 10", "Rec 2"..., listed in text order (Rec 10 before Rec 2, localeCompare without numeric in src/lib/database.ts getSubEvents), and the "Rec 5" cover image is broken.
-How to reproduce: Open /sample-galleries/wedding-fdd8 and look at the album cards.
-Note 2026-10-28: On staging there are now no sample galleries at all: /sample-galleries says "No sample galleries are available yet." and /sample-galleries/wedding-fdd8 shows the 404 page (Claude test run, tests #12 and #53 blocked).
-Note 2026-11-16 (client demo check): live has NO sample galleries either (read-only query: 0 events with is_sample_gallery), while the live home page and /pricing link to /sample-galleries, which then shows "No sample galleries are available yet." The album order part is already fixed in code (getSubEvents sorts with numeric: true). Plan for the demo: Shwetank builds a polished demo event on live and marks it as a sample gallery in the analytics dashboard (Live > Galleries > sample toggle), so the home page link shows it.
-
 #48
 Listed: 2026-10-12
 Platform: App
@@ -1100,6 +1087,21 @@ How to reproduce: On live, logged in with any account, POST https://api.evebash.
 Note 2026-11-25 (added with Sarthak): (a) Order: nothing can be done before the staging to main release; the app update comes after it, because a production update ships every app change made on staging since the live build (it is an app release), and the live app and live server must match. (b) Right after the release, check: live POST /api/v1/media/get-upload-url (logged in) returns putUrl as well as uploadUrl, and a live website upload goes as a signed PUT and is saved. (c) Production update recipe (like the staging one in #318, memory evebash-ota-publish): clean worktree + cloned node_modules, eas.json build.production.env exported (APP_VARIANT=production, EXPO_PUBLIC_API_BASE_URL=https://api.evebash.com), eas fingerprint:compare against the latest production builds with --environment production, then eas update --channel production --environment production. EAS production holds the live iPhone Google client, which is right for live. (d) If the fingerprint doesn't match a live store build, those phones can't get an update: a new store build is needed (Play and App Store review time); phones on older builds never get updates (like the Pixel's 2026-11-19 staging build). The fingerprint check is read-only and can be run before release day to plan this. (e) Switching UPLOAD_LEGACY_B2_TOKEN off breaks small uploads (photos and videos under 20 MB) on live app builds without the update, so do it only after most users have the update or a forced update is out. (f) The same release takes the other 2026-11-25 fixes live (#300, #319, #320, #321, #322, #324, #326); all their switches are on unless set to "false", so nothing needs setting on live first.
 
 RECENTLY FIXED (delete entries older than 7 days)
+#32
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: Sample galleries still show test data: one sample ("Wedding") whose albums are named "Rec 1", "REc 10", "Rec 2"..., listed in text order (Rec 10 before Rec 2, localeCompare without numeric in src/lib/database.ts getSubEvents), and the "Rec 5" cover image is broken.
+How to reproduce: Open /sample-galleries/wedding-fdd8 and look at the album cards.
+Note 2026-10-28: On staging there are now no sample galleries at all: /sample-galleries says "No sample galleries are available yet." and /sample-galleries/wedding-fdd8 shows the 404 page (Claude test run, tests #12 and #53 blocked).
+Note 2026-11-16 (client demo check): live has NO sample galleries either (read-only query: 0 events with is_sample_gallery), while the live home page and /pricing link to /sample-galleries, which then shows "No sample galleries are available yet." The album order part is already fixed in code (getSubEvents sorts with numeric: true). Plan for the demo: Shwetank builds a polished demo event on live and marks it as a sample gallery in the analytics dashboard (Live > Galleries > sample toggle), so the home page link shows it.
+Note 2026-11-27: checked on live (read-only query and the live website): one sample gallery, "Demo Wedding" (demo-wedding-e493), with albums Ceremony (7 photos), Haldi (18), Reception (8) and Wedding (17). No test names left, all album covers load, the album opens with its photos. Order is by name (Ceremony, Haldi, Reception, Wedding). Left as small polish, not part of this issue: all four album covers are the same photo; the albums are in name order, not the order of the day; the Demo Wedding home itself has no photos of its own; staging has no sample gallery (so tests on staging still can't use one).
+Fixed in: 780ee6ae (2026-10-11, number-aware album order) and the Demo Wedding sample gallery Shwetank set up on live (2026-11-16); confirmed 2026-11-27
+
 #58
 Listed: 2026-10-12
 Platform: Both
