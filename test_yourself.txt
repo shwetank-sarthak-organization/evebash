@@ -8165,7 +8165,7 @@ Fix ref:
 Feedback:         PASS on Android, photos only; also passed on the iPhone simulator earlier. (1) Warning shown: "6 photos haven't finished uploading. If you sign out, they pause and carry on when you sign back in with this account." (2) After Sign Out nothing failed and nothing was saved for 30 s, none as anonymous. (3) newone2 signed in: nothing uploaded under newone2; the upload button said "6 files from another account. They'll upload when that account signs in on this phone." (4) newone1 signed back in: the 6 carried on by themselves and finished as newone1 (about 7 minutes on mobile data). (5) Another round with 3 photos: on newone2, Remove asked "Remove 3 files? ... won't be uploaded. Anything already in a gallery stays there.", the note went away, and newone1 later had nothing waiting and nothing new in the gallery. Not checked: a video over 20 MB (Add Photos only picks photos; videos go through the separate video upload), a real iPhone. Test photos and the phone's test folder were deleted afterwards.
 
 #266 Website: logging out during an upload asks first and stops the rest (issue #301)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website (staging)
 Jira:      EB-450
@@ -8185,11 +8185,11 @@ How to test:
   3. Click Cancel. Expect: still logged in, the upload carries on.
   4. Click Logout again and OK. Expect: the login page; the panel shows the rest as Cancelled; in the gallery (log in
      again) only the photos that finished before are there, under your name, none "Anonymous".
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Claude for Shwetank (Shwetank typed the password), in the browser inside the Claude app
+Device / browser: Mac, the Claude app's built-in browser (Chromium), window 1280 x 900
+Build / version:  staging.evebash.com with fix 8e1e3d6b (checked: the deployed page contains the new question text)
+Date tested:      2026-11-27
+Account used:     newone1; Riya & Arjun's Wedding > Haldi
+Screenshot / recording: none kept
 Fix ref:
-Feedback:
+Feedback:         PASS. With 26 test photos uploading, a real click on Profile > Sign Out showed the real question: "23 photos are still uploading. If you log out now, they stop and won't be uploaded. Log out?" This browser answers such boxes with Cancel by itself: newone1 stayed logged in and the upload carried on, as it should. OK could not be clicked there; the OK path (logs out, the rest show Cancelled, nothing saved afterwards, none anonymous) was checked on the local website earlier the same day. Also seen: when every file had already finished, Sign Out logged out at once without asking (correct). Note: on desktop width the navbar's Logout sits in a hidden menu; the visible one is Sign Out on the Profile page. Side effect fixed: the test photos made the first upload Haldi's cover (the site does that when an album has no cover); after deleting the 51 test photos the cover was set back to none.
