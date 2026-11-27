@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 264
+Next test number: 265
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -7966,6 +7966,36 @@ How to test:
   4. Sign in, press Home, open the app again. Expect: same screen as before, data refreshes as before.
   5. On a real iPhone build: tap an event share link (staging.evebash.com/...) in Notes or Messages.
      Expect: the event opens in the app.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#264 App: everyone confirms 18+ once, old app builds keep working (issue #25)
+Status:    TODO
+Priority:  High
+Platform:  App (EveBash Staging on Android and iPhone)
+Jira:      (new ticket, see below)
+Brief:     The terms box now says "I confirm I am 18 or older, agree to the Terms & Conditions and acknowledge the
+           Privacy Policy." (policy version 2026-11-27.1). Everyone sees it once: at sign-up, or in the "Before you
+           continue" popup after signing in. App builds without this change keep the old box and must not get stuck.
+Detail:    Change in shared/legal/acceptance.ts, apps/mobile/app/login.tsx, apps/mobile/components/PolicyAcceptanceGate.tsx
+           and supabase/migrations/20261127120000_policy_acceptance_18_plus.sql (applied on staging 2026-11-27). JS
+           only: reaches the staging app with the next staging over-the-air update (close and reopen the app twice).
+           Website checked by Claude on 2026-11-27 (local website on staging, newone2): sign-up box shows the 18+ text;
+           the popup appeared once, Accept saved version 2026-11-27.1 with the 18+ text, then the Dashboard opened.
+How to test (do it on Android and on iPhone separately):
+  1. Before the update loads (old app): open the app signed in. Expect: no popup and no "update the app" error.
+  2. After the update has loaded, open the app with an account that hasn't ticked the 18+ box yet (not newone2: it
+     already did on the website). Expect: "Before you continue" with the 18+ box; Accept and continue is greyed
+     out until it is ticked; after Accept the app opens normally and the popup doesn't come back after a restart.
+  3. Sign out, tap Sign Up. Expect: the box under the form says "I confirm I am 18 or older, ..." and Sign Up
+     stays disabled until it is ticked.
+  4. Sign in on the website with an account that ticked the box in the app. Expect: no popup.
 Done by:
 Device / browser:
 Build / version:

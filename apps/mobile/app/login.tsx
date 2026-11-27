@@ -109,7 +109,7 @@ export default function LoginScreen() {
       return;
     }
     if (isSignUp) {
-      if (!policiesAccepted) { setError('Please accept the Terms and acknowledge the Privacy Policy.'); return; }
+      if (!policiesAccepted) { setError('Please confirm you are 18 or older and accept the Terms and Privacy Policy.'); return; }
       if (!isPassValid) {
         setError('Please meet all password requirements.');
         return;
@@ -422,7 +422,7 @@ export default function LoginScreen() {
               {/* Submit */}
               {isSignUp && <View style={{ marginVertical: 16, gap: 12 }}>
                 <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{ checked: policiesAccepted }} onPress={() => setPoliciesAccepted(!policiesAccepted)} style={{ flexDirection: 'row', gap: 10 }}>
-                  <Text style={{ color: LINK, fontSize: 22 }}>{policiesAccepted ? '☑' : '☐'}</Text><Text style={{ flex: 1, color: '#334155', lineHeight: 22 }}>I agree to the Terms &amp; Conditions and acknowledge the Privacy Policy.</Text>
+                  <Text style={{ color: LINK, fontSize: 22 }}>{policiesAccepted ? '☑' : '☐'}</Text><Text style={{ flex: 1, color: '#334155', lineHeight: 22 }}>I confirm I am 18 or older, agree to the Terms &amp; Conditions and acknowledge the Privacy Policy.</Text>
                 </TouchableOpacity>
                 <View style={{ flexDirection: 'row', gap: 20 }}><TouchableOpacity accessibilityRole="link" onPress={() => router.push('/terms-and-conditions')}><Text style={{ color: LINK, textDecorationLine: 'underline' }}>Terms &amp; Conditions</Text></TouchableOpacity><TouchableOpacity accessibilityRole="link" onPress={() => router.push('/privacy-policy')}><Text style={{ color: LINK, textDecorationLine: 'underline' }}>Privacy Policy</Text></TouchableOpacity></View>
               </View>}

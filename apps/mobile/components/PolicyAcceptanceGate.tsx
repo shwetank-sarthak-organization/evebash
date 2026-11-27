@@ -27,7 +27,7 @@ export function PolicyAcceptanceGate({ userId, onSignOut, children }: { userId?:
     void (async () => {
       cachedAccepted = (await AsyncStorage.getItem(acceptedCacheKey(userId)).catch(() => null)) === POLICY_VERSION;
       if (active) { if (cachedAccepted) setAcceptedUser(userId); setCacheChecked(true); }
-      const { data, error } = await supabase.rpc('get_policy_acceptance');
+      const { data, error } = await supabase.rpc('get_current_policy_acceptance');
       if (error) throw error;
       if (data?.version !== POLICY_VERSION || typeof data?.accepted !== 'boolean') {
         // Policies changed on the server: the local record no longer counts, block as before
@@ -45,7 +45,7 @@ export function PolicyAcceptanceGate({ userId, onSignOut, children }: { userId?:
       const email = sessionData.session?.user.email;
       const intent = await AsyncStorage.getItem(POLICY_PENDING_KEY).catch(() => null);
       if (email && sessionData.session?.user.id === userId && matchesAcceptanceIntent(intent, email)) {
-        const { error: saveError } = await supabase.rpc('accept_current_policies', { p_version: POLICY_VERSION, p_platform: platform, p_accepted: true });
+        const { error: saveError } = await supabase.rpc('accept_policies', { p_version: POLICY_VERSION, p_platform: platform, p_accepted: true });
         if (saveError) throw saveError;
         await AsyncStorage.removeItem(POLICY_PENDING_KEY).catch(() => undefined);
         void rememberAccepted(userId);
@@ -61,7 +61,7 @@ export function PolicyAcceptanceGate({ userId, onSignOut, children }: { userId?:
     if (!checked || busy || !ready || !userId) return;
     setBusy(true); setError('');
     try {
-      const { error } = await supabase.rpc('accept_current_policies', { p_version: POLICY_VERSION, p_platform: platform, p_accepted: true });
+      const { error } = await supabase.rpc('accept_policies', { p_version: POLICY_VERSION, p_platform: platform, p_accepted: true });
       if (error) throw error;
       void rememberAccepted(userId);
       setAcceptedUser(userId);
@@ -76,7 +76,7 @@ export function PolicyAcceptanceGate({ userId, onSignOut, children }: { userId?:
       <View style={{ gap: 16 }}>
         <Pressable accessibilityRole="link" onPress={() => open('terms-and-conditions')}><Text style={{ color: '#CA9C68', textDecorationLine: 'underline' }}>Read Terms &amp; Conditions</Text></Pressable>
         <Pressable accessibilityRole="link" onPress={() => open('privacy-policy')}><Text style={{ color: '#CA9C68', textDecorationLine: 'underline' }}>Read Privacy Policy</Text></Pressable>
-        {ready ? <Pressable accessibilityRole="checkbox" accessibilityState={{ checked, disabled: busy }} disabled={busy} onPress={() => setChecked(!checked)} style={{ flexDirection: 'row', gap: 12, paddingVertical: 16 }}><Text style={{ color: '#CA9C68', fontSize: 24 }}>{checked ? '☑' : '☐'}</Text><Text style={{ flex: 1, color: '#fff', lineHeight: 24 }}>I agree to the Terms &amp; Conditions and acknowledge the Privacy Policy.</Text></Pressable> : !error && <Text accessibilityRole="text" style={{ color: '#fff' }}>Checking policy acceptance…</Text>}
+        {ready ? <Pressable accessibilityRole="checkbox" accessibilityState={{ checked, disabled: busy }} disabled={busy} onPress={() => setChecked(!checked)} style={{ flexDirection: 'row', gap: 12, paddingVertical: 16 }}><Text style={{ color: '#CA9C68', fontSize: 24 }}>{checked ? '☑' : '☐'}</Text><Text style={{ flex: 1, color: '#fff', lineHeight: 24 }}>I confirm I am 18 or older, agree to the Terms &amp; Conditions and acknowledge the Privacy Policy.</Text></Pressable> : !error && <Text accessibilityRole="text" style={{ color: '#fff' }}>Checking policy acceptance…</Text>}
         {!!error && <Text accessibilityRole="alert" style={{ color: '#fca5a5' }}>{error}</Text>}
         {!ready && error ? <Pressable accessibilityRole="button" onPress={() => setRetry(n => n + 1)} style={{ padding: 16 }}><Text style={{ color: '#fff' }}>Retry</Text></Pressable> : <Pressable accessibilityRole="button" disabled={!ready || !checked || busy} onPress={() => void accept()} style={{ backgroundColor: '#CA9C68', padding: 16, borderRadius: 12, opacity: !ready || !checked || busy ? 0.4 : 1 }}><Text style={{ color: '#0f172a', textAlign: 'center', fontWeight: '700' }}>{busy ? 'Saving…' : 'Accept and continue'}</Text></Pressable>}
         <Pressable accessibilityRole="button" disabled={busy} onPress={onSignOut} style={{ padding: 16 }}><Text style={{ color: '#fff', textAlign: 'center' }}>Sign out</Text></Pressable>
