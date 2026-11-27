@@ -4402,7 +4402,7 @@ Feedback:         2026-10-26 Claude, built-in browser before commit (local dev s
                   names left, menu right, title fits the photo, card text readable inside the card.
 --------------------------------------------------------------------------------
 #154 Policy popup no longer flashes on page load (website)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-362
@@ -4418,15 +4418,17 @@ How to test:
      the box and tap Accept and continue (or Sign out).
   3. With the account from step 2, open /privacy-policy. Expect: no popup on the policy pages.
 Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
-Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
-Date tested: 2026-10-28
-Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
-Screenshot / recording:
+Device / browser: Playwright Chromium (headless, local playwright-core) 1440x900, desktop; not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging 7b1ef1be)
+Date tested: 2026-11-27
+Account used: newone1@email.com (step 1); throwaway claude-t154-*@example.com (steps 2-3, deleted)
+Screenshot / recording: reports/device-tests/test-154-step1.png, -step2.png, -step3.png (local)
 Fix ref:
 Feedback: Step 1 PASS: after a fresh email login, /host -> /dashboard -> /host watched with a page observer: the "Before you continue" popup never appeared. Step 2 (new account) needs a person.
 
 --------------------------------------------------------------------------------
+           2026-11-27 Claude: Step 1 PASS: newone1 signed in; /host, /vault, a gallery (royal-emerald...c9e2), /host and a reload watched every animation frame by a dialog observer: no popup at any point. Step 2 PASS: fresh throwaway account (never accepted) got the "Before you continue" popup ~0.9 s after load; it is a modal dialog, Accept and continue is disabled until the box is ticked, Esc does not close it; after ticking and Accept it closed and stayed closed after reload. Step 3 PASS: /privacy-policy with the same unaccepted account: no popup. Gallery step reached by direct URL (no list link found). Throwaway deleted. No new issue.
+
 #155 Download works in the main gallery and in sub-galleries (website and app)
 Status:    TODO
 Priority:  High
