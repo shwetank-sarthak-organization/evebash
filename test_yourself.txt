@@ -504,7 +504,7 @@ Feedback: Website PASS for: New folder, Rename folder, Move a file into it, Make
 
 --------------------------------------------------------------------------------
 #23 EB Vault - Trash, restore and delete forever
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-260
@@ -514,15 +514,22 @@ How to test:
   3. Restore the folder: it returns with its files.
   4. Delete forever one file, then Empty Trash. Expect storage used goes down.
 Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
-Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
-Date tested: 2026-10-28
-Account used: host newone@email.com
-Screenshot / recording:
+Device / browser: Playwright Chromium (local playwright-core) 1280x900, computer; not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging ec9d6e85)
+Date tested: 2026-11-27
+Account used: host newone1@email.com (passwordless admin sign-in; accepted the Terms screen on this test account)
+Screenshot / recording: reports/device-tests/test-23-step1-trash.png, test-23-step3-restored.png, test-23-step4-confirm.png, test-23-step4-deleted.png (local only)
 Fix ref:
 Feedback: Steps 1-3 PASS: a folder and a file moved to Trash show "Deleted 28 Oct 2026 - Gone forever on 27 Nov 2026"; Restore brings the folder back with its file inside. Step 4 (Delete forever / Empty Trash) not done: Claude isn't allowed to delete data permanently. Trash now holds only Claude's test files (claude-test-folder-renamed, claude-vault-*.txt / .jpg) - press Empty Trash to finish step 4 and clean up.
 
 --------------------------------------------------------------------------------
+  2026-11-27 Claude: PASS. Uploaded claude-t23-file.bin (2.86 MB), claude-t23-del.bin (3.81 MB) and a folder claude-t23-folder with two files (2.86 + 1.91 MB) through "Upload folder"; Vault went 1.46 -> 12.9 MB (total 985.67 -> 997.12 MB).
+  Step 1 PASS: folder + file (+ del.bin) moved to Trash; each shows "Deleted 27 Nov 2026 - Gone forever on 27 Dec 2026" with Restore and Delete forever.
+  Step 2 PASS: storage unchanged after moving to Trash (997.12 MB, Vault 12.9 MB); the Trash page says items still count toward storage.
+  Step 3 PASS: Restore on the folder brought it back in My Files with both files inside (2.86 MB and 1.91 MB).
+  Step 4 PASS with a note: Delete forever on claude-t23-del.bin asked "will be permanently deleted. This can't be undone", then storage fell 997.17 -> 993.35 MB (Vault 12.9 -> 9.09 MB, -3.81 MB). Empty Trash was NOT pressed: the Trash also held other items (images (6).jpeg, images (5).jpeg, monikas_wunderwelt-leaf-10544685.jpg), so per Sarthak's condition I used Delete forever on my own items only. The Empty Trash button itself is still untested.
+  Cleanup: trashed and deleted forever claude-t23-file.bin and claude-t23-folder (its files went with it); Vault is back to 1.46 MB. The 3 other Trash items were left alone; Claude's 2026-10-28 test files were no longer in Trash.
+
 #24 EB Vault - privacy and storage limits
 Status:    TODO
 Priority:  High
