@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 332
+Next issue number: 333
 
 =====================================================================
 ACTIVE ISSUES
@@ -1063,6 +1063,17 @@ Found in: Closing #318 on staging, chat with Sarthak (with Claude), 2026-11-25
 Issue: #318 (upload links that work for any file name in the whole storage bucket) is closed on staging only. Live still has it: the live backend (organization/main) hands out Backblaze's any-file uploadUrl + authorizationToken from /get-upload-url and /mobile/get-upload-url, so any logged-in account can add or replace any file in the live bucket, customers' gallery photos included. The fix is in code (78b1a20e) and reaches live with the next release, but the release alone does not close the hole: UPLOAD_LEGACY_B2_TOKEN defaults to on, and live app users still run code that only knows the any-file link (the 2026-11-25 over-the-air update went to the staging channel only). Steps: (1) release staging to main (live backend and website then also hand out the one-file putUrl; the live website uses it at once); (2) live app users get the app change: eas update on the production channel for the runtime(s) of the live store builds (check with eas fingerprint:compare and the production EAS environment, see the staging recipe in #318), or a new store build; (3) once most live users have it (or a forced update is out), set UPLOAD_LEGACY_B2_TOKEN=false on the live backend (Railway project evebash-backend-production) and check as on staging (only putUrl returned; a website and an app upload work). Rollback: set it true. Big videos (20 MB and up) use per-file part links and are not affected.
 How to reproduce: On live, logged in with any account, POST https://api.evebash.com/api/v1/media/get-upload-url with an eventId the account may upload to: the reply has uploadUrl and authorizationToken (the any-file link). Do not upload anything with it.
 Note 2026-11-25 (added with Sarthak): (a) Order: nothing can be done before the staging to main release; the app update comes after it, because a production update ships every app change made on staging since the live build (it is an app release), and the live app and live server must match. (b) Right after the release, check: live POST /api/v1/media/get-upload-url (logged in) returns putUrl as well as uploadUrl, and a live website upload goes as a signed PUT and is saved. (c) Production update recipe (like the staging one in #318, memory evebash-ota-publish): clean worktree + cloned node_modules, eas.json build.production.env exported (APP_VARIANT=production, EXPO_PUBLIC_API_BASE_URL=https://api.evebash.com), eas fingerprint:compare against the latest production builds with --environment production, then eas update --channel production --environment production. EAS production holds the live iPhone Google client, which is right for live. (d) If the fingerprint doesn't match a live store build, those phones can't get an update: a new store build is needed (Play and App Store review time); phones on older builds never get updates (like the Pixel's 2026-11-19 staging build). The fingerprint check is read-only and can be run before release day to plan this. (e) Switching UPLOAD_LEGACY_B2_TOKEN off breaks small uploads (photos and videos under 20 MB) on live app builds without the update, so do it only after most users have the update or a forced update is out. (f) The same release takes the other 2026-11-25 fixes live (#300, #319, #320, #321, #322, #324, #326); all their switches are on unless set to "false", so nothing needs setting on live first.
+
+#332
+Listed: 2026-11-27
+Platform: Website
+Priority: Low
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test #148 (Claude, 2026-11-27)
+Issue: In the Midnight Hero top bar (src/app/midnight-hero.css), a very long gallery title lets the centre column grow to 36vw. In a window 768-1100 px wide the right group (Find You + Download All) then no longer fits its column and "Download All" ends about 2 px outside the window (801.8 px in an 800 px window). Fix: cap the title at 28vw in that width range.
+How to reproduce: On a computer open a Midnight Hero gallery with a title of about 100 characters, make the window 800x600 and look at the right end of the top bar.
 
 RECENTLY FIXED (delete entries older than 7 days)
 #303

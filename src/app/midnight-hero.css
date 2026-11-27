@@ -404,7 +404,8 @@
   .midnight-nav > div { gap: 16px; }
   .midnight-nav__group { gap: 14px; }
   .midnight-nav__link { font-size: 12px; letter-spacing: .1em; }
-  .midnight-nav .midnight-nav__title { font-size: 26px; }
+  /* Between 768 and 1100 px a long title may not squeeze the links out of their columns (#332) */
+  .midnight-nav .midnight-nav__title { font-size: 26px; max-width: 28vw; }
 }
 .midnight-nav__menu-item { display: flex; width: 100%; padding: 12px 14px; text-shadow: none; }
 .midnight-nav__menu-item.midnight-nav__link--active::after { display: none; }
