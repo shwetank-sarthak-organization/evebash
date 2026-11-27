@@ -4244,7 +4244,7 @@ Feedback:         2026-10-26 Claude, built-in browser before commit (local dev s
 
 --------------------------------------------------------------------------------
 #150 Galleries with only videos open on the Videos tab
-Status:    TODO
+Status:    PASS
 Priority:  Low
 Platform:  Website (computer)
 Jira:      EB-360
@@ -4260,11 +4260,11 @@ How to test:
   4. Open an album under Collections that has only videos (or upload only a video to a test album).
      Expect: it opens on Videos. Switch back to an album with photos: it opens on Photos.
 Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
-Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
-Date tested: 2026-10-28
-Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
-Screenshot / recording:
+Device / browser: Playwright Chromium (headless) 1280x900 computer size; not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging 4679bae8)
+Date tested: 2026-11-27
+Account used: host newone1@email.com
+Screenshot / recording: reports/device-tests/test-150-*.png (local)
 Fix ref:
 Feedback:         2026-10-26 Claude, built-in browser (computer size) on staging with 5d7fe4f, host account:
           2026-10-28 Claude: Steps 1-3 PASS: wedding-2-77d4 (0 photos, 5 videos) opens on Videos; clicking Photos stays on Photos ("No photos yet"); test-face-new opens on Photos (42). Step 4 (videos-only album under Collections) not checked.
@@ -4273,6 +4273,13 @@ Feedback:         2026-10-26 Claude, built-in browser (computer size) on staging
                   Step 4 not done (no video-only album to hand).
 
 --------------------------------------------------------------------------------
+          2026-11-27 Claude: PASS, all 4 steps. wedding-2-77d4 now gives 404 on staging, so steps 1-2 ran on my own
+                  event "Claude test #150 - delete me" (main gallery with one 3 s video, no photos) as newone1.
+                  1 PASS opened on Videos (1), no "No photos yet."; 2 PASS clicking Photos selected Photos (0)
+                  and showed "No photos yet.", it stayed there; 3 PASS royal-emerald-check-... (13 photos, 1 video)
+                  opened on Photos (13); 4 PASS under Collections, album "Videos only" (1 video) opened on Videos (1),
+                  album "With photos" (1 photo) opened on Photos (1). Test event deleted afterwards.
+
 #151 New wedding theme Confetti Circle (website, computer and phone)
 Status:    PASS
 Priority:  Medium
