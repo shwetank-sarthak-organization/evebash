@@ -5215,7 +5215,7 @@ Feedback:  2026-11-27 Claude (checked in the DARK look: a fresh browser opened i
 
 --------------------------------------------------------------------------------
 #175 Dashboard in the Noir homepage look (website)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-381
@@ -5240,14 +5240,14 @@ How to test:
   5. Click "Explore all" on the Your memories card. Expect: the list page in the same look; the filter tabs, search
      and dropdowns readable; the event cards open the gallery as before.
   6. Open Host. Expect: the event cards there look the same as before this change.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:    Claude (for Sarthak)
+Device / browser: Claude local Playwright Chromium 1440x900, then 1024 and 800 px wide, dark look (browser dark mode + site theme set to dark); not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging c2b272be)
+Date tested: 2026-11-27
+Account used: newone1@email.com (host account)
+Screenshot / recording: reports/device-tests/test-175-1.png, test-175-3-800.png, test-175-4.png, test-175-5.png, test-175-6.png (local only)
 Fix ref:
-Feedback:
+Feedback:   2026-11-27 Claude: PASS, dark look, computer browser (not a real device). Step 1 OK: no blue-grey; Event Gallery panel, stat boxes and event cards are near-black (rgb 20,20,23 on 9,9,11), same as the Host page; Join Event is a gold-foil pill; the title is in gold serif letters (it reads "Event Gallery", not "Collections | name" as the brief says: wording changed later). Step 2 outdated: the stat boxes now show only the gold number next to the label (412 / 5 / 1), not "665 Photos" or "1 Event"; Photos, Videos and Events Joined all alike in gold. Step 3 OK: at 1024 and 800 px no stat is cut off (at 800 the three stats stay in a row and the cards go 2 per row); only long event names end in "..." which is by design. Step 4 OK: near-black Join Event pop-up with gold-foil JOIN WITH CODE pill and a dark Scan QR code button; closed with X without joining. Step 5 OK: Explore all opens /dashboard/events in the same look; All events / Attended / Hosted tabs, search and dropdowns readable. Step 6 OK: Host page cards look the same dark style. Also the light look was seen (cream panels, gold-foil Join Event), fine. Other sessions' "Claude test #N" events showed in the lists; ignored. The terms screen did not appear.
 
 --------------------------------------------------------------------------------
 #176 App photo viewer: likes and comments show at once, comment times, replay after a video ends
