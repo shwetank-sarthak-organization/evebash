@@ -5518,7 +5518,7 @@ Feedback:  2026-11-20 Shwetank, iQOO Android (staging app, newone1@email.com): s
 
 --------------------------------------------------------------------------------
 #182 Pricing, Contact us and EB Network in the Noir homepage look (website)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-386
@@ -5544,14 +5544,14 @@ How to test:
   5. Open EB Network. Expect: "List your business" gold-foil pill; it scrolls to the form; "Register interest" is
      a gold-foil pill.
   6. Check all three at about 800 px and phone width. Expect: nothing cut off, no sideways scrolling.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak)
+Device / browser: Playwright Chromium (desktop user agent) at 1440, 800 and 375 px, dark look; not a real device or phone
+Build / version: staging.evebash.com as of 2026-11-27 (staging ead37dc5)
+Date tested: 2026-11-27
+Account used: newone1@email.com (signed in with an admin magic link)
+Screenshot / recording: reports/device-tests/test-182-*.png (local only)
 Fix ref:
-Feedback:
+Feedback:  2026-11-27 Claude (dark look, Playwright Chromium, phone width in a computer browser, not a real phone): step 1 PASS (gold "Simple, transparent pricing" heading; "Most Popular" band and Monthly tab gold; "Choose Premium" gold-foil pill, other plans frosted pills, all 40 px high, normal case; Ultimate "Best Value" quiet gold, no orange; the Elite card keeps its pink border, as designed). Step 2 PASS (Monthly/3 months/6 months/Yearly change the prices). Step 3 PASS (signed in, Choose Premium opens "Confirm plan change - Upgrade to Premium (100 GB)"; cancelled, never went on to payment). Step 4 PASS (ADDRESS/PHONE/EMAIL/BUSINESS HOURS and form labels in small gold capitals; "Send message" gold-foil pill; form NOT submitted, optional). Step 5 PASS ("List your business" gold-foil pill scrolls to the form; "Register interest" gold-foil pill; form NOT submitted). Step 6 PASS at 800 and 375 px (no sideways scrolling, nothing cut off). No new issue.
 
 #183 Event ownership transfer
 Status:    TODO
