@@ -7407,7 +7407,7 @@ Fix ref:
 Feedback: 2026-11-20 website (Claude, staging.evebash.com/terms-and-conditions): section 10 ends with "Reporting and enforcement", two paragraphs, support@evebash.com links; Last updated shows October 23, 2026 (was October 22). Re-accept prompts are driven by POLICY_VERSION (shared/legal/acceptance.ts, unchanged), not this date. Before the live release: set lastUpdated in shared/legal/policies.json to the release date (Shwetank's call). App: the app's own Terms screen (Settings > Terms of Service) has the reporting text in section 4, checked on Android and iPhone 2026-11-20.
 
 #245 App: the sign-in screen fits on one screen on small phones (todo #26)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (iPhone and Android, separately)
 Jira:      EB-417
@@ -7422,14 +7422,14 @@ How to test:
   2. Tap the email field. Expect: the keyboard opens and the field stays visible; you can still reach Sign In.
   3. Tap Sign Up. Expect: Create Account works (it may scroll; it has more fields).
   4. A normal-size phone (your iPhone 11, the iQOO): the sign-in screen looks as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Claude with Shwetank (Shwetank signed out on the phone)
+Device / browser: iPhone SE simulator (EB iPhone SE, iOS 27.2, 375 x 667 pt); iQOO I2012 (Android 14, 1080 x 2400, about 393 x 873 dp)
+Build / version:  iPhone: EveBash Staging development build loading staging 62af39b1 from a local bundler. Android: local staging build of 7b1ef1be (fingerprint f99bf82f)
+Date tested:      2026-11-27
+Account used:     none (signed out)
+Screenshot / recording: screenshots kept on Shwetank's Mac (not in the repo)
 Fix ref:
-Feedback:
+Feedback:         PASS. (1) iPhone SE: EveBash name, Welcome Back, email, password, Forgot Password, Sign In, Google, Apple, Sign Up and the Terms line all fit without scrolling, nothing cut off. (2) Keyboard: on the iPhone SE the email field and Sign In stay above the keyboard; on the iQOO the email field stays visible, Sign In is half behind the keyboard but one swipe brings Sign In, Google and Sign Up up. (3) Create Account opens and scrolls to the 18+ box and the button (iPhone SE; Android checked in test #264). (4) The iQOO (normal size) shows the normal-size sign-in screen, everything fits. Not tried: a small Android phone, a real iPhone.
 
 #246 Website: sharing a sub-gallery shows the main event's code (todo #48)
 Status:    PASS
