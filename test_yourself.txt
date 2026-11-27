@@ -4171,7 +4171,7 @@ Feedback:         2026-10-26 Claude, built-in browser at 1440x900 on staging (9a
                   were blocked by the browser (test-data artefact). Test gallery and rows deleted.
 --------------------------------------------------------------------------------
 #149 New wedding theme Sunlit Portrait (website, computer and phone)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-359
@@ -4229,14 +4229,43 @@ How to test:
      skip this step). Expect: names readable, "We're getting married" and the date on two lines,
      the menu button white over the photo; the menu opens with the same items as Classic White; the
      gallery header is centred and nothing runs off the screen.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Claude (for Sarthak)
+Device / browser: Local Playwright Chromium (desktop UA), 1440x900 and 390x844 (phone width in a computer
+                  browser, not a real phone); not a real device
+Build / version:  staging.evebash.com as of 2026-11-27 (staging 7b1ef1be)
+Date tested:      2026-11-27
+Account used:     newone1@email.com (own test event "Asha and Raj", deleted afterwards); logged out for album check
+Screenshot / recording: reports/device-tests/test-149-*.png (local only)
 Fix ref:
-Feedback:         2026-10-26 Claude, built-in browser before commit (local dev server, every gallery
+Feedback:         2026-11-27 Claude: all steps pass (own test event + album as newone1; date, video, cover and title
+                  were set through the staging database API where noted, not the host page).
+                  1 PASS: Sunlit Portrait offered in the picker (next to Royal Emerald, Classic White, Midnight Hero,
+                  Confetti Circle); picked, saved (template saved as portrait).
+                  2 PASS: cover fills the screen; "We're getting married ♥ 15 March 2027" bottom left, big serif
+                  "Asha & Raj", round white arrow bottom right. Date passed -> "Happily married since 3 November 2025",
+                  no heart. Logged-out album cover shows the couple's names and the main event's date line, not the
+                  album name. Long title stays on one line (smaller); no date -> just "We're getting married".
+                  Date changes made by database update, not the host page.
+                  3 PASS: top bar white over the cover, soft white with dark text and dark Download All after scrolling.
+                  4 PASS: Collections lists the album and opens it; Find You opens with an off-white bar; Download All
+                  asks "Home (Primary Gallery) only" / "Entire event"; Entire event gave a ZIP with a folder per gallery.
+                  ("Home only" not tried.)
+                  5 PASS: with a highlight video: opening fills one screen under the bar, bold white Back to Gallery /
+                  Share, date, name, message and white "Highlight film" button; pressing it turned the page off-white,
+                  film plays at 1280 wide under the thin line. Without video: no full screen, Back to Gallery / Share
+                  on a thin line, name and message, Photos / Videos in serif with a dot under the chosen one;
+                  switching works. Logged out, Back to Gallery on the main gallery stayed on the page at the top
+                  (no login page).
+                  5b PASS: dark footer, links at left and right, names and "Made with EveBash" in the middle; all six
+                  links go to their pages. Same footer not checked on the album page or Find You.
+                  6 PASS: cover moved/zoomed (set in the database, not by dragging in the host page) and the big photo
+                  followed it; very long title, album and no-date checked.
+                  7 phone width 390 px (computer browser, not a real phone): names readable, "We're getting married"
+                  and the date on two lines, white menu button; menu opens with Home / Sangeet night / Find You and
+                  the account items; no sideways overflow.
+                  Notes: three photos appeared in my album that I did not upload (another session likely wrote to it);
+                  deleted with the event. Everything removed afterwards. No new bug.
+                  2026-10-26 Claude, built-in browser before commit (local dev server, every gallery
                   forced to Sunlit Portrait), public test gallery 29-sep-bqu5k: at 1280x800 steps 2-3
                   look as described and the bar turns soft white on scroll; at 375x812 (phone size
                   emulated, not a real phone) the cover and the menu look right. No console errors.
