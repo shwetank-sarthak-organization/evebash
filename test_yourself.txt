@@ -7980,7 +7980,7 @@ Fix ref:
 Feedback:
 
 #264 App: everyone confirms 18+ once, old app builds keep working (issue #25)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  App (EveBash Staging on Android and iPhone)
 Jira:      EB-445
@@ -8000,11 +8000,11 @@ How to test (do it on Android and on iPhone separately):
   3. Sign out, tap Sign Up. Expect: the box under the form says "I confirm I am 18 or older, ..." and Sign Up
      stays disabled until it is ticked.
   4. Sign in on the website with an account that ticked the box in the app. Expect: no popup.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Claude with Shwetank (Shwetank typed the passwords and ticked the boxes)
+Device / browser: Android: iQOO I2012 (Android 14), EveBash Staging. iPhone: iPhone 18 Pro simulator (iOS 27.2), EveBash Staging development build
+Build / version:  Android: local build of staging 7b1ef1be made on Shwetank's Mac with eas build --local (staging profile, same signing key; fingerprint f99bf82f, installed over the old app 2026-11-27 14:51). iPhone: development build loading staging 7b1ef1be from a local bundler. Staging update a5f0c635 (Android) / 9ff2569b (iOS) published for runtime f99bf82f / 099a9a24
+Date tested:      2026-11-27
+Account used:     newone1 (Android popup), newone3 (iPhone popup), newone2 (already accepted)
+Screenshot / recording: screenshots kept on Shwetank's Mac (not in the repo)
 Fix ref:
-Feedback:
+Feedback:         PASS on both. (1) Old code: the iQOO's previous build (a9a75698) with newone2, after the migration: Dashboard, no popup, no "update the app" error; the old-version database check also tested in a rolled-back transaction. Not tried on an old iPhone build. (2) Popup: iPhone newone3 and Android newone1 got "Before you continue" with the 18+ box, Accept and continue disabled until ticked; after Accept the app opened, and after a full restart no popup. newone3 saved 2026-11-27.1 with the 18+ text, platform ios. newone1's 2026-11-27.1 row says web: Shwetank had ticked it on the website a moment earlier (14:57), so the phone's Accept found it already saved (no error, popup closed). (3) Sign Up: both show "I confirm I am 18 or older, ..." and Create Account stays disabled until ticked. (4) newone2 (ticked on the website) got no popup in either app; newone3's website and old-app checks both answer accepted. Found on the way: after #276 (1fd3de5c, config plugin) the app's fingerprint changed, so EAS staging build a9a75698 (bb5f7021) no longer gets staging updates; and EAS has no Android builds left this month (resets 2026-12-01), hence the local build.
