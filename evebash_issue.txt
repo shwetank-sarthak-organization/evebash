@@ -90,6 +90,7 @@ Issue: profiles has no notification_preferences column (checked 2026-10-12), but
 How to reproduce: Upload a photo or video to someone else's gallery: the owner's phone gets nothing, and Railway logs show nothing. In the app, turn off Event invites in Settings, log out and in: it's on again.
 Note 2026-11-26: Checked read-only: profiles has no notification_preferences on staging (degbveyjppkuhydwxfjq) and live (sbhouirpyiyybrravvih). Code change on branch claude/epic-lederberg-c4460a (not pushed): the host upload push now reads the profile with select "*" and sits behind UPLOAD_OWNER_PUSH (off = same as today). Adding the column is still waiting for the user's OK.
 Note 2026-11-26: Column added on STAGING only (jsonb, nullable, no default; migration 20261126140000_profiles_notification_preferences.sql). Live not touched. UPLOAD_OWNER_PUSH is still unset, so host upload pushes stay off until it is turned on for staging.
+Note 2026-11-27: UPLOAD_OWNER_PUSH=true set on staging Railway (2026-11-26). Checked on Sarthak's Pixel 8 (EveBash Staging app, owner code4sarthak): newone1 (made admin for the test) uploaded one photo to Test event staging from the staging website at 07:43:08 UTC; the phone got "New photos uploaded" at 07:43:10. Cleanup done: photo deleted, newone1 back to view-only, cover restored (the website makes the first upload the cover when the cover is a stock picture). Still open: Settings switch save check in the app; column + UPLOAD_OWNER_PUSH on LIVE.
 
 #63
 Listed: 2026-10-12
