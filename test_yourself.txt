@@ -372,7 +372,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #17 Refresh during web upload
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-256
@@ -381,14 +381,25 @@ How to test:
   1. Start uploading a large video on the website, refresh the page halfway.
   2. Upload it again.
   3. Expect: no console error spam, one clean copy in the gallery.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak)
+Device / browser: Claude's Playwright Chromium, desktop 1440x900 (computer browser; not a real device)
+Build / version: staging.evebash.com as of 2026-11-27 (staging d0c91a70)
+Date tested: 2026-11-27
+Account used: newone1@email.com (own test event "Claude test #17 - delete me", deleted afterwards)
+Screenshot / recording: reports/device-tests/test-17-midupload.png, test-17-gallery.png, test-17-playing.png (local only)
 Fix ref:
-Feedback:
+Feedback:  2026-11-27 Claude: PASS.
+           Made a 301,872,178-byte 100 s 1080p MP4 with ffmpeg. Uploaded it in my own event (Galleries > Videos >
+           Add or Drop Videos). It goes in 10 MB pieces straight to Backblaze (29 pieces). Reloaded the page after 4
+           pieces were done (the browser showed the "Leave site?" box; accepted). After the reload the gallery was
+           empty (Videos (0)) and nothing was half-created. Uploaded the same file again: the page said "Resuming
+           upload: 4/29 chunks already done", sent only the other 25 pieces and finished. Console: no error spam,
+           only 2 "ERR_CONNECTION_REFUSED" lines from one Backblaze server (one per upload), each retried
+           automatically after 2 s and then worked. Database: exactly 1 video row for the event, status processed,
+           poster made, duration 100 s; the 1080p/720p stream playlist is served. Gallery shows Videos (1), one tile;
+           it plays (video 1920 wide, 100 s, time moves, no error). Deleted the event afterwards: the event and its
+           video row are gone. Not checked: the unfinished Backblaze upload left by the first try (resumed and
+           reused by the second, so none should be left).
 
 --------------------------------------------------------------------------------
 #18 Move photos between galleries
