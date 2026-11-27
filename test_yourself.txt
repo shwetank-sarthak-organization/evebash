@@ -482,7 +482,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #22 EB Vault - organise: folders, rename, move, copy, star, search, recent
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-259
@@ -493,13 +493,14 @@ How to test:
   4. Star a file: it appears under Starred. Recent shows recently changed files.
   5. Search part of a file name: it is found. Another account's files never appear.
 Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
-Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
-Date tested: 2026-10-28
-Account used: host newone@email.com
+Device / browser: Claude Playwright Chromium (desktop size); not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging ec9d6e85)
+Date tested: 2026-11-27
+Account used: throwaway claude-t22-*@example.com (deleted afterwards); outsider newone4@email.com for step 5
 Screenshot / recording:
 Fix ref:
 Feedback: Website PASS for: New folder, Rename folder, Move a file into it, Make a copy ("claude-vault-a (1).txt"), Star -> shows under Starred, Recent lists the new files, Search "vault-b" finds the file inside the folder. Not checked: moving a folder into its own subfolder, storage going up after a copy (files too small to show), another account's files.
+  2026-11-27 Claude: ALL STEPS PASS. 1) New folder, Rename (claude-t22-folder-renamed) and Move a file into it via the file menu all work. 2) In the Move picker for a folder, the folder itself is greyed out and cannot be opened, so it cannot be moved into its own subfolder (checked with a real subfolder inside it). 3) Make a copy of a 5.72 MB file (Copy to... picker, then "Copy to My Files") created "claude-t22-big (1).bin" and storage went 5.72 MB -> 11.44 MB. 4) The Star button on the file row puts it under Starred; Recent lists the new files; search "t22-a" finds the file. 5) Signed in as newone4: My Files, Recent, Starred and searches for "t22" and "claude" are all empty, storage 0 KB. Cleaned up: all test files moved to Trash and Delete forever (Trash empty, storage 0 KB); throwaway account deleted. The terms screen was accepted on the throwaway (approved by Sarthak). Desktop browser only, not a real phone.
 
 --------------------------------------------------------------------------------
 #23 EB Vault - Trash, restore and delete forever
