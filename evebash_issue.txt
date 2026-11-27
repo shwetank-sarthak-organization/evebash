@@ -1057,8 +1057,8 @@ Note 2026-11-25 (added with Sarthak): (a) Order: nothing can be done before the 
 Listed: 2026-11-27
 Platform: Website
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Testing #301 on the local website on staging (Shwetank with Claude), 2026-11-27
 Issue: On the website the sign-in load fails with "[Auth] Supabase session load failed: Error: cannot add `postgres_changes` callbacks for realtime:web-profile-<user id> after `subscribe()`" (and the same from onAuthStateChange), seen in the browser console of the local website (npm run dev) on staging as newone1, on every page load. subscribeToProfile in src/context/AuthContext.tsx (about line 241) removes the old channel without waiting (supabase.removeChannel is async) and at once asks for a channel with the same name `web-profile-<uid>`; supabase-js hands back the channel that is still subscribed, and .on() then throws. It runs from both loadSession (about line 288) and the auth listener (about line 349), so it can happen whenever both fire, not only in development (React's development mode runs effects twice, which makes it certain there). Seen at the same time: opening /host by typing the address (a full page load) ended on /dashboard, while going to Host from inside the site worked; not proven that the two are linked. Not checked: whether the deployed staging or live website shows the error. Fix idea: wait for removeChannel, or give each subscription a unique channel name, or keep one channel per user and skip resubscribing when it is the same user.
