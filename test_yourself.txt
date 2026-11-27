@@ -5283,7 +5283,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #177 Profile and Settings in the Noir homepage look (website)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-383
@@ -5308,14 +5308,21 @@ How to test:
   5. Open Settings. Expect: "Settings" in gold serif letters, gold section labels, near-black lists, "Delete
      Account" still red. Every row still opens what it did before.
   6. Make the window about 800 px, then phone-narrow (about 375 px). Expect: nothing cut off, no sideways scrolling.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak)
+Device / browser: Playwright Chromium 1440x900, 800 and 375 px with a desktop user agent (phone width in a computer browser, not a real phone); dark look; not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging 7b1ef1be)
+Date tested: 2026-11-27
+Account used: newone1@email.com (dark look set in my own browser only; nothing saved on the account)
+Screenshot / recording: reports/device-tests/test-177-*.png (local only)
 Fix ref:
 Feedback:
+  2026-11-27 Claude: all steps pass in the dark look.
+  1 PASS: Profile cards near-black, Edit Profile gold-foil pill, Settings frosted pill, plan badge green (now reads "10 GB PLAN", not "STANDARD PLAN": wording only), name off-white, section labels small gold capitals. First card starts at 128 px (just under the 80 px nav + 48 px) at 1440 wide; I did not measure Host pixel for pixel.
+  2 PASS: VERIFIED green, NEEDS ENTRY amber, Sign Out red.
+  3 PASS: Plans: Extend Plan gold foil, Change Plan frosted, Upgrade gold foil, Select Tier frosted, current plan row (Starter, ACTIVE) highlighted.
+  4 PASS: Edit Profile pop-up dark, fields readable; closed with Cancel, nothing saved.
+  5 PASS: Settings heading gold Playfair serif, gold section labels, near-black lists, Delete Account red. Rows opened (not confirmed): Change Password, Withdraw Find You Consent, Delete Account pop-ups; Report a Bug -> /contact-us; About -> /; Terms -> /terms-and-conditions; Privacy -> /privacy-policy; Contact Support stays on page (mail link). Nothing changed or deleted.
+  6 PASS: 800 px and 375 px, Profile and Settings: no sideways scrolling (page width = window width), nothing cut off.
 
 --------------------------------------------------------------------------------
 #178 Big galleries: photos load only near the screen (app, issue #185)
