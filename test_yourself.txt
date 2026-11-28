@@ -2421,7 +2421,7 @@ Fix ref:
 Feedback: Partly: the upload panel shows an X on each file and Cancel all. Cancelling and minimizing not tried.
 
 #94 Uploads and the upload panel stay when you go to another page
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website (desktop browser)
 Jira:      EB-324
@@ -2439,13 +2439,14 @@ How to test:
   7. Repeat step 1-2, but while uploading open a different gallery on the host page: uploads still finish
      and the panel shows "Indexing..." / Done for the first gallery's files.
 Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
-Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
-Date tested: 2026-10-28
-Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
-Screenshot / recording:
+Device / browser: Playwright Chromium 1440x900 (uploads slowed with an 8-25 s delay on each Backblaze PUT so they last long enough to test); not a real device
+Build / version: staging.evebash.com as of 2026-11-28 (staging 2aa5fb6e)
+Date tested: 2026-11-28
+Account used: host newone1@email.com (own event "Claude test #94 - delete me", deleted afterwards)
+Screenshot / recording: reports/device-tests/test-94-step1.png, -step2.png, -step3.png, -step5.png, -step7c.png (local only)
 Fix ref:
 Feedback: Computer: while 3 photos were processing I clicked Dashboard; the panel stayed and finished there ("100% complete - 3 files ready"). Other steps not checked.
+          2026-11-28 Claude (own event as newone1, Primary Gallery + sub-gallery "Second"; 20 JPEGs + 1 video of 60 MB; slowed uploads): Step 1 PASS: the panel lists the video and 20 photos ("Uploading 21 of 21 files..."), the rest show Queued while 3 upload at a time. Step 2 PASS: clicking Dashboard in the navbar keeps the panel bottom-right and the count goes down (21 -> 16 -> 13 of 21) until it finishes there. Step 3 PASS: X on the uploading video and on a Queued photo (r10.jpg) both show "Cancelled". Step 4 PASS: refresh while uploading gives the browser "Leave site?" question (beforeunload); pressing Cancel keeps the page, the panel and the uploads. Step 5 PASS: back on Host, same gallery, the panel is still there and ends "19 ready - 0 failed - 2 cancelled"; the gallery went from Photos 38 to 57 (20 minus the cancelled one) and Videos stayed 1 (the cancelled video was not added); after refresh the same. The video of an earlier batch reached "100% - Ready" and is in Videos. Step 6 PASS: refresh with nothing uploading shows no question. Step 7 PASS: with 20 photos + 1 video uploading I opened sub-gallery "Second" on the host page; the panel stayed, the files showed Indexing... then "100% complete - 21 files ready"; Primary Gallery then had Photos 77, Videos 2. Test event deleted afterwards (event and its uploads gone).
 
 #95 Host gallery: one Filter button holds Source gallery, Uploaded by and Select
 Status:    PASS
