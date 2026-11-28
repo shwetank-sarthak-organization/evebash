@@ -8334,7 +8334,7 @@ Fix ref:
 Feedback:         PASS. With 26 test photos uploading, a real click on Profile > Sign Out showed the real question: "23 photos are still uploading. If you log out now, they stop and won't be uploaded. Log out?" This browser answers such boxes with Cancel by itself: newone1 stayed logged in and the upload carried on, as it should. OK could not be clicked there; the OK path (logs out, the rest show Cancelled, nothing saved afterwards, none anonymous) was checked on the local website earlier the same day. Also seen: when every file had already finished, Sign Out logged out at once without asking (correct). Note: on desktop width the navbar's Logout sits in a hidden menu; the visible one is Sign Out on the Profile page. Side effect fixed: the test photos made the first upload Haldi's cover (the site does that when an album has no cover); after deleting the 51 test photos the cover was set back to none.
 
 #267 App: sign-in, links and uploads still work after the Expo package update (issues #312, #310)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  iOS (real iPhone, new staging build)
 Jira:      EB-454
@@ -8354,14 +8354,14 @@ How to test:
   5. Host > one of your events > a gallery > Add Photos, pick 2-3 photos, tap Upload. Expect: "photos uploaded",
      and the photos show in the gallery. Delete them afterwards.
   6. Close the app fully and open it again. Expect: still signed in.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Shwetank (with Claude checking the staging server)
+Device / browser: Shwetank's iPhone ("shwetank-iphone"), iOS 26 (from the app's network signature, Darwin 25.6)
+Build / version:  EAS iOS staging build 2327a938 (from staging 497ce529, runtime 26783e8b; includes #311), with the 2026-11-28 staging updates
+Date tested:      2026-11-28
+Account used:     newone1 (host)
+Screenshot / recording: none kept
 Fix ref:
-Feedback:
+Feedback:         PASS. Installed over the old staging app: still signed in (server: session active 17:04). Dashboard, Host, EB Network and Profile all opened, no crash. evebash-staging://events/staging-test-1-fc5b from Safari opened the Staging test 1 page. Uploaded 3 photos to Staging test 1 - Sub Gallery: all 3 saved and processed on staging at 17:05 (IMG_2720, IMG_2697, IMG_2719), cover unchanged. Closed fully and reopened: still signed in.
 
 #268 App: the sign-in is kept in the phone's secure storage (issue #311)
 Status:    TODO
