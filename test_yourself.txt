@@ -2393,7 +2393,7 @@ Fix ref:
 Feedback:
 
 #93 Upload panel: cancel one file, and click the header to minimize
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website (desktop browser)
 Jira:      EB-323
@@ -2412,14 +2412,24 @@ How to test:
   7. Clicking Clear, Cancel all uploads or the close X does its own job and doesn't minimize the panel.
   8. Keyboard: Tab to the header, press Enter: it minimizes / expands.
 Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
-Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
-Date tested: 2026-10-28
-Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
-Screenshot / recording:
+Device / browser: Playwright Chromium 147 (headless) 1280x900, own browser; not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging 42c291c2)
+Date tested: 2026-11-27
+Account used: host newone1@email.com, own event "Claude test #93 - delete me" (deleted afterwards)
+Screenshot / recording: reports/device-tests/test-93-step*.png (local only)
 Fix ref:
-Feedback: Partly: the upload panel shows an X on each file and Cancel all. Cancelling and minimizing not tried.
-
+Feedback: 2026-11-27 Claude (computer browser, no phone): all 8 steps passed. 20 JPEGs (7.5 MB each) + one 100 MB video uploaded with Playwright.
+  Step 1 OK: panel "Uploading 21 of 21 files..." with Cancel all, an X on each row. Max about 3 photos upload at once, the rest read "Queued...".
+  Step 2 OK: X on q1.jpg at 16% -> it read "Cancelled" within 1.5 s (too quick to see "Cancelling..." on a photo); the others went on and finished "Done".
+  Step 3 OK: X on q20.jpg while "Queued..." -> "Cancelled" straight away, never uploaded.
+  Step 4 OK: X on the 100 MB video at 47% (Videos tab "Add More Videos") -> "Cancelling..." then "Cancelled" after about 1 s; Videos tab stayed empty after a refresh.
+  Step 5 OK: header "18 ready · 0 failed · 3 cancelled"; gallery went from Photos (19) to Photos (37) = 18 new, none of the 3 cancelled files.
+  Step 6 OK: click on the header text collapses the list (thin blue progress bar stays at the bottom while uploading), second click expands. No chevron button.
+  Step 7 OK: Cancel all cancelled all 12 files and the list stayed open; Clear emptied/removed the panel; close X (when done) closed the panel. None of them minimized it. Close X looked greyed out while uploading and did nothing then.
+  Step 8 OK: Tab reached the header (role=button, tabindex 0) after the page controls; Enter collapsed, Enter again expanded.
+  Extra, not in the steps: pressing X on a photo that has already been uploaded (Indexing...) shows a browser confirm "Cancel "p8.jpg"? It has already been uploaded, so it will be deleted." (I pressed OK). The test text doesn't mention it; may be worth adding to step 2.
+  Extra: the first run of the video went through the "Cinematic Highlight Video" Upload box (top of the gallery), not the Videos tab; videos there block the photo queue until the video upload itself finishes.
+  Cleanup: test event deleted (Success), no test file left on the account.
 #94 Uploads and the upload panel stay when you go to another page
 Status:    PASS
 Priority:  High
