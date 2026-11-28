@@ -185,6 +185,16 @@ function EventPageContent() {
 
         const eventIds = Array.from(new Set([event.id, ...subEvents.map(s => s.id)].filter(Boolean)));
         const subscriptionSeed = Date.now();
+        // New photos reload the grid once, 1.5 s after the last one (todo #40): a big upload sends one insert per photo,
+        // and reloading for each would hit the database once per photo for every guest watching
+        let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+        const reloadSoon = () => {
+            if (reloadTimer) clearTimeout(reloadTimer);
+            reloadTimer = setTimeout(() => {
+                reloadTimer = null;
+                loadGalleryPhotos(activeGallery || event, 0, false);
+            }, 1500);
+        };
         const channels = eventIds.map((id, index) => {
             return supabase
                 .channel(`rt-photos-event-${id}-${subscriptionSeed}-${index}`)
@@ -192,10 +202,8 @@ function EventPageContent() {
                     'postgres_changes',
                     { event: '*', schema: 'public', table: 'photos', filter: `event_id=eq.${id}` },
                     (payload) => {
-                        console.log(`[Realtime] Received DB change on photos table for event ${id}:`, payload);
-                        
                         if (payload.eventType === 'INSERT') {
-                            loadGalleryPhotos(activeGallery || event, 0, false);
+                            reloadSoon();
                         } else if (payload.eventType === 'UPDATE') {
                             setPhotos(prev => prev.map(p => {
                                 if (p.id === payload.new.id) {
@@ -218,6 +226,7 @@ function EventPageContent() {
         });
 
         return () => {
+            if (reloadTimer) clearTimeout(reloadTimer);
             channels.forEach(ch => supabase.removeChannel(ch));
         };
     }, [event?.id, subEvents, activeGallery, canUseRealtime]);

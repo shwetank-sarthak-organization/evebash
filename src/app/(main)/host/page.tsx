@@ -1777,9 +1777,10 @@ function DashboardContent() {
             .channel(`host-photos-event-${selectedEventId}-${Math.random().toString(36).slice(2, 8)}`)
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'photos' },
+                // Only this gallery's photos (todo #40): without the filter every change on every event the host can
+                // see arrived here. Deletions aren't sent by Realtime (the publication sends inserts and updates only).
+                { event: '*', schema: 'public', table: 'photos', filter: `event_id=eq.${selectedEventId}` },
                 (payload) => {
-                    console.log(`[Dashboard Realtime] Received DB change:`, payload);
 
                     if (payload.eventType === 'INSERT') {
                         // For INSERT events, event_id is always present in the payload
