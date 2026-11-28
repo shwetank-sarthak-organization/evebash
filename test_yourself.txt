@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 268
+Next test number: 269
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -8324,6 +8324,33 @@ How to test:
   5. Host > one of your events > a gallery > Add Photos, pick 2-3 photos, tap Upload. Expect: "photos uploaded",
      and the photos show in the gallery. Delete them afterwards.
   6. Close the app fully and open it again. Expect: still signed in.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#268 App: the sign-in is kept in the phone's secure storage (issue #311)
+Status:    TODO
+Priority:  Medium
+Platform:  iOS (real iPhone, new staging build)
+Jira:      EB-455
+Brief:     The app now keeps the sign-in in the iPhone Keychain / Android Keystore instead of normal app storage.
+           People signed in before the update must stay signed in.
+Detail:    Fix 78f2cf4b (staging). Checked by Claude, 2026-11-28, newone1, on local staging builds: Android (Shwetank's
+           iQOO) and iPhone simulator - stayed signed in after installing over the old build and after a restart;
+           sign-out stays signed out after a restart; a fresh sign-in is kept after a restart - PASS. Not yet on a
+           real iPhone. Needs a staging build made from 78f2cf4b or later (new native package).
+How to test:
+  1. On a real iPhone that is signed in to the old staging app, install the new staging build over it (don't
+     delete the old app first).
+  2. Open it. Expect: still signed in, the Dashboard loads.
+  3. Close the app fully (swipe it away) and open it again. Expect: still signed in.
+  4. Profile > Sign Out > Sign Out. Close the app fully and open it again. Expect: the sign-in screen.
+  5. Sign in again, close the app fully, open it again. Expect: still signed in.
 Done by:
 Device / browser:
 Build / version:

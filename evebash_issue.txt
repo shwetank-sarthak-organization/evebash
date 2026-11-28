@@ -979,18 +979,6 @@ Found in: Quick security check (chat with Claude, 2026-11-22)
 Issue: Photo and video links on media.evebash.com need no login and never expire, also for private galleries. The Cloudflare worker (cloudflare-worker/evebash-media-worker/worker.js) serves any file whose address it is given. The addresses contain long random parts (UUIDs), so they can't be guessed, but a forwarded or leaked link works forever, even after the guest loses access. Many photo sites work this way; this needs a decision, not a quick fix. Options: keep as is; or give private galleries short-lived signed links (the worker checks a signature and an expiry time), which affects caching and costs.
 How to reproduce: Open a photo from a private gallery, copy its address, open it in a logged-out browser: it loads.
 
-#311
-Listed: 2026-11-22
-Platform: App
-Priority: Low
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Quick security check (chat with Claude, 2026-11-22)
-Issue: App login session is kept in normal app storage (AsyncStorage in apps/mobile/lib/supabase.ts), not the phone's secure storage (iPhone Keychain / Android Keystore). Phones protect app storage well, so the risk is mainly on hacked (jailbroken or rooted) phones, or with #310 backups. Fix: store the Supabase session with expo-secure-store (large sessions may need splitting or an encrypted wrapper), then test sign-in, staying signed in after a restart and sign-out on iPhone and Android.
-How to reproduce: Read apps/mobile/lib/supabase.ts (storage: AsyncStorage).
-Note 2026-11-28 (Shwetank with Claude): fixed in code, not on staging yet (staging is on hold until Sarthak's release is merged). New apps/mobile/lib/secureSessionStorage.ts: supabase-js keeps the sign-in in expo-secure-store (~55.0.18, new package; its optional config plugin not added: no Face ID use, Android backup already off by #310), saved in 1800-character parts, AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY; a sign-in saved before moves across on first read (old AsyncStorage copy deleted); falls back to AsyncStorage if secure storage fails. The web build is unchanged. Checked with local staging builds as newone1: Android (Shwetank's iQOO) and iPhone simulator (iPhone 18 Pro, iOS 27.2) - stayed signed in after installing over the old build, after a restart, sign-out stayed signed out after a restart, a fresh sign-in stayed after a restart. Left: push to staging after the release, a device test for a real iPhone, then RECENTLY FIXED. Needs a new app build (native package); reaches live with the next store build.
-
 #316
 Listed: 2026-11-24
 Platform: Both
@@ -1045,6 +1033,19 @@ Issue: After #312 the app still has 19 npm audit alerts (5 high). The app-side o
 How to reproduce: cd apps/mobile && npm audit --omit=dev.
 
 RECENTLY FIXED (delete entries older than 7 days)
+#311
+Listed: 2026-11-22
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: App login session is kept in normal app storage (AsyncStorage in apps/mobile/lib/supabase.ts), not the phone's secure storage (iPhone Keychain / Android Keystore). Phones protect app storage well, so the risk is mainly on hacked (jailbroken or rooted) phones, or with #310 backups. Fix: store the Supabase session with expo-secure-store (large sessions may need splitting or an encrypted wrapper), then test sign-in, staying signed in after a restart and sign-out on iPhone and Android.
+How to reproduce: Read apps/mobile/lib/supabase.ts (storage: AsyncStorage).
+Note 2026-11-28 (Shwetank with Claude): fixed in code. New apps/mobile/lib/secureSessionStorage.ts: supabase-js keeps the sign-in in expo-secure-store (~55.0.18, new package; its optional config plugin not added: no Face ID use, Android backup already off by #310), saved in 1800-character parts, AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY; a sign-in saved before moves across on first read (old AsyncStorage copy deleted); falls back to AsyncStorage if secure storage fails. The web build is unchanged. Checked with local staging builds as newone1: Android (Shwetank's iQOO) and iPhone simulator (iPhone 18 Pro, iOS 27.2) - stayed signed in after installing over the old build, after a restart, sign-out stayed signed out after a restart, a fresh sign-in stayed after a restart. Real iPhone check: device test #268. Needs a new app build (native package); reaches live with the next store build.
+Fixed in: 78f2cf4b (2026-11-28)
+
 #312
 Listed: 2026-11-22
 Platform: App
