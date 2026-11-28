@@ -69,17 +69,6 @@ Issue: New access requests only show in the app after the host leaves and reopen
 How to reproduce: Keep the event's Permissions tab open in the app, send a request from the website: it doesn't appear until you reopen the screen.
 Note 2026-10-27: Fixed in c42c419 (needs a new app build): apps/mobile/hooks/use-reload-on-return.ts reloads the Permissions tab and Gallery > Requests silently when a push with an eventId arrives while the screen is open, and when the app returns from the background. The push has no type field, so any event push reloads (one small query). Tapping the push still opens the event on its Galleries tab, not Permissions. Device check: test_yourself #161.
 
-#65
-Listed: 2026-10-13
-Platform: Both
-Priority: Low
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Hiding the 19 themes without a website design (2026-10-13)
-Issue: The theme contrast check src/lib/galleryTheme.test.ts fails before reaching its later checks: the website lightbox colours for "blush" (src/lib/webTemplateTheme.ts, built from src/lib/galleryPresets.ts) have text on background at 1.08:1 (needs 4.5:1). So the test currently guards nothing after that point. Blush is hidden from the pickers now, but events already on it still use these colours.
-How to reproduce: Run `npx tsx src/lib/galleryTheme.test.ts` from the repo root.
-
 #66
 Listed: 2026-10-13
 Platform: Both
@@ -1007,6 +996,19 @@ Issue: After #312 the app still has 19 npm audit alerts (5 high). The app-side o
 How to reproduce: cd apps/mobile && npm audit --omit=dev.
 
 RECENTLY FIXED (delete entries older than 7 days)
+#65
+Listed: 2026-10-13
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Hiding the 19 themes without a website design (2026-10-13)
+Issue: The theme contrast check src/lib/galleryTheme.test.ts fails before reaching its later checks: the website lightbox colours for "blush" (src/lib/webTemplateTheme.ts, built from src/lib/galleryPresets.ts) have text on background at 1.08:1 (needs 4.5:1). So the test currently guards nothing after that point. Blush is hidden from the pickers now, but events already on it still use these colours.
+How to reproduce: Run `npx tsx src/lib/galleryTheme.test.ts` from the repo root.
+Note 2026-11-28 (Shwetank with Claude): the check had also started failing earlier, on a rule that every theme list must hold the same themes (confetti, periwinkle and portrait were added later to some lists only; where missing they fall back safely: album to Midnight Hero, app viewer to the theme's own app colours, Periwinkle has no app version). The check now collects every problem and prints them together, and only requires each list to name themes the website knows. Real problems it then found, all in the website photo viewer (src/lib/webTemplateTheme.ts): Blush text 1.08:1 and secondary text 1.78:1 (the preset's light pink background with the old dark design's near-white text), now the app's light Blush colours (burgundy text #2b0d17, #80504b, white panels); Garden secondary text 3.93:1, now the app's #b8c8b5. All 35 web, 34 app, 33 app viewer and 12 Sports palettes pass. No event on staging or live uses Blush or Garden, so nothing visible changes today and no device test is needed; not looked at on screen.
+Fixed in: 1bce227d (2026-11-28)
+
 #63
 Listed: 2026-10-12
 Platform: App
