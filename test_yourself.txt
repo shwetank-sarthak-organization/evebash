@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 270
+Next test number: 271
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -8385,6 +8385,34 @@ How to test:
      Expect on phone A within about 2 minutes: "New photos uploaded".
   4. Phone A: turn "New Uploads" off. Upload 1-2 more photos from the other account. Expect: no push (wait 3 min).
   5. Turn "New Uploads" back on. Delete the test photos.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#270 App and website: live updates (Realtime) for requests, photos, likes and comments (todo #40)
+Status:    TODO
+Priority:  Medium
+Platform:  Android, iOS and website (staging)
+Jira:      EB-457
+Brief:     Screens now update by themselves when something changes, without pulling down to refresh: new access
+           requests on Host > Requests, new photos in an open gallery, new likes and comments on an open photo.
+Detail:    Staging only (migration 20261128160000, commits 826e2b42, 7d9fb64d). Checked by Claude 2026-11-28: privacy of
+           every table on a raw Realtime connection (newone1 got only what it may see); a new request showed by
+           itself on the website and on the iQOO app. Not checked by a person with two real accounts.
+How to test (two accounts: host A on one phone or browser, guest B on another):
+  1. A: open Host > Requests and leave it open. B: request access to A's event (join link or code).
+     Expect on A within a few seconds, without refreshing: the request appears.
+  2. A approves it. A and B both open the same gallery. B uploads 2 photos. Expect on A: they appear by
+     themselves.
+  3. Both open the same photo. B likes it and writes a comment. Expect on A: the like count and the comment
+     appear by themselves.
+  4. Make sure B never sees anything from an event B is not part of.
+  5. Delete the test photos and comment afterwards.
 Done by:
 Device / browser:
 Build / version:
