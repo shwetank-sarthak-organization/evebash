@@ -1754,11 +1754,11 @@ export default function PhotoViewer({
                   color={isLiked ? "#f43f5e" : viewerTheme.controlText}
                   fill={isLiked ? "#f43f5e" : "none"}
                 />
-                <Text style={[localStyles.hostViewerActionLabel, { color: viewerTheme.muted }]}>{likes.length} LIKES</Text>
+                <Text style={[localStyles.hostViewerActionLabel, { color: viewerTheme.muted }]}>{likes.length} {likes.length === 1 ? 'LIKE' : 'LIKES'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={localStyles.hostViewerAction} onPress={handleOpenComments} accessibilityRole="button" accessibilityLabel={`Comments, ${comments.length}`}>
                 <LucideMessageCircleIcon size={20} color={viewerTheme.controlText} />
-                <Text style={[localStyles.hostViewerActionLabel, { color: viewerTheme.muted }]}>{comments.length} COMMENTS</Text>
+                <Text style={[localStyles.hostViewerActionLabel, { color: viewerTheme.muted }]}>{comments.length} {comments.length === 1 ? 'COMMENT' : 'COMMENTS'}</Text>
               </TouchableOpacity>
               {currentPhoto?.id && (
                 <TouchableOpacity style={localStyles.hostViewerAction} onPress={() => setReportTarget({ targetType: 'media', targetId: String(currentPhoto.id) })} accessibilityRole="button" accessibilityLabel="Report this photo or video">
