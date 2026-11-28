@@ -2245,7 +2245,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #87 Download on Home asks "Home only" or "Entire event"; Host download follows the filters
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website (staging.evebash.com), computer
 Jira:      EB-317
@@ -2263,14 +2263,20 @@ How to test:
      ignores them.
   6. Host -> a sub-gallery, Photos tab: Download gives photos only; Videos tab: videos only. Filter Uploaded by
      a person (or Favourites only): only those items. Filters that leave nothing say so.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak)
+Device / browser: Playwright Chromium 1440x900 (headless, scripted downloads); not a real device
+Build / version: staging.evebash.com as of 2026-11-28 (staging 35b747b2)
+Date tested: 2026-11-28
+Account used: newone1 (owner/host), newone5 (admin on the test event, uploaded some items)
+Screenshot / recording: reports/device-tests/test-87-step1-dialog.png, test-87-step5-host-dialog.png, test-87-step6-nothing.png (local only)
 Fix ref:
-Feedback:
+Feedback: 2026-11-28 Claude: PASS. Own test event with Home (3 photos, 1 video), Rec 1 (3 photos, 2 videos), Rec 2 (2 photos, 2 videos), 3 favourites; newone5 uploaded p8 (Rec 1) and a video (Rec 2). Test event and a second no-favourites event deleted afterwards.
+  Step 1 PASS: Download All on Home shows "What would you like to download?" with both choices; Escape, the X and a click outside each close it.
+  Step 2 PASS: Home only ZIP = 6 photos (Home's 3 + the 3 favourites, same as Home's "6 PHOTOGRAPHS"). On a second event with no favourites it gave Home's own 2 photos, not "Nothing to download".
+  Step 3 PASS: Entire event ZIP = folders Home (3), Rec 1 (5: 3 photos + 2 videos), Rec 2 (4: 2 photos + 2 videos); 12 files, each a different media id (the same source video uploaded twice is the only identical content); all 4 .mp4 are h264+aac, 3 s, ffprobe OK. Favourites not repeated in Home.
+  Step 4 PASS: Rec 1 Download All downloaded directly (no question): 3 photos + 2 videos.
+  Step 5 PASS: host Home Download shows the same question. With the Videos tab on, Home only = the 1 Home video; Entire event = all 13 items (ignored the tab). Host Home's Source gallery filter only lists Home itself, so Home only could not be tested with another source.
+  Step 6 PASS: host Rec 1 Photos tab -> 3 photos only; Videos tab -> 2 videos only; Uploaded by newone5 -> p8 only; Favourites only -> 2 photos; Favourites + newone5 -> p8; Videos tab + Favourites only -> no ZIP, message "Nothing to download". Not run: Uploaded by newone5 on the Videos tab (newone5 had no videos in Rec 1, so the option is not offered).
 
 --------------------------------------------------------------------------------
 #88 Login and sign-up are email only (phone hidden until a later version)
