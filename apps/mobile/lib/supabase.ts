@@ -1,6 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
+import { secureSessionStorage } from './secureSessionStorage';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -51,7 +51,8 @@ export const supabase = createClient(
       fetch: supabaseFetch,
     },
     auth: {
-      storage: Platform.OS === 'web' && typeof window !== 'undefined' ? window.localStorage : AsyncStorage,
+      // Phones keep the sign-in in the Keychain / Keystore (#311); the web build keeps using the browser's storage
+      storage: Platform.OS === 'web' && typeof window !== 'undefined' ? window.localStorage : secureSessionStorage,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: Platform.OS === 'web',
