@@ -46,6 +46,8 @@ export default function SettingsScreen() {
   // Notification Preferences
   const [notifPreferences, setNotifPreferences] = useState({
     likesAndComments: user?.notificationPreferences?.likesAndComments ?? true,
+    // #63: never saved yet = what the backend did before this switch (Likes & Comments also covered uploads)
+    newUploads: user?.notificationPreferences?.newUploads ?? user?.notificationPreferences?.likesAndComments ?? true,
     eventInvites: user?.notificationPreferences?.eventInvites ?? true,
     businessMatches: user?.notificationPreferences?.businessMatches ?? true,
     marketing: user?.notificationPreferences?.marketing ?? false,
@@ -77,6 +79,7 @@ export default function SettingsScreen() {
     if (user?.notificationPreferences) {
       setNotifPreferences({
         likesAndComments: user.notificationPreferences.likesAndComments ?? true,
+        newUploads: user.notificationPreferences.newUploads ?? user.notificationPreferences.likesAndComments ?? true,
         eventInvites: user.notificationPreferences.eventInvites ?? true,
         businessMatches: user.notificationPreferences.businessMatches ?? true,
         marketing: user.notificationPreferences.marketing ?? false,
@@ -380,10 +383,24 @@ export default function SettingsScreen() {
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('likesAndComments')} accessibilityRole="switch" accessibilityLabel="Likes and comments notifications" accessibilityState={{ checked: notifPreferences.likesAndComments }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionText}>Likes & Comments</Text>
-              <Text style={styles.actionSubtext}>When people interact with your photos</Text>
+              <Text style={styles.actionSubtext}>When people like or comment on your photos</Text>
             </View>
             <View style={[styles.toggleBtn, notifPreferences.likesAndComments && styles.toggleBtnActive]}>
               <View style={[styles.toggleDot, notifPreferences.likesAndComments && styles.toggleDotActive]} />
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          {/* #63: the gallery owner's "new photos / new video uploaded" pushes. Every save stores this key, so from
+              then on only this switch decides them (apps/backend/src/routes/notifications.ts wantsUploadAlerts). */}
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('newUploads')} accessibilityRole="switch" accessibilityLabel="New uploads notifications" accessibilityState={{ checked: notifPreferences.newUploads }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.actionText}>New Uploads</Text>
+              <Text style={styles.actionSubtext}>When someone adds photos or videos to your galleries</Text>
+            </View>
+            <View style={[styles.toggleBtn, notifPreferences.newUploads && styles.toggleBtnActive]}>
+              <View style={[styles.toggleDot, notifPreferences.newUploads && styles.toggleDotActive]} />
             </View>
           </TouchableOpacity>
 

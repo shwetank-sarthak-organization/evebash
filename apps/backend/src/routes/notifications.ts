@@ -55,8 +55,8 @@ export async function openGalleryAccessAsCaller(request: Request, eventId: strin
 // isn't pushed to the owner again.
 export const GALLERY_REQUEST_PUSH_WINDOW_MS = 10 * 60 * 1000;
 
-/** Owners turn these off with the "Event invites" notification setting (or all pushes with `push: false`). */
-export function wantsEventInvites(preferences: unknown) {
+/** profiles.notification_preferences as an object (it can arrive as JSON text) */
+function readPreferences(preferences: unknown): Record<string, unknown> {
   let prefs = preferences;
   if (typeof prefs === "string") {
     try {
@@ -65,8 +65,26 @@ export function wantsEventInvites(preferences: unknown) {
       prefs = null;
     }
   }
-  const settings = (prefs && typeof prefs === "object" ? prefs : {}) as Record<string, unknown>;
+  return (prefs && typeof prefs === "object" ? prefs : {}) as Record<string, unknown>;
+}
+
+/** Owners turn these off with the "Event invites" notification setting (or all pushes with `push: false`). */
+export function wantsEventInvites(preferences: unknown) {
+  const settings = readPreferences(preferences);
   return settings.push !== false && settings.eventInvites !== false;
+}
+
+/**
+ * The gallery owner's "new photos / new video uploaded" pushes (#63). App builds with the "New uploads" switch save
+ * `newUploads`, and then only that switch counts. Older builds (the live store app until the next release) don't
+ * have it, so there "Likes & comments" stops them too. `push` (all pushes) and the old `event_activity` key still
+ * work.
+ */
+export function wantsUploadAlerts(preferences: unknown) {
+  const settings = readPreferences(preferences);
+  if (settings.push === false || settings.event_activity === false) return false;
+  if (typeof settings.newUploads === "boolean") return settings.newUploads;
+  return settings.likesAndComments !== false;
 }
 
 /**

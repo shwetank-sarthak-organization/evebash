@@ -1,4 +1,4 @@
-import { findPushProfile } from "./routes/notifications.js";
+import { findPushProfile, wantsUploadAlerts } from "./routes/notifications.js";
 import { getSupabaseAdminClient } from "./supabase.js";
 
 // Grouped upload pushes wait for this long after the last upload (see debounceEventNotification in routes/media.ts).
@@ -40,8 +40,8 @@ export async function sendOwnerUploadNotification(
   const profile = await findPushProfile(supabaseAdmin, "id", event.created_by);
 
   if (!profile?.push_token) return;
-  const preferences = profile.notification_preferences as Record<string, unknown> | null;
-  if (preferences?.push === false || preferences?.event_activity === false) return;
+  // The owner's notification switches (#63): "New uploads", or "Likes & comments" on older app builds
+  if (!wantsUploadAlerts(profile.notification_preferences)) return;
 
   await fetch("https://exp.host/--/api/v2/push/send", {
     method: "POST",
