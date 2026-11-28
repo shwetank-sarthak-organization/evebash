@@ -20,17 +20,27 @@ function luminance(color: number[]) {
     return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   }).reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
 }
+// Every problem is collected and printed at the end, so one bad colour doesn't hide the checks after it (#65)
+const problems: string[] = [];
 function readable(label: string, foreground: string, background: number[]) {
   const a = luminance(rgb(foreground)), b = luminance(background);
   const contrast = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-  assert.ok(contrast >= 4.5, `${label}: ${contrast.toFixed(2)}:1, expected at least 4.5:1`);
+  if (contrast < 4.5) problems.push(`${label}: ${contrast.toFixed(2)}:1, expected at least 4.5:1`);
 }
 
-const ids = Object.keys(TEMPLATE_ID_TO_PAGE_FLIP_THEME).sort();
-assert.equal(ids.length, 32);
-assert.deepEqual(Object.keys(WEB_LIGHTBOX_THEMES).sort(), ids);
-assert.deepEqual(MOBILE_TEMPLATE_THEMES.map(t => t.id).sort(), ids);
-assert.deepEqual(Object.keys(VIEWER_TEMPLATE_PALETTES).sort(), ids);
+// The website photo viewer has every theme. The other lists may leave some out and fall back safely: the album
+// (page flip) uses Midnight Hero, the app photo viewer uses the theme's own app colours, and Periwinkle has no app
+// version. Each list may only name themes the website knows.
+const webIds = Object.keys(WEB_LIGHTBOX_THEMES).sort();
+for (const [name, ids] of Object.entries({
+  'album (page flip)': Object.keys(TEMPLATE_ID_TO_PAGE_FLIP_THEME),
+  'app themes': MOBILE_TEMPLATE_THEMES.map(t => t.id),
+  'app photo viewer': Object.keys(VIEWER_TEMPLATE_PALETTES),
+})) {
+  const unknown = ids.filter(id => !webIds.includes(id));
+  if (unknown.length) problems.push(`${name} names themes the website doesn't have: ${unknown.join(', ')}`);
+}
+
 for (const [id, theme] of Object.entries(WEB_LIGHTBOX_THEMES)) {
   for (const role of ['text', 'muted'] as const) for (const area of ['background', 'panel'] as const) {
     readable(`web ${id} ${role}/${area}`, theme[role]!, surface(theme[area]!, theme.background!));
@@ -48,4 +58,9 @@ for (const [kind, palettes] of Object.entries({ viewer: VIEWER_TEMPLATE_PALETTES
     readable(`${kind} ${id} ${role}/${area}`, theme[role], surface(theme[area], theme.background));
   }
 }
-console.log('32 web/native palettes and 12 Sports viewer variants: text, panel and selected-action contrast passed.');
+
+if (problems.length) {
+  console.error(`${problems.length} contrast / theme list problem(s):\n- ${problems.join('\n- ')}`);
+  process.exit(1);
+}
+console.log(`${webIds.length} web, ${MOBILE_TEMPLATE_THEMES.length} app, ${Object.keys(VIEWER_TEMPLATE_PALETTES).length} app viewer and ${Object.keys(SPORTS_VIEWER_PALETTES).length} Sports viewer palettes: text, panel and selected-action contrast passed.`);
