@@ -812,13 +812,13 @@ Listed:       2026-11-16
 Platform:     Both
 Priority:     Medium
 Phase:        1 (v1 launch)
-Status:       Agreed
+Status:       In progress
 Effort:       M
 Suggested by: Sarthak (2026-11-16, while closing issue #49)
 Discussed:    Yes
 Decision:     2026-11-16 Sarthak: Realtime goes in v1 for: new access requests (guests), new photos, likes and
               comments. Vendor chat stays Phase 2. Tables are switched on one at a time, behind a switch, staging first.
-Owner:        Unassigned
+Owner:        Shwetank (with Claude)
 Depends on:   -  (issue #21, RLS lockdown part 2, is live since 2026-11-16)
 Brief:        Realtime has been off since 2026-09-30 (the supabase_realtime publication has no tables). Steps:
               (1) add the tables one at a time (guests, photos, likes, comments), checking after each that only
