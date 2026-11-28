@@ -69,17 +69,6 @@ Issue: New access requests only show in the app after the host leaves and reopen
 How to reproduce: Keep the event's Permissions tab open in the app, send a request from the website: it doesn't appear until you reopen the screen.
 Note 2026-10-27: Fixed in c42c419 (needs a new app build): apps/mobile/hooks/use-reload-on-return.ts reloads the Permissions tab and Gallery > Requests silently when a push with an eventId arrives while the screen is open, and when the app returns from the background. The push has no type field, so any event push reloads (one small query). Tapping the push still opens the event on its Galleries tab, not Permissions. Device check: test_yourself #161.
 
-#63
-Listed: 2026-10-12
-Platform: App
-Priority: Low
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Test #51 push check on the Pixel 8 (2026-10-12)
-Issue: The app's notification switches can't turn off upload pushes. Settings (Profile > gear icon, apps/mobile/app/settings.tsx) has four switches saved in profiles.notification_preferences: likesAndComments, eventInvites, businessMatches, marketing. The backend's "new photos" / "new video uploaded" push to the gallery owner (apps/backend/src/uploadNotifications.ts) instead checks preferences.push and preferences.event_activity, which no screen sets, so hosts can't stop those pushes. (The access-request push checks push and eventInvites, so "Event invites" does work for it.) Fix: decide which switch covers upload activity (a new "Uploads to my galleries" switch, or reuse an existing one), make the backend read that key, and keep the old keys working. Sarthak also hadn't found the switches, so consider showing them more clearly (e.g. a "Notifications" row on Profile).
-How to reproduce: In the app, Settings: turn every notification switch off. Have another account upload a video to your gallery: the "New video uploaded" push still arrives.
-
 #65
 Listed: 2026-10-13
 Platform: Both
@@ -1018,6 +1007,19 @@ Issue: After #312 the app still has 19 npm audit alerts (5 high). The app-side o
 How to reproduce: cd apps/mobile && npm audit --omit=dev.
 
 RECENTLY FIXED (delete entries older than 7 days)
+#63
+Listed: 2026-10-12
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Test #51 push check on the Pixel 8 (2026-10-12)
+Issue: The app's notification switches can't turn off upload pushes. Settings (Profile > gear icon, apps/mobile/app/settings.tsx) has four switches saved in profiles.notification_preferences: likesAndComments, eventInvites, businessMatches, marketing. The backend's "new photos" / "new video uploaded" push to the gallery owner (apps/backend/src/uploadNotifications.ts) instead checks preferences.push and preferences.event_activity, which no screen sets, so hosts can't stop those pushes. (The access-request push checks push and eventInvites, so "Event invites" does work for it.) Fix: decide which switch covers upload activity (a new "Uploads to my galleries" switch, or reuse an existing one), make the backend read that key, and keep the old keys working. Sarthak also hadn't found the switches, so consider showing them more clearly (e.g. a "Notifications" row on Profile).
+How to reproduce: In the app, Settings: turn every notification switch off. Have another account upload a video to your gallery: the "New video uploaded" push still arrives.
+Note 2026-11-28 (Shwetank with Claude): made urgent by #58 (UPLOAD_OWNER_PUSH on live since 2026-11-28). Decision (Shwetank): both. Backend: new wantsUploadAlerts in apps/backend/src/routes/notifications.ts, used by sendOwnerUploadNotification; if newUploads is saved, only it decides; if not (app builds without the new switch, i.e. today's live store app), Likes & comments off also stops upload alerts; push:false and the old event_activity key still stop them. 5 new tests (tests/uploadAlertPreferences.test.ts), 205/205 backend tests pass. App: a "New Uploads" switch in Settings > Notifications ("When someone adds photos or videos to your galleries"); until first saved it shows the Likes & comments value; Likes & comments subtitle now "When people like or comment on your photos". Staging app update published (iOS 26783e8b d9f98cd1, Android 8eee27b7 44ac8704). Checked on Shwetank's iQOO as newone1: the update loaded, the switch shows, off saved newUploads:false (Likes & comments untouched), on saved newUploads:true. Not checked: a real upload push arriving or not (device test #269). Live: the backend part with the next staging to main release (then live hosts can use Likes & comments); the switch with the next store build or a production app update.
+Fixed in: 398db7b9 (2026-11-28)
+
 #316
 Listed: 2026-11-24
 Platform: Both

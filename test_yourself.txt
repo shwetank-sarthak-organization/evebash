@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 269
+Next test number: 270
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -8351,6 +8351,32 @@ How to test:
   3. Close the app fully (swipe it away) and open it again. Expect: still signed in.
   4. Profile > Sign Out > Sign Out. Close the app fully and open it again. Expect: the sign-in screen.
   5. Sign in again, close the app fully, open it again. Expect: still signed in.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#269 App: the New Uploads switch stops the "New photos uploaded" alert (issue #63)
+Status:    TODO
+Priority:  Medium
+Platform:  Android and iOS (staging app with update 2026-11-28 or later)
+Jira:      EB-456
+Brief:     Hosts get a push when someone uploads to their gallery (#58). Settings > Notifications now has a
+           "New Uploads" switch that stops it. Older app builds without the switch: "Likes & Comments" stops it.
+Detail:    Fix 398db7b9 (backend wantsUploadAlerts, app settings.tsx). Checked by Claude 2026-11-28 on the iQOO
+           (newone1): the switch shows and saves newUploads on/off; backend rule covered by 5 tests. Not checked: a
+           real push. Needs UPLOAD_OWNER_PUSH=true on staging Railway (it is on for live).
+How to test:
+  1. Phone A: the staging app, signed in as a host who owns a gallery; notifications allowed for EveBash.
+  2. Phone A: Profile > gear (Settings) > Notifications: "New Uploads" is on.
+  3. Phone B or the staging website, another account with upload access to that gallery: upload 1-2 photos.
+     Expect on phone A within about 2 minutes: "New photos uploaded".
+  4. Phone A: turn "New Uploads" off. Upload 1-2 more photos from the other account. Expect: no push (wait 3 min).
+  5. Turn "New Uploads" back on. Delete the test photos.
 Done by:
 Device / browser:
 Build / version:
