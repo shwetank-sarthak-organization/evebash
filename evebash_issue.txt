@@ -900,17 +900,6 @@ Issue: Deleting an event in the app runs the B2 file cleanup twice ("[deleteEven
 Fix idea: find why deleteEvent's cleanup runs twice (double tap, or the confirm handler/effect firing twice) and run it once; treat "already deleted" from /api/media/delete as success instead of trying other endpoints; delete the guest preview picture before the event row.
 How to reproduce: Android USB build on staging, host deletes an event that has photos in a sub-gallery and the Home gallery; watch the Metro log and the screen.
 
-#294
-Listed: 2026-11-18
-Platform: App
-Priority: Low
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simulator, staging app build 1.2.4)
-Issue: In the app's Find You results ("Your Photos - N matches found in this event"), the photo grid isn't centred: its two columns sit on the left with an empty strip about a third of a column wide on the right (iPhone 17 Pro size, Cinematic wedding theme). Fix idea: check the matched-photos grid's width and gaps in apps/mobile/components/event/FindYouPanel.tsx (matchedPhotos.map, about line 454).
-How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc), Find You > Upload Photo > a picture of the groom (a crop of public/home/groom-solo.jpg): 5 matches, grid left of centre.
-
 #309
 Listed: 2026-11-22
 Platform: Both
@@ -961,6 +950,19 @@ Issue: After #312 the app still has 19 npm audit alerts (5 high). The app-side o
 How to reproduce: cd apps/mobile && npm audit --omit=dev.
 
 RECENTLY FIXED (delete entries older than 7 days)
+#294
+Listed: 2026-11-18
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simulator, staging app build 1.2.4)
+Issue: In the app's Find You results ("Your Photos - N matches found in this event"), the photo grid isn't centred: its two columns sit on the left with an empty strip about a third of a column wide on the right (iPhone 17 Pro size, Cinematic wedding theme). Fix idea: check the matched-photos grid's width and gaps in apps/mobile/components/event/FindYouPanel.tsx (matchedPhotos.map, about line 454).
+How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc), Find You > Upload Photo > a picture of the groom (a crop of public/home/groom-solo.jpg): 5 matches, grid left of centre.
+Note 2026-11-28 (Shwetank with Claude): cause: the grid is meant to show 3 per row, but each tile was sized from the full screen width while the panel has 20 pt padding on each side, so the third tile wrapped and left a strip on the right. Tiles are now sized from the grid's measured width (onLayout) in apps/mobile/components/event/FindYouPanel.tsx. Staging app update published (iOS 26783e8b ffcc6ec5, Android 8eee27b7 6919ac7b). Checked on Shwetank's iQOO as newone1: Riya & Arjun's Wedding > Find You > Upload Photo (public/home/groom-solo.jpg, copied to the phone and removed again): "6 matches found", 3 per row, centred (121 px left, 126 px right of 1080). iPhone (where it was first seen): same code, not looked at.
+Fixed in: 887fc1b4 (2026-11-28)
+
 #239
 Listed: 2026-11-03
 Platform: App
