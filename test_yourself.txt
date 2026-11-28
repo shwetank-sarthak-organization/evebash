@@ -8364,7 +8364,7 @@ Fix ref:
 Feedback:         PASS. Installed over the old staging app: still signed in (server: session active 17:04). Dashboard, Host, EB Network and Profile all opened, no crash. evebash-staging://events/staging-test-1-fc5b from Safari opened the Staging test 1 page. Uploaded 3 photos to Staging test 1 - Sub Gallery: all 3 saved and processed on staging at 17:05 (IMG_2720, IMG_2697, IMG_2719), cover unchanged. Closed fully and reopened: still signed in.
 
 #268 App: the sign-in is kept in the phone's secure storage (issue #311)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  iOS (real iPhone, new staging build)
 Jira:      EB-455
@@ -8381,14 +8381,14 @@ How to test:
   3. Close the app fully (swipe it away) and open it again. Expect: still signed in.
   4. Profile > Sign Out > Sign Out. Close the app fully and open it again. Expect: the sign-in screen.
   5. Sign in again, close the app fully, open it again. Expect: still signed in.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Shwetank (with Claude checking the staging server)
+Device / browser: Shwetank's iPhone ("shwetank-iphone"), iOS 26
+Build / version:  EAS iOS staging build 2327a938 (includes #311), with the 2026-11-28 staging updates
+Date tested:      2026-11-28
+Account used:     newone1
+Screenshot / recording: none kept
 Fix ref:
-Feedback:
+Feedback:         PASS. Steps 1-3 (Shwetank): installed over the old staging app, it opened straight on the Dashboard, and stayed signed in after closing and reopening. Note: the staging server shows a sign-in from this iPhone at 17:04 (newone1 last_sign_in_at 17:04, one session), so "no password needed after the update" rests on what Shwetank saw, not on the server. Steps 4-5, repeated while Claude watched the server: Sign Out removed the 17:04 session; after reopening the app showed the sign-in screen; email + password sign-in created a new session at 17:21 (last_sign_in_at 17:21); closed and reopened: still signed in.
 
 #269 App: the New Uploads switch stops the "New photos uploaded" alert (issue #63)
 Status:    TODO
