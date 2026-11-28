@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 267
+Next test number: 268
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -8296,3 +8296,33 @@ Account used:     newone1; Riya & Arjun's Wedding > Haldi
 Screenshot / recording: none kept
 Fix ref:
 Feedback:         PASS. With 26 test photos uploading, a real click on Profile > Sign Out showed the real question: "23 photos are still uploading. If you log out now, they stop and won't be uploaded. Log out?" This browser answers such boxes with Cancel by itself: newone1 stayed logged in and the upload carried on, as it should. OK could not be clicked there; the OK path (logs out, the rest show Cancelled, nothing saved afterwards, none anonymous) was checked on the local website earlier the same day. Also seen: when every file had already finished, Sign Out logged out at once without asking (correct). Note: on desktop width the navbar's Logout sits in a hidden menu; the visible one is Sign Out on the Profile page. Side effect fixed: the test photos made the first upload Haldi's cover (the site does that when an album has no cover); after deleting the 51 test photos the cover was set back to none.
+
+#267 App: sign-in, links and uploads still work after the Expo package update (issues #312, #310)
+Status:    TODO
+Priority:  Medium
+Platform:  iOS (real iPhone, new staging build)
+Jira:      EB-454
+Brief:     The app's Expo packages were updated to fix security alerts (#312) and Android backup was switched off
+           (#310). This changes the app's base, so it needs a new staging build. Checked by Claude on Android (iQOO)
+           and the iPhone simulator; not yet on a real iPhone.
+Detail:    Fix 074d7654 + 2c120ce2 (staging). Android: Shwetank's iQOO, local staging build (fingerprint 55bba7df),
+           2026-11-27: stayed signed in, tabs, events, app link, 3 photos uploaded - PASS. iPhone simulator (iPhone 18
+           Pro, iOS 27.2, Release build), 2026-11-28: sign-in, tabs, app link, 3 photos uploaded - PASS. Note: older
+           staging builds no longer get staging over-the-air updates; install a staging build made from 2c120ce2 or later.
+How to test:
+  1. On a real iPhone, install a new staging build made from staging commit 2c120ce2 or later.
+  2. Open it and sign in with a staging test account. Expect: the Dashboard loads.
+  3. Tap Dashboard, Host, EB Network and Profile. Expect: each opens, no crash.
+  4. Open an event link (for example tap a shared event link, or open evebash-staging://events/<event id> in
+     Safari). Expect: the app opens that event.
+  5. Host > one of your events > a gallery > Add Photos, pick 2-3 photos, tap Upload. Expect: "photos uploaded",
+     and the photos show in the gallery. Delete them afterwards.
+  6. Close the app fully and open it again. Expect: still signed in.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

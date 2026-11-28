@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 337
+Next issue number: 338
 
 =====================================================================
 ACTIVE ISSUES
@@ -979,17 +979,6 @@ Found in: Quick security check (chat with Claude, 2026-11-22)
 Issue: Photo and video links on media.evebash.com need no login and never expire, also for private galleries. The Cloudflare worker (cloudflare-worker/evebash-media-worker/worker.js) serves any file whose address it is given. The addresses contain long random parts (UUIDs), so they can't be guessed, but a forwarded or leaked link works forever, even after the guest loses access. Many photo sites work this way; this needs a decision, not a quick fix. Options: keep as is; or give private galleries short-lived signed links (the worker checks a signature and an expiry time), which affects caching and costs.
 How to reproduce: Open a photo from a private gallery, copy its address, open it in a logged-out browser: it loads.
 
-#310
-Listed: 2026-11-22
-Platform: App
-Priority: Medium
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Quick security check (chat with Claude, 2026-11-22)
-Issue: Android: app backup is on (allowBackup="true" in the Android manifest). Android backup can copy the app's data, including the saved login session, to another device. Apps that keep a login usually turn this off. Fix: set android.allowBackup to false in apps/mobile/app.json (Expo config) so the next build turns it off; check that sign-in still works after a reinstall.
-How to reproduce: Look at allowBackup in the built AndroidManifest.xml.
-
 #311
 Listed: 2026-11-22
 Platform: App
@@ -1000,17 +989,6 @@ Blocked by: -
 Found in: Quick security check (chat with Claude, 2026-11-22)
 Issue: App login session is kept in normal app storage (AsyncStorage in apps/mobile/lib/supabase.ts), not the phone's secure storage (iPhone Keychain / Android Keystore). Phones protect app storage well, so the risk is mainly on hacked (jailbroken or rooted) phones, or with #310 backups. Fix: store the Supabase session with expo-secure-store (large sessions may need splitting or an encrypted wrapper), then test sign-in, staying signed in after a restart and sign-out on iPhone and Android.
 How to reproduce: Read apps/mobile/lib/supabase.ts (storage: AsyncStorage).
-
-#312
-Listed: 2026-11-22
-Platform: App
-Priority: Medium
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Quick security check (chat with Claude, 2026-11-22)
-Issue: App packages have known security holes: expo-router (~55.0.16) is rated high; the app shows 36 in all (1 critical, 18 high, mostly in build tools). Fixes exist. Fix: update expo-router and the affected Expo packages (expo install --fix), make a staging build, and check sign-in, navigation, deep links and uploads on iPhone and Android. Reaches users with the next store release.
-How to reproduce: cd apps/mobile && npm audit --omit=dev.
 
 #316
 Listed: 2026-11-24
@@ -1053,7 +1031,44 @@ Issue: #318 (upload links that work for any file name in the whole storage bucke
 How to reproduce: On live, logged in with any account, POST https://api.evebash.com/api/v1/media/get-upload-url with an eventId the account may upload to: the reply has uploadUrl and authorizationToken (the any-file link). Do not upload anything with it.
 Note 2026-11-25 (added with Sarthak): (a) Order: nothing can be done before the staging to main release; the app update comes after it, because a production update ships every app change made on staging since the live build (it is an app release), and the live app and live server must match. (b) Right after the release, check: live POST /api/v1/media/get-upload-url (logged in) returns putUrl as well as uploadUrl, and a live website upload goes as a signed PUT and is saved. (c) Production update recipe (like the staging one in #318, memory evebash-ota-publish): clean worktree + cloned node_modules, eas.json build.production.env exported (APP_VARIANT=production, EXPO_PUBLIC_API_BASE_URL=https://api.evebash.com), eas fingerprint:compare against the latest production builds with --environment production, then eas update --channel production --environment production. EAS production holds the live iPhone Google client, which is right for live. (d) If the fingerprint doesn't match a live store build, those phones can't get an update: a new store build is needed (Play and App Store review time); phones on older builds never get updates (like the Pixel's 2026-11-19 staging build). The fingerprint check is read-only and can be run before release day to plan this. (e) Switching UPLOAD_LEGACY_B2_TOKEN off breaks small uploads (photos and videos under 20 MB) on live app builds without the update, so do it only after most users have the update or a forced update is out. (f) The same release takes the other 2026-11-25 fixes live (#300, #319, #320, #321, #322, #324, #326); all their switches are on unless set to "false", so nothing needs setting on live first.
 
+#337
+Listed: 2026-11-28
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: Expo SDK 58 upgrade
+Found in: Fixing #312 (Shwetank with Claude, 2026-11-28)
+Issue: After #312 the app still has 19 npm audit alerts (5 high). The app-side ones are decode-uri-component and query-string under expo-router: fixed versions exist only for Expo SDK 58 (decode-uri-component 0.5.1 is ESM-only and breaks SDK 55). The rest are build tools (@expo/cli, zod) that don't ship in the app. Fix: upgrade the app to Expo SDK 58 (its own task: new native build on iPhone and Android, check sign-in, navigation, links and uploads), then run npm audit again.
+How to reproduce: cd apps/mobile && npm audit --omit=dev.
+
 RECENTLY FIXED (delete entries older than 7 days)
+#312
+Listed: 2026-11-22
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: App packages have known security holes: expo-router (~55.0.16) is rated high; the app shows 36 in all (1 critical, 18 high, mostly in build tools). Fixes exist. Fix: update expo-router and the affected Expo packages (expo install --fix), make a staging build, and check sign-in, navigation, deep links and uploads on iPhone and Android. Reaches users with the next store release.
+How to reproduce: cd apps/mobile && npm audit --omit=dev.
+Note 2026-11-28 (Shwetank with Claude): npx expo install --fix moved the Expo SDK 55 packages to their latest patches (expo 55.0.32, expo-router 55.0.18, react-native 0.83.10 and others); package-lock.json rebuilt from scratch (an old @expo/metro-runtime 55.0.11 blocked the update); expo-asset pinned to ~55.0.20 (2c120ce2), because otherwise npm picked expo-asset 58 and the build failed. Two small type fixes (useSegments in app/_layout.tsx, a View style in app/(tabs)/business/[id].tsx). npm audit --omit=dev: 36 -> 19, critical 1 -> 0, high 18 -> 5. Left: decode-uri-component / query-string under expo-router (fixed only in Expo SDK 58) and build tools (@expo/cli, zod); see #337. Device checks on staging builds with the new packages, account newone1: Android (Shwetank's iQOO, local build 55bba7df) - stayed signed in after the update, tabs, events, the evebash-staging:// app link, 3 test photos uploaded; iPhone (simulator iPhone 18 Pro, iOS 27.2, Release build) - sign-in, tabs, app link opened the event, 3 test photos uploaded (cover unchanged), no crashes. Seen, not caused by this: https://staging.evebash.com/events/... links don't open the staging Android app (the old build has no https app link either). New app base version (runtime fingerprint changes): staging over-the-air updates now reach only staging builds made from 2c120ce2 or later. Real iPhone check: device test #267.
+Fixed in: 2c120ce2 (2026-11-28)
+
+#310
+Listed: 2026-11-22
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Quick security check (chat with Claude, 2026-11-22)
+Issue: Android: app backup is on (allowBackup="true" in the Android manifest). Android backup can copy the app's data, including the saved login session, to another device. Apps that keep a login usually turn this off. Fix: set android.allowBackup to false in apps/mobile/app.json (Expo config) so the next build turns it off; check that sign-in still works after a reinstall.
+How to reproduce: Look at allowBackup in the built AndroidManifest.xml.
+Note 2026-11-28 (Shwetank with Claude): apps/mobile/app.json android.allowBackup is now false. Checked in the built staging Android app (local build, fingerprint 55bba7df): its AndroidManifest.xml has allowBackup="false". Installed over the old staging app on Shwetank's iQOO (adb install -r): still signed in, Dashboard, Host, EB Network and Profile work. Not checked: a full uninstall and reinstall (signing in again works as normal sign-in). Reaches live with the next store build (a setting in the app's build, not an over-the-air update).
+Fixed in: 074d7654 (2026-11-28)
+
 #336
 Listed: 2026-11-27
 Platform: Website
