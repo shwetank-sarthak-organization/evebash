@@ -188,6 +188,11 @@ function LucideDownloadIcon({ size = 20, color, strokeWidth = 2 }: LucideIconPro
 // theme (light themes' dark text colour made them nearly invisible, issue #142)
 const VIDEO_BAR_TEXT = '#ffffff';
 
+// "1 Shared Thought", "3 Shared Thoughts" (#240)
+const sharedThoughtsLabel = (count: number) => `${count} Shared ${count === 1 ? 'Thought' : 'Thoughts'}`;
+// Comment buttons are small text; a bigger invisible tap area makes them easy to hit (#240)
+const COMMENT_ACTION_HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+
 function ViewerVideo({
   uri,
   rawUri,
@@ -1088,6 +1093,8 @@ export default function PhotoViewer({
       isLight,
     };
   }, [event?.category, event?.templateId, selectedTemplate]);
+  // Delete stays red and readable on light and dark themes (#240)
+  const commentDeleteColor = viewerTheme.isLight ? '#B91C1C' : '#FB7185';
 
   const navigateViewer = (dir: 'prev' | 'next') => {
     if (photos.length === 0) return;
@@ -1200,6 +1207,7 @@ export default function PhotoViewer({
       refreshInteractions();
     } catch (err) {
       console.error('[PhotoViewer] Comment failed:', err);
+      showToast("Couldn't post your comment. Check your connection and try again.", { type: 'error' });
     } finally {
       setIsCommenting(false);
     }
@@ -1222,6 +1230,7 @@ export default function PhotoViewer({
             refreshInteractions();
           } catch (err) {
             console.error('[PhotoViewer] Delete comment failed:', err);
+            showToast("Couldn't delete the comment. Check your connection and try again.", { type: 'error' });
           }
         },
       },
@@ -1356,7 +1365,7 @@ export default function PhotoViewer({
               hostGuestbook && localStyles.hostGuestbookSubtitle,
               { color: viewerTheme.muted },
               selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' }
-            ]}>{comments.length} Shared Thoughts</Text>
+            ]}>{sharedThoughtsLabel(comments.length)}</Text>
           </View>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close comments" style={[styles.closeGuestbookBtn, hostGuestbook && localStyles.hostCloseGuestbookBtn, { backgroundColor: viewerTheme.controlBg }]} onPress={() => setShowComments(false)}>
             <IconSymbol name="xmark" size={18} color={viewerTheme.controlText} />
@@ -1431,13 +1440,13 @@ export default function PhotoViewer({
                         ]}>{comment.text}</Text>
                         <View style={styles.commentActions}>
                           {canPostComment && (
-                            <TouchableOpacity onPress={() => setReplyingTo(comment)}>
+                            <TouchableOpacity onPress={() => setReplyingTo(comment)} hitSlop={COMMENT_ACTION_HIT_SLOP} accessibilityRole="button" accessibilityLabel="Reply">
                               <Text style={[styles.replyBtnText, { color: viewerTheme.text }]}>REPLY</Text>
                             </TouchableOpacity>
                           )}
                           {comment.userId === viewerIdentity.id ? (
-                            <TouchableOpacity onPress={() => handleDeleteComment(comment.id)}>
-                              <Text style={[styles.deleteBtnText, { color: viewerTheme.text }]}>DELETE</Text>
+                            <TouchableOpacity onPress={() => handleDeleteComment(comment.id)} hitSlop={COMMENT_ACTION_HIT_SLOP} accessibilityRole="button" accessibilityLabel="Delete comment">
+                              <Text style={[styles.deleteBtnText, { color: commentDeleteColor }]}>DELETE</Text>
                             </TouchableOpacity>
                           ) : (
                             <>
@@ -1502,8 +1511,8 @@ export default function PhotoViewer({
                                 { color: viewerTheme.text }
                               ]}>{reply.text}</Text>
                               {reply.userId === viewerIdentity.id ? (
-                                <TouchableOpacity onPress={() => handleDeleteComment(reply.id)}>
-                                  <Text style={[styles.deleteBtnText, styles.replyDeleteText, { color: viewerTheme.text }]}>DELETE</Text>
+                                <TouchableOpacity onPress={() => handleDeleteComment(reply.id)} hitSlop={COMMENT_ACTION_HIT_SLOP} accessibilityRole="button" accessibilityLabel="Delete reply">
+                                  <Text style={[styles.deleteBtnText, styles.replyDeleteText, { color: commentDeleteColor }]}>DELETE</Text>
                                 </TouchableOpacity>
                               ) : (
                                 <View style={{ flexDirection: 'row', gap: 14 }}>
@@ -1533,10 +1542,11 @@ export default function PhotoViewer({
           {canPostComment ? (
             <>
               {replyingTo && (
-                <View style={styles.replyingToBanner}>
-                  <Text style={styles.replyingToText}>Replying to <Text style={styles.replyingToName}>{replyingTo.userName}</Text></Text>
-                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Cancel reply" onPress={() => setReplyingTo(null)}>
-                    <IconSymbol name="xmark" size={14} color="#78716c" />
+                <View style={[styles.replyingToBanner, { backgroundColor: viewerTheme.background, borderColor: viewerTheme.frameBorder }]}>
+                  {/* The theme's own colours, not near-white inside dark panels (#240) */}
+                  <Text style={[styles.replyingToText, { color: viewerTheme.muted }]}>Replying to <Text style={[styles.replyingToName, { color: viewerTheme.accent }]}>{replyingTo.userName}</Text></Text>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Cancel reply" onPress={() => setReplyingTo(null)} hitSlop={COMMENT_ACTION_HIT_SLOP}>
+                    <IconSymbol name="xmark" size={14} color={viewerTheme.muted} />
                   </TouchableOpacity>
                 </View>
               )}
@@ -1793,7 +1803,7 @@ export default function PhotoViewer({
                       selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' },
                     ]}
                   >
-                    {comments.length} Shared Thoughts
+                    {sharedThoughtsLabel(comments.length)}
                   </Text>
                 </View>
                 <View style={[localStyles.hostGuestbookPeekButton, { backgroundColor: viewerTheme.controlBg }]}>
