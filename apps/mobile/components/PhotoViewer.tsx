@@ -184,7 +184,7 @@ function LucideDownloadIcon({ size = 20, color, strokeWidth = 2 }: LucideIconPro
 }
 
 
-// The video bar and its Quality box always sit on a dark gradient, so their icons and time are white in every
+// The video bar always sits on a dark gradient, so their icons and time are white in every
 // theme (light themes' dark text colour made them nearly invisible, issue #142)
 const VIDEO_BAR_TEXT = '#ffffff';
 
@@ -228,7 +228,6 @@ function ViewerVideo({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [showSettings, setShowSettings] = useState(false);
   const [showVolume, setShowVolume] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volumeLevel, setVolumeLevel] = useState(1);
@@ -322,7 +321,7 @@ function ViewerVideo({
 
     clearControlsHideTimeout();
 
-    if (!isPlaying || showSettings || showVolume) {
+    if (!isPlaying || showVolume) {
       setControlsVisible(true);
       return;
     }
@@ -342,7 +341,6 @@ function ViewerVideo({
     controlsVisible,
     customControls,
     isPlaying,
-    showSettings,
     showVolume,
   ]);
 
@@ -455,7 +453,6 @@ function ViewerVideo({
     setCurrentTime(0);
     setDuration(0);
     setIsPlaying(false);
-    setShowSettings(false);
     setShowVolume(false);
     setIsMuted(false);
     setVolumeLevel(1);
@@ -518,19 +515,16 @@ function ViewerVideo({
   const handleToggleVolumePanel = useCallback(() => {
     revealVideoControls();
     setShowVolume(prev => !prev);
-    setShowSettings(false);
   }, [revealVideoControls]);
 
   const handleExitFullscreen = useCallback(() => {
     revealVideoControls();
-    setShowSettings(false);
     setShowVolume(false);
     setIsCustomFullscreen(false);
   }, [revealVideoControls]);
 
   const handleEnterFullscreen = useCallback(async () => {
     revealVideoControls();
-    setShowSettings(false);
     setShowVolume(false);
 
     if (shouldUseCustomFullscreen) {
@@ -747,19 +741,7 @@ function ViewerVideo({
             )}
           </View>
 
-          <TouchableOpacity
-            style={localStyles.dashboardVideoIconButton}
-            onPress={() => {
-              revealVideoControls();
-              setShowSettings(prev => !prev);
-              setShowVolume(false);
-            }}
-            accessibilityLabel="Video settings"
-            activeOpacity={0.75}
-          >
-            <IconSymbol name="gearshape.fill" size={20} color={VIDEO_BAR_TEXT} />
-          </TouchableOpacity>
-
+          {/* No quality gear (#239): quality is picked automatically (#135); the box had nothing to choose */}
           <TouchableOpacity
             style={localStyles.dashboardVideoIconButton}
             onPress={handleToggleFullscreen}
@@ -776,19 +758,6 @@ function ViewerVideo({
       </View>
     </LinearGradient>
 
-    {/* Outside the gradient so it isn't clipped at the gradient's top edge. */}
-    {showSettings && (
-      <View
-        style={[
-          localStyles.dashboardVideoSettingsPopover,
-          fullscreen && localStyles.mobileVideoFullscreenSettingsPopover,
-          { borderColor: accent },
-        ]}
-      >
-        <Text style={[localStyles.dashboardVideoSettingsLabel, { color: VIDEO_BAR_TEXT }]}>Quality</Text>
-        <Text style={[localStyles.dashboardVideoSettingsValue, { color: accent }]}>Auto</Text>
-      </View>
-    )}
     </>
   );
 
@@ -2207,34 +2176,6 @@ const localStyles = StyleSheet.create({
     transform: [{ translateX: -5.5 }],
   },
   // Positioned from the player frame: overlay paddingBottom + 30 px controls row + 6 px gap.
-  dashboardVideoSettingsPopover: {
-    position: 'absolute',
-    right: 12,
-    bottom: 46,
-    zIndex: 3,
-    minWidth: 104,
-    borderRadius: 12,
-    borderWidth: 1,
-    backgroundColor: 'rgba(0,0,0,0.82)',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  mobileVideoFullscreenSettingsPopover: {
-    right: 18,
-    bottom: 50,
-  },
-  dashboardVideoSettingsLabel: {
-    fontSize: 10,
-    fontFamily: Fonts.inter.bold,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    opacity: 0.72,
-  },
-  dashboardVideoSettingsValue: {
-    marginTop: 3,
-    fontSize: 12,
-    fontFamily: Fonts.inter.bold,
-  },
   dashboardImageViewerScroll: {
     flex: 1,
     width: '100%',
