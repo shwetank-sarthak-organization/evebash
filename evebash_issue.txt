@@ -680,8 +680,8 @@ How to reproduce: Read the RunPod endpoint settings and the privacy policy's lis
 Listed: 2026-11-03
 Platform: App
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: App screen review, photo viewer comments (chat 2026-11-03)
 Issue: Smaller problems in the app's comment panel (renderGuestbookPanel in apps/mobile/components/PhotoViewer.tsx, styles in apps/mobile/components/eventStyles/visitorImmersiveStyles.ts): (1) the count will say "1 Shared Thoughts" (no singular; the website has the same, #178); (2) REPLY and DELETE are 10 pt text with no extra touch area, so they are hard to hit, and DELETE is drawn in the theme's text colour instead of red (the inline colour overrides deleteBtnText); (3) when posting or deleting a comment fails, nothing shows (only console.error), so the guest doesn't know to try again; (4) the "Replying to" box is near-white (#fafaf9) inside dark panels. Fix idea: singular and plural, hitSlop on both buttons and keep Delete red, a toast on failure, and draw the reply box with the theme's panel and border colours.
