@@ -63,6 +63,7 @@ import { useReloadOnReturn } from '@/hooks/use-reload-on-return';
 import { useAndroidKeyboardHeight } from '@/hooks/use-android-keyboard-height';
 import { useRetryWhenOnline } from '@/hooks/use-retry-when-online';
 import { newEventJoinCode } from '../../../../shared/text/joinCode';
+import { watchAccessRequests } from '../../../../shared/realtime/accessRequests';
 
 // Approve / reject a guest with a confirming haptic
 function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'approved' | 'rejected') {
@@ -227,8 +228,16 @@ export default function PortfolioTabScreen() {
     }, [fetchData])
   );
 
-  // New access requests (push) and coming back to the app: no Realtime, so reload (#48)
+  // Coming back to the app: reload (#48). Kept with Realtime below, which stops while the app is in the background.
   useReloadOnReturn(() => { fetchData(true); });
+
+  // New and answered access requests show without a reload (todo #40)
+  const fetchDataRef = React.useRef(fetchData);
+  fetchDataRef.current = fetchData;
+  useEffect(() => {
+    if (!user?.uid) return;
+    return watchAccessRequests(supabase, user.uid, () => { fetchDataRef.current(true); });
+  }, [user?.uid]);
   useRetryWhenOnline(loadError && events.length === 0 && sharedEvents.length === 0, () => { fetchData(); });
 
   useEffect(() => {

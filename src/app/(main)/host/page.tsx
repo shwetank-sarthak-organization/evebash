@@ -17,6 +17,7 @@ import { TransferOwnershipCard } from "@/components/transfer/TransferOwnershipCa
 import { memberLabel, type MemberDetails, type OwnerDetails } from "../../../../shared/permissions/memberDetails";
 import { eventOwnerLabel } from "../../../../shared/permissions/eventOwner";
 import { GUEST_UPLOADS_ENABLED } from "../../../../shared/permissions/guestUploads";
+import { watchAccessRequests } from "../../../../shared/realtime/accessRequests";
 import { buildSourceGalleryOptions, formatSourceCount, isFromSourceGallery } from "../../../../shared/media/sourceGalleries";
 import { homeAfterUnstar } from "../../../../shared/media/homeFavourites";
 import { HostIcon } from "@/components/HostIcon";
@@ -1960,6 +1961,19 @@ function DashboardContent() {
             setLoadingLogs(false);
         }
     };
+
+    // New and answered access requests show without a reload (todo #40): the Requests list, and the open event's guests
+    const refreshRequestsRef = useRef<() => void>(() => {});
+    refreshRequestsRef.current = () => {
+        void fetchTrafficLogs();
+        if (selectedMainEventId && manageLevel === "event-details") {
+            void getEventLogs(selectedMainEventId).then(setEventDetailLogs).catch(() => {});
+        }
+    };
+    useEffect(() => {
+        if (!user?.uid) return;
+        return watchAccessRequests(supabase, user.uid, () => refreshRequestsRef.current());
+    }, [user?.uid]);
 
     // The guest routes check the signed-in user, so send the login with every call
     const guestRouteHeaders = async (): Promise<Record<string, string>> => {
