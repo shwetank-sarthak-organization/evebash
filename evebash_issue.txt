@@ -676,17 +676,6 @@ Found in: Video pipeline review, RunPod-first plan (chat 2026-11-03)
 Issue: Customers' wedding videos are processed on RunPod's machines, and it is not confirmed that serverless jobs run only in RunPod's own secure data centres (not community hosts). Each job also gets a signed link to the original that stays valid for the job's time limit plus an hour or more. The GitHub repository and worker image are public (no secrets in them). The privacy policy (issue #25, shared/legal/policies.json) may need to name RunPod as a service that processes videos. Fix idea: ask RunPod in writing, restrict the endpoints to secure cloud if it can be set, shorten the link lifetime, and update the policy.
 How to reproduce: Read the RunPod endpoint settings and the privacy policy's list of services that process uploads.
 
-#239
-Listed: 2026-11-03
-Platform: App
-Priority: Low
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: App screen review, video viewer (chat 2026-11-03)
-Issue: The gear in the app's video player opens a "Quality: Auto" box with nothing to choose; the box is fixed text (apps/mobile/components/PhotoViewer.tsx, about line 760). A button that offers no choice looks broken, and it takes room in a crowded bar (previous, -10 s, play, +10 s, next, time, volume, gear, full screen). A manual quality choice isn't needed (#135). Fix idea: remove the gear, or show the stream that is playing (e.g. "Auto · 720p"; the size is already read in reportVideoSize).
-How to reproduce: Open any video in a gallery, tap the video to show the controls, tap the gear.
-
 #240
 Listed: 2026-11-03
 Platform: App
@@ -972,6 +961,19 @@ Issue: After #312 the app still has 19 npm audit alerts (5 high). The app-side o
 How to reproduce: cd apps/mobile && npm audit --omit=dev.
 
 RECENTLY FIXED (delete entries older than 7 days)
+#239
+Listed: 2026-11-03
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: App screen review, video viewer (chat 2026-11-03)
+Issue: The gear in the app's video player opens a "Quality: Auto" box with nothing to choose; the box is fixed text (apps/mobile/components/PhotoViewer.tsx, about line 760). A button that offers no choice looks broken, and it takes room in a crowded bar (previous, -10 s, play, +10 s, next, time, volume, gear, full screen). A manual quality choice isn't needed (#135). Fix idea: remove the gear, or show the stream that is playing (e.g. "Auto · 720p"; the size is already read in reportVideoSize).
+How to reproduce: Open any video in a gallery, tap the video to show the controls, tap the gear.
+Note 2026-11-28 (Shwetank with Claude): decision (Shwetank): remove the gear. Removed the gear button, its "Quality: Auto" box, its showSettings state and styles from apps/mobile/components/PhotoViewer.tsx; the other video controls are unchanged. Staging app update published (iOS 26783e8b b970e540, Android 8eee27b7 50f68e39). Checked on Shwetank's iQOO (newone1, Staging test 1 > Rotate test > Videos): the bar shows previous, -10 s, play, +10 s, next, time, volume and full screen, no gear; the video played (0:10 of 0:28) and paused. iPhone uses the same component; not looked at, no device test added for a removed button.
+Fixed in: 79d7a13e (2026-11-28)
+
 #305
 Listed: 2026-11-20
 Platform: App
