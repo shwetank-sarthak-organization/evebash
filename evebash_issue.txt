@@ -73,8 +73,8 @@ Note 2026-10-27: Fixed in c42c419 (needs a new app build): apps/mobile/hooks/use
 Listed: 2026-10-13
 Platform: Both
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Hiding the 19 themes without a website design (2026-10-13)
 Issue: The theme contrast check src/lib/galleryTheme.test.ts fails before reaching its later checks: the website lightbox colours for "blush" (src/lib/webTemplateTheme.ts, built from src/lib/galleryPresets.ts) have text on background at 1.08:1 (needs 4.5:1). So the test currently guards nothing after that point. Blush is hidden from the pickers now, but events already on it still use these colours.
