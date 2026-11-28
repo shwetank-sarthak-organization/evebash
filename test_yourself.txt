@@ -4609,7 +4609,7 @@ Fix ref:
 Feedback:
 --------------------------------------------------------------------------------
 #157 Homepage shows its headline straight away on a phone (no loading screen first)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-365
@@ -4652,10 +4652,10 @@ Feedback:
   Step 3 PASS: Pricing (/pricing, "Simple, transparent pricing") and Log in (/login, "Welcome Back") open from
     the phone menu; "See a sample gallery" opens /sample-galleries, but that page says "No sample galleries
     are available yet." on staging (data, not a load problem; see issue #32).
-  Step 4 NOT DONE: opened Royal Emerald (newone1's gallery) at 390 px. The title and date are in a slanted
-    script font and look right, but the page has no text with CSS italic that I could check, and I did not
-    open Classic White. Left for a person or another run: open a gallery with italic body text (e.g. Classic
-    White) and confirm the slant.
+  Step 4 PASS (2026-11-28 Claude): opened the Classic White gallery "Staging test 1" at 390 px as newone1. "Two hearts,
+    one holy union." is real slanted Playfair Display Italic (the italic font face loaded; computed font-style
+    italic). Royal Emerald has no CSS italic text. Screenshot: reports/device-tests/test-157-4-italic.png.
+  Result: all 4 steps pass (steps 1 and 2 have outdated wording, see above).
 --------------------------------------------------------------------------------
 #158 Sunlit Portrait theme in the app (iPhone and Android)
 Status:    TODO
