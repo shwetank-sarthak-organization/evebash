@@ -1602,6 +1602,9 @@ export default function PhotoViewer({
           style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
         />
         {showHostTopControls ? (
+          // Hidden while the keyboard is open (#305): the page moves up and the floating buttons covered the
+          // Likes / Comments / Report row (download over REPORT). They come back when the keyboard closes.
+          keyboardHeight > 0 ? null : (
           <View style={[localStyles.hostTopControls, { backgroundColor: viewerTheme.controlBg }]}>
             {!!onTogglePhotoFavourite && (
               <TouchableOpacity
@@ -1669,6 +1672,7 @@ export default function PhotoViewer({
               <IconSymbol name="xmark" size={25} color={viewerTheme.controlText} />
             </TouchableOpacity>
           </View>
+          )
         ) : (
           <TouchableOpacity style={[styles.viewerClose, { backgroundColor: viewerTheme.controlBg, borderRadius: viewerTheme.radius }]} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close photo viewer" hitSlop={8}>
             <IconSymbol name="xmark" size={26} color={viewerTheme.controlText} />
