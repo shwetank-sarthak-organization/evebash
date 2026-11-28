@@ -2697,7 +2697,7 @@ Fix ref:
 Feedback: 2026-11-27 Claude: PASS. Migration gallery_video is applied on staging (events.gallery_video_id exists, get_gallery_video works). Own event on Royal Emerald with a main gallery and a Haldi album, 2 short ffmpeg videos each (all processed). Step 1 PASS: "Use as cinematic highlight video" shows the message 'This video now plays at the top of "..."' and the tile gets the gold "Cinematic highlight" badge; the panel shows the thumbnail. Step 2 PASS: Explore Gallery shows a wide gold-framed video under "Home Gallery" with a gold play button; it plays (HLS, 5 s in 5 s). Step 3 PASS: Haldi with a different video shows its own (different colours/timer). Step 4 PASS: newone5 (approved) sees the video on both pages; logged out on the private event "This gallery is private", no video; logged out after switching the event to public the video shows (main and Haldi). Step 5 PASS: "Remove as cinematic highlight video" removes the badge, the panel says "No cinematic highlight video yet" and the guest page shows no frame. Step 6 PASS: after choosing again, hiding the video from guests removes it from the guest page, showing it again brings it back, deleting it clears gallery_video_id and the guest page shows no video, nothing breaks. Step 7 PASS (layouts differ per theme): Midnight Hero = wide framed video under "Home Gallery" with a dark play button; Classic White = "Highlight film" card with play button beside the title; Sunlit Portrait = full-width hero video with a "Highlight film" button; Confetti Circle = video in a soft confetti frame under "We're getting married!", on main and Haldi. Not compared pixel by pixel: galleries without a video vs before. Step 8 PASS: "Upload video" in the panel uploads into the gallery's Videos and it becomes the gallery video (the upload was too quick to catch the "Processing" label; it showed Ready and the thumbnail with play button, and the guest page played it). Minor: right after the upload the tab still read "Videos (1)" while 2 tiles showed; after a reload it said 2. Step 9 PASS: "Choose from this gallery's videos" lists only this gallery's 2 videos (current one marked), picking the other moves the gallery video, "Remove" clears it. Cleaned up: event, Haldi album, videos and newone5's guest row deleted; no account settings changed. New issue pending (see report): none, only the stale video count noted above.
 --------------------------------------------------------------------------------
 #104 Website asks for Find You consent before the first selfie
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website
 Jira:      EB-327
@@ -2712,14 +2712,22 @@ How to test (account that has never used Find You):
   5. Settings > "Withdraw Find You Consent" > Withdraw. Expect: "Find You consent withdrawn."
      Open Find You again: the consent step is back.
   6. Logged out, open /find-you. Expect: "Find You needs an EveBash account" with a login link.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:    Claude (for Sarthak)
+Device / browser: Claude headless Chromium (Playwright) 1440x900; not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging 7f5ff59a)
+Date tested: 2026-11-27
+Account used: throwaway claude-t104-e3f4cd@example.com (never consented; deleted afterwards), on newone1's own test event "Claude test #104 - delete me" (public, 3 photos; deleted afterwards)
+Screenshot / recording: reports/device-tests/test-104-1-consent.png, -2-onebox.png, -3-selfie-buttons.png, -3-search.png, -4-reload.png, -5-withdrawn.png, -5-consent-back.png, -6-loggedout.png (local only)
 Fix ref:
 Feedback:
+  2026-11-27 Claude: PASS. Logged in with a magic link; the new account first got the "Before you continue" terms screen (accepted, allowed on test accounts), so it had no Find You consent before step 1.
+  1. PASS. Event Find You page shows "Before you use Find You" with 4 points, a Privacy Policy link, two checkboxes (18+, face data) and "Agree and continue" disabled. No selfie buttons.
+  2. PASS. Only box 1 ticked, or only box 2 ticked: "Agree and continue" stays disabled.
+  3. PASS. Both ticked: button enabled; pressed it (give_find_you_consent returned 204) and "Upload from Gallery" / "Take Selfie" appeared. Search with a selfie cropped (ffmpeg) from one of the event photos: "Found 3 photos of you!", 3 matches.
+  4. PASS. After reload: no consent step, selfie buttons shown straight away.
+  5. PASS. Settings > Withdraw Find You Consent > Withdraw: toast "Find You consent withdrawn."; Find You on the event shows the consent step again.
+  6. Step outdated: /find-you (no event) is a 404 now; Find You lives at /events/<slug>/find-you. Logged out there it shows "Log in to use Find You" with Log in and Create account links (both carry returnTo), not the older wording "Find You needs an EveBash account". Works as intended; step text should be rewritten.
+  Cleaned up: test event and photos deleted; throwaway account, its profile and consent rows deleted.
 
 --------------------------------------------------------------------------------
 #105 App asks for Find You consent before the first selfie
