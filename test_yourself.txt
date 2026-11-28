@@ -7792,7 +7792,7 @@ Fix ref:
 Feedback: Android PASS (Shwetank). iPhone simulator PASS (Claude): guest name readable, light guest popup, dark report sheet with a white title.
 
 #251 Website (live): a real payment switches the plan on through the Razorpay webhook (issue #316)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website, live www.evebash.com (any browser). Needs a real payment (refund it afterwards if it's a test).
 Jira:      EB-420
@@ -7811,14 +7811,14 @@ How to test:
      latest deliveries (payment.captured, order.paid) show response 200, not 400 or 503.
   4. Optional: ask Claude to check the payments table: exactly one captured row for that payment.
   5. Refund the payment in Razorpay if it was only a test.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Claude for Shwetank (the payment was made by a friend of Shwetank's)
+Device / browser: the buyer's own browser; the signed-out check in the Claude app's built-in browser
+Build / version:  live www.evebash.com and api.evebash.com (PR #31, 653d6a3c; checked again on 60d988a2)
+Date tested:      2026-11-24 (payment), 2026-11-28 (checked)
+Account used:     the buyer's own account (Free, then Starter); signed out for step 1
+Screenshot / recording: none kept
 Fix ref:
-Feedback:
+Feedback:         PASS. Step 1: signed out, Choose Starter > Continue to Payment opened /login?returnTo=/pricing. Step 2: a real payment of 150 INR (Starter monthly, 2026-11-24 19:45 IST) switched the plan on (starter until 2026-12-24). Step 3 not opened in the Razorpay dashboard, but step 4 shows the webhook was accepted: exactly one captured payments row, its note "Immediate plan activation: starter (Razorpay webhook)". Step 5: a real customer's payment, so not refunded.
 
 #252 Changing your profile picture works on the website and in the app, and the picture is small (issue #322)
 Status:    PASS
