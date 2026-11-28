@@ -922,18 +922,6 @@ Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simula
 Issue: In the app's Find You results ("Your Photos - N matches found in this event"), the photo grid isn't centred: its two columns sit on the left with an empty strip about a third of a column wide on the right (iPhone 17 Pro size, Cinematic wedding theme). Fix idea: check the matched-photos grid's width and gaps in apps/mobile/components/event/FindYouPanel.tsx (matchedPhotos.map, about line 454).
 How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc), Find You > Upload Photo > a picture of the groom (a crop of public/home/groom-solo.jpg): 5 matches, grid left of centre.
 
-#305
-Listed: 2026-11-20
-Platform: App
-Priority: Low
-Status: In progress
-Owner: Shwetank (with Claude)
-Blocked by: -
-Found in: Device test #181 step 5 on an Android phone (iQOO, EveBash Staging app, host's photo viewer), 2026-11-20
-Issue: In the app's host photo viewer, the top row of buttons is too crowded on Android: the star (favourite) icon overlaps the icon next to it, and the download icon covers the "R" of the REPORT label. Most likely the Report button added for todo #38 gave the row one more button than fits on a phone this wide (1080 px). Looks only; the buttons still work. Fix idea: give the row less space per button, drop the text labels under the icons, or move less-used actions (rotate, report) into a "..." menu.
-How to reproduce: Android phone, EveBash Staging app, newone1@email.com > Staging test 1 host page > open a photo > look at the top row.
-Note 2026-11-20: on iPhone the top row doesn't overlap (Report sits in the Likes/Comments row), but when the host page scrolls up (keyboard open) the floating star/rotate/download buttons sit on top of the Likes/Comments/Report row.
-
 #309
 Listed: 2026-11-22
 Platform: Both
@@ -984,6 +972,20 @@ Issue: After #312 the app still has 19 npm audit alerts (5 high). The app-side o
 How to reproduce: cd apps/mobile && npm audit --omit=dev.
 
 RECENTLY FIXED (delete entries older than 7 days)
+#305
+Listed: 2026-11-20
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Device test #181 step 5 on an Android phone (iQOO, EveBash Staging app, host's photo viewer), 2026-11-20
+Issue: In the app's host photo viewer, the top row of buttons is too crowded on Android: the star (favourite) icon overlaps the icon next to it, and the download icon covers the "R" of the REPORT label. Most likely the Report button added for todo #38 gave the row one more button than fits on a phone this wide (1080 px). Looks only; the buttons still work. Fix idea: give the row less space per button, drop the text labels under the icons, or move less-used actions (rotate, report) into a "..." menu.
+How to reproduce: Android phone, EveBash Staging app, newone1@email.com > Staging test 1 host page > open a photo > look at the top row.
+Note 2026-11-20: on iPhone the top row doesn't overlap (Report sits in the Likes/Comments row), but when the host page scrolls up (keyboard open) the floating star/rotate/download buttons sit on top of the Likes/Comments/Report row.
+Note 2026-11-28 (Shwetank with Claude): checked on Shwetank's iQOO before the change: the top row fits (star, rotate x2, download, close) and nothing overlaps while scrolling; the overlap only happens with the keyboard open, when the page moves up and the floating buttons sit on the Likes / Comments / Report row (download over the R of REPORT, star over the comments icon). So no "..." menu: the floating buttons are hidden while the keyboard is open (keyboardHeight > 0, apps/mobile/components/PhotoViewer.tsx) and come back when it closes. Staging app update published (iOS 26783e8b 7061740a, Android 8eee27b7 2958c479). Checked on the iQOO after the update: keyboard open, the row is clear; keyboard closed, all 5 buttons are back. iPhone: same code, not looked at (device test #271).
+Fixed in: 9ba25a2c (2026-11-28)
+
 #179
 Listed: 2026-10-28
 Platform: Backend only

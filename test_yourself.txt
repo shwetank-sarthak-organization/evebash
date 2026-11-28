@@ -24,7 +24,7 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 271
+Next test number: 272
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -8435,6 +8435,28 @@ How to test (two accounts: host A on one phone or browser, guest B on another):
      appear by themselves.
   4. Make sure B never sees anything from an event B is not part of.
   5. Delete the test photos and comment afterwards.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#271 App (iPhone): host photo viewer buttons don't cover Likes / Comments / Report while typing (issue #305)
+Status:    TODO
+Priority:  Low
+Platform:  iOS (staging app with update 2026-11-28 or later)
+Jira:      EB-458
+Brief:     With the keyboard open, the host photo viewer's floating buttons (star, rotate, download, close) used to
+           sit on the Likes / Comments / Report row. They are now hidden while the keyboard is open.
+Detail:    Fix 9ba25a2c. Checked by Claude on Shwetank's iQOO (Android) 2026-11-28: PASS. Not checked on an iPhone.
+How to test:
+  1. iPhone, staging app, sign in as a host, open one of your galleries and tap a photo.
+  2. Scroll down to the Guestbook and tap "Share a wish..." so the keyboard opens.
+     Expect: the Likes / Comments / Report row is fully visible; no star, rotate, download or X buttons on it.
+  3. Close the keyboard. Expect: the star, rotate, download and X buttons are back at the top.
 Done by:
 Device / browser:
 Build / version:
