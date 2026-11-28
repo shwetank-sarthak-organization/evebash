@@ -6853,7 +6853,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #220 Dashboard stat numbers at a narrow window (about 1024 px)
-Status:    TODO
+Status:    PASS
 Priority:  Low
 Platform:  Website
 Jira:      EB-413
@@ -6866,14 +6866,20 @@ How to test:
   1. Website: sign in, open Dashboard, make the browser window about 1024 px wide. Expect: each box shows its
      label (Total Photos, Total Videos, Events Joined) and a plain number under it, nothing cut off with "...".
   2. Make the window wider (1280 px and more) and narrower (phone width). Expect: the numbers still fit.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium) at 1024, 1280 and 1600 px wide + a 375 px same-origin iframe with a desktop user agent; not a real device
+Build / version: staging.evebash.com as of 2026-11-28 (staging d8a0a301)
+Date tested: 2026-11-28
+Account used: test account signed in to the built-in browser (412 photos, 5 videos, 1 event joined)
+Screenshot / recording: none (PASS; measured with scrollWidth vs clientWidth)
 Fix ref:
-Feedback:
+Feedback:   2026-11-28 Claude: PASS. Account had 412 photos (not 1,000+), so I also temporarily swapped the shown numbers
+           for 12,345 / 1,234 / 1,234,567 on the page (not saved) to simulate big counts.
+           Step 1 (1024 px): boxes show label + plain number ("412", "5", "1"), no "..." and no clipping
+           (scrollWidth = clientWidth for every label and number; no sideways page scroll). Fake big numbers also fit.
+           Step 2 (1280 and 1600 px): same, nothing clipped, real and fake numbers. 375 px (phone width in a computer
+           browser, not a real phone): boxes stack with label above number; nothing clipped, no sideways scroll,
+           real and fake numbers fit.
 
 --------------------------------------------------------------------------------
 #221 App (Android first): a phone only gets the pushes of the account signed in on it (#104)
