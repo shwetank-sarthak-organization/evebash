@@ -1200,7 +1200,12 @@ export default function PhotoViewer({
     if (!currentPhoto?.id || !newComment.trim() || isCommenting || !canPostComment) return;
     setIsCommenting(true);
     try {
-      await addComment(currentPhoto.id, viewerIdentity.id, viewerIdentity.name, newComment.trim(), replyingTo?.id);
+      // addComment returns false instead of throwing; keep the text so the guest can send it again (#240)
+      const posted = await addComment(currentPhoto.id, viewerIdentity.id, viewerIdentity.name, newComment.trim(), replyingTo?.id);
+      if (!posted) {
+        showToast("Couldn't post your comment. Check your connection and try again.", { type: 'error' });
+        return;
+      }
       setNewComment('');
       setReplyingTo(null);
       Keyboard.dismiss();
@@ -1226,7 +1231,11 @@ export default function PhotoViewer({
         style: 'destructive',
         onPress: async () => {
           try {
-            await deletePhotoComment(commentId);
+            // deletePhotoComment returns false instead of throwing (#240)
+            if (!(await deletePhotoComment(commentId))) {
+              showToast("Couldn't delete the comment. Check your connection and try again.", { type: 'error' });
+              return;
+            }
             refreshInteractions();
           } catch (err) {
             console.error('[PhotoViewer] Delete comment failed:', err);
