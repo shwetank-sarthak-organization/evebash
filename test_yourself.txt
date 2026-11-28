@@ -3346,15 +3346,22 @@ How to test (host page, a test gallery; use 2-3 videos of 50 MB or more so there
   5. (Claude checks B2 afterwards: no leftover files for the cancelled videos.)
   6. Photos: upload 20 photos and press X on one showing "Processing"/"Indexing". Expect: same as
      step 2 for that photo.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:    Claude (for Sarthak)
+Device / browser: Playwright headless Chromium 1440x900 (driven from node scripts, Playwright MCP was down); not a real device
+Build / version: staging.evebash.com as of 2026-11-28 (staging 826e2b42)
+Date tested: 2026-11-28
+Account used: newone1@email.com (own event "Claude test #125 - delete me", deleted afterwards)
+Screenshot / recording: reports/device-tests/test-125-step1.png, step2, step3a, step3b, step4, step6a, step6b (local only)
 Fix ref:
-Feedback:
-
+Feedback:  2026-11-28 Claude: steps 1-4 and 6 PASS, step 5 NOT done, so the test stays TODO. Videos were 6 files of ~71 MB (11 Mbps, 60 s), photos 20 JPEGs 1600x1200.
+           Videos upload one at a time (the rest show "Queued...").
+           1. PASS: pressed X on vid1 at 25%: it went to "Cancelled" within 1 s (my 1 s polling did not catch the short "Cancelling..." text); the next queued video started; vid1 never showed in the gallery.
+           2. PASS: vid2 showed "Processing video..." with a "Cancel and delete" X. Confirm text: Cancel "vid2.mp4"? It has already been uploaded, so it will be deleted. Then "Cancelling and deleting..." then "Cancelled · deleted" in about 3 s; gone from the gallery. Storage used could not be compared reliably: profile showed 1.13 GB before and after because other sessions upload to the same account at the same time.
+           3. PASS: with vid3 "Processing video...", vid4 at 12% and vid5, vid6 queued, "Cancel all" gave the confirm "Cancel all 4 unfinished uploads? 1 file has already been uploaded and will be deleted." All four ended cancelled (vid3 "Cancelled · deleted", the others "Cancelled") within 2 s.
+           4. PASS: after a refresh none of vid1, vid2, vid3 (cancelled ones), vid4, vid5, vid6 were in the gallery. Database (staging REST, read-only) listed only 2 video rows, both from my own test scripts that I killed mid-upload without pressing X (so they were not cancelled), not from the cancelled ones.
+           5. NOT DONE: the B2 key in the repo's root .env only reaches the live bucket "EveBash", which holds no staging events (events/claude-test... not found; the staging event's 2 saved videos were not there either). Staging uses a different bucket and its key is not in any repo .env file. Left to do: list the staging bucket under events/<event id>/ for the cancelled items (needs the staging B2 key from the staging Railway variables, or Sarthak running the listing).
+           6. PASS: uploaded 20 photos; photo1 showed processing, X gave the same confirm (Cancel "photo1.jpg"? It has already been uploaded, so it will be deleted.), "Cancelling and deleting..." then "Cancelled · deleted" in about 4 s; after refresh the gallery had 19 photos.
+           Cleanup: deleting the test event from the host page needed the Delete button three times before the event and its media were gone (page stayed on the event after the first two clicks; photo rows went 21 -> 9 -> 0, then the event row went). Not recorded as a bug: could be normal batching, but worth a look. Event and all files are deleted; no leftovers in the database.
 --------------------------------------------------------------------------------
 #126 Profile storage: tap Event Storage to see photos, videos and voice notes
 Status:    TODO
