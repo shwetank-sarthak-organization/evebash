@@ -680,8 +680,8 @@ How to reproduce: Read the RunPod endpoint settings and the privacy policy's lis
 Listed: 2026-11-03
 Platform: App
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: App screen review, video viewer (chat 2026-11-03)
 Issue: The gear in the app's video player opens a "Quality: Auto" box with nothing to choose; the box is fixed text (apps/mobile/components/PhotoViewer.tsx, about line 760). A button that offers no choice looks broken, and it takes room in a crowded bar (previous, -10 s, play, +10 s, next, time, volume, gear, full screen). A manual quality choice isn't needed (#135). Fix idea: remove the gear, or show the stream that is playing (e.g. "Auto · 720p"; the size is already read in reportVideoSize).
