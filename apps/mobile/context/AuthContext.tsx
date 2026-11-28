@@ -2,6 +2,7 @@ import { PolicyAcceptanceGate } from "../components/PolicyAcceptanceGate";
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { releasePushToken } from '@/lib/notifications';
+import { setUploadAccount } from '@/lib/uploadQueue';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants from 'expo-constants';
@@ -148,6 +149,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   console.log('[Auth] AuthProvider mounting...');
   const [user, setUser] = useState<AppUser | null>(null);
+
+  // Only the signed-in person's files upload; signed out, uploads pause and carry on at the next sign-in (#302, #303)
+  useEffect(() => {
+    setUploadAccount(user?.uid ?? null);
+  }, [user?.uid]);
   const [loading, setLoading] = useState(true);
   // The signed-in user's profile loader (fetchAndSetUser below), so screens can reload it after saving (issue #324)
   const refreshProfileRef = useRef<(() => Promise<void>) | null>(null);
@@ -591,6 +597,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    // Pause this account's uploads first, so nothing is sent without a login or under the next account (#302, #303)
+    setUploadAccount(null);
     // While still signed in: stop this phone getting the account's pushes (#104)
     await releasePushToken(user?.uid);
     try {

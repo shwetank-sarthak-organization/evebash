@@ -2,11 +2,16 @@
 // connection is still alive. When the phone's network path to Supabase dies silently, every later request is sent
 // down that dead connection and hangs until lib/supabase.ts gives up after 20 s, until the app is restarted.
 // A ping every PING_SECONDS lets OkHttp notice a dead connection (no answer by the next ping), fail it and retry the
-// request on a new one. 5 s keeps that under 10 s, inside lib/supabase.ts's 20 s limit, so the request in flight
-// still succeeds. Everything else stays React Native's default client (same cookie jar, 10 MB cache, no timeouts).
+// request on a new one, within 1-2 pings. Everything else stays React Native's default client (same cookie jar,
+// 10 MB cache, no timeouts).
+// #315: on mobile data (e.g. Jio) the route to Supabase's Cloudflare entry moves between cities every few minutes,
+// and each move silently kills the open connection. With a 5 s ping a request sent just then waited 5-10 s (measured
+// 6.9 s); 2 s cuts that to 2-4 s. Supabase keeps a connection pinged every 2 s open for OkHttp's full 5-minute idle
+// time (checked on staging), and a ping is a few dozen bytes. Without any ping (a build made before #260) the same
+// moment gives "We couldn't open this gallery" after 20 s and Try again fails too.
 const { withMainApplication } = require('expo/config-plugins');
 
-const PING_SECONDS = 5;
+const PING_SECONDS = 2;
 const MARKER = 'OkHttpClientProvider.setOkHttpClientFactory';
 const IMPORTS = [
   'import com.facebook.react.modules.network.OkHttpClientProvider',

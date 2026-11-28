@@ -587,7 +587,7 @@ Listed:       2026-11-06
 Platform:     App
 Priority:     Medium
 Phase:        1
-Status:       In progress
+Status:       Done
 Effort:       S
 Suggested by: Sarthak
 Discussed:    No
@@ -604,7 +604,7 @@ Brief:        Shrink the app's login screen (apps/mobile/app/login.tsx) so every
               checklist, confirm password and the policy checkbox, so it may still need to scroll),
               and whether the brand block can shrink or move. Leave guest event themes alone. Add a
               device test when it ships.
-Done in:      -
+Done in:      0f0a71ac (2026-11-20); device test #245 PASS 2026-11-27
 Update:       2026-11-20 (Shwetank asked to build it): apps/mobile/app/login.tsx: on screens under 800 pt tall
               (compact) the brand (34 pt name, 15 pt tagline), screen and card padding, field, button and divider
               gaps are tighter; nothing removed; Google and Apple buttons keep their standard size; taller

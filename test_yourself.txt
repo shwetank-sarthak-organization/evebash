@@ -24,11 +24,11 @@ HOW TO USE
   ticket in To Do - Active Phase (Phase 2 tests in To Do); RETEST moves to Testing, PASS to Done.
   This file stays the main record: change the file first, then the ticket.
 
-Next test number: 258
+Next test number: 267
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-11-25
+Last updated: 2026-11-27
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -482,7 +482,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #22 EB Vault - organise: folders, rename, move, copy, star, search, recent
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-259
@@ -493,17 +493,18 @@ How to test:
   4. Star a file: it appears under Starred. Recent shows recently changed files.
   5. Search part of a file name: it is found. Another account's files never appear.
 Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
-Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
-Date tested: 2026-10-28
-Account used: host newone@email.com
+Device / browser: Claude Playwright Chromium (desktop size); not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging ec9d6e85)
+Date tested: 2026-11-27
+Account used: throwaway claude-t22-*@example.com (deleted afterwards); outsider newone4@email.com for step 5
 Screenshot / recording:
 Fix ref:
 Feedback: Website PASS for: New folder, Rename folder, Move a file into it, Make a copy ("claude-vault-a (1).txt"), Star -> shows under Starred, Recent lists the new files, Search "vault-b" finds the file inside the folder. Not checked: moving a folder into its own subfolder, storage going up after a copy (files too small to show), another account's files.
+  2026-11-27 Claude: ALL STEPS PASS. 1) New folder, Rename (claude-t22-folder-renamed) and Move a file into it via the file menu all work. 2) In the Move picker for a folder, the folder itself is greyed out and cannot be opened, so it cannot be moved into its own subfolder (checked with a real subfolder inside it). 3) Make a copy of a 5.72 MB file (Copy to... picker, then "Copy to My Files") created "claude-t22-big (1).bin" and storage went 5.72 MB -> 11.44 MB. 4) The Star button on the file row puts it under Starred; Recent lists the new files; search "t22-a" finds the file. 5) Signed in as newone4: My Files, Recent, Starred and searches for "t22" and "claude" are all empty, storage 0 KB. Cleaned up: all test files moved to Trash and Delete forever (Trash empty, storage 0 KB); throwaway account deleted. The terms screen was accepted on the throwaway (approved by Sarthak). Desktop browser only, not a real phone.
 
 --------------------------------------------------------------------------------
 #23 EB Vault - Trash, restore and delete forever
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-260
@@ -513,15 +514,22 @@ How to test:
   3. Restore the folder: it returns with its files.
   4. Delete forever one file, then Empty Trash. Expect storage used goes down.
 Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
-Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
-Date tested: 2026-10-28
-Account used: host newone@email.com
-Screenshot / recording:
+Device / browser: Playwright Chromium (local playwright-core) 1280x900, computer; not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging ec9d6e85)
+Date tested: 2026-11-27
+Account used: host newone1@email.com (passwordless admin sign-in; accepted the Terms screen on this test account)
+Screenshot / recording: reports/device-tests/test-23-step1-trash.png, test-23-step3-restored.png, test-23-step4-confirm.png, test-23-step4-deleted.png (local only)
 Fix ref:
 Feedback: Steps 1-3 PASS: a folder and a file moved to Trash show "Deleted 28 Oct 2026 - Gone forever on 27 Nov 2026"; Restore brings the folder back with its file inside. Step 4 (Delete forever / Empty Trash) not done: Claude isn't allowed to delete data permanently. Trash now holds only Claude's test files (claude-test-folder-renamed, claude-vault-*.txt / .jpg) - press Empty Trash to finish step 4 and clean up.
 
 --------------------------------------------------------------------------------
+  2026-11-27 Claude: PASS. Uploaded claude-t23-file.bin (2.86 MB), claude-t23-del.bin (3.81 MB) and a folder claude-t23-folder with two files (2.86 + 1.91 MB) through "Upload folder"; Vault went 1.46 -> 12.9 MB (total 985.67 -> 997.12 MB).
+  Step 1 PASS: folder + file (+ del.bin) moved to Trash; each shows "Deleted 27 Nov 2026 - Gone forever on 27 Dec 2026" with Restore and Delete forever.
+  Step 2 PASS: storage unchanged after moving to Trash (997.12 MB, Vault 12.9 MB); the Trash page says items still count toward storage.
+  Step 3 PASS: Restore on the folder brought it back in My Files with both files inside (2.86 MB and 1.91 MB).
+  Step 4 PASS with a note: Delete forever on claude-t23-del.bin asked "will be permanently deleted. This can't be undone", then storage fell 997.17 -> 993.35 MB (Vault 12.9 -> 9.09 MB, -3.81 MB). Empty Trash was NOT pressed: the Trash also held other items (images (6).jpeg, images (5).jpeg, monikas_wunderwelt-leaf-10544685.jpg), so per Sarthak's condition I used Delete forever on my own items only. The Empty Trash button itself is still untested.
+  Cleanup: trashed and deleted forever claude-t23-file.bin and claude-t23-folder (its files went with it); Vault is back to 1.46 MB. The 3 other Trash items were left alone; Claude's 2026-10-28 test files were no longer in Trash.
+
 #24 EB Vault - privacy and storage limits
 Status:    TODO
 Priority:  High
@@ -977,7 +985,7 @@ Fix ref:
 Feedback:
 
 #44 Guest admin can upload videos; normal guests can't (website)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website (app needs no change; it uses the same backend)
 Jira:      EB-278
@@ -990,14 +998,22 @@ How to test:
      Expect: refused with "videos are reserved for the owner and admins"; photos still upload.
   Note: a red 404 for can_manage_event_visibility on the guest admin page is expected until RLS
   lockdown part 2 (#21); it only means guest admins don't get the public/private switch yet.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak)
+Device / browser: Playwright Chromium 1440x900 (computer browser, desktop user agent; not a real device)
+Build / version: staging.evebash.com as of 2026-11-27 (staging ec9d6e85)
+Date tested: 2026-11-27
+Account used: newone1 (host, own event "Claude test #44 - delete me"), newone5 (guest, Admin Access on)
+Screenshot / recording: reports/device-tests/test-44-guest-admin-video.png (local only)
 Fix ref:
-Feedback:
+Feedback:  2026-11-27 Claude: PASS. Own event as newone1; newone5 asked for access, newone1 approved, then switched Admin on (Uploads and Comments came on with it).
+           Step 1 PASS: as newone5 on the gallery's Photos and Videos upload page, video-upload-permission = 200 {"allowed":true}, no 500.
+           Uploaded a 3 s mp4 (Videos tab, Add or Drop Videos): get-upload-url 200, PUT to Backblaze 200, save-photo-batch 200. The row
+           went to status processed within seconds (duration 3.0, HLS master.m3u8 and poster.jpg both 200). The Videos counter showed (0)
+           until I reloaded, then (1): the list does not refresh by itself after a video upload (small, not logged as an issue).
+           Step 2 not testable: the host's Permissions list no longer has an Uploads switch for guests (guest uploads are off, todo #49),
+           so there is no "normal guest with uploads on" to test. Does not block PASS (see Note 2026-11-23).
+           Note: can_manage_event_visibility returned 200, not the expected 404 (RLS part 2 seems to be on staging now); can_manage_event_admins 200 too.
+           Cleaned up: test event deleted by the host (event, photo row and guest rows gone).
 Note 2026-11-23: the "normal guests can't" part is moot while guest uploads are off (todo #49); admins uploading videos still applies.
 
 #45 A removed guest has to ask again; the list only changes when the change is saved (website)
@@ -1564,7 +1580,7 @@ Feedback: Partly: Delete Gallery confirm (dark card, X, red Delete), New Sub-Gal
 
 --------------------------------------------------------------------------------
 #65 Host Event Design tab: new layout with phone and website preview
-Status:    TODO
+Status:    PASS
 Priority:  Low
 Platform:  Website (staging.evebash.com; check on a phone browser too)
 Jira:      EB-295
@@ -1587,13 +1603,14 @@ How to test:
   7. Tab key: Event Type, Template and Preview Guest Theme can be reached and opened with Enter.
   8. On a phone browser: the cards stack, the phone sketch sits above the browser sketch, no sideways scrolling.
 Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
-Build / version: staging.evebash.com as of 2026-10-28 (staging ee95c6b)
-Date tested: 2026-10-28
-Account used: host newone@email.com
-Screenshot / recording:
+Device / browser: Claude Playwright Chromium (isolated context), computer 1280x800 and 375x800 with a desktop user agent (phone width in a computer browser, not a real phone); not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging ec9d6e85)
+Date tested: 2026-11-27
+Account used: host newone1@email.com (own test event "Claude test #65 - delete me", deleted afterwards)
+Screenshot / recording: reports/device-tests/test-65-default.png, test-65-white.png, test-65-375.png
 Fix ref:
 Feedback: Steps 1, 2, 5 PASS on test-face-new: Event Type Wedding, Template "Royal Emerald" in gold, right card with name, description and Preview Guest Theme; phone and browser sketches show the cover, title, date, Home, sub-gallery names (phone) / Collections (browser) and Find You. Template opens Choose Style. Not checked: picking another template, light theme, long title, keyboard, phone.
+          2026-11-27 Claude: PASS (steps 5 and 6 outdated, see below). Step 1 PASS. Step 2 PASS: new event shows Event Type "Wedding", Template "Midnight Hero" in gold, right card with the same name and "Big impact cinematic dark aesthetic". Step 3 PASS: Event Type opens the picker (Wedding ticked); Template opens "Choose Style"; picking Classic White changed name, description and both previews to the light design; picking Midnight Hero changed them back. Step 4 PASS: Preview Guest Theme opens a new tab at /events/<event>?edit=1 (guest page in edit mode). Step 5 outdated: the hand-drawn sketches are now the real "Guest Home Preview" (phone "APP" + browser "WEBSITE", GuestPagePreview.tsx). The browser preview shows the event's own cover, title and date; the phone preview shows the app sample ("Maya & Arjun", sample photo), not this event's own data. Text readable on Classic White (light) and Midnight Hero (dark). Step 6 outdated: the long title (about 150 characters) is no longer cut at two lines: the browser preview wraps it over 4-7 lines inside the frame, the preview address bar and nav title are cut with "..."; nothing spilled outside the frames. Step 7 PASS: Tab from the Design tab reaches Event Type, Template, then Preview Guest Theme; Enter opens each (picker, Choose Style, new tab). Step 8 PASS (375 px, desktop user agent, not a real phone): cards stack, the phone preview sits above the browser preview, page width 375 = no sideways scroll. Side note: Escape does not close the Event Type / Choose Style pickers (X button does); not part of this test.
 
 --------------------------------------------------------------------------------
 #66 App: after logging out, "Continue with Google" lets you pick the account
@@ -1765,7 +1782,7 @@ Fix ref:
 Feedback: Website host picker (Choose Style) lists only 6 templates: Royal Emerald, Classic White, Sunlit Portrait, Confetti Circle, Periwinkle Script, Midnight Hero. Old events with hidden themes and the app not checked.
 
 #72 Website: "Open in app" bar on event pages (Android phones only, behind a flag)
-Status:    TODO
+Status:    BLOCKED
 Priority:  Medium
 Platform:  Website (Android phone in Chrome; also iPhone Safari and a computer for the "not shown" checks)
 Jira:      EB-302
@@ -1792,7 +1809,9 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  2026-11-27 Sarthak (via Claude): parked as BLOCKED. Staging has the "Get the EveBash app" screen on for phones and
+           tablets (#123), which replaces event pages, so the bar can't be tested as written. Unblock once the app-screen
+           plan is settled (gate off, or the bar kept only for open pages), then set the banner flag and redeploy.
 
 #73 App: event links open the event in the app (Android)
 Status:    TODO
@@ -3139,7 +3158,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #122 Website: "Get the app" bar on phones and tablets (behind a flag)
-Status:    TODO
+Status:    BLOCKED
 Priority:  Medium
 Platform:  Website (Android phone, iPhone, iPad, Android tablet, and a computer for the "not shown" check)
 Jira:      EB-343
@@ -3169,7 +3188,9 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  2026-11-27 Sarthak (via Claude): parked as BLOCKED. Staging has the "Get the EveBash app" screen on for phones and
+           tablets (#123), which replaces event pages, so the bar can't be tested as written. Unblock once the app-screen
+           plan is settled (gate off, or the bar kept only for open pages), then set the banner flag and redeploy.
 
 --------------------------------------------------------------------------------
 #123 Website: phones and tablets see "Get the EveBash app" instead of the website (behind a flag)
@@ -4067,7 +4088,7 @@ Feedback:         2026-10-26 steps 1-3 PASS. 1: both buttons enabled as soon as 
 
 --------------------------------------------------------------------------------
 #148 New Midnight Hero gallery design (website, computer)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website (computer; phones and tablets still get the "Get the app" screen, #109)
 Jira:      EB-358
@@ -4108,12 +4129,12 @@ How to test:
      gallery, no "Main Event: ..." text), the highlight film in a gold frame with a gold-ringed play
      button (only if the host picked one), then a Photos / Videos switch with the chosen one in gold.
      Click Videos and Photos, play the film, click Back and Share Gallery: each works as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Claude (for Sarthak)
+Device / browser: Real Google Chrome (Playwright) 1440x900 and 800x600 + Chrome for Testing; not a real device
+Build / version:  staging.evebash.com as of 2026-11-27 (staging c2b272be)
+Date tested:      2026-11-27
+Account used:     newone1@email.com (host, passwordless link)
+Screenshot / recording: reports/device-tests/test-148-*.png (local)
 Fix ref:
 Feedback:         2026-10-26 Claude, built-in browser at 1440x900 on staging (9abe281), wedding-2-77d4:
                   step 1 looks as described; step 2 links are Home, Collections, Find You, Download All and
@@ -4121,9 +4142,36 @@ Feedback:         2026-10-26 Claude, built-in browser at 1440x900 on staging (9a
                   the tick (the clipboard refused the copy only because the test window was not focused).
                   Not done: steps 3, 5, 6 and a real person's look on a real computer.
                   (These results were for the earlier pill design; steps 1, 2 and 6 changed in f41b30d.)
+                  2026-11-27 Claude: PASS on my own test gallery (wedding-2-77d4 does not exist on staging), all steps
+                  against the current text. 1: cover fills the screen; card with thin double gold border and
+                  a small gold diamond on top, "Aanya weds Rohan" (title "Aanya & Rohan"), "15 DECEMBER 2026",
+                  gold Enter Gallery button, square share button; no Save The Date / Celebration Of / back
+                  arrow / Scroll Down. The card is a wide rectangle (about 560x215), not a square.
+                  2: gold script title in the centre, Home + Collections left, Find You + Download All right,
+                  plain text, current page gold with a thin gold line, readable on the photo, no pill; at the
+                  top the bar is transparent, after scrolling it is navy (rgba 6,10,24,0.9).
+                  3: Collections opens a list with the album (Haldi) which opens the album; Home returns to
+                  the gallery; Find You opens /find-you; Download All asks "Home only / Entire event", then
+                  a ZIP (6 photos + 1 video, 208 MB) downloaded; deleted afterwards.
+                  4: Enter Gallery scrolls to the photos; the share button turns into a tick and the clipboard
+                  holds .../events/<id>?shared=true.
+                  5: cover scale/offset (set in the database, not the host page) changes the big cover as
+                  expected; very long title wraps over 4 lines in the card and is cut with ... in the bar;
+                  album card shows small "AANYA & ROHAN" above "Haldi"; no date -> no date line.
+                  6: at 800x600 the bar links get smaller and fit either side of the title; the card and
+                  buttons stay on screen; no sideways scroll. Small catch: with the very long title the
+                  right edge of "Download All" ends about 2 px outside the 800 px window (issue #332, Low, fixed in a755ee89 and
+                  re-checked on staging the same day: the bar now fits at 768-1440 px).
+                  7: top shows Back to Gallery / Share Gallery boxes, event name in gold italic, gold star,
+                  "Home Gallery" with Gallery in gold, "6 PHOTOGRAPHS · 1 FILM", message in italics, gold
+                  framed film with gold-ringed play button, Photos (6) / Videos (1) switch with the chosen
+                  one in gold. Film plays in real Chrome (the Chrome for Testing build has no H.264, so
+                  it only spins there); Share Gallery copies the link; Back to Gallery goes to /dashboard when
+                  signed in (existing code). Photos/film rows were copies of other newone1 files, 4 thumbnails
+                  were blocked by the browser (test-data artefact). Test gallery and rows deleted.
 --------------------------------------------------------------------------------
 #149 New wedding theme Sunlit Portrait (website, computer and phone)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-359
@@ -4181,14 +4229,43 @@ How to test:
      skip this step). Expect: names readable, "We're getting married" and the date on two lines,
      the menu button white over the photo; the menu opens with the same items as Classic White; the
      gallery header is centred and nothing runs off the screen.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Claude (for Sarthak)
+Device / browser: Local Playwright Chromium (desktop UA), 1440x900 and 390x844 (phone width in a computer
+                  browser, not a real phone); not a real device
+Build / version:  staging.evebash.com as of 2026-11-27 (staging 7b1ef1be)
+Date tested:      2026-11-27
+Account used:     newone1@email.com (own test event "Asha and Raj", deleted afterwards); logged out for album check
+Screenshot / recording: reports/device-tests/test-149-*.png (local only)
 Fix ref:
-Feedback:         2026-10-26 Claude, built-in browser before commit (local dev server, every gallery
+Feedback:         2026-11-27 Claude: all steps pass (own test event + album as newone1; date, video, cover and title
+                  were set through the staging database API where noted, not the host page).
+                  1 PASS: Sunlit Portrait offered in the picker (next to Royal Emerald, Classic White, Midnight Hero,
+                  Confetti Circle); picked, saved (template saved as portrait).
+                  2 PASS: cover fills the screen; "We're getting married ♥ 15 March 2027" bottom left, big serif
+                  "Asha & Raj", round white arrow bottom right. Date passed -> "Happily married since 3 November 2025",
+                  no heart. Logged-out album cover shows the couple's names and the main event's date line, not the
+                  album name. Long title stays on one line (smaller); no date -> just "We're getting married".
+                  Date changes made by database update, not the host page.
+                  3 PASS: top bar white over the cover, soft white with dark text and dark Download All after scrolling.
+                  4 PASS: Collections lists the album and opens it; Find You opens with an off-white bar; Download All
+                  asks "Home (Primary Gallery) only" / "Entire event"; Entire event gave a ZIP with a folder per gallery.
+                  ("Home only" not tried.)
+                  5 PASS: with a highlight video: opening fills one screen under the bar, bold white Back to Gallery /
+                  Share, date, name, message and white "Highlight film" button; pressing it turned the page off-white,
+                  film plays at 1280 wide under the thin line. Without video: no full screen, Back to Gallery / Share
+                  on a thin line, name and message, Photos / Videos in serif with a dot under the chosen one;
+                  switching works. Logged out, Back to Gallery on the main gallery stayed on the page at the top
+                  (no login page).
+                  5b PASS: dark footer, links at left and right, names and "Made with EveBash" in the middle; all six
+                  links go to their pages. Same footer not checked on the album page or Find You.
+                  6 PASS: cover moved/zoomed (set in the database, not by dragging in the host page) and the big photo
+                  followed it; very long title, album and no-date checked.
+                  7 phone width 390 px (computer browser, not a real phone): names readable, "We're getting married"
+                  and the date on two lines, white menu button; menu opens with Home / Sangeet night / Find You and
+                  the account items; no sideways overflow.
+                  Notes: three photos appeared in my album that I did not upload (another session likely wrote to it);
+                  deleted with the event. Everything removed afterwards. No new bug.
+                  2026-10-26 Claude, built-in browser before commit (local dev server, every gallery
                   forced to Sunlit Portrait), public test gallery 29-sep-bqu5k: at 1280x800 steps 2-3
                   look as described and the bar turns soft white on scroll; at 375x812 (phone size
                   emulated, not a real phone) the cover and the menu look right. No console errors.
@@ -4196,7 +4273,7 @@ Feedback:         2026-10-26 Claude, built-in browser before commit (local dev s
 
 --------------------------------------------------------------------------------
 #150 Galleries with only videos open on the Videos tab
-Status:    TODO
+Status:    PASS
 Priority:  Low
 Platform:  Website (computer)
 Jira:      EB-360
@@ -4212,11 +4289,11 @@ How to test:
   4. Open an album under Collections that has only videos (or upload only a video to a test album).
      Expect: it opens on Videos. Switch back to an album with photos: it opens on Photos.
 Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
-Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
-Date tested: 2026-10-28
-Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
-Screenshot / recording:
+Device / browser: Playwright Chromium (headless) 1280x900 computer size; not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging 4679bae8)
+Date tested: 2026-11-27
+Account used: host newone1@email.com
+Screenshot / recording: reports/device-tests/test-150-*.png (local)
 Fix ref:
 Feedback:         2026-10-26 Claude, built-in browser (computer size) on staging with 5d7fe4f, host account:
           2026-10-28 Claude: Steps 1-3 PASS: wedding-2-77d4 (0 photos, 5 videos) opens on Videos; clicking Photos stays on Photos ("No photos yet"); test-face-new opens on Photos (42). Step 4 (videos-only album under Collections) not checked.
@@ -4225,6 +4302,13 @@ Feedback:         2026-10-26 Claude, built-in browser (computer size) on staging
                   Step 4 not done (no video-only album to hand).
 
 --------------------------------------------------------------------------------
+          2026-11-27 Claude: PASS, all 4 steps. wedding-2-77d4 now gives 404 on staging, so steps 1-2 ran on my own
+                  event "Claude test #150 - delete me" (main gallery with one 3 s video, no photos) as newone1.
+                  1 PASS opened on Videos (1), no "No photos yet."; 2 PASS clicking Photos selected Photos (0)
+                  and showed "No photos yet.", it stayed there; 3 PASS royal-emerald-check-... (13 photos, 1 video)
+                  opened on Photos (13); 4 PASS under Collections, album "Videos only" (1 video) opened on Videos (1),
+                  album "With photos" (1 photo) opened on Photos (1). Test event deleted afterwards.
+
 #151 New wedding theme Confetti Circle (website, computer and phone)
 Status:    PASS
 Priority:  Medium
@@ -4324,21 +4408,37 @@ How to test:
   6. Open the guest page on a phone with the website (skip if it shows the "Get the app" screen,
      #109). Expect: names on the left of the bar and the menu on the right, the title fits the
      photo, the card text is readable and inside the card.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:           Claude (for Sarthak)
+Device / browser:  Playwright Chromium 1440x900 and 390x844 (desktop user agent, phone width in a computer browser, not a real phone); not a real device
+Build / version:   staging.evebash.com as of 2026-11-27 (staging c2b272be)
+Date tested:       2026-11-27
+Account used:      newone1@email.com (host), own test event, deleted afterwards
+Screenshot / recording: reports/device-tests/test-152-*.png (local only)
 Fix ref:
 Feedback:         2026-10-26 Claude, built-in browser before commit (local dev server, a temporary preview
                   page with a sample couple, since deleted): at 1280x860 and 375x812 (phone size
                   emulated) steps 2 and 6 look as described. Not done: steps 1, 3, 4, 5 and a real
                   person on staging.
-
+                  2026-11-27 Claude (status stays TODO, place part of 5 not testable): own wedding
+                  event as newone1 (rows inserted with the staging admin API, not through the host page),
+                  theme periwinkle, deleted afterwards. Step 1 not as written: in the host Design tab > TEMPLATE > Choose Style, Periwinkle Script is shown greyed out under "Coming soon" (host/page.tsx comingSoonThemes) and cannot be picked, so it is not offered with the other wedding themes. Step 1 outdated or the theme is meant to stay hidden: needs Sarthak's decision; the guest page only works when the template is set directly. Screenshot test-152-1-picker.png. Step 2 PASS: cream bar with names in script in the
+                  middle, Home / Collections / Find You / Download All, photo with rounded top corners, big
+                  cream script "Priya & Rohan's Wedding Day!", cut-corner cream card half on the photo and
+                  half on the periwinkle band with date and message; the header below the band does not repeat
+                  the message. Step 3 PASS: Home goes back to the main gallery from an album, Collections lists
+                  the album and opens it, Find You opens /find-you, Download All opens the download choice
+                  (Home only / Entire event). Step 4 PASS: the album page card shows the album's own message
+                  and its own date, not the main gallery's. Step 5 partly: "Sharma Wedding" shows
+                  "Sharma Wedding's Wedding Day!", "Alexandrina & Maximilian" fits on two lines, no date and
+                  no message gives just the band with no card, cover "fit" moved and zoomed shows the photo
+                  inside a blurred frame with title and card still in place. The PLACE could not be tested: the
+                  staging events table has no location column (requests for location/venue/place return an
+                  error), so the card can never show a place; new issue #333. Step 6: phone
+                  width 390 px in a computer browser (not a real phone, staging shows phones the app screen):
+                  names left, menu right, title fits the photo, card text readable inside the card.
 --------------------------------------------------------------------------------
 #154 Policy popup no longer flashes on page load (website)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-362
@@ -4354,15 +4454,17 @@ How to test:
      the box and tap Accept and continue (or Sign out).
   3. With the account from step 2, open /privacy-policy. Expect: no popup on the policy pages.
 Done by: Claude (for Sarthak)
-Device / browser: Claude built-in browser (Chromium), computer size ~1024 px wide; not a real device
-Build / version: staging.evebash.com as of 2026-10-28 (staging e79333c)
-Date tested: 2026-10-28
-Account used: host newone@email.com (logged-out checks: signed-out state in the same browser)
-Screenshot / recording:
+Device / browser: Playwright Chromium (headless, local playwright-core) 1440x900, desktop; not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging 7b1ef1be)
+Date tested: 2026-11-27
+Account used: newone1@email.com (step 1); throwaway claude-t154-*@example.com (steps 2-3, deleted)
+Screenshot / recording: reports/device-tests/test-154-step1.png, -step2.png, -step3.png (local)
 Fix ref:
 Feedback: Step 1 PASS: after a fresh email login, /host -> /dashboard -> /host watched with a page observer: the "Before you continue" popup never appeared. Step 2 (new account) needs a person.
 
 --------------------------------------------------------------------------------
+           2026-11-27 Claude: Step 1 PASS: newone1 signed in; /host, /vault, a gallery (royal-emerald...c9e2), /host and a reload watched every animation frame by a dialog observer: no popup at any point. Step 2 PASS: fresh throwaway account (never accepted) got the "Before you continue" popup ~0.9 s after load; it is a modal dialog, Accept and continue is disabled until the box is ticked, Esc does not close it; after ticking and Accept it closed and stayed closed after reload. Step 3 PASS: /privacy-policy with the same unaccepted account: no popup. Gallery step reached by direct URL (no list link found). Throwaway deleted. No new issue.
+
 #155 Download works in the main gallery and in sub-galleries (website and app)
 Status:    TODO
 Priority:  High
@@ -4470,14 +4572,32 @@ How to test:
   3. From the homepage, tap Pricing, Log in and See a sample gallery. Expect: each opens as before.
   4. Open a gallery in a theme with italic text (e.g. Royal Emerald or Classic White). Expect: italic
      words look properly slanted in the theme's font, same as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak)
+Device / browser: Playwright Chromium (desktop user agent) at 390x844 with Slow 4G + cache off for steps 1-3; step 4 at 390x844 too. Phone width in a computer browser, not a real phone.
+Build / version: staging.evebash.com as of 2026-11-27 (staging 7b1ef1be)
+Date tested: 2026-11-27
+Account used: steps 1-3 logged out; step 4 newone1@email.com
+Screenshot / recording: reports/device-tests/test-157-1-early-0.png (first screenshot ~400 ms), test-157-1-final.png, test-157-3-*.png, test-157-4-gallery.png (local only)
 Fix ref:
 Feedback:
+  2026-11-27 Claude: partly done, status stays TODO (step 4 not fully checked).
+  Step 1 PASS: Slow 4G (150 ms, 1.6 Mbit/s), cache off, desktop user agent, 390 px wide. The first screenshot
+    at about 0.4 s already shows the headline "One gallery for every moment of every event." with the page
+    behind it; 12 screenshots over 5 s and a 50 ms text poll (163 samples) never showed "Loading your
+    gallery". The raw page HTML already contains the headline and not the loading text. Step 1 outdated in
+    wording: the homepage was redesigned (#169) and is now a LIGHT page with this new headline, not a dark page
+    with "Deliver every event's memories, beautifully organized."
+  Step 2 PASS / outdated list: sections now are Live in four steps, Guests skip the scrolling, Album
+    proofing, Built for every kind of event (Find You etc.), Made for everyone at the event, Start free /
+    pricing, final button, FAQ, footer (Product, Company, Legal, Contact). The old list (How it works, who it's
+    for, ...) is outdated; everything on the current page is there and the footer is at the bottom.
+  Step 3 PASS: Pricing (/pricing, "Simple, transparent pricing") and Log in (/login, "Welcome Back") open from
+    the phone menu; "See a sample gallery" opens /sample-galleries, but that page says "No sample galleries
+    are available yet." on staging (data, not a load problem; see issue #32).
+  Step 4 NOT DONE: opened Royal Emerald (newone1's gallery) at 390 px. The title and date are in a slanted
+    script font and look right, but the page has no text with CSS italic that I could check, and I did not
+    open Classic White. Left for a person or another run: open a gallery with italic body text (e.g. Classic
+    White) and confirm the slant.
 --------------------------------------------------------------------------------
 #158 Sunlit Portrait theme in the app (iPhone and Android)
 Status:    TODO
@@ -4914,7 +5034,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #169 Homepage redesign: demos, tabs, footer and speed
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-375
@@ -4936,14 +5056,24 @@ How to test:
   6. Check the footer on the homepage and on Pricing or Privacy policy. Expect: same new footer, no broken links.
   7. iPhone: Settings > Accessibility > Motion > Reduce Motion on, reload. Expect: nothing loops; tabs still work.
   8. Scroll the whole page on a low-end Android phone (if the website shows). Expect: smooth, no jank.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:    Claude (for Sarthak)
+Device / browser: Playwright Chromium 1440x900 (dark colour scheme, plus one light check) on a Mac; step 7 with prefers-reduced-motion emulated (not the iPhone setting); not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging d5e355f7)
+Date tested: 2026-11-27
+Account used: none (logged out)
+Screenshot / recording: /Users/sarthak/EveBash/reports/device-tests/test-169-*.png (local only)
 Fix ref:
 Feedback:
+  2026-11-27 Claude (logged out, laptop-size window, Playwright Chromium; not a real device):
+  1. PASS. Dark colour scheme: black background (rgb 9,9,11), gold headline, hero gallery cycles Designs (royal, confetti, hero) -> Albums (couple) -> Video -> back. The Designs / Albums / Videos buttons each switch the hero to that part. Note: the site now follows the device light/dark setting (todo #1), so in light mode the same page is cream and brown, not black; step wording is outdated on this point ("black background" = dark mode).
+  2. PASS. "Guests skip the scrolling": three selfies in turn with 4, then 6, then 2 photos found (loops); the three dots ("Show guest 1/2/3") switch guests (2, 6 shown when clicked).
+  3. PASS. "Album proofing": 4 scenes (client picks: 3 photos sent; photographer designs: pages 6 and 7 draft 1; live review: client chat + photographer laptop; approved: 20 of 20 pages approved); the 4 step buttons switch scenes.
+  4. PASS. Wedding / Fest / Sports / Corporate change the photo (petals, fest, sports, corporate), the line and the album chips (Fest: Day 1, Day 2, Main stage, Backstage, Pro night). "Made for everyone": Photographers / Event organizers / Guests and clients each show their own photo and 7 points.
+  5. PASS. Closing section alternates a busy "Wedding family group" chat (243 members, 128 unread) with a clean "Isha weds Vihaan" EveBash gallery card.
+  6. PASS. Same new footer on the homepage and on /pricing (Product, Company, Legal, Contact). All 14 page/anchor links return 200 and the 3 anchors (#find-you, #album-proofing, #features) exist on the homepage; tel and mailto links present.
+  7. PASS (emulated prefers-reduced-motion: reduce, not the iPhone setting). Nothing loops: hero stays on one design for 9 s, Find You stays on 4 photos, album scene stays put, closing stays on the gallery card (the chat scene is not shown), 0 infinite animations running. Tabs and dots still work (hero tabs, guest dots, album steps, event-type tabs).
+  8. Skipped as the test says ("if the website shows"): on staging phones get the "Get the EveBash app" screen; no low-end Android phone used.
+  No page errors or failed requests during the run. No new issue.
 
 --------------------------------------------------------------------------------
 #170 Upload feedback in the app: progress card, offline message, toast, plain errors
@@ -5094,7 +5224,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #174 Host page in the Noir homepage look (website)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-380
@@ -5123,19 +5253,38 @@ How to test:
   5. Open Share and Create Event. Expect: near-black pop-up, white QR card, gold-foil pill button.
   6. Make the browser window phone-narrow (about 375 px). Expect: "Host Console" fits on one line, no sideways
      scrolling.
-  7. Open a guest gallery (for example /events/wedding-2-77d4). Expect: exactly as before this change.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
-Fix ref:
-Feedback:
+  7. Open a guest gallery (for example /events/royal-emerald-check-with-a-really-long-title-to-test-wrappin-c9e2). Expect: it keeps its own design (green and gold frame), no Noir page colours, no navbar or footer.
+Done by:    Claude (for Sarthak)
+Device / browser: Claude, Playwright Chromium 1440x900 (steps 1-5, 7) and 375x812 with a desktop user agent (step 6: phone width in a computer browser, not a real phone); not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging 7b1ef1be)
+Date tested: 2026-11-27
+Account used: newone1@email.com (passwordless admin sign-in)
+Screenshot / recording: reports/device-tests/test-174-*.png (local only): 1-host, 2-Requests, 4-Permissions/Design/Album/galleries, 5-create, 5-share, 6-filter, 6-select, 7-phone-host(-full), 8-guest-in
+Fix ref:   ead37dc5 (2026-11-27), issue #334 (host cards stretch at phone width)
+Feedback:  2026-11-27 Claude (checked in the DARK look: a fresh browser opened in light, so I switched with the navbar moon button; nothing saved on the account, nothing to put back):
+           1 PASS: near-black background (rgb 9,9,11), "Host Console" in gold serif, gold-foil "Create Event" pill, no blue-grey.
+           2 PASS: Host / Shared / Requests tabs gold when selected, counts readable, "Nothing shared" and "All caught up!" boxes dark.
+           3 PASS (event Royal Emerald...): Galleries, Permissions, Design, Album all dark cards with gold accents; gold-foil Add
+             Sub-Gallery, Open, Create the first album; switches gold = on, grey = off; Design preview keeps the green theme.
+           4 PASS: gallery with 13 photos: Filter menu readable, Select mode shows Select all / Move to... / Hide from guests
+             as pills, Delete red. "Save to EB Vault" shows greyed (nothing selected), its green was not checked. I selected no photo.
+           5 PASS: Create Event and Share pop-ups near-black, white QR card, gold-foil pill; closed without creating anything.
+             Note: in the Create Event pop-up Escape did not close it (the X button did); Share closes with Escape.
+           6 FAIL: at 375 px "Host Console" fits on one line, but the page scrolls sideways: page width 891 px in a 375 px window.
+             The event cards (Riya & Arjun's Wedding, Royal Emerald check..., Staging test 1) are 875 px wide, most likely stretched by
+             the very long event titles (this account has two: "Claude test #148 ..." from another session and the #92 title).
+             Screenshots test-174-7-phone-host*.png. Issue #334.
+           7 outdated/partly: /events/wedding-2-77d4 now gives 404 on staging (logged out and as newone1), so it could not be opened.
+             Opened /events/royal-emerald-check-with-a-really-long-title-to-test-wrappin-c9e2 as newone1 instead: it keeps its own
+             green gold-frame theme, no Noir colours, navbar and footer not shown. Nothing to compare against "before", so only
+             "looks like its own design" was checked. The step needs a new example gallery.
 
+           2026-11-27 Claude retest of step 6 after ead37dc5 (staging build): at 375 px page width 375, all event cards 343 px: PASS.
+           Still to do before PASS: step 7 needs a gallery that exists (wedding-2-77d4 is a 404 on staging); run it again with the new one.
+           2026-11-27 Claude: step 7 rewritten to the Royal Emerald gallery (wedding-2-77d4 is a 404 on staging; Sarthak OK 2026-11-27). Opened as newone1: own green gold-frame design, no Noir colours. PASS. All 7 steps now pass (step 6 after fix ead37dc5). "Exactly as before" was judged by look only, no old copy to compare.
 --------------------------------------------------------------------------------
 #175 Dashboard in the Noir homepage look (website)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-381
@@ -5160,14 +5309,14 @@ How to test:
   5. Click "Explore all" on the Your memories card. Expect: the list page in the same look; the filter tabs, search
      and dropdowns readable; the event cards open the gallery as before.
   6. Open Host. Expect: the event cards there look the same as before this change.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:    Claude (for Sarthak)
+Device / browser: Claude local Playwright Chromium 1440x900, then 1024 and 800 px wide, dark look (browser dark mode + site theme set to dark); not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging c2b272be)
+Date tested: 2026-11-27
+Account used: newone1@email.com (host account)
+Screenshot / recording: reports/device-tests/test-175-1.png, test-175-3-800.png, test-175-4.png, test-175-5.png, test-175-6.png (local only)
 Fix ref:
-Feedback:
+Feedback:   2026-11-27 Claude: PASS, dark look, computer browser (not a real device). Step 1 OK: no blue-grey; Event Gallery panel, stat boxes and event cards are near-black (rgb 20,20,23 on 9,9,11), same as the Host page; Join Event is a gold-foil pill; the title is in gold serif letters (it reads "Event Gallery", not "Collections | name" as the brief says: wording changed later). Step 2 outdated: the stat boxes now show only the gold number next to the label (412 / 5 / 1), not "665 Photos" or "1 Event"; Photos, Videos and Events Joined all alike in gold. Step 3 OK: at 1024 and 800 px no stat is cut off (at 800 the three stats stay in a row and the cards go 2 per row); only long event names end in "..." which is by design. Step 4 OK: near-black Join Event pop-up with gold-foil JOIN WITH CODE pill and a dark Scan QR code button; closed with X without joining. Step 5 OK: Explore all opens /dashboard/events in the same look; All events / Attended / Hosted tabs, search and dropdowns readable. Step 6 OK: Host page cards look the same dark style. Also the light look was seen (cream panels, gold-foil Join Event), fine. Other sessions' "Claude test #N" events showed in the lists; ignored. The terms screen did not appear.
 
 --------------------------------------------------------------------------------
 #176 App photo viewer: likes and comments show at once, comment times, replay after a video ends
@@ -5203,7 +5352,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #177 Profile and Settings in the Noir homepage look (website)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-383
@@ -5228,14 +5377,21 @@ How to test:
   5. Open Settings. Expect: "Settings" in gold serif letters, gold section labels, near-black lists, "Delete
      Account" still red. Every row still opens what it did before.
   6. Make the window about 800 px, then phone-narrow (about 375 px). Expect: nothing cut off, no sideways scrolling.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak)
+Device / browser: Playwright Chromium 1440x900, 800 and 375 px with a desktop user agent (phone width in a computer browser, not a real phone); dark look; not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging 7b1ef1be)
+Date tested: 2026-11-27
+Account used: newone1@email.com (dark look set in my own browser only; nothing saved on the account)
+Screenshot / recording: reports/device-tests/test-177-*.png (local only)
 Fix ref:
 Feedback:
+  2026-11-27 Claude: all steps pass in the dark look.
+  1 PASS: Profile cards near-black, Edit Profile gold-foil pill, Settings frosted pill, plan badge green (now reads "10 GB PLAN", not "STANDARD PLAN": wording only), name off-white, section labels small gold capitals. First card starts at 128 px (just under the 80 px nav + 48 px) at 1440 wide; I did not measure Host pixel for pixel.
+  2 PASS: VERIFIED green, NEEDS ENTRY amber, Sign Out red.
+  3 PASS: Plans: Extend Plan gold foil, Change Plan frosted, Upgrade gold foil, Select Tier frosted, current plan row (Starter, ACTIVE) highlighted.
+  4 PASS: Edit Profile pop-up dark, fields readable; closed with Cancel, nothing saved.
+  5 PASS: Settings heading gold Playfair serif, gold section labels, near-black lists, Delete Account red. Rows opened (not confirmed): Change Password, Withdraw Find You Consent, Delete Account pop-ups; Report a Bug -> /contact-us; About -> /; Terms -> /terms-and-conditions; Privacy -> /privacy-policy; Contact Support stays on page (mail link). Nothing changed or deleted.
+  6 PASS: 800 px and 375 px, Profile and Settings: no sideways scrolling (page width = window width), nothing cut off.
 
 --------------------------------------------------------------------------------
 #178 Big galleries: photos load only near the screen (app, issue #185)
@@ -5345,7 +5501,8 @@ Jira:      EB-385
 Brief:     On Android the keyboard covered the photo comment box (#242). These other places use the same
            pattern, or have no keyboard handling at all, so they may have the same problem. This test finds
            out which ones really break, so only those get fixed (#243).
-Detail:    Nothing was changed for this test. Use an Android phone with its normal on-screen keyboard (not a
+Detail:    (2026-11-26: issue #243 was fixed from the code without waiting for this test; the fix is checked by
+           test #261 instead.) Nothing was changed for this test. Use an Android phone with its normal on-screen keyboard (not a
            Bluetooth keyboard, not the floating keyboard). The Android emulator can't show this: with its
            hardware keyboard on, Gboard only shows a floating keyboard. In Feedback, list the numbers that fail.
 How to test:
@@ -5407,7 +5564,7 @@ Feedback:  2026-11-20 Shwetank, iQOO Android (staging app, newone1@email.com): s
 
 --------------------------------------------------------------------------------
 #182 Pricing, Contact us and EB Network in the Noir homepage look (website)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-386
@@ -5433,14 +5590,14 @@ How to test:
   5. Open EB Network. Expect: "List your business" gold-foil pill; it scrolls to the form; "Register interest" is
      a gold-foil pill.
   6. Check all three at about 800 px and phone width. Expect: nothing cut off, no sideways scrolling.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:   Claude (for Sarthak)
+Device / browser: Playwright Chromium (desktop user agent) at 1440, 800 and 375 px, dark look; not a real device or phone
+Build / version: staging.evebash.com as of 2026-11-27 (staging ead37dc5)
+Date tested: 2026-11-27
+Account used: newone1@email.com (signed in with an admin magic link)
+Screenshot / recording: reports/device-tests/test-182-*.png (local only)
 Fix ref:
-Feedback:
+Feedback:  2026-11-27 Claude (dark look, Playwright Chromium, phone width in a computer browser, not a real phone): step 1 PASS (gold "Simple, transparent pricing" heading; "Most Popular" band and Monthly tab gold; "Choose Premium" gold-foil pill, other plans frosted pills, all 40 px high, normal case; Ultimate "Best Value" quiet gold, no orange; the Elite card keeps its pink border, as designed). Step 2 PASS (Monthly/3 months/6 months/Yearly change the prices). Step 3 PASS (signed in, Choose Premium opens "Confirm plan change - Upgrade to Premium (100 GB)"; cancelled, never went on to payment). Step 4 PASS (ADDRESS/PHONE/EMAIL/BUSINESS HOURS and form labels in small gold capitals; "Send message" gold-foil pill; form NOT submitted, optional). Step 5 PASS ("List your business" gold-foil pill scrolls to the form; "Register interest" gold-foil pill; form NOT submitted). Step 6 PASS at 800 and 375 px (no sideways scrolling, nothing cut off). No new issue.
 
 #183 Event ownership transfer
 Status:    TODO
@@ -5746,7 +5903,7 @@ Fix ref:
 Feedback:
 
 #193 Album screen redesign (website): steps, one clear action, album-shaped pages
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  Website
 Jira:      EB-396
@@ -5772,14 +5929,36 @@ How to test:
      list of changes under the To fix tab.
   9. The Activity line at the bottom shows the latest event; See all lists rounds sent and pages approved.
  10. Switch the site to the light look (sun icon in the navbar). Expect: everything readable; labels on photos stay dark.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:    Claude (for Sarthak)
+Device / browser: Playwright Chromium 1440x900 (desktop) and 375x812 with a desktop user agent (phone width in a computer browser, not a real phone); not a real device
+Build / version: staging.evebash.com as of 2026-11-27 (staging 194546f5)
+Date tested: 2026-11-27
+Account used: newone1 (photographer) and newone5 (client, Admin Access) on own test event "Claude test #193 - delete me" (deleted afterwards)
+Screenshot / recording: reports/device-tests/test-193-*.png (local)
 Fix ref:
 Feedback:
+           2026-11-27 Claude: all 10 steps PASS on staging. Setup: own event as newone1, newone5 added as Admin
+           (row inserted straight into guests with can_admin, not through the invite flow), album with newone1
+           photographer and newone5 client (picker listed host + admin, as in #120), 10 page JPEGs (square cover,
+           portraits, wide spreads; the file chooser fired twice so 5 files became 10 pages), sent to the client.
+           1 PASS "newone1 (you) -> newone5", 4 steps, "Client reviews · Round 1" highlighted. At 375 px (desktop UA)
+           only dots with "Step 3 of 4: Client reviews · Round 1" under them, no sideways scroll.
+           2 PASS "Waiting for newone5 to review", no Send button (the "Ready to send 10 pages" + "Send 10 pages" box
+           was seen before sending; Send asked to confirm).
+           3 PASS square, portrait and wide pages keep their shape, no black bars; spreads have a thin fold line.
+           4 PASS dots and words seen: Not sent (grey, before sending), With client (gold), Approved (green), To fix (red).
+           5 PASS Spread|Single switch changed a page to "Pages 2-3" and back; on a portrait page the ... menu showed
+           "Upload a new version" and "Delete page" in full and closed on a click outside; "Page 2" not cut short.
+           6 PASS Reorder, dragged page 3 before page 2, Done; order stayed after a reload.
+           7 PASS client: "Check 10 pages", Start review, Approve / Ask for a change under each page (the client sees
+           "To check" where the photographer sees "With client"); Approve on Page 1's tile -> green, "1 of 10 approved".
+           8 PASS client added a whole-page comment and used "Send 1 note"; photographer: "1 change to make", To fix 1
+           tab, comment badge on the page.
+           9 PASS Activity line "newone5 approved Page 1 · 27 Nov"; See all lists "Round 1: newone1 sent 10 pages" and
+           the approval (sending feedback is not listed).
+           10 PASS dark and light look both readable, buttons on photos stay dark; left on light (original).
+           Not seen: no real phone; app not checked (not changed). No new bug. Cleanup: event, guest row and album
+           deleted (checked in the database).
 
 #194 Album screen redesign (app): steps, one clear action, album-shaped pages
 Status:    TODO
@@ -7402,7 +7581,7 @@ Fix ref:
 Feedback: 2026-11-20 website (Claude, staging.evebash.com/terms-and-conditions): section 10 ends with "Reporting and enforcement", two paragraphs, support@evebash.com links; Last updated shows October 23, 2026 (was October 22). Re-accept prompts are driven by POLICY_VERSION (shared/legal/acceptance.ts, unchanged), not this date. Before the live release: set lastUpdated in shared/legal/policies.json to the release date (Shwetank's call). App: the app's own Terms screen (Settings > Terms of Service) has the reporting text in section 4, checked on Android and iPhone 2026-11-20.
 
 #245 App: the sign-in screen fits on one screen on small phones (todo #26)
-Status:    TODO
+Status:    PASS
 Priority:  Medium
 Platform:  App (iPhone and Android, separately)
 Jira:      EB-417
@@ -7417,14 +7596,14 @@ How to test:
   2. Tap the email field. Expect: the keyboard opens and the field stays visible; you can still reach Sign In.
   3. Tap Sign Up. Expect: Create Account works (it may scroll; it has more fields).
   4. A normal-size phone (your iPhone 11, the iQOO): the sign-in screen looks as before.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Claude with Shwetank (Shwetank signed out on the phone)
+Device / browser: iPhone SE simulator (EB iPhone SE, iOS 27.2, 375 x 667 pt); iQOO I2012 (Android 14, 1080 x 2400, about 393 x 873 dp)
+Build / version:  iPhone: EveBash Staging development build loading staging 62af39b1 from a local bundler. Android: local staging build of 7b1ef1be (fingerprint f99bf82f)
+Date tested:      2026-11-27
+Account used:     none (signed out)
+Screenshot / recording: screenshots kept on Shwetank's Mac (not in the repo)
 Fix ref:
-Feedback:
+Feedback:         PASS. (1) iPhone SE: EveBash name, Welcome Back, email, password, Forgot Password, Sign In, Google, Apple, Sign Up and the Terms line all fit without scrolling, nothing cut off. (2) Keyboard: on the iPhone SE the email field and Sign In stay above the keyboard; on the iQOO the email field stays visible, Sign In is half behind the keyboard but one swipe brings Sign In, Google and Sign Up up. (3) Create Account opens and scrolls to the 18+ box and the button (iPhone SE; Android checked in test #264). (4) The iQOO (normal size) shows the normal-size sign-in screen, everything fits. Not tried: a small Android phone, a real iPhone.
 
 #246 Website: sharing a sub-gallery shows the main event's code (todo #48)
 Status:    PASS
@@ -7774,3 +7953,294 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback: Website as admin and as owner, and ordinary-member actions (steps 1-5) PASS, reported by Shwetank 2026-11-26. iPhone 18 Pro simulator PASS, steps 1-2 as the admin (Claude, 2026-11-26, latest staging code via the local app server, newone2): no bin on the admin row; Admin Access says "Only the event owner can change this"; tapping it shows "Owner only"; nothing changed. Real Android PASS, steps 1-2 as the admin (Claude over USB, 2026-11-26, iQOO, staging build + update 322ed1ec, newone2 on Riya & Arjun's Wedding): no bin button on the admin row; in newone2's popup Admin Access says "Only the event owner can change this" and tapping it shows "Owner only"; nothing changed (still Admins (1)). Steps 3-5 (ordinary members, owner view) need a third account and newone1.
+
+#258 Android: events open quickly on mobile data, also right after signing in (issue #315)
+Status:    PASS
+Priority:  High
+Platform:  App (EveBash Staging on Android, NEW app build)
+Jira:      EB-433
+Brief:     On mobile data (Jio especially) the phone's route to our database moves every few minutes, and each move
+           silently breaks the app's open connection. Android builds without the #260 fix then showed "We couldn't
+           open this gallery" after 20 s (and Try again failed too); builds with it took 5-10 s. The app now checks
+           its connection every 2 s, so it notices and reconnects within about 2-4 s.
+Detail:    Fix in apps/mobile/plugins/withOkHttpHealthPings.js (ping every 2 s instead of 5 s). Native change: needs a
+           NEW Android build (staging EAS build, or a development build after `npx expo prebuild -p android`); an
+           over-the-air update does not carry it. Test on mobile data with Wi-Fi off. Checked on the Android emulator
+           with a frozen connection (20 of 20 opens worked, 1.2-3.7 s), not on a real phone.
+           Build to install (2026-11-26): EAS staging build a9a75698 (EveBash Staging 1.2.4 (26), commit 36bc8cd2):
+           https://expo.dev/accounts/evebash/projects/evebash/builds/a9a75698-eb37-4574-8e81-0dbe8c4264af . The
+           staging build of 2026-11-26 12:52 (0b4a8601) is older than the fix: don't test with it. A phone with the
+           USB development build must uninstall it first (different signing key; the sign-in is lost).
+How to test:
+  1. Install the new staging build on an Android phone. Turn Wi-Fi off (mobile data only) and sign in as a host.
+     Expect: the Dashboard loads.
+  2. Right away go to Host > My Events and open an event. Expect: it opens within about 3 seconds.
+  3. Go back, leave the phone on that screen for 1-3 minutes, then open another event. Repeat 10 times, now and
+     then closing and reopening the app or signing out and in first. Expect: every event opens, none takes more
+     than about 5 seconds, and "We couldn't open this gallery" never shows.
+  4. If an event is slow or fails, write down the time to the minute (we can find it in the staging server log).
+Done by:          Claude (for Shwetank), driving the phone over USB
+Device / browser: iQOO I2012, Android 14, EveBash Staging app; Jio 4G mobile data, Wi-Fi off
+Build / version:  a9a75698 (EveBash Staging 1.2.4 (26)); checked the installed app's code: ping every 2 s
+Date tested:      2026-11-26, 21:14-21:41 IST
+Account used:     newone2@email.com (admin of Riya & Arjun's Wedding; has no events of its own, so events were opened from Host > Shared and the Dashboard)
+Screenshot / recording: screenshots of every open kept on Shwetank's Mac (not in the repo)
+Fix ref:
+Feedback:         12 event opens on Jio mobile data, 1-3 minutes apart, the app fully closed and reopened 3 times (not signed out and in: that needs the password). All 12 opened and "We couldn't open this gallery" never showed, so the 20 s hang is gone. 10 of 12 were ready in 1.6-3.0 s. Two were slow: 21:23 Riya & Arjun's Wedding from Host > Shared took 7.0 s (the same event opened in 1.6-1.7 s at 21:14 and 21:35), and 21:40-21:41 Riya & Arjun's Wedding from the Dashboard (guest view) took 5.3 s; at that moment the staging server's /api/media/guest-preview-picture took 6.7 s and member-directory 1.7-2.0 s, so that one was probably the server, not the phone's connection. The staging server log has no requests at 21:23 (the event screen reads Supabase directly), so the cause of the 7.0 s one is not known. Reopening the app took about 8 s to the Dashboard (3 times). FAIL only because one open went over the 5 s limit. Times are when the screen stopped changing, from screenshots about 0.8 s apart, so they can be up to about 0.8 s long and include pictures still loading. Accepted as PASS by Sarthak 2026-11-27 after a staging log check (Claude): the 7.0 s open was not a connection problem (open_gallery answered in 11 ms and all the event's data arrived within 1.0 s, the same as the fast opens), and the 5.3 s one was a slow staging database (open_gallery took 2.75 s). The phone's route never moved during the test (Mumbai all the time), so the route-move case is proven on the emulator only.
+
+#259 App: every font still shows after the font size cleanup (issue #105)
+Status:    PASS
+Priority:  Medium
+Platform:  App (Android and iPhone, NEW app build)
+Jira:      EB-438
+Brief:     The app download was carrying about 6 MB of font files it never used (the Royal Emerald and Classic White
+           fonts were pulled in with every weight). They are now included one by one, only the faces the app uses.
+           This checks that no text lost its font.
+Detail:    Fix in apps/mobile/components/royal/royalFonts.ts and apps/mobile/components/classic/classicFonts.ts
+           (commit 8b2b3fd7). Checked: type check passes and expo export --platform android bundles 25 font files
+           (was 46), 6.27 MB less. Not checked on a device.
+           Android: staging over-the-air update 335bc23a (2026-11-26) carries it to EveBash Staging build a9a75698
+           (1.2.4 (26)) or later; close and reopen the app twice so the update loads. Older Android builds don't get it.
+           iPhone: no installed iPhone staging build can take this update (the #315 change gave a new runtime), so the
+           iPhone half needs the next iPhone staging build.
+How to test (do it on an Android phone and on an iPhone):
+  1. Open the staging app (Android: after the update has loaded; iPhone: the new build). Expect: the Home, Gallery and Profile headings look as before
+     (Akaya Kanadaka headings, Inter text).
+  2. Open an event with the Royal Emerald theme. Expect: script title (Great Vibes), capital letters (Cinzel), body
+     in Cormorant Garamond, italic where it was before. No plain system font.
+  3. Open an event with the Classic White theme. Expect: Playfair Display serif, medium weight and italic where they
+     were before.
+  4. Open one event each with the Sunlit Portrait and Confetti Circle themes. Expect: Instrument Serif and Bebas
+     Neue as before.
+  5. Open a few other themes. Expect: they look exactly as before.
+Done by:   Claude (for Sarthak)
+Device / browser: Pixel 8 (Android 16, Sarthak's phone over USB); iPhone 16e simulator (iOS 26.3)
+Build / version: Pixel: EAS staging build a9a75698 (1.2.4 (26)) + staging update 335bc23a (logcat NEW_UPDATE_LOADED 01a21881). iPhone: EveBash Staging development build loading this branch (8b2b3fd7) from a local bundler, not a release build
+Date tested: 2026-11-26
+Account used: Pixel: Sarthak's staging host account; iPhone: newone1
+Screenshot / recording: none kept
+Fix ref:
+Feedback: PASS on both. Royal Emerald (royal-emerald-check-...-c9e2): Great Vibes title, Cinzel date, menu and buttons, Cormorant Garamond "Highlights". Classic White (Staging Test 1): Playfair Display title and Playfair italic tagline. Dashboard and login: Akaya Kanadaka headings, Inter text. No font errors in the logs ("fonts ready"). Not checked: Sunlit Portrait and Confetti Circle (no such event on staging; their font code did not change), and an iPhone release build (the next iPhone staging build carries it).
+
+#260 Android: app opens and every icon still shows after the Material Symbols cleanup (issue #330)
+Status:    PASS
+Priority:  Medium
+Platform:  App (EveBash Staging on Android)
+Jira:      EB-440
+Brief:     The Android app carried 7 Material Symbols font files (~6.7 MB) because of how a library imports them; only
+           one is ever used. A small bundler setting now leaves out the 6 unused ones (5.83 MB less). Nothing on screen
+           should change. This checks the app still opens and all icons show.
+Detail:    Change in apps/mobile/metro.config.js (issue #330). Our app draws its Android icons with MaterialIcons, not
+           Material Symbols, so no icon should change. The iPhone bundle is not affected (it never had these fonts).
+           Reaches Android with the next staging over-the-air update or build.
+How to test (Android):
+  1. Open the staging app after the update has loaded. Expect: it opens normally, no red error screen.
+  2. Go through Dashboard, Host, EB Network, Profile and Settings. Expect: every tab and button icon shows as before;
+     no empty squares or missing icons.
+  3. Open a gallery (any theme). Expect: the icons on the gallery screen show as before.
+Done by:   Claude (steps 1-2) and Sarthak (step 3)
+Device / browser: Pixel 8 (Android 16, Sarthak's phone over USB)
+Build / version: EAS staging build a9a75698 (1.2.4 (26)) + staging update cec62afa (logcat NEW_UPDATE_LOADED 01a21895)
+Date tested: 2026-11-26
+Account used: Sarthak's staging host account
+Screenshot / recording: none kept
+Fix ref:
+Feedback: PASS. Step 1: app opened normally after the update loaded ("fonts ready", no errors). Step 2 (Claude): icons on Dashboard, Host, EB Network, Profile and Settings all show. Step 3 (Sarthak, by eye): in the Staging Test 1 gallery (Classic White) the back arrow, share icon and tab icons all show.
+
+--------------------------------------------------------------------------------
+#261 Android: pop-up text boxes stay above the keyboard (issue #243)
+Status:    PASS
+Priority:  Medium
+Platform:  App (Android phone)
+Jira:      EB-441
+Brief:     On Android a pop-up window does not shrink when the keyboard opens, so the keyboard could cover the text
+           box or its Save button. Six pop-ups now move up by the keyboard height (like the photo comment box did in
+           #242). This checks they do, and that the screens we left alone (which need nothing) really are fine.
+Detail:    Issue #243. Changed on Android only (the keyboard-height helper returns 0 on iPhone, so iPhone is
+           unchanged): RenameEventModal.tsx, SubEventModal.tsx, VaultModals.tsx (NamePrompt), PageReviewer.tsx,
+           Profile Edit (app/(tabs)/profile.tsx), Rename Event in gallery.tsx (cannot be opened in the app today). Pixel 8 check 2026-11-26: Sub-Gallery, Edit Event Title, Vault New folder, Profile Edit, Contact us and the host Welcome Message box pass (only album page review not checked). Needs an app build or update with this commit. Use an Android phone
+           with its normal on-screen keyboard (not a Bluetooth keyboard, not floating). Not checked on an emulator:
+           nobody was signed in there. Test #180 lists the same places; if you do this test, #180 can be closed.
+How to test:
+  For each place: tap the text box. Expect: the whole pop-up (box and button) sits above the keyboard.
+  1. Host tab > an event's options > Rename Event: tap the name box. Expect: box and "Update Name" above the keyboard.
+  2. Host page of an event > pencil next to the title (Edit Event Title): tap the box. Expect: box and "Save Title"
+     above the keyboard.
+  3. Host page > Galleries > Add Sub-Gallery: tap the name box. Expect: box and Save above the keyboard.
+  4. Profile > EB Vault > + > New folder, then a file's ... > Rename. Expect: the box, Cancel and Create/Rename
+     above the keyboard.
+  5. Album tab of an event you host: open a page for review, tap "Write a reply", then "Describe the change". Expect:
+     the box and its button can be seen above the keyboard.
+  6. Profile > Edit: tap Location and scroll down to Birthday (this pop-up was changed too). Expect: the box you tapped
+     stays above the keyboard.
+  6b. Then: Contact us: tap "Tell us more about your event...". Host page >
+     Galleries > Welcome Message: tap the box. Expect: still fine (these were not changed). If one is hidden, say which.
+  6c. Contact us (Profile > Usage & Plan > Support Chat): scroll down. Expect: the "Contact Us" title and back arrow scroll
+     away with the page and never sit on top of the text (issue #331). Tap the message box. Expect: it and Send
+     Message end up above the keyboard.
+  7. Close each pop-up with the keyboard open. Expect: it closes normally and the next one opens in its usual place.
+Done by:   Claude (adb taps, watching the screen), on Sarthak's phone
+Device / browser: Pixel 8 (Android 16, normal docked Gboard), over USB
+Build / version: EAS staging build a9a75698 (1.2.4 (26)) + staging updates 12385d48 to 9af7da38 (last update group 6a176097)
+Date tested: 2026-11-26
+Account used: Sarthak's staging host account (Test 260 event)
+Screenshot / recording: none kept in the repo
+Fix ref: 12385d48, 298b807e, 7e04a856, d831517c, 9af7da38
+Feedback: PASS for everything that can be reached on the Pixel: Add Sub-Gallery (step 3), Edit Event Title (2), EB Vault New folder (4), Profile > Edit (6: after the third update the tapped box moves up and Save Changes shows above the keyboard), Contact us message box (6b/6c: box and Send Message end up above the keyboard, title scrolls away), host Welcome Message box (6b: shows above the keyboard). Not tested and moved to test #262: album page review (step 5), Vault Rename, closing pop-ups with the keyboard open on the album screen, and the Contact us header on an iPhone. Step 1 (Rename Event on the Host tab) cannot be opened in the app today (nothing shows that options menu). Closed with Sarthak's OK 2026-11-26.
+
+--------------------------------------------------------------------------------
+#262 Album page review boxes above the Android keyboard; Contact us header on iPhone (left over from #243 / #261)
+Status:    TODO
+Priority:  Low
+Platform:  App (Android phone + iPhone)
+Jira:      EB-444
+Brief:     Two checks that could not be done when issue #243 was closed. (1) On Android, the album page review screen
+           (apps/mobile/components/album/PageReviewer.tsx) now lifts above the keyboard; nobody has seen it on a phone
+           because testing it needs an album, pages sent for review and a client comment. (2) On iPhone, the Contact us
+           title and back arrow now scroll with the page (issue #331); only Android was checked.
+Detail:    Part 1 needs a host account, an event with an album (Album tab > Create the first album), at least one page
+           sent for review, and a second (client) account that has pinned a comment on a page. Android phone with its
+           normal on-screen keyboard. Part 2 needs an iPhone staging build with commit d831517c or later (staging
+           over-the-air updates reach Android only until a new iOS staging build exists).
+How to test:
+  1. (Android) As the client, open a page for review and pin a comment. As the host, open the page review, tap
+     "Write a reply". Expect: the box and its button are above the keyboard. Then tap "Describe the change
+     (optional)". Expect: same.
+  2. (Android) Close the page review with the keyboard open. Expect: it closes normally.
+  3. (iPhone) Profile > Usage & Plan > Support Chat. Scroll down. Expect: the "Contact Us" title and back arrow scroll
+     away with the page and never sit on top of the text. Tap the message box. Expect: it stays visible (iPhone moves
+     the page for the keyboard).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#263 iPhone: app builds and opens with Xcode 27 / iOS 27 from a clean prebuild, links still open the right screen (issue #276)
+Status:    TODO
+Priority:  High (launch blocker, test first)
+Platform:  App (EveBash Staging on iPhone)
+Jira:      EB-442
+Brief:     Xcode 27 / iOS 27 needed hand edits in the generated ios folder (issue #276). A config plugin
+           (apps/mobile/plugins/withIosXcode27.js) now makes them on every prebuild: the iOS scene lifecycle (React
+           Native starts in a SceneDelegate; links and app events are passed on to the AppDelegate as before) and
+           iOS 16.0 as the minimum for the app and all pods. This checks a clean build opens on iOS 27 and links work.
+Detail:    Needs a Mac with Xcode 27 and an iOS 27 simulator (or an EAS build on an Xcode 27 image). Claude checked
+           it on 2026-11-26 with Xcode 26.2 and an iOS 26.3 simulator only: clean prebuild, pod install, Release
+           build and launch all fine, iOS uses the new scene ("Default Configuration"), login screen shows. Steps 2-3
+           were not done there (iOS asks "Open in EveBash Staging?" and that needs a tap). The app's minimum iOS is
+           now 16.0 (was 15.1).
+How to test:
+  1. From apps/mobile: npx expo prebuild --platform ios --clean, then pod install in ios, then build and run on an
+     iOS 27 simulator. Expect: no deployment-target errors; the app opens to login and stays open.
+  2. With the app open, run: xcrun simctl openurl booted "evebash-staging://privacy-policy" and tap Open.
+     Expect: the Privacy Policy screen opens.
+  3. Close the app fully, then run: xcrun simctl openurl booted "evebash-staging://terms-and-conditions" and tap
+     Open. Expect: the app starts straight on Terms and Conditions.
+  4. Sign in, press Home, open the app again. Expect: same screen as before, data refreshes as before.
+  5. On a real iPhone build: tap an event share link (staging.evebash.com/...) in Notes or Messages.
+     Expect: the event opens in the app.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#264 App: everyone confirms 18+ once, old app builds keep working (issue #25)
+Status:    PASS
+Priority:  High
+Platform:  App (EveBash Staging on Android and iPhone)
+Jira:      EB-445
+Brief:     The terms box now says "I confirm I am 18 or older, agree to the Terms & Conditions and acknowledge the
+           Privacy Policy." (policy version 2026-11-27.1). Everyone sees it once: at sign-up, or in the "Before you
+           continue" popup after signing in. App builds without this change keep the old box and must not get stuck.
+Detail:    Change in shared/legal/acceptance.ts, apps/mobile/app/login.tsx, apps/mobile/components/PolicyAcceptanceGate.tsx
+           and supabase/migrations/20261127120000_policy_acceptance_18_plus.sql (applied on staging 2026-11-27). JS
+           only: reaches the staging app with the next staging over-the-air update (close and reopen the app twice).
+           Website checked by Claude on 2026-11-27 (local website on staging, newone2): sign-up box shows the 18+ text;
+           the popup appeared once, Accept saved version 2026-11-27.1 with the 18+ text, then the Dashboard opened.
+How to test (do it on Android and on iPhone separately):
+  1. Before the update loads (old app): open the app signed in. Expect: no popup and no "update the app" error.
+  2. After the update has loaded, open the app with an account that hasn't ticked the 18+ box yet (not newone2: it
+     already did on the website). Expect: "Before you continue" with the 18+ box; Accept and continue is greyed
+     out until it is ticked; after Accept the app opens normally and the popup doesn't come back after a restart.
+  3. Sign out, tap Sign Up. Expect: the box under the form says "I confirm I am 18 or older, ..." and Sign Up
+     stays disabled until it is ticked.
+  4. Sign in on the website with an account that ticked the box in the app. Expect: no popup.
+Done by:          Claude with Shwetank (Shwetank typed the passwords and ticked the boxes)
+Device / browser: Android: iQOO I2012 (Android 14), EveBash Staging. iPhone: iPhone 18 Pro simulator (iOS 27.2), EveBash Staging development build
+Build / version:  Android: local build of staging 7b1ef1be made on Shwetank's Mac with eas build --local (staging profile, same signing key; fingerprint f99bf82f, installed over the old app 2026-11-27 14:51). iPhone: development build loading staging 7b1ef1be from a local bundler. Staging update a5f0c635 (Android) / 9ff2569b (iOS) published for runtime f99bf82f / 099a9a24
+Date tested:      2026-11-27
+Account used:     newone1 (Android popup), newone3 (iPhone popup), newone2 (already accepted)
+Screenshot / recording: screenshots kept on Shwetank's Mac (not in the repo)
+Fix ref:
+Feedback:         PASS on both. (1) Old code: the iQOO's previous build (a9a75698) with newone2, after the migration: Dashboard, no popup, no "update the app" error; the old-version database check also tested in a rolled-back transaction. Not tried on an old iPhone build. (2) Popup: iPhone newone3 and Android newone1 got "Before you continue" with the 18+ box, Accept and continue disabled until ticked; after Accept the app opened, and after a full restart no popup. newone3 saved 2026-11-27.1 with the 18+ text, platform ios. newone1's 2026-11-27.1 row says web: Shwetank had ticked it on the website a moment earlier (14:57), so the phone's Accept found it already saved (no error, popup closed). (3) Sign Up: both show "I confirm I am 18 or older, ..." and Create Account stays disabled until ticked. (4) newone2 (ticked on the website) got no popup in either app; newone3's website and old-app checks both answer accepted. Found on the way: after #276 (1fd3de5c, config plugin) the app's fingerprint changed, so EAS staging build a9a75698 (bb5f7021) no longer gets staging updates; and EAS has no Android builds left this month (resets 2026-12-01), hence the local build.
+
+#265 App: signing out pauses uploads, and they never go up under another account (issues #302, #303)
+Status:    PASS
+Priority:  High
+Platform:  App (EveBash Staging on Android and iPhone)
+Jira:      EB-446
+Brief:     Signing out during an upload used to make the rest fail, leave one on "saving", or finish a big video as
+           "Anonymous" (#302). On a shared phone the next person's account took over the first person's photos (#303).
+           Now sign-out asks first, pauses the uploads, and only the person who picked a file can upload it.
+Detail:    Fix b29b91e7 (apps/mobile/lib/uploadAccount.ts, uploadQueue.ts, chunkUpload.ts, UploadStatusOverlay.tsx,
+           AuthContext.tsx, Profile). JS only: reaches the staging app with an over-the-air update (the iQOO needs the
+           staging build with fingerprint f99bf82f or newer). Checked by Claude on the iPhone simulator 2026-11-27
+           (photos only, newone1 and newone2 on Riya & Arjun's Wedding > Haldi): warning "3 photos haven't finished
+           uploading...", 8 of 10 saved before sign-out, 2 paused, nothing uploaded under newone2 (panel: "2 files from
+           another account" + Remove), both finished as newone1 after signing back in. Not checked: a video of 20 MB or
+           more (it stops after the 10 MB part being sent), the Remove button, Android, a real phone.
+How to test (do it on Android and on iPhone separately; two accounts that can upload to the same gallery):
+  1. Sign in as account A, open a gallery, pick about 20 photos and one video over 20 MB. While it still uploads,
+     go to Profile > Sign Out. Expect: "N files haven't finished uploading. If you sign out, they pause..." first.
+  2. Sign Out. Expect: no "Didn't upload" errors; the video doesn't appear as "Anonymous" in the gallery.
+  3. Sign in as account B. Expect: nothing of A's uploads under B (check the uploader in the gallery); the upload
+     panel shows only "N files from another account" with Remove.
+  4. Sign out, sign in as A again. Expect: A's paused photos and the video carry on and finish as A's.
+  5. Repeat 1-3, then on B tap Remove > Remove. Expect: the note goes away; later, signing in as A shows nothing waiting.
+Done by:          Claude with Shwetank (Shwetank typed the passwords)
+Device / browser: iQOO I2012 (Android 14), EveBash Staging, Jio 4G mobile data for the paused rounds; iPhone 18 Pro simulator (iOS 27.2)
+Build / version:  Android: local staging build (fingerprint f99bf82f) + staging update b950e221 (b0a74405). iPhone: development build loading b29b91e7
+Date tested:      2026-11-27
+Account used:     newone1 (picked the files), newone2 (second account); Riya & Arjun's Wedding > Haldi
+Screenshot / recording: none kept; checked through the screen's text and the staging database
+Fix ref:
+Feedback:         PASS on Android, photos only; also passed on the iPhone simulator earlier. (1) Warning shown: "6 photos haven't finished uploading. If you sign out, they pause and carry on when you sign back in with this account." (2) After Sign Out nothing failed and nothing was saved for 30 s, none as anonymous. (3) newone2 signed in: nothing uploaded under newone2; the upload button said "6 files from another account. They'll upload when that account signs in on this phone." (4) newone1 signed back in: the 6 carried on by themselves and finished as newone1 (about 7 minutes on mobile data). (5) Another round with 3 photos: on newone2, Remove asked "Remove 3 files? ... won't be uploaded. Anything already in a gallery stays there.", the note went away, and newone1 later had nothing waiting and nothing new in the gallery. Not checked: a video over 20 MB (Add Photos only picks photos; videos go through the separate video upload), a real iPhone. Test photos and the phone's test folder were deleted afterwards.
+
+#266 Website: logging out during an upload asks first and stops the rest (issue #301)
+Status:    PASS
+Priority:  Medium
+Platform:  Website (staging)
+Jira:      EB-450
+Brief:     Logging out on the website while photos were uploading let them carry on, and the rest were saved as
+           "anonymous" or under the next account. Now Logout asks first and stops the files still being sent.
+Detail:    Fix 8e1e3d6b (src/context/AuthContext.tsx logout guard, src/context/UploadContext.tsx). Checked by Claude on
+           the local website on staging, 2026-11-27, newone1, Riya & Arjun's Wedding > Haldi, 8 test photos of 12.7 MB:
+           the question showed ("8 photos are still uploading. If you log out now, they stop and won't be uploaded.
+           Log out?"); Cancel kept newone1 logged in and the upload going; OK logged out, the panel showed the rest as
+           Cancelled, and nothing more was saved (2 saved as newone1 before, none as anonymous). The browser's confirm
+           box was answered by a test script there, so the real box wasn't clicked. Not checked: a real click, a video,
+           the safety net (login ending another way).
+How to test:
+  1. Staging website, log in as a host, open a gallery and add about 20 photos.
+  2. While the upload panel still counts, click Logout. Expect: "N photos are still uploading. If you log out now,
+     they stop and won't be uploaded. Log out?"
+  3. Click Cancel. Expect: still logged in, the upload carries on.
+  4. Click Logout again and OK. Expect: the login page; the panel shows the rest as Cancelled; in the gallery (log in
+     again) only the photos that finished before are there, under your name, none "Anonymous".
+Done by:          Claude for Shwetank (Shwetank typed the password), in the browser inside the Claude app
+Device / browser: Mac, the Claude app's built-in browser (Chromium), window 1280 x 900
+Build / version:  staging.evebash.com with fix 8e1e3d6b (checked: the deployed page contains the new question text)
+Date tested:      2026-11-27
+Account used:     newone1; Riya & Arjun's Wedding > Haldi
+Screenshot / recording: none kept
+Fix ref:
+Feedback:         PASS. With 26 test photos uploading, a real click on Profile > Sign Out showed the real question: "23 photos are still uploading. If you log out now, they stop and won't be uploaded. Log out?" This browser answers such boxes with Cancel by itself: newone1 stayed logged in and the upload carried on, as it should. OK could not be clicked there; the OK path (logs out, the rest show Cancelled, nothing saved afterwards, none anonymous) was checked on the local website earlier the same day. Also seen: when every file had already finished, Sign Out logged out at once without asking (correct). Note: on desktop width the navbar's Logout sits in a hidden menu; the visible one is Sign Out on the Profile page. Side effect fixed: the test photos made the first upload Haldi's cover (the site does that when an album has no cover); after deleting the 51 test photos the cover was set back to none.

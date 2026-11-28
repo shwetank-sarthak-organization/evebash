@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
 import { deletePhoto } from "@/lib/database";
+import { useAuth } from "@/context/AuthContext";
 
 // Event uploads live here, above the pages, so moving to another page of the website doesn't
 // lose the queue, the panel, the Cancel buttons or the "don't leave" warning (issue #78).
@@ -143,6 +144,36 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         if (!confirmed && !window.confirm(`Cancel "${item.fileName}"? It has already been uploaded, so it will be deleted.`)) return;
         setUploadQueueRaw(previous => previous.map(entry => entry.id === id ? { ...entry, status: "cancelling", cancelRequested: true } : entry));
     };
+    // Files still being sent (not yet in storage): logging out stops them (#301). A file "finalizing" is a few
+    // seconds from being saved and can't be cancelled; the backend refuses its save without a login (#300).
+    const stillSending = (item: UploadQueueItem) => item.status === "pending" || item.status === "uploading";
+    const stopSending = () => {
+        for (const item of uploadQueueRef.current.filter(stillSending)) cancelUpload(item.id, true);
+    };
+
+    const { user, setLogoutGuard } = useAuth();
+    useEffect(() => setLogoutGuard(() => {
+        const sending = uploadQueueRef.current.filter(stillSending);
+        if (sending.length === 0) return true;
+        const what = describeMediaCount(sending.map(item => ({ mediaType: item.mediaType === "video" ? "video" as const : "photo" as const })));
+        const ok = window.confirm(`${what} ${sending.length === 1 ? "is" : "are"} still uploading. If you log out now, ${sending.length === 1 ? "it stops and won't" : "they stop and won't"} be uploaded. Log out?`);
+        if (ok) stopSending();
+        return ok;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), [setLogoutGuard]);
+
+    // Safety net (#301): if the login ends or changes any other way (expired, another account in this tab), the
+    // files still being sent stop instead of going up without a login or under the new account
+    const uploadAccount = useRef<string | null | undefined>(undefined);
+    useEffect(() => {
+        const uid = user?.uid ?? null;
+        if (uploadAccount.current !== undefined && uploadAccount.current !== uid && uploadQueueRef.current.some(stillSending)) {
+            stopSending();
+        }
+        uploadAccount.current = uid;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.uid]);
+
     const cancelAllUploads = () => {
         const open = uploadQueueRef.current.filter(isCancellable);
         const saved = open.filter(isSaved).length;

@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
+import { discardAccountUploads } from '@/lib/uploadQueue';
 import { useAppTheme } from '@/context/ThemeContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
@@ -204,6 +205,8 @@ export default function SettingsScreen() {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || 'Failed to delete account.');
 
+      // The account is gone, so its files waiting on this phone can't upload any more
+      if (user?.uid) await discardAccountUploads(user.uid);
       await logout();
       setDeleteModalVisible(false);
       setDeleteConfirmation('');

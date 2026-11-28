@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 330
+Next issue number: 337
 
 =====================================================================
 ACTIVE ISSUES
@@ -52,19 +52,10 @@ Update 2026-10-22 (Google Play review): section 29 now says the apps sell nothin
 Update 2026-10-22: migration 20261011000000_find_you_consent.sql applied to Supabase (shared staging/production project). Table has RLS on and no client access; the three consent functions are for logged-in users only.
 Update 2026-10-22 (after release PR #8): privacy section 20 and /delete-account said the website's Delete Account is under Profile; it moved to Settings, fixed. Their Apple/Google subscription wording now says plans are bought on the website.
 Update 2026-11-17: FIND_YOU_REQUIRE_CONSENT=true is already set on both Railway services (staging and production), checked by Shwetank in the dashboard. Live rehearsal the same day: a new guest account on the website got the Find You consent screen before the selfie, and Find You found the right photos. Still open: EB Vault section, 18+ confirmation at sign-up, and the Ossciv entity block and Grievance Officer at incorporation.
-
-#32
-Listed: 2026-10-11
-Platform: Website
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: Real sample galleries (Sarthak)
-Found in: Website UI re-check (2026-10-11)
-Issue: Sample galleries still show test data: one sample ("Wedding") whose albums are named "Rec 1", "REc 10", "Rec 2"..., listed in text order (Rec 10 before Rec 2, localeCompare without numeric in src/lib/database.ts getSubEvents), and the "Rec 5" cover image is broken.
-How to reproduce: Open /sample-galleries/wedding-fdd8 and look at the album cards.
-Note 2026-10-28: On staging there are now no sample galleries at all: /sample-galleries says "No sample galleries are available yet." and /sample-galleries/wedding-fdd8 shows the 404 page (Claude test run, tests #12 and #53 blocked).
-Note 2026-11-16 (client demo check): live has NO sample galleries either (read-only query: 0 events with is_sample_gallery), while the live home page and /pricing link to /sample-galleries, which then shows "No sample galleries are available yet." The album order part is already fixed in code (getSubEvents sorts with numeric: true). Plan for the demo: Shwetank builds a polished demo event on live and marks it as a sample gallery in the analytics dashboard (Live > Galleries > sample toggle), so the home page link shows it.
+Update 2026-11-27: privacy section 30 "EB Vault (Private Storage)" added (shared/legal/policies.json, Last updated November 27, 2026): what is stored, only the owner can see it (no gallery, host, guest or public access; short-lived private links), separate private Backblaze B2 storage, no Find You / processing / advertising use, Save to EB Vault makes a separate copy, Trash emptied after 30 days, shared plan storage and plan-expiry hiding/deletion per the Terms, deleted with the account. Checked on the local website. The app shows it with its next update. Still open: 18+ confirmation at sign-up, and the Ossciv entity block and Grievance Officer at incorporation.
+Update 2026-11-27: 18+ confirmation built (decided: everyone confirms once). New policy version 2026-11-27.1 with the text "I confirm I am 18 or older, agree to the Terms & Conditions and acknowledge the Privacy Policy." on the sign-up box and the "Before you continue" popup, website and app (shared/legal/acceptance.ts). Migration supabase/migrations/20261127120000_policy_acceptance_18_plus.sql adds get_current_policy_acceptance and accept_policies for the new version; the old functions stay for app builds already on phones, and count either version as accepted, so old apps never get stuck (those users get the 18+ box when their app updates). Applied on staging 2026-11-27 and checked there (rolled-back test as newone2, then the local website: popup shown once, saved with the 18+ text). LIVE: apply this migration on the live database BEFORE the release PR reaches main, or the live website can't check acceptance. App part: device test #264. Still open: the Ossciv entity block and Grievance Officer at incorporation.
+Update 2026-11-27: device test #264 PASS (Android iQOO with a local staging build, iPhone simulator): popup once with the 18+ box, Sign Up box, old code not stuck. Staging app update a5f0c635 (Android) / 9ff2569b (iOS) carries it. Still open: the Ossciv entity block and Grievance Officer at incorporation.
+Update 2026-11-27: migration 20261127120000_policy_acceptance_18_plus.sql applied on the LIVE database (Shwetank's OK), after a rolled-back test there. Live website and apps keep using the old check until the release, with no change for users; the 18+ box goes live with the next release PR (staging -> main). Still open: the Ossciv entity block and Grievance Officer at incorporation.
 
 #48
 Listed: 2026-10-12
@@ -77,17 +68,6 @@ Found in: Testing the #51 push on the Android emulator (2026-10-12)
 Issue: New access requests only show in the app after the host leaves and reopens the event or pulls to refresh: the Permissions tab and Gallery > Requests load once when the screen opens, and Supabase Realtime is off (and the app has no listener on guests anyway). Fix without Realtime, app only: (1) when a "New access request" push arrives while the app is open, reload the request list; tapping the push opens that event's Permissions tab; (2) reload the current screen when the app comes back to the foreground. Pull-to-refresh stays.
 How to reproduce: Keep the event's Permissions tab open in the app, send a request from the website: it doesn't appear until you reopen the screen.
 Note 2026-10-27: Fixed in c42c419 (needs a new app build): apps/mobile/hooks/use-reload-on-return.ts reloads the Permissions tab and Gallery > Requests silently when a push with an eventId arrives while the screen is open, and when the app returns from the background. The push has no type field, so any event push reloads (one small query). Tapping the push still opens the event on its Galleries tab, not Permissions. Device check: test_yourself #161.
-
-#58
-Listed: 2026-10-12
-Platform: Both
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: A decision: add the profiles.notification_preferences column (database change), and whether upload pushes should start for every host
-Found in: #47 investigation (2026-10-12)
-Issue: profiles has no notification_preferences column (checked 2026-10-12), but several places use it. (1) Host upload pushes never send: apps/backend/src/uploadNotifications.ts asks for push_token, notification_preferences, the lookup fails and it returns quietly, so "New photo(s) uploaded" and "New video uploaded" (including VIDEO_READY_PUSH=true from Modal's callback) never reach the host. test_yourself #51 step 5 uses the video push, so it will fail until this is fixed (use a join request instead). (2) The app's Settings > Notifications switches don't save: updateUserProfile (apps/mobile/lib/database.ts) drops columns the profile doesn't have and still reports success, so the switch flips back on the next login and nobody can turn pushes off. (3) Client-side pushes fail the same way: the app's sendPushNotificationDirectly (enquiries and vendor chat, Phase 2, see #20) and the website's sendPushNotification (old approval path). #47 fixed only the access-request, approval and deny pushes in apps/backend/src/routes/notifications.ts (select "*"). Fix options: add the column (jsonb, nullable) so settings save and count, and for (1) read the profile the way notifications.ts does; the photo-upload push has no kill switch, so put it behind a flag first, because fixing it starts a push to every host on every upload.
-How to reproduce: Upload a photo or video to someone else's gallery: the owner's phone gets nothing, and Railway logs show nothing. In the app, turn off Event invites in Settings, log out and in: it's on again.
 
 #63
 Listed: 2026-10-12
@@ -218,19 +198,6 @@ Found in: Unused code and assets scan (2026-10-22)
 Issue: The website and app carry files, assets and packages nothing uses. App: 7 fonts in apps/mobile/assets/fonts (all but AkayaKanadaka; about 0.7 MB), 9 images in apps/mobile/assets/images (memories_bg, marketplace_bg, react-logo x3, partial-react-logo, splash-icon, android-icon-foreground, android-icon-monochrome; about 1.6 MB), 13 @expo-google-fonts packages (every name except Inter is mapped to Inter in app/_layout.tsx), Expo starter leftovers (app/modal.tsx, components/themed-text, themed-view, hello-wave, parallax-scroll-view, external-link, ui/collapsible, hooks/use-color-scheme*, hooks/use-theme-color, scripts/reset-project.js), components/event/index.ts. Website: components DashboardHeader, FindYouSection, RouteGuard, SubEventsGrid, page-flip/CoverFlowMediaViewer, ui/Hero, ui/JharokhaCard and lib/fmp4Chunker, lib/seed; public/file.svg, globe.svg, next.svg, vercel.svg, window.svg, _redirects; API routes media/process-thumbnail, media/trigger-modal-batch, debug/video-trigger, the empty api/test-deploy folder; root packages @tensorflow/tfjs-node, canvas, sharp, razorpay, expo, react-native, file-saver, @types/file-saver, @types/jszip. Repo root: one-off scripts (check-*.js, query_events*.js, replace_*_theme.js, parse/update/tmp_templates.js, templates_str.txt, parsed_templates.json, test-faceapi-block.js), logs (modal_logs*.txt, backend_error.log, .next_log), netlify.toml + netlify/ + vercel.json (Railway deploys). Unused functions: website src/lib/database.ts (getEvents, getUserPendingVisits, getPendingSharedEventsForUser, saveFaceToIndex, updateGuestStatus, updateGuestPermissions, deleteGuest, getPublishedBusinesses, updateUserPrivacy, getUserVisits, findGuestNameByPhone, getUserLikes, serializeDatabaseData, followUser, unfollowUser, getFollowing, getFollowersCount, getFollowingCount), src/lib/razorpayPricing.ts (normalizeBillingDuration, getPricingPlanAmount, getBillingDurationLabel), src/lib/events.ts getAllEvents, src/lib/imageUrl.ts getSmallThumbnail, src/lib/subscriptionStatus.ts formatSubscriptionDate, page-flip resolvePageFlipTransition, templateRegistry WEB_TEMPLATE_IDS; app apps/mobile/lib/database.ts (getSharedEvents, updateUserPrivacy, getPendingFollowRequests, approveFollowRequest, rejectFollowRequest, getFollowersCount, getFollowingCount, getBusinessActivities, updateUserProfileImage, serializeDatabaseData), uploadQueue getIndexingStatusForEvent, chunkUpload isNonRetryableUploadError, imageUrl getSmallThumbnail, subscriptionStatus formatSubscriptionDate, constants/theme RoyalColors; shared/legal POLICY_ACCEPTANCE_TEXT and FIND_YOU_CONSENT_REQUIRED_CODE. Unused CSS in src/app/globals.css: .glass-nav, the .via-slate-950 / .to-slate-950 / .bg-sky-900/30 overrides, the --font-lato alias. Size and speed: none of these items are in the built app or website pages (the build leaves unused files out), so deleting them doesn't change app size or load speed; it removes about 750 MB from the root node_modules (faster installs and builds) and keeps searches clean. The real size and speed wins are #98 (fixed 2026-10-26) and #105. Overlaps #43 (root android/), #55 (unused database.ts functions) and #68 (root APKs).
 How to reproduce: grep the repo for each file or package name: only its own file (or package.json) mentions it.
 Note 2026-10-26: src/components/ui/Hero.tsx is deleted (22c0ec8, with #151).
-
-#105
-Listed: 2026-10-22
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: App size check with expo export (2026-10-22)
-Issue: The app bundle ships about 15 MB of font files it never loads. Importing from a @expo-google-fonts package's root (import { Inter_400Regular } from '@expo-google-fonts/inter') pulls in every weight, because the package index require()s all of them. (1) apps/mobile/app/_layout.tsx uses 6 Inter weights but ships all 18 (about 4.1 MB extra). (2) The in-progress Royal Emerald work, apps/mobile/components/royal/royalFonts.ts, uses 2 Cinzel and 2 Cormorant Garamond faces but ships 6 and 10 (about 4.6 MB extra). (3) All 7 Material Symbols weights (about 6.7 MB) come in through expo-symbols (expo-router native tabs and components/ui/icon-symbol*.tsx); the app draws its Android icons with MaterialIcons, so these may not be needed - test before removing. Fix for (1) and (2): import each face from its own file, e.g. require('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'). Fonts that aren't loaded don't slow startup; this is download and install size only.
-How to reproduce: cd apps/mobile && npx expo export --platform android --output-dir /tmp/x: the Assets list shows all Inter, Cinzel, Cormorant Garamond and Material Symbols weights.
-Note 2026-10-28: Sunlit Portrait's Instrument Serif (apps/mobile/components/portrait/portraitFonts.ts) now imports its one face from its own file (c1373c6), not the package root (which also bundled the unused italic, ~70 KB). Still open: royalFonts.ts and Material Symbols.
-Note 2026-10-27: Part (1) fixed: apps/mobile/app/_layout.tsx now imports each Inter weight from its own file (@expo-google-fonts/inter/400Regular etc.). expo export --platform android now lists only the 6 Inter weights used (about 2 MB). Needs a new app build to reach phones. Parts (2) royalFonts.ts (left alone, belongs to the Royal Emerald work in #97) and (3) Material Symbols are still open.
 
 #102
 Listed: 2026-10-22
@@ -776,17 +743,6 @@ Found in: App screen review, EB Vault (chat 2026-11-03)
 Issue: EB Vault (apps/mobile/components/vault/VaultScreen.tsx, VaultPreview.tsx, VaultModals.tsx, VaultUploads.tsx) uses its own colours, not the app palette: a #0E1318 page background (the app uses MidnightColors.background, #13191F), cool blue-grey text and boxes (#E2E8F0, #F1F5F9, #141B22, white see-through borders) and Tailwind amber and red banners. Next to Profile and Plan & Usage it looks darker and colder, the same kind of mismatch as #230. Its header also differs from the sibling Plan & Usage page, which uses TabScreenHeader. Long file names are cut at the end, so the extension is hidden ("SU0710…265404 …") in the list, the actions sheet title and the preview header; cutting in the middle (ellipsizeMode="middle") keeps ".pdf" visible. Smaller: the Profile row says "Usage & Plan" but that page's title says "Plan & Usage". Keep the Vault green (#7FA38C), which the Profile card uses too. Fix idea: swap the hard-coded colours for MidnightColors tokens, cut file names in the middle, and use one name for Usage & Plan. Also check on a phone: a 195 KB PDF took about 15-20 s to show in the preview on the emulator, with only "Loading PDF..." on screen.
 How to reproduce: Android emulator, Profile > EB Vault; compare with Profile > Usage & Plan.
 
-#243
-Listed: 2026-11-03
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: Device test #180 (which places really break on a phone)
-Found in: Searching the app for the #242 pattern (chat 2026-11-03)
-Issue: Other places where the Android keyboard may cover a text box or its button, like #242. Not checked on a phone yet: the emulator here only shows Gboard's floating keyboard. Same pattern as #242 (keyboard handling only on iOS, inside a pop-up): (1) album page review, "Write a reply" and "Describe the change (optional)" (apps/mobile/components/album/PageReviewer.tsx, about line 416); (2) host page > Add Sub-Gallery (apps/mobile/components/event/modals/SubEventModal.tsx); (3) EB Vault > New folder and Rename (NamePrompt in apps/mobile/components/vault/VaultModals.tsx). No keyboard handling at all, in a pop-up in the middle of the screen, so the keyboard may hide its lower half and the Save button: (4) Host tab > an event's options > Rename Event (apps/mobile/app/(tabs)/gallery.tsx, about line 1186); (5) host event page > pencil next to the title, "Edit Event Title" (apps/mobile/components/event/modals/RenameEventModal.tsx). Full screens with no keyboard handling, fine if Android shrinks the screen for the keyboard: (6) Profile > Edit (the lowest boxes, location and birthday); (7) Contact us (the message box, apps/mobile/app/contact.tsx); (8) the host page's welcome message editor (apps/mobile/app/events/[id].tsx, about line 5413). Not listed: the business screens (Phase 2: chat, vendors, manage business) use the same iOS-only pattern. Fix idea: for each place that fails device test #180, lift the pop-up by the keyboard height with apps/mobile/hooks/use-android-keyboard-height.ts (added for #242; the bottom sheets use it too).
-How to reproduce: Device test #180 on an Android phone with its normal on-screen keyboard.
-
 #249
 Listed: 2026-11-06
 Platform: App
@@ -835,13 +791,14 @@ How to reproduce: In the app, open a Classic White gallery as a guest (e.g. 10-o
 Listed: 2026-11-07
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: Sarthak's OK to change a guest theme (themes keep their own designs)
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
 Found in: Midnight Hero edit-mode pencils test (todo #11, chat 2026-11-07)
 Issue: In the app's Midnight Hero gallery (the default theme), the welcome card shows a box with a question mark after the host's message instead of the white heart the screen adds (' 🤍' after the description in apps/mobile/app/events/[id].tsx, the shared welcome card used by Midnight Hero and the older themes). The card's serif italic font has no emoji, and here iOS didn't fall back to the emoji font. Guests see it on every gallery with a message. Seen on the iPhone 16e simulator; check on a real phone. Fix idea: draw the heart in its own Text with the system font, or drop it.
 How to reproduce: In the app, open a Midnight Hero gallery with a welcome message as a guest and scroll to the card under the cover: a "?" box follows the message.
 Note 2026-11-07: drawing the heart in its own Text with the system font did not remove the box on the iPhone 16e simulator (iOS 26.3), and the same "?" box shows after FIND YOU on that screen. So it may be the simulator's emoji font, not our card: check on a real iPhone first. No change made.
+Fixed in: ae445d4b (2026-11-19, issue #293). No code change for #255 itself: the boxed ? was the ' 🤍' added after every welcome message; it was removed, so no heart is drawn and the Midnight Hero design is unchanged. Device test #240 PASS on iPhone and Android. Closed 2026-11-26 after checking staging code.
 
 #64
 Listed: 2026-10-13
@@ -862,12 +819,13 @@ Note 2026-11-12: checked by Claude in the built-in browser on staging (1366x768 
 Listed: 2026-11-12
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: Fixed
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Chat with Sarthak (2026-11-12): "the light theme permission page has a visibility issue"
 Issue: In the light theme, the host's Permissions tab in the app is hard to read. The likely cause (from the code, not yet checked on a phone): the two sheets that open from that tab, the member sheet (tap a guest: name, profile details, Member Privileges switches, Save Permissions) and the access request sheet ("Requesting Access"), draw their background with a fixed dark gradient, colors={['#1B211F', hp.onAccent]} in apps/mobile/app/events/[id].tsx (about lines 6336 and 6478 on staging). The light theme turns their text dark (hostLightStyles in apps/mobile/components/eventStyles/hostLightStyles.ts sets premiumModalTitle and userInfoDetailValue to the light theme's dark text colour, and an active privilege's label uses hp.white, which is dark in the light theme), so the guest's name, the privilege names and other labels are dark on dark. Fix: when hostLight is on, give both sheets a light background from the theme (for example appColors.deepSlate / card) and check every text and switch on them; the dark theme and guest themes stay as they are. Also look over the rest of the Permissions tab in the light theme in case the report means something else on that page.
 How to reproduce: In the app, set Appearance to Light. Open an event you host, go to the Permissions tab and tap a guest in the Guest List (or a pending access request). Expect: the sheet's text is readable. Now: dark text on a dark sheet.
+Fixed in: 66ebb833 (2026-11-23). Guest and access-request popups use a light card in the light look (hostLight), guest names use the host palette, report sheet title fixed. Device test #250: Android PASS, iPhone simulator PASS; real iPhone still to check after the next staging build. Closed 2026-11-26 after checking staging code.
 
 #262
 Listed: 2026-11-12
@@ -954,12 +912,13 @@ How to reproduce: On staging, open a gallery in the app and tap a photo. Steps t
 Listed: 2026-11-16
 Platform: App
 Priority: High
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: iOS simulator and USB iPhone builds, todo #37 (chat 2026-11-16)
 Issue: The iOS app doesn't build or start with Xcode 27 / the iOS 27 SDK unless the generated apps/mobile/ios folder is patched by hand. (1) The app closes at launch on iOS 27 (crash in UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption): apps built with the iOS 27 SDK must use the UIScene lifecycle, and Expo SDK 55's AppDelegate doesn't. Fixed locally with a SceneDelegate in AppDelegate.swift (starts React Native in scene(_:willConnectTo:), forwards deep links and universal links to the AppDelegate) and UIApplicationSceneManifest in Info.plist. (2) Xcode 27 refuses pods whose minimum iOS is below 15, and expo-router uses an iOS 16 API, so all pods and the app need a minimum of iOS 16.0 (set in the Podfile post_install). Both live only in the gitignored ios folder, so "npx expo prebuild --clean" and EAS builds lose them. Fix: a config plugin in apps/mobile (or expo-build-properties deploymentTarget 16.0 plus a scene-lifecycle plugin), or an Expo SDK that supports scenes, before the first EAS iOS build on an Xcode 27 image and before Apple requires the iOS 27 SDK for App Store uploads. Local-only extra (not a product bug): this Mac's project path has spaces, which breaks the RN prebuilt-core download and some unquoted script phases; the Podfile post_install quotes them and pods are installed with RCT_USE_PREBUILT_RNCORE=0 RCT_USE_RN_DEP=0. Full notes in the todo #37 entry.
 How to reproduce: On a Mac with Xcode 27, from apps/mobile: npx expo prebuild --clean, pod install, build for an iOS 27 simulator and open the app. Expect: build errors on deployment targets; after fixing those, the app closes right after the splash.
+Note 2026-11-26: config plugin apps/mobile/plugins/withIosXcode27.js (in app.json) does both fixes on every prebuild: a SceneDelegate in AppDelegate.swift (starts React Native in scene(_:willConnectTo:), rebuilds the launch options from a link that opened the app, and passes links, universal links and active/background events on to the AppDelegate so Expo modules see them as before) plus UIApplicationSceneManifest in Info.plist; and a Podfile post_install step that raises every pod target (resource bundles too) to the app's minimum. expo-build-properties ios.deploymentTarget is now 16.0 (was Expo's 15.1). The plugin stops the prebuild with a clear error if a future Expo SDK changes the AppDelegate. Checked on Sarthak's Mac with Xcode 26.2 / iOS 26.3 simulator only (no Xcode 27 there): clean prebuild, pod install (352 pod settings at 16.0), Release build and launch OK on the scene lifecycle. Not checked: Xcode 27 / iOS 27 and links (device test #263, EB-442). The spaces-in-path workaround stays local to that Mac (not a product bug).
 
 #277
 Listed: 2026-11-16
@@ -997,39 +956,6 @@ Found in: Recording the Find You demo video (todo #45, 2026-11-18, iPhone simula
 Issue: In the app's Find You results ("Your Photos - N matches found in this event"), the photo grid isn't centred: its two columns sit on the left with an empty strip about a third of a column wide on the right (iPhone 17 Pro size, Cinematic wedding theme). Fix idea: check the matched-photos grid's width and gaps in apps/mobile/components/event/FindYouPanel.tsx (matchedPhotos.map, about line 454).
 How to reproduce: Staging app, Riya & Arjun's Wedding (riya-arjun-s-wedding-00bc), Find You > Upload Photo > a picture of the groom (a crop of public/home/groom-solo.jpg): 5 matches, grid left of centre.
 
-#301
-Listed: 2026-11-19
-Platform: Website
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
-Issue: On the website, logging out during an upload doesn't stop it, and the rest of the files are saved as "anonymous". logout() in src/context/AuthContext.tsx (about line 532) only signs out and goes to /login without a page reload, so the upload loop of the host page and the upload panel (src/context/UploadContext.tsx, in the (main) layout) keep running. Each next file finds no login, and the backend saves it as "anonymous" (#300), so the person can't find or delete those photos as their own. The "uploads in progress" warning (handleBeforeUnload, about line 217) only shows when the tab is closed or reloaded, not on logout. If the same or another person logs in in that tab before the batch ends, the rest go under that account. Fix idea: on logout while uploads are running, ask "Photos are still uploading. Log out and stop them?" and, on yes, cancel them with the panel's existing cancelAllUploads (about line 146) before signing out. Fixing #300 also makes any leftover file fail instead of being saved as "anonymous".
-How to reproduce: Staging website, host page, upload 30 photos to a gallery. While the upload panel is still counting, log out from the navbar. Today: no warning, the panel keeps counting on the login page, and the photos reach the gallery with "Anonymous" as the uploader.
-
-#302
-Listed: 2026-11-19
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
-Issue: In the app, logging out during an upload leaves the upload list half-running. logout() in apps/mobile/context/AuthContext.tsx (about line 587) doesn't touch the upload list (apps/mobile/lib/uploadQueue.ts), which is saved on the phone and keeps going. (1) Files not started yet fail with "Authorization required." (about line 606) after 3 tries each. (2) A photo already being sent reaches storage, but saving it to the gallery is skipped without a message (flushMetadataBatchesInternal returns when there is no login, about line 878), so it stays on "saving" and isn't in the gallery until someone logs in and another upload finishes or the app restarts. (3) A video of 20 MB or more already being sent keeps going to the end (chunkUpload.ts sends an empty login, which /upload/chunk/part-url and /upload/chunk/complete accept, #300) and is saved as "anonymous". There is no warning before logout. Fix idea: on logout, ask "X photos haven't uploaded yet. Log out anyway? They'll carry on when you log back in.", then pause the list (stop the file in flight like cancelUploadItem does, and start nothing new until a login), instead of letting files fail or finish as "anonymous". See #303 for whose files resume.
-How to reproduce: Staging app, host view of a gallery, pick 20 photos and a video over 20 MB. While the upload status still shows progress, go to Profile > Sign Out. Today: no warning; photos not started turn failed, one photo stays on "saving", and the video appears in the gallery with "Anonymous" as the uploader.
-
-#303
-Listed: 2026-11-19
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
-Issue: On a shared phone, one person's photos can be uploaded under another person's account. The upload list in apps/mobile/lib/uploadQueue.ts is saved on the phone, not per account, and every step uses whoever is logged in at that moment. Each item already stores who added it (userId, about line 128), but nothing uses it. Example: Riya picks 100 photos and logs out halfway; Arjun logs in on the same phone; the photos not yet sent, the ones stuck on "saving" (#302) and any failed ones he taps Retry on go up as Arjun's. Riya then can't find or delete them as her own, and Arjun can. Fix idea: only upload or save an item while the person who added it (item.userId) is logged in; items of another account wait until that person logs back in and can be removed from the list.
-How to reproduce: Staging app, account A, host view of a gallery where account B is also a guest or admin. Pick 30 photos, then right away Profile > Sign Out and log in as account B. Open the gallery: today the photos that were still waiting appear with account B as the uploader.
-
 #305
 Listed: 2026-11-20
 Platform: App
@@ -1057,8 +983,8 @@ How to reproduce: Open a photo from a private gallery, copy its address, open it
 Listed: 2026-11-22
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Quick security check (chat with Claude, 2026-11-22)
 Issue: Android: app backup is on (allowBackup="true" in the Android manifest). Android backup can copy the app's data, including the saved login session, to another device. Apps that keep a login usually turn this off. Fix: set android.allowBackup to false in apps/mobile/app.json (Expo config) so the next build turns it off; check that sign-in still works after a reinstall.
@@ -1079,23 +1005,12 @@ How to reproduce: Read apps/mobile/lib/supabase.ts (storage: AsyncStorage).
 Listed: 2026-11-22
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Quick security check (chat with Claude, 2026-11-22)
 Issue: App packages have known security holes: expo-router (~55.0.16) is rated high; the app shows 36 in all (1 critical, 18 high, mostly in build tools). Fixes exist. Fix: update expo-router and the affected Expo packages (expo install --fix), make a staging build, and check sign-in, navigation, deep links and uploads on iPhone and Android. Reaches users with the next store release.
 How to reproduce: cd apps/mobile && npm audit --omit=dev.
-
-#315
-Listed: 2026-11-23
-Platform: App
-Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Checking todo #48 in the Android development build (Claude, iQOO, staging, 2026-11-23)
-Issue: In the app, opening an event often fails with "We couldn't open this gallery" (open_gallery request times out after 20 s, apps/mobile/lib/supabase.ts SUPABASE_FETCH_TIMEOUT_MS) or takes 10 s or more; several other app requests to Supabase time out at the same moment. Seen 5 times in about 10 minutes, mostly right after signing in or after the app reloaded; Try again often fails too, and it then works a minute later (under 1 s). The same open_gallery call for the same account takes 0.16 s on the website and under 1 s from the Mac, and the phone reaches Supabase fine (ping about 50 ms), so the server is not slow: requests in the app seem to wait behind other requests. Not yet known: the cause (too many requests at once on Android, a request that never finishes and blocks the others, or the sign-in/session refresh), whether iOS and the store build do the same, and whether it happens on live.
-How to reproduce: Android development build on staging, sign in (or reload the app), open an event right away from Host > My Events: "We couldn't open this gallery" after about 20 s. Metro log: "[Supabase] Network request failed: Supabase request timed out".
 
 #316
 Listed: 2026-11-24
@@ -1138,11 +1053,220 @@ Issue: #318 (upload links that work for any file name in the whole storage bucke
 How to reproduce: On live, logged in with any account, POST https://api.evebash.com/api/v1/media/get-upload-url with an eventId the account may upload to: the reply has uploadUrl and authorizationToken (the any-file link). Do not upload anything with it.
 Note 2026-11-25 (added with Sarthak): (a) Order: nothing can be done before the staging to main release; the app update comes after it, because a production update ships every app change made on staging since the live build (it is an app release), and the live app and live server must match. (b) Right after the release, check: live POST /api/v1/media/get-upload-url (logged in) returns putUrl as well as uploadUrl, and a live website upload goes as a signed PUT and is saved. (c) Production update recipe (like the staging one in #318, memory evebash-ota-publish): clean worktree + cloned node_modules, eas.json build.production.env exported (APP_VARIANT=production, EXPO_PUBLIC_API_BASE_URL=https://api.evebash.com), eas fingerprint:compare against the latest production builds with --environment production, then eas update --channel production --environment production. EAS production holds the live iPhone Google client, which is right for live. (d) If the fingerprint doesn't match a live store build, those phones can't get an update: a new store build is needed (Play and App Store review time); phones on older builds never get updates (like the Pixel's 2026-11-19 staging build). The fingerprint check is read-only and can be run before release day to plan this. (e) Switching UPLOAD_LEGACY_B2_TOKEN off breaks small uploads (photos and videos under 20 MB) on live app builds without the update, so do it only after most users have the update or a forced update is out. (f) The same release takes the other 2026-11-25 fixes live (#300, #319, #320, #321, #322, #324, #326); all their switches are on unless set to "false", so nothing needs setting on live first.
 
+RECENTLY FIXED (delete entries older than 7 days)
+#336
+Listed: 2026-11-27
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Device test #266 on staging.evebash.com (Shwetank with Claude), 2026-11-27
+Issue: On a computer-width screen (lg and wider) the website's top bar has no Log out. The only Logout button in src/components/Navbar.tsx (about line 213) sits in the phone-size menu (the lg:hidden panel opened by "Toggle menu", about line 147-158), so on a computer it is in the page but never shown. People must find the profile icon, open the Profile page and scroll to Sign Out. Not broken, but easy to miss. Fix idea: add Log out to the computer-width top bar (for example a small menu on the profile icon with Profile and Log out), using the same logout() so the #301 question about unfinished uploads still shows.
+How to reproduce: staging.evebash.com on a computer (window wider than about 1024 px), logged in: the top bar shows Dashboard, Host, EB Business, EB Network, the theme switch and the profile icon, but no Log out. Narrow the window to phone width and open the menu: Logout is there.
+Note 2026-11-27 (Shwetank with Claude): a "Log out" button now sits next to the profile icon in the computer-width top bar (src/components/Navbar.tsx), styled like the guests' "Log in" link; it calls the same logout(), so the #301 question about unfinished uploads still shows. Checked on the local website on staging at 1280 px: the button shows, a click logs out and opens the login page. The phone menu is unchanged.
+Fixed in: 24f2a658 (2026-11-27)
+
+#335
+Listed: 2026-11-27
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Testing #301 on the local website on staging (Shwetank with Claude), 2026-11-27
+Issue: On the website the sign-in load fails with "[Auth] Supabase session load failed: Error: cannot add `postgres_changes` callbacks for realtime:web-profile-<user id> after `subscribe()`" (and the same from onAuthStateChange), seen in the browser console of the local website (npm run dev) on staging as newone1, on every page load. subscribeToProfile in src/context/AuthContext.tsx (about line 241) removes the old channel without waiting (supabase.removeChannel is async) and at once asks for a channel with the same name `web-profile-<uid>`; supabase-js hands back the channel that is still subscribed, and .on() then throws. It runs from both loadSession (about line 288) and the auth listener (about line 349), so it can happen whenever both fire, not only in development (React's development mode runs effects twice, which makes it certain there). Seen at the same time: opening /host by typing the address (a full page load) ended on /dashboard, while going to Host from inside the site worked; not proven that the two are linked. Not checked: whether the deployed staging or live website shows the error. Fix idea: wait for removeChannel, or give each subscription a unique channel name, or keep one channel per user and skip resubscribing when it is the same user.
+How to reproduce: npm run dev with .env.local on staging, log in as any account, open the browser console and reload: the error appears. Then type http://localhost:3000/host in the address bar: it ends on /dashboard.
+Note 2026-11-27 (Shwetank with Claude): subscribeToProfile now gives each channel its own name (web-profile-<uid>-<n>) and skips resubscribing when it already listens for the same person, so the session load no longer throws. Checked on the local website on staging as newone1: after two full reloads no new "postgres_changes" errors, and typing localhost:3000/host now stays on the Host page (so the redirect came from the failed session load). Checked again on the deployed staging.evebash.com the same evening (new code live): loading /host directly stays on Host and the console shows no "postgres_changes" error. Not checked: live (comes with the next release).
+Fixed in: 773d2930 (2026-11-27)
+
+#301
+Listed: 2026-11-19
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: On the website, logging out during an upload doesn't stop it, and the rest of the files are saved as "anonymous". logout() in src/context/AuthContext.tsx (about line 532) only signs out and goes to /login without a page reload, so the upload loop of the host page and the upload panel (src/context/UploadContext.tsx, in the (main) layout) keep running. Each next file finds no login, and the backend saves it as "anonymous" (#300), so the person can't find or delete those photos as their own. The "uploads in progress" warning (handleBeforeUnload, about line 217) only shows when the tab is closed or reloaded, not on logout. If the same or another person logs in in that tab before the batch ends, the rest go under that account. Fix idea: on logout while uploads are running, ask "Photos are still uploading. Log out and stop them?" and, on yes, cancel them with the panel's existing cancelAllUploads (about line 146) before signing out. Fixing #300 also makes any leftover file fail instead of being saved as "anonymous".
+How to reproduce: Staging website, host page, upload 30 photos to a gallery. While the upload panel is still counting, log out from the navbar. Today: no warning, the panel keeps counting on the login page, and the photos reach the gallery with "Anonymous" as the uploader.
+Note 2026-11-27 (Shwetank with Claude): Logout now asks first while files are still uploading ("N photos are still uploading. If you log out now, they stop and won't be uploaded. Log out?"); Cancel keeps the person logged in, OK stops the files still being sent (the panel's own cancel) and then logs out; files already saved stay. A safety net also stops them if the login ends or changes another way. Checked on the local website on staging (newone1, 8 test photos): question shown, Cancel kept uploading, OK logged out and stopped 6, nothing saved afterwards, none as anonymous. Device test #266.
+Fixed in: 8e1e3d6b (2026-11-27); device test #266 PASS on staging.evebash.com 2026-11-27 (real question shown; OK checked on the local website)
+
+#332
+Listed: 2026-11-27
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test #148 (Claude, 2026-11-27)
+Issue: In the Midnight Hero top bar (src/app/midnight-hero.css), a very long gallery title lets the centre column grow to 36vw. In a window 768-1100 px wide the right group (Find You + Download All) then no longer fits its column and "Download All" ends about 2 px outside the window (801.8 px in an 800 px window). Fix: cap the title at 28vw in that width range.
+How to reproduce: On a computer open a Midnight Hero gallery with a title of about 100 characters, make the window 800x600 and look at the right end of the top bar.
+#333
+Listed: 2026-11-27
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Device test #152 (Claude, 2026-11-27)
+Issue: The Periwinkle Script card is meant to show date, message and place (src/components/TemplatePeriwinkle.tsx reads event.location), but the staging events table has no location column (requests for location, venue or place return an error) and the host page has no field to enter a place. So the place can never show on the card. Fix idea: decide where a place is stored (an events column or theme_content) and add a field in the host page, then map it into the event. Periwinkle Script is hidden as Coming soon for now (Phase 2), so this is not urgent.
+How to reproduce: Set an event's template_id to periwinkle (it can't be picked in the host Design tab right now) and open the guest page: the card shows date and message, never a place.
+Fixed in: a755ee89 (2026-11-27). The title in the Midnight Hero top bar is capped at 28vw between 768 and 1100 px. Checked on staging after the deploy (Chrome, own test gallery): with the long title the right end of Download All is at 769.8 px in an 800 px window (was 801.8), also fine at 768, 900, 1100 and 1440 px; normal titles unchanged at 768 and 800 px.
+
+#334
+Listed: 2026-11-27
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Unassigned
+Blocked by: -
+Found in: Device test #174 (Claude, 2026-11-27)
+Issue: On the Host page at phone width (375 px), event cards with a very long title stretch to about 875 px, so the whole page scrolls sideways (page 891 px wide in a 375 px window). The long title should wrap or end in "..." inside the card. Low while staging shows phones the "Get the EveBash app" screen, because phones can't open /host; it matters once that screen is off.
+How to reproduce: Sign in as a host that has an event with a very long title (e.g. newone1: "Royal Emerald check with a really long title..."), open /host in a 375 px wide window and scroll right. Screenshots: reports/device-tests/test-174-7-phone-host*.png (local).
+Fixed in: ead37dc5 (2026-11-27). DashboardEventCard now has min-w-0 and the Host grid grid-cols-1 below sm, so a long title no longer widens the cards. Checked on staging after the build: Playwright Chromium at 375 px (desktop user agent, not a real phone), dark look, newone1: page width 375 px, all event cards 343 px (before: 891 and 875). Device test #174 step 6.
+
+#303
+Listed: 2026-11-19
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: On a shared phone, one person's photos can be uploaded under another person's account. The upload list in apps/mobile/lib/uploadQueue.ts is saved on the phone, not per account, and every step uses whoever is logged in at that moment. Each item already stores who added it (userId, about line 128), but nothing uses it. Example: Riya picks 100 photos and logs out halfway; Arjun logs in on the same phone; the photos not yet sent, the ones stuck on "saving" (#302) and any failed ones he taps Retry on go up as Arjun's. Riya then can't find or delete them as her own, and Arjun can. Fix idea: only upload or save an item while the person who added it (item.userId) is logged in; items of another account wait until that person logs back in and can be removed from the list.
+How to reproduce: Staging app, account A, host view of a gallery where account B is also a guest or admin. Pick 30 photos, then right away Profile > Sign Out and log in as account B. Open the gallery: today the photos that were still waiting appear with account B as the uploader.
+Note 2026-11-27 (Shwetank with Claude): fixed together with #302. New apps/mobile/lib/uploadAccount.ts: only the signed-in person's files start, upload, are saved, reconciled or retried, each with its owner's login (uploadAccessToken checks item.userId against the signed-in user); another account's files wait and the upload panel shows only "N files from another account" with Remove (their copies are deleted, nothing uploaded; anything already in a gallery stays). Account deletion drops that account's waiting files. Checked on the iPhone simulator: with newone1's 2 paused photos on the phone, newone2 signed in and nothing uploaded under newone2; both finished as newone1 after newone1 signed back in. Device test #265.
+Fixed in: b29b91e7 (2026-11-27); device test #265 PASS on Android (iQOO) and the iPhone simulator, 2026-11-27 (not checked: a video over 20 MB)
+
+#302
+Listed: 2026-11-19
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Chat with Sarthak (with Claude), 2026-11-16 to 2026-11-19: what happens when someone logs out during an upload
+Issue: In the app, logging out during an upload leaves the upload list half-running. logout() in apps/mobile/context/AuthContext.tsx (about line 587) doesn't touch the upload list (apps/mobile/lib/uploadQueue.ts), which is saved on the phone and keeps going. (1) Files not started yet fail with "Authorization required." (about line 606) after 3 tries each. (2) A photo already being sent reaches storage, but saving it to the gallery is skipped without a message (flushMetadataBatchesInternal returns when there is no login, about line 878), so it stays on "saving" and isn't in the gallery until someone logs in and another upload finishes or the app restarts. (3) A video of 20 MB or more already being sent keeps going to the end (chunkUpload.ts sends an empty login, which /upload/chunk/part-url and /upload/chunk/complete accept, #300) and is saved as "anonymous". There is no warning before logout. Fix idea: on logout, ask "X photos haven't uploaded yet. Log out anyway? They'll carry on when you log back in.", then pause the list (stop the file in flight like cancelUploadItem does, and start nothing new until a login), instead of letting files fail or finish as "anonymous". See #303 for whose files resume.
+How to reproduce: Staging app, host view of a gallery, pick 20 photos and a video over 20 MB. While the upload status still shows progress, go to Profile > Sign Out. Today: no warning; photos not started turn failed, one photo stays on "saving", and the video appears in the gallery with "Anonymous" as the uploader.
+Note 2026-11-27 (Shwetank with Claude): fixed together with #303. Sign-out now asks first when files are still uploading ("N photos haven't finished uploading. If you sign out, they pause..."), then pauses the list: a photo being sent stops at once, a video after its current 10 MB part, nothing fails, nothing is saved without a login, and chunked videos can no longer send an empty login. Files waiting for their save are saved at the next sign-in of the same account. Checked on the iPhone simulator (newone1, 10 photos to Haldi): 8 saved before sign-out, 2 paused, both finished after signing back in. Device test #265.
+Fixed in: b29b91e7 (2026-11-27); device test #265 PASS on Android (iQOO) and the iPhone simulator, 2026-11-27 (not checked: a video over 20 MB)
+
+#32
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: Sample galleries still show test data: one sample ("Wedding") whose albums are named "Rec 1", "REc 10", "Rec 2"..., listed in text order (Rec 10 before Rec 2, localeCompare without numeric in src/lib/database.ts getSubEvents), and the "Rec 5" cover image is broken.
+How to reproduce: Open /sample-galleries/wedding-fdd8 and look at the album cards.
+Note 2026-10-28: On staging there are now no sample galleries at all: /sample-galleries says "No sample galleries are available yet." and /sample-galleries/wedding-fdd8 shows the 404 page (Claude test run, tests #12 and #53 blocked).
+Note 2026-11-16 (client demo check): live has NO sample galleries either (read-only query: 0 events with is_sample_gallery), while the live home page and /pricing link to /sample-galleries, which then shows "No sample galleries are available yet." The album order part is already fixed in code (getSubEvents sorts with numeric: true). Plan for the demo: Shwetank builds a polished demo event on live and marks it as a sample gallery in the analytics dashboard (Live > Galleries > sample toggle), so the home page link shows it.
+Note 2026-11-27: checked on live (read-only query and the live website): one sample gallery, "Demo Wedding" (demo-wedding-e493), with albums Ceremony (7 photos), Haldi (18), Reception (8) and Wedding (17). No test names left, all album covers load, the album opens with its photos. Order is by name (Ceremony, Haldi, Reception, Wedding). Left as small polish, not part of this issue: all four album covers are the same photo; the albums are in name order, not the order of the day; the Demo Wedding home itself has no photos of its own; staging has no sample gallery (so tests on staging still can't use one).
+Fixed in: 780ee6ae (2026-10-11, number-aware album order) and the Demo Wedding sample gallery Shwetank set up on live (2026-11-16); confirmed 2026-11-27
+
+#58
+Listed: 2026-10-12
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #47 investigation (2026-10-12)
+Issue: profiles has no notification_preferences column (checked 2026-10-12), but several places use it. (1) Host upload pushes never send: apps/backend/src/uploadNotifications.ts asks for push_token, notification_preferences, the lookup fails and it returns quietly, so "New photo(s) uploaded" and "New video uploaded" (including VIDEO_READY_PUSH=true from Modal's callback) never reach the host. test_yourself #51 step 5 uses the video push, so it will fail until this is fixed (use a join request instead). (2) The app's Settings > Notifications switches don't save: updateUserProfile (apps/mobile/lib/database.ts) drops columns the profile doesn't have and still reports success, so the switch flips back on the next login and nobody can turn pushes off. (3) Client-side pushes fail the same way: the app's sendPushNotificationDirectly (enquiries and vendor chat, Phase 2, see #20) and the website's sendPushNotification (old approval path). #47 fixed only the access-request, approval and deny pushes in apps/backend/src/routes/notifications.ts (select "*"). Fix options: add the column (jsonb, nullable) so settings save and count, and for (1) read the profile the way notifications.ts does; the photo-upload push has no kill switch, so put it behind a flag first, because fixing it starts a push to every host on every upload.
+How to reproduce: Upload a photo or video to someone else's gallery: the owner's phone gets nothing, and Railway logs show nothing. In the app, turn off Event invites in Settings, log out and in: it's on again.
+Note 2026-11-26: Checked read-only: profiles has no notification_preferences on staging (degbveyjppkuhydwxfjq) and live (sbhouirpyiyybrravvih). Code change on branch claude/epic-lederberg-c4460a (not pushed): the host upload push now reads the profile with select "*" and sits behind UPLOAD_OWNER_PUSH (off = same as today). Adding the column is still waiting for the user's OK.
+Note 2026-11-26: Column added on STAGING only (jsonb, nullable, no default; migration 20261126140000_profiles_notification_preferences.sql). Live not touched. UPLOAD_OWNER_PUSH is still unset, so host upload pushes stay off until it is turned on for staging.
+Note 2026-11-27: UPLOAD_OWNER_PUSH=true set on staging Railway (2026-11-26). Checked on Sarthak's Pixel 8 (EveBash Staging app, owner code4sarthak): newone1 (made admin for the test) uploaded one photo to Test event staging from the staging website at 07:43:08 UTC; the phone got "New photos uploaded" at 07:43:10. Cleanup done: photo deleted, newone1 back to view-only, cover restored (the website makes the first upload the cover when the cover is a stock picture). Still open: Settings switch save check in the app; column + UPLOAD_OWNER_PUSH on LIVE.
+Note 2026-11-27: Settings switch checked on the Pixel 8 (staging app, code4sarthak): Event Invitations off saved {"eventInvites":false} to profiles.notification_preferences, and stayed off after a full app restart (force stop + reopen; no log out, that needs a password). Turned back on afterwards (now saved as eventInvites true). Staging is done; only the live step is left.
+Fixed in: 2c7675a9 + 0042a2aa (2026-11-26). The host upload push reads the profile with select "*" behind UPLOAD_OWNER_PUSH (off = unchanged); profiles.notification_preferences added on staging (jsonb, nullable). Checked on the Pixel 8 2026-11-27: upload push arrived in 2 s; the Settings switch saves and survives an app restart. LIVE (release day): release the code FIRST, then add the column on live (adding it before the code would start upload pushes to every host with no switch), then set UPLOAD_OWNER_PUSH=true on live Railway when wanted.
+
+#315
+Listed: 2026-11-23
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Checking todo #48 in the Android development build (Claude, iQOO, staging, 2026-11-23)
+Issue: In the app, opening an event often fails with "We couldn't open this gallery" (open_gallery request times out after 20 s, apps/mobile/lib/supabase.ts SUPABASE_FETCH_TIMEOUT_MS) or takes 10 s or more; several other app requests to Supabase time out at the same moment. Seen 5 times in about 10 minutes, mostly right after signing in or after the app reloaded; Try again often fails too, and it then works a minute later (under 1 s). The same open_gallery call for the same account takes 0.16 s on the website and under 1 s from the Mac, and the phone reaches Supabase fine (ping about 50 ms), so the server is not slow: requests in the app seem to wait behind other requests. Not yet known: the cause (too many requests at once on Android, a request that never finishes and blocks the others, or the sign-in/session refresh), whether iOS and the store build do the same, and whether it happens on live.
+How to reproduce: Android development build on staging, sign in (or reload the app), open an event right away from Host > My Events: "We couldn't open this gallery" after about 20 s. Metro log: "[Supabase] Network request failed: Supabase request timed out".
+Note 2026-11-25: cause found. On mobile data the phone's route to Supabase's Cloudflare entry point keeps moving between cities, and each move silently kills the app's open connection to Supabase. React Native's Android network client keeps sending requests down that dead connection, so they never reach Supabase. Staging logs of 2026-11-23 (the iQOO on Jio, 12:46-14:29 UTC): the phone switched between Mumbai and Delhi 13 times and the app's realtime connection had to reconnect at every switch; between 12:55:05 and 12:59:48 nothing from the phone arrived except two realtime reconnects, then 4 held requests arrived in the same millisecond; every request that did arrive was answered in under 0.6 s. The #260 fix (eb096f18, an HTTP/2 ping every 5 s, apps/mobile/plugins/withOkHttpHealthPings.js) is meant for exactly this, but the iQOO's development build is most likely older than it: it is the app called "EveBash" that loads staging from apps/mobile/.env.local, a name staging builds lost on 2026-11-14 (#30), and #260 came on 2026-11-15. A build without the ping hangs until the 20 s limit, Try again reuses the same dead connection, and it only works again once the route moves back (about a minute later). Reproduced on the Pixel_8 emulator (local staging development build, newone1@email.com, Supabase traffic through a test proxy on the Mac that freezes the open connection without closing it, then Host > My Events > Staging test 1 right after a reload or sign-in): no ping 2/2 "We couldn't open this gallery" after 20.0 s (and Try again failed the same way); 5 s ping 3/3 opened, but open_gallery took 5.5-5.8 s (the "10 s or more" case); 2 s ping 10/10 after reload (open_gallery 2.5-2.8 s) and 10/10 after sign-in (1.2-3.7 s); without the freeze 68-89 ms. Ruled out with an on-phone OkHttp event log and JS timings: too many requests at once (the client allows 5 requests at a time per host; after sign-in or reload at most 4-6 Supabase requests run together and the longest wait for a free slot was 0.13 s); a request that never finishes (every Supabase request is cancelled after 20 s and the cancel frees its slot); the sign-in or session refresh (the longest wait for the session lock was 0.58 s, and the timed-out requests had already got past it). Fix (Android, native, in this change): the ping is now every 2 s (withOkHttpHealthPings.js PING_SECONDS 5 -> 2), so a dead connection is replaced within 2-4 s and the request in flight is resent on a new one. Supabase kept a connection pinged every 2 s open for OkHttp's full 5-minute idle time (staging, 2026-11-25); a ping is a few dozen bytes. It needs a new app build (an over-the-air update can't carry it); a development build gets it after `npx expo prebuild -p android` and a rebuild. Not checked: iPhone (Apple's network code, not OkHttp), a real phone on mobile data, live. Device test #258. Seen on the way, not part of #315: after a sign-in the app runs its account setup twice (two profile reads, two last_login updates, two policy checks; also in the 2026-11-23 logs).
+Note 2026-11-26: the "account setup runs twice after a sign-in" seen on the way is not an app bug; no app change. Checked on the Pixel_8 emulator (staging code in the old EveBash dev client, newone4@email.com signed in with an admin magic-link hash, temporary logs on every Supabase request and on the AuthContext setup): a sign-in from the login screen, a sign-in while the app-open animation plays, and cold starts with a saved session (with and without a link arriving during the animation) each ran the setup once: one policy check, one profiles existence check, one full profile load, one profile_assigned_events read. The two profiles reads and two profiles PATCHes per sign-in are by design: apps/mobile/context/AuthContext.tsx reads the profile once to check it exists and once to load it, and the two PATCHes are last_login (AuthContext) and the phone's push token (registerDeviceForPushNotifications, apps/mobile/lib/notifications.ts). The iQOO's staging logs of 2026-11-23 show exactly that, with one policy check each time. The one real double (2026-11-25, the first sign-in after a cold start) came from the #315 test hook: it called router.replace while the app-open animation was still playing, before the screens exist, and that unmounts and remounts the whole app (root layout, AuthProvider, PolicyAcceptanceGate), so the setup and the policy check run again. Reproduced that way on 2026-11-26; the other 43 sign-ins and starts in the #315 test log ran once. No app code navigates that early (AuthGate and notification taps only run once the screens exist). newone4's last_login and push token were put back afterwards.
+Note 2026-11-26: Android staging build with the 2 s ping is ready: EAS a9a75698 (EveBash Staging 1.2.4 (26), commit 36bc8cd2, https://expo.dev/accounts/evebash/projects/evebash/builds/a9a75698-eb37-4574-8e81-0dbe8c4264af). The 12:52 staging build that day (0b4a8601, b55bee25) is older than the fix. The ping setting is part of the app's fingerprint, so this build has a new runtime (bb5f7021; earlier staging builds 51b6a344): staging over-the-air updates published from now on only reach phones with this build or later. Waits on device test #258 on a real Android phone on mobile data.
+Note 2026-11-26 (evening): device test #258 FAIL, but only on speed: on the iQOO on Jio 4G (Wi-Fi off, build a9a75698, newone2) all 12 event opens worked and "We couldn't open this gallery" never showed; 10 of 12 were ready in 1.6-3.0 s, one took 7.0 s (21:23 IST, Riya & Arjun's Wedding from Host > Shared; no staging server requests then, so the cause is not known) and one 5.3 s (21:41 IST, guest view, while the staging server's guest-preview-picture took 6.7 s). Details in test #258.
+Note 2026-11-27 (Sarthak with Claude): checked the staging Supabase logs for device test #258. The phone stayed on the Mumbai route (BOM) for its whole time on Jio with build a9a75698 (20:53-21:41 IST, 319 requests), so the route never moved during the test: the dead-connection case itself is proven on the emulator only (20 of 20), not on a real phone. The 7.0 s open (21:23) was not a connection problem: open_gallery reached Supabase at 21:23:21.5 and was answered in 11 ms, and all the event's data arrived within 1.0 s, the same as the two fast opens of that event (21:14 and 21:35, 1.6-1.7 s), with no stall or held-back burst before it. The extra time was on the phone before the request was sent, or in the screenshot timing; the logs can't show which. The 5.3 s guest-view open (21:41) was the server: open_gallery itself took 2.75 s on the staging database (normally 10-270 ms). Sarthak accepted the result and closed this. If "We couldn't open this gallery" or a 20 s wait shows again on Android with build a9a75698 or later, reopen this.
+Fixed in: 6a786ca5 (2026-11-26). The Android app pings its Supabase connection every 2 s (apps/mobile/plugins/withOkHttpHealthPings.js), so a connection killed by a route move is replaced within 2-4 s instead of hanging until the 20 s limit. In Android staging build a9a75698 and later (native change: phones need a new build, an over-the-air update can't carry it). Checked: Android emulator with a frozen connection, 20 of 20 opens in 1.2-3.7 s; device test #258 on a real phone on Jio, 12 of 12 opened with no "We couldn't open this gallery" (accepted as PASS 2026-11-27). Not checked: iPhone (different network code), live.
+
+#243
+Listed: 2026-11-03
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: Device test #180 (which places really break on a phone)
+Found in: Searching the app for the #242 pattern (chat 2026-11-03)
+Issue: Other places where the Android keyboard may cover a text box or its button, like #242. Not checked on a phone yet: the emulator here only shows Gboard's floating keyboard. Same pattern as #242 (keyboard handling only on iOS, inside a pop-up): (1) album page review, "Write a reply" and "Describe the change (optional)" (apps/mobile/components/album/PageReviewer.tsx, about line 416); (2) host page > Add Sub-Gallery (apps/mobile/components/event/modals/SubEventModal.tsx); (3) EB Vault > New folder and Rename (NamePrompt in apps/mobile/components/vault/VaultModals.tsx). No keyboard handling at all, in a pop-up in the middle of the screen, so the keyboard may hide its lower half and the Save button: (4) Host tab > an event's options > Rename Event (apps/mobile/app/(tabs)/gallery.tsx, about line 1186); (5) host event page > pencil next to the title, "Edit Event Title" (apps/mobile/components/event/modals/RenameEventModal.tsx). Full screens with no keyboard handling, fine if Android shrinks the screen for the keyboard: (6) Profile > Edit (the lowest boxes, location and birthday); (7) Contact us (the message box, apps/mobile/app/contact.tsx); (8) the host page's welcome message editor (apps/mobile/app/events/[id].tsx, about line 5413). Not listed: the business screens (Phase 2: chat, vendors, manage business) use the same iOS-only pattern. Fix idea: for each place that fails device test #180, lift the pop-up by the keyboard height with apps/mobile/hooks/use-android-keyboard-height.ts (added for #242; the bottom sheets use it too).
+How to reproduce: Device test #180 on an Android phone with its normal on-screen keyboard.
+Note 2026-11-26: fix written (not pushed). Same lift as #242 (useAndroidKeyboardHeight, 0 on iPhone, so iPhone is unchanged) in the 5 pop-ups that sit inside a Modal: Rename Event (apps/mobile/app/(tabs)/gallery.tsx), Edit Event Title (RenameEventModal.tsx), New Sub-Gallery (SubEventModal.tsx), EB Vault New folder / Rename (NamePrompt in VaultModals.tsx), and the album page review screen (PageReviewer.tsx, a full-screen Modal). Left alone because they are normal screens, not Modals, so Android shrinks them: Profile > Edit, Contact us, the welcome message box. App type check clean. NOT checked on the emulator or a phone: the emulator was never signed in, so the before/after screenshots are missing. Device test #261 (EB-441) covers it.
+Note 2026-11-26: checked on Sarthak's Pixel 8 (Android 16, normal docked Gboard) with a staging over-the-air update (update group f0f545b0, commit 12385d48). PASS, the whole pop-up sits above the keyboard with its box and button visible: New Sub-Gallery, Edit Event Title. FAIL found: Profile > Edit is also a Modal, not a screen as first thought; tapping Location left the box hidden behind the keyboard. Fix added (same lift, profile.tsx) and sent as a second update. The Rename Event pop-up in apps/mobile/app/(tabs)/gallery.tsx can't be opened from anywhere (nothing ever shows its options menu), so it could not be tested; the change there is harmless dead code. Not yet checked: EB Vault name prompt, album page review, Contact us, the welcome message box.
+Note 2026-11-26 (later): Profile > Edit still not good on the Pixel 8 after three small updates (lift, extra scroll room, scroll-to-field): the sheet now sits above the keyboard, but the Location box stays half hidden at the sheet's bottom edge when tapped, and the last update did not change that (not sure the third update had loaded). Scrolling by hand works. Left open: needs a look at why Android does not scroll the tapped field in (profile.tsx, Edit Profile Modal, scrollEditFieldIntoView). Updates published to the staging Android app: f0f545b0, de062212, e2088f55, 3af87c4a; commits 12385d48 (on staging), 6cc8d9e7, dc4b1d8b, 298b807e (local only, not pushed).
+Note 2026-11-26 (Sarthak): Profile > Edit is accepted as it is: the tapped box is half hidden, but scrolling a little shows it, so no more work there. Still unchecked on a phone: EB Vault name prompt, album page review, Contact us, Welcome Message box (device test #261).
+Note 2026-11-26 (Pixel 8, later updates a5d45903 and earlier): PASS: EB Vault New folder (centered above the keyboard, Cancel and Create visible); Profile > Edit (after the scroll-to-field update the tapped box moves up and Save Changes shows above the keyboard); Contact us message box (the page had no scroll room, so the message box was fully hidden; fixed with extra scroll room and scroll-to-end on focus, commit 7e04a856: box and Send Message now above the keyboard). Still not checked on a phone: album page review (needs an event with an album), the host Welcome Message box. The title overlap on Contact us is now #331.
+Fixed in: 7e04a856 (2026-11-26). Fixes for the pop-ups that fail on Android are on staging (12385d48, 298b807e, 7e04a856) and were checked on Sarthak's Pixel 8: New Sub-Gallery, Edit Event Title, EB Vault New folder, Profile > Edit, Contact us message box. Closed by Sarthak's OK with two places not yet checked on a phone: album page review and the host Welcome Message box (device test #261 stays open for them, and for the Contact us header on iPhone, #331).
+Note 2026-11-26 (later): the host Welcome Message box also failed on the Pixel 8 (keyboard fully covered it, the page did not move). Fixed in 9af7da38 (page gets scroll room while the box is edited and scrolls it up; app/events/[id].tsx) and checked on the Pixel 8 through staging update 6a176097: the box shows above the keyboard. Left unchecked on a phone: album page review (device test #261).
+
+
+#331
+Listed: 2026-11-26
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Device test of #243 on Sarthak's Pixel 8 (chat 2026-11-26)
+Issue: On the Contact us screen the "Contact Us" title and back arrow stay fixed at the top of the screen (a transparent header, apps/mobile/app/contact.tsx) while the page scrolls under them, so the title draws on top of the email, business hours and form text and overlaps it. Fix: the title and back arrow are now the first row of the page and scroll away with it (no fixed header). The iPhone screen changes the same way, because it had the same overlap.
+How to reproduce: Profile > Usage & Plan > Support Chat. Scroll the page down: "Contact Us" stays on top of the text.
+Note 2026-11-26: fix on the Pixel 8 (staging update a5d45903, commit d831517c): "Contact Us" and the back arrow are the first row of the page and scroll away with it; no overlap when scrolling. Not pushed yet.
+Fixed in: d831517c (2026-11-26). Checked on Sarthak's Pixel 8 through a staging update (a5d45903): the title and back arrow scroll away with the page and no longer overlap the text. iPhone not checked; device test #261 step 6c.
+
+
+#330
+Listed: 2026-11-26
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Closing #105 (font size cleanup), chat with Sarthak (with Claude), 2026-11-26
+Issue: Part (3) of #105. All 7 Material Symbols font files (about 6.7 MB, more than half of the fonts still in the app) are bundled because expo-symbols is imported through apps/mobile/components/ui/icon-symbol.tsx and icon-symbol.ios.tsx (used by login, settings, contact, chat, shortlist, customer-chats, business-near-you, sample-galleries and others) and possibly expo-router native tabs. The app draws its Android icons with MaterialIcons, so these fonts may never be shown on Android. Not checked: which screens and platforms really draw a Material Symbols glyph. Plan: (1) list every IconSymbol and native-tab use and which platform renders it; (2) if no screen needs the fonts, stop them being bundled and re-run expo export to confirm about 6.7 MB less; (3) add a device test that checks every tab and icon on Android and iPhone. Removing them wrongly could blank icons, so it needs a new app build and a device check. Ask before changing dependencies or app config.
+How to reproduce: cd apps/mobile && npx expo export --platform android --output-dir /tmp/x: 7 MaterialSymbols*.ttf files in the Assets list (about 6.7 MB).
+Note 2026-11-26: Cause found: our IconSymbol never draws a Material Symbol on Android (it uses MaterialIcons), but expo-router's native-tab code imports expo-symbols, whose SymbolView imports useFonts from the ROOT of @expo-google-fonts/material-symbols, and that root file require()s all 7 weights. expo-symbols itself only loads the Regular weight. Fix (branch, not pushed yet): apps/mobile/metro.config.js points that one root import at the package's own useFonts.js (same function), so only the Regular weight stays. expo export: Android fonts 25 -> 19 files, 11.91 -> 6.08 MB (5.83 MB less); iPhone unchanged (never had them). Device test #260.
+Fixed in: 7910443c (2026-11-26). apps/mobile/metro.config.js points expo-symbols' root import of @expo-google-fonts/material-symbols at the package's useFonts.js, so only the Regular weight is bundled; Android fonts 11.91 -> 6.08 MB (5.83 MB less), iPhone unchanged. Staging update cec62afa; device test #260 PASS on the Pixel 8.
+
+#105
+Listed: 2026-10-22
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: App size check with expo export (2026-10-22)
+Issue: The app bundle ships about 15 MB of font files it never loads. Importing from a @expo-google-fonts package's root (import { Inter_400Regular } from '@expo-google-fonts/inter') pulls in every weight, because the package index require()s all of them. (1) apps/mobile/app/_layout.tsx uses 6 Inter weights but ships all 18 (about 4.1 MB extra). (2) The in-progress Royal Emerald work, apps/mobile/components/royal/royalFonts.ts, uses 2 Cinzel and 2 Cormorant Garamond faces but ships 6 and 10 (about 4.6 MB extra). (3) All 7 Material Symbols weights (about 6.7 MB) come in through expo-symbols (expo-router native tabs and components/ui/icon-symbol*.tsx); the app draws its Android icons with MaterialIcons, so these may not be needed - test before removing. Fix for (1) and (2): import each face from its own file, e.g. require('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'). Fonts that aren't loaded don't slow startup; this is download and install size only.
+How to reproduce: cd apps/mobile && npx expo export --platform android --output-dir /tmp/x: the Assets list shows all Inter, Cinzel, Cormorant Garamond and Material Symbols weights.
+Note 2026-10-28: Sunlit Portrait's Instrument Serif (apps/mobile/components/portrait/portraitFonts.ts) now imports its one face from its own file (c1373c6), not the package root (which also bundled the unused italic, ~70 KB). Still open: royalFonts.ts and Material Symbols.
+Note 2026-10-27: Part (1) fixed: apps/mobile/app/_layout.tsx now imports each Inter weight from its own file (@expo-google-fonts/inter/400Regular etc.). expo export --platform android now lists only the 6 Inter weights used (about 2 MB). Needs a new app build to reach phones. Parts (2) royalFonts.ts (left alone, belongs to the Royal Emerald work in #97) and (3) Material Symbols are still open.
+Note 2026-11-26: Part (2) done on branch (not pushed yet): royalFonts.ts and classicFonts.ts (Classic White's Playfair, which had the same root-import problem) now import each face from its own file. expo export --platform android: font files 46 -> 25 (18.18 MB -> 11.91 MB), all assets 19.49 -> 13.22 MB, 6.27 MB saved. Remaining font weight is mostly the 7 Material Symbols (part 3, still open, not touched: needs a check of expo-symbols/native tabs on a build). The 7 other .ttf files in apps/mobile/assets/fonts are not required by any code and are not in the bundle already (only AkayaKanadaka is). Needs a new app build; device test #259. Part (3) Material Symbols moved to issue #330.
+Fixed in: 8b2b3fd7 (2026-11-26). royalFonts.ts and classicFonts.ts import each font face from its own file; Android export 6.27 MB smaller (font files 46 -> 25). Device test #259 PASS (Pixel 8 with staging update 335bc23a; iPhone 16e simulator development build). Part (3) Material Symbols moved to #330.
+
 #329
 Listed: 2026-11-26
 Platform: Both
 Priority: High
-Status: In progress
+Status: Fixed
 Owner: Shwetank (with Claude)
 Blocked by: -
 Found in: Shwetank on staging, chat with Claude, 2026-11-26
@@ -1151,8 +1275,8 @@ How to reproduce: as a guest admin on the website: Host > Shared > the event > P
 Update 2026-11-26: fixed on staging in d4975182. Database (migration 20261126120000, staging only): eb_private/public.can_manage_event_admins (owner, their delegated account manager, platform admin) and trigger guests_admin_guard refuses a change of can_admin, any change to an admin's status/upload/comment, and removing an admin by anyone else (checked on staging as newone2 and newone1, rolled back). Backend: the four guest routes answer 403 code owner_only_admin for the same changes (2 tests, 200/200 pass). Website and app: the Admin switch is locked with "Only the event owner can change this", and admins have no remove button, for non-owners. Left: device test #257, then the live database migration (needs OK) with the release.
 Update 2026-11-26 (later): device test #257 PASS (website and steps 3-5 by Shwetank; app on real Android and the iPhone simulator by Claude). Left: migration 20261126120000 on the live database (needs OK), at the staging-to-main release.
 Update 2026-11-26 (live DB): with Shwetank's OK, migration 20261126120000 applied on the live database (prerequisites checked first). Checked on live with a real admin row, rolled back: can_manage_event_admins false for the admin, true for the owner; the admin's own Admin-off was refused; the row is unchanged. Until the release, the live backend (service role) still lets admins change admins through its routes; the release (PR with #327-#329) closes that. Left: merge, then a live check.
+Fixed in: d4975182 (2026-11-26), released to live in PR #35 (46f28415); live database migration applied the same day. Live backend deployed and answering (guest routes need a login). The live app gets the app part with the next production app update.
 
-RECENTLY FIXED (delete entries older than 7 days)
 #328
 Listed: 2026-11-26
 Platform: Both

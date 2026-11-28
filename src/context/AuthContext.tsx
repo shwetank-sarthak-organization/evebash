@@ -53,10 +53,18 @@ interface AuthContextType {
     authWithEmail: (name: string, email: string, password: string) => Promise<{success: boolean, error?: string}>;
     logout: () => void;
     loading: boolean;
+    /**
+     * Lets the upload panel check before logging out (#301): the guard may ask the person and stop their uploads;
+     * returning false keeps them logged in. Returns a function that removes the guard.
+     */
+    setLogoutGuard: (guard: () => boolean) => () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const AUTH_SESSION_TIMEOUT_MS = 10_000;
+// Each profile channel gets its own name (#335): removeChannel finishes later, and asking for a channel with the
+// same name before then hands back the old, already subscribed one, whose .on() throws
+let profileChannelSeq = 0;
 
 function getSessionWithTimeout() {
     return new Promise<Awaited<ReturnType<typeof supabase.auth.getSession>>>((resolve, reject) => {
@@ -154,6 +162,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const activeHydrations = useRef(new Set<string>());
     const currentUserId = useRef<string | null>(null);
     const currentUserData = useRef<AppUser | null>(null);
+    const logoutGuard = useRef<(() => boolean) | null>(null);
+    const setLogoutGuard = useCallback((guard: () => boolean) => {
+        logoutGuard.current = guard;
+        return () => { if (logoutGuard.current === guard) logoutGuard.current = null; };
+    }, []);
 
     const applyPendingPlanChangeIfDue = useCallback(async () => {
         const { data } = await getSessionWithTimeout();
@@ -227,14 +240,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         let isMounted = true;
         let profileChannel: ReturnType<typeof supabase.channel> | null = null;
+        let profileChannelUid: string | null = null;
 
         const subscribeToProfile = (uid: string, email: string | null, fallbackName: string) => {
+            // Already listening for this person (the session load and the auth listener both call this)
+            if (profileChannel && profileChannelUid === uid) return;
             if (profileChannel) {
-                supabase.removeChannel(profileChannel);
+                void supabase.removeChannel(profileChannel);
             }
 
+            profileChannelUid = uid;
             profileChannel = supabase
-                .channel(`web-profile-${uid}`)
+                .channel(`web-profile-${uid}-${++profileChannelSeq}`)
                 .on(
                     "postgres_changes",
                     { event: "*", schema: "public", table: "profiles", filter: `id=eq.${uid}` },
@@ -339,8 +356,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     subscribeToProfile(session.user.id, session.user.email || null, fallbackName);
                 } else {
                     if (profileChannel) {
-                        supabase.removeChannel(profileChannel);
+                        void supabase.removeChannel(profileChannel);
                         profileChannel = null;
+                        profileChannelUid = null;
                     }
                     currentUserId.current = null;
                     currentUserData.current = null;
@@ -533,6 +551,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = async () => {
+        // Files still uploading: asks first and stops them, so nothing is saved without a login or under the next account (#301)
+        if (logoutGuard.current && !logoutGuard.current()) return;
         try {
             // Only this device: the default ('global') also signs the account out on its other phones and browsers
             await supabase.auth.signOut({ scope: 'local' });
@@ -546,7 +566,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, signup, loginWithGoogle, resetPassword, authWithPhone, authWithEmail, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, signup, loginWithGoogle, resetPassword, authWithPhone, authWithEmail, logout, loading, setLogoutGuard }}>
             <PolicyAcceptanceGate userId={user?.uid} onSignOut={logout}>{children}</PolicyAcceptanceGate>
         </AuthContext.Provider>
     );

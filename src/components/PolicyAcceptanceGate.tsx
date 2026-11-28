@@ -29,7 +29,7 @@ export function PolicyAcceptanceGate({ userId, onSignOut, children }: { userId?:
     setAcceptedUser(''); setChecked(false); setReady(false); setError('');
     if (!userId) return;
     void (async () => {
-      const { data, error } = await supabase.rpc('get_policy_acceptance');
+      const { data, error } = await supabase.rpc('get_current_policy_acceptance');
       if (error) throw error;
       if (data?.version !== POLICY_VERSION || typeof data?.accepted !== 'boolean') throw new Error('Please refresh to load the latest policies.');
       if (!active) return;
@@ -39,7 +39,7 @@ export function PolicyAcceptanceGate({ userId, onSignOut, children }: { userId?:
       let intent: string | null = null;
       try { intent = sessionStorage.getItem(POLICY_PENDING_KEY); } catch { /* Explicit confirmation remains available. */ }
       if (email && sessionData.session?.user.id === userId && matchesAcceptanceIntent(intent, email)) {
-        const { error: saveError } = await supabase.rpc('accept_current_policies', { p_version: POLICY_VERSION, p_platform: 'web', p_accepted: true });
+        const { error: saveError } = await supabase.rpc('accept_policies', { p_version: POLICY_VERSION, p_platform: 'web', p_accepted: true });
         if (saveError) throw saveError;
         try { sessionStorage.removeItem(POLICY_PENDING_KEY); } catch { /* Best effort. */ }
         if (active) setAcceptedUser(userId);
@@ -51,7 +51,7 @@ export function PolicyAcceptanceGate({ userId, onSignOut, children }: { userId?:
     if (!checked || busy || !ready || !userId) return;
     setBusy(true); setError('');
     try {
-      const { error } = await supabase.rpc('accept_current_policies', { p_version: POLICY_VERSION, p_platform: 'web', p_accepted: true });
+      const { error } = await supabase.rpc('accept_policies', { p_version: POLICY_VERSION, p_platform: 'web', p_accepted: true });
       if (error) throw error;
       setAcceptedUser(userId);
     } catch { setError('Your acceptance could not be saved. Please try again.'); }
@@ -61,7 +61,7 @@ export function PolicyAcceptanceGate({ userId, onSignOut, children }: { userId?:
   return <dialog ref={dialog} onCancel={e => e.preventDefault()} aria-labelledby="policy-title" className={cn(modalStyles.dialog, 'max-w-lg')}>
     <h2 id="policy-title" className={modalStyles.title}>Before you continue</h2>
     <p className={cn(modalStyles.body, 'my-4')}>Please review EveBash’s terms and privacy information. This does not grant optional permissions for Find You or marketing.</p>
-    {ready ? <label className="flex items-start gap-3"><input type="checkbox" checked={checked} disabled={busy} onChange={e => setChecked(e.target.checked)} className="mt-1 h-5 w-5 accent-[#CA9C68]" /><span className="text-sm text-[var(--site-subtle)]">I agree to the <a className="underline" href="/terms-and-conditions" target="_blank" rel="noopener noreferrer">Terms &amp; Conditions</a> and acknowledge the <a className="underline" href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</span></label> : !error && <p role="status">Checking policy acceptance…</p>}
+    {ready ? <label className="flex items-start gap-3"><input type="checkbox" checked={checked} disabled={busy} onChange={e => setChecked(e.target.checked)} className="mt-1 h-5 w-5 accent-[#CA9C68]" /><span className="text-sm text-[var(--site-subtle)]">I confirm I am 18 or older, agree to the <a className="underline" href="/terms-and-conditions" target="_blank" rel="noopener noreferrer">Terms &amp; Conditions</a> and acknowledge the <a className="underline" href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</span></label> : !error && <p role="status">Checking policy acceptance…</p>}
     {error && <p role="alert" className={cn(modalStyles.error, 'mt-4')}>{error}</p>}
     <div className={modalStyles.actions}><button disabled={busy} onClick={onSignOut} className={modalStyles.secondary}>Sign out</button>{!ready && error ? <button onClick={() => setRetry(n => n + 1)} className={modalStyles.secondary}>Retry</button> : <button disabled={!ready || !checked || busy} onClick={() => void accept()} className={modalStyles.primary}>{busy ? 'Saving…' : 'Accept and continue'}</button>}</div>
   </dialog>;

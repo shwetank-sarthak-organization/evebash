@@ -2,6 +2,7 @@ import EventVisibilityControl from '../../components/EventVisibilityControl';
 import VideoThumbnailPicker, { type ThumbnailVideo } from '../../components/VideoThumbnailPicker';
 import { galleryActionText } from '../../constants/galleryContrast';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useAndroidKeyboardHeight } from '@/hooks/use-android-keyboard-height';
 import { StatusBar } from 'expo-status-bar';
 import LoadingScreen from '@/components/LoadingScreen';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler, PanResponder, Animated as RNAnimated, type ViewStyle, type LayoutChangeEvent } from 'react-native';
@@ -777,6 +778,22 @@ function EventDetailScreen() {
   }), [user?.role, user?.planStartDate, user?.planEndDate]);
 
   const scrollViewRef = React.useRef<ScrollView>(null);
+  // Android: while the host's Welcome Message box is being edited the keyboard covers it, so the page gets scroll room
+  // and scrolls the box up (#243). The hook only listens while the box has focus, so nothing else re-renders (0 on iOS).
+  const [welcomeFocused, setWelcomeFocused] = useState(false);
+  const welcomeKeyboardHeight = useAndroidKeyboardHeight(welcomeFocused);
+  const welcomeEditorRef = React.useRef<View>(null);
+  const scrollWelcomeEditorIntoView = () => {
+    if (Platform.OS !== 'android') return;
+    const scroller = scrollViewRef.current as any;
+    const inner = scroller?.getInnerViewRef?.() ?? scroller?.getScrollableNode?.();
+    if (!inner || !welcomeEditorRef.current) return;
+    welcomeEditorRef.current.measureLayout(inner, (_x: number, y: number) => scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 220), animated: true }), () => {});
+  };
+  useEffect(() => {
+    if (welcomeKeyboardHeight > 0) scrollWelcomeEditorIntoView();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [welcomeKeyboardHeight]);
   // Native-driven scroll offset (no re-renders) used to fade in the pinned gallery tabs' background
   const scrollYAnim = React.useRef(new RNAnimated.Value(0)).current;
   const [stickyTabsY, setStickyTabsY] = useState<number | null>(null);
@@ -5703,7 +5720,7 @@ function EventDetailScreen() {
                       </View>
 
                       {/* Welcome Message Editor */}
-                      <View style={{ marginBottom: 24 }}>
+                      <View ref={welcomeEditorRef} style={{ marginBottom: 24 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
                           <Text style={{ color: hostLight ? hp.white : '#fff', fontSize: 13, fontWeight: '600', letterSpacing: 0.5 }}>Welcome Message</Text>
                           <Text style={{ color: (galleryDescText?.length || 0) >= 200 ? (hostLight ? hp.danger : '#ef4444') : (hostLight ? hp.slate600 : 'rgba(255,255,255,0.6)'), fontSize: 11 }}>
@@ -5716,6 +5733,8 @@ function EventDetailScreen() {
                             value={galleryDescText}
                             onChangeText={setGalleryDescText}
                             placeholder="Write a brief, elegant welcome note..."
+                            onFocus={() => setWelcomeFocused(true)}
+                            onBlur={() => setWelcomeFocused(false)}
                             placeholderTextColor={hp.slate600}
                             multiline
                             maxLength={200}
@@ -5761,6 +5780,7 @@ function EventDetailScreen() {
                             })()}
                           </View>
                         </View>
+                        {welcomeKeyboardHeight > 0 ? <View style={{ height: welcomeKeyboardHeight }} /> : null}
                       </View>
 
                       {/* Cinematic Highlight Video (same as the website's panel under the Welcome Message) */}

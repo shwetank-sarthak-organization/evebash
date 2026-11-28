@@ -111,7 +111,7 @@ function LoginContent() {
         }
 
         if (isSignUp) {
-            if (!policiesAccepted) { setError("Please accept the Terms and acknowledge the Privacy Policy."); return; }
+            if (!policiesAccepted) { setError("Please confirm you are 18 or older and accept the Terms and Privacy Policy."); return; }
             if (!isPassValid) {
                 setError("Please meet all password requirements.");
                 return;
@@ -376,7 +376,7 @@ function LoginContent() {
                             <div className="flex flex-col gap-3 py-1">
                                 <label className="flex items-start gap-2.5 text-[15px] leading-[22px] text-[#334155] cursor-pointer">
                                     <input type="checkbox" checked={policiesAccepted} onChange={e => setPoliciesAccepted(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[#8C6434] cursor-pointer" />
-                                    <span>I agree to the Terms &amp; Conditions and acknowledge the Privacy Policy.</span>
+                                    <span>I confirm I am 18 or older, agree to the Terms &amp; Conditions and acknowledge the Privacy Policy.</span>
                                 </label>
                                 <div className="flex gap-5 text-[15px]">
                                     <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-[#8C6434] underline hover:text-[#6F4E28]">Terms &amp; Conditions</a>

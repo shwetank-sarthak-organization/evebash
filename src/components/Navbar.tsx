@@ -101,12 +101,22 @@ export default function Navbar() {
                         {showThemeButton && <ThemeButton />}
 
                         {user ? (
+                            <div className="flex items-center gap-5">
+                            {/* Log out on computer screens too (#336); the phone menu has its own. Same logout(), so it
+                                still asks first while photos are uploading (#301). */}
+                            <button
+                                type="button"
+                                onClick={() => logout()}
+                                className="inline-flex items-center pb-1 border-b-2 border-transparent font-sans text-[15px] font-medium text-[var(--site-muted)] transition-colors hover:text-[var(--site-text)] hover:border-[#906D4B]"
+                            >
+                                Log out
+                            </button>
                             <Link
                                 href="/profile"
                                 aria-label="Profile"
                                 title="Profile"
                                 className={cn(
-                                    "ml-4 flex h-11 w-11 items-center justify-center rounded-full border transition-all",
+                                    "flex h-11 w-11 items-center justify-center rounded-full border transition-all",
                                     pathname === "/profile"
                                         ? "border-[#CA9C68] bg-[#CA9C68] text-[#13191F]"
                                         : "border-slate-700 bg-slate-900 text-slate-300 hover:border-[#CA9C68]/60 hover:bg-slate-800 hover:text-white light:border-[var(--site-border)] light:bg-[var(--site-card)] light:text-[var(--site-muted)] light:hover:bg-[var(--site-surface-2)] light:hover:text-[var(--site-text)]"
@@ -119,6 +129,7 @@ export default function Navbar() {
                                     <ProfileIcon className="h-6 w-6" />
                                 )}
                             </Link>
+                            </div>
                         ) : (
                             <div className="flex items-center gap-6">
                                 <Link

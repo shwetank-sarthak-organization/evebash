@@ -13,6 +13,7 @@ import {
 } from '../../lib/albumApi';
 import { Fonts, MidnightColors } from '../../constants/theme';
 import { AlbumButton, PageStatusChip, useAlbumLook } from './albumUi';
+import { useAndroidKeyboardHeight } from '@/hooks/use-android-keyboard-height';
 import { FavouritePicker } from './FavouritePicker';
 import { VoicePlayer, VoiceRecorder, type VoiceRecording } from './VoiceNote';
 
@@ -287,6 +288,8 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const page = pages[index];
   const insets = useSafeAreaInsets();
+  // Android: this full-screen Modal doesn't shrink for the keyboard; shrink the screen by hand (#243; 0 on iOS)
+  const keyboardHeight = useAndroidKeyboardHeight();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const visibleVersions = useMemo(() => (page ? page.versions.filter((v) => mode === 'photographer' || v.round > 0) : []), [page, mode]);
   const defaultVersion = mode !== 'photographer' ? page?.sentVersion ?? page?.latestVersion : page?.latestVersion;
@@ -384,7 +387,7 @@ export function PageReviewer({ album, pages, labels, index, mode, onIndexChange,
 
   return (
     <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={() => (draft ? setDraft(null) : onClose())}>
-      <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: keyboardHeight }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.headerButton} accessibilityLabel="Close">
             <MaterialIcons name="close" size={24} color={colors.text} />
