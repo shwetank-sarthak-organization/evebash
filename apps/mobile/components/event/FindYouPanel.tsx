@@ -25,10 +25,13 @@ import {
   FIND_YOU_CONSENT_VERSION,
 } from '../../../../shared/legal/findYouConsent';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GAP = 3;
 const PHOTO_COLS = 3;
-const PHOTO_SIZE = (SCREEN_WIDTH - PHOTO_GAP * (PHOTO_COLS + 1)) / PHOTO_COLS;
+// Before the grid is measured: the screen minus the panel's 20 pt padding on each side
+const ESTIMATED_GRID_WIDTH = Dimensions.get('window').width - 40;
+// Tile size from the grid's real width (#294): sizing from the full screen width made 3 tiles too wide for the padded
+// panel, so only 2 fitted per row with an empty strip on the right
+const photoSizeFor = (gridWidth: number) => Math.floor((gridWidth - PHOTO_GAP * (PHOTO_COLS - 1)) / PHOTO_COLS);
 
 import PhotoViewer from '../PhotoViewer';
 import { getGridThumbnail } from '@/lib/imageUrl';
@@ -66,6 +69,8 @@ export function FindYouPanel({
   event = null,
   viewerIdentity = { id: 'anonymous', name: 'Guest' },
 }: FindYouPanelProps) {
+  const [gridWidth, setGridWidth] = useState(ESTIMATED_GRID_WIDTH);
+  const photoSize = photoSizeFor(gridWidth);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'searching' | 'done' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('Upload a selfie to find your photos');
@@ -450,11 +455,11 @@ export function FindYouPanel({
               {matchedPhotos.length} match{matchedPhotos.length === 1 ? '' : 'es'} found in this event
             </Text>
 
-            <View style={panelStyles.photoGrid}>
+            <View style={panelStyles.photoGrid} onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}>
               {matchedPhotos.map((photo, index) => (
                 <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Open matched photo ${index + 1}`}
                   key={photo.id || photo.imageId || index}
-                  style={panelStyles.photoItem}
+                  style={[panelStyles.photoItem, { width: photoSize, height: photoSize }]}
                   activeOpacity={0.85}
                   onPress={() => {
                     setCurrentPhotoIndex(index);
@@ -643,8 +648,6 @@ const panelStyles = StyleSheet.create({
     gap: PHOTO_GAP,
   },
   photoItem: {
-    width: PHOTO_SIZE,
-    height: PHOTO_SIZE,
     borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: '#f0f0f0',
