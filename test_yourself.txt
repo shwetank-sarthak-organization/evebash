@@ -2139,7 +2139,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #83 Download All: real videos in the ZIP, and the host console downloads the whole gallery
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website (staging.evebash.com), computer
 Jira:      EB-313
@@ -2154,14 +2154,20 @@ How to test:
   4. Single download: the download icon on a video card, and the download button in the full-screen
      viewer, save the .mp4 (not a .m3u8).
   5. The progress bar only goes up (no jump back from 100% to 50%).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by: Claude (for Sarthak)
+Device / browser: Claude built-in browser (Chromium) + Playwright Chromium, 1440x900; not a real device
+Build / version: staging.evebash.com as of 2026-11-28 (staging e9ecb237)
+Date tested: 2026-11-28
+Account used: host newone1@email.com (own test event, deleted afterwards); member newone5@email.com (requested access, approved by the host)
+Screenshot / recording: reports/device-tests/test-83-step2-choice-dialog.png, test-83-step4-member-videos.png (local only)
 Fix ref:
-Feedback:
+Feedback: 2026-11-28 Claude: PASS (steps 2 and 3 are outdated, see below). Own event "Claude test #83 - delete me" with Home gallery: 26 photos (24 + two different files both called dup.jpg) and 2 short videos (4 s, 1280x720). Counts showed Photos (26) / Videos (2). Downloads went to the scratchpad, unzipped and checked with ffprobe.
+  Step 1 PASS: as newone5 (approved member) the collection's DOWNLOAD ALL opens "What would you like to download?" (Home only / Entire event). Home only gave a ZIP with 28 files: 26 jpg + 2 real .mp4 (ffprobe: h264 + aac, 1280x720, 4.0 s), 0 .m3u8.
+  Step 2 PASS, outdated wording: the host gallery header button is per tab ("Download photos shown (.ZIP)" on Photos, "Download videos shown (.ZIP)" on Videos) and also opens the Home only / Entire event choice. Home only on Photos = 26 photos (all of them, not only the ~12 on screen); on Videos = both videos (real .mp4); Entire event = folder Home/ with 26 photos + 2 videos = 28, matches the counts. A host who wants photos and videos in one ZIP needs Entire event (or the member Download All).
+  Step 3 PASS, outdated wording: both dup.jpg files are in every ZIP and both match the originals (different md5). Names are now made unique by an id prefix (Home only) or kept as dup.jpg twice in the Entire event ZIP's Home folder, not name_2.jpg. Entry should be rewritten.
+  Step 4 PASS: the "Download original" icon on a video card and the download button in the full-screen viewer each saved the original clip1.mp4 (1,617,899 bytes, plays, 4 s), not an .m3u8. Done as the member.
+  Step 5 PASS: sampled the % every 200 ms for the host Home only, host Entire event and member downloads: 0, 3, 7, 10 ... 87 then the file; always rising, never going back.
+  Not done: nothing. Playwright MCP was unreachable at first (retried), and the passwordless sign-in needed your OK. Cleanup: test event deleted (host list shows only the 3 older events), downloads and test files removed, newone5 was in the isolated context (closed) and the Playwright session cleared locally.
 
 --------------------------------------------------------------------------------
 #84 Logged-out visitors of a public gallery: like, comment and download ask them to log in
