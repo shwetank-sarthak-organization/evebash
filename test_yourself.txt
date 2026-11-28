@@ -542,7 +542,7 @@ Feedback: Steps 1-3 PASS: a folder and a file moved to Trash show "Deleted 28 Oc
   Cleanup: trashed and deleted forever claude-t23-file.bin and claude-t23-folder (its files went with it); Vault is back to 1.46 MB. The 3 other Trash items were left alone; Claude's 2026-10-28 test files were no longer in Trash.
 
 #24 EB Vault - privacy and storage limits
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website
 Jira:      EB-261
@@ -551,14 +551,14 @@ How to test:
   2. On a Free account: upload a file over 200 MB. Expect "Files on your plan can be up to 200 MB each."
   3. On a Free account near 1 GB (events + Vault): upload something that doesn't fit.
      Expect the storage-limit message and no upload.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by: Claude (for Sarthak)
+Device / browser: Playwright Chromium 1440x900 (computer browser, not a real device)
+Build / version: staging.evebash.com as of 2026-11-28 (staging f2dc0259)
+Date tested: 2026-11-28
+Account used: A = newone1@email.com (Starter, 10 GB), B = newone4@email.com (Free, 1 GB)
+Screenshot / recording: reports/device-tests/test-24-step1.png, -step2.png, -step3.png (local only)
 Fix ref:
-Feedback:
+Feedback: 2026-11-28 Claude: Step 1 PASS: newone1 uploaded a-secret.png; as newone4 My Files, Recent and Starred were empty and searching a-secret found nothing. Step 2 PASS (newone4, Free): a 201 MB file was refused with "Files on your plan can be up to 200 MB each." and nothing was listed. Step 3 PASS (newone4, Free): five 190 MB files took Vault to 950 MB of 1 GB; a 150 MB file was refused with "There isn't enough storage left on your plan for this. Free up space or upgrade your plan." and not listed, storage stayed 950 MB. Cleanup: filler moved to Trash and removed with Delete forever; newone4 back to 0 KB of 1 GB; newone1 test file deleted forever, newone1 back to Vault 1.46 MB / 985.67 MB of 10 GB.
 
 --------------------------------------------------------------------------------
 #25 EB Vault - long video keeps playing after a pause
