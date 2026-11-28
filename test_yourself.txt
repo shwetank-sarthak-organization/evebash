@@ -8445,7 +8445,7 @@ Fix ref:
 Feedback:
 
 #271 App (iPhone): host photo viewer buttons don't cover Likes / Comments / Report while typing (issue #305)
-Status:    TODO
+Status:    PASS
 Priority:  Low
 Platform:  iOS (staging app with update 2026-11-28 or later)
 Jira:      EB-458
@@ -8457,11 +8457,11 @@ How to test:
   2. Scroll down to the Guestbook and tap "Share a wish..." so the keyboard opens.
      Expect: the Likes / Comments / Report row is fully visible; no star, rotate, download or X buttons on it.
   3. Close the keyboard. Expect: the star, rotate, download and X buttons are back at the top.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
-Screenshot / recording:
+Done by:          Shwetank
+Device / browser: Shwetank's iPhone ("shwetank-iphone"), iOS 26
+Build / version:  EAS iOS staging build 2327a938 with the 2026-11-28 staging updates
+Date tested:      2026-11-28
+Account used:     newone1 (host), Staging test 1 - Sub Gallery
+Screenshot / recording: none kept
 Fix ref:
-Feedback:
+Feedback:         PASS. Keyboard open: the Likes / Comments / Report row is clear, no floating buttons on it. Keyboard closed: star, rotate, download and X are back at the top.
