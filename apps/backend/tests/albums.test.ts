@@ -188,11 +188,22 @@ async function startServer(overrides: Partial<AlbumRouterDeps> = {}) {
     });
     return { status: response.status, json: await response.json() as any };
   };
-  return { ...fake, stored, pushes, call, setStorage: (s: 'ok' | 'full') => { storage = s; }, close: () => server.close() };
+  return { ...fake, stored, pushes, call, setStorage: (s: 'ok' | 'full') => { storage = s; }, close: () => new Promise<void>((resolve) => {
+    // Wait until the server and its connections are really gone, so the next test's server (which may get the same
+    // port) never receives this one's requests (#179)
+    server.closeAllConnections();
+    server.close(() => resolve());
+  }) };
 }
 
 const jpeg = (width: number, height: number) => sharp({ create: { width, height, channels: 3, background: { r: 200, g: 120, b: 80 } } }).jpeg().toBuffer();
+// A short pause, for checks that something did NOT happen in the background
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+// Waits until background work (deleting files) is done, up to 2 s, instead of a fixed pause a busy machine can miss (#179)
+async function waitFor(check: () => boolean, ms = 2000) {
+  const end = Date.now() + ms;
+  while (!check() && Date.now() < end) await new Promise((resolve) => setTimeout(resolve, 10));
+}
 
 test('album proofing is off unless switched on', async () => {
   const s = await startServer({ enabled: () => false });
@@ -202,7 +213,7 @@ test('album proofing is off unless switched on', async () => {
     const list = await s.call(DESIGNER, 'GET', `/?eventId=${EVENT}`);
     assert.equal(list.status, 503);
     assert.equal(list.json.code, 'disabled');
-  } finally { s.close(); }
+  } finally { await s.close(); }
 });
 
 test('only signed-in event managers can use albums', async () => {
@@ -218,7 +229,7 @@ test('only signed-in event managers can use albums', async () => {
     assert.equal((await s.call(STRANGER, 'GET', `/${created.json.album.id}`)).status, 403);
     assert.equal((await s.call(DESIGNER, 'GET', `/${randomUUID()}`)).status, 404);
     assert.equal((await s.call(DESIGNER, 'POST', '/', { eventId: EVENT, title: '   ', ...ROLES })).status, 400);
-  } finally { s.close(); }
+  } finally { await s.close(); }
 });
 
 test('a page upload keeps only a preview and a thumbnail, and detects spreads', async () => {
@@ -248,7 +259,7 @@ test('a page upload keeps only a preview and a thumbnail, and detects spreads', 
     assert.deepEqual(full.json.album.pages.map((p: any) => [p.position, p.status, p.versions[0].fileName]), [[1, 'draft', '01.jpg'], [2, 'draft', '02.jpg'], [3, 'draft', null]]);
     assert.equal(full.json.album.status, 'draft');
     assert.equal(full.json.album.unsentCount, 3);
-  } finally { s.close(); }
+  } finally { await s.close(); }
 });
 
 test('uploads that are not images, too large, or over the plan are refused', async () => {
@@ -267,7 +278,7 @@ test('uploads that are not images, too large, or over the plan are refused', asy
     assert.equal(full.status, 413);
     assert.equal(full.json.code, 'storage_full');
     assert.equal(s.stored.size, 0, 'nothing was stored');
-  } finally { s.close(); }
+  } finally { await s.close(); }
 });
 
 test('review rounds: drafts, feedback, new versions and approval', async () => {
@@ -347,7 +358,7 @@ test('review rounds: drafts, feedback, new versions and approval', async () => {
     assert.equal((await s.call(COUPLE, 'POST', `/${album.id}/pages/${p1}/comments`, { body: 'one more' })).json.code, 'album_approved');
     const reopened = await s.call(DESIGNER, 'POST', `/${album.id}/reopen`);
     assert.equal(reopened.json.album.status, 'in_review');
-  } finally { s.close(); }
+  } finally { await s.close(); }
 });
 
 test('approving a page settles its open requests', async () => {
@@ -363,7 +374,7 @@ test('approving a page settles its open requests', async () => {
     assert.equal(approved.json.album.pages[0].comments[0].status, 'done');
     const undone = await s.call(COUPLE, 'POST', `/${album.id}/pages/${p1}/approval`, { approved: false });
     assert.equal(undone.json.album.pages[0].status, 'pending');
-  } finally { s.close(); }
+  } finally { await s.close(); }
 });
 
 test('voice notes: stored as audio, replaceable, author only', async () => {
@@ -383,10 +394,10 @@ test('voice notes: stored as audio, replaceable, author only', async () => {
     assert.equal(first.json.comment.voiceSeconds, 4.2);
     const second = await s.call(COUPLE, 'PUT', `/${album.id}/comments/${comment.id}/voice?seconds=3`, audio, { 'content-type': 'audio/mp4' });
     assert.match(second.json.comment.voiceUrl, /\.m4a$/);
-    await settle();
+    await waitFor(() => [...s.stored.keys()].filter((k) => k.includes('/voice/')).length === 1);
     assert.deepEqual([...s.stored.keys()].filter((k) => k.includes('/voice/')).map((k) => k.split('.').pop()), ['m4a'], 'the replaced recording was deleted');
     assert.equal([...s.stored.values()].find((f) => f.contentType === 'audio/mp4')?.body.length, 2048);
-  } finally { s.close(); }
+  } finally { await s.close(); }
 });
 
 test('deleting an album deletes its files', async () => {
@@ -398,10 +409,10 @@ test('deleting an album deletes its files', async () => {
     assert.equal(s.stored.size, 4);
     assert.equal((await s.call(STRANGER, 'DELETE', `/${album.id}`)).status, 403);
     assert.equal((await s.call(DESIGNER, 'DELETE', `/${album.id}`)).status, 200);
-    await settle();
+    await waitFor(() => s.stored.size === 0);
     assert.equal(s.stored.size, 0);
     assert.equal((await s.call(DESIGNER, 'GET', `/?eventId=${EVENT}`)).json.albums.length, 0);
-  } finally { s.close(); }
+  } finally { await s.close(); }
 });
 
 test('pages can be reordered, relaid out and removed', async () => {
@@ -417,7 +428,7 @@ test('pages can be reordered, relaid out and removed', async () => {
     assert.equal(relaid.json.album.pages[1].layout, 'single');
     const removed = await s.call(DESIGNER, 'DELETE', `/${album.id}/pages/${ids[1]}`);
     assert.equal(removed.json.album.pages.length, 2);
-  } finally { s.close(); }
+  } finally { await s.close(); }
 });
 
 test('preview processing handles CMYK, rotation and tiny files', async () => {
@@ -479,7 +490,7 @@ test('roles: only the host and guest admins can be picked, and each role does it
     assert.equal((await s.call(DESIGNER, 'POST', `/${album.id}/pages`, await jpeg(900, 300))).status, 403, 'the old photographer can no longer upload');
     assert.equal((await s.call(ADMIN, 'POST', `/${album.id}/pages`, await jpeg(900, 300))).status, 201, 'the new photographer can');
     assert.equal((await s.call(COUPLE2, 'POST', `/${album.id}/pages/${page}/approval`, {})).status, 403, 'removed from the client');
-  } finally { s.close(); }
+  } finally { await s.close(); }
 });
 
 test('albums made before roles existed ask for roles before anything else', async () => {
@@ -494,5 +505,5 @@ test('albums made before roles existed ask for roles before anything else', asyn
     assert.equal(upload.status, 409);
     assert.equal(upload.json.code, 'not_ready');
     assert.equal((await s.call(DESIGNER, 'PUT', `/${album.id}/roles`, ROLES)).json.album.rolesAssigned, true);
-  } finally { s.close(); }
+  } finally { await s.close(); }
 });
